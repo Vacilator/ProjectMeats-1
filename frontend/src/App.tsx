@@ -46,6 +46,7 @@ import Customers from './pages/Customers';
 import UniversalEntityRecordPage from './pages/Entities/UniversalEntityRecordPage';
 import UniversalEntityRecordRoute from './pages/Entities/UniversalEntityRecordRoute';
 import PurchaseOrders from './pages/PurchaseOrders';
+import PurchaseOrderReview from './pages/PurchaseOrderReview';
 import SalesOrders from './pages/SalesOrders';
 import AccountsReceivables from './pages/AccountsReceivables';
 import Payables from './pages/Payables';
@@ -317,6 +318,7 @@ const App: React.FC = () => {
                 
                 {/* Orders */}
                 <Route path="purchase-orders" element={<PurchaseOrders />} />
+                <Route path="purchase-orders/:id/review" element={<PurchaseOrderReview />} />
                 <Route path="purchase-orders/attachments" element={<ComingSoon title="Purchase Order Attachments" description="View and manage attachments for purchase orders." />} />
                 <Route path="sales-orders" element={<SalesOrders />} />
                 <Route path="sales-orders/attachments" element={<ComingSoon title="Sales Order Attachments" description="View and manage attachments for sales orders." />} />

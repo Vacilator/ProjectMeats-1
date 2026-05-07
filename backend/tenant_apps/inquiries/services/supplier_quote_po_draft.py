@@ -379,7 +379,7 @@ def _email_feedback_document_id(*, message_id: Any, email_log_id: Any) -> uuid.U
 
 
 def _purchase_order_review_target_url(purchase_order_id: int) -> str:
-    return f"/purchase-orders?review=purchase_order&purchase_order={purchase_order_id}"
+    return f"/purchase-orders/{purchase_order_id}/review"
 
 
 def _normalize_uom(value: Any) -> str:

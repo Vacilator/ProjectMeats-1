@@ -1231,8 +1231,8 @@
   - **Rollback:** Revert approval contract/service and keep document creation in draft/manual status.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4933)
 
-- [ ] **CTE-03.2 supplier-po-review-and-approve-screen**
-  - **Status:** Ready
+- [x] **CTE-03.2 supplier-po-review-and-approve-screen**
+  - **Status:** Shipped
   - **Why now:** Traders need a purpose-built review surface to inspect draft supplier POs before the engine commits externally.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
   - **Scope:** Build the supplier-PO review/approve UI and API flow that surfaces draft source data, inquiry lineage, parsed quote details, and approval actions on top of the generic approval contract.
@@ -1247,10 +1247,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
   - **Rollback:** Revert the review UI/API and preserve draft orders plus approval metadata.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4934)
 
 - [ ] **CTE-03.3 supplier-po-approved-pdf-generation-and-email-send**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Supplier PO approval should eliminate document busywork and send the approved commitment immediately through a deterministic side-effect path.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
   - **Scope:** Tie `PurchaseOrder` approval transitions to PDF generation and supplier outbound email, making both side effects idempotent, auditable, and driven by explicit approved-state changes rather than ad hoc UI actions.
@@ -1258,7 +1258,7 @@
   - **Primary domain:** backend/documents/integrations
   - **Likely touched paths:** `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/workflows/services/action_executor.py`, document-generation services, email send services, related tests
   - **Dependencies:** CTE-03.2
-  - **Blockers:** CTE-03.2
+  - **Blockers:** None
   - **Acceptance criteria:**
     1. Approving a supplier PO generates the approved PDF exactly once.
     2. The supplier email send is tied to the same approval transition and persists audit/send evidence.

@@ -103,7 +103,7 @@ class PendingReviewViewTests(TestCase):
             original_extracted_data={
                 'order_number': '226001',
                 'supplier_name': 'Quoted Supplier',
-                'review_target_url': '/purchase-orders?review=purchase_order&purchase_order=44',
+                'review_target_url': '/purchase-orders/44/review',
                 'status': 'draft',
             },
         )
@@ -118,7 +118,7 @@ class PendingReviewViewTests(TestCase):
         payload = next(item for item in response.data['results'] if str(item['id']) == str(feedback.id))
         self.assertEqual(payload['intent_label'], 'Purchase Order')
         self.assertEqual(payload['review_entity_type'], 'purchase_order')
-        self.assertEqual(payload['review_target_url'], '/purchase-orders?review=purchase_order&purchase_order=44')
+        self.assertEqual(payload['review_target_url'], '/purchase-orders/44/review')
 
     def test_contextual_suggestions_returns_plant_continuity_actions(self):
         plant = Plant.objects.create(

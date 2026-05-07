@@ -4,6 +4,7 @@ import { ClipboardList } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
+import { buildPurchaseOrderReviewPath } from '@/services/purchaseOrderReviewService';
 import { apiClient, apiService, PurchaseOrder, Supplier } from '../services/apiService';
 import {
   TransactionalEmptyState,
@@ -518,6 +519,16 @@ const PurchaseOrders: React.FC = () => {
     pick_up_location: null, // Phase 4: Location integration
     delivery_location: null, // Phase 4: Location integration
   });
+
+  useEffect(() => {
+    const reviewType = searchParams.get('review');
+    const purchaseOrderId = searchParams.get('purchase_order');
+    if (reviewType !== 'purchase_order' || !purchaseOrderId) {
+      return;
+    }
+
+    navigate(buildPurchaseOrderReviewPath(purchaseOrderId), { replace: true });
+  }, [navigate, searchParams]);
 
   // Auto-open form if ?action=create in URL (e.g., from Cockpit suggested actions)
   useEffect(() => {

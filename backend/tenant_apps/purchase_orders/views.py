@@ -9,9 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError
+from tenant_apps.inquiries.models import Inquiry, InquirySupplierRFQ
 from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder, PurchaseOrderHistory
 from tenant_apps.purchase_orders.serializers import (
     CarrierPurchaseOrderSerializer,
+    PurchaseOrderReviewContextSerializer,
     PurchaseOrderSerializer,
     PurchaseOrderHistorySerializer,
 )
@@ -172,6 +174,86 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
 
         serializer = PurchaseOrderHistorySerializer(history_entries, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="review-context")
+    def review_context(self, request, pk=None):
+        purchase_order = self.get_object()
+        serializer = PurchaseOrderReviewContextSerializer(
+            self._build_review_context(request, purchase_order)
+        )
+        return Response(serializer.data)
+
+    def _build_review_context(self, request, purchase_order: PurchaseOrder) -> dict[str, object]:
+        custom_data = dict(purchase_order.custom_data or {})
+        source_lineage = dict(custom_data.get("source_lineage") or {})
+        review_state = str(custom_data.get("review_state") or "").strip()
+        inquiry = self._resolve_review_inquiry(
+            request=request,
+            purchase_order=purchase_order,
+            source_lineage=source_lineage,
+        )
+        rfq = self._resolve_review_rfq(
+            request=request,
+            purchase_order=purchase_order,
+            inquiry=inquiry,
+            source_lineage=source_lineage,
+        )
+        normalized_quote = dict(custom_data.get("normalized_quote") or {})
+        supplier_reply_parse = dict(custom_data.get("supplier_reply_parse") or {})
+        return {
+            "purchase_order": purchase_order,
+            "review_state": review_state,
+            "review_context_complete": bool(
+                review_state and source_lineage and inquiry and rfq and normalized_quote and supplier_reply_parse
+            ),
+            "source_lineage": source_lineage or None,
+            "inquiry": inquiry,
+            "rfq": rfq,
+            "normalized_quote": normalized_quote or None,
+            "supplier_reply_parse": supplier_reply_parse or None,
+        }
+
+    def _resolve_review_inquiry(
+        self,
+        *,
+        request,
+        purchase_order: PurchaseOrder,
+        source_lineage: dict[str, object],
+    ) -> Inquiry | None:
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return None
+
+        queryset = Inquiry.objects.for_tenant(tenant).select_related(
+            "customer",
+            "supplier",
+            "requested_master_product",
+        )
+        inquiry_id = source_lineage.get("inquiry_id")
+        if inquiry_id:
+            queryset = queryset.filter(id=inquiry_id)
+        return queryset.filter(supplier_purchase_order=purchase_order).first()
+
+    def _resolve_review_rfq(
+        self,
+        *,
+        request,
+        purchase_order: PurchaseOrder,
+        inquiry: Inquiry | None,
+        source_lineage: dict[str, object],
+    ) -> InquirySupplierRFQ | None:
+        tenant = getattr(request, "tenant", None)
+        if tenant is None or inquiry is None:
+            return None
+
+        queryset = InquirySupplierRFQ.objects.for_tenant(tenant).select_related("supplier").filter(
+            inquiry=inquiry,
+            supplier_id=purchase_order.supplier_id,
+        )
+        rfq_id = source_lineage.get("rfq_id")
+        if rfq_id:
+            queryset = queryset.filter(id=rfq_id)
+        return queryset.first()
 
 
 class CarrierPurchaseOrderViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):

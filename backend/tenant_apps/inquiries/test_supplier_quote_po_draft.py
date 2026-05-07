@@ -204,7 +204,7 @@ class SupplierQuotePODraftServiceTests(TestCase):
         self.assertEqual(feedback.document_type, "purchase_order")
         self.assertEqual(
             feedback.original_extracted_data["review_target_url"],
-            f"/purchase-orders?review=purchase_order&purchase_order={purchase_order.id}",
+            f"/purchase-orders/{purchase_order.id}/review",
         )
 
     def test_create_supplier_quote_po_draft_is_idempotent_for_same_rfq(self):
