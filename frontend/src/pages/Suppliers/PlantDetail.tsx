@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
-import { ActivityFeed } from '@/components/Shared';
+import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
@@ -38,6 +38,7 @@ const asRows = (payload: unknown): any[] => {
 export const PlantDetail: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { supplierId, plantId } = useParams<RouteParams>();
   const startEditing = Boolean(
     (location.state as { startEditing?: boolean } | null)?.startEditing
@@ -48,6 +49,7 @@ export const PlantDetail: React.FC = () => {
   const { loading: authLoading, isAuthenticated } = useAuthState();
   const [refreshKey, setRefreshKey] = useState(0);
   const [isEditing, setIsEditing] = useState(startEditing);
+  const isCreatingDepartmentContact = searchParams.get('createDeptContact') === '1';
 
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);
@@ -157,7 +159,7 @@ export const PlantDetail: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [authError, authLoading, isAuthenticated, pid]);
+  }, [authError, authLoading, isAuthenticated, pid, refreshKey]);
 
   useEffect(() => {
     if (startEditing) {
@@ -262,6 +264,32 @@ export const PlantDetail: React.FC = () => {
     []
   );
 
+  const departmentContactInitialValues = useMemo(
+    () => ({
+      ...(sid ? { supplier: sid } : {}),
+      ...(pid ? { plant: pid } : {}),
+    }),
+    [pid, sid]
+  );
+  const setDepartmentContactCreateRoute = useCallback(
+    (open: boolean) => {
+      const next = new URLSearchParams(searchParams);
+      if (open) {
+        next.set('createDeptContact', '1');
+      } else {
+        next.delete('createDeptContact');
+      }
+
+      navigate(
+        {
+          pathname: location.pathname,
+          search: next.toString() ? `?${next.toString()}` : '',
+        },
+        { replace: !open }
+      );
+    },
+    [location.pathname, navigate, searchParams]
+  );
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
   if (isEditing) {
@@ -364,17 +392,15 @@ export const PlantDetail: React.FC = () => {
                 title="Plant Dept. Contacts"
                 extra={
                   <Button
-                    type="primary"
-                    size="large"
-                    style={{ minHeight: 44 }}
-                    onClick={() =>
-                      navigate(`/contacts?plant=${encodeURIComponent(pid)}${sid ? `&supplier=${encodeURIComponent(sid)}` : ''}&create=1`)
-                    }
-                    disabled={!pid}
-                  >
-                    + Add Department Contact
-                  </Button>
-                }
+                     type="primary"
+                     size="large"
+                     style={{ minHeight: 44 }}
+                     onClick={() => setDepartmentContactCreateRoute(true)}
+                     disabled={!pid || loading || showAuthFallback}
+                   >
+                     + Add Department Contact
+                   </Button>
+                 }
               >
                 {loadingContacts ? (
                   <div style={{ padding: 12 }}>
@@ -414,6 +440,17 @@ export const PlantDetail: React.FC = () => {
 
         ]}
       />}
+      <EntityFormSurface
+        entityType="contact"
+        mode="create"
+        isOpen={isCreatingDepartmentContact}
+        onClose={() => setDepartmentContactCreateRoute(false)}
+        initialValues={departmentContactInitialValues}
+        onSuccess={() => {
+          setDepartmentContactCreateRoute(false);
+          setRefreshKey((key) => key + 1);
+        }}
+      />
     </div>
   );
 };
