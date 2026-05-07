@@ -966,7 +966,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert to process-owner-only routing; notifications still delivered.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-07.1 approval-gate-node-type**
+- [x] **RT-07.1 approval-gate-node-type**
   - **Status:** Blocked
   - **Why now:** Configurable approval steps are critical for governance in the trading process.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
@@ -1020,7 +1020,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Remove gate from template; all paths auto-approve.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-08.1 financial-calculated-fields-service**
+- [x] **RT-08.1 financial-calculated-fields-service**
   - **Status:** Blocked
   - **Why now:** Traders need real-time financial visibility without manual calculation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
