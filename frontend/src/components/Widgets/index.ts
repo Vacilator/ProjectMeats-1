@@ -16,4 +16,5 @@ export { ActionItemsWidget } from './ActionItemsWidget';
 export { CalendarWidget } from './CalendarWidget';
 export { EmailIntegrationWidget } from './EmailIntegrationWidget';
 export { EmailIngestionMonitorWidget } from './EmailIngestionMonitorWidget';
+export { ConfidenceScoringWidget } from './ConfidenceScoringWidget';
 export type { WidgetConfig, WidgetLayout } from './WidgetGrid';

@@ -11,6 +11,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AIApprovalViewSet,
+    AIConfidenceMetricsAPIView,
     AIDocumentViewSet,
     AIFeedbackViewSet,
     AIAgentChatView,
@@ -53,6 +54,7 @@ urlpatterns = [
     # Clean endpoints
     path('chat/', AIAgentChatView.as_view(), name='ai-chat'),
     path('metrics/', AILearningMetricsAPIView.as_view(), name='ai-metrics'),
+    path('confidence-metrics/', AIConfidenceMetricsAPIView.as_view(), name='ai-confidence-metrics'),
     path('extract-to-schema/', ExtractToSchemaAPIView.as_view(), name='ai-extract-to-schema'),
     path('review/pending/', PendingReviewView.as_view(), name='pending-review'),
     path('suggestions/contextual/', ContextualSuggestionsAPIView.as_view(), name='contextual-suggestions'),
