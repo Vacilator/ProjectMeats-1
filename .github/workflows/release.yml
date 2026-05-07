@@ -398,10 +398,12 @@ jobs:
           Path(".release/release-notes.md").write_text("\n".join(notes).strip() + "\n", encoding="utf-8")
           PY
 
-          echo "backend_digest_ref=${BACKEND_DIGEST_REF}" >> "$GITHUB_OUTPUT"
-          echo "frontend_digest_ref=${FRONTEND_DIGEST_REF}" >> "$GITHUB_OUTPUT"
-          echo "manifest_path=.release/release-manifest.json" >> "$GITHUB_OUTPUT"
-          echo "notes_path=.release/release-notes.md" >> "$GITHUB_OUTPUT"
+          {
+            echo "backend_digest_ref=${BACKEND_DIGEST_REF}"
+            echo "frontend_digest_ref=${FRONTEND_DIGEST_REF}"
+            echo "manifest_path=.release/release-manifest.json"
+            echo "notes_path=.release/release-notes.md"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         id: create_release
