@@ -1177,7 +1177,7 @@ jobs:
 
   bootstrap-backend:
     name: "Bootstrap Backend Data"
-    if: ${{ inputs.run_backend_lane }}
+    if: ${{ always() && inputs.run_backend_lane }}
     needs: [build-backend, deploy-backend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
@@ -1186,6 +1186,22 @@ jobs:
       contents: read
       packages: read
     steps:
+      - name: Validate backend bootstrap lane
+        run: |
+          set -euo pipefail
+
+          if [ "${{ needs.build-backend.result }}" != "success" ]; then
+            echo "✗ build-backend result: ${{ needs.build-backend.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.deploy-backend.result }}" != "success" ]; then
+            echo "✗ deploy-backend result: ${{ needs.deploy-backend.result }}" >&2
+            exit 1
+          fi
+
+          echo "✓ Backend bootstrap prerequisites satisfied"
+
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -1330,7 +1346,7 @@ jobs:
 
   deploy-backend:
     name: "Deploy Backend Container"
-    if: ${{ inputs.run_backend_lane }}
+    if: ${{ always() && inputs.run_backend_lane }}
     needs: [build-backend, migrate, security-scan-backend]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
@@ -1339,6 +1355,27 @@ jobs:
       contents: read
       packages: read
     steps:
+      - name: Validate backend deploy lane
+        run: |
+          set -euo pipefail
+
+          if [ "${{ needs.build-backend.result }}" != "success" ]; then
+            echo "✗ build-backend result: ${{ needs.build-backend.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.migrate.result }}" != "success" ]; then
+            echo "✗ migrate result: ${{ needs.migrate.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.security-scan-backend.result }}" != "success" ]; then
+            echo "✗ security-scan-backend result: ${{ needs.security-scan-backend.result }}" >&2
+            exit 1
+          fi
+
+          echo "✓ Backend deploy prerequisites satisfied"
+
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -1729,7 +1766,7 @@ jobs:
   deploy-frontend:
     name: "Deploy Frontend Container"
     # Frontend deploy must wait for migrations (but must NOT depend on deploy-backend).
-    if: ${{ inputs.run_frontend_lane }}
+    if: ${{ always() && inputs.run_frontend_lane }}
     needs: [build-frontend, migrate, security-scan-frontend, test-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1738,6 +1775,32 @@ jobs:
       contents: read
       packages: read
     steps:
+      - name: Validate frontend deploy lane
+        run: |
+          set -euo pipefail
+
+          if [ "${{ needs.build-frontend.result }}" != "success" ]; then
+            echo "✗ build-frontend result: ${{ needs.build-frontend.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.migrate.result }}" != "success" ]; then
+            echo "✗ migrate result: ${{ needs.migrate.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.security-scan-frontend.result }}" != "success" ]; then
+            echo "✗ security-scan-frontend result: ${{ needs.security-scan-frontend.result }}" >&2
+            exit 1
+          fi
+
+          if [ "${{ needs.test-frontend.result }}" != "success" ]; then
+            echo "✗ test-frontend result: ${{ needs.test-frontend.result }}" >&2
+            exit 1
+          fi
+
+          echo "✓ Frontend deploy prerequisites satisfied"
+
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
