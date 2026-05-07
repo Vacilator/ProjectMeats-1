@@ -717,10 +717,10 @@ If any test fails, report with:
 | # | Test Case | Expected Result |
 |---|-----------|-----------------|
 | 24 | RFQ recipient resolved from Plant Contact Type "Sales" | Email sent to sales contact |
-| 25 | RFQ with multiple "Responsible For" values sends to all | Multiple recipients in email |
+| 25 | Logistics RFQ prefers Shipping / Loadout title matches | Email sent to shipping/load coordinator contact |
 | 26 | Missing Plant Contact falls back to default supplier email | Fallback email used; warning logged |
-| 27 | Conditional fields shown based on Plant Contact Type | Only relevant fields visible |
-| 28 | Multi-select Plant Contact Types filter correctly | Only matching contacts returned |
+| 27 | Legacy text-based contact_type/contact_title still resolve | Legacy sales/shipping contact selected without schema migration |
+| 28 | Documents Responsible For creates RFQ support attachment | Attachment payload includes matching docs + 90-day confirmation ask |
 
 ### Category 5: Telemetry & Observability (3 tests)
 

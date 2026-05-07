@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.core.models import ProteinTypeChoices
 from apps.integrations.models import ExternalAuthProvider
 from apps.system.models import Product
+from tenant_apps.contacts.models import Contact
 from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
@@ -22,6 +23,7 @@ from tenant_apps.inquiries.models import (
     InquirySupplierRFQStatusChoices,
 )
 from tenant_apps.inquiries.services import send_supplier_rfqs_for_inquiry
+from tenant_apps.plants.models import Plant
 from tenant_apps.products.models import MasterProduct
 from tenant_apps.suppliers.models import Supplier
 
@@ -88,6 +90,36 @@ class SupplierRFQEmailServiceTests(TestCase):
             email="supplier@example.com",
             preferred_protein_types=[ProteinTypeChoices.BEEF],
         )
+        self.plant = Plant.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            name="North Plant",
+            created_by=self.user,
+        )
+        self.sales_contact = Contact.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            plant=self.plant,
+            department="sales",
+            first_name="Sally",
+            last_name="Seller",
+            email="sales-contact@example.com",
+            title="Sales Supervisor",
+            protein_types_responsible=[ProteinTypeChoices.BEEF],
+            items_responsible=[self.master_product.display_name],
+            documents_responsible_for=["Spec Sheets", "COAs"],
+        )
+        self.shipping_contact = Contact.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            plant=self.plant,
+            department="shipping",
+            first_name="Logan",
+            last_name="Loadout",
+            email="shipping-contact@example.com",
+            title="Load Coordinator",
+            documents_responsible_for=["BOLs", "Loading Instructions"],
+        )
 
     @patch("tenant_apps.inquiries.services.supplier_rfq_email.MicrosoftGraphProvider.send_email")
     @patch.dict(os.environ, {"MICROSOFT_CLIENT_ID": "client-id"}, clear=False)
@@ -112,14 +144,22 @@ class SupplierRFQEmailServiceTests(TestCase):
         self.assertEqual(rfq.status, InquirySupplierRFQStatusChoices.SENT)
         self.assertEqual(rfq.sender_provider, self.provider)
         self.assertEqual(rfq.sender_email, "planner@example.com")
-        self.assertEqual(rfq.recipient_email, "supplier@example.com")
+        self.assertEqual(rfq.recipient_email, "sales-contact@example.com")
+        self.assertEqual(rfq.recipient_name, "Sally Seller")
         self.assertEqual(rfq.provider_message_id, "graph-message-1")
         self.assertEqual(rfq.provider_thread_id, "graph-thread-1")
         self.assertEqual(rfq.provider_internet_message_id, "internet-message-1")
         self.assertEqual(rfq.attempt_count, 1)
         self.assertIn("RFQ reference", rfq.body)
+        self.assertIn("Requested support documents: Spec Sheets, COAs", rfq.body)
+        self.assertIn("90 days", rfq.body)
         self.assertEqual(rfq.custom_data["inquiry_number"], self.inquiry.inquiry_number)
+        self.assertEqual(rfq.custom_data["recipient_routing"]["department"], "sales")
+        self.assertEqual(rfq.custom_data["recipient_routing"]["source"], "department")
         self.assertEqual(rfq.custom_data["provider_result"]["provider_message_id"], "graph-message-1")
+        attachments = mock_send_email.call_args[0][1]["attachments"]
+        self.assertEqual(len(attachments), 1)
+        self.assertEqual(attachments[0]["name"], f"rfq-support-{self.inquiry.inquiry_number}.txt")
         mock_send_email.assert_called_once()
 
     @patch("tenant_apps.inquiries.services.supplier_rfq_email.MicrosoftGraphProvider.send_email")
@@ -141,6 +181,70 @@ class SupplierRFQEmailServiceTests(TestCase):
         self.assertEqual(InquirySupplierRFQ.objects.count(), 1)
         self.assertEqual(InquirySupplierRFQ.objects.get().attempt_count, 1)
         mock_send_email.assert_called_once()
+
+    @patch("tenant_apps.inquiries.services.supplier_rfq_email.MicrosoftGraphProvider.send_email")
+    @patch.dict(os.environ, {"MICROSOFT_CLIENT_ID": "client-id"}, clear=False)
+    def test_send_supplier_rfqs_prefers_shipping_contact_for_logistics_focus(self, mock_send_email):
+        mock_send_email.return_value = {
+            "status": "sent",
+            "provider": "microsoft",
+            "provider_message_id": "graph-message-2",
+            "provider_thread_id": "graph-thread-2",
+        }
+        self.inquiry.shipping_type = InquiryShippingTypeChoices.SUPPLIER_DELIVERING
+        self.inquiry.save(update_fields=["shipping_type"])
+        self.supplier.shipping_offered = "Yes - Domestic"
+        self.supplier.save(update_fields=["shipping_offered"])
+
+        result = send_supplier_rfqs_for_inquiry(
+            tenant=self.tenant,
+            inquiry=self.inquiry,
+            user=self.user,
+        )
+
+        self.assertEqual(result.dispatched_count, 1)
+        rfq = InquirySupplierRFQ.objects.get(tenant=self.tenant, inquiry=self.inquiry, supplier=self.supplier)
+        self.assertEqual(rfq.recipient_email, "shipping-contact@example.com")
+        self.assertEqual(rfq.custom_data["recipient_routing"]["department"], "shipping")
+        self.assertEqual(rfq.custom_data["rfq_focus"], "logistics")
+        self.assertIn("Recipient role: Load Coordinator", rfq.body)
+
+    @patch("tenant_apps.inquiries.services.supplier_rfq_email.MicrosoftGraphProvider.send_email")
+    @patch.dict(os.environ, {"MICROSOFT_CLIENT_ID": "client-id"}, clear=False)
+    def test_send_supplier_rfqs_uses_legacy_contact_fields_when_department_missing(self, mock_send_email):
+        mock_send_email.return_value = {
+            "status": "sent",
+            "provider": "microsoft",
+            "provider_message_id": "graph-message-legacy",
+            "provider_thread_id": "graph-thread-legacy",
+        }
+        legacy_supplier = Supplier.objects.create(
+            tenant=self.tenant,
+            name="Legacy Supplier",
+            email="",
+            preferred_protein_types=[ProteinTypeChoices.BEEF],
+        )
+        legacy_contact = Contact.objects.create(
+            tenant=self.tenant,
+            supplier=legacy_supplier,
+            first_name="Legacy",
+            last_name="Sales",
+            email="legacy-sales@example.com",
+            contact_type="Sales",
+            contact_title="Account Manager",
+        )
+
+        result = send_supplier_rfqs_for_inquiry(
+            tenant=self.tenant,
+            inquiry=self.inquiry,
+            user=self.user,
+            supplier_ids=[legacy_supplier.id],
+        )
+
+        self.assertEqual(result.dispatched_count, 1)
+        rfq = InquirySupplierRFQ.objects.get(tenant=self.tenant, inquiry=self.inquiry, supplier=legacy_supplier)
+        self.assertEqual(rfq.recipient_email, legacy_contact.email)
+        self.assertEqual(rfq.custom_data["recipient_routing"]["source"], "legacy_contact_fields")
 
     def test_send_supplier_rfqs_fails_closed_for_non_broker_inquiry(self):
         self.inquiry.route_decision = InquiryRouteDecisionChoices.FULFILL
