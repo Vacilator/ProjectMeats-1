@@ -1368,3 +1368,123 @@ class TradeEventLog(TenantAwareModel):
 
     def __str__(self):
         return f"{self.event_type} [{self.event_id[:8]}]"
+
+
+# ---------------------------------------------------------------------------
+# TradeExceptionQueue — Dead-letter queue for failed trade steps (CTE-08.1)
+# ---------------------------------------------------------------------------
+
+
+class TradeExceptionQueue(TenantAwareModel):
+    """Dead-letter queue for failed automated trade steps.
+
+    Records failures with full context for operator investigation and retry.
+    Halts the affected trade session until resolved.
+    """
+
+    EXCEPTION_STATUS_CHOICES = [
+        ("open", "Open"),
+        ("retrying", "Retrying"),
+        ("resolved", "Resolved"),
+        ("exhausted", "Max Retries Exhausted"),
+    ]
+
+    trade_session_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="FK to TradeSession (stored as int for flexibility).",
+    )
+    trade_id = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Human-readable trade ID (TRD-YYYY-NNNNN).",
+    )
+    failed_step = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text="Step identifier that failed (e.g., 'sales_order.pdf_generation').",
+    )
+    reason_code = models.CharField(
+        max_length=50,
+        default="UNKNOWN",
+        db_index=True,
+        help_text="Classification code for the failure type.",
+    )
+    error_message = models.TextField(
+        blank=True,
+        default="",
+        help_text="Human-readable error description.",
+    )
+    stack_trace = models.TextField(
+        blank=True,
+        default="",
+        help_text="Python stack trace (truncated to 2000 chars).",
+    )
+    entity_type = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Entity being operated on when failure occurred.",
+    )
+    entity_id = models.CharField(
+        max_length=36,
+        blank=True,
+        default="",
+        help_text="Entity PK.",
+    )
+    source_event_id = models.CharField(
+        max_length=36,
+        blank=True,
+        default="",
+        help_text="Domain event that triggered the failed step.",
+    )
+    context_payload = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Full context for debugging and retry.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=EXCEPTION_STATUS_CHOICES,
+        default="open",
+        db_index=True,
+    )
+    retry_count = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Number of retry attempts.",
+    )
+    last_retry_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    resolved_by = models.CharField(
+        max_length=36,
+        blank=True,
+        default="",
+        help_text="User ID who resolved this exception.",
+    )
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    resolution_notes = models.TextField(
+        blank=True,
+        default="",
+        help_text="Operator notes on how the issue was resolved.",
+    )
+
+    class Meta:
+        ordering = ["-created_on"]
+        verbose_name = "Trade Exception Queue"
+        verbose_name_plural = "Trade Exception Queue"
+        indexes = [
+            models.Index(fields=["tenant", "status", "-created_on"]),
+            models.Index(fields=["tenant", "trade_session_id"]),
+            models.Index(fields=["tenant", "reason_code"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.status}] {self.failed_step} - {self.error_message[:50]}"
