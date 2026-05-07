@@ -7,7 +7,10 @@ This directory contains the live GitHub Actions entrypoints for ProjectMeats. Fo
 ### Delivery and validation
 - `.github/workflows/pr-validation.yml`
   - PR gate for `development`, `uat`, and `main`
-  - Runs the infrastructure drift gate, migration validation, backend tests, frontend type-check/unit tests, mobile checks, and squad validation
+  - Runs the infrastructure drift gate, changed-file repo pre-commit, migration validation, backend tests, frontend type-check/unit tests, mobile checks, and squad validation
+  - Calls `.github/workflows/evidence-rubric.yml` to publish the PR evidence summary artifact/comment
+- `.github/workflows/evidence-rubric.yml`
+  - Reusable PR evidence publisher that turns job results into a markdown rubric, workflow artifact, step summary, and best-effort PR comment
 - `.github/workflows/ai-pr-reviewer.yml`
   - AI gatekeeper for pull requests targeting `development` and `main`
   - Uses `.cursorrules` + `.github/SDLC_PROTOCOLS.md` plus deterministic guardrails to request changes on Golden Rule violations
@@ -81,11 +84,12 @@ main push
 ## Current principles
 
 1. **PR Validation is the quality gate** before merges.
-2. **Main Pipeline is the deploy orchestrator**; it is not split into legacy `11/12/13` workflow files.
-3. **Auto-promotion creates PRs only**; it does not bypass required reviews or status checks.
-4. **Release automation is post-deploy only**; it must not reorder Golden build/test/migrate/deploy execution.
-5. **Secrets are manifest-defined** in `manifests/env.manifest.json`.
-6. **Golden drift checks must stay green** for PRs and deploys.
+2. **PR Validation publishes evidence**; required-check results must be visible in the evidence rubric artifact/comment without redefining policy.
+3. **Main Pipeline is the deploy orchestrator**; it is not split into legacy `11/12/13` workflow files.
+4. **Auto-promotion creates PRs only**; it does not bypass required reviews or status checks.
+5. **Release automation is post-deploy only**; it must not reorder Golden build/test/migrate/deploy execution.
+6. **Secrets are manifest-defined** in `manifests/env.manifest.json`.
+7. **Golden drift checks must stay green** for PRs and deploys.
 
 ## Related docs
 
