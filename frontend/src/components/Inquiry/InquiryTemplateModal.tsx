@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Select as AntSelect } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 import { businessApi } from '../../services/businessApi';
 import {
   InquiryModalBody,
@@ -291,7 +292,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
         const data = res.data.results || res.data;
         setAvailableProducts(data);
       })
-      .catch(console.error);
+      .catch((err) => logger.error('Failed to load products', { component: 'InquiryTemplateModal' }, err));
   }, [isOpen, proteinFilter.join('|')]);
   
   // Initialize form when template changes
@@ -396,7 +397,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
       onSave(response.data);
       onClose();
     } catch (error) {
-      console.error('Failed to save template:', error);
+      logger.error('Failed to save template', { component: 'InquiryTemplateModal' }, error);
       showAlert({
         type: 'error',
         title: 'Error',

@@ -26,6 +26,7 @@ import {
 import { Modal as AntModal } from 'antd';
 import { apiClient } from '../../services/apiService';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -114,10 +115,9 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
       const response = await apiClient.get('/system/field-schemas/', {
         params: { model_name: selectedModel },
       });
-      console.log('[VirtualFieldManager] Loaded fields:', response.data);
       setFields(response.data.results || response.data);
     } catch (error) {
-      console.error('[VirtualFieldManager] Failed to load fields:', error);
+      logger.error('Failed to load fields', { component: 'VirtualFieldManager' }, error);
     } finally {
       setIsLoading(false);
     }
@@ -153,7 +153,7 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
       setIsEditModalOpen(false);
       setEditingField(null);
     } catch (error) {
-      console.error('[VirtualFieldManager] Failed to save field:', error);
+      logger.error('Failed to save field', { component: 'VirtualFieldManager' }, error);
       showAlert({ type: 'error', title: 'Error', content: 'Failed to save field' });
     }
   }, [editingField, tenantId, selectedModel, loadFields]);
@@ -176,7 +176,7 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
       await apiClient.delete(`/system/field-schemas/${fieldId}/`);
       await loadFields();
     } catch (error) {
-      console.error('[VirtualFieldManager] Failed to delete field:', error);
+      logger.error('Failed to delete field', { component: 'VirtualFieldManager' }, error);
     }
   }, [loadFields]);
 

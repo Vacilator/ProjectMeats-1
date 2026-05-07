@@ -10,6 +10,7 @@ import styled from 'styled-components';
 
 import { useZodForm } from '@/hooks/useZodForm';
 import { showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 import { businessApi } from '@/services/businessApi';
 import {
   InquiryModalBody,
@@ -245,7 +246,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
         .then((res) => {
           setEntities(unwrapResults<Entity>(res.data));
         })
-        .catch(console.error);
+        .catch((err) => logger.error('Failed to load entities', { component: 'CloneInquiryModal' }, err));
     }
   }, [isOpen, inquiry]);
   
@@ -294,7 +295,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
       onCloned(response.data);
       onClose();
     } catch (error) {
-      console.error('Failed to clone inquiry:', error);
+      logger.error('Failed to clone inquiry', { component: 'CloneInquiryModal' }, error);
       showAlert({
         type: 'error',
         title: 'Error',

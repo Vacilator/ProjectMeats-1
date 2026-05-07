@@ -15,6 +15,7 @@ import styled from 'styled-components';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
 import { notify } from '../../utils/notify';
+import { logger } from '../../utils/logger';
 
 interface UserAvatarProps {
   isEditMode: boolean;
@@ -57,7 +58,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
       await onUpload(file);
       notify.success('Image uploaded successfully');
     } catch (error) {
-      console.error('Upload failed:', error);
+      logger.error('Upload failed', { component: 'UserAvatar' }, error);
       notify.error('Failed to upload image. Please try again.');
     } finally {
       setUploading(false);

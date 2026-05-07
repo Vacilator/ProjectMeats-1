@@ -27,6 +27,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import styled from 'styled-components';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { ReportBugButton } from './ReportBugButton';
+import { logger } from '../utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -75,9 +76,9 @@ class ErrorBoundary extends Component<Props, State> {
    * Log error and update state with details
    */
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log to console
-    console.error('❌ [ErrorBoundary] Caught error:', error);
-    console.error('📍 [ErrorBoundary] Component stack:', errorInfo.componentStack);
+    // Log to structured logger
+    logger.error('Caught error', { component: 'ErrorBoundary' }, error);
+    logger.error('Component stack', { component: 'ErrorBoundary', metadata: { componentStack: errorInfo.componentStack } });
 
     // Update state
     this.setState(prevState => ({
@@ -127,12 +128,10 @@ class ErrorBoundary extends Component<Props, State> {
       import('../services/apiService')
         .then(({ adminClient }) => adminClient.post(telemetryEndpoint, payload))
         .catch((err) => {
-          // Silently fail if telemetry endpoint doesn't exist
-          console.warn('Telemetry endpoint not available:', err);
+          logger.warn('Telemetry endpoint not available', { component: 'ErrorBoundary', metadata: { err } });
         });
     } catch (e) {
-      // Don't throw errors from telemetry
-      console.warn('Failed to send telemetry:', e);
+      logger.warn('Failed to send telemetry', { component: 'ErrorBoundary', metadata: { error: e } });
     }
   };
 

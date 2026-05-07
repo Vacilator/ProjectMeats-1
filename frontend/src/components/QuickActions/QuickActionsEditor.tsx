@@ -11,6 +11,7 @@ import { QuickActionItem, AvailableForm } from '../../services/quickActionsServi
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
 import { Icon } from '../ui';
+import { logger } from '../../utils/logger';
 
 interface QuickActionsEditorProps {
   isOpen: boolean;
@@ -92,12 +93,12 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
     try {
       setIsSaving(true);
       setError(null);
-      console.log('[QuickActionsEditor] Saving actions:', localActions);
+      logger.debug('Saving actions', { component: 'QuickActionsEditor', metadata: { count: localActions.length } });
       await updateQuickActions(localActions);
       await refreshQuickActions();
       onClose();
     } catch (err: any) {
-      console.error('[QuickActionsEditor] Save failed:', err);
+      logger.error('Save failed', { component: 'QuickActionsEditor' }, err);
       // Extract detailed error from response
       const errorMsg = err?.response?.data?.error || 
                        err?.response?.data?.details || 

@@ -8,6 +8,7 @@
  * - Visual graph layout using react-flow
  * - Expandable nodes for continuous exploration
  * - Breadcrumb integration
+ * @module RelationMindMap
  * - Smooth animations
  * - Hover previews
  * 
@@ -16,6 +17,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
+import { logger } from '../../utils/logger';
 import {
   ReactFlow,
   Node,
@@ -364,7 +366,6 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
   
   const handleExpand = useCallback(async (node: MindMapNode) => {
     if (node.depth >= maxDepth) {
-      console.log('[MindMap] Max depth reached');
       return;
     }
     
@@ -409,7 +410,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
       });
       
     } catch (err) {
-      console.error('[MindMap] Failed to expand node:', err);
+      logger.error('Failed to expand node', { component: 'RelationMindMap' }, err);
     } finally {
       setLoading(false);
     }

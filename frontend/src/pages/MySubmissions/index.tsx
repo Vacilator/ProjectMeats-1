@@ -9,6 +9,7 @@ import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { formSubmissionService, FormSubmissionListItem } from '../../services/quickActionsService';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
+import { logger } from '../../utils/logger';
 
 const PageContainer = styled.div`
   padding: 2rem;
@@ -287,7 +288,7 @@ const MySubmissions: React.FC = () => {
       const data = await formSubmissionService.list(params);
       setSubmissions(data);
     } catch (err: any) {
-      console.error('Failed to load submissions:', err);
+      logger.error('Failed to load submissions', { component: 'MySubmissions' }, err);
       setError(err.message || 'Failed to load submissions');
     } finally {
       setIsLoading(false);
@@ -316,7 +317,7 @@ const MySubmissions: React.FC = () => {
       await formSubmissionService.cancel(submissionId);
       loadSubmissions();
     } catch (err: any) {
-      console.error('Failed to cancel submission:', err);
+      logger.error('Failed to cancel submission', { component: 'MySubmissions' }, err);
       showAlert({
         type: 'error',
         title: 'Error',
@@ -339,7 +340,7 @@ const MySubmissions: React.FC = () => {
       await formSubmissionService.delete(submissionId);
       loadSubmissions();
     } catch (err: any) {
-      console.error('Failed to delete submission:', err);
+      logger.error('Failed to delete submission', { component: 'MySubmissions' }, err);
       showAlert({
         type: 'error',
         title: 'Error',
