@@ -436,6 +436,22 @@ type ContactDepartmentKey =
   | 'accounting'
   | 'booking';
 
+type PurchaseOrderContactRoleKey = 'supplier_contact' | 'billing_contact' | 'shipping_contact';
+
+type PurchaseOrderRoutedContact = {
+  recipient_name?: string;
+  recipient_email?: string;
+  phone?: string;
+  department?: string;
+  title?: string;
+  plant_name?: string;
+  source?: string;
+  focus?: string;
+  responsible_documents?: string[];
+  responsible_proteins?: string[];
+  responsible_items?: string[];
+};
+
 const CONTACT_DEPARTMENT_CHOICES: SchemaChoice[] = [
   { value: 'sales', label: 'Sales' },
   { value: 'qa', label: 'QA' },
@@ -637,6 +653,128 @@ const getShippingLoadoutTitleChoices = (values?: Record<string, unknown> | null)
     { value: 'Prepay / Frozen Shipping', label: 'Prepay / Frozen Shipping' },
     { value: 'DC Shipping', label: 'DC Shipping' },
   ];
+};
+
+const PURCHASE_ORDER_CONTACT_ROLE_CONFIG: Record<
+  PurchaseOrderContactRoleKey,
+  {
+    departmentField: string;
+    titleField: string;
+    proteinsField: string;
+    itemsField: string;
+    documentsField: string;
+    section: string;
+    displayLabel: string;
+  }
+> = {
+  supplier_contact: {
+    departmentField: 'supplier_contact_department',
+    titleField: 'supplier_contact_role_title',
+    proteinsField: 'supplier_contact_protein_types_responsible',
+    itemsField: 'supplier_contact_items_responsible',
+    documentsField: 'supplier_contact_documents_responsible_for',
+    section: 'Supplier Contact Routing',
+    displayLabel: 'Primary Supplier Contact',
+  },
+  billing_contact: {
+    departmentField: 'billing_contact_department',
+    titleField: 'billing_contact_title',
+    proteinsField: 'billing_contact_protein_types_responsible',
+    itemsField: 'billing_contact_items_responsible',
+    documentsField: 'billing_contact_documents_responsible_for',
+    section: 'Accounts Payable Contact',
+    displayLabel: 'Accounts Payable Contact',
+  },
+  shipping_contact: {
+    departmentField: 'shipping_contact_department',
+    titleField: 'shipping_contact_title',
+    proteinsField: 'shipping_contact_protein_types_responsible',
+    itemsField: 'shipping_contact_items_responsible',
+    documentsField: 'shipping_contact_documents_responsible_for',
+    section: 'Shipping / Loadout Contact',
+    displayLabel: 'Shipping / Loadout Contact',
+  },
+};
+
+const isPurchaseOrderContactRoleKey = (value: string): value is PurchaseOrderContactRoleKey =>
+  value === 'supplier_contact' || value === 'billing_contact' || value === 'shipping_contact';
+
+const asStringList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const next: string[] = [];
+  value.forEach((item) => {
+    const normalized = String(item ?? '').trim();
+    if (normalized && !next.includes(normalized)) {
+      next.push(normalized);
+    }
+  });
+  return next;
+};
+
+const normalizePurchaseOrderContactRouting = (
+  values?: Record<string, unknown> | null
+): Partial<Record<PurchaseOrderContactRoleKey, PurchaseOrderRoutedContact>> => {
+  const candidates = [
+    values?.contact_routing_details,
+    values?.contactRoutingDetails,
+    getValueAtPath(values, 'custom_data.contact_routing'),
+  ];
+  const source = candidates.find((candidate) => candidate && typeof candidate === 'object');
+  if (!source || typeof source !== 'object') return {};
+
+  const next: Partial<Record<PurchaseOrderContactRoleKey, PurchaseOrderRoutedContact>> = {};
+  Object.entries(source as Record<string, unknown>).forEach(([key, rawValue]) => {
+    if (!isPurchaseOrderContactRoleKey(key)) return;
+    const row = rawValue && typeof rawValue === 'object' ? (rawValue as Record<string, unknown>) : null;
+    if (!row) return;
+    next[key] = {
+      recipient_name: typeof row.recipient_name === 'string' ? row.recipient_name : '',
+      recipient_email: typeof row.recipient_email === 'string' ? row.recipient_email : '',
+      phone: typeof row.phone === 'string' ? row.phone : '',
+      department: typeof row.department === 'string' ? row.department : '',
+      title: typeof row.title === 'string' ? row.title : '',
+      plant_name: typeof row.plant_name === 'string' ? row.plant_name : '',
+      source: typeof row.source === 'string' ? row.source : '',
+      focus: typeof row.focus === 'string' ? row.focus : '',
+      responsible_documents: asStringList(row.responsible_documents),
+      responsible_proteins: asStringList(row.responsible_proteins),
+      responsible_items: asStringList(row.responsible_items),
+    };
+  });
+
+  return next;
+};
+
+const augmentInitialValuesForFrontend = (
+  entityKey: string,
+  values: Record<string, unknown>
+): Record<string, unknown> => {
+  const normalizedEntityKey = String(entityKey || '').trim().toLowerCase();
+  if (normalizedEntityKey !== 'purchase_order') {
+    return values;
+  }
+
+  const contactRouting = normalizePurchaseOrderContactRouting(values);
+  if (!Object.keys(contactRouting).length) {
+    return values;
+  }
+
+  const next = { ...values };
+  (Object.keys(PURCHASE_ORDER_CONTACT_ROLE_CONFIG) as PurchaseOrderContactRoleKey[]).forEach((role) => {
+    const route = contactRouting[role];
+    if (!route) return;
+    const config = PURCHASE_ORDER_CONTACT_ROLE_CONFIG[role];
+    setValueAtPath(next, config.departmentField, route.department || '');
+    const existingTitle = getValueAtPath(next, config.titleField);
+    if (!existingTitle && route.title) {
+      setValueAtPath(next, config.titleField, route.title || '');
+    }
+    setValueAtPath(next, config.proteinsField, route.responsible_proteins || []);
+    setValueAtPath(next, config.itemsField, route.responsible_items || []);
+    setValueAtPath(next, config.documentsField, route.responsible_documents || []);
+  });
+
+  return next;
 };
 
 export const augmentSchemaForFrontend = (
@@ -976,6 +1114,177 @@ export const augmentSchemaForFrontend = (
     return {
       ...schema,
       key_fields: keyFieldsHQ,
+      fields: nextFields,
+    };
+  }
+
+  if (normalizedEntityKey === 'purchase_order') {
+    const contactRouting = normalizePurchaseOrderContactRouting(values);
+    const routingDocumentGroups = buildContactDocumentOptionGroups();
+
+    const withField = (
+      list: BackendField[],
+      key: string,
+      build: (existing?: BackendField) => BackendField
+    ) => {
+      const index = list.findIndex((field) => String(field.key).toLowerCase() === key.toLowerCase());
+      const existing = index >= 0 ? list[index] : undefined;
+      const nextField = build(existing);
+
+      if (index >= 0) {
+        list[index] = nextField;
+      } else {
+        list.push(nextField);
+      }
+    };
+
+    const nextFields = fields.map((field) => {
+      const key = String(field.key || '').toLowerCase();
+      const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+
+      if (key.startsWith('supplier_contact_')) {
+        ui.section = PURCHASE_ORDER_CONTACT_ROLE_CONFIG.supplier_contact.section;
+      } else if (key.startsWith('billing_contact_')) {
+        ui.section = PURCHASE_ORDER_CONTACT_ROLE_CONFIG.billing_contact.section;
+      } else if (key.startsWith('shipping_contact_')) {
+        ui.section = PURCHASE_ORDER_CONTACT_ROLE_CONFIG.shipping_contact.section;
+      }
+
+      if (key === 'billing_contact_title') {
+        ui.visible_when = {
+          field: PURCHASE_ORDER_CONTACT_ROLE_CONFIG.billing_contact.departmentField,
+          truthy: true,
+        };
+      }
+
+      if (key === 'shipping_contact_title') {
+        ui.visible_when = {
+          field: PURCHASE_ORDER_CONTACT_ROLE_CONFIG.shipping_contact.departmentField,
+          truthy: true,
+        };
+      }
+
+      return Object.keys(ui).length ? { ...field, ui } : field;
+    });
+
+    (Object.keys(PURCHASE_ORDER_CONTACT_ROLE_CONFIG) as PurchaseOrderContactRoleKey[]).forEach((role) => {
+      const roleConfig = PURCHASE_ORDER_CONTACT_ROLE_CONFIG[role];
+      const route = contactRouting[role];
+      const department = String(route?.department || '').trim().toLowerCase();
+      const includeLegacyBookingChoice =
+        department === 'booking' ? [{ value: 'booking', label: 'Shipping / Loadout (Legacy)' }] : [];
+      const departmentChoices = [...CONTACT_DEPARTMENT_CHOICES, ...includeLegacyBookingChoice];
+      const routeHelpText = [
+        route?.plant_name ? `${roleConfig.displayLabel} plant: ${route.plant_name}` : '',
+        route?.source ? `Resolved from ${route.source.replace(/_/g, ' ')}` : '',
+      ]
+        .filter(Boolean)
+        .join(' • ');
+
+      withField(nextFields, roleConfig.departmentField, (existing) => ({
+        ...(existing || { key: roleConfig.departmentField }),
+        label: 'Plant Contact Type',
+        type: 'select',
+        required: false,
+        choices: departmentChoices,
+        placeholder: 'Resolved from supplier plant contacts',
+        help_text: routeHelpText || 'Department this contact belongs to',
+        ui: {
+          ...((existing?.ui as Record<string, unknown> | null) || {}),
+          section: roleConfig.section,
+        },
+      }));
+
+      if (role === 'supplier_contact') {
+        withField(nextFields, roleConfig.titleField, (existing) => ({
+          ...(existing || { key: roleConfig.titleField }),
+          label: 'Title',
+          type: 'text',
+          required: false,
+          placeholder: 'Resolved title',
+          help_text: 'Informational only. Update the contact record to change the routed title.',
+          ui: {
+            ...((existing?.ui as Record<string, unknown> | null) || {}),
+            section: roleConfig.section,
+            visible_when: {
+              field: roleConfig.departmentField,
+              truthy: true,
+            },
+          },
+        }));
+      }
+
+      withField(nextFields, roleConfig.proteinsField, (existing) => ({
+        ...(existing || { key: roleConfig.proteinsField }),
+        label: 'Protein Types Responsible For',
+        type: 'select',
+        required: false,
+        choices: dedupeChoices([
+          ...CONTACT_PROTEIN_TYPE_CHOICES,
+          ...asSchemaChoices(route?.responsible_proteins),
+        ]),
+        placeholder: 'Resolved protein responsibilities',
+        help_text: 'Informational only. Mirrors the routed supplier contact responsibilities.',
+        ui: {
+          ...((existing?.ui as Record<string, unknown> | null) || {}),
+          section: roleConfig.section,
+          widget: 'multi_select',
+          visible_when: {
+            field: roleConfig.departmentField,
+            in: ['sales', 'qa'],
+          },
+          data_source: {
+            type: 'choice_list',
+            list: 'protein_types',
+          },
+        },
+      }));
+
+      withField(nextFields, roleConfig.itemsField, (existing) => ({
+        ...(existing || { key: roleConfig.itemsField }),
+        label: 'Items Responsible For',
+        type: 'select',
+        required: false,
+        choices: dedupeChoices(asSchemaChoices(route?.responsible_items)),
+        placeholder: 'Resolved item responsibilities',
+        help_text: 'Informational only. Mirrors the routed supplier contact responsibilities.',
+        ui: {
+          ...((existing?.ui as Record<string, unknown> | null) || {}),
+          section: roleConfig.section,
+          widget: 'multi_select',
+          visible_when: {
+            field: roleConfig.departmentField,
+            in: ['sales', 'qa'],
+          },
+          data_source: {
+            type: 'master_products',
+          },
+        },
+      }));
+
+      withField(nextFields, roleConfig.documentsField, (existing) => ({
+        ...(existing || { key: roleConfig.documentsField }),
+        label: 'Documents Responsible For',
+        type: 'select',
+        required: false,
+        choices: dedupeChoices(asSchemaChoices(route?.responsible_documents)),
+        placeholder: 'Resolved document responsibilities',
+        help_text: 'Informational only. Mirrors the routed supplier contact responsibilities.',
+        ui: {
+          ...((existing?.ui as Record<string, unknown> | null) || {}),
+          section: roleConfig.section,
+          widget: 'multi_select',
+          visible_when: {
+            field: roleConfig.departmentField,
+            truthy: true,
+          },
+          option_groups: routingDocumentGroups,
+        },
+      }));
+    });
+
+    return {
+      ...schema,
       fields: nextFields,
     };
   }
@@ -1361,9 +1670,10 @@ const prepareFormResources = (
 ): { schema: BackendSchema | null; values: Record<string, unknown> } => {
   const normalizedValues = normalizeValuesForForm(entityKey, values);
   const preparedSchema = augmentSchemaForFrontend(entityKey, schema, normalizedValues);
+  const preparedValues = augmentInitialValuesForFrontend(entityKey, normalizedValues);
   return {
     schema: preparedSchema,
-    values: sanitizeInitialValuesForSchema(preparedSchema, normalizedValues),
+    values: sanitizeInitialValuesForSchema(preparedSchema, preparedValues),
   };
 };
 
@@ -2225,6 +2535,19 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         'contactTitleOptions',
         'contact_title_options',
         'documentsResponsibleOptions',
+        'supplier_contact_department',
+        'supplier_contact_role_title',
+        'supplier_contact_protein_types_responsible',
+        'supplier_contact_items_responsible',
+        'supplier_contact_documents_responsible_for',
+        'billing_contact_department',
+        'billing_contact_protein_types_responsible',
+        'billing_contact_items_responsible',
+        'billing_contact_documents_responsible_for',
+        'shipping_contact_department',
+        'shipping_contact_protein_types_responsible',
+        'shipping_contact_items_responsible',
+        'shipping_contact_documents_responsible_for',
       ].forEach((key) => {
         delete payload[key];
       });

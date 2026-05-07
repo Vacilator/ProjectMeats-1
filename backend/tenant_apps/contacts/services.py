@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from django.db.models import Q
 
@@ -53,11 +53,20 @@ FOCUS_DEPARTMENT_ORDER = {
         ContactDepartmentChoices.QA,
         ContactDepartmentChoices.CERTIFICATION,
     ),
+    "accounting": (
+        ContactDepartmentChoices.ACCOUNTING,
+        ContactDepartmentChoices.SALES,
+        ContactDepartmentChoices.SHIPPING,
+        ContactDepartmentChoices.BOOKING,
+        ContactDepartmentChoices.QA,
+        ContactDepartmentChoices.CERTIFICATION,
+    ),
 }
 
 FOCUS_TITLE_KEYWORDS = {
     "pricing": ("sales", "account manager", "trader", "pricing"),
     "logistics": ("shipping", "load", "coordinator", "billing", "prepay", "frozen", "dc"),
+    "accounting": ("accounting", "billing", "ap", "accounts payable", "claims", "credit"),
 }
 
 LEGACY_DEPARTMENT_MAP = {
@@ -100,6 +109,7 @@ class EmailAttachmentPayload:
 class SupplierContactResolution:
     recipient_email: str = ""
     recipient_name: str = ""
+    phone: str = ""
     contact_id: int | None = None
     department: str = ""
     title: str = ""
@@ -107,6 +117,9 @@ class SupplierContactResolution:
     plant_name: str = ""
     source: str = ""
     focus: str = "pricing"
+    responsible_documents: tuple[str, ...] = ()
+    responsible_proteins: tuple[str, ...] = ()
+    responsible_items: tuple[str, ...] = ()
     matched_documents: tuple[str, ...] = ()
     matched_proteins: tuple[str, ...] = ()
     matched_items: tuple[str, ...] = ()
@@ -116,6 +129,7 @@ class SupplierContactResolution:
         return {
             "recipient_email": self.recipient_email,
             "recipient_name": self.recipient_name,
+            "phone": self.phone,
             "contact_id": self.contact_id,
             "department": self.department,
             "title": self.title,
@@ -123,6 +137,9 @@ class SupplierContactResolution:
             "plant_name": self.plant_name,
             "source": self.source,
             "focus": self.focus,
+            "responsible_documents": list(self.responsible_documents),
+            "responsible_proteins": list(self.responsible_proteins),
+            "responsible_items": list(self.responsible_items),
             "matched_documents": list(self.matched_documents),
             "matched_proteins": list(self.matched_proteins),
             "matched_items": list(self.matched_items),
@@ -136,28 +153,21 @@ def resolve_supplier_contact_route(
     supplier: Supplier,
     inquiry=None,
     focus: str = "pricing",
+    preferred_plant_ids: Sequence[int] | None = None,
+    contacts: Sequence[Contact] | None = None,
 ) -> SupplierContactResolution:
-    normalized_focus = "logistics" if str(focus).strip().lower() == "logistics" else "pricing"
-    relevant_plant_ids = _relevant_plant_ids(inquiry=inquiry, supplier=supplier)
+    normalized_focus = _normalize_focus(focus)
+    relevant_plant_ids = _relevant_plant_ids(
+        inquiry=inquiry,
+        supplier=supplier,
+        preferred_plant_ids=preferred_plant_ids,
+    )
     requested_items = _requested_items(inquiry)
     requested_proteins = _requested_proteins(inquiry)
-
-    contacts = (
-        Contact.objects.filter(
-            tenant=tenant,
-            status=StatusChoices.ACTIVE,
-        )
-        .filter(
-            Q(supplier=supplier)
-            | Q(plant__supplier=supplier)
-            | Q(suppliers=supplier)
-        )
-        .select_related("plant")
-        .distinct()
-    )
+    contact_candidates = list(contacts) if contacts is not None else list(_supplier_contact_candidates(tenant=tenant, supplier=supplier))
 
     ranked: list[tuple[int, int, int, int, SupplierContactResolution]] = []
-    for contact in contacts:
+    for contact in contact_candidates:
         email = _clean(contact.email)
         if not email:
             continue
@@ -168,9 +178,12 @@ def resolve_supplier_contact_route(
         if department_rank < 0:
             department_rank = len(FOCUS_DEPARTMENT_ORDER[normalized_focus]) + 2
 
+        responsible_proteins = _clean_values(contact.protein_types_responsible)
+        responsible_items = _clean_values(contact.items_responsible)
+        responsible_documents = _canonical_documents(contact.documents_responsible_for)
         matched_proteins = _matching_values(contact.protein_types_responsible, requested_proteins)
         matched_items = _matching_items(contact.items_responsible, requested_items)
-        matched_documents = _canonical_documents(contact.documents_responsible_for)
+        matched_documents = responsible_documents
 
         score = 10
         if department_value:
@@ -190,6 +203,7 @@ def resolve_supplier_contact_route(
         resolution = SupplierContactResolution(
             recipient_email=email,
             recipient_name=_contact_name(contact) or supplier.name,
+            phone=_contact_phone(contact),
             contact_id=contact.id,
             department=department_value,
             title=_clean(contact.title) or _clean(contact.position),
@@ -197,6 +211,9 @@ def resolve_supplier_contact_route(
             plant_name=_clean(getattr(contact.plant, "name", "")),
             source=source,
             focus=normalized_focus,
+            responsible_documents=tuple(responsible_documents),
+            responsible_proteins=tuple(responsible_proteins),
+            responsible_items=tuple(responsible_items),
             matched_documents=tuple(matched_documents),
             matched_proteins=tuple(matched_proteins),
             matched_items=tuple(matched_items),
@@ -228,16 +245,25 @@ def resolve_supplier_contact_route(
         return SupplierContactResolution(
             recipient_email=supplier_email,
             recipient_name=_clean(getattr(supplier, "contact_person", "")) or supplier.name,
+            phone=_clean(getattr(supplier, "phone", "")),
             source="supplier_email",
             focus=normalized_focus,
         )
 
-    fallback_contact = contacts.exclude(email__isnull=True).exclude(email="").order_by("id").first()
+    fallback_contact = next(
+        (
+            contact
+            for contact in sorted(contact_candidates, key=lambda item: item.id)
+            if _clean(contact.email)
+        ),
+        None,
+    )
     if fallback_contact is not None:
         department, source = legacy_contact_routing_hints(fallback_contact)
         return SupplierContactResolution(
             recipient_email=_clean(fallback_contact.email),
             recipient_name=_contact_name(fallback_contact) or supplier.name,
+            phone=_contact_phone(fallback_contact),
             contact_id=fallback_contact.id,
             department=department or "",
             title=_clean(fallback_contact.title) or _clean(fallback_contact.position),
@@ -245,9 +271,48 @@ def resolve_supplier_contact_route(
             plant_name=_clean(getattr(fallback_contact.plant, "name", "")),
             source=source or "supplier_contact_fallback",
             focus=normalized_focus,
+            responsible_documents=tuple(_canonical_documents(fallback_contact.documents_responsible_for)),
+            responsible_proteins=tuple(_clean_values(fallback_contact.protein_types_responsible)),
+            responsible_items=tuple(_clean_values(fallback_contact.items_responsible)),
         )
 
     return SupplierContactResolution(focus=normalized_focus)
+
+
+def resolve_supplier_order_contact_routes(
+    *,
+    tenant,
+    supplier: Supplier,
+    inquiry=None,
+    preferred_plant_ids: Sequence[int] | None = None,
+) -> dict[str, SupplierContactResolution]:
+    contacts = list(_supplier_contact_candidates(tenant=tenant, supplier=supplier))
+    return {
+        "supplier_contact": resolve_supplier_contact_route(
+            tenant=tenant,
+            supplier=supplier,
+            inquiry=inquiry,
+            focus="pricing",
+            preferred_plant_ids=preferred_plant_ids,
+            contacts=contacts,
+        ),
+        "billing_contact": resolve_supplier_contact_route(
+            tenant=tenant,
+            supplier=supplier,
+            inquiry=inquiry,
+            focus="accounting",
+            preferred_plant_ids=preferred_plant_ids,
+            contacts=contacts,
+        ),
+        "shipping_contact": resolve_supplier_contact_route(
+            tenant=tenant,
+            supplier=supplier,
+            inquiry=inquiry,
+            focus="logistics",
+            preferred_plant_ids=preferred_plant_ids,
+            contacts=contacts,
+        ),
+    }
 
 
 def legacy_contact_routing_hints(contact: Contact) -> tuple[str, str]:
@@ -290,6 +355,26 @@ def _clean(value: object) -> str:
 
 def _contact_name(contact: Contact) -> str:
     return " ".join(part for part in [_clean(contact.first_name), _clean(contact.last_name)] if part).strip()
+
+
+def _contact_phone(contact: Contact) -> str:
+    for value in (
+        contact.office_phone,
+        contact.phone,
+        contact.mobile_phone,
+        contact.main_phone,
+        contact.direct_phone,
+        contact.cell_phone,
+    ):
+        cleaned = _clean(value)
+        if cleaned:
+            return cleaned
+    return ""
+
+
+def _normalize_focus(value: object) -> str:
+    normalized = _clean(value).lower()
+    return normalized if normalized in FOCUS_DEPARTMENT_ORDER else "pricing"
 
 
 def _normalize_department(value: object) -> str:
@@ -353,6 +438,15 @@ def _matching_items(values: object, requested_values: set[str]) -> list[str]:
     return matches
 
 
+def _clean_values(values: object) -> list[str]:
+    cleaned: list[str] = []
+    for raw in values or []:
+        candidate = _clean(raw)
+        if candidate and candidate not in cleaned:
+            cleaned.append(candidate)
+    return cleaned
+
+
 def _canonical_documents(values: object) -> list[str]:
     documents: list[str] = []
     for raw in values or []:
@@ -405,13 +499,39 @@ def _requested_items(inquiry) -> set[str]:
     return requested
 
 
-def _relevant_plant_ids(*, inquiry, supplier: Supplier) -> set[int]:
+def _supplier_contact_candidates(*, tenant, supplier: Supplier):
+    return (
+        Contact.objects.filter(
+            tenant=tenant,
+            status=StatusChoices.ACTIVE,
+        )
+        .filter(
+            Q(supplier=supplier)
+            | Q(plant__supplier=supplier)
+            | Q(suppliers=supplier)
+        )
+        .select_related("plant")
+        .distinct()
+    )
+
+
+def _relevant_plant_ids(
+    *,
+    inquiry,
+    supplier: Supplier,
+    preferred_plant_ids: Sequence[int] | None = None,
+) -> set[int]:
+    relevant = {int(value) for value in preferred_plant_ids or [] if value}
     if inquiry is None:
-        return set()
+        return relevant
     product_lines = inquiry.products.filter(plant__isnull=False)
     if product_lines.filter(supplier_id=supplier.id).exists():
-        return set(product_lines.filter(supplier_id=supplier.id).values_list("plant_id", flat=True))
-    return set(product_lines.filter(Q(supplier__isnull=True) | Q(supplier_id=supplier.id)).values_list("plant_id", flat=True))
+        relevant.update(product_lines.filter(supplier_id=supplier.id).values_list("plant_id", flat=True))
+        return relevant
+    relevant.update(
+        product_lines.filter(Q(supplier__isnull=True) | Q(supplier_id=supplier.id)).values_list("plant_id", flat=True)
+    )
+    return relevant
 
 
 def _resolve_booking_email_fallback(*, supplier: Supplier, relevant_plant_ids: set[int]) -> SupplierContactResolution | None:

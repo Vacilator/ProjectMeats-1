@@ -8,6 +8,7 @@ const capturedDynamicFormProps = vi.hoisted(
     [] as Array<{
       schema: unknown;
       initialValues: unknown;
+      onSubmit?: (data: Record<string, unknown>) => void | Promise<void>;
       dropdownOptions?: Record<string, Array<{ value: string; label: string; metadata?: Record<string, unknown> }>>;
       formConfig?: Record<string, unknown>;
     }>
@@ -17,12 +18,14 @@ vi.mock('../../features/system/DynamicFormEngine', () => ({
   default: (props: {
     schema: unknown;
     initialValues: unknown;
+    onSubmit?: (data: Record<string, unknown>) => void | Promise<void>;
     dropdownOptions?: Record<string, Array<{ value: string; label: string; metadata?: Record<string, unknown> }>>;
     formConfig?: Record<string, unknown>;
   }) => {
     capturedDynamicFormProps.push({
       schema: props.schema,
       initialValues: props.initialValues,
+      onSubmit: props.onSubmit,
       dropdownOptions: props.dropdownOptions,
       formConfig: props.formConfig,
     });
@@ -358,5 +361,148 @@ describe('UniversalEntityForm stability', () => {
     expect(businessApiGet).toHaveBeenCalledWith('/master-products/', {
       params: { page_size: 5000, limit: 5000, is_active: true },
     });
+  });
+
+  it('adds routed purchase-order contact context fields and initial values before mounting the renderer', () => {
+    render(
+      <UniversalEntityForm
+        entityType="purchase_order"
+        variant="inline"
+        mode="edit"
+        isOpen
+        onClose={() => {}}
+        onSubmit={vi.fn()}
+        schema={{
+          name: 'Purchase Order',
+          fields: [
+            { key: 'supplier_contact_name', label: 'Supplier Contact Name', type: 'text' },
+            { key: 'billing_contact_name', label: 'Billing Contact Name', type: 'text' },
+            { key: 'billing_contact_title', label: 'Billing Contact Title', type: 'text' },
+            { key: 'shipping_contact_name', label: 'Shipping Contact Name', type: 'text' },
+            { key: 'shipping_contact_title', label: 'Shipping Contact Title', type: 'text' },
+          ],
+        }}
+        initialData={{
+          supplier_contact_name: 'Price Desk',
+          billing_contact_name: 'AP Desk',
+          shipping_contact_name: 'Loadout Desk',
+          contact_routing_details: {
+            supplier_contact: {
+              department: 'sales',
+              title: 'Account Manager',
+              responsible_proteins: ['Beef'],
+              responsible_items: ['Ribeye'],
+              responsible_documents: ['Spec Sheets', 'COAs'],
+              plant_name: 'North Plant',
+              source: 'department',
+            },
+            billing_contact: {
+              department: 'accounting',
+              title: 'Accounts Payable',
+              responsible_documents: ['Statements', 'Bills'],
+            },
+            shipping_contact: {
+              department: 'shipping',
+              title: 'Shipping Supervisor',
+              responsible_documents: ['BOLs', 'Loading Instructions'],
+            },
+          },
+        }}
+      />
+    );
+
+    const latest = capturedDynamicFormProps.at(-1);
+    const schema = latest?.schema as {
+      fields: Array<{ key: string; ui?: Record<string, unknown> }>;
+    };
+    const supplierDeptField = schema.fields.find((field) => field.key === 'supplier_contact_department');
+    const supplierProteinField = schema.fields.find(
+      (field) => field.key === 'supplier_contact_protein_types_responsible'
+    );
+    const billingDocsField = schema.fields.find(
+      (field) => field.key === 'billing_contact_documents_responsible_for'
+    );
+
+    expect(supplierDeptField).toMatchObject({
+      key: 'supplier_contact_department',
+      label: 'Plant Contact Type',
+    });
+    expect(supplierProteinField?.ui).toMatchObject({
+      visible_when: {
+        field: 'supplier_contact_department',
+        in: ['sales', 'qa'],
+      },
+    });
+    expect(billingDocsField?.ui).toMatchObject({
+      visible_when: {
+        field: 'billing_contact_department',
+        truthy: true,
+      },
+    });
+    expect(latest?.initialValues).toMatchObject({
+      supplier_contact_department: 'sales',
+      supplier_contact_role_title: 'Account Manager',
+      supplier_contact_protein_types_responsible: ['Beef'],
+      supplier_contact_items_responsible: ['Ribeye'],
+      billing_contact_department: 'accounting',
+      shipping_contact_department: 'shipping',
+    });
+  });
+
+  it('strips purchase-order contact helper fields before delegating submit payloads', async () => {
+    const handleSubmit = vi.fn(async () => ({}));
+
+    render(
+      <UniversalEntityForm
+        entityType="purchase_order"
+        variant="inline"
+        mode="edit"
+        isOpen
+        onClose={() => {}}
+        onSubmit={handleSubmit}
+        schema={{
+          name: 'Purchase Order',
+          fields: [
+            { key: 'supplier_contact_name', label: 'Supplier Contact Name', type: 'text' },
+            { key: 'billing_contact_title', label: 'Billing Contact Title', type: 'text' },
+          ],
+        }}
+        initialData={{
+          supplier_contact_name: 'Price Desk',
+          contact_routing_details: {
+            supplier_contact: {
+              department: 'sales',
+              title: 'Account Manager',
+              responsible_proteins: ['Beef'],
+              responsible_items: ['Ribeye'],
+              responsible_documents: ['Spec Sheets'],
+            },
+          },
+        }}
+      />
+    );
+
+    await capturedDynamicFormProps.at(-1)?.onSubmit?.({
+      supplier_contact_name: 'Price Desk',
+      supplier_contact_department: 'sales',
+      supplier_contact_role_title: 'Account Manager',
+      supplier_contact_protein_types_responsible: ['Beef'],
+      supplier_contact_items_responsible: ['Ribeye'],
+      supplier_contact_documents_responsible_for: ['Spec Sheets'],
+      billing_contact_title: 'Accounts Payable',
+    });
+
+    await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1));
+    expect(handleSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supplier_contact_name: 'Price Desk',
+        billing_contact_title: 'Accounts Payable',
+      })
+    );
+    expect(handleSubmit.mock.calls[0][0]).not.toHaveProperty('supplier_contact_department');
+    expect(handleSubmit.mock.calls[0][0]).not.toHaveProperty('supplier_contact_role_title');
+    expect(handleSubmit.mock.calls[0][0]).not.toHaveProperty(
+      'supplier_contact_documents_responsible_for'
+    );
   });
 });

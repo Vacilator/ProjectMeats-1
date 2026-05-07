@@ -45,6 +45,11 @@ Transform the WorkForms editor from basic form nodes into a comprehensive entity
 - **Advanced automation** with workflow containers
 - **Improved canvas organization** with alignment tools
 
+### Typed Supplier Contact Integration Note
+- The `EndToEndInquiryToPOProcess` template now carries four explicit Form Nodes (Inquiry, Sales Order, Purchase Order customer-tree, Purchase Order trader-to-supplier) plus contact-output contracts for bid selection, sales-order generation, and supplier PO creation.
+- Supplier purchase-order surfaces now pre-populate typed supplier, accounting, and shipping/loadout contacts from Supplier Plant Department Contacts and mirror the same department-aware conditional responsibility fields in the PO form UI.
+- Process Cockpit-facing outputs should read supplier contact details from order `contact_routing` metadata and the template `outputContract` paths instead of relying on flat legacy supplier fields alone.
+
 ### Key Stakeholders
 - **Product Owner:** [TBD]
 - **Tech Lead (Backend):** [TBD]

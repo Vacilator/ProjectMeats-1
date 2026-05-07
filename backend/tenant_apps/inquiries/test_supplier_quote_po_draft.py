@@ -13,6 +13,7 @@ from apps.integrations.models import EmailLog, ExternalAuthProvider
 from apps.system.models import Product
 from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.ai_assistant.models import AIFeedbackLog
+from tenant_apps.contacts.models import Contact, ContactDepartmentChoices
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
     Inquiry,
@@ -23,6 +24,7 @@ from tenant_apps.inquiries.models import (
     InquirySupplierRFQ,
     InquirySupplierRFQStatusChoices,
 )
+from tenant_apps.plants.models import Plant
 from tenant_apps.inquiries.services import create_supplier_quote_purchase_order_draft
 from tenant_apps.inquiries.services.supplier_quote_po_draft import SupplierQuotePODraftError
 from tenant_apps.products.models import MasterProduct
@@ -89,7 +91,57 @@ class SupplierQuotePODraftServiceTests(TestCase):
             tenant=self.tenant,
             name="Quoted Supplier",
             email="supplier@example.com",
+            phone="800-555-7000",
+            contact_person="Legacy Supplier Rep",
             preferred_protein_types=[ProteinTypeChoices.BEEF],
+        )
+        self.plant = Plant.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            name="Quoted Supplier Plant",
+            plant_est_num="EST-Q1",
+            address="300 Plant Way",
+            city="Chicago",
+            state="IL",
+            zip_code="60601",
+        )
+        Contact.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            plant=self.plant,
+            first_name="Price",
+            last_name="Desk",
+            email="sales@quoted.example.com",
+            office_phone="800-555-7100",
+            department=ContactDepartmentChoices.SALES,
+            title="Account Manager",
+            protein_types_responsible=[ProteinTypeChoices.BEEF],
+            items_responsible=["Ribeye"],
+            documents_responsible_for=["Spec Sheets", "COAs"],
+        )
+        Contact.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            plant=self.plant,
+            first_name="Ship",
+            last_name="Ops",
+            email="shipping@quoted.example.com",
+            office_phone="800-555-7200",
+            department=ContactDepartmentChoices.SHIPPING,
+            title="Shipping Supervisor",
+            documents_responsible_for=["BOLs", "Loading Instructions"],
+        )
+        Contact.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            plant=self.plant,
+            first_name="Ava",
+            last_name="Payable",
+            email="ap@quoted.example.com",
+            office_phone="800-555-7300",
+            department=ContactDepartmentChoices.ACCOUNTING,
+            title="Accounts Payable",
+            documents_responsible_for=["Statements", "Bills"],
         )
         self.email_log = EmailLog.objects.create(
             tenant=self.tenant,
@@ -124,6 +176,20 @@ class SupplierQuotePODraftServiceTests(TestCase):
             provider_thread_id="graph-thread-po-1",
             correlation_key=uuid.UUID("11111111-1111-1111-1111-111111111111"),
             custom_data={
+                "recipient_routing": {
+                    "recipient_email": "sales@quoted.example.com",
+                    "recipient_name": "Price Desk",
+                    "phone": "800-555-7100",
+                    "department": ContactDepartmentChoices.SALES,
+                    "title": "Account Manager",
+                    "plant_id": self.plant.id,
+                    "plant_name": self.plant.name,
+                    "source": "department",
+                    "focus": "pricing",
+                    "responsible_documents": ["Spec Sheets", "COAs"],
+                    "responsible_proteins": [ProteinTypeChoices.BEEF],
+                    "responsible_items": ["Ribeye"],
+                },
                 "latest_reply_parse": {
                     "parse_status": "parsed",
                     "correlation_status": "matched",
@@ -198,6 +264,15 @@ class SupplierQuotePODraftServiceTests(TestCase):
         self.assertEqual(
             purchase_order.custom_data["source_lineage"]["rfq_id"],
             self.rfq.id,
+        )
+        self.assertEqual(purchase_order.supplier_contact_email, "sales@quoted.example.com")
+        self.assertEqual(
+            purchase_order.custom_data["contact_routing"]["billing_contact"]["recipient_email"],
+            "ap@quoted.example.com",
+        )
+        self.assertEqual(
+            purchase_order.custom_data["selected_bid"]["contact_routing"]["supplier_contact"]["title"],
+            "Account Manager",
         )
         self.assertEqual(self.email_log.related_order_id, purchase_order.id)
         self.assertEqual(self.email_log.status, "order_created")

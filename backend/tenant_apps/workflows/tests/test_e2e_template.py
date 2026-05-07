@@ -30,7 +30,7 @@ class TemplateFileTest(TestCase):
     def test_template_has_required_fields(self):
         data = get_e2e_template_data()
         self.assertEqual(data["templateId"], "end-to-end-inquiry-to-po-process")
-        self.assertEqual(data["version"], "1.0.0")
+        self.assertEqual(data["version"], "1.1.0")
         self.assertEqual(data["category"], "trading")
         self.assertTrue(data["isSystemTemplate"])
 
@@ -74,6 +74,17 @@ class TemplateFileTest(TestCase):
         groups = [n for n in data["nodes"] if n["type"] == "group"]
         self.assertEqual(len(groups), 1)
         self.assertEqual(groups[0]["data"]["groupType"], "form_process")
+        self.assertEqual(groups[0]["data"]["nodeType"], "formProcessGroup")
+
+    def test_template_has_form_steps_for_inquiry_sales_and_po_variants(self):
+        data = get_e2e_template_data()
+        form_steps = [n for n in data["nodes"] if n["type"] == "formStep"]
+        self.assertEqual(len(form_steps), 4)
+        labels = [node["data"]["label"] for node in form_steps]
+        self.assertIn("Form Node 1: Inquiry", labels)
+        self.assertIn("Form Node 2: Sales Order", labels)
+        self.assertIn("Form Node 3: Purchase Order (Customer Tree)", labels)
+        self.assertIn("Form Node 4: Purchase Order (Trader to Supplier)", labels)
 
     def test_template_has_for_each_supplier_loop(self):
         data = get_e2e_template_data()
@@ -95,12 +106,20 @@ class TemplateFileTest(TestCase):
         criteria = bid_nodes[0]["data"]["selectionCriteria"]
         self.assertTrue(criteria["marginCalculation"])
         self.assertEqual(criteria["minimumMarginPercent"], 5.0)
+        self.assertTrue(bid_nodes[0]["data"]["outputContract"]["displayInCockpit"])
 
     def test_template_has_generate_and_send_sales_order(self):
         data = get_e2e_template_data()
         action_types = [n["data"].get("actionType") for n in data["nodes"]]
         self.assertIn("generate_sales_order", action_types)
         self.assertIn("send_email", action_types)
+        sales_order_node = next(
+            n for n in data["nodes"] if n["data"].get("actionType") == "generate_sales_order"
+        )
+        self.assertEqual(
+            sales_order_node["data"]["outputContract"]["supplierContactPath"],
+            "records.sales_order.contact_routing.supplier_contact",
+        )
 
     def test_template_has_po_wait_logic(self):
         data = get_e2e_template_data()
@@ -116,6 +135,21 @@ class TemplateFileTest(TestCase):
         self.assertEqual(config["plantContactType"], "dropdown")
         self.assertTrue(config["filterByResponsibility"])
         self.assertTrue(config["includeDocumentAttachments"])
+        self.assertEqual(config["orderRoles"]["billing_contact"], "accounting")
+
+    def test_template_purchase_order_variants_expose_contact_prepopulation(self):
+        data = get_e2e_template_data()
+        po_steps = [
+            n
+            for n in data["nodes"]
+            if n["type"] == "formStep" and n["data"].get("entityType") == "purchase_order"
+        ]
+        self.assertEqual(len(po_steps), 2)
+        for node in po_steps:
+            config = node["data"]["entityConfig"]["contactPrepopulation"]
+            self.assertEqual(config["supplierContactRole"], "supplier_contact")
+            self.assertEqual(config["billingContactRole"], "billing_contact")
+            self.assertEqual(config["shippingContactRole"], "shipping_contact")
 
     def test_metadata_accuracy(self):
         data = get_e2e_template_data()
@@ -123,6 +157,7 @@ class TemplateFileTest(TestCase):
         self.assertEqual(meta["triggerCount"], 5)
         self.assertEqual(meta["nodeCount"], len(data["nodes"]))
         self.assertEqual(meta["edgeCount"], len(data["edges"]))
+        self.assertEqual(meta["formStepCount"], 4)
 
 
 class TemplateValidationTest(TestCase):

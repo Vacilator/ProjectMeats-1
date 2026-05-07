@@ -66,6 +66,7 @@ class PurchaseOrderSerializer(
     pick_up_location_details = LocationListSerializer(source='pick_up_location', read_only=True)
     delivery_location_details = LocationListSerializer(source='delivery_location', read_only=True)
     items = PurchaseOrderItemSerializer(many=True, required=False)
+    contact_routing_details = serializers.SerializerMethodField()
     
     # Allow order_number to be optional (auto-generated if not provided)
     order_number = serializers.CharField(required=False, allow_blank=True, max_length=50)
@@ -114,6 +115,7 @@ class PurchaseOrderSerializer(
             "supplier_contact_name",
             "supplier_contact_phone",
             "supplier_contact_email",
+            "contact_routing_details",
             "billing_contact_name",
             "billing_contact_phone",
             "billing_contact_email",
@@ -139,6 +141,11 @@ class PurchaseOrderSerializer(
             "modified_on",
         ]
         read_only_fields = ["id", "created_on", "modified_on", "pick_up_location_details", "delivery_location_details"]
+
+    def get_contact_routing_details(self, obj: PurchaseOrder) -> dict:
+        custom_data = obj.custom_data if isinstance(obj.custom_data, dict) else {}
+        contact_routing = custom_data.get("contact_routing")
+        return contact_routing if isinstance(contact_routing, dict) else {}
 
     def _replace_items(self, instance: PurchaseOrder, items_data: list[dict]) -> None:
         instance.items.all().delete()
