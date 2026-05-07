@@ -26,8 +26,12 @@
 
 import React, { Suspense, useMemo, useState } from 'react';
 import styled from 'styled-components';
+import { lazyWithChunkRecovery } from '@/utils/chunkLoadRecovery';
 
-const MonacoEditor = React.lazy(() => import('@monaco-editor/react'));
+const MonacoEditor = lazyWithChunkRecovery(
+  () => import('@monaco-editor/react'),
+  'NodeDebuggerPanel.MonacoEditor'
+);
 import { 
   Play, 
   AlertCircle, 

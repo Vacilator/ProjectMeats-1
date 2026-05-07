@@ -13,6 +13,12 @@ import { Result, Button, Typography, Card, Space, Collapse } from 'antd';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { logger } from '../../utils/logger';
 import { captureSentryException } from '../../utils/sentry';
+import {
+  attemptChunkRecovery,
+  getChunkRecoveryMessage,
+  isChunkLoadError,
+  reloadApplication,
+} from '../../utils/chunkLoadRecovery';
 
 const { Paragraph, Text } = Typography;
 const { Panel } = Collapse;
@@ -85,6 +91,8 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
+
+    attemptChunkRecovery(error, { source: 'common-error-boundary' });
   }
 
   componentDidUpdate(prevProps: Props): void {
@@ -109,6 +117,11 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   handleReload = (): void => {
+    if (isChunkLoadError(this.state.error)) {
+      reloadApplication('common-error-boundary-manual');
+      return;
+    }
+
     window.location.reload();
   };
 
@@ -186,6 +199,8 @@ export class ErrorBoundary extends Component<Props, State> {
     const { children, fallback } = this.props;
 
     if (hasError) {
+      const chunkRecoveryMessage = getChunkRecoveryMessage(error);
+
       // Use custom fallback if provided
       if (fallback) {
         return fallback;
@@ -214,7 +229,7 @@ export class ErrorBoundary extends Component<Props, State> {
             subTitle={
               <Space direction="vertical" size="small">
                 <Paragraph>
-                  We're sorry, but something unexpected happened. 
+                  {chunkRecoveryMessage || "We're sorry, but something unexpected happened."}
                   {errorCount > 1 && ` This error has occurred ${errorCount} times.`}
                 </Paragraph>
                 <Paragraph type="secondary">

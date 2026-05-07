@@ -1,11 +1,11 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const businessApiMock = vi.hoisted(() => ({
   get: vi.fn(),
 }));
+const navigateMock = vi.hoisted(() => vi.fn());
 
 const entityFormSurfaceMock = vi.hoisted(() =>
   vi.fn((props: Record<string, unknown>) =>
@@ -25,6 +25,14 @@ vi.mock('@/services/businessApi', () => ({
   businessApi: businessApiMock,
 }));
 
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
+
 vi.mock('./EntityFormSurface', () => ({
   EntityFormSurface: (props: Record<string, unknown>) => entityFormSurfaceMock(props),
   default: (props: Record<string, unknown>) => entityFormSurfaceMock(props),
@@ -36,9 +44,10 @@ describe('UnifiedEntityTable', () => {
   beforeEach(() => {
     businessApiMock.get.mockReset();
     entityFormSurfaceMock.mockClear();
+    navigateMock.mockReset();
   });
 
-  it('keeps quick edit form unmounted until the button opens the drawer', async () => {
+  it('keeps non-plant quick edit on the shared modal surface', async () => {
     businessApiMock.get.mockResolvedValue({
       data: {
         fields: [{ key: 'name', label: 'Name', surfaces: { table: true } }],
@@ -46,12 +55,10 @@ describe('UnifiedEntityTable', () => {
     });
 
     render(
-      <MemoryRouter>
-        <UnifiedEntityTable
-          entityType="plant"
-          data={[{ id: '42', name: 'North Plant' }]}
-        />
-      </MemoryRouter>
+      <UnifiedEntityTable
+        entityType="supplier"
+        data={[{ id: '42', name: 'North Plant' }]}
+      />
     );
 
     await waitFor(() => {
@@ -67,9 +74,10 @@ describe('UnifiedEntityTable', () => {
     });
 
     const formSurface = screen.getByTestId('entity-form-surface');
-    expect(formSurface.getAttribute('data-entity-type')).toBe('plant');
+    expect(formSurface.getAttribute('data-entity-type')).toBe('supplier');
     expect(formSurface.getAttribute('data-mode')).toBe('edit');
-    expect(formSurface.getAttribute('data-variant')).toBe('inline');
+    expect(formSurface.getAttribute('data-variant')).toBe('modal');
     expect(formSurface.getAttribute('data-entity-id')).toBe('42');
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 });

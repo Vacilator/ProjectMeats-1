@@ -4,7 +4,7 @@
  * ProjectMeats3 React Application
  * Full Business Management System with AI Assistant
  */
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Skeleton } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -105,8 +105,9 @@ import AdminWorkspaceHome from './pages/Admin/Home';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
+import { lazyWithChunkRecovery } from './utils/chunkLoadRecovery';
 import { getValidTenantId } from './utils/tenantId';
-const CockpitPage = lazy(() => import('./pages/Cockpit'));
+const CockpitPage = lazyWithChunkRecovery(() => import('./pages/Cockpit'), 'App.CockpitPage');
 import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
 import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
@@ -118,7 +119,10 @@ import WorkFormsInProgress from './pages/WorkForms/InProgress';
 import WorkFormsHistory from './pages/WorkForms/History';
 import ExecuteWorkForm from './pages/WorkForms/Execute';
 import WorkFormExecutionDetails from './pages/WorkForms/ExecutionDetails';
-const WorkFormsEditor = lazy(() => import('./pages/WorkForms/Editor'));
+const WorkFormsEditor = lazyWithChunkRecovery(
+  () => import('./pages/WorkForms/Editor'),
+  'App.WorkFormsEditor'
+);
 import WorkFormsMonitoring from './pages/WorkForms/Monitoring';
 
 // Wrapper component to access QuickActions context

@@ -9,7 +9,7 @@
  * - Theme-compliant styling with antd Table
  * - Multi-tenancy support
  */
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
@@ -191,6 +191,14 @@ const CustomerLocations: React.FC = () => {
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [contextCustomerId, setContextCustomerId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const locationInitialValues = useMemo(
+    () => ({
+      ...(contextCustomerId ? { customer: String(contextCustomerId) } : {}),
+      location_type: 'warehouse',
+      country: 'USA',
+    }),
+    [contextCustomerId]
+  );
 
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
@@ -484,11 +492,7 @@ const CustomerLocations: React.FC = () => {
             setShowModal(false);
             setEditingLocation(null);
           }}
-          initialValues={{
-            ...(contextCustomerId ? { customer: String(contextCustomerId) } : {}),
-            location_type: 'warehouse',
-            country: 'USA',
-          }}
+          initialValues={locationInitialValues}
           onSuccess={() => {
             setShowModal(false);
             setEditingLocation(null);

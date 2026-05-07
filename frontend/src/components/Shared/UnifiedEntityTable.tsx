@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Drawer, Table } from 'antd';
+import { Button, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 
@@ -121,9 +121,9 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
 }: UnifiedEntityTableProps<Row>) => {
   const navigate = useNavigate();
   const [schema, setSchema] = useState<BackendSchema | null>(null);
-
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [quickEditOpen, setQuickEditOpen] = useState(false);
+  const normalizedEntityType = useMemo(() => normalizeSchemaEntityType(entityType), [entityType]);
 
   const resolvedRowKey = useCallback(
     (row: Row) => {
@@ -159,6 +159,40 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
       .slice(0, 4);
   }, [schema]);
 
+  const closeQuickEdit = useCallback(() => {
+    setQuickEditOpen(false);
+    setEditingId(null);
+  }, []);
+
+  const handleQuickEdit = useCallback(
+    (row: Row) => {
+      const id = String((row as any)?.id ?? '').trim();
+      if (!id) return;
+
+      if (normalizedEntityType === 'plant') {
+        const supplierId = String(
+          (row as Record<string, unknown>)?.supplier ??
+            (row as Record<string, unknown>)?.supplier_id ??
+            ''
+        ).trim();
+
+        if (supplierId) {
+          navigate(`/suppliers/${encodeURIComponent(supplierId)}/plants/${encodeURIComponent(id)}`, {
+            state: { startEditing: true },
+          });
+          return;
+        }
+
+        navigate(`/plants/${encodeURIComponent(id)}/edit`);
+        return;
+      }
+
+      setEditingId(id);
+      setQuickEditOpen(true);
+    },
+    [navigate, normalizedEntityType]
+  );
+
   const columns: ColumnsType<Row> = useMemo(() => {
     const cols: ColumnsType<Row> = [
       {
@@ -190,9 +224,8 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
     });
 
     // Ensure Department is consistently visible for Contact lists even if schema omits it from table surface.
-    const normalizedType = normalizeSchemaEntityType(entityType);
     const hasDeptColumn = cols.some((c) => (c as any)?.key === 'department');
-    if (normalizedType === 'contact' && !hasDeptColumn) {
+    if (normalizedEntityType === 'contact' && !hasDeptColumn) {
       cols.push({
         title: 'Department',
         dataIndex: 'department' as any,
@@ -219,8 +252,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                setEditingId(id);
-                setDrawerOpen(true);
+                handleQuickEdit(row);
               }}
             >
               Quick Edit
@@ -231,7 +263,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
     }
 
     return cols;
-  }, [enableQuickEdit, entityType, schemaColumns]);
+  }, [enableQuickEdit, entityType, handleQuickEdit, normalizedEntityType, schemaColumns]);
 
   return (
     <>
@@ -254,35 +286,18 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
         })}
       />
 
-      <Drawer
-        title="Quick Edit"
-        open={drawerOpen}
-        width={560}
-        destroyOnClose
-        onClose={() => {
-          setDrawerOpen(false);
-          setEditingId(null);
+      <EntityFormSurface
+        entityType={entityType}
+        mode="edit"
+        variant="modal"
+        isOpen={quickEditOpen}
+        entityId={editingId ?? undefined}
+        onClose={closeQuickEdit}
+        onSuccess={() => {
+          closeQuickEdit();
+          onReload?.();
         }}
-      >
-        {editingId ? (
-          <EntityFormSurface
-            entityType={entityType}
-            mode="edit"
-            variant="inline"
-            isOpen={true}
-            entityId={editingId}
-            onClose={() => {
-              setDrawerOpen(false);
-              setEditingId(null);
-            }}
-            onSuccess={() => {
-              setDrawerOpen(false);
-              setEditingId(null);
-              onReload?.();
-            }}
-          />
-        ) : null}
-      </Drawer>
+      />
     </>
   );
 };
