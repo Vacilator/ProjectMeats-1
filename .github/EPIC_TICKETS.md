@@ -24,9 +24,12 @@
 | Shipped | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
 | Shipped | CTE-04.4 carrier-reply-parser | Phase 16 | backend |
 | Shipped | CTE-04.5 happy-path-orchestrator-e2e | Phase 16 | full-stack |
-| **P0 (Now)** | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
-| P1 | CTE-04.6 structured-logging-trace-ids | Phase 16 | backend |
-| P5 | CTE-05–08 (distributed hardening) | Phase 16 | backend |
+| Shipped | CTE-05.1 trade-session-lineage-schema | Phase 16 | backend |
+| Shipped | CTE-06.1 domain-event-contracts | Phase 16 | backend |
+| **P0 (Now)** | CTE-04.6 structured-logging-trace-ids | Phase 16 | backend |
+| P1 | CTE-06.2 celery-saga-consumers | Phase 16 | backend |
+| P2 | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
+| P5 | CTE-05.2–08 (distributed hardening) | Phase 16 | backend |
 | P6 | RT-01–04 (runtime intelligence) | Phase 17 | full-stack |
 | P7 | RT-05 (editor stabilization) | Phase 17 | frontend |
 | P8 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
@@ -299,8 +302,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 #### Epic CTE-05: Trade Lineage & Visualization
 
-- [ ] **CTE-05.1 trade-session-lineage-contract-and-schema**
-  - **Status:** Blocked
+- [x] **CTE-05.1 trade-session-lineage-contract-and-schema** *(Shipped — PR #4963)*
+  - **Status:** Shipped
   - **Why now:** Without a durable lineage identifier, operators cannot prove which inquiry or inbound email spawned a downstream supplier/sales/carrier document.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 5
   - **Scope:** Design and add the canonical `trade_id` / `TradeSession` lineage contract generated at inquiry creation and cascaded into `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder`, including source-email linkage fields and additive schema rules.
@@ -343,8 +346,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 #### Epic CTE-06: Domain Events & Saga Consumers
 
-- [ ] **CTE-06.1 domain-event-contract-for-approved-trade-transitions**
-  - **Status:** Blocked
+- [x] **CTE-06.1 domain-event-contract-for-approved-trade-transitions** *(Shipped — PR #4964)*
+  - **Status:** Shipped
   - **Why now:** The happy path is currently planned as deterministic, but downstream state changes will timeout or partially fail if approval side effects stay synchronous.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 6
   - **Scope:** Define the domain-event contract for trade-state transitions (e.g. `supplier_po_approved`, `sales_order_approved`, `carrier_po_drafted`) with event payload shape, replay/idempotency semantics, and routing rules.
