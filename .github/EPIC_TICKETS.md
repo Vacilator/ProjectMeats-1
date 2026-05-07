@@ -1915,3 +1915,262 @@
   - **Risk level:** Low
   - **Rollback:** Remove variant action; existing templates and clone behavior unchanged.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+---
+
+## Phase 18: Process Intelligence Scale & Self-Service Operations
+
+> **Execution gate:** All Phase 18 tickets are blocked behind Phase 17 runtime (RT-01 through RT-04) shipping on `development`.  
+> **Canonical reference:** `MASTER_PLAN.md` → Phase 18
+
+- [ ] **RT-06.1 in-app-email-notification-service**
+  - **Status:** Blocked
+  - **Why now:** Operators need real-time awareness of process events without polling the cockpit.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
+  - **Scope:** Build a tenant-scoped notification service that emits in-app and email notifications for every major EndToEndInquiryToPOProcess event (new bid received, due date approaching, PO received, approval needed, process failure). Route notifications using Plant Contact Type + Responsibilities from the enriched contact model.
+  - **Non-goals:** User preference UI (that is RT-06.3).
+  - **Primary domain:** backend/notifications + celery
+  - **Likely touched paths:** `backend/apps/core/services/notifications.py`, `backend/apps/core/models.py`, `backend/tenant_apps/workflows/services/`, `backend/apps/integrations/tasks.py`
+  - **Dependencies:** Phase 17 RT-01 (telemetry events), existing email service (shipped)
+  - **Blockers:** Phase 17 RT-01 through RT-04
+  - **Acceptance criteria:** Each major process event triggers in-app notification within 60s; email sent to correct contact based on Plant Contact Type; notifications tenant-scoped; no duplicate notifications for same event.
+  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_notifications tenant_apps.workflows --noinput`
+  - **Tenant/RLS impact:** High (notification records are tenant-scoped)
+  - **Secrets/infra impact:** Low (uses existing email service credentials)
+  - **Risk level:** Medium
+  - **Rollback:** Disable notification Celery task; processes continue without notifications.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-06.2 quick-action-center-panel**
+  - **Status:** Blocked
+  - **Why now:** Operators need one-click access to common actions without navigating through forms.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
+  - **Scope:** Create a persistent "Quick Actions" panel component rendered in the Process Cockpit sidebar and on every entity detail page. Actions include: Approve Bid, Send RFQ, Generate SO, Reject PO, Escalate, etc. Actions are context-aware (only show relevant actions for current entity state).
+  - **Non-goals:** Approval workflow logic (that is RT-07).
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/components/QuickActions/`, `frontend/src/pages/ProcessCockpit/`, `frontend/src/pages/Entities/`
+  - **Dependencies:** Phase 17 RT-03.1 (Process Cockpit exists)
+  - **Blockers:** Phase 17 RT-01 through RT-04
+  - **Acceptance criteria:** Quick Actions panel visible on cockpit and entity pages; only context-appropriate actions shown; clicking action executes immediately or opens minimal confirmation; panel loads in < 500ms.
+  - **Validation commands:** `npm -C frontend run test:ci`; `npm -C frontend run verify-standards`
+  - **Tenant/RLS impact:** Low (presentation layer; actions use existing tenant-scoped APIs)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Hide Quick Actions panel; all actions remain available through normal navigation.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-06.3 notification-user-preferences**
+  - **Status:** Blocked
+  - **Why now:** Users must control notification frequency to prevent overload.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
+  - **Scope:** Add user preference settings for notification frequency: realtime (immediate), daily digest, weekly digest, or off per event category. Store preferences in existing UserPreferences model. Add preferences UI in user settings page.
+  - **Non-goals:** Advanced routing rules (use Plant Contact data from RT-06.1).
+  - **Primary domain:** backend + frontend
+  - **Likely touched paths:** `backend/apps/core/models.py`, `backend/apps/core/views.py`, `frontend/src/pages/Settings/`, `frontend/src/components/NotificationPreferences/`
+  - **Dependencies:** RT-06.1
+  - **Blockers:** RT-06.1
+  - **Acceptance criteria:** Users can set per-category notification frequency; digest jobs aggregate and send at configured intervals; "off" suppresses completely; default is "realtime" for new users.
+  - **Validation commands:** `cd backend && python manage.py test apps.core --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Medium (preferences are user+tenant scoped)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Remove preference UI; all notifications default to realtime.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-06.4 notification-contact-routing-intelligence**
+  - **Status:** Blocked
+  - **Why now:** Notifications must reach the right person based on their role in the process.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
+  - **Scope:** Enhance notification routing to resolve recipients from Plant Contact Type + "Responsible For" multi-selects. Financial events → Accounting contacts; QA events → QA contacts; Procurement events → Procurement contacts. Fallback to process owner when no matching contact found.
+  - **Non-goals:** Custom routing rules editor.
+  - **Primary domain:** backend
+  - **Likely touched paths:** `backend/apps/core/services/notifications.py`, `backend/tenant_apps/suppliers/`, `backend/tenant_apps/workflows/services/`
+  - **Dependencies:** RT-06.1, Phase 17 RT-04.1 (contact enrichment)
+  - **Blockers:** RT-06.1
+  - **Acceptance criteria:** Financial events notify Accounting contacts; QA events notify QA contacts; missing contact type falls back to process owner with warning; no notification sent to contacts outside executing tenant.
+  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_notifications --noinput`
+  - **Tenant/RLS impact:** High (cross-references tenant contact data)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert to process-owner-only routing; notifications still delivered.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-07.1 approval-gate-node-type**
+  - **Status:** Blocked
+  - **Why now:** Configurable approval steps are critical for governance in the trading process.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
+  - **Scope:** Introduce a new `ApprovalGate` node type that can be inserted into FormProcess groups or after BidSelection. The node pauses process execution until an authorized approver acts. Support approval rules based on: margin threshold, credit limit, supplier risk score, order value, and custom field conditions.
+  - **Non-goals:** Multi-level sequential approvals (future; this is single-gate).
+  - **Primary domain:** backend/workforms
+  - **Likely touched paths:** `backend/tenant_apps/workflows/nodes/approval_gate.py`, `backend/tenant_apps/workflows/services/`, `backend/tenant_apps/workflows/models.py`
+  - **Dependencies:** Phase 17 RT-01 (template exists), RT-06.1 (notifications for approval routing)
+  - **Blockers:** Phase 17 RT-01 through RT-04, RT-06.1
+  - **Acceptance criteria:** ApprovalGate pauses execution; rule engine evaluates conditions correctly; timeout triggers escalation; approved resumes process; rejected terminates with reason; existing nodes unchanged.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows --noinput`
+  - **Tenant/RLS impact:** High (approval records are tenant-scoped)
+  - **Secrets/infra impact:** None
+  - **Risk level:** High (blocks process execution; must be reliable)
+  - **Rollback:** Remove ApprovalGate from templates; processes execute without gate (auto-approve behavior).
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-07.2 cockpit-approval-panel**
+  - **Status:** Blocked
+  - **Why now:** Pending approvals must be visible and actionable from the Process Cockpit.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
+  - **Scope:** Surface pending approvals in the Process Cockpit with React Flow visualization (approval gate node highlighted amber), one-click approve/reject buttons, approval history, and delegation option. Integrate with contact types so correct department is shown.
+  - **Non-goals:** Custom approval form fields (use standard approve/reject + comment).
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/components/ProcessFlow/`, `frontend/src/pages/ProcessCockpit/`, `frontend/src/components/ApprovalPanel/`
+  - **Dependencies:** RT-07.1, Phase 17 RT-03.2 (React Flow diagrams)
+  - **Blockers:** RT-07.1
+  - **Acceptance criteria:** Pending approvals show in cockpit with count badge; clicking opens approval detail with context; approve/reject executes immediately; React Flow highlights gate node; approval history visible.
+  - **Validation commands:** `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Low (reads tenant-scoped approval data)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Hide approval panel; approvals still actionable via direct API.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-07.3 approval-gate-template-example**
+  - **Status:** Blocked
+  - **Why now:** The EndToEndInquiryToPOProcess template should demonstrate the approval pattern.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
+  - **Scope:** Add an example ApprovalGate to the EndToEndInquiryToPOProcess template after BidSelection with rules: margin < 5% requires manager approval, order value > $50k requires finance approval. Keep existing template paths unchanged (gate is additive).
+  - **Non-goals:** Multiple sequential gates (one gate per insertion point for now).
+  - **Primary domain:** backend/workforms
+  - **Likely touched paths:** `backend/tenant_apps/workflows/templates/`, `backend/tenant_apps/workflows/tests/`
+  - **Dependencies:** RT-07.1
+  - **Blockers:** RT-07.1
+  - **Acceptance criteria:** Template validates with approval gate; existing trigger paths still work; gate fires for low-margin or high-value orders; gate is skipped for qualifying orders.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows --noinput`
+  - **Tenant/RLS impact:** Medium (approval record created per gate evaluation)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low (additive to existing template)
+  - **Rollback:** Remove gate from template; all paths auto-approve.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-08.1 financial-calculated-fields-service**
+  - **Status:** Blocked
+  - **Why now:** Traders need real-time financial visibility without manual calculation.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
+  - **Scope:** Add background Celery job that computes and caches: Outstanding Amount, Margin %, Payment Status for Sales Orders and Purchase Orders. Store in existing `custom_data` JSONField (no schema changes). Refresh within 5 minutes of SO/PO status change.
+  - **Non-goals:** Invoice generation (that is RT-08.2).
+  - **Primary domain:** backend/celery
+  - **Likely touched paths:** `backend/apps/core/services/financials.py`, `backend/apps/integrations/tasks.py`, `backend/tenant_apps/sales_orders/`, `backend/tenant_apps/purchase_orders/`
+  - **Dependencies:** Phase 17 RT-01 (process events trigger recalculation)
+  - **Blockers:** Phase 17 RT-01 through RT-04
+  - **Acceptance criteria:** Calculated fields update within 5 minutes of status change; margin calculation correct to 2 decimal places; outstanding amount reflects all linked POs; payment status derived from invoice state.
+  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_financials tenant_apps.sales_orders tenant_apps.purchase_orders --noinput`
+  - **Tenant/RLS impact:** High (computes across tenant-scoped orders)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium (calculation accuracy critical)
+  - **Rollback:** Disable Celery task; fields show "calculating..." placeholder.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-08.2 auto-invoice-generation**
+  - **Status:** Blocked
+  - **Why now:** Manual invoice creation is error-prone and delays payment cycles.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
+  - **Scope:** Auto-generate invoice records when final PO status transitions to "received". Attach invoice PDF to entity record. Route invoice notification to Accounting department contact (Plant Contact Type). No schema changes — use existing Invoice model if present or create additive model.
+  - **Non-goals:** Payment processing or bank integration.
+  - **Primary domain:** backend
+  - **Likely touched paths:** `backend/tenant_apps/invoices/`, `backend/apps/core/services/financials.py`, `backend/apps/integrations/tasks.py`
+  - **Dependencies:** RT-08.1, RT-06.1 (notification for routing)
+  - **Blockers:** RT-08.1
+  - **Acceptance criteria:** Invoice auto-generated on PO "received" transition; PDF attached to record; Accounting contact notified; idempotent on retry; no duplicate invoices.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.invoices --noinput`
+  - **Tenant/RLS impact:** High (creates tenant-scoped invoice records)
+  - **Secrets/infra impact:** None
+  - **Risk level:** High (financial document accuracy critical)
+  - **Rollback:** Disable auto-generation; manual invoice creation remains available.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-08.3 cockpit-financials-tab**
+  - **Status:** Blocked
+  - **Why now:** Traders need aggregated financial views within the process context.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
+  - **Scope:** Add a "Financials" tab inside the Process Cockpit showing per-trade financial summary (margin, outstanding, payment status) and aggregated portfolio view (total outstanding, average margin, overdue count). Use computed fields from RT-08.1.
+  - **Non-goals:** Full accounting system (this is visibility only).
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/pages/ProcessCockpit/`, `frontend/src/components/Financials/`, `frontend/src/services/financialsApi.ts`
+  - **Dependencies:** RT-08.1
+  - **Blockers:** RT-08.1
+  - **Acceptance criteria:** Financials tab loads with per-trade and aggregated views; data refreshes on tab focus; overdue items highlighted; export to CSV available.
+  - **Validation commands:** `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Low (reads computed data from backend)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Hide Financials tab; other cockpit tabs unchanged.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-09.1 analytics-service-and-dashboard**
+  - **Status:** Blocked
+  - **Why now:** Traders need data-driven insights into their process performance.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-09
+  - **Scope:** Create analytics backend service that aggregates telemetry events into: win-rate by supplier, average margin trend, process cycle time, top contacts by activity. Build "Analytics" view in Process Cockpit with interactive charts. Filter by date range, trader, or specific Workform run.
+  - **Non-goals:** Real-time streaming analytics (batch aggregation is sufficient).
+  - **Primary domain:** backend + frontend
+  - **Likely touched paths:** `backend/apps/core/services/analytics.py`, `backend/apps/core/views.py`, `frontend/src/pages/ProcessCockpit/Analytics/`, `frontend/src/components/Charts/`
+  - **Dependencies:** Phase 17 RT-01 (telemetry events as data source), RT-06.1 (additional events)
+  - **Blockers:** Phase 17 RT-01 through RT-04
+  - **Acceptance criteria:** Dashboard loads within 3s with up to 10k process records; charts are interactive (hover, click-through); filters update in real-time; data is tenant-scoped.
+  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_analytics --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** High (aggregates across tenant-scoped data)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium (query performance with large datasets)
+  - **Rollback:** Hide Analytics tab; telemetry data preserved for future use.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-09.2 analytics-export-and-metrics-surface**
+  - **Status:** Blocked
+  - **Why now:** Key metrics should be accessible outside the dedicated analytics page.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-09
+  - **Scope:** Add CSV/PDF export for all analytics views. Surface key metrics (win-rate, avg margin, cycle time) on the main dashboard widget and per-entity React Flow header. Define analytics event standards in WORKFORMS_DEVELOPER_GUIDE.md.
+  - **Non-goals:** Custom report builder (pre-defined views only).
+  - **Primary domain:** frontend + backend
+  - **Likely touched paths:** `frontend/src/pages/Dashboard/`, `frontend/src/components/ProcessFlow/`, `backend/apps/core/views.py`, `docs/WORKFORMS_DEVELOPER_GUIDE.md`
+  - **Dependencies:** RT-09.1
+  - **Blockers:** RT-09.1
+  - **Acceptance criteria:** Export produces valid CSV/PDF with correct data; dashboard widget shows 3 key metrics; React Flow header shows cycle time for active process; WORKFORMS_DEVELOPER_GUIDE.md documents event standards.
+  - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_analytics --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Medium (export respects tenant boundaries)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Remove export buttons and metric widgets; analytics page remains.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-10.1 template-library-page**
+  - **Status:** Blocked
+  - **Why now:** Self-service template discovery reduces dependency on developers.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-10
+  - **Scope:** Create a "Template Library" page showing the official EndToEndInquiryToPOProcess template plus published variants. Include search, category filters, version badges, and usage statistics. "Create New from Main Process" button clones the core template into an editable variant with restricted modification zones (locked nodes, required connections).
+  - **Non-goals:** Marketplace or cross-tenant template sharing.
+  - **Primary domain:** frontend + backend
+  - **Likely touched paths:** `frontend/src/pages/TemplateLibrary/`, `backend/tenant_apps/workflows/views.py`, `backend/tenant_apps/workflows/services/template_library.py`
+  - **Dependencies:** Phase 17 RT-05.2 (Create Variant), RT-06 through RT-09 verified on dev
+  - **Blockers:** RT-06 through RT-09 verified on dev
+  - **Acceptance criteria:** Library page shows all published templates with metadata; "Create New" produces valid restricted clone; locked nodes cannot be deleted; required connections enforced on publish; usage stats accurate.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Medium (templates are tenant-scoped)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium (restriction enforcement complexity)
+  - **Rollback:** Hide Template Library page; editor remains accessible directly.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-10.2 template-version-history-and-publish**
+  - **Status:** Blocked
+  - **Why now:** Operators need confidence that published templates are stable and reversible.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-10
+  - **Scope:** Add version history tracking for templates (every save creates a version). Add one-click "Publish" action that promotes a draft version to active. Add "Revert to Version" for rollback. Show version diff in editor.
+  - **Non-goals:** Collaborative editing or merge conflict resolution.
+  - **Primary domain:** backend + frontend
+  - **Likely touched paths:** `backend/tenant_apps/workflows/models.py`, `backend/tenant_apps/workflows/services/`, `frontend/src/components/FlowEditor/`, `frontend/src/pages/TemplateLibrary/`
+  - **Dependencies:** RT-10.1
+  - **Blockers:** RT-10.1
+  - **Acceptance criteria:** Every template save creates immutable version record; publish promotes version to active; revert restores previous version; version diff shows added/removed/modified nodes; active processes continue on their original version.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Medium (version records are tenant-scoped)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium (version management complexity)
+  - **Rollback:** Disable version UI; templates save directly without history (current behavior).
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`

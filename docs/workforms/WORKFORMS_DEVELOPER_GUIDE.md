@@ -866,6 +866,14 @@ const FormBuilder = lazy(() => import('./FormBuilder/FormBuilder'));
 
 ---
 
-**Last Updated**: 2026-02-05  
-**Version**: 2.0  
+**Last Updated**: 2026-05-07  
+**Version**: 3.0  
 **Maintained By**: ProjectMeats Development Team
+
+---
+
+## Phase 18 — RT-09: Analytics Telemetry Event Standards
+
+> **Full analytics event standards** are maintained in `docs/WORKFORMS_DEVELOPER_GUIDE.md` under the "Phase 18 — RT-09" section.  
+> Includes: event schema, event type enum, emission guidelines, aggregation queries, export formats, and dashboard metrics.  
+> **Canonical reference:** `MASTER_PLAN.md` → Phase 18 / Epic RT-09

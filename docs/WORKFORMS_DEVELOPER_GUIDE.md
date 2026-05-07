@@ -823,6 +823,152 @@ const FormBuilder = lazy(() => import('./FormBuilder/FormBuilder'));
 
 ---
 
-**Last Updated**: 2026-02-05  
-**Version**: 2.0  
+**Last Updated**: 2026-05-07  
+**Version**: 3.0  
 **Maintained By**: ProjectMeats Development Team
+
+---
+
+## Phase 18 — RT-09: Analytics Telemetry Event Standards
+
+> **Canonical reference:** `MASTER_PLAN.md` → Phase 18 / Epic RT-09  
+> All Workform nodes and process services MUST emit telemetry events conforming to these standards for the analytics dashboard to aggregate correctly.
+
+### Event Schema (Required Fields)
+
+```typescript
+interface AnalyticsTelemetryEvent {
+  // Identity
+  event_id: string;          // UUID, unique per emission
+  event_type: string;        // From EventType enum below
+  timestamp: string;         // ISO 8601 UTC
+
+  // Scope
+  tenant_id: string;         // UUID, mandatory for RLS
+  execution_id: string;      // UUID, links to workform execution
+  template_id: string;       // UUID, links to workform template
+  trigger_type: string;      // Which trigger started this execution
+
+  // Context
+  node_id: string;           // UUID, which node emitted this event
+  node_type: string;         // e.g., "FormProcess", "BidSelection", "ApprovalGate"
+  step_name: string;         // Human-readable step name
+
+  // Metrics (optional per event type)
+  duration_ms?: number;      // Time spent in this step
+  margin_pct?: number;       // Margin percentage at this point
+  order_value?: number;      // Order value in base currency
+  supplier_id?: string;      // UUID if supplier-related
+  contact_id?: string;       // UUID if contact-related
+
+  // Outcome
+  status: 'started' | 'completed' | 'failed' | 'skipped' | 'waiting';
+  error_type?: string;       // If status is 'failed'
+  error_message?: string;    // Human-readable error
+}
+```
+
+### Event Type Enum
+
+```typescript
+enum AnalyticsEventType {
+  // Process lifecycle
+  PROCESS_STARTED = 'process.started',
+  PROCESS_COMPLETED = 'process.completed',
+  PROCESS_FAILED = 'process.failed',
+
+  // Trigger events
+  TRIGGER_FIRED = 'trigger.fired',
+  TRIGGER_VALIDATED = 'trigger.validated',
+
+  // Supplier events
+  SUPPLIER_MATCHED = 'supplier.matched',
+  RFQ_SENT = 'rfq.sent',
+  SUPPLIER_RESPONDED = 'supplier.responded',
+  SUPPLIER_TIMEOUT = 'supplier.timeout',
+
+  // Bid events
+  BID_RECEIVED = 'bid.received',
+  BID_SELECTED = 'bid.selected',
+  BID_REJECTED = 'bid.rejected',
+
+  // Order events
+  SO_GENERATED = 'sales_order.generated',
+  SO_SENT = 'sales_order.sent',
+  PO_GENERATED = 'purchase_order.generated',
+  PO_RECEIVED = 'purchase_order.received',
+
+  // Approval events
+  APPROVAL_REQUESTED = 'approval.requested',
+  APPROVAL_GRANTED = 'approval.granted',
+  APPROVAL_REJECTED = 'approval.rejected',
+  APPROVAL_ESCALATED = 'approval.escalated',
+
+  // Financial events
+  INVOICE_GENERATED = 'invoice.generated',
+  PAYMENT_RECEIVED = 'payment.received',
+  MARGIN_ALERT = 'margin.alert',
+
+  // Loop events
+  LOOP_ITERATION_START = 'loop.iteration_start',
+  LOOP_ITERATION_END = 'loop.iteration_end',
+  LOOP_COMPLETED = 'loop.completed',
+}
+```
+
+### Emission Guidelines
+
+1. **Every node MUST emit at least `started` and `completed`/`failed`** events
+2. **Include `duration_ms`** on all `completed` events (measure from `started`)
+3. **Include `supplier_id`** on all supplier-related events
+4. **Include `margin_pct` and `order_value`** on bid and order events
+5. **Never emit PII** (no names, emails, phone numbers in events)
+6. **Tenant isolation:** every event MUST include `tenant_id`; analytics queries filter by tenant
+
+### Analytics Aggregation Queries (Reference)
+
+```sql
+-- Win-rate by supplier (last 90 days)
+SELECT supplier_id,
+       COUNT(*) FILTER (WHERE event_type = 'bid.selected') AS wins,
+       COUNT(*) FILTER (WHERE event_type IN ('bid.selected', 'bid.rejected')) AS total,
+       ROUND(COUNT(*) FILTER (WHERE event_type = 'bid.selected')::numeric /
+             NULLIF(COUNT(*) FILTER (WHERE event_type IN ('bid.selected', 'bid.rejected')), 0), 3) AS win_rate
+FROM analytics_events
+WHERE tenant_id = :tenant_id AND timestamp > NOW() - INTERVAL '90 days'
+GROUP BY supplier_id
+ORDER BY win_rate DESC;
+
+-- Average margin trend (weekly)
+SELECT DATE_TRUNC('week', timestamp) AS week,
+       AVG(margin_pct) AS avg_margin
+FROM analytics_events
+WHERE tenant_id = :tenant_id AND event_type = 'bid.selected' AND margin_pct IS NOT NULL
+GROUP BY week
+ORDER BY week;
+
+-- Process cycle time
+SELECT template_id,
+       AVG(duration_ms) / 1000 / 3600 AS avg_hours,
+       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) / 1000 / 3600 AS p95_hours
+FROM analytics_events
+WHERE tenant_id = :tenant_id AND event_type = 'process.completed'
+GROUP BY template_id;
+```
+
+### Export Formats
+
+- **CSV:** Standard RFC 4180 with headers; all timestamps in UTC ISO 8601
+- **PDF:** Summary page with charts + detail pages with tabular data; tenant branding header
+
+### Dashboard Metrics (Main Dashboard Widget)
+
+| Metric | Calculation | Refresh |
+|--------|-------------|---------|
+| Win Rate | bids won / total bids (last 30 days) | Every 15 min |
+| Avg Margin | mean of margin_pct on selected bids (last 30 days) | Every 15 min |
+| Avg Cycle Time | mean process duration in hours (last 30 days) | Every 15 min |
+
+---
+
+**Phase 18 Analytics Standards — Added: 2026-05-07**
