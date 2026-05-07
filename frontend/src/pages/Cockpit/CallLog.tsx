@@ -238,18 +238,18 @@ const CallBadge = styled.span<{ type: 'upcoming' | 'completed' | 'overdue' }>`
     switch (props.type) {
       case 'completed':
         return `
-          background: rgba(34, 197, 94, 0.1);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.1);
+          color: rgb(var(--color-success));
         `;
       case 'overdue':
         return `
-          background: rgba(239, 68, 68, 0.1);
-          color: rgb(239, 68, 68);
+          background: rgba(var(--color-error), 0.1);
+          color: rgb(var(--color-error));
         `;
       default: // upcoming
         return `
-          background: rgba(59, 130, 246, 0.1);
-          color: rgb(59, 130, 246);
+          background: rgba(var(--color-info), 0.1);
+          color: rgb(var(--color-info));
         `;
     }
   }}
@@ -302,11 +302,11 @@ const SecondaryButton = styled.button`
 `;
 
 const CompleteButton = styled(SecondaryButton)`
-  color: rgb(34, 197, 94);
-  border-color: rgb(34, 197, 94);
+  color: rgb(var(--color-success));
+  border-color: rgb(var(--color-success));
 
   &:hover {
-    background: rgba(34, 197, 94, 0.1);
+    background: rgba(var(--color-success), 0.1);
   }
 `;
 
@@ -332,20 +332,20 @@ const LoadingState = styled.div`
 
 const ErrorState = styled.div`
   padding: 1rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-error), 0.1);
+  border: 1px solid rgba(var(--color-error), 0.3);
   border-radius: var(--radius-md);
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 0.875rem;
   margin-bottom: 1rem;
 `;
 
 const FilterInfo = styled.div`
   padding: 1rem;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(var(--color-info), 0.1);
+  border: 1px solid rgba(var(--color-info), 0.3);
   border-radius: var(--radius-md);
-  color: rgb(59, 130, 246);
+  color: rgb(var(--color-info));
   font-size: 0.875rem;
   margin-bottom: 1rem;
   display: flex;
@@ -356,15 +356,15 @@ const FilterInfo = styled.div`
 const ClearButton = styled.button`
   padding: 0.25rem 0.5rem;
   background: transparent;
-  color: rgb(59, 130, 246);
-  border: 1px solid rgb(59, 130, 246);
+  color: rgb(var(--color-info));
+  border: 1px solid rgb(var(--color-info));
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(59, 130, 246, 0.2);
+    background: rgba(var(--color-info), 0.2);
   }
 `;
 
@@ -432,18 +432,18 @@ const CallDetailsBadge = styled.span<{ type: 'upcoming' | 'completed' | 'overdue
     switch (props.type) {
       case 'completed':
         return `
-          background: rgba(34, 197, 94, 0.15);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.15);
+          color: rgb(var(--color-success));
         `;
       case 'overdue':
         return `
-          background: rgba(239, 68, 68, 0.15);
-          color: rgb(239, 68, 68);
+          background: rgba(var(--color-error), 0.15);
+          color: rgb(var(--color-error));
         `;
       default: // upcoming
         return `
-          background: rgba(59, 130, 246, 0.15);
-          color: rgb(59, 130, 246);
+          background: rgba(var(--color-info), 0.15);
+          color: rgb(var(--color-info));
         `;
     }
   }}
@@ -554,13 +554,13 @@ const CallBlock = styled.div<{ duration: number; status: string; isDragging?: bo
   left: 4px;
   right: 4px;
   background: ${props => 
-    props.status === 'completed' ? 'rgba(34, 197, 94, 0.15)' :
-    props.status === 'overdue' ? 'rgba(239, 68, 68, 0.15)' :
+    props.status === 'completed' ? 'rgba(var(--color-success), 0.15)' :
+    props.status === 'overdue' ? 'rgba(var(--color-error), 0.15)' :
     'rgba(var(--color-primary), 0.15)'
   };
   border-left: 3px solid ${props =>
-    props.status === 'completed' ? 'rgb(34, 197, 94)' :
-    props.status === 'overdue' ? 'rgb(239, 68, 68)' :
+    props.status === 'completed' ? 'rgb(var(--color-success))' :
+    props.status === 'overdue' ? 'rgb(var(--color-error))' :
     'rgb(var(--color-primary))'
   };
   border-radius: var(--radius-sm);

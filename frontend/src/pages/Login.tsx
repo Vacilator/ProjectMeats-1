@@ -206,9 +206,9 @@ const Subtitle = styled.p`
 `;
 
 const ErrorMessage = styled.div`
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: rgb(239, 68, 68);
+  background: rgba(var(--color-error), 0.1);
+  border: 1px solid rgba(var(--color-error), 0.3);
+  color: rgb(var(--color-error));
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 24px;
@@ -358,9 +358,9 @@ const StyledLink = styled(Link)`
 `;
 
 const SuccessMessage = styled.div`
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: rgb(34, 197, 94);
+  background: rgba(var(--color-success), 0.1);
+  border: 1px solid rgba(var(--color-success), 0.3);
+  color: rgb(var(--color-success));
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 24px;

@@ -170,7 +170,7 @@ const TabBadge = styled.span`
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
-  background: rgb(239, 68, 68);
+  background: rgb(var(--color-error));
   color: white;
 `;
 
@@ -214,14 +214,14 @@ const ItemIcon = styled.div<{ $variant: string }>`
   ${(p) => {
     switch (p.$variant) {
       case 'success':
-        return 'background: rgba(34, 197, 94, 0.1); color: rgb(34, 197, 94);';
+        return 'background: rgba(var(--color-success), 0.1); color: rgb(var(--color-success));';
       case 'warning':
-        return 'background: rgba(234, 179, 8, 0.1); color: rgb(202, 138, 4);';
+        return 'background: rgba(var(--color-warning), 0.1); color: rgb(var(--color-warning));';
       case 'error':
-        return 'background: rgba(239, 68, 68, 0.1); color: rgb(239, 68, 68);';
+        return 'background: rgba(var(--color-error), 0.1); color: rgb(var(--color-error));';
       case 'info':
       default:
-        return 'background: rgba(59, 130, 246, 0.1); color: rgb(59, 130, 246);';
+        return 'background: rgba(var(--color-info), 0.1); color: rgb(var(--color-info));';
     }
   }}
 `;
@@ -261,14 +261,14 @@ const StatusPill = styled.span<{ $variant: string }>`
   ${({ $variant }) => {
     switch ($variant) {
       case 'success':
-        return 'background: rgba(34, 197, 94, 0.1); color: rgb(22, 163, 74);';
+        return 'background: rgba(var(--color-success), 0.1); color: rgb(var(--color-success));';
       case 'warning':
-        return 'background: rgba(234, 179, 8, 0.1); color: rgb(161, 98, 7);';
+        return 'background: rgba(var(--color-warning), 0.1); color: rgb(var(--color-warning));';
       case 'error':
-        return 'background: rgba(239, 68, 68, 0.1); color: rgb(220, 38, 38);';
+        return 'background: rgba(var(--color-error), 0.1); color: rgb(var(--color-error));';
       case 'info':
       default:
-        return 'background: rgba(59, 130, 246, 0.1); color: rgb(37, 99, 235);';
+        return 'background: rgba(var(--color-info), 0.1); color: rgb(var(--color-info));';
     }
   }}
 `;

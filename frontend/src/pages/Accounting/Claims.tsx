@@ -246,28 +246,28 @@ const StatusBadge = styled.span<{ status: ClaimStatus }>`
     switch (props.status) {
       case 'pending':
         return `
-          background: rgba(251, 191, 36, 0.1);
-          color: rgb(251, 191, 36);
+          background: rgba(var(--color-warning), 0.1);
+          color: rgb(var(--color-warning));
         `;
       case 'approved':
         return `
-          background: rgba(34, 197, 94, 0.1);
-          color: rgb(34, 197, 94);
+          background: rgba(var(--color-success), 0.1);
+          color: rgb(var(--color-success));
         `;
       case 'denied':
         return `
-          background: rgba(239, 68, 68, 0.1);
-          color: rgb(239, 68, 68);
+          background: rgba(var(--color-error), 0.1);
+          color: rgb(var(--color-error));
         `;
       case 'settled':
         return `
-          background: rgba(59, 130, 246, 0.1);
-          color: rgb(59, 130, 246);
+          background: rgba(var(--color-info), 0.1);
+          color: rgb(var(--color-info));
         `;
       case 'cancelled':
         return `
-          background: rgba(107, 114, 128, 0.1);
-          color: rgb(107, 114, 128);
+          background: rgba(var(--color-neutral), 0.1);
+          color: rgb(var(--color-neutral));
         `;
       default:
         return '';
@@ -286,10 +286,10 @@ const LoadingState = styled.div`
 
 const ErrorState = styled.div`
   padding: 1rem 1.5rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(var(--color-error), 0.1);
+  border: 1px solid rgba(var(--color-error), 0.3);
   border-radius: var(--radius-md);
-  color: rgb(239, 68, 68);
+  color: rgb(var(--color-error));
   font-size: 0.875rem;
   margin: 1rem 1.5rem;
 `;
@@ -417,17 +417,17 @@ const ActionButton = styled.button<{ variant?: 'approve' | 'deny' | 'settle' | '
     switch (props.variant) {
       case 'approve':
         return `
-          background: rgb(34, 197, 94);
+          background: rgb(var(--color-success));
           color: white;
         `;
       case 'deny':
         return `
-          background: rgb(239, 68, 68);
+          background: rgb(var(--color-error));
           color: white;
         `;
       case 'settle':
         return `
-          background: rgb(59, 130, 246);
+          background: rgb(var(--color-info));
           color: white;
         `;
       case 'cancel':

@@ -147,7 +147,7 @@ const StatusBadge = styled.span<{ $color: string }>`
 `;
 
 const ActionButton = styled.button`
-  background: rgb(34, 197, 94);
+  background: rgb(var(--color-success));
   color: white;
   border: none;
   padding: 6px 12px;
@@ -158,12 +158,12 @@ const ActionButton = styled.button`
   transition: background 0.2s;
 
   &:hover {
-    background: rgb(34, 197, 94);
+    background: rgb(var(--color-success));
   }
 `;
 
 const DeleteButton = styled.button`
-  background: rgb(239, 68, 68);
+  background: rgb(var(--color-error));
   color: white;
   border: none;
   padding: 6px 12px;
@@ -173,7 +173,7 @@ const DeleteButton = styled.button`
   transition: background 0.2s;
 
   &:hover {
-    background: rgb(239, 68, 68);
+    background: rgb(var(--color-error));
   }
 `;
 
@@ -449,11 +449,11 @@ const AccountsReceivables: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'rgb(234, 179, 8)';
+        return 'rgb(var(--color-warning))';
       case 'paid':
-        return 'rgb(34, 197, 94)';
+        return 'rgb(var(--color-success))';
       case 'overdue':
-        return 'rgb(239, 68, 68)';
+        return 'rgb(var(--color-error))';
       case 'disputed':
         return 'rgb(111, 66, 193)';
       default:
