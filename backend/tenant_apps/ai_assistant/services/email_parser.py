@@ -90,6 +90,41 @@ DATE_PATTERNS = [
         r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w+\s+\d{1,2}(?:,?\s*\d{4})?)",
         re.IGNORECASE,
     ),
+    re.compile(
+        r"(?:ETA|arrival|due\s+date)[:\s]*"
+        r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w+\s+\d{1,2}(?:,?\s*\d{4})?)",
+        re.IGNORECASE,
+    ),
+]
+
+# Total amount patterns: "$250,000.00", "Total: $250,000", "Amount: USD 250000"
+TOTAL_AMOUNT_PATTERNS = [
+    re.compile(
+        r"(?:total|amount|value|order\s+(?:total|value))[:\s]*\$?\s*"
+        r"(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:USD)?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:total|USD)?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:USD|US\$)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)",
+        re.IGNORECASE,
+    ),
+]
+
+# Customer/buyer patterns: "Customer: ABC Corp", "Buyer: John Smith"
+CUSTOMER_PATTERNS = [
+    re.compile(r"(?:customer|buyer|sold\s+to|bill\s+to)[:\s]+([A-Z][A-Za-z\s&,.]+?)(?:\n|$|,)", re.IGNORECASE),
+    re.compile(r"(?:attention|attn)[:\s]+([A-Z][A-Za-z\s]+?)(?:\n|$|,)", re.IGNORECASE),
+]
+
+# Logistics/shipping patterns
+LOGISTICS_PATTERNS = [
+    re.compile(r"(?:FOB|CIF|CFR|FCA|EXW|DDP|DAP)\s+([A-Za-z\s,]+?)(?:\n|$|\.)", re.IGNORECASE),
+    re.compile(r"(?:ship\s+(?:from|to)|port\s+of\s+(?:origin|destination)|pickup)[:\s]+([A-Za-z\s,]+?)(?:\n|$|\.)", re.IGNORECASE),
+    re.compile(r"(?:warehouse|dock|facility)[:\s]+([A-Za-z0-9\s,]+?)(?:\n|$|\.)", re.IGNORECASE),
 ]
 
 
@@ -121,13 +156,23 @@ class ParsedTradeEmail:
     sender_email: str = ""
     sender_name: str = ""
     company_name: str = ""
+    customer_name: str = ""
 
     # Line items
     line_items: list[ParsedLineItem] = field(default_factory=list)
 
+    # Financial
+    total_amount: str = ""
+    currency: str = "USD"
+
     # Dates
     delivery_date: str = ""
     ship_date: str = ""
+
+    # Logistics
+    incoterm: str = ""
+    ship_from: str = ""
+    ship_to: str = ""
 
     # Metadata
     confidence: float = 0.0
@@ -142,6 +187,7 @@ class ParsedTradeEmail:
             "sender_email": self.sender_email,
             "sender_name": self.sender_name,
             "company_name": self.company_name,
+            "customer_name": self.customer_name,
             "line_items": [
                 {
                     "product_description": li.product_description,
@@ -152,8 +198,13 @@ class ParsedTradeEmail:
                 }
                 for li in self.line_items
             ],
+            "total_amount": self.total_amount,
+            "currency": self.currency,
             "delivery_date": self.delivery_date,
             "ship_date": self.ship_date,
+            "incoterm": self.incoterm,
+            "ship_from": self.ship_from,
+            "ship_to": self.ship_to,
             "confidence": self.confidence,
             "raw_subject": self.raw_subject,
             "extraction_notes": self.extraction_notes,
@@ -232,12 +283,36 @@ def parse_trade_email(
         match = pattern.search(combined_text)
         if match:
             date_str = match.group(1).strip()
-            if "deliver" in pattern.pattern.lower():
+            if "deliver" in pattern.pattern.lower() or "due" in pattern.pattern.lower() or "eta" in pattern.pattern.lower():
                 result.delivery_date = date_str
             else:
                 result.ship_date = date_str
             confidence_score += 0.1
             break
+
+    # Extract total amount
+    best_amount = _extract_total_amount(combined_text)
+    if best_amount:
+        result.total_amount = best_amount
+        confidence_score += 0.15
+        result.extraction_notes.append(f"Total amount: ${best_amount}")
+
+    # Extract customer/buyer name
+    customer = _extract_customer_name(combined_text)
+    if customer:
+        result.customer_name = customer
+        confidence_score += 0.05
+        result.extraction_notes.append(f"Customer: {customer}")
+
+    # Extract logistics (incoterm, ship from/to)
+    logistics = _extract_logistics(combined_text)
+    if logistics.get("incoterm"):
+        result.incoterm = logistics["incoterm"]
+        confidence_score += 0.05
+    if logistics.get("ship_from"):
+        result.ship_from = logistics["ship_from"]
+    if logistics.get("ship_to"):
+        result.ship_to = logistics["ship_to"]
 
     # Cap confidence
     result.confidence = min(confidence_score, 1.0)
@@ -306,7 +381,15 @@ def resolve_dependencies(
             result=result,
         )
 
-        # 2. Resolve Contact (linked to supplier if found)
+        # 2. Resolve Customer (buyer/end-customer)
+        result.customer = _resolve_customer(
+            tenant=tenant,
+            customer_name=parsed_data.customer_name,
+            create_missing=create_missing,
+            result=result,
+        )
+
+        # 3. Resolve Contact (linked to supplier if found)
         result.contact = _resolve_contact(
             tenant=tenant,
             email=parsed_data.sender_email,
@@ -316,7 +399,7 @@ def resolve_dependencies(
             result=result,
         )
 
-        # 3. Resolve Plant (if supplier has no plants, create default)
+        # 4. Resolve Plant (if supplier has no plants, create default)
         if result.supplier and create_missing:
             result.plant = _resolve_plant(
                 tenant=tenant,
@@ -339,6 +422,91 @@ def resolve_dependencies(
 # ---------------------------------------------------------------------------
 # Internal Helpers
 # ---------------------------------------------------------------------------
+
+
+def _extract_total_amount(text: str) -> str:
+    """Extract the most likely total order amount from text.
+
+    Finds the largest dollar amount that appears in a 'total' context,
+    or falls back to the largest standalone dollar amount.
+    """
+    contextual_amounts: list[str] = []
+    standalone_amounts: list[str] = []
+
+    # Contextual patterns (near "total", "amount", "value")
+    for pattern in TOTAL_AMOUNT_PATTERNS:
+        for match in pattern.finditer(text):
+            amount_str = match.group(1).replace(",", "")
+            try:
+                val = Decimal(amount_str)
+                if val > 100:  # Filter trivially small amounts
+                    contextual_amounts.append(amount_str)
+            except (InvalidOperation, ValueError):
+                continue
+
+    if contextual_amounts:
+        # Return largest contextual amount (most likely the order total)
+        return max(contextual_amounts, key=lambda x: Decimal(x))
+
+    # Fallback: find standalone large dollar amounts
+    standalone_pattern = re.compile(r"\$\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?)")
+    for match in standalone_pattern.finditer(text):
+        amount_str = match.group(1).replace(",", "")
+        try:
+            val = Decimal(amount_str)
+            if val > 1000:  # Only consider amounts > $1000 as potential totals
+                standalone_amounts.append(amount_str)
+        except (InvalidOperation, ValueError):
+            continue
+
+    if standalone_amounts:
+        return max(standalone_amounts, key=lambda x: Decimal(x))
+
+    return ""
+
+
+def _extract_customer_name(text: str) -> str:
+    """Extract customer/buyer name from email text."""
+    for pattern in CUSTOMER_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            name = match.group(1).strip()
+            # Clean up trailing punctuation/whitespace
+            name = re.sub(r"[\s,]+$", "", name)
+            if len(name) > 2 and len(name) < 100:
+                return name
+    return ""
+
+
+def _extract_logistics(text: str) -> dict[str, str]:
+    """Extract logistics/shipping information (incoterm, locations)."""
+    result: dict[str, str] = {}
+
+    # Incoterms
+    incoterm_match = re.search(
+        r"\b(FOB|CIF|CFR|FCA|EXW|DDP|DAP|CPT|CIP|FAS)\b",
+        text,
+        re.IGNORECASE,
+    )
+    if incoterm_match:
+        result["incoterm"] = incoterm_match.group(1).upper()
+
+    # Ship from / ship to
+    for pattern in LOGISTICS_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            location = match.group(1).strip()
+            location = re.sub(r"[\s,]+$", "", location)
+            if len(location) > 2:
+                pattern_text = pattern.pattern.lower()
+                if "from" in pattern_text or "origin" in pattern_text:
+                    result["ship_from"] = location
+                elif "to" in pattern_text or "destination" in pattern_text:
+                    result["ship_to"] = location
+                elif not result.get("ship_from"):
+                    result["ship_from"] = location
+
+    return result
 
 
 def _extract_company_from_email(email: str) -> str:
@@ -453,6 +621,37 @@ def _resolve_supplier(*, tenant, company_name: str, email: str, create_missing: 
         )
         result.created.append(f"Supplier:{company_name}")
         return supplier
+
+    return None
+
+
+def _resolve_customer(*, tenant, customer_name: str, create_missing: bool, result: ResolvedEntities):
+    """Find or create customer by name."""
+    from tenant_apps.customers.models import Customer
+
+    if not customer_name:
+        return None
+
+    # Try exact name match
+    customer = Customer.objects.filter(tenant=tenant, name__iexact=customer_name).first()
+    if customer:
+        result.existing.append(f"Customer:{customer.name}")
+        return customer
+
+    # Try partial match (company name might be abbreviated)
+    customer = Customer.objects.filter(tenant=tenant, name__icontains=customer_name[:10]).first()
+    if customer:
+        result.existing.append(f"Customer:{customer.name}")
+        return customer
+
+    # Create if missing
+    if create_missing:
+        customer = Customer.objects.create(
+            tenant=tenant,
+            name=customer_name,
+        )
+        result.created.append(f"Customer:{customer_name}")
+        return customer
 
     return None
 

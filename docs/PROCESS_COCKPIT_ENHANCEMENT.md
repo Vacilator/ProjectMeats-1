@@ -184,3 +184,58 @@ New view in Process Cockpit with charts:
 **Document Version:** 1.0  
 **Last Updated:** 2026-05-07  
 **Authority:** `MASTER_PLAN.md` → Phase 18
+
+---
+
+## Premium Process Cockpit Redesign (Shipped)
+
+**Shipped:** 2026-05-07  
+**PR:** Cockpit Redesign + AI Parsing Overhaul
+
+### Design Philosophy
+
+The Process Cockpit has been completely redesigned as a **premium command center** inspired by Linear.app and top trading platforms. Key principles:
+
+- **Spacious card-based layout** with generous whitespace (no cramped tables)
+- **Smart navigation bar** replacing basic tabs — clear visual hierarchy
+- **Two-column Activity view** with detail panel showing React Flow + Quick Actions
+- **"Last synced" indicator** always visible in the header
+- **Global search** filtering across entities, POs, suppliers
+- **Real-time updates** via React Query polling (30s activity, 60s badges)
+
+### Route & Layout
+
+- **Route:** `/process-cockpit` (unchanged)
+- **Sections:** Live Activity • AI Inbox • Drafts • History • Tasks
+- **Detail Panel:** Opens on right side with ProcessFlowHeader + TradeLineageFlow + Quick Actions
+- **Responsive:** Collapses to single column below 1024px
+
+### Key UI Components
+
+| Component | Purpose |
+|-----------|---------|
+| `NavBar` + `NavItem` | Segmented control with badge counts |
+| `ActivityCard` | Clickable row with icon, title, meta, status dot |
+| `DetailPanel` | Right-side panel with close button + React Flow |
+| `SyncIndicator` | Header badge showing "Synced Xm ago" |
+| `SearchBar` | Ant Design Input with Search icon and clear |
+
+### AI Email Parsing Enhancements (Shipped Same Batch)
+
+Added to `email_parser.py`:
+- **Total amount extraction** — contextual and standalone dollar amounts
+- **Customer/buyer name extraction** — "Customer:", "Buyer:", "Sold To:" patterns
+- **Logistics extraction** — incoterms (FOB, CIF, etc.) + ship from/to locations
+- **Enhanced date patterns** — ETA, arrival, due date support
+- **Customer dependency resolution** — full chain: Supplier → Customer → Contact → Plant
+
+New fields on `ParsedTradeEmail`:
+- `total_amount`, `currency`, `customer_name`, `incoterm`, `ship_from`, `ship_to`
+
+### Email Sync Status
+
+The 15-minute auto-sync + instant login refresh was already implemented in:
+- `AIInboxSyncContext.tsx` — 15-min interval + login trigger
+- `watchdog.py` — Celery task polling all tenants
+
+**New:** The "Synced Xm ago" indicator in the cockpit header provides user-visible confirmation that sync is working.
