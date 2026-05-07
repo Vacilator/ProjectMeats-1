@@ -678,7 +678,7 @@ jobs:
   check-migrations:
     name: "Check Migration State"
     if: ${{ inputs.run_backend_lane }}
-    needs: [test-backend]
+    needs: [build-backend]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
