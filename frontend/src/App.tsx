@@ -326,9 +326,9 @@ const App: React.FC = () => {
                 {/* Orders */}
                 <Route path="purchase-orders" element={<PurchaseOrders />} />
                 <Route path="purchase-orders/:id/review" element={<PurchaseOrderReview />} />
-                <Route path="purchase-orders/attachments" element={<ComingSoon title="Purchase Order Attachments" description="View and manage attachments for purchase orders." />} />
+                <Route path="purchase-orders/attachments" element={<ComingSoon title="Purchase Order Attachments" icon="📎" description="View and manage attachments for purchase orders." />} />
                 <Route path="sales-orders" element={<SalesOrders />} />
-                <Route path="sales-orders/attachments" element={<ComingSoon title="Sales Order Attachments" description="View and manage attachments for sales orders." />} />
+                <Route path="sales-orders/attachments" element={<ComingSoon title="Sales Order Attachments" icon="📎" description="View and manage attachments for sales orders." />} />
                 <Route path="deals" element={<DealDesk />} />
                 
                 {/* Accounting */}

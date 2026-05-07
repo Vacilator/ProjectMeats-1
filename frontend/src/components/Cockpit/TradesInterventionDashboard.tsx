@@ -339,7 +339,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
           <Badge
             count={stats.total}
             overflowCount={99}
-            style={{ backgroundColor: '#f59e0b' }}
+            style={{ backgroundColor: 'rgb(var(--color-warning))' }}
           />
         }
       >

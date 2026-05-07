@@ -65,12 +65,25 @@
   --color-header-text: 44, 62, 80;
   --color-header-border: 233, 236, 239;
 
-  /* --- Status Colors (Standardized) --- */
-  --color-success: 22, 163, 74; /* green-600 */
-  --color-warning: 234, 179, 8; /* yellow-500 */
-  --color-danger: 220, 38, 38;  /* red-600 */
-  --color-error: 239, 68, 68; /* red-500 */
-  --color-info: 59, 130, 246; /* blue-500 */
+  /* --- Status Colors (Standardized — WCAG AA text on white ≥ 4.5:1) --- */
+  --color-success: 22, 101, 52;    /* green-800 — 7.5:1 on white */
+  --color-success-bg: 240, 253, 244; /* green-50 */
+  --color-success-border: 187, 247, 208; /* green-200 */
+  --color-warning: 146, 64, 14;    /* orange-800 — 7.2:1 on white */
+  --color-warning-bg: 255, 251, 235; /* amber-50 */
+  --color-warning-border: 253, 230, 138; /* amber-200 */
+  --color-danger: 153, 27, 27;     /* red-800 — 7.8:1 on white */
+  --color-danger-bg: 254, 242, 242; /* red-50 */
+  --color-danger-border: 254, 202, 202; /* red-200 */
+  --color-error: 153, 27, 27;      /* red-800 (alias of danger) */
+  --color-error-bg: 254, 242, 242; /* red-50 */
+  --color-error-border: 254, 202, 202; /* red-200 */
+  --color-info: 29, 78, 216;       /* blue-700 — 6.6:1 on white */
+  --color-info-bg: 239, 246, 255;  /* blue-50 */
+  --color-info-border: 191, 219, 254; /* blue-200 */
+  --color-neutral: 55, 65, 81;     /* gray-700 */
+  --color-neutral-bg: 249, 250, 251; /* gray-50 */
+  --color-neutral-border: 229, 231, 235; /* gray-200 */
 
   /* --- Overlay/Backdrop --- */
   --color-overlay: 0, 0, 0;
@@ -136,6 +149,26 @@
   --color-header-background: 45, 45, 45;
   --color-header-text: 224, 224, 224;
   --color-header-border: 61, 61, 61;
+
+  /* --- Status Colors (Dark Mode) --- */
+  --color-success: 74, 222, 128;      /* green-400 — visible on dark */
+  --color-success-bg: 6, 78, 59;      /* emerald-900 */
+  --color-success-border: 16, 185, 129; /* emerald-500 */
+  --color-warning: 251, 191, 36;      /* amber-400 */
+  --color-warning-bg: 78, 45, 0;      /* amber-950 */
+  --color-warning-border: 217, 119, 6; /* amber-600 */
+  --color-danger: 252, 165, 165;      /* red-300 */
+  --color-danger-bg: 67, 20, 7;       /* red-950 */
+  --color-danger-border: 239, 68, 68; /* red-500 */
+  --color-error: 252, 165, 165;       /* red-300 (alias) */
+  --color-error-bg: 67, 20, 7;        /* red-950 */
+  --color-error-border: 239, 68, 68;  /* red-500 */
+  --color-info: 147, 197, 253;        /* blue-300 */
+  --color-info-bg: 8, 47, 73;         /* sky-950 */
+  --color-info-border: 59, 130, 246;  /* blue-500 */
+  --color-neutral: 156, 163, 175;     /* gray-400 */
+  --color-neutral-bg: 38, 38, 38;     /* custom dark */
+  --color-neutral-border: 75, 85, 99; /* gray-600 */
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
