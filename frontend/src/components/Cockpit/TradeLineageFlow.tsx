@@ -31,6 +31,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  UserX,
 } from 'lucide-react';
 
 // ============================================================================
@@ -296,6 +297,16 @@ const MoreRolesText = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const UnassignedBadge = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: rgb(234, 179, 8);
+  font-style: italic;
+`;
+
 const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => {
   const navigate = useNavigate();
   const color = getStatusColor(data.status);
@@ -346,7 +357,12 @@ const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => 
                 <MoreRolesText>+{remainingRoleCount} more contact role(s)</MoreRolesText>
               ) : null}
             </ContactRoleList>
-          ) : null}
+          ) : (
+            <UnassignedBadge>
+              <UserX size={11} />
+              No contact assigned
+            </UnassignedBadge>
+          )}
         </>
       )}
       {data.isEmpty && (
