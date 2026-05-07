@@ -112,6 +112,7 @@ import { getValidTenantId } from './utils/tenantId';
 const CockpitPage = lazyWithChunkRecovery(() => import('./pages/Cockpit'), 'App.CockpitPage');
 import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
+import ProcessCockpitPage from './pages/Cockpit/ProcessCockpitPage';
 import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
@@ -462,7 +463,7 @@ const App: React.FC = () => {
                     </Suspense>
                   }
                 >
-                  <Route index element={<ProcessMonitor />} />
+                  <Route index element={<ProcessCockpitPage />} />
                 </Route>
                 
                 {/* Backward compatibility redirect */}
