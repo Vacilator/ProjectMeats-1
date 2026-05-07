@@ -39,7 +39,11 @@
 | Shipped | RT-02.2–04 (AI parsing + feedback + cockpit routing) | Phase 17 | full-stack |
 | Shipped | RT-03.1–03 (cockpit + React Flow + dynamic headers) | Phase 17 | frontend |
 | Shipped | RT-04.1–02 (contact enrichment + cockpit visualization) | Phase 17 | full-stack |
-| **P0 (Now)** | AMB-01.1 contextual-suggestion-contract-and-heuristic-rules | Phase 19 | backend/docs/ai |
+| Shipped | AMB-01.1 contextual-suggestion-contract-and-heuristic-rules | Phase 19 | backend/docs/ai |
+| Shipped | AMB-01.2 contextual-suggestions-endpoint-and-service | Phase 19 | backend/ai |
+| Shipped | AMB-02.1 ambient-suggestions-component-and-service-hook | Phase 19 | frontend |
+| Shipped | AMB-02.2 record-page-header-integration-and-action-wiring | Phase 19 | frontend |
+| **P0 (Now)** | AMB-03.1 product-anomaly-baseline-service-and-threshold-contract | Phase 19 | backend/data |
 | P1 | RT-04.3 quick-master-data-creation-in-context | Phase 17 | full-stack |
 | P2 | RT-05 (editor stabilization) | Phase 17 | frontend |
 | P3 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
@@ -486,8 +490,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 > **Note:** Phase 19 is independent of Phases 17/18 and can execute in parallel once Phase 16 completes.
 
-- [ ] **AMB-01.1 contextual-suggestion-contract-and-heuristic-rules**
-  - **Status:** Ready
+- [x] **AMB-01.1 contextual-suggestion-contract-and-heuristic-rules**
+  - **Status:** Shipped on `development` (PR #5005)
   - **Why now:** Ambient AI cannot execute safely until there is one canonical suggestion payload and one deterministic rule layer that names what context is evaluated per entity.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-01
   - **Scope:** Define the `POST /api/v1/ai-assistant/suggestions/contextual/` contract (`entity_type`, `entity_id`, `current_state`), suggestion payload schema, heuristic rule inputs/outputs, cache semantics, and LLM-bounded escalation rules.
@@ -505,7 +509,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **AMB-01.2 contextual-suggestions-endpoint-and-service**
-  - **Status:** Blocked
+  - **Status:** Shipped on `development` (PR #5005)
   - **Why now:** Record pages need a fast backend suggestion source before any ambient UI can render contextual recommendations.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-01
   - **Scope:** Implement the contextual suggestion service and `POST /api/v1/ai-assistant/suggestions/contextual/` endpoint with tenant-safe entity loading, heuristic evaluation, bounded `gpt-4o-mini` enrichment, telemetry, and graceful no-suggestion fallbacks.
@@ -513,7 +517,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** backend/ai
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/services/`, `backend/tenant_apps/ai_assistant/tests/`, `backend/projectmeats/urls.py`, `openapi-schema.json`, `manifests/openapi/openapi-schema.baseline.json`
   - **Dependencies:** AMB-01.1
-  - **Blockers:** AMB-01.1
+  - **Blockers:** None
   - **Acceptance criteria:** The endpoint returns deterministic structured suggestions, falls back cleanly when AI infra is unavailable, and never evaluates or returns cross-tenant entity context.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant apps.tenants`; `cd backend && python manage.py spectacular --validate --file /tmp/projectmeats-openapi.yaml`
   - **Tenant/RLS impact:** High
@@ -525,7 +529,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ### Epic AMB-02 - Inline page suggestion cards
 
 - [x] **AMB-02.1 ambient-suggestions-component-and-service-hook**
-  - **Status:** Blocked
+  - **Status:** Shipped on `development` (PR #5005)
   - **Why now:** The frontend needs one stable ambient suggestion surface before record pages can render proactive AI recommendations consistently.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-02
   - **Scope:** Build `AmbientSuggestions`, add the service-layer client/hook for contextual suggestions, and ensure query keys/dependencies stay memoized and page-safe.
@@ -533,7 +537,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend
   - **Likely touched paths:** new `frontend/src/components/AIAssistant/AmbientSuggestions.tsx`, `frontend/src/services/aiService.ts`, new hook under `frontend/src/hooks/`, related tests
   - **Dependencies:** AMB-01.2
-  - **Blockers:** AMB-01.2
+  - **Blockers:** None
   - **Acceptance criteria:** A standalone component can fetch and render contextual suggestions via the approved service layer without unstable query identities or chat-widget coupling.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci -- AmbientSuggestions`
   - **Tenant/RLS impact:** None directly
@@ -543,7 +547,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **AMB-02.2 record-page-header-integration-and-action-wiring**
-  - **Status:** Blocked
+  - **Status:** Shipped on `development` (PR #5006)
   - **Why now:** Ambient recommendations only become useful once the record header surfaces can display and execute them in context.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-02
   - **Scope:** Inject `AmbientSuggestions` into `UniversalEntityRecordPage.tsx` and `EntityProfileHeader.tsx`, add one-click execution wiring for safe actions, and keep the banner subtle/dismissible.
@@ -551,7 +555,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/pages/UniversalEntityRecordPage.tsx`, `frontend/src/components/Shared/EntityProfileHeader.tsx`, `frontend/src/components/AIAssistant/`, related tests/E2E
   - **Dependencies:** AMB-02.1
-  - **Blockers:** AMB-02.1
+  - **Blockers:** None
   - **Acceptance criteria:** Record pages render a stable, animated ambient suggestion banner only when suggestions exist, and actions route through approved service-layer APIs without chat-widget dependence.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None directly
@@ -562,8 +566,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ### Epic AMB-03 - Predictive anomaly detection
 
-- [x] **AMB-03.1 product-anomaly-baseline-service-and-threshold-contract**
-  - **Status:** Blocked
+- [ ] **AMB-03.1 product-anomaly-baseline-service-and-threshold-contract**
+  - **Status:** Ready
   - **Why now:** Form-level anomaly warnings need one canonical baseline/threshold service before any UI can warn operators about suspicious values.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-03
   - **Scope:** Define and implement the 90-day historical baseline service for price/weight/value outliers, including per-product aggregation rules, threshold semantics, and tenant-safe access patterns.
@@ -571,7 +575,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** backend/data
   - **Likely touched paths:** `backend/tenant_apps/ai_assistant/services/` or `backend/apps/core/services/`, relevant transactional apps/tests, optional analytics endpoint wiring
   - **Dependencies:** AMB-02.2
-  - **Blockers:** AMB-02.2
+  - **Blockers:** None
   - **Acceptance criteria:** A deterministic service can evaluate whether submitted values deviate materially from tenant history, returning baseline context suitable for a soft warning.
   - **Validation commands:** `cd backend && python manage.py test apps.core tenant_apps.products tenant_apps.sales_orders tenant_apps.purchase_orders`
   - **Tenant/RLS impact:** High
@@ -843,7 +847,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend + backend
   - **Likely touched paths:** `frontend/src/components/AIInbox/`, `frontend/src/components/QuickCreate/`, `backend/tenant_apps/{suppliers,customers,contacts}/views.py`
   - **Dependencies:** RT-02.2, RT-04.1
-  - **Blockers:** AMB-01.1 and all earlier unchecked tickets remain ahead in file order
+  - **Blockers:** AMB-03.1 and all earlier unchecked tickets remain ahead in file order
   - **Acceptance criteria:** Missing dependency triggers inline creation form; created entity immediately available in the process context; no page navigation required.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.suppliers tenant_apps.customers --noinput`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High (creates tenant-scoped records)
