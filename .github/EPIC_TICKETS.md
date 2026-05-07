@@ -1213,8 +1213,8 @@
 
 ### Epic CTE-03 - Human-in-the-loop approval flow
 
-- [ ] **CTE-03.1 generic-order-approval-state-machine-contract**
-  - **Status:** Ready
+- [x] **CTE-03.1 generic-order-approval-state-machine-contract**
+  - **Status:** Shipped
   - **Why now:** Supplier, sales, and carrier documents need one explicit approval lifecycle before PDF generation and outbound sends can be safely automated.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
   - **Scope:** Design and implement the generic approval-state contract that maps `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` onto `draft` -> `pending_review` -> `approved`, including transition auditability and compatibility with existing status enums.
@@ -1229,10 +1229,10 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert approval contract/service and keep document creation in draft/manual status.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4933)
 
 - [ ] **CTE-03.2 supplier-po-review-and-approve-screen**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Traders need a purpose-built review surface to inspect draft supplier POs before the engine commits externally.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
   - **Scope:** Build the supplier-PO review/approve UI and API flow that surfaces draft source data, inquiry lineage, parsed quote details, and approval actions on top of the generic approval contract.
@@ -1240,7 +1240,7 @@
   - **Primary domain:** frontend/backend
   - **Likely touched paths:** `frontend/src/pages/` trading/order review surfaces, `frontend/src/services/`, `backend/tenant_apps/purchase_orders/{views.py,serializers.py,tests.py}`, related navigation/tests
   - **Dependencies:** CTE-03.1
-  - **Blockers:** CTE-03.1
+  - **Blockers:** None
   - **Acceptance criteria:** Operators can review and approve a draft supplier PO from a dedicated screen without touching generic editor/workflow builder UI.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High

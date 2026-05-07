@@ -22,10 +22,10 @@ class DocumentWorkflow:
 
 
 PURCHASE_ORDER_WORKFLOW = DocumentWorkflow(
-    initial_statuses=("draft", "pending", "pending_approval", "approved"),
+    initial_statuses=("draft", "pending"),
     transitions={
         "draft": ("pending_approval", "cancelled"),
-        "pending": ("pending_approval", "approved", "cancelled"),
+        "pending": ("pending_approval", "cancelled"),
         "pending_approval": ("approved", "cancelled"),
         "approved": ("sent", "carrier_assigned", "cancelled"),
         "sent": ("carrier_assigned", "in_transit", "cancelled"),
@@ -38,10 +38,10 @@ PURCHASE_ORDER_WORKFLOW = DocumentWorkflow(
 )
 
 SALES_ORDER_WORKFLOW = DocumentWorkflow(
-    initial_statuses=("draft", "pending", "pending_approval", "approved"),
+    initial_statuses=("draft", "pending"),
     transitions={
         "draft": ("pending_approval", "cancelled"),
-        "pending": ("pending_approval", "approved", "cancelled"),
+        "pending": ("pending_approval", "cancelled"),
         "pending_approval": ("approved", "cancelled"),
         "approved": ("confirmed", "sent", "cancelled"),
         "confirmed": ("sent", "in_transit", "cancelled"),
@@ -68,9 +68,9 @@ INVOICE_WORKFLOW = DocumentWorkflow(
 )
 
 CARRIER_PO_WORKFLOW = DocumentWorkflow(
-    initial_statuses=("draft", "pending_approval", "approved"),
+    initial_statuses=("draft",),
     transitions={
-        "draft": ("pending_approval", "approved", "cancelled"),
+        "draft": ("pending_approval", "cancelled"),
         "pending_approval": ("approved", "cancelled"),
         "approved": ("dispatched", "cancelled"),
         "dispatched": ("in_transit", "cancelled"),
@@ -90,12 +90,13 @@ WORKFLOW_BY_MODEL_NAME: dict[str, DocumentWorkflow] = {
 }
 
 
-def get_document_workflow(instance) -> DocumentWorkflow:
-    """Resolve the workflow definition for a model instance."""
+def get_document_workflow(subject) -> DocumentWorkflow:
+    """Resolve the workflow definition for a model instance or model class."""
 
-    workflow = WORKFLOW_BY_MODEL_NAME.get(instance.__class__.__name__)
+    model_name = subject.__name__ if isinstance(subject, type) else subject.__class__.__name__
+    workflow = WORKFLOW_BY_MODEL_NAME.get(model_name)
     if workflow is None:
-        raise ValidationError(f"No workflow configured for {instance.__class__.__name__}.")
+        raise ValidationError(f"No workflow configured for {model_name}.")
     return workflow
 
 
@@ -116,12 +117,32 @@ def validate_status_transition(instance, new_status: str) -> None:
 
     workflow = get_document_workflow(instance)
     allowed = workflow.allowed_transitions(current_status)
-    if current_status and next_status not in allowed:
+    if next_status not in allowed:
         raise ValidationError(
             {
                 "status": (
                     f"Invalid status transition from '{current_status}' to '{next_status}'. "
                     f"Allowed transitions: {', '.join(allowed) or 'none'}."
+                )
+            }
+        )
+
+
+def validate_initial_status(subject, new_status: str) -> None:
+    """Raise ValidationError when a create request proposes an invalid initial status."""
+
+    next_status = str(new_status or "").strip()
+    if not next_status:
+        return
+
+    workflow = get_document_workflow(subject)
+    allowed = workflow.allowed_transitions(None)
+    if next_status not in allowed:
+        raise ValidationError(
+            {
+                "status": (
+                    f"Invalid initial status '{next_status}'. "
+                    f"Allowed initial statuses: {', '.join(allowed) or 'none'}."
                 )
             }
         )

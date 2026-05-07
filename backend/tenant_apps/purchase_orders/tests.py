@@ -359,7 +359,7 @@ class DocumentOperationsAPITests(APITestCase):
     def test_carrier_po_audit_feed_is_visible_to_active_member(self):
         transition_response = self.client.post(
             f"/api/v1/carrier-pos/{self.carrier_po.id}/transition-status/",
-            {"status": "approved"},
+            {"status": "pending_approval"},
             format="json",
             **self.tenant_header,
         )
