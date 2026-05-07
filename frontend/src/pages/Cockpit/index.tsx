@@ -120,10 +120,22 @@ const CockpitPage: React.FC = () => {
 
   const activeKey = React.useMemo(() => {
     const pathname = location.pathname;
+    if (pathname.startsWith('/process-cockpit')) return 'process-monitor';
     if (pathname.startsWith('/cockpit/process-monitor')) return 'process-monitor';
     if (pathname.startsWith('/cockpit/calls')) return 'calls';
     return 'dashboard';
   }, [location.pathname]);
+
+  const handleTabChange = React.useCallback(
+    (key: string) => {
+      if (key === 'process-monitor') {
+        navigate('/process-cockpit');
+        return;
+      }
+      navigate(`/cockpit/${key}`);
+    },
+    [navigate],
+  );
 
   const items = React.useMemo(
     () =>
@@ -153,7 +165,7 @@ const CockpitPage: React.FC = () => {
         </HeaderLeft>
       </Header>
 
-      <StyledTabs activeKey={activeKey} items={items} onChange={(key) => navigate(`/cockpit/${key}`)} />
+      <StyledTabs activeKey={activeKey} items={items} onChange={handleTabChange} />
 
       <Content id="cockpit-content" role="tabpanel">
         <Outlet />

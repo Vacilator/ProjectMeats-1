@@ -453,6 +453,17 @@ const App: React.FC = () => {
                     <ActivityPage />
                   </AdminErrorBoundary>
                 } />
+
+                <Route
+                  path="process-cockpit"
+                  element={
+                    <Suspense fallback={<Skeleton active />}>
+                      <CockpitPage />
+                    </Suspense>
+                  }
+                >
+                  <Route index element={<ProcessMonitor />} />
+                </Route>
                 
                 {/* Backward compatibility redirect */}
                 <Route path="admin/*" element={<Navigate to={`/workspace/${window.location.pathname.replace('/admin/', '')}`} replace />} />
@@ -468,7 +479,7 @@ const App: React.FC = () => {
                 >
                   <Route index element={<Navigate to="/cockpit/dashboard" replace />} />
                   <Route path="dashboard" element={<CockpitDashboard />} />
-                  <Route path="process-monitor" element={<ProcessMonitor />} />
+                  <Route path="process-monitor" element={<Navigate to="/process-cockpit" replace />} />
                   <Route path="calls" element={<CallLog />} />
                   <Route path="entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
                 </Route>

@@ -7,11 +7,25 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { EntityWorkflowStatusPanel } from './EntityWorkflowStatusPanel';
 import { workformExecutionService } from '@/services/workformExecutionService';
+import { getTenantWorkForm } from '@/services/workformsApi';
 
 vi.mock('@/services/workformExecutionService', () => ({
   workformExecutionService: {
     getExecutions: vi.fn(async () => ({ count: 0, next: null, previous: null, results: [] })),
   },
+}));
+
+vi.mock('@/services/workformsApi', () => ({
+  getTenantWorkForm: vi.fn(async () => ({
+    workflow_definition: {
+      nodes: [{ id: 'n1', data: { label: 'Send Email' }, position: { x: 0, y: 0 } }],
+      edges: [],
+    },
+  })),
+}));
+
+vi.mock('@/components/FlowEditor/UnifiedFlowEditor', () => ({
+  UnifiedFlowEditor: () => <div data-testid="workflow-flow-editor" />,
 }));
 
 describe('EntityWorkflowStatusPanel', () => {
@@ -95,6 +109,7 @@ describe('EntityWorkflowStatusPanel', () => {
 
     expect(await screen.findByText(/execution_start/i)).toBeInTheDocument();
     expect(screen.getByText(/View execution details/i)).toBeInTheDocument();
+    expect(screen.getByText(/View Process Flow/i)).toBeInTheDocument();
   });
 
   it('renders an error alert when the workflow request fails', async () => {
@@ -121,5 +136,57 @@ describe('EntityWorkflowStatusPanel', () => {
     );
 
     expect(await screen.findByText('Automation failed')).toBeInTheDocument();
+  });
+
+  it('auto-opens the process flow modal from the workflow tab query params', async () => {
+    vi.mocked(workformExecutionService.getExecutions).mockResolvedValueOnce({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        {
+          id: 'ex-2',
+          tenant: 't1',
+          workform: 'wf-2',
+          workform_name: 'Inquiry Flow',
+          status: 'in_progress',
+          initial_data: {},
+          context_data: {},
+          audit_trail: [],
+          node_statuses: { n1: 'in_progress' },
+          node_labels: { n1: 'Send Email' },
+          current_node_id: 'n1',
+          current_node_type: 'actionEmail',
+          current_node_label: 'Send Email',
+          last_event: 'node_started',
+          errors: [],
+          started_by: null,
+          started_by_name: 'Tester',
+          started_at: '2026-01-01T00:00:00Z',
+          completed_at: null,
+          error_message: '',
+          created_on: '2026-01-01T00:00:00Z',
+          modified_on: '2026-01-01T00:00:01Z',
+        },
+      ],
+    } as any);
+
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/records/inquiry/1?tab=workflows&viewProcessFlow=1']}>
+          <EntityWorkflowStatusPanel entityType="inquiry" entityId="1" />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText(/canonical process flow/i)).toBeInTheDocument();
+    expect(await screen.findByTestId('workflow-flow-editor')).toBeInTheDocument();
+    expect(getTenantWorkForm).toHaveBeenCalledWith('wf-2');
   });
 });

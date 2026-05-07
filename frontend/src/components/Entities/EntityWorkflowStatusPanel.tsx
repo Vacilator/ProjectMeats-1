@@ -1,13 +1,15 @@
-import React, { useMemo } from 'react';
-import { Alert, Card, Collapse, Spin } from 'antd';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Card, Collapse, Modal, Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
+import { UnifiedFlowEditor } from '@/components/FlowEditor/UnifiedFlowEditor';
 import {
   workformExecutionService,
   type WorkFormExecution,
   type WorkFormExecutionAuditEvent,
 } from '@/services/workformExecutionService';
+import { getTenantWorkForm } from '@/services/workformsApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
 export interface EntityWorkflowStatusPanelProps {
@@ -31,11 +33,44 @@ const getErrorMessage = (error: unknown) => {
   }
 
   const message = (error as { message?: string })?.message;
-  return typeof message === 'string' && message.trim() ? message : 'Failed to load automation status.';
+  return typeof message === 'string' && message.trim()
+    ? message
+    : 'Failed to load automation status.';
 };
 
-export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps> = ({ entityType, entityId }) => {
+const pickPreferredExecution = (
+  executions: WorkFormExecution[],
+  requestedExecutionId: string | null,
+): WorkFormExecution | null => {
+  if (!executions.length) {
+    return null;
+  }
+
+  if (requestedExecutionId) {
+    const exact = executions.find((execution) => execution.id === requestedExecutionId);
+    if (exact) {
+      return exact;
+    }
+  }
+
+  return (
+    executions.find((execution) => ['pending', 'in_progress'].includes(execution.status)) ||
+    executions[0]
+  );
+};
+
+export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps> = ({
+  entityType,
+  entityId,
+}) => {
+  const location = useLocation();
   const navigate = useNavigate();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const activeTab = searchParams.get('tab');
+  const shouldAutoOpenFlow = searchParams.get('viewProcessFlow') === '1';
+  const requestedExecutionId = searchParams.get('executionId');
+  const [selectedExecution, setSelectedExecution] = useState<WorkFormExecution | null>(null);
+
   const queryOptions = useMemo(
     () => ({
       queryKey: withTenantQueryKey('entity-workflow-status', entityType, entityId),
@@ -49,12 +84,55 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
       retry: false,
       refetchInterval: (query: { state: { error: unknown } }) => (query.state.error ? false : 5000),
     }),
-    [entityId, entityType]
+    [entityId, entityType],
   );
 
   const query = useQuery(queryOptions);
+  const executions = useMemo(
+    () => query.data?.results ?? [],
+    [query.data?.results],
+  );
 
-  const executions = query.data?.results ?? [];
+  useEffect(() => {
+    if (!shouldAutoOpenFlow || activeTab !== 'workflows' || selectedExecution || executions.length === 0) {
+      return;
+    }
+
+    const nextExecution = pickPreferredExecution(executions, requestedExecutionId);
+    if (nextExecution) {
+      setSelectedExecution(nextExecution);
+    }
+  }, [activeTab, executions, requestedExecutionId, selectedExecution, shouldAutoOpenFlow]);
+
+  const flowQuery = useQuery({
+    queryKey: withTenantQueryKey(
+      'entity-workflow-flow-definition',
+      selectedExecution?.workform ?? 'none',
+    ),
+    enabled: Boolean(selectedExecution?.workform),
+    queryFn: async () => getTenantWorkForm(String(selectedExecution!.workform)),
+    staleTime: 60_000,
+  });
+
+  const clearFlowSearchParams = useCallback(() => {
+    const next = new URLSearchParams(location.search);
+    next.delete('executionId');
+    next.delete('viewProcessFlow');
+    navigate(
+      {
+        pathname: location.pathname,
+        search: next.toString() ? `?${next.toString()}` : '',
+      },
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate]);
+
+  const closeProcessFlow = useCallback(() => {
+    setSelectedExecution(null);
+    if (shouldAutoOpenFlow || requestedExecutionId) {
+      clearFlowSearchParams();
+    }
+  }, [clearFlowSearchParams, requestedExecutionId, shouldAutoOpenFlow]);
 
   const renderNodeStatuses = (execution: WorkFormExecution) => {
     const map = execution.node_statuses;
@@ -107,10 +185,16 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
   };
 
   const renderAudit = (execution: WorkFormExecution) => {
-    const trail: WorkFormExecutionAuditEvent[] = Array.isArray(execution.audit_trail) ? execution.audit_trail : [];
+    const trail: WorkFormExecutionAuditEvent[] = Array.isArray(execution.audit_trail)
+      ? execution.audit_trail
+      : [];
 
     if (trail.length === 0) {
-      return <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No step events recorded yet.</div>;
+      return (
+        <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+          No step events recorded yet.
+        </div>
+      );
     }
 
     return (
@@ -124,13 +208,22 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
             <li key={`${execution.id}:${idx}`}>
               <span style={{ fontWeight: 600 }}>{event}</span>
               {nodeId ? <span> • node {nodeId}</span> : null}
-              {ts ? <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> • {formatTimestamp(ts)}</span> : null}
+              {ts ? (
+                <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                  {' '}
+                  • {formatTimestamp(ts)}
+                </span>
+              ) : null}
             </li>
           );
         })}
       </ol>
     );
   };
+
+  const workflowDefinition = flowQuery.data?.workflow_definition;
+  const flowNodes = Array.isArray(workflowDefinition?.nodes) ? workflowDefinition.nodes : [];
+  const flowEdges = Array.isArray(workflowDefinition?.edges) ? workflowDefinition.edges : [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -140,68 +233,69 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
             <Spin />
           </div>
         ) : query.isError ? (
-          <Alert
-            type="error"
-            showIcon
-            title={getErrorMessage(query.error)}
-          />
+          <Alert type="error" showIcon title={getErrorMessage(query.error)} />
         ) : executions.length === 0 ? (
-          <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No WorkForm runs found for this record.</div>
+          <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+            No WorkForm runs found for this record.
+          </div>
         ) : (
           <Collapse
-            items={executions.map((ex) => ({
-              key: ex.id,
+            items={executions.map((execution) => ({
+              key: execution.id,
               label: (
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, width: '100%' }}>
-                  <span style={{ fontWeight: 600 }}>{ex.workform_name}</span>
-                  <span style={{ color: 'rgb(var(--color-text-secondary))' }}>{ex.status}</span>
+                  <span style={{ fontWeight: 600 }}>{execution.workform_name}</span>
+                  <span style={{ color: 'rgb(var(--color-text-secondary))' }}>{execution.status}</span>
                 </div>
               ),
               children: (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, color: 'rgb(var(--color-text-secondary))' }}>
-                    {ex.started_at ? <span>Started: {formatTimestamp(ex.started_at)}</span> : null}
-                    {ex.completed_at ? <span>Completed: {formatTimestamp(ex.completed_at)}</span> : null}
-                    {ex.started_by_name ? <span>By: {ex.started_by_name}</span> : null}
+                    {execution.started_at ? <span>Started: {formatTimestamp(execution.started_at)}</span> : null}
+                    {execution.completed_at ? <span>Completed: {formatTimestamp(execution.completed_at)}</span> : null}
+                    {execution.started_by_name ? <span>By: {execution.started_by_name}</span> : null}
                   </div>
 
-                  {ex.error_message ? (
-                    <div style={{ color: 'rgb(var(--color-error))' }}>{ex.error_message}</div>
+                  {execution.error_message ? (
+                    <div style={{ color: 'rgb(var(--color-error))' }}>{execution.error_message}</div>
                   ) : null}
 
                   <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
                     Current step:{' '}
-                    <span style={{ fontWeight: 600 }}>{ex.current_node_label ?? ex.current_node_id ?? '—'}</span>
-                    {ex.current_node_label && ex.current_node_id ? (
-                      <span style={{ color: 'rgb(var(--color-text-tertiary))' }}> ({ex.current_node_id})</span>
+                    <span style={{ fontWeight: 600 }}>
+                      {execution.current_node_label ?? execution.current_node_id ?? '—'}
+                    </span>
+                    {execution.current_node_label && execution.current_node_id ? (
+                      <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                        {' '}
+                        ({execution.current_node_id})
+                      </span>
                     ) : null}
-                    {ex.current_node_type ? <span> • {ex.current_node_type}</span> : null}
+                    {execution.current_node_type ? <span> • {execution.current_node_type}</span> : null}
                   </div>
 
-                  {ex.errors && ex.errors.length > 0 ? (
+                  {execution.errors && execution.errors.length > 0 ? (
                     <div style={{ color: 'rgb(var(--color-error))' }}>
-                      {ex.errors.length} error{ex.errors.length === 1 ? '' : 's'}
+                      {execution.errors.length} error{execution.errors.length === 1 ? '' : 's'}
                     </div>
                   ) : null}
 
-                  {renderNodeStatuses(ex)}
+                  {renderNodeStatuses(execution)}
 
-                  <div>{renderAudit(ex)}</div>
+                  <div>{renderAudit(execution)}</div>
 
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/workforms/executions/${ex.id}`)}
-                      style={{
-                        border: '1px solid rgb(var(--color-border))',
-                        background: 'rgb(var(--color-surface))',
-                        padding: '6px 10px',
-                        borderRadius: 8,
-                        cursor: 'pointer',
-                      }}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Button
+                      onClick={() => navigate(`/workforms/executions/${execution.id}`)}
                     >
                       View execution details
-                    </button>
+                    </Button>
+                    <Button
+                      type="primary"
+                      onClick={() => setSelectedExecution(execution)}
+                    >
+                      View Process Flow
+                    </Button>
                   </div>
                 </div>
               ),
@@ -209,6 +303,54 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
           />
         )}
       </Card>
+
+      <Modal
+        open={Boolean(selectedExecution)}
+        onCancel={closeProcessFlow}
+        footer={null}
+        title={selectedExecution ? `${selectedExecution.workform_name} — Process Flow` : 'Process Flow'}
+        width={1200}
+        destroyOnHidden
+      >
+        {flowQuery.isLoading ? (
+          <div style={{ padding: 16, textAlign: 'center' }}>
+            <Spin />
+          </div>
+        ) : flowQuery.isError ? (
+          <Alert type="error" showIcon message="Failed to load workflow definition." />
+        ) : flowNodes.length === 0 ? (
+          <Alert
+            type="info"
+            showIcon
+            message="This execution does not expose a saved flow definition yet."
+          />
+        ) : (
+          <div style={{ display: 'grid', gap: 12 }}>
+            <TextBlock execution={selectedExecution} />
+            <div style={{ minHeight: 540, border: '1px solid rgb(var(--color-border))', borderRadius: 12, overflow: 'hidden' }}>
+              <UnifiedFlowEditor
+                readOnly
+                initialNodes={flowNodes as any}
+                initialEdges={flowEdges as any}
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+};
+
+const TextBlock: React.FC<{ execution: WorkFormExecution | null }> = ({ execution }) => {
+  if (!execution) {
+    return null;
+  }
+
+  return (
+    <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+      Viewing the canonical process flow for this record. Current step:{' '}
+      <strong>{execution.current_node_label ?? execution.current_node_id ?? '—'}</strong>
+      {execution.current_node_type ? ` • ${execution.current_node_type}` : ''}
     </div>
   );
 };
