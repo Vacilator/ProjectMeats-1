@@ -51,7 +51,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Financial Module (8 tables) - ✅ 100% COMPLIANT (code)
+## Financial Module (9 tables) - ✅ 100% COMPLIANT (code)
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
@@ -63,6 +63,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `customers_customer` | ✅ | `customers/0010_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
 | `inquiries_inquiry` | ✅ | `inquiries/0004_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
 | `inquiries_inquirytemplate` | ✅ | `inquiries/0004_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
+| `inquiries_inquirysupplierrfq` | ✅ | `inquiries/0011_inquirysupplierrfq` | Pending next deployment audit |
 
 ---
 

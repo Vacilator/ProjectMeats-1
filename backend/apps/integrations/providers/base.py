@@ -33,6 +33,19 @@ class EmailParams(TypedDict, total=False):
     attachments: Optional[List[Dict[str, Any]]]
     reply_to: Optional[str]
     importance: Optional[str]  # low, normal, high
+    headers: Optional[Dict[str, str]]
+
+
+class EmailSendResult(TypedDict, total=False):
+    """Provider-normalized send result for durable outbound audit."""
+
+    status: str
+    provider: str
+    message: str
+    provider_message_id: str
+    provider_thread_id: str
+    provider_internet_message_id: str
+    provider_web_link: str
 
 
 @dataclass
@@ -118,7 +131,7 @@ class EmailProvider(ABC):
         pass
     
     @abstractmethod
-    def send_email(self, access_token: str, params: EmailParams) -> Dict[str, Any]:
+    def send_email(self, access_token: str, params: EmailParams) -> EmailSendResult:
         """
         Send an email using the provider's API.
         
@@ -127,7 +140,7 @@ class EmailProvider(ABC):
             params: Email parameters (to, subject, body, etc.)
             
         Returns:
-            Dict with provider-specific response (message_id, status, etc.)
+            Provider-normalized send response with durable correlation metadata when available
             
         Raises:
             EmailProviderError: If email sending fails
