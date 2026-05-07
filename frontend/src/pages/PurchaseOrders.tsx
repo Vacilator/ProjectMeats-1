@@ -29,11 +29,23 @@ const Header = styled.div`
   }
 `;
 
+const HeaderCopy = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
 const Title = styled.h1`
   font-size: 28px;
   font-weight: 700;
   color: rgb(var(--color-text-primary));
   margin: 0;
+`;
+
+const Subtitle = styled.p`
+  margin: 0;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
 `;
 
 const HeaderActions = styled.div`
@@ -442,6 +454,18 @@ const PurchaseOrders: React.FC = () => {
     handleFormClose();
   };
 
+  const showingInlineForm = showForm;
+  const headerTitle = showingInlineForm
+    ? editingPurchaseOrder
+      ? 'Edit Purchase Order'
+      : 'Create Purchase Order'
+    : 'Purchase Orders';
+  const headerSubtitle = showingInlineForm
+    ? editingPurchaseOrder
+      ? 'Update the purchase order details in the shared trade form.'
+      : 'Create a purchase order in the shared trade form.'
+    : null;
+
   if (loading) {
     return (
       <div style={{ padding: 16 }}>
@@ -453,209 +477,220 @@ const PurchaseOrders: React.FC = () => {
   return (
     <>
       <Header>
-        <Title>Purchase Orders</Title>
+        <HeaderCopy>
+          <Title>{headerTitle}</Title>
+          {headerSubtitle ? <Subtitle>{headerSubtitle}</Subtitle> : null}
+        </HeaderCopy>
         <HeaderActions>
-          <SecondaryButton onClick={exportToCsv} disabled={exporting}>
-            {exporting ? 'Exporting...' : 'Export CSV'}
-          </SecondaryButton>
-          <AddButton onClick={openCreatePurchaseOrder}>
-          + Add Purchase Order
-          </AddButton>
+          {showingInlineForm ? (
+            <SecondaryButton onClick={handleFormClose}>Back to Purchase Orders</SecondaryButton>
+          ) : (
+            <>
+              <SecondaryButton onClick={exportToCsv} disabled={exporting}>
+                {exporting ? 'Exporting...' : 'Export CSV'}
+              </SecondaryButton>
+              <AddButton onClick={openCreatePurchaseOrder}>+ Add Purchase Order</AddButton>
+            </>
+          )}
         </HeaderActions>
       </Header>
 
-      <StatsCards>
-        <StatCard>
-          <StatNumber>{purchaseOrders.length}</StatNumber>
-          <StatLabel>Total Orders</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>{purchaseOrders.filter((po) => po.status === 'pending').length}</StatNumber>
-          <StatLabel>Pending</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>{purchaseOrders.filter((po) => po.status === 'approved').length}</StatNumber>
-          <StatLabel>Approved</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>
-            $
-            {Array.isArray(purchaseOrders)
-              ? purchaseOrders
-                  .reduce((sum, po) => sum + (Number(po.total_amount) || 0), 0)
-                  .toFixed(2)
-              : '0.00'}
-          </StatNumber>
-          <StatLabel>Total Value</StatLabel>
-        </StatCard>
-      </StatsCards>
-
-      {/* Sample Workflow Visualization */}
-      <PurchaseOrderWorkflow
-        stages={[
-          {
-            id: 'draft',
-            label: 'Draft',
-            status: 'completed',
-            description: 'Order created',
-          },
-          {
-            id: 'approval',
-            label: 'Approval',
-            status: 'completed',
-            description: 'Management review',
-          },
-          {
-            id: 'processing',
-            label: 'Processing',
-            status: 'active',
-            description: 'Supplier processing',
-          },
-          {
-            id: 'shipping',
-            label: 'Shipping',
-            status: 'pending',
-            description: 'In transit',
-          },
-          {
-            id: 'delivered',
-            label: 'Delivered',
-            status: 'pending',
-            description: 'Order complete',
-          },
-        ]}
-      />
-
-      {purchaseOrders.length === 0 ? (
-        <TransactionalEmptyState
-          icon={<ClipboardList size={36} />}
-          title="No purchase orders yet"
-          message="Create your first purchase order to start tracking supplier commitments, receiving plans, and order value."
-          actions={[
-            {
-              label: 'Create Purchase Order',
-              onClick: openCreatePurchaseOrder,
-              variant: 'primary',
-            },
-            {
-              label: 'Add First Supplier',
-              onClick: () => navigate('/suppliers/new'),
-              variant: 'secondary',
-            },
-          ]}
-        >
-          <TransactionalEmptyStateGuidance>
-            <TransactionalEmptyStateGuidanceItem>
-              Add a supplier first if you do not yet have one to purchase from.
-            </TransactionalEmptyStateGuidanceItem>
-            <TransactionalEmptyStateGuidanceItem>
-              Use purchase orders to lock in cost, quantity, and delivery expectations before fulfillment starts.
-            </TransactionalEmptyStateGuidanceItem>
-          </TransactionalEmptyStateGuidance>
-        </TransactionalEmptyState>
+      {showingInlineForm ? (
+        <UnifiedForm
+          entityType="purchase_order"
+          mode={editingPurchaseOrder ? 'edit' : 'create'}
+          variant="inline"
+          isOpen={showForm}
+          onClose={handleFormClose}
+          onSuccess={() => {
+            void handleFormSuccess();
+          }}
+          entityId={editingPurchaseOrder?.id}
+          initialValues={editingPurchaseOrder ? undefined : purchaseOrderCreateInitialValues}
+        />
       ) : (
-        <TableWrapper>
-          <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHeaderCell>Order Number</TableHeaderCell>
-              <TableHeaderCell>Supplier</TableHeaderCell>
-              <TableHeaderCell>Amount</TableHeaderCell>
-              <TableHeaderCell>Status</TableHeaderCell>
-              <TableHeaderCell>Order Date</TableHeaderCell>
-              <TableHeaderCell>Delivery Date</TableHeaderCell>
-              <TableHeaderCell>Actions</TableHeaderCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {purchaseOrders.map((purchaseOrder) => {
-              const supplier = suppliers.find((s) => s.id === purchaseOrder.supplier);
-              return (
-                <TableRow
-                  key={purchaseOrder.id}
-                  onClick={() => handleEdit(purchaseOrder)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleEdit(purchaseOrder);
-                    }
-                  }}
-                >
-                  <TableCell>{purchaseOrder.order_number}</TableCell>
-                  <TableCell>{supplier?.name || `ID: ${purchaseOrder.supplier}`}</TableCell>
-                  <TableCell>
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'USD',
-                    }).format(Number(purchaseOrder.total_amount) || 0)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge $color={getStatusColor(purchaseOrder.status)}>
-                      {purchaseOrder.status.toUpperCase()}
-                    </StatusBadge>
-                  </TableCell>
-                  <TableCell>
-                    {formatTradeDate(
-                      purchaseOrder.trade_timeline,
-                      'order_date',
-                      purchaseOrder.order_date
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {formatTradeDate(
-                      purchaseOrder.trade_timeline,
-                      'delivery_date',
-                      purchaseOrder.delivery_date,
-                      'Not set'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <ActionButton
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/records/purchase_order/${encodeURIComponent(String(purchaseOrder.id))}`);
-                      }}
-                    >
-                      View
-                    </ActionButton>
-                    <ActionButton
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(purchaseOrder);
-                      }}
-                    >
-                      Edit
-                    </ActionButton>
-                    <DeleteButton
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(purchaseOrder.id);
-                      }}
-                    >
-                      Delete
-                    </DeleteButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-          </Table>
-        </TableWrapper>
-      )}
+        <>
+          <StatsCards>
+            <StatCard>
+              <StatNumber>{purchaseOrders.length}</StatNumber>
+              <StatLabel>Total Orders</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatNumber>{purchaseOrders.filter((po) => po.status === 'pending').length}</StatNumber>
+              <StatLabel>Pending</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatNumber>{purchaseOrders.filter((po) => po.status === 'approved').length}</StatNumber>
+              <StatLabel>Approved</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatNumber>
+                $
+                {Array.isArray(purchaseOrders)
+                  ? purchaseOrders
+                      .reduce((sum, po) => sum + (Number(po.total_amount) || 0), 0)
+                      .toFixed(2)
+                  : '0.00'}
+              </StatNumber>
+              <StatLabel>Total Value</StatLabel>
+            </StatCard>
+          </StatsCards>
 
-      <UnifiedForm
-        entityType="purchase_order"
-        mode={editingPurchaseOrder ? 'edit' : 'create'}
-        isOpen={showForm}
-        onClose={handleFormClose}
-        onSuccess={() => {
-          void handleFormSuccess();
-        }}
-        entityId={editingPurchaseOrder?.id}
-        initialValues={editingPurchaseOrder ? undefined : purchaseOrderCreateInitialValues}
-      />
+          <PurchaseOrderWorkflow
+            stages={[
+              {
+                id: 'draft',
+                label: 'Draft',
+                status: 'completed',
+                description: 'Order created',
+              },
+              {
+                id: 'approval',
+                label: 'Approval',
+                status: 'completed',
+                description: 'Management review',
+              },
+              {
+                id: 'processing',
+                label: 'Processing',
+                status: 'active',
+                description: 'Supplier processing',
+              },
+              {
+                id: 'shipping',
+                label: 'Shipping',
+                status: 'pending',
+                description: 'In transit',
+              },
+              {
+                id: 'delivered',
+                label: 'Delivered',
+                status: 'pending',
+                description: 'Order complete',
+              },
+            ]}
+          />
+
+          {purchaseOrders.length === 0 ? (
+            <TransactionalEmptyState
+              icon={<ClipboardList size={36} />}
+              title="No purchase orders yet"
+              message="Create your first purchase order to start tracking supplier commitments, receiving plans, and order value."
+              actions={[
+                {
+                  label: 'Create Purchase Order',
+                  onClick: openCreatePurchaseOrder,
+                  variant: 'primary',
+                },
+                {
+                  label: 'Add First Supplier',
+                  onClick: () => navigate('/suppliers/new'),
+                  variant: 'secondary',
+                },
+              ]}
+            >
+              <TransactionalEmptyStateGuidance>
+                <TransactionalEmptyStateGuidanceItem>
+                  Add a supplier first if you do not yet have one to purchase from.
+                </TransactionalEmptyStateGuidanceItem>
+                <TransactionalEmptyStateGuidanceItem>
+                  Use purchase orders to lock in cost, quantity, and delivery expectations before fulfillment starts.
+                </TransactionalEmptyStateGuidanceItem>
+              </TransactionalEmptyStateGuidance>
+            </TransactionalEmptyState>
+          ) : (
+            <TableWrapper>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell>Order Number</TableHeaderCell>
+                    <TableHeaderCell>Supplier</TableHeaderCell>
+                    <TableHeaderCell>Amount</TableHeaderCell>
+                    <TableHeaderCell>Status</TableHeaderCell>
+                    <TableHeaderCell>Order Date</TableHeaderCell>
+                    <TableHeaderCell>Delivery Date</TableHeaderCell>
+                    <TableHeaderCell>Actions</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {purchaseOrders.map((purchaseOrder) => {
+                    const supplier = suppliers.find((s) => s.id === purchaseOrder.supplier);
+                    return (
+                      <TableRow
+                        key={purchaseOrder.id}
+                        onClick={() => handleEdit(purchaseOrder)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleEdit(purchaseOrder);
+                          }
+                        }}
+                      >
+                        <TableCell>{purchaseOrder.order_number}</TableCell>
+                        <TableCell>{supplier?.name || `ID: ${purchaseOrder.supplier}`}</TableCell>
+                        <TableCell>
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                          }).format(Number(purchaseOrder.total_amount) || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge $color={getStatusColor(purchaseOrder.status)}>
+                            {purchaseOrder.status.toUpperCase()}
+                          </StatusBadge>
+                        </TableCell>
+                        <TableCell>
+                          {formatTradeDate(
+                            purchaseOrder.trade_timeline,
+                            'order_date',
+                            purchaseOrder.order_date
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {formatTradeDate(
+                            purchaseOrder.trade_timeline,
+                            'delivery_date',
+                            purchaseOrder.delivery_date,
+                            'Not set'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <ActionButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/records/purchase_order/${encodeURIComponent(String(purchaseOrder.id))}`);
+                            }}
+                          >
+                            View
+                          </ActionButton>
+                          <ActionButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(purchaseOrder);
+                            }}
+                          >
+                            Edit
+                          </ActionButton>
+                          <DeleteButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(purchaseOrder.id);
+                            }}
+                          >
+                            Delete
+                          </DeleteButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableWrapper>
+          )}
+        </>
+      )}
     </>
   );
 };
