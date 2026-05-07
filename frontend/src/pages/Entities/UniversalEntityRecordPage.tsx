@@ -105,7 +105,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     return `${basePath}/${encodeURIComponent(entityId)}`;
   }, [basePath, entityId, location.pathname, normalizedEntityType]);
   const [recordDisplay, setRecordDisplay] = useState<ResolvedEntityDisplay | null>(null);
-  const [recordDisplay, setRecordDisplay] = useState<ResolvedEntityDisplay | null>(null);
 
   const loadChildRows = useCallback(async () => {
     if (!entityId || !(isSupplier || isCustomer) || mode !== 'view') return;
