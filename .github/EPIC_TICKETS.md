@@ -600,7 +600,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ### Epic AMB-04 - Contextual email drafting
 
-- [ ] **AMB-04.1 contextual-email-draft-service-and-outlook-contract**
+- [x] **AMB-04.1 contextual-email-draft-service-and-outlook-contract**
   - **Status:** Blocked
   - **Why now:** Supplier/customer pages cannot offer hyper-personalized draft actions until one canonical backend service can summarize recent order, balance, and delay context into a safe email draft payload.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-04
@@ -618,7 +618,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable the draft service/action while preserving existing Outlook integration flows.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **AMB-04.2 supplier-customer-ambient-draft-actions**
+- [x] **AMB-04.2 supplier-customer-ambient-draft-actions**
   - **Status:** Blocked
   - **Why now:** The final operator value is the one-click ambient action on supplier/customer records that opens a ready-to-review draft.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-04
