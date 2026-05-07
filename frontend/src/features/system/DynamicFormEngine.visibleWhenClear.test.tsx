@@ -178,4 +178,59 @@ describe('DynamicFormEngine visible_when', () => {
       export_countries: [],
     });
   });
+
+  it('supports visible_when.in for department-scoped multi-selects', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <DynamicFormEngine
+        schema={{
+          step_index: 0,
+          name: 'Contact',
+          fields: [
+            {
+              key: 'department',
+              label: 'Plant Contact Type',
+              type: 'select',
+              required: true,
+              options: [
+                { value: 'sales', label: 'Sales' },
+                { value: 'qa', label: 'QA' },
+                { value: 'accounting', label: 'Accounting' },
+              ],
+            },
+            {
+              key: 'protein_types_responsible',
+              label: 'Protein Types Responsible For',
+              type: 'select',
+              required: false,
+              options: [{ value: 'Beef', label: 'Beef' }],
+              ui: {
+                widget: 'multi_select',
+                visible_when: {
+                  field: 'department',
+                  in: ['sales', 'qa'],
+                },
+              },
+            },
+          ],
+        }}
+        initialValues={{
+          department: 'accounting',
+          protein_types_responsible: ['Beef'],
+        }}
+        onSubmit={onSubmit}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /submit|save/i }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      department: 'accounting',
+      protein_types_responsible: [],
+    });
+  });
 });

@@ -25,6 +25,8 @@ ALLOWED_PATTERNS = (
     "docs/WHATS_NEW.md",
     "docs/PHASE7_RECOVERY_COMPLETE.md",
     "docs/PROJECT_STATUS_REPORT_2026-02-09.md",
+    "archived/docs/phase-reports/PHASE7_RECOVERY_COMPLETE.md",
+    "archived/docs/plans-stubs/V3_FINAL_PUSH_PERFECTION.md",
     "scripts/check_master_plan_references.py",
 )
 SKIP_PREFIXES = (".git/", "node_modules/", "_worktrees/")

@@ -1,9 +1,9 @@
 /**
  * DynamicFormEngine Component
- * 
+ *
  * Renders forms dynamically from JSON schema definitions.
  * Supports 12 field types with validation and data piping.
- * 
+ *
  * Wave 4 - Task 4.12: Integrated with ConfigResolver for dynamic settings.
  */
 import React, { useMemo, useState, useEffect, useRef } from 'react';
@@ -43,6 +43,7 @@ type FieldUi = {
   visible_when?: {
     field: string;
     equals?: unknown;
+    in?: unknown[];
     truthy?: boolean;
   };
 };
@@ -265,7 +266,7 @@ const Label = styled.label<{ required?: boolean }>`
   font-weight: 500;
   color: rgb(var(--color-text-primary));
   margin-bottom: 0.5rem;
-  
+
   ${props => props.required && `
     &::after {
       content: ' *';
@@ -630,7 +631,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       return acc;
     }, {});
   }, [dependencyFieldKeys, watchedDependencyValues]);
-  
+
   const keySet = useMemo(() => {
     const keys = (keyFieldKeys || []).map((k) => String(k).toLowerCase());
     return new Set(keys);
@@ -1018,6 +1019,10 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
     if (typeof rule.equals !== 'undefined') {
       return raw === rule.equals;
+    }
+
+    if (Array.isArray(rule.in) && rule.in.length > 0) {
+      return rule.in.some((candidate) => raw === candidate);
     }
 
     if (rule.truthy) {

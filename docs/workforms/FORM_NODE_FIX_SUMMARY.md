@@ -39,29 +39,29 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
 ```typescript
 export const getEntityFields = async (entityId: string): Promise<EntityField[]> => {
   console.log('[SchemaService] Fetching fields for entity:', entityId);
-  
+
   try {
     // CRITICAL FIX: Encode entity ID for URL
     const encodedEntityId = encodeURIComponent(entityId);
     const url = `system/entities/${encodedEntityId}/fields/`;
-    
+
     console.log('[SchemaService] Fetch URL:', url);
-    
+
     const response = await apiClient.get<EntityFieldsResponse>(url);
-    
+
     // Normalize field data
     const normalizedFields = (response.data.fields || []).map(field => ({
       ...field,
       type: field.field_type || field.type,
       required: field.is_required ?? field.required ?? false,
     }));
-    
+
     console.log('[SchemaService] Fields received:', {
       entityId,
       fieldCount: normalizedFields.length,
       fields: normalizedFields.map(f => ({ name: f.name, type: f.type, required: f.required })),
     });
-    
+
     return normalizedFields;
   } catch (error) {
     console.error('[SchemaService] Failed to fetch fields for entity:', entityId, error);
@@ -83,8 +83,8 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
 ```typescript
 // Shows field count next to entity name
 <option key={entity.id} value={entity.id}>
-  {entity.label_plural} {selectedEntityType === entity.id && availableFields.length > 0 
-    ? `(${availableFields.length} fields)` 
+  {entity.label_plural} {selectedEntityType === entity.id && availableFields.length > 0
+    ? `(${availableFields.length} fields)`
     : ''}
 </option>
 
@@ -139,20 +139,20 @@ Both types are recognized in all container operations:
 
 ```typescript
 // Line 2609-2613: Finding containers at position
-const containerNodes = nodes.filter(node => 
-  node.type === 'formMultiStepContainer' || 
+const containerNodes = nodes.filter(node =>
+  node.type === 'formMultiStepContainer' ||
   node.type === 'formProcessGroup' ||
   node.type === 'formProcess'
 );
 
 // Line 2903-2905: Preventing nested containers
-const isContainerType = type === 'formMultiStepContainer' || 
-                       type === 'formProcessGroup' || 
+const isContainerType = type === 'formMultiStepContainer' ||
+                       type === 'formProcessGroup' ||
                        type === 'formProcess';
 
 // Line 3185-3187: Drag-stop container detection
-const isContainerNode = node.type === 'formMultiStepContainer' || 
-                       node.type === 'formProcessGroup' || 
+const isContainerNode = node.type === 'formMultiStepContainer' ||
+                       node.type === 'formProcessGroup' ||
                        node.type === 'formProcess';
 ```
 
@@ -245,11 +245,11 @@ The backend fix (commit 79a6b86) already supports `tenant_apps.*` entity IDs in 
 
 ## Success Criteria
 
-✅ Entity dropdown shows field counts  
-✅ Selecting an entity immediately fetches and displays fields  
-✅ No more 404 errors on fields endpoint  
-✅ Form Process Group accepts dragged children  
-✅ Console logs provide clear debugging information  
+✅ Entity dropdown shows field counts
+✅ Selecting an entity immediately fetches and displays fields
+✅ No more 404 errors on fields endpoint
+✅ Form Process Group accepts dragged children
+✅ Console logs provide clear debugging information
 ✅ Both formProcess and formProcessGroup work as containers
 
 ## Commit History
@@ -257,10 +257,10 @@ The backend fix (commit 79a6b86) already supports `tenant_apps.*` entity IDs in 
 1. `fix(flow): Entity field fetching with proper URL encoding and error handling`
    - Updated schemaService.ts with URL encoding
    - Enhanced EntityFieldPicker.tsx with better UX
-   
+
 2. `feat(flow): Add debug logging to FormProcessGroupNode for multi-step container visibility`
    - Added comprehensive logging to FormProcessGroupNode
-   
+
 3. `docs: Add comprehensive fix summary for Form Node and Form Process Group`
    - Created this documentation
 
@@ -274,3 +274,13 @@ This PR addresses the issue reported on 2026-02-21:
 - ✅ Improved UX with field counts and loading states
 
 The root cause was the lack of URL encoding for entity IDs containing dots (tenant_apps.*). With proper encoding, the backend can now correctly parse and return field data.
+
+## Supplier Plant Department Contact form follow-up
+
+- Promoted the department selector to the primary **Plant Contact Type** field with the exact ordered options `Sales`, `QA`, `Shipping / Loadout`, `Certification`, and `Accounting` while still preserving legacy `booking` records.
+- Expanded the schema-driven conditional logic so `Sales` and `QA` share the same searchable responsibility fields, `Shipping / Loadout` reveals the title dropdown, and every selected department gets a filtered **Documents Responsible For** multi-select.
+- Switched the responsibility fields to reusable searchable multi-select behavior:
+  - **Protein Types Responsible For** uses the canonical protein choice list
+  - **Items Responsible For** hydrates from `/api/v1/master-products/`
+  - **Documents Responsible For** now comes from a centralized master-document registry covering Spec Sheets, COAs, Pictures of Label, certification docs, Statements, Claims, Credits, Checks, Bills, and shipping paperwork
+- Added additive `visible_when.in` support in `DynamicFormEngine` so one field definition can stay visible for multiple department values without duplicating schema rows.
