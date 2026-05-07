@@ -1291,7 +1291,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 
 ### Gap 5: Phase 18 — Data Integrity Safety Net (High Impact)
 
-- [ ] **RT-08.0 financial-calculation-reconciliation-job**
+- [x] **RT-08.0 financial-calculation-reconciliation-job**
   - **Status:** Blocked
   - **Why now:** RT-08.1 introduces computed financial fields. If calculations drift from source data (e.g., due to missed events), financial reports become unreliable. A reconciliation job catches drift within 24h.
   - **Scope:** Background Celery job (daily) that recomputes all financial fields from source records and flags any drift > 0.01%. Emit alert to operations team. Auto-correct if drift is below threshold.
