@@ -422,7 +422,7 @@
       "secrets_and_manifest": {
         "paths": [
           "manifests/env.manifest.json",
-          "docs/CONFIGURATION_AND_SECRETS.md"
+          "docs/reference/CONFIGURATION_AND_SECRETS.md"
         ],
         "requires": [
           "devops-engineer",

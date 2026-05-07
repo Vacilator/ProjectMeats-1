@@ -3,7 +3,7 @@
  * Phase 6.5: Frontend Optimization
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 
 /**
  * Hook to measure component render performance.
@@ -49,6 +49,11 @@ export function useDebounce<T extends (...args: any[]) => any>(
   delay: number
 ): T {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const callbackRef = useRef(callback);
+
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
     return () => {
@@ -58,15 +63,18 @@ export function useDebounce<T extends (...args: any[]) => any>(
     };
   }, []);
 
-  return ((...args: Parameters<T>) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+  return useCallback(
+    ((...args: Parameters<T>) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
 
-    timeoutRef.current = setTimeout(() => {
-      callback(...args);
-    }, delay);
-  }) as T;
+      timeoutRef.current = setTimeout(() => {
+        callbackRef.current(...args);
+      }, delay);
+    }) as T,
+    [delay]
+  );
 }
 
 /**
