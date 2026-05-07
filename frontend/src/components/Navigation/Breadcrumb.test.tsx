@@ -7,9 +7,9 @@
  * - Returns null for root path
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import Breadcrumb from './Breadcrumb';
 
 export {};
@@ -151,6 +151,15 @@ describe('Breadcrumb', () => {
       // Should display custom-page as title-cased, no Dashboard
       expect(screen.getByText('Custom page')).toBeInTheDocument();
       expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+    });
+
+    it('replaces UUID path segments with a readable details label', () => {
+      const uuid = '7d9154f4-1a4d-4f47-b7d4-6223479c1fe7';
+      renderWithRouter(`/suppliers/${uuid}`);
+
+      expect(screen.getByText('Suppliers')).toBeInTheDocument();
+      expect(screen.getByText('Supplier Details')).toBeInTheDocument();
+      expect(screen.queryByText(uuid)).not.toBeInTheDocument();
     });
   });
 });

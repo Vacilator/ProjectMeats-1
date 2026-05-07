@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 
 import { businessApi } from '@/services/businessApi';
+import { containsUuidToken, isIdentifierLike, resolveEntityDisplay } from '@/utils/entityDisplay';
 
 import { EntityFormSurface } from './EntityFormSurface';
 import { EntityListPrimaryCell, type EntityListItem } from './entityListPresentation';
@@ -71,23 +72,14 @@ const defaultRecordPath = (entityType: string, id: string) => {
   return `/records/${encodeURIComponent(t)}/${encodeURIComponent(id)}`;
 };
 
-const getRowTitle = (row: Record<string, unknown>): string => {
-  const candidates = [row.name, row.company_name, row.company, row.title, row.code];
-  for (const c of candidates) {
-    const s = String(c ?? '').trim();
-    if (s) return s;
-  }
-  const id = String(row.id ?? '').trim();
-  return id ? `Record ${id}` : 'Record';
-};
-
 const getRowSubtitle = (row: Record<string, unknown>): string | undefined => {
   const candidates = [row.subtitle, row.city, row.state, row.email, row.phone];
   const parts: string[] = [];
 
   candidates.forEach((c) => {
     const s = String(c ?? '').trim();
-    if (s) parts.push(s);
+    if (!s || isIdentifierLike(s) || containsUuidToken(s)) return;
+    parts.push(s);
   });
 
   const unique = Array.from(new Set(parts));
@@ -165,11 +157,16 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
         title: 'Record',
         key: 'record',
         render: (_: unknown, row: Row) => {
+          const resolvedTitle = resolveEntityDisplay(row as Record<string, unknown>, {
+            entityType,
+            fallbackStyle: 'id',
+          });
           const item: EntityListItem = {
             id: String((row as any)?.id ?? ''),
             type: entityType,
-            name: getRowTitle(row as any),
+            name: resolvedTitle.text,
             subtitle: getRowSubtitle(row as any),
+            tooltip: resolvedTitle.tooltip,
           };
 
           return <EntityListPrimaryCell item={item} />;

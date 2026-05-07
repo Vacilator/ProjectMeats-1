@@ -7,6 +7,7 @@ import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
+import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = { supplierId?: string; plantId?: string };
 
@@ -113,9 +114,20 @@ export const PlantDetail: React.FC = () => {
   }, [pid]);
 
   const title = useMemo(() => {
-    const name = String(plant?.name || '').trim();
-    return name || (pid ? `Plant #${pid}` : 'Plant');
+    return resolveEntityDisplay(
+      { name: plant?.name, id: pid },
+      { entityType: 'plant', fallbackStyle: 'id' }
+    );
   }, [pid, plant?.name]);
+
+  const supplierDisplay = useMemo(
+    () =>
+      resolveEntityDisplay(
+        { name: supplier?.name, id: sid },
+        { entityType: 'supplier', fallbackStyle: 'id' }
+      ),
+    [sid, supplier?.name]
+  );
 
   const handleNavigateToEntity = useCallback(
     (entityType: string, entityId: string, _label: string) => {
@@ -163,7 +175,8 @@ export const PlantDetail: React.FC = () => {
       {
         title: 'Name',
         key: 'name',
-        render: (_, c) => `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unnamed',
+        render: (_, c) =>
+          resolveEntityDisplay(c, { entityType: 'contact', fallbackStyle: 'id' }).text,
       },
       {
         title: 'Department',
@@ -217,18 +230,23 @@ export const PlantDetail: React.FC = () => {
                   <span>
                     Supplier:{' '}
                     <Link to={sid ? `/suppliers/${sid}` : '/suppliers'}>
-                      {String(supplier?.name || '').trim() || (sid ? `Supplier #${sid}` : 'Suppliers')}
+                      <span title={supplierDisplay.tooltip || supplierDisplay.text}>
+                        {supplierDisplay.text}
+                      </span>
                     </Link>
                   </span>
                 ),
               },
               {
                 title: (
-                  <span>
-                    Plants: <span style={{ fontWeight: 700 }}>{title}</span>
-                  </span>
-                ),
-              },
+                    <span>
+                     Plants:{' '}
+                     <span style={{ fontWeight: 700 }} title={title.tooltip || title.text}>
+                       {title.text}
+                     </span>
+                    </span>
+                  ),
+                },
             ]}
           />
         </div>

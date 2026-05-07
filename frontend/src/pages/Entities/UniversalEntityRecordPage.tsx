@@ -9,6 +9,7 @@ import { ActivityFeed, CommentsPanel, EntityFormSurface, UnifiedEntityTable } fr
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { apiClient } from '@/services/apiService';
 import { businessApi } from '@/services/businessApi';
+import { type ResolvedEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = {
   id?: string;
@@ -73,6 +74,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [relationshipCounts, setRelationshipCounts] = useState<Record<string, number>>({});
   const [relationships, setRelationships] = useState<Record<string, unknown[]>>({});
+  const [recordDisplay, setRecordDisplay] = useState<ResolvedEntityDisplay | null>(null);
 
   const loadChildRows = useCallback(async () => {
     if (!entityId || !(isSupplier || isCustomer) || mode !== 'view') return;
@@ -154,6 +156,10 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     void loadOverview();
   }, [loadOverview]);
 
+  useEffect(() => {
+    setRecordDisplay(null);
+  }, [entityId, normalizedEntityType]);
+
   const formMode: EntityFormMode = useMemo(() => {
     if (mode === 'create') return 'create';
     if (mode === 'edit') return 'edit';
@@ -195,9 +201,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const title = useMemo(() => {
     if (mode === 'create') return `New ${entityLabel}`;
     if (mode === 'edit') return `Edit ${entityLabel}`;
-    if (mode === 'view' && entityId) return `${entityLabel} ${entityId}`;
+    if (mode === 'view' && entityId) return recordDisplay?.text || entityLabel;
     return entityLabel;
-  }, [entityId, entityLabel, mode]);
+  }, [entityId, entityLabel, mode, recordDisplay?.text]);
 
   const numericEntityId = useMemo(() => {
     const n = Number(entityId);
@@ -288,7 +294,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             {
               title: (
                 <span style={{ color: 'rgb(var(--color-text-primary))', fontWeight: 700 }}>
-                  {title}
+                  <span title={recordDisplay?.tooltip || title}>{title}</span>
                 </span>
               ),
             },
@@ -357,6 +363,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             onNavigateToEntity={(t, pk) => {
               navigate(getRecordPath(t, pk));
             }}
+            onTitleResolved={setRecordDisplay}
             layout="grid"
             variant="full"
           />

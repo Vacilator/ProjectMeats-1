@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
+import { resolveRouteBreadcrumbLabel } from '@/utils/entityDisplay';
 
 /**
  * Context-aware Breadcrumb Component
@@ -95,18 +96,22 @@ const Breadcrumb: React.FC = () => {
       {pathnames.map((pathname, index) => {
         const routeTo = `/${pathnames.slice(0, index + 1).join('/')}`;
         const isLast = index === pathnames.length - 1;
-        
-        // Get display name - capitalize if not in map
-        const displayName = breadcrumbNameMap[pathname] || 
-          pathname.charAt(0).toUpperCase() + pathname.slice(1).replace(/-/g, ' ');
+        const mappedName = breadcrumbNameMap[pathname];
+        const resolved = mappedName
+          ? { text: mappedName, tooltip: mappedName }
+          : resolveRouteBreadcrumbLabel(pathname, pathnames[index - 1]);
 
         return (
           <BreadcrumbItem key={routeTo}>
             {isLast ? (
-              <BreadcrumbText aria-current="page">{displayName}</BreadcrumbText>
+              <BreadcrumbText aria-current="page" title={resolved.tooltip || resolved.text}>
+                {resolved.text}
+              </BreadcrumbText>
             ) : (
               <>
-                <BreadcrumbLink to={routeTo}>{displayName}</BreadcrumbLink>
+                <BreadcrumbLink to={routeTo} title={resolved.tooltip || resolved.text}>
+                  {resolved.text}
+                </BreadcrumbLink>
                 <Separator aria-hidden="true">/</Separator>
               </>
             )}

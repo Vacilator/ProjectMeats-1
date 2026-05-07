@@ -7,6 +7,7 @@ import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
+import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = { id?: string };
 
@@ -181,9 +182,20 @@ export const PlantDetailView: React.FC = () => {
   }, [plant?.supplier]);
 
   const title = useMemo(() => {
-    const name = String(plant?.name || '').trim();
-    return name || (plantId ? `Plant #${plantId}` : 'Plant');
+    return resolveEntityDisplay(
+      { name: plant?.name, id: plantId },
+      { entityType: 'plant', fallbackStyle: 'id' }
+    );
   }, [plant?.name, plantId]);
+
+  const supplierDisplay = useMemo(
+    () =>
+      resolveEntityDisplay(
+        { name: plant?.supplier_name, id: supplierId },
+        { entityType: 'supplier', fallbackStyle: 'id' }
+      ),
+    [plant?.supplier_name, supplierId]
+  );
 
   const columns: ColumnsType<ContactRow> = useMemo(
     () => [
@@ -191,7 +203,7 @@ export const PlantDetailView: React.FC = () => {
         title: 'Name',
         key: 'name',
         render: (_, contact) =>
-          `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unnamed',
+          resolveEntityDisplay(contact, { entityType: 'contact', fallbackStyle: 'id' }).text,
       },
       {
         title: 'Department',
@@ -288,7 +300,9 @@ export const PlantDetailView: React.FC = () => {
                   <span>
                     Supplier:{' '}
                     <Link to={`/suppliers/${supplierId}`}>
-                      {String(plant?.supplier_name || '').trim() || `Supplier #${supplierId}`}
+                      <span title={supplierDisplay.tooltip || supplierDisplay.text}>
+                        {supplierDisplay.text}
+                      </span>
                     </Link>
                   </span>
                 ) : (
@@ -297,11 +311,14 @@ export const PlantDetailView: React.FC = () => {
               },
               {
                 title: (
-                  <span>
-                    Plant: <span style={{ fontWeight: 700 }}>{title}</span>
-                  </span>
-                ),
-              },
+                    <span>
+                     Plant:{' '}
+                     <span style={{ fontWeight: 700 }} title={title.tooltip || title.text}>
+                       {title.text}
+                     </span>
+                    </span>
+                  ),
+                },
             ]}
           />
         </div>

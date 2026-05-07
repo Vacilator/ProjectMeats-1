@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { apiClient } from '@/services/apiService';
+import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = { customerId?: string; locationId?: string; contactId?: string };
 
@@ -55,9 +56,29 @@ export const LocationContactDetail: React.FC = () => {
   }, [cid, lid, coid]);
 
   const contactLabel = useMemo(() => {
-    const name = `${String(contact?.first_name || '').trim()} ${String(contact?.last_name || '').trim()}`.trim();
-    return name || (coid ? `Contact #${coid}` : 'Contact');
+    return resolveEntityDisplay(
+      { first_name: contact?.first_name, last_name: contact?.last_name, id: coid },
+      { entityType: 'contact', fallbackStyle: 'id' }
+    );
   }, [coid, contact?.first_name, contact?.last_name]);
+
+  const customerDisplay = useMemo(
+    () =>
+      resolveEntityDisplay(
+        { name: customer?.name, id: cid },
+        { entityType: 'customer', fallbackStyle: 'id' }
+      ),
+    [cid, customer?.name]
+  );
+
+  const locationDisplay = useMemo(
+    () =>
+      resolveEntityDisplay(
+        { name: location?.name, id: lid },
+        { entityType: 'location', fallbackStyle: 'id' }
+      ),
+    [lid, location?.name]
+  );
 
   const handleNavigateToEntity = useCallback(
     (entityType: string, entityId: string, _label: string) => {
@@ -107,7 +128,9 @@ export const LocationContactDetail: React.FC = () => {
                   <span>
                     Customer:{' '}
                     <Link to={cid ? `/customers/${cid}` : '/customers'}>
-                      {String(customer?.name || '').trim() || (cid ? `Customer #${cid}` : 'Customers')}
+                      <span title={customerDisplay.tooltip || customerDisplay.text}>
+                        {customerDisplay.text}
+                      </span>
                     </Link>
                   </span>
                 ),
@@ -117,12 +140,20 @@ export const LocationContactDetail: React.FC = () => {
                   <span>
                     Locations:{' '}
                     <Link to={`/customers/${cid}/locations/${lid}`}>
-                      {String(location?.name || '').trim() || (lid ? `Location #${lid}` : 'Locations')}
+                      <span title={locationDisplay.tooltip || locationDisplay.text}>
+                        {locationDisplay.text}
+                      </span>
                     </Link>
                   </span>
                 ),
               },
-              { title: <span style={{ fontWeight: 700 }}>{contactLabel}</span> },
+              {
+                title: (
+                  <span style={{ fontWeight: 700 }} title={contactLabel.tooltip || contactLabel.text}>
+                    {contactLabel.text}
+                  </span>
+                ),
+              },
             ]}
           />
         </div>
