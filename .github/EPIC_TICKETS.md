@@ -23,13 +23,13 @@
 | Shipped | CTE-04.2 sales-order-approval-pdf | Phase 16 | backend |
 | Shipped | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
 | Shipped | CTE-04.4 carrier-reply-parser | Phase 16 | backend |
-| Shipped | CTE-04.5 happy-path-orchestrator-e2e | Phase 16 | full-stack |
+| Shipped | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
 | Shipped | CTE-05.1 trade-session-lineage-schema | Phase 16 | backend |
 | Shipped | CTE-06.1 domain-event-contracts | Phase 16 | backend |
-| **P0 (Now)** | CTE-04.6 structured-logging-trace-ids | Phase 16 | backend |
-| P1 | CTE-06.2 celery-saga-consumers | Phase 16 | backend |
-| P2 | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
-| P5 | CTE-05.2–08 (distributed hardening) | Phase 16 | backend |
+| **P0 (Now)** | CTE-05.2 trade-lineage-visualization | Phase 16 | frontend |
+| P1 | CTE-04.6 structured-logging-trace-ids | Phase 16 | backend |
+| P2 | CTE-06.2 celery-saga-consumers | Phase 16 | backend |
+| P5 | CTE-05.3–08 (distributed hardening) | Phase 16 | backend |
 | P6 | RT-01–04 (runtime intelligence) | Phase 17 | full-stack |
 | P7 | RT-05 (editor stabilization) | Phase 17 | frontend |
 | P8 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
@@ -272,8 +272,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable orchestration entrypoints first and keep all existing document models/audit history intact while reverting the hardcoded engine wiring.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-04.7 unified-inquiry-po-form-consolidation**
-  - **Status:** Ready
+- [x] **CTE-04.7 unified-inquiry-po-form-consolidation**
+  - **Status:** Shipped — merged via PR #4970
   - **Why now:** Form fragmentation increases maintenance burden and UX inconsistency; a single UnifiedForm eliminates duplicate logic and enables direct AI Inbox → form routing.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Sprint Execution Package 12
   - **Scope:** Create a single `UnifiedForm` component supporting modes: create / edit / clone / view / draft for both Inquiry and Purchase Order entities. Integrate Plant Contact Type + conditional field logic into PO form sections. Ensure AI Inbox "action required" items open directly into correct mode with pre-filled parsed payload. Add localStorage autosave every 30 seconds.
@@ -311,7 +311,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** backend/contracts
   - **Likely touched paths:** `backend/tenant_apps/inquiries/`, `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/sales_orders/`, `backend/apps/integrations/`, additive migrations/tests, `manifests/RLS_POLICIES.md`
   - **Dependencies:** CTE-04.5
-  - **Blockers:** CTE-04.5
+  - **Blockers:** None
   - **Acceptance criteria:**
     1. A durable lineage key exists at the inquiry root and can be followed across downstream commercial documents.
     2. Lineage preserves enough source-email provenance to answer which inbound message initiated the trade.
@@ -324,7 +324,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **CTE-05.2 trade-lineage-visualization-on-detail-surfaces**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** A lineage key only creates operator value when users can see the trade path and current state directly on detail pages.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 5
   - **Scope:** Build a lineage visualization component for relevant detail screens that renders inquiry -> supplier PO -> sales order -> carrier PO progression plus current state and exception markers.
@@ -332,7 +332,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend
   - **Likely touched paths:** `frontend/src/pages/**/Detail*.tsx`, new lineage component(s), `frontend/src/services/`, supporting backend serializers/tests
   - **Dependencies:** CTE-05.1
-  - **Blockers:** CTE-05.1
+  - **Blockers:** None
   - **Acceptance criteria:** Operators can open a downstream document and see the complete trade lineage and current workflow state without log-diving.
   - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`; `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders`
   - **Tenant/RLS impact:** Medium
@@ -373,7 +373,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** backend/async
   - **Likely touched paths:** `backend/projectmeats/celery.py`, `backend/tenant_apps/**/tasks.py`, order/inquiry transition services, document/email services, tests
   - **Dependencies:** CTE-06.1
-  - **Blockers:** CTE-06.1
+  - **Blockers:** None — lower execution priority than CTE-05.2
   - **Acceptance criteria:**
     1. Approved trade transitions publish events that Celery workers consume asynchronously.
     2. Downstream PDF/email/entity-creation work no longer depends on one HTTP request finishing end-to-end.
@@ -1240,7 +1240,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Scope:** Add a `trade_trace_id` UUID that propagates through all CTE services (inquiry → RFQ → reply → PO → SO). Emit structured JSON logs at each service boundary with trace_id, tenant_id, entity_id, step_name, duration_ms. Wire into existing Sentry transaction tracing.
   - **Primary domain:** backend
   - **Dependencies:** CTE-04.5 (after happy-path orchestrator exists)
-  - **Blockers:** None — lower execution priority than CTE-04.7
+  - **Blockers:** None — lower execution priority than CTE-05.2
   - **Acceptance criteria:** Every trade execution gets a unique trace_id; all service logs include it; Sentry shows end-to-end trace; log aggregation can filter by trace_id.
   - **Validation commands:** `cd backend && python manage.py test apps.core.tests.test_structured_logging --noinput`
   - **Tenant/RLS impact:** Low (logging only)
