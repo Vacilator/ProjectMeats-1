@@ -637,6 +637,94 @@ class InquiryViewSet(viewsets.ModelViewSet):
         })
 
 
+    # ------------------------------------------------------------------
+    # Orchestrator endpoints (CTE-04.5)
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=['get'], url_path='orchestrator-state')
+    def orchestrator_state(self, request, pk=None):
+        """Get the current happy-path orchestrator state for this inquiry.
+
+        GET /api/v1/inquiries/{id}/orchestrator-state/
+        """
+        from .services.happy_path_orchestrator import (
+            get_lineage_chain,
+            get_orchestrator_state,
+        )
+
+        inquiry = self.get_object()
+        current_step = get_orchestrator_state(tenant=request.tenant, inquiry=inquiry)
+        lineage = get_lineage_chain(tenant=request.tenant, inquiry=inquiry)
+
+        return Response({
+            'current_step': current_step.value,
+            'lineage': lineage,
+        })
+
+    @action(detail=True, methods=['post'], url_path='orchestrator-advance')
+    def orchestrator_advance(self, request, pk=None):
+        """Advance the happy-path orchestrator for this inquiry.
+
+        POST /api/v1/inquiries/{id}/orchestrator-advance/
+        Body (optional): {"advance_through": "draft_sales_order"}
+        """
+        from .services.happy_path_orchestrator import (
+            OrchestratorStep,
+            advance_orchestrator,
+        )
+
+        inquiry = self.get_object()
+        advance_through = request.data.get('advance_through')
+
+        target_step = None
+        if advance_through:
+            try:
+                target_step = OrchestratorStep(advance_through)
+            except ValueError:
+                raise ValidationError({
+                    'advance_through': f"Invalid step: '{advance_through}'. "
+                    f"Valid: {[s.value for s in OrchestratorStep]}"
+                })
+
+        result = advance_orchestrator(
+            tenant=request.tenant,
+            inquiry=inquiry,
+            advance_through=target_step,
+            user=request.user,
+        )
+
+        return Response({
+            'inquiry_id': result.inquiry_id,
+            'route': result.route,
+            'current_step': result.current_step.value,
+            'completed': result.completed,
+            'blocked': result.blocked,
+            'blocked_reason': result.blocked_reason,
+            'steps_executed': [
+                {
+                    'step': s.step.value,
+                    'success': s.success,
+                    'message': s.message,
+                    'entity_id': s.entity_id,
+                    'entity_type': s.entity_type,
+                }
+                for s in result.steps_executed
+            ],
+        })
+
+    @action(detail=True, methods=['get'], url_path='lineage')
+    def lineage(self, request, pk=None):
+        """Get the full lineage chain for this inquiry (for Process Cockpit React Flow).
+
+        GET /api/v1/inquiries/{id}/lineage/
+        """
+        from .services.happy_path_orchestrator import get_lineage_chain
+
+        inquiry = self.get_object()
+        chain = get_lineage_chain(tenant=request.tenant, inquiry=inquiry)
+        return Response(chain)
+
+
 class InquiryProductViewSet(viewsets.ModelViewSet):
     """ViewSet for InquiryProduct CRUD operations."""
     
