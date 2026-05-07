@@ -3,10 +3,10 @@ import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import { X, RefreshCw } from 'lucide-react';
 
+import EmailIngestionCockpitPanel from '../../components/Cockpit/EmailIngestionCockpitPanel';
 import { businessApi } from '../../services/businessApi';
 import { useAuth } from '../../contexts/AuthContext';
 import { UnifiedFlowEditor } from '../../components/FlowEditor/UnifiedFlowEditor';
-import { logger } from '../../utils/logger';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 
 // ============================================================================
@@ -475,6 +475,8 @@ const ProcessMonitor: React.FC = () => {
           </IconButton>
         </Controls>
       </Header>
+
+      <EmailIngestionCockpitPanel />
 
       {listQuery.isLoading ? (
         <EmptyState>Loading…</EmptyState>

@@ -62,6 +62,10 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams<RouteParams>();
+  const requestedTabKey = useMemo(
+    () => new URLSearchParams(location.search).get('tab') || undefined,
+    [location.search],
+  );
 
   const entityId = id ? String(id) : undefined;
 
@@ -460,6 +464,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
 
           <Tabs
             style={{ marginTop: 12 }}
+            defaultActiveKey={requestedTabKey}
             items={
               isSupplier || isCustomer
                 ? [

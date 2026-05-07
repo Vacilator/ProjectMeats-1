@@ -95,4 +95,39 @@ describe('AIDraftReviewModal', () => {
     expect(onResolved).toHaveBeenCalledWith('draft-1');
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('hydrates inquiry drafts into the inquiry form surface', async () => {
+    render(
+      <MemoryRouter>
+        <AIDraftReviewModal
+          open
+          onClose={() => {}}
+          item={{
+            id: 'draft-2',
+            document_id: 'document-2',
+            document_type: 'inquiry',
+            confidence_score: 0.81,
+            precision_delta: 0,
+            created_on: new Date().toISOString(),
+            intent_label: 'Inquiry',
+            review_entity_type: 'inquiry',
+            original_extracted_data: {
+              inquiry_id: '42',
+              customer_name: 'North Meats',
+              contact_name: 'Alex Buyer',
+              sender_email: 'buyer@northmeats.com',
+              requested_protein: 'Beef',
+              due_date: '2026-05-10T00:00:00Z',
+              summary: 'Need beef trim for next week.',
+            },
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('entity-type')).toHaveTextContent('inquiry');
+    expect(screen.getByTestId('initial-values').textContent).toContain('Alex Buyer');
+    expect(screen.getByTestId('initial-values').textContent).toContain('buyer@northmeats.com');
+    expect(screen.getByTestId('initial-values').textContent).toContain('2026-05-10');
+  });
 });

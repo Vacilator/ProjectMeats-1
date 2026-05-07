@@ -1,8 +1,10 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Tag, Typography, message } from 'antd';
+import { Alert, Button, Modal, Space, Tag, Typography, message } from 'antd';
+import { useNavigate } from 'react-router-dom';
 
 import { EntityFormSurface } from '@/components/Shared/EntityFormSurface';
 import { aiStaffApi, type PendingReviewItem } from '@/services/aiService';
+import { buildReviewDetailsPathFromItem } from '@/utils/reviewDetailsPath';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -11,6 +13,15 @@ type AIDraftReviewModalProps = {
   item: PendingReviewItem | null;
   onClose: () => void;
   onResolved?: (reviewId: string) => void;
+};
+
+type AIDraftReviewContentProps = {
+  open: boolean;
+  item: PendingReviewItem | null;
+  onClose?: () => void;
+  onResolved?: (reviewId: string) => void;
+  closeOnResolved?: boolean;
+  onResolvingChange?: (resolving: boolean) => void;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> => (
@@ -62,28 +73,36 @@ const mapPurchaseOrderItems = (items: unknown): Array<Record<string, unknown>> =
   }
 
   return items.reduce<Array<Record<string, unknown>>>((accumulator, item, index) => {
-      const record = asRecord(item);
-      const description = firstString(record.product_description, record.description, record.item_description);
-      const quantity = firstNumber(record.quantity);
-      const totalNetWeight = firstNumber(record.total_net_weight, record.total_weight, record.weight);
-      const proteinType = firstString(record.protein_type, record.type_of_protein);
-      const weightUnit = firstString(record.uom, record.weight_unit);
+    const record = asRecord(item);
+    const description = firstString(
+      record.product_description,
+      record.description,
+      record.item_description,
+    );
+    const quantity = firstNumber(record.quantity);
+    const totalNetWeight = firstNumber(
+      record.total_net_weight,
+      record.total_weight,
+      record.weight,
+    );
+    const proteinType = firstString(record.protein_type, record.type_of_protein);
+    const weightUnit = firstString(record.uom, record.weight_unit);
 
-      if (!description && quantity == null && totalNetWeight == null) {
-        return accumulator;
-      }
-
-      accumulator.push({
-        line_number: index + 1,
-        product_description: description,
-        quantity,
-        total_net_weight: totalNetWeight,
-        protein_type: proteinType,
-        uom: weightUnit,
-        notes: firstString(record.notes),
-      });
+    if (!description && quantity == null && totalNetWeight == null) {
       return accumulator;
-    }, []);
+    }
+
+    accumulator.push({
+      line_number: index + 1,
+      product_description: description,
+      quantity,
+      total_net_weight: totalNetWeight,
+      protein_type: proteinType,
+      uom: weightUnit,
+      notes: firstString(record.notes),
+    });
+    return accumulator;
+  }, []);
 };
 
 export const resolveReviewEntityType = (item: PendingReviewItem | null): string => {
@@ -96,8 +115,15 @@ export const resolveReviewEntityType = (item: PendingReviewItem | null): string 
   if (['purchase_order', 'po'].includes(documentType)) {
     return 'purchase_order';
   }
-  if (['bill_of_lading', 'bol', 'shipment', 'carrier_purchase_order', 'carrier_po'].includes(documentType)) {
+  if (
+    ['bill_of_lading', 'bol', 'shipment', 'carrier_purchase_order', 'carrier_po'].includes(
+      documentType,
+    )
+  ) {
     return 'carrier-pos';
+  }
+  if (['inquiry', 'quote'].includes(documentType)) {
+    return 'inquiry';
   }
   return '';
 };
@@ -155,20 +181,50 @@ export const mapDraftToInitialValues = (item: PendingReviewItem | null): Record<
     };
   }
 
+  if (entityType === 'inquiry') {
+    return {
+      entity_type: firstString(
+        payload.entity_type,
+        payload.inquiry_entity_type,
+        payload.customer_name || payload.customer_company ? 'customer' : undefined,
+        payload.supplier_name || payload.vendor_name ? 'supplier' : undefined,
+      ),
+      contact_name: firstString(payload.contact_name, payload.sender_name, payload.sender),
+      contact_email: firstString(payload.contact_email, payload.sender_email, payload.from_email),
+      contact_company: firstString(
+        payload.contact_company,
+        payload.customer_name,
+        payload.customer_company,
+        payload.supplier_name,
+        payload.vendor_name,
+      ),
+      requested_protein: firstString(
+        payload.requested_protein,
+        payload.protein_type,
+        payload.type_of_protein,
+      ),
+      valid_until: normalizeDate(payload.valid_until ?? payload.due_date ?? payload.requested_by_date),
+      notes: firstString(summary, payload.rationale),
+    };
+  }
+
   return payload;
 };
 
-export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
+export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
   open,
   item,
   onClose,
   onResolved,
+  closeOnResolved = false,
+  onResolvingChange,
 }) => {
-  const [resolving, setResolving] = useState(false);
+  const navigate = useNavigate();
   const resolvingAfterSaveRef = useRef(false);
   const entityType = useMemo(() => resolveReviewEntityType(item), [item]);
   const initialValues = useMemo(() => mapDraftToInitialValues(item), [item]);
   const payload = useMemo(() => asRecord(item?.original_extracted_data), [item]);
+  const reviewDetailsPath = useMemo(() => buildReviewDetailsPathFromItem(item), [item]);
   const sourcePreview = useMemo(
     () =>
       firstString(
@@ -180,36 +236,163 @@ export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
     [item?.source_summary, payload],
   );
 
-  const handleResolved = useCallback(async (result: unknown) => {
-    if (!item?.id) {
-      return;
-    }
+  const setResolvingState = useCallback(
+    (next: boolean) => {
+      onResolvingChange?.(next);
+    },
+    [onResolvingChange],
+  );
 
-    resolvingAfterSaveRef.current = true;
-    setResolving(true);
-    try {
-      await aiStaffApi.resolvePendingReview(item.id, {
-        user_corrected_data: asRecord(result),
-      });
-      message.success('Draft saved and removed from the AI review queue.');
-      onResolved?.(item.id);
-      onClose();
-    } catch (error: any) {
-      message.error(error?.response?.data?.error || 'The draft saved, but the AI review queue could not be updated.');
-    } finally {
-      resolvingAfterSaveRef.current = false;
-      setResolving(false);
-    }
-  }, [item?.id, onClose, onResolved]);
+  const handleResolved = useCallback(
+    async (result: unknown) => {
+      if (!item?.id) {
+        return;
+      }
+
+      resolvingAfterSaveRef.current = true;
+      setResolvingState(true);
+      try {
+        await aiStaffApi.resolvePendingReview(item.id, {
+          user_corrected_data: asRecord(result),
+        });
+        message.success('Draft saved and removed from the AI review queue.');
+        onResolved?.(item.id);
+        if (closeOnResolved) {
+          onClose?.();
+        }
+      } catch (error: any) {
+        message.error(
+          error?.response?.data?.error ||
+            'The draft saved, but the AI review queue could not be updated.',
+        );
+      } finally {
+        resolvingAfterSaveRef.current = false;
+        setResolvingState(false);
+      }
+    },
+    [closeOnResolved, item?.id, onClose, onResolved, setResolvingState],
+  );
 
   const handleSurfaceClose = useCallback(() => {
     if (resolvingAfterSaveRef.current) {
       return;
     }
-    onClose();
+    onClose?.();
   }, [onClose]);
 
   const unsupported = !entityType;
+
+  if (!item) {
+    return null;
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(280px, 320px) minmax(0, 1fr)' }}>
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div
+          style={{
+            border: '1px solid rgb(var(--color-border))',
+            borderRadius: 12,
+            padding: 16,
+            background: 'rgb(var(--color-surface))',
+          }}
+        >
+          <Title level={5} style={{ marginTop: 0 }}>
+            Source Context
+          </Title>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <Text strong>{item.source_subject || item.intent_label || 'Untitled AI draft'}</Text>
+            <div>
+              <Tag color="blue">{item.intent_label || 'AI Draft'}</Tag>
+              {item.sender ? <Tag>{item.sender}</Tag> : null}
+            </div>
+            <Text type="secondary">
+              Received {item.created_on ? new Date(item.created_on).toLocaleString() : 'recently'}
+            </Text>
+            {item.source_document_name ? (
+              <Text type="secondary">Attachment: {item.source_document_name}</Text>
+            ) : null}
+            {sourcePreview ? (
+              <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
+                {sourcePreview}
+              </Paragraph>
+            ) : (
+              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                Showing the extracted payload because the original email body was not included in this draft.
+              </Paragraph>
+            )}
+            {reviewDetailsPath ? (
+              <Space size={8} wrap>
+                <Button type="primary" onClick={() => navigate(reviewDetailsPath)}>
+                  Review Details
+                </Button>
+                <Text type="secondary">
+                  Opens the canonical record with the workflow view selected.
+                </Text>
+              </Space>
+            ) : null}
+          </div>
+        </div>
+
+        <div
+          style={{
+            border: '1px solid rgb(var(--color-border))',
+            borderRadius: 12,
+            padding: 16,
+            background: 'rgb(var(--color-surface))',
+          }}
+        >
+          <Title level={5} style={{ marginTop: 0 }}>
+            Parsed Payload
+          </Title>
+          <pre
+            style={{
+              margin: 0,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontSize: 12,
+              color: 'rgb(var(--color-text-secondary))',
+            }}
+          >
+            {JSON.stringify(payload, null, 2)}
+          </pre>
+        </div>
+      </div>
+
+      <div>
+        {unsupported ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="This AI draft does not map to a supported entity form yet."
+            description="The extracted payload is preserved on the left so an operator can review it manually."
+          />
+        ) : (
+          <EntityFormSurface
+            entityType={entityType}
+            mode="create"
+            variant="inline"
+            isOpen={open}
+            onClose={handleSurfaceClose}
+            onSuccess={(result) => {
+              void handleResolved(result);
+            }}
+            initialValues={initialValues}
+            forceUniversal
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
+  open,
+  item,
+  onClose,
+  onResolved,
+}) => {
+  const [resolving, setResolving] = useState(false);
 
   return (
     <Modal
@@ -222,94 +405,14 @@ export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
       mask={{ closable: !resolving }}
       keyboard={!resolving}
     >
-      {item ? (
-        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(280px, 320px) minmax(0, 1fr)' }}>
-          <div style={{ display: 'grid', gap: 12 }}>
-            <div
-              style={{
-                border: '1px solid rgb(var(--color-border))',
-                borderRadius: 12,
-                padding: 16,
-                background: 'rgb(var(--color-surface))',
-              }}
-            >
-              <Title level={5} style={{ marginTop: 0 }}>
-                Source Context
-              </Title>
-              <div style={{ display: 'grid', gap: 8 }}>
-                <Text strong>{item.source_subject || item.intent_label || 'Untitled AI draft'}</Text>
-                <div>
-                  <Tag color="blue">{item.intent_label || 'AI Draft'}</Tag>
-                  {item.sender ? <Tag>{item.sender}</Tag> : null}
-                </div>
-                <Text type="secondary">
-                  Received {item.created_on ? new Date(item.created_on).toLocaleString() : 'recently'}
-                </Text>
-                {item.source_document_name ? (
-                  <Text type="secondary">Attachment: {item.source_document_name}</Text>
-                ) : null}
-                {sourcePreview ? (
-                  <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
-                    {sourcePreview}
-                  </Paragraph>
-                ) : (
-                  <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                    Showing the extracted payload because the original email body was not included in this draft.
-                  </Paragraph>
-                )}
-              </div>
-            </div>
-
-            <div
-              style={{
-                border: '1px solid rgb(var(--color-border))',
-                borderRadius: 12,
-                padding: 16,
-                background: 'rgb(var(--color-surface))',
-              }}
-            >
-              <Title level={5} style={{ marginTop: 0 }}>
-                Parsed Payload
-              </Title>
-              <pre
-                style={{
-                  margin: 0,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontSize: 12,
-                  color: 'rgb(var(--color-text-secondary))',
-                }}
-              >
-                {JSON.stringify(payload, null, 2)}
-              </pre>
-            </div>
-          </div>
-
-          <div>
-            {unsupported ? (
-              <Alert
-                type="warning"
-                showIcon
-                message="This AI draft does not map to a supported entity form yet."
-                description="The extracted payload is preserved on the left so an operator can review it manually."
-              />
-            ) : (
-              <EntityFormSurface
-                entityType={entityType}
-                mode="create"
-                variant="inline"
-                isOpen={open}
-                onClose={handleSurfaceClose}
-                onSuccess={(result) => {
-                  void handleResolved(result);
-                }}
-                initialValues={initialValues}
-                forceUniversal
-              />
-            )}
-          </div>
-        </div>
-      ) : null}
+      <AIDraftReviewContent
+        open={open}
+        item={item}
+        onClose={onClose}
+        onResolved={onResolved}
+        closeOnResolved
+        onResolvingChange={setResolving}
+      />
     </Modal>
   );
 };
