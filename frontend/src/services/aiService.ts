@@ -34,12 +34,37 @@ export type PendingReviewItem = ContractPendingReviewItem & {
   intent_label?: string;
   review_entity_type?: string;
   review_target_url?: string;
+  feedback_signal?: AIInboxFeedbackSignal | null;
+  feedback_comment?: string;
+  retraining_status?: string;
+  retraining_queued_at?: string | null;
 };
 export type PendingReviewListResponse = ContractPendingReviewListResponse;
 export type PendingReviewResolveRequest = ContractPendingReviewResolveRequest;
 export type PendingReviewResolveResponse = ContractPendingReviewResolveResponse;
 export type SwarmInvokeRequest = ContractSwarmInvokeRequest;
 export type SwarmInvokeResponse = ContractSwarmInvokeResponse;
+export type AIInboxFeedbackSignal = 'thumbs_up' | 'thumbs_down';
+
+export interface AIInboxFeedbackSubmitRequest {
+  document_id: string;
+  document_type?: string;
+  original_extracted_data?: Record<string, unknown>;
+  user_corrected_data?: Record<string, unknown>;
+  confidence_score?: number;
+  feedback_signal: AIInboxFeedbackSignal;
+  feedback_comment?: string;
+  feedback_source?: string;
+}
+
+export interface AIInboxFeedbackSubmitResponse {
+  id: string;
+  created: boolean;
+  document_id: string;
+  feedback_signal?: AIInboxFeedbackSignal | null;
+  retraining_status?: string;
+  retraining_queued_at?: string | null;
+}
 
 export interface DocumentProcessingRequest {
   document_id: string;
@@ -179,6 +204,15 @@ export const aiStaffApi = {
       `/ai-assistant/review/${feedbackId}/resolve/`,
       data,
     );
+    return unwrap(res);
+  },
+};
+
+export const aiFeedbackApi = {
+  submit: async (
+    data: AIInboxFeedbackSubmitRequest,
+  ): Promise<AIInboxFeedbackSubmitResponse> => {
+    const res = await businessApi.post<AIInboxFeedbackSubmitResponse>('/ai-assistant/feedback/', data);
     return unwrap(res);
   },
 };

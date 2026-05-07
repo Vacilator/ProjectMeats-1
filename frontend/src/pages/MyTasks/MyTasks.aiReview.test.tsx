@@ -30,6 +30,15 @@ vi.mock('../../components/AIAssistant/AIDraftReviewModal', () => ({
   ),
 }));
 
+vi.mock('../../components/AIAssistant/AIInboxFeedbackActions', () => ({
+  AIInboxFeedbackActions: () => (
+    <div>
+      <button aria-label="Thumbs up feedback">Helpful</button>
+      <button aria-label="Thumbs down feedback">Needs work</button>
+    </div>
+  ),
+}));
+
 vi.mock('../../services/aiService', () => ({
   AI_INBOX_REFRESH_EVENT: 'pm:ai-inbox-refresh',
   aiStaffApi: {
@@ -86,6 +95,8 @@ describe('MyTasks AI review queue', () => {
     expect(await screen.findByText('dispatch@example.com')).toBeInTheDocument();
     expect(screen.getByText('Bill Of Lading')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Review & Save/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Thumbs up feedback/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Thumbs down feedback/i })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId('ai-draft-modal')).toHaveTextContent('draft-1:carrier-pos');
     });

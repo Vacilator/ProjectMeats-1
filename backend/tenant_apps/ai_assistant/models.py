@@ -177,6 +177,15 @@ class AIFeedbackLog(TenantAwareModel):
     NOTE: `precision_delta` is stored for reporting; the exact scoring algorithm can evolve.
     """
 
+    class FeedbackSignal(models.TextChoices):
+        THUMBS_UP = "thumbs_up", "Thumbs Up"
+        THUMBS_DOWN = "thumbs_down", "Thumbs Down"
+
+    class RetrainingStatus(models.TextChoices):
+        NOT_QUEUED = "not_queued", "Not queued"
+        QUEUED = "queued", "Queued"
+        EXPORTED = "exported", "Exported"
+
     document_id = models.UUIDField(help_text="Upstream document identifier")
     document_type = models.CharField(max_length=64, help_text="Classified document type")
 
@@ -185,6 +194,42 @@ class AIFeedbackLog(TenantAwareModel):
 
     confidence_score = models.FloatField(default=0.0, help_text="Model confidence from 0.0 to 1.0")
     precision_delta = models.FloatField(default=0.0, help_text="Derived change ratio between original and corrected")
+    feedback_signal = models.CharField(
+        max_length=16,
+        choices=FeedbackSignal.choices,
+        blank=True,
+        null=True,
+        help_text="Optional inbox reaction signal captured from the operator.",
+    )
+    feedback_comment = models.TextField(
+        blank=True,
+        default="",
+        help_text="Operator comment captured with inbox feedback; required for negative feedback.",
+    )
+    feedback_source = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Surface where the operator submitted feedback (for example: ai_inbox).",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_feedback_submissions",
+    )
+    retraining_status = models.CharField(
+        max_length=16,
+        choices=RetrainingStatus.choices,
+        default=RetrainingStatus.NOT_QUEUED,
+        help_text="Tracks whether the feedback has been queued/exported for retraining workflows.",
+    )
+    retraining_queued_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when this feedback was queued for retraining.",
+    )
 
     resolved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -203,6 +248,7 @@ class AIFeedbackLog(TenantAwareModel):
             models.Index(fields=["tenant", "document_type"], name="ai_fb_tenant_type_idx"),
             # Optimizes the pending-review queue: tenant + unresolved + confidence + time.
             models.Index(fields=["tenant", "resolved_by", "confidence_score", "created_on"], name="ai_fb_queue_idx"),
+            models.Index(fields=["tenant", "retraining_status", "created_on"], name="ai_fb_retrain_idx"),
         ]
 
     def _calculate_precision_delta(self) -> float:

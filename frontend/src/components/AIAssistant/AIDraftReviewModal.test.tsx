@@ -28,6 +28,12 @@ vi.mock('@/services/aiService', () => ({
   },
 }));
 
+vi.mock('@/components/AIAssistant/AIInboxFeedbackActions', () => ({
+  AIInboxFeedbackActions: ({ item }: any) => (
+    <div data-testid="feedback-actions">{item?.id}</div>
+  ),
+}));
+
 vi.mock('@/components/Shared/EntityFormSurface', () => ({
   EntityFormSurface: ({ entityType, initialValues, onSuccess }: any) => (
     <div>
@@ -84,6 +90,7 @@ describe('AIDraftReviewModal', () => {
     expect(screen.getByTestId('entity-type')).toHaveTextContent('purchase_order');
     expect(screen.getByTestId('initial-values').textContent).toContain('PO-1001');
     expect(screen.getByTestId('initial-values').textContent).toContain('Acme Meats');
+    expect(screen.getByTestId('feedback-actions')).toHaveTextContent('draft-1');
 
     await userEvent.click(screen.getByRole('button', { name: /Simulate Save/i }));
 
@@ -129,5 +136,6 @@ describe('AIDraftReviewModal', () => {
     expect(screen.getByTestId('initial-values').textContent).toContain('Alex Buyer');
     expect(screen.getByTestId('initial-values').textContent).toContain('buyer@northmeats.com');
     expect(screen.getByTestId('initial-values').textContent).toContain('2026-05-10');
+    expect(screen.getByTestId('feedback-actions')).toHaveTextContent('draft-2');
   });
 });
