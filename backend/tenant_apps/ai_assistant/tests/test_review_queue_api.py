@@ -94,6 +94,32 @@ class PendingReviewViewTests(TestCase):
         self.assertEqual(payload['review_entity_type'], 'inquiry')
         self.assertEqual(payload['review_target_url'], '/inquiries?review=inquiry&inquiry=17')
 
+    def test_pending_review_purchase_order_payload_uses_purchase_order_intent(self):
+        feedback = AIFeedbackLog.objects.create(
+            tenant=self.tenant,
+            document_id=uuid.uuid4(),
+            document_type='purchase_order',
+            confidence_score=0.95,
+            original_extracted_data={
+                'order_number': '226001',
+                'supplier_name': 'Quoted Supplier',
+                'review_target_url': '/purchase-orders?review=purchase_order&purchase_order=44',
+                'status': 'draft',
+            },
+        )
+
+        request = self.factory.get('/api/v1/ai-assistant/review/pending/')
+        force_authenticate(request, user=self.user)
+        request.tenant = self.tenant
+
+        response = PendingReviewView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        payload = next(item for item in response.data['results'] if str(item['id']) == str(feedback.id))
+        self.assertEqual(payload['intent_label'], 'Purchase Order')
+        self.assertEqual(payload['review_entity_type'], 'purchase_order')
+        self.assertEqual(payload['review_target_url'], '/purchase-orders?review=purchase_order&purchase_order=44')
+
     def test_contextual_suggestions_returns_plant_continuity_actions(self):
         plant = Plant.objects.create(
             tenant=self.tenant,

@@ -153,6 +153,12 @@ class InquiryProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_on', 'modified_on']
 
 
+class CreateSupplierPurchaseOrderDraftSerializer(serializers.Serializer):
+    """Request serializer for drafting a supplier PO from a normalized quote reply."""
+
+    rfq_id = serializers.IntegerField(min_value=1)
+
+
 class InquiryListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for inquiry list views.
 

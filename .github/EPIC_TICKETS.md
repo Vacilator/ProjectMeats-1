@@ -1193,8 +1193,8 @@
   - **Rollback:** Disable supplier-reply automation and preserve normalized quote journals/source-email lineage for manual review.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4931)
 
-- [ ] **CTE-02.4 draft-supplier-purchase-order-generation-from-quotes**
-  - **Status:** Ready
+- [x] **CTE-02.4 draft-supplier-purchase-order-generation-from-quotes**
+  - **Status:** Shipped (PR #4932)
   - **Why now:** Normalized quotes should create trader-reviewable supplier POs instead of forcing manual re-entry.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 2
   - **Scope:** Generate draft `PurchaseOrder` records from accepted/qualifying supplier quote replies, persist linkage back to the originating inquiry and quote payload, and move the new order into the approval flow rather than sending it externally.
@@ -1209,12 +1209,12 @@
   - **Secrets/infra impact:** None
   - **Risk level:** High
   - **Rollback:** Revert draft-order generation and preserve quote journals for manual PO creation.
-  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md` (PR #4932)
 
 ### Epic CTE-03 - Human-in-the-loop approval flow
 
 - [ ] **CTE-03.1 generic-order-approval-state-machine-contract**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Supplier, sales, and carrier documents need one explicit approval lifecycle before PDF generation and outbound sends can be safely automated.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 3
   - **Scope:** Design and implement the generic approval-state contract that maps `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` onto `draft` -> `pending_review` -> `approved`, including transition auditability and compatibility with existing status enums.
@@ -1222,7 +1222,7 @@
   - **Primary domain:** backend/state machine
   - **Likely touched paths:** `backend/tenant_apps/{purchase_orders,sales_orders}/models.py`, shared approval service/state module, serializers/tests, additive migrations if needed
   - **Dependencies:** CTE-02.4
-  - **Blockers:** CTE-02.4
+  - **Blockers:** None
   - **Acceptance criteria:** One shared approval contract exists for all three commercial document types without breaking existing order APIs.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High

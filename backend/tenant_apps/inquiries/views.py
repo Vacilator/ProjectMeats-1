@@ -17,6 +17,7 @@ from .models import (
     InquiryTemplateProduct,
 )
 from .serializers import (
+    CreateSupplierPurchaseOrderDraftSerializer,
     InquiryListSerializer,
     InquiryDetailSerializer,
     InquiryCreateSerializer,
@@ -27,6 +28,9 @@ from .serializers import (
     InquiryTemplateCreateSerializer,
     CloneInquirySerializer,
 )
+from tenant_apps.purchase_orders.serializers import PurchaseOrderSerializer
+from .services import create_supplier_quote_purchase_order_draft
+from .services.supplier_quote_po_draft import SupplierQuotePODraftError
 
 
 class InquiryViewSet(viewsets.ModelViewSet):
@@ -276,6 +280,34 @@ class InquiryViewSet(viewsets.ModelViewSet):
         inquiry.save()
         
         return Response(InquiryDetailSerializer(inquiry).data)
+
+    @action(detail=True, methods=['post'], url_path='create-supplier-po-draft')
+    def create_supplier_po_draft(self, request, pk=None):
+        """Create or return the draft supplier PO for a qualifying normalized quote reply."""
+        inquiry = self.get_object()
+        serializer = CreateSupplierPurchaseOrderDraftSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            result = create_supplier_quote_purchase_order_draft(
+                tenant=request.tenant,
+                inquiry=inquiry,
+                rfq_id=serializer.validated_data['rfq_id'],
+            )
+        except SupplierQuotePODraftError as exc:
+            raise ValidationError({'rfq_id': str(exc)}) from exc
+
+        response_status = status.HTTP_201_CREATED if result.created else status.HTTP_200_OK
+        return Response(
+            {
+                'created': result.created,
+                'purchase_order': PurchaseOrderSerializer(
+                    result.purchase_order,
+                    context={'request': request},
+                ).data,
+            },
+            status=response_status,
+        )
     
     @action(detail=True, methods=['post'])
     def clone(self, request, pk=None):
