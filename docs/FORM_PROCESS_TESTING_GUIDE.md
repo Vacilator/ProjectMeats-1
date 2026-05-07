@@ -740,3 +740,35 @@ If any test fails, report with:
 ---
 
 **Test Reference:** Rowena/TX PO 226052 example should exercise triggers 1 (New Inquiry) and 2 (Direct Customer PO) with ForEachSupplier and BidSelection paths.
+
+---
+
+### Category 7: Draft Sales Order Generation — CTE-04.1 (Sprint Package 11)
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 34 | FULFILL inquiry creates draft SO via `create_draft_from_fulfill` | Draft SalesOrder created with inquiry lineage |
+| 35 | BROKER approved PO creates draft SO via `create_draft_from_approved_source` | Draft SalesOrder created with PO + bid lineage |
+| 36 | Duplicate SO creation attempt is idempotent | Second call returns existing SO, no duplicate |
+| 37 | SO auto-populates from Plant Contact data (Title, Type, Docs) | SO fields match contact enrichment |
+| 38 | PDF generated on draft SO creation | PDF attachment exists on SO record |
+| 39 | Telemetry fires: `sales_order.draft_created` + `sales_order.pdf_generated` | Both events captured with tenant_id |
+| 40 | Cross-tenant inquiry cannot create SO in different tenant | RLS blocks; 403/404 returned |
+| 41 | "Approve & Send to Customer" Quick Action transitions SO | SO status moves to `pending_review` → approved flow |
+| 42 | Full lineage: source_email → inquiry → bid → SO traceable | All FK/lineage fields populated |
+| 43 | Rowena/TX PO 226052 FULFILL path succeeds end-to-end | Draft SO created from direct fulfillment inquiry |
+| 44 | Rowena/TX PO 226052 BROKER path succeeds end-to-end | Draft SO created from approved supplier PO |
+
+### Category 8: AI Feedback Loop — RT-02.3 (Sprint Package 14)
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 45 | Thumbs-up feedback stores positive record in AIFeedbackLog | Record created with `feedback_type=positive` |
+| 46 | Thumbs-down requires comment before submit | Validation error without comment |
+| 47 | AI-suggested correction fields shown on negative feedback | Correction UI renders with parsed payload diff |
+| 48 | Corrected payload stored alongside original in AIFeedbackLog | Both `original_payload` and `corrected_payload` populated |
+| 49 | Feedback queues Celery task for training pipeline | `queue_feedback_for_training` task dispatched |
+| 50 | Parse-status badge shows correct state (parsed/failed/corrected) | Badge matches item's processing history |
+| 51 | Auto-create missing Supplier → Contact → Plant in correct FK order | All three records created; no FK violation |
+| 52 | Cross-tenant feedback isolation | Feedback only visible to owning tenant |
+| 53 | Telemetry: `ai_feedback.submitted` fires on any feedback | Event captured with feedback_type and tenant_id |

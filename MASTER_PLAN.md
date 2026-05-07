@@ -654,6 +654,92 @@ Build the intelligence, automation, and self-service layers on top of Phase 17's
 - Template Library is a new route (existing editor unchanged)
 - Approval gates can be disabled per-template without removing the node type
 
+---
+
+## Sprint Execution Packages (Items 11–15)
+
+### Purpose
+These packages define the concrete delegation prompts and implementation specifications for the next five major deliverables. They bridge the gap between Phase 16/17/18 planning and actual execution by providing step-by-step implementation blueprints.
+
+### Package 11: CTE-04.1 — Draft Sales Order Generation + End-to-End Closure
+**Priority:** P0 (immediate). **Ticket:** CTE-04.1. **Phase:** 16.
+
+**Implementation Blueprint:**
+1. Create `tenant_apps.sales_orders.services.draft_sales_order` with two entry points:
+   - `create_draft_from_fulfill(inquiry)` — direct FULFILL path skips brokerage
+   - `create_draft_from_approved_source(purchase_order)` — BROKER path after bid selection
+2. Auto-populate SO fields using enriched Supplier Plant Contact data (Type, Title, Documents Responsible For)
+3. Wire as GenerateSalesOrder node in EndToEndInquiryToPOProcess FormProcess group
+4. Full lineage tracking: `source_email_id → inquiry_id → bid_id → sales_order_id`
+5. Deduplication via `SalesOrder.custom_data['source_inquiry_id']` check
+6. Generate PDF using existing pattern (reuse CTE-03.3 approval PDF service)
+7. Emit telemetry: `sales_order.draft_created`, `sales_order.pdf_generated`
+8. API endpoints: `POST /api/v1/inquiries/{id}/create-sales-order-draft/`, `POST /api/v1/purchase-orders/{id}/create-sales-order-draft/`
+9. Process Cockpit Quick Action: "Approve & Send to Customer"
+10. Test: Rowena/TX PO 226052 exercises both FULFILL and BROKER paths
+
+**Standards Compliance:** additive-only, reuse CTE-03.3 patterns, RLS policy verification, telemetry events.
+
+### Package 12: CTE-04.7 — Unified Inquiry & PO Form Consolidation
+**Priority:** P1.5. **Ticket:** CTE-04.7. **Phase:** 16.
+
+**Implementation Blueprint:**
+1. Create `frontend/src/components/UnifiedForm/UnifiedForm.tsx` with mode prop: create / edit / clone / view / draft
+2. Mode-specific field visibility via `useFormMode()` hook
+3. Integrate Plant Contact Type dropdown + conditional fields + multi-selects
+4. Wire AI Inbox `parsed_payload` → `UnifiedForm(mode='draft', initialValues=payload)`
+5. localStorage autosave: `useLocalStorageDraft(entityType, entityId)` hook with 30s debounce
+6. Backward compatibility: existing InquiryForm and PurchaseOrderForm as thin wrappers
+
+**Standards Compliance:** additive-only, service-layer APIs, theme tokens, zero regressions.
+
+### Package 13: RT-08.3 — Real-Time Margin & Risk Dashboard
+**Priority:** P8. **Ticket:** RT-08.3. **Phase:** 18.
+
+**Implementation Blueprint:**
+1. Live-calculated fields in React Flow node headers: Margin %, Outstanding Amount, Credit Risk, Supplier Risk Score
+2. "Financial Snapshot" panel with real-time polling updates
+3. Embed metrics in every entity detail page header
+4. Leverage Accounting department contacts for automated invoice routing
+5. Per-trade view: margin breakdown, payment aging, outstanding vs collected
+6. Portfolio aggregate: total outstanding, average margin, overdue count, risk chart
+7. Drill-down: aggregate → individual trade → React Flow node detail
+
+**Standards Compliance:** additive-only, reuse telemetry events, service-layer APIs, theme tokens.
+
+### Package 14: RT-02.3 — AI Feedback & Continuous Improvement Loop
+**Priority:** P6. **Ticket:** RT-02.3. **Phase:** 17.
+
+**Implementation Blueprint:**
+1. Enhanced thumbs up/down with AI-suggested correction fields + full provenance
+2. `AIFeedbackLog` model with original/corrected payload pairs
+3. Celery task `ai_assistant.tasks.queue_feedback_for_training`
+4. Parse-status badges in Cockpit (parsed/failed/corrected/retried)
+5. Auto-create missing dependencies: Supplier → Contact → Plant (correct FK order)
+6. Test with Rowena/TX PO 226052 (success + parse-failure + correction paths)
+7. Telemetry: `ai_feedback.submitted`, `ai_feedback.correction_applied`, `ai_dependency_autocreate.executed`
+
+**Standards Compliance:** additive-only, tenant-safe, RLS on feedback table, test with exact example.
+
+### Package 15: RT-10.1 + RT-10.2 — Template Library + One-Click Variant
+**Priority:** P9. **Ticket:** RT-10.1, RT-10.2. **Phase:** 18.
+**Gate:** Run ONLY after Packages 11–14 verified on development.
+
+**Implementation Blueprint:**
+1. Template Library page at `/templates` with grid/list toggle, search, category filters
+2. Template cards: name, version, published date, usage count, author, status badge
+3. "Create New from Main Process": deep-clone with `locked: true` core nodes
+4. Variant editor: unlocked zones for configurable branches, lock icon on core nodes
+5. Publish validation: required connections, no orphans, at least one trigger
+6. Version history: `TemplateVersion` model with auto-increment, draft/published/archived states
+7. One-click Publish / Revert to Version
+8. Version diff: side-by-side node comparison (added/removed/modified)
+9. Active processes pinned to version_at_start (publishing doesn't affect running)
+
+**Standards Compliance:** additive-only, editor remains functional without library, golden-pipeline violations blocked.
+
+---
+
 ## Phase 19: Ambient AI & Contextual Next-Best-Actions
 
 ### Goal

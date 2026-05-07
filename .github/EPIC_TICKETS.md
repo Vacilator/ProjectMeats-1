@@ -21,6 +21,7 @@
 |----------|--------|-------|--------|
 | **P0 (Now)** | CTE-04.1 draft-sales-order-generation | Phase 16 | backend |
 | P1 | CTE-04.2 sales-order-approval-pdf | Phase 16 | backend |
+| P1.5 | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
 | P2 | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
 | P3 | CTE-04.4 carrier-reply-parser | Phase 16 | backend |
 | P4 | CTE-04.5 happy-path-orchestrator-e2e | Phase 16 | full-stack |
@@ -166,12 +167,25 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Why now:** The engine needs one deterministic way to create draft sales orders either directly from `FULFILL` inquiries or from approved supplier sourcing.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
   - **Scope:** Auto-generate draft `SalesOrder` rows from either (a) direct `FULFILL` inquiry routing or (b) approved supplier POs, persisting route/source lineage and avoiding duplicate sales-order creation.
-  - **Non-goals:** No customer send yet.
+  - **Implementation Specification (Sprint Package 11):**
+    1. Create `tenant_apps.sales_orders.services.draft_sales_order` seam with `create_draft_from_fulfill(inquiry)` and `create_draft_from_approved_source(purchase_order)` entry points
+    2. Auto-populate SO fields using enriched Supplier Plant Contact data (Plant Contact Type, Title, Documents Responsible For)
+    3. Wire as next step after BidSelection node / after approved supplier PO dispatch (CTE-03.3)
+    4. Add full lineage tracking: source_email_id → inquiry_id → bid_id (if broker) → sales_order_id
+    5. Deduplication: check `SalesOrder.custom_data['source_inquiry_id']` before creating
+    6. Generate PDF attachment using existing PDF service pattern (reuse from CTE-03.3)
+    7. Emit telemetry: `sales_order.draft_created`, `sales_order.pdf_generated`
+    8. Add `POST /api/v1/inquiries/{id}/create-sales-order-draft/` endpoint
+    9. Add `POST /api/v1/purchase-orders/{id}/create-sales-order-draft/` endpoint
+    10. Surface "Approve & Send to Customer" Quick Action in Process Cockpit
+  - **Pattern reference:** Follow `tenant_apps.inquiries.services.supplier_quote_po_draft` (CTE-02.4) exactly
+  - **Non-goals:** Customer email send (that is CTE-04.2); carrier logistics (CTE-04.3).
   - **Primary domain:** backend/orders
-  - **Likely touched paths:** `backend/tenant_apps/inquiries/`, `backend/tenant_apps/sales_orders/`, `backend/tenant_apps/purchase_orders/`, related tests
+  - **Likely touched paths:** `backend/tenant_apps/sales_orders/services/draft_sales_order.py`, `backend/tenant_apps/sales_orders/views.py`, `backend/tenant_apps/inquiries/views.py`, `backend/tenant_apps/purchase_orders/views.py`, related tests
   - **Dependencies:** CTE-03.3
   - **Blockers:** None
-  - **Acceptance criteria:** A single draft `SalesOrder` creation path exists for both happy-path branches, with explicit source linkage back to inquiry and/or supplier PO.
+  - **Acceptance criteria:** A single draft `SalesOrder` creation path exists for both happy-path branches, with explicit source linkage back to inquiry and/or supplier PO; idempotent on retry; cross-tenant fail-closed; telemetry fires; PDF generated.
+  - **Test reference:** Rowena/TX PO 226052 example — exercises both FULFILL (direct) and BROKER (approved PO) paths.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.sales_orders tenant_apps.purchase_orders tenant_apps.inquiries`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High
   - **Secrets/infra impact:** None
@@ -252,6 +266,31 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Secrets/infra impact:** Medium
   - **Risk level:** High
   - **Rollback:** Disable orchestration entrypoints first and keep all existing document models/audit history intact while reverting the hardcoded engine wiring.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **CTE-04.7 unified-inquiry-po-form-consolidation**
+  - **Status:** Blocked
+  - **Why now:** Form fragmentation increases maintenance burden and UX inconsistency; a single UnifiedForm eliminates duplicate logic and enables direct AI Inbox → form routing.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Sprint Execution Package 12
+  - **Scope:** Create a single `UnifiedForm` component supporting modes: create / edit / clone / view / draft for both Inquiry and Purchase Order entities. Integrate Plant Contact Type + conditional field logic into PO form sections. Ensure AI Inbox "action required" items open directly into correct mode with pre-filled parsed payload. Add localStorage autosave every 30 seconds.
+  - **Implementation Specification (Sprint Package 12):**
+    1. Create `frontend/src/components/UnifiedForm/UnifiedForm.tsx` as a single form component with mode prop
+    2. Mode-specific field visibility via `useFormMode()` hook (create shows all, view disables all, edit enables editable, clone pre-fills, draft marks as unverified)
+    3. Integrate `PlantContactType` dropdown + conditional fields + multi-selects matching backend schema
+    4. Wire `AIInboxItem.parsed_payload` → `UnifiedForm(mode='draft', initialValues=payload)`
+    5. localStorage autosave: `useLocalStorageDraft(entityType, entityId)` hook with 30s debounce
+    6. Backward compatibility: existing InquiryForm and PurchaseOrderForm remain as thin wrappers delegating to UnifiedForm
+  - **Non-goals:** Replacing all forms in one go (incremental rollout); mobile form variants.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/components/UnifiedForm/`, `frontend/src/components/AIInbox/`, `frontend/src/pages/Inquiries/`, `frontend/src/pages/PurchaseOrders/`
+  - **Dependencies:** CTE-04.1 (SO generation uses the form), RT-02.4 (inbox routing)
+  - **Blockers:** CTE-04.1
+  - **Acceptance criteria:** A single form component handles Inquiry and PO create/edit/view/clone/draft modes; AI Inbox items open with parsed payload pre-filled; autosave works; existing forms still function via wrapper; zero regressions in existing Workform templates.
+  - **Validation commands:** `npm -C frontend run test:ci`; `npm -C frontend run verify-standards`
+  - **Tenant/RLS impact:** Low (frontend only; backend already tenant-safe)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium (large form refactor)
+  - **Rollback:** Remove UnifiedForm import; existing forms remain functional.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ### Epic CTE-05 - Trade lineage & traceability
@@ -652,12 +691,20 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Why now:** Thumbs up/down + mandatory comment enables continuous model improvement.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
   - **Scope:** Add thumbs up/down + mandatory comment feedback UI on every parsed inbox item; persist feedback in tenant-scoped table; wire to model retraining pipeline signal.
+  - **Implementation Specification (Sprint Package 14 — Production Grade):**
+    1. Enhance thumbs up/down with AI-suggested correction fields and full provenance (original email + parsed payload + user changes)
+    2. Create `AIFeedbackLog` model: `id, inbox_item_id, tenant_id, feedback_type(positive/negative), original_payload(JSON), corrected_payload(JSON), user_comment, user_id, created_at`
+    3. Queue feedback for model retraining via Celery task `ai_assistant.tasks.queue_feedback_for_training`
+    4. Add retry/parse-status badges in Process Cockpit for every ingested email (parsed/failed/corrected/retried)
+    5. Auto-create missing dependencies using typed contact structure: Supplier → Contact → Plant (in correct FK order)
+    6. Test with exact Rowena/TX PO 226052 example (both success + parse-failure + correction paths)
+    7. Emit telemetry: `ai_feedback.submitted`, `ai_feedback.correction_applied`, `ai_dependency_autocreate.executed`
   - **Non-goals:** Actual model retraining automation (future).
   - **Primary domain:** frontend + backend/ai_assistant
-  - **Likely touched paths:** `frontend/src/components/AIInbox/`, `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`
+  - **Likely touched paths:** `frontend/src/components/AIInbox/`, `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/tenant_apps/ai_assistant/services/`, `backend/tenant_apps/ai_assistant/tasks.py`
   - **Dependencies:** RT-02.2
   - **Blockers:** RT-02.2
-  - **Acceptance criteria:** Every parsed item shows feedback buttons; comment required on thumbs-down; feedback persists and is queryable for training.
+  - **Acceptance criteria:** Every parsed item shows feedback buttons; comment required on thumbs-down; AI-suggested corrections shown for negative feedback; full provenance stored; feedback persists and is queryable for training; missing dependencies auto-created in correct order; retry badges visible in Cockpit.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant --noinput`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** Medium
   - **Secrets/infra impact:** None
@@ -1001,12 +1048,20 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Why now:** Traders need aggregated financial views within the process context.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
   - **Scope:** Add a "Financials" tab inside the Process Cockpit showing per-trade financial summary (margin, outstanding, payment status) and aggregated portfolio view (total outstanding, average margin, overdue count). Use computed fields from RT-08.1.
+  - **Implementation Specification (Sprint Package 13 — Real-Time Margin & Risk Dashboard):**
+    1. Add live-calculated fields to React Flow node headers: Margin %, Outstanding Amount, Credit Risk Indicator, Supplier Risk Score
+    2. Create "Financial Snapshot" panel in Process Cockpit with real-time WebSocket/polling updates (reuse existing polling pattern)
+    3. Embed metrics in every entity detail page header (SO detail, PO detail, Inquiry detail)
+    4. Leverage Accounting department contacts (Plant Contact Type) for automated invoice routing notifications
+    5. Per-trade view: margin breakdown (cost vs sell), payment aging, outstanding vs collected
+    6. Portfolio aggregate view: total outstanding, average margin, overdue count, risk distribution chart
+    7. One-click drill-down from aggregate → individual trade → React Flow node detail
   - **Non-goals:** Full accounting system (this is visibility only).
   - **Primary domain:** frontend
-  - **Likely touched paths:** `frontend/src/pages/ProcessCockpit/`, `frontend/src/components/Financials/`, `frontend/src/services/financialsApi.ts`
+  - **Likely touched paths:** `frontend/src/pages/ProcessCockpit/`, `frontend/src/components/Financials/`, `frontend/src/services/financialsApi.ts`, `frontend/src/components/FlowEditor/nodes/`
   - **Dependencies:** RT-08.1
   - **Blockers:** RT-08.1
-  - **Acceptance criteria:** Financials tab loads with per-trade and aggregated views; data refreshes on tab focus; overdue items highlighted; export to CSV available.
+  - **Acceptance criteria:** Financials tab loads with per-trade and aggregated views; data refreshes on tab focus; overdue items highlighted; export to CSV available; metrics appear in React Flow node headers; Accounting contact routing works.
   - **Validation commands:** `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** Low (reads computed data from backend)
   - **Secrets/infra impact:** None
@@ -1055,12 +1110,20 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Why now:** Self-service template discovery reduces dependency on developers.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-10
   - **Scope:** Create a "Template Library" page showing the official EndToEndInquiryToPOProcess template plus published variants. Include search, category filters, version badges, and usage statistics. "Create New from Main Process" button clones the core template into an editable variant with restricted modification zones (locked nodes, required connections).
+  - **Implementation Specification (Sprint Package 15 — Template Library + Variant):**
+    1. Template Library page at `/templates` with grid/list toggle, search by name/tag, category filter (trading, logistics, approval)
+    2. Each template card shows: name, version, last published date, usage count, author, status badge (active/draft/deprecated)
+    3. "Create New from Main Process" button: deep-clones EndToEndInquiryToPOProcess, marks core nodes as `locked: true` (cannot delete), marks required connections as `required: true` (cannot disconnect)
+    4. Variant editor: unlocked zones (configurable branches) allow adding/removing nodes; locked zones show lock icon + tooltip explaining why
+    5. Validation on publish: ensures all required connections present, no orphan nodes, at least one trigger connected
+    6. Surface library inside Workform Editor sidebar ("Browse Templates") and Process Cockpit ("Start from Template")
+    7. Editor validation prevents golden-pipeline violations (no removed triggers from core template, no broken required paths)
   - **Non-goals:** Marketplace or cross-tenant template sharing.
   - **Primary domain:** frontend + backend
-  - **Likely touched paths:** `frontend/src/pages/TemplateLibrary/`, `backend/tenant_apps/workflows/views.py`, `backend/tenant_apps/workflows/services/template_library.py`
-  - **Dependencies:** Phase 17 RT-05.2 (Create Variant), RT-06 through RT-09 verified on dev
+  - **Likely touched paths:** `frontend/src/pages/TemplateLibrary/`, `backend/tenant_apps/workflows/views.py`, `backend/tenant_apps/workflows/services/template_library.py`, `frontend/src/components/FlowEditor/`
+  - **Dependencies:** Phase 17 RT-05.2 (Create Variant), RT-06 through RT-09 verified on dev, Items 11-14 verified on dev
   - **Blockers:** RT-06 through RT-09 verified on dev
-  - **Acceptance criteria:** Library page shows all published templates with metadata; "Create New" produces valid restricted clone; locked nodes cannot be deleted; required connections enforced on publish; usage stats accurate.
+  - **Acceptance criteria:** Library page shows all published templates with metadata; "Create New" produces valid restricted clone; locked nodes cannot be deleted; required connections enforced on publish; usage stats accurate; editor sidebar integration works; golden-pipeline violations blocked.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows --noinput`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** Medium (templates are tenant-scoped)
   - **Secrets/infra impact:** None
@@ -1073,6 +1136,14 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Why now:** Operators need confidence that published templates are stable and reversible.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-10
   - **Scope:** Add version history tracking for templates (every save creates a version). Add one-click "Publish" action that promotes a draft version to active. Add "Revert to Version" for rollback. Show version diff in editor.
+  - **Implementation Specification (Sprint Package 15 — continued):**
+    1. `TemplateVersion` model: id, template_id, version_number (auto-increment), schema_snapshot (JSON), author_id, created_at, status (draft/published/archived)
+    2. Every editor save creates new version (draft status)
+    3. "Publish" action: validates template → sets version status to published → updates template.active_version_id
+    4. "Revert to Version" action: creates new version from selected historical version's schema_snapshot
+    5. Version diff UI: side-by-side node comparison showing added (green), removed (red), modified (yellow) nodes
+    6. Active processes always run on their version_at_start — publishing new version does NOT affect running processes
+    7. Version history panel in editor shows timeline with author, date, change summary
   - **Non-goals:** Collaborative editing or merge conflict resolution.
   - **Primary domain:** backend + frontend
   - **Likely touched paths:** `backend/tenant_apps/workflows/models.py`, `backend/tenant_apps/workflows/services/`, `frontend/src/components/FlowEditor/`, `frontend/src/pages/TemplateLibrary/`
@@ -1085,6 +1156,41 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Risk level:** Medium (version management complexity)
   - **Rollback:** Disable version UI; templates save directly without history (current behavior).
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+---
+
+## Sprint Execution Packages (Items 11–15)
+
+> These packages define the execution order and implementation specifications for the next five major deliverables.
+> Each package maps to one or more existing tickets and provides the detailed implementation blueprint for delegation.
+> **Gating rule:** Package 15 runs ONLY after Packages 11–14 are verified on development.
+
+| Package | Ticket(s) | Summary | Gate |
+|---------|-----------|---------|------|
+| **11** | CTE-04.1 | Draft Sales Order Generation + End-to-End Closure | Ready (P0) |
+| **12** | CTE-04.7 | Unified Inquiry & PO Form Consolidation | After CTE-04.1 |
+| **13** | RT-08.3 | Real-Time Margin & Risk Dashboard in Cockpit | After RT-08.1 |
+| **14** | RT-02.3 | AI Feedback & Continuous Improvement Loop | After RT-02.2 |
+| **15** | RT-10.1 + RT-10.2 | Template Library + One-Click Variant | After 11–14 verified |
+
+### Execution Order & Dependencies
+
+```
+Package 11 (CTE-04.1) ─────┬──▶ Package 12 (CTE-04.7)
+                            │
+                            └──▶ Package 13 (RT-08.3) [parallel after RT-08.1]
+                                 Package 14 (RT-02.3) [parallel after RT-02.2]
+                            
+Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
+```
+
+### Cross-cutting Requirements (All Packages)
+- Additive-only: never remove or modify existing nodes/models
+- Reuse existing telemetry event patterns (`docs/WORKFORMS_DEVELOPER_GUIDE.md`)
+- All backend changes require RLS policy verification
+- All frontend changes must use service layer APIs and theme tokens
+- Each package ships via: new branch → PR → merge to development
+- Test reference: Rowena/TX PO 226052 example exercises all paths
 
 ---
 

@@ -154,12 +154,22 @@ The Process Cockpit React Flow diagram will highlight ApprovalGate nodes:
 - **Red** when rejected
 - Click opens approval detail panel with one-click approve/reject
 
-### RT-08: Financials Tab
+### RT-08: Financials Tab (Sprint Package 13 — Real-Time Margin & Risk Dashboard)
 
 New tab in Process Cockpit showing:
 - Per-trade: margin %, outstanding amount, payment status
 - Aggregated: total portfolio outstanding, average margin, overdue count
 - Drill-down from summary to individual orders
+
+**Sprint Package 13 Implementation Detail:**
+1. **Live React Flow Node Metrics:** Every entity node in the process flow diagram shows real-time calculated fields in its header: Margin %, Outstanding Amount, Credit Risk Indicator (green/amber/red), Supplier Risk Score (0-100)
+2. **Financial Snapshot Panel:** Persistent right-side panel in Cockpit with auto-refresh (reuse existing 15s polling pattern):
+   - Per-trade breakdown: cost basis, sell price, margin ($ and %), payment terms, aging bucket
+   - Risk indicators: credit limit utilization, supplier payment history score, currency exposure
+3. **Entity Detail Page Headers:** Embed financial metrics in every SO/PO/Inquiry detail page header (mini bar chart + key numbers)
+4. **Accounting Contact Routing:** When invoice/statement is generated, route notification to contacts with Plant Contact Type = "Accounting" or Responsible For includes "Invoicing"
+5. **Drill-down Navigation:** Click aggregate metric → filtered trade list → click trade → React Flow with highlighted financial node → click node → entity detail with full financial history
+6. **Export:** CSV/PDF export of both per-trade and aggregate views (reuse existing export pattern)
 
 ### RT-09: Analytics View
 

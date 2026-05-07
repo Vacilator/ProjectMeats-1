@@ -1207,3 +1207,38 @@ const ConditionBuilder = () => (
 ---
 
 **Phase 17 Editor Stabilization — Last Updated: 2026-05-07**
+
+---
+
+## Phase 18: Template Library Integration (Sprint Package 15)
+
+> **Depends on:** RT-05.1 + RT-05.2 (above) must ship first. Template Library is the self-service layer on top of editor stabilization.
+> **Tickets:** RT-10.1 (library page), RT-10.2 (version history + publish)
+> **Gated:** Runs only after Sprint Packages 11–14 verified on development.
+
+### Editor Integration Points
+
+1. **Browse Templates sidebar** — new sidebar panel in editor showing library grid (name, version badge, usage count)
+2. **"Start from Template" action** — opens a variant creation flow that pre-selects the chosen library template
+3. **Locked node visualization** — lock icon overlay + tooltip ("Core node — cannot be deleted") on nodes marked `locked: true`
+4. **Required connection visualization** — thicker/colored edges for `required: true` connections with removal blocked
+5. **Publish button** — available in editor toolbar when editing a draft version; runs validation before promoting
+6. **Version indicator** — shows current version number + "draft" / "published" badge in editor header
+7. **Version history drawer** — slide-out panel showing version timeline with diff preview per version
+
+### Validation Hooks (Editor-Side)
+
+The editor must prevent the following actions on restricted templates/variants:
+- Deleting a `locked: true` node → show toast: "This node is part of the core process and cannot be removed"
+- Disconnecting a `required: true` edge → show toast: "This connection is required by the process template"
+- Publishing without at least one connected trigger → validation modal listing issues
+
+### Sequence
+
+```
+RT-05.1 (visual support) → RT-05.2 (create variant) → RT-10.1 (library page) → RT-10.2 (version/publish)
+```
+
+---
+
+**Sprint Package 15 Editor Integration — Added: 2026-05-07**

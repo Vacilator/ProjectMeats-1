@@ -972,3 +972,73 @@ GROUP BY template_id;
 ---
 
 **Phase 18 Analytics Standards — Added: 2026-05-07**
+
+---
+
+## Template Library & Variant Architecture (Sprint Package 15 — RT-10)
+
+> **Phase:** 18 | **Gated:** runs only after Items 11–14 verified on development | **Tickets:** RT-10.1, RT-10.2
+
+### Template Library Overview
+
+The Template Library provides self-service template discovery and safe variant creation for operators who need to customize the EndToEndInquiryToPOProcess without developer intervention.
+
+### Key Concepts
+
+| Concept | Definition |
+|---------|-----------|
+| **Core Template** | The official EndToEndInquiryToPOProcess — read-only, system-managed |
+| **Variant** | A tenant-scoped clone of the core template with restricted modification zones |
+| **Locked Node** | A node marked `locked: true` that cannot be deleted or disconnected from required paths |
+| **Required Connection** | An edge marked `required: true` that enforces the golden pipeline path |
+| **Draft Version** | Any save that hasn't been published (only visible to author) |
+| **Published Version** | The active version used by new process executions |
+
+### Template Version Model
+
+```typescript
+interface TemplateVersion {
+  id: string;
+  template_id: string;
+  version_number: number;     // auto-increment per template
+  schema_snapshot: WorkflowSchema;  // immutable JSON of the full template
+  author_id: string;
+  status: 'draft' | 'published' | 'archived';
+  created_at: string;
+  published_at?: string;
+}
+```
+
+### Publish Validation Rules
+
+Before a template version can be published, it must pass:
+1. All `required: true` connections are intact
+2. No orphan nodes (every node reachable from at least one trigger)
+3. At least one trigger node connected to the flow
+4. No `locked: true` nodes deleted (compared to parent core template)
+5. No golden-pipeline violation (all mandatory node types present per core template definition)
+
+### Backward Compatibility
+
+- Running processes are pinned to `version_at_start` — publishing a new version never affects active executions
+- The editor remains fully functional without the Template Library (direct access path preserved)
+- Existing templates continue to work unchanged (this is purely additive)
+
+### File Locations (Planned)
+
+```
+frontend/src/pages/TemplateLibrary/
+├── TemplateLibrary.tsx          # Main library page
+├── TemplateCard.tsx             # Individual template card
+├── TemplateDetail.tsx           # Template detail + version history
+├── CreateVariant.tsx            # Variant creation flow
+└── VersionDiff.tsx              # Side-by-side version comparison
+
+backend/tenant_apps/workflows/
+├── services/template_library.py # Clone, publish, revert logic
+└── models.py                    # TemplateVersion model addition
+```
+
+---
+
+**Sprint Package 15 Architecture — Added: 2026-05-07**
