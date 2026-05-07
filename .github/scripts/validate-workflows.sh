@@ -535,8 +535,9 @@ assert_needs_exact('test-backend', {'build-backend'})
 assert_needs_exact('security-scan-frontend', {'build-frontend'})
 assert_needs_exact('test-frontend', {'build-frontend'})
 
-# Backend preflight: check migrations after backend tests.
-assert_needs_exact('check-migrations', {'test-backend'})
+# Backend preflight: check migrations after backend build (not test-backend,
+# so the migration safety gate still runs when skip_tests_in_deploy is true).
+assert_needs_exact('check-migrations', {'build-backend'})
 
 # Tests gating is re-enabled: migrations are gated on BOTH backend and frontend test tracks.
 # We also allow (and prefer) additionally gating mutations on security scans to avoid
