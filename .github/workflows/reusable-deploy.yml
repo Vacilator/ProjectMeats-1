@@ -49,6 +49,11 @@ on:
         type: boolean
         description: "If true, execute the frontend swimlane for this deployment"
         default: true
+      skip_tests_in_deploy:
+        required: false
+        type: boolean
+        description: "If true, skip test-backend and test-frontend jobs (use when PR validation already ran tests)"
+        default: false
     secrets:
       DO_ACCESS_TOKEN:
         required: true
@@ -220,40 +225,9 @@ jobs:
           ref: ${{ inputs.ref }}
 
       - name: Conditional disk cleanup
-        run: |
-          echo "============================================"
-          echo "Checking disk usage..."
-          df -h
-          
-          # Get disk usage percentage (remove % symbol)
-          USAGE=$(df -h . | awk 'NR==2{print $5}' | tr -d '%')
-          echo "Current disk usage: ${USAGE}%"
-          
-          if [ "$USAGE" -gt 80 ]; then
-            echo "⚠️  Disk usage above 80%, running cleanup..."
-            
-            # Remove unnecessary files to free up space
-            sudo rm -rf /usr/share/dotnet || true
-            sudo rm -rf /usr/local/lib/android || true
-            sudo rm -rf /opt/ghc || true
-            sudo rm -rf /opt/hostedtoolcache/CodeQL || true
-            
-            # Clean apt cache
-            sudo apt-get clean || true
-            
-            # Prune Docker (without -a for speed, preserves useful layers)
-            echo "Pruning Docker system..."
-            docker system df
-            docker system prune -f --volumes || true
-            docker system df
-            
-            echo "============================================"
-            echo "Disk usage after cleanup:"
-            df -h
-            echo "============================================"
-          else
-            echo "✓ Disk usage under 80%, skipping cleanup for faster run"
-          fi
+        uses: ./.github/actions/disk-cleanup
+        with:
+          threshold_percent: "80"
 
 
       - name: Set up Docker Buildx
@@ -306,7 +280,7 @@ jobs:
 
   security-scan-backend:
     name: "Security Scan: Backend"
-    if: ${{ inputs.run_backend_lane }}
+    if: ${{ inputs.run_backend_lane && !inputs.skip_tests_in_deploy }}
     needs: [build-backend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -399,7 +373,7 @@ jobs:
 
   test-backend:
     name: "Test Backend"
-    if: ${{ inputs.run_backend_lane }}
+    if: ${{ inputs.run_backend_lane && !inputs.skip_tests_in_deploy }}
     needs: [build-backend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -425,14 +399,9 @@ jobs:
           ref: ${{ inputs.ref }}
 
       - name: Free up runner disk space
-        run: |
-          echo "Disk before cleanup:"
-          df -h
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
-          sudo apt-get clean || true
-          docker image prune -af || true
-          echo "Disk after cleanup:"
-          df -h
+        uses: ./.github/actions/disk-cleanup
+        with:
+          aggressive: "true"
 
       - name: Setup Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
@@ -483,40 +452,9 @@ jobs:
           ref: ${{ inputs.ref }}
 
       - name: Conditional disk cleanup
-        run: |
-          echo "============================================"
-          echo "Checking disk usage..."
-          df -h
-          
-          # Get disk usage percentage (remove % symbol)
-          USAGE=$(df -h . | awk 'NR==2{print $5}' | tr -d '%')
-          echo "Current disk usage: ${USAGE}%"
-          
-          if [ "$USAGE" -gt 80 ]; then
-            echo "⚠️  Disk usage above 80%, running cleanup..."
-            
-            # Remove unnecessary files to free up space
-            sudo rm -rf /usr/share/dotnet || true
-            sudo rm -rf /usr/local/lib/android || true
-            sudo rm -rf /opt/ghc || true
-            sudo rm -rf /opt/hostedtoolcache/CodeQL || true
-            
-            # Clean apt cache
-            sudo apt-get clean || true
-            
-            # Prune Docker (without -a for speed, preserves useful layers)
-            echo "Pruning Docker system..."
-            docker system df
-            docker system prune -f --volumes || true
-            docker system df
-            
-            echo "============================================"
-            echo "Disk usage after cleanup:"
-            df -h
-            echo "============================================"
-          else
-            echo "✓ Disk usage under 80%, skipping cleanup for faster run"
-          fi
+        uses: ./.github/actions/disk-cleanup
+        with:
+          threshold_percent: "80"
 
 
       - name: Set up Docker Buildx
@@ -569,7 +507,7 @@ jobs:
 
   security-scan-frontend:
     name: "Security Scan: Frontend (Selected Lane)"
-    if: ${{ always() }}
+    if: ${{ always() && !inputs.skip_tests_in_deploy }}
     needs: [build-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -679,7 +617,7 @@ jobs:
 
   test-frontend:
     name: "Test Frontend (Selected Lane)"
-    if: ${{ always() }}
+    if: ${{ always() && !inputs.skip_tests_in_deploy }}
     needs: [build-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -830,17 +768,17 @@ jobs:
             exit 1
           fi
 
-          if [ "${{ needs.security-scan-backend.result }}" != "success" ]; then
+          if [ "${{ needs.security-scan-backend.result }}" != "success" ] && [ "${{ needs.security-scan-backend.result }}" != "skipped" ]; then
             echo "✗ security-scan-backend result: ${{ needs.security-scan-backend.result }}" >&2
             exit 1
           fi
 
-          if [ "${{ needs.security-scan-frontend.result }}" != "success" ]; then
+          if [ "${{ needs.security-scan-frontend.result }}" != "success" ] && [ "${{ needs.security-scan-frontend.result }}" != "skipped" ]; then
             echo "✗ security-scan-frontend result: ${{ needs.security-scan-frontend.result }}" >&2
             exit 1
           fi
 
-          if [ "${{ needs.test-frontend.result }}" != "success" ]; then
+          if [ "${{ needs.test-frontend.result }}" != "success" ] && [ "${{ needs.test-frontend.result }}" != "skipped" ]; then
             echo "✗ test-frontend result: ${{ needs.test-frontend.result }}" >&2
             exit 1
           fi
@@ -878,14 +816,9 @@ jobs:
 
       - name: Free up runner disk space
         if: ${{ inputs.run_backend_lane }}
-        run: |
-          echo "Disk before cleanup:"
-          df -h
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
-          sudo apt-get clean || true
-          docker image prune -af || true
-          echo "Disk after cleanup:"
-          df -h
+        uses: ./.github/actions/disk-cleanup
+        with:
+          aggressive: "true"
       
       - name: Login to GHCR
         if: ${{ inputs.run_backend_lane }}
@@ -1369,7 +1302,7 @@ jobs:
             exit 1
           fi
 
-          if [ "${{ needs.security-scan-backend.result }}" != "success" ]; then
+          if [ "${{ needs.security-scan-backend.result }}" != "success" ] && [ "${{ needs.security-scan-backend.result }}" != "skipped" ]; then
             echo "✗ security-scan-backend result: ${{ needs.security-scan-backend.result }}" >&2
             exit 1
           fi
@@ -1789,12 +1722,12 @@ jobs:
             exit 1
           fi
 
-          if [ "${{ needs.security-scan-frontend.result }}" != "success" ]; then
+          if [ "${{ needs.security-scan-frontend.result }}" != "success" ] && [ "${{ needs.security-scan-frontend.result }}" != "skipped" ]; then
             echo "✗ security-scan-frontend result: ${{ needs.security-scan-frontend.result }}" >&2
             exit 1
           fi
 
-          if [ "${{ needs.test-frontend.result }}" != "success" ]; then
+          if [ "${{ needs.test-frontend.result }}" != "success" ] && [ "${{ needs.test-frontend.result }}" != "skipped" ]; then
             echo "✗ test-frontend result: ${{ needs.test-frontend.result }}" >&2
             exit 1
           fi
@@ -1842,6 +1775,16 @@ jobs:
             -o ServerAliveCountMax=3 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
             "echo '✓ SSH preflight ok'"
+
+      - name: Transfer nginx template to server
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p /root/projectmeats/deploy/nginx"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            deploy/nginx/site.conf.template \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/projectmeats/deploy/nginx/site.conf.template
 
       - name: Deploy frontend container
         env:
@@ -2117,118 +2060,8 @@ jobs:
           # Without this, external API calls can hang (e.g., /api/v1/health/), blocking login.
           echo "Syncing host nginx reverse-proxy config (backend upstream = ${BACKEND_HOST}:8000)..."
           NGINX_SITE="/etc/nginx/sites-available/projectmeats-${ENVIRONMENT}"
-          sudo tee "$NGINX_SITE" >/dev/null <<NGINX
-          server {
-              listen 80;
-              listen [::]:80;
-              server_name ${DOMAIN_NAME};
-
-              location /.well-known/acme-challenge/ {
-                  root /var/www/certbot;
-                  allow all;
-              }
-
-              location / {
-                  return 301 https://\$server_name\$request_uri;
-              }
-          }
-
-          server {
-              listen 443 ssl http2;
-              listen [::]:443 ssl http2;
-              server_name ${DOMAIN_NAME};
-              client_max_body_size 50M;
-
-              include /etc/nginx/mime.types;
-              default_type application/octet-stream;
-
-              ssl_certificate /etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem;
-              ssl_certificate_key /etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem;
-
-              ssl_protocols TLSv1.2 TLSv1.3;
-              ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-              ssl_prefer_server_ciphers off;
-              ssl_session_cache shared:SSL:10m;
-              ssl_session_timeout 10m;
-              ssl_stapling on;
-              ssl_stapling_verify on;
-
-              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-              add_header X-Frame-Options "SAMEORIGIN" always;
-              add_header X-Content-Type-Options "nosniff" always;
-              add_header X-XSS-Protection "1; mode=block" always;
-              add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-
-              proxy_set_header Host \$host;
-              proxy_set_header X-Real-IP \$remote_addr;
-              proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-              proxy_set_header X-Forwarded-Proto \$scheme;
-              proxy_set_header X-Forwarded-Host \$host;
-
-              proxy_connect_timeout 5s;
-              proxy_send_timeout 60s;
-              proxy_read_timeout 60s;
-              proxy_buffering off;
-              proxy_request_buffering off;
-
-              location /api/ {
-                  proxy_pass http://${BACKEND_HOST}:8000;
-                  proxy_http_version 1.1;
-
-                  # Preserve original host for Django ALLOWED_HOSTS
-                  proxy_set_header Host \$host;
-                  proxy_set_header X-Forwarded-Host \$host;
-                  proxy_set_header X-Forwarded-Proto \$scheme;
-
-                  proxy_set_header Upgrade \$http_upgrade;
-                  proxy_set_header Connection "upgrade";
-              }
-
-              location /admin/ {
-                  proxy_pass http://${BACKEND_HOST}:8000;
-                  proxy_set_header Host \$host;
-                  proxy_set_header X-Forwarded-Host \$host;
-                  proxy_set_header X-Forwarded-Proto \$scheme;
-              }
-
-              location /static/ {
-                  proxy_pass http://${BACKEND_HOST}:8000;
-                  proxy_set_header Host \$host;
-                  proxy_set_header X-Forwarded-Host \$host;
-                  proxy_set_header X-Forwarded-Proto \$scheme;
-
-                  add_header X-Content-Type-Options "nosniff" always;
-                  expires 7d;
-                  add_header Cache-Control "public, immutable";
-              }
-
-              location /media/ {
-                  proxy_pass http://${BACKEND_HOST}:8000;
-                  proxy_set_header Host \$host;
-                  proxy_set_header X-Forwarded-Host \$host;
-                  proxy_set_header X-Forwarded-Proto \$scheme;
-
-                  expires 7d;
-                  add_header Cache-Control "public, immutable";
-              }
-
-              location /health {
-                  access_log off;
-                  return 200 "healthy\n";
-                  add_header Content-Type text/plain;
-              }
-
-              location / {
-                  proxy_pass http://127.0.0.1:8080;
-                  proxy_intercept_errors on;
-                  error_page 404 = @frontend_fallback;
-              }
-
-              location @frontend_fallback {
-                  proxy_pass http://127.0.0.1:8080;
-              }
-          }
-          NGINX
+          # Use template from deploy/nginx/site.conf.template (DRY - single source)
+          envsubst '${DOMAIN_NAME} ${BACKEND_HOST}' < /root/projectmeats/deploy/nginx/site.conf.template | sudo tee "$NGINX_SITE" >/dev/null
 
           # Ensure this site wins for ${DOMAIN_NAME} by disabling any other enabled config that
           # declares the same server_name, then enabling ours with a lexicographically-first link.
