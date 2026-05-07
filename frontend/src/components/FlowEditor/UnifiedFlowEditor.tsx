@@ -128,6 +128,7 @@ import {
   UtilityNode,
   TerminalNode,
   LoopNode,
+  ApprovalGateNode,
 } from './nodes';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
@@ -1582,6 +1583,7 @@ const staticNodeTypes: Record<string, AnyNodeComponent> = {
   document: DocumentNode,
   utility: UtilityNode,
   terminal: TerminalNode,
+  approvalGate: ApprovalGateNode,
 };
 
 // Dynamically build the full registry map statically ONCE outside the component.
@@ -1591,6 +1593,7 @@ Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   if (dynamicNodeTypes[typeId]) return;
 
   if (typeId.startsWith('trigger')) dynamicNodeTypes[typeId] = TriggerNode;
+  else if (typeId.startsWith('approval')) dynamicNodeTypes[typeId] = ApprovalGateNode;
   else if (typeId.startsWith('action')) dynamicNodeTypes[typeId] = ActionNode;
   else if (typeId.startsWith('condition') || typeId === 'parallelPath') dynamicNodeTypes[typeId] = ConditionIfNode;
   else if (typeId.startsWith('loop')) dynamicNodeTypes[typeId] = LoopNode;

@@ -66,3 +66,7 @@ export type { SubWorkflowNodeData } from './SubWorkflowNode';
 // Phase 2: Control Flow — Loop
 export { LoopNode } from './LoopNode';
 export type { LoopNodeData } from './LoopNode';
+
+// RT-07.1: Approval Gate
+export { ApprovalGateNode } from './ApprovalGateNode';
+export type { ApprovalGateNodeData } from './ApprovalGateNode';
