@@ -3,6 +3,7 @@ import styled from 'styled-components';
 
 import { EntityFormSurface, ScheduleCallModal } from '@/components/Shared';
 import { InquiryCallModal } from '@/components/Calls/InquiryCallModal';
+import { UnifiedForm } from '@/components/UnifiedForm';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Mail, MapPin, Phone, Plus, Sparkles, StickyNote } from 'lucide-react';
@@ -758,7 +759,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   return (
     <Page>
-      <EntityFormSurface
+      <UnifiedForm
         entityType="inquiry"
         mode="create"
         isOpen={isInquiryCreateOpen}

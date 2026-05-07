@@ -89,6 +89,7 @@ interface DynamicFormEngineProps {
   schema: SchemaDefinition;
   initialValues?: Record<string, any>;
   onSubmit: (data: Record<string, any>) => void;
+  onValuesChange?: (data: Record<string, any>) => void;
   onCancel?: () => void;
   isSubmitting?: boolean;
 
@@ -526,6 +527,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   schema,
   initialValues = {},
   onSubmit,
+  onValuesChange,
   onCancel,
   isSubmitting = false,
   keyFieldKeys,
@@ -598,6 +600,26 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   }, [defaultValues, defaultValuesSignature, reset]);
 
   const watchedValues = useWatch({ control });
+  const lastValuesSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!onValuesChange) {
+      lastValuesSignatureRef.current = null;
+      return;
+    }
+
+    const nextValues =
+      watchedValues && typeof watchedValues === 'object' ? cloneDeep(watchedValues) : {};
+    const nextSignature = getStableSignature(nextValues);
+
+    if (lastValuesSignatureRef.current === nextSignature) {
+      return;
+    }
+
+    lastValuesSignatureRef.current = nextSignature;
+    onValuesChange(nextValues as Record<string, any>);
+  }, [onValuesChange, watchedValues]);
+
   const dependencyFieldKeys = useMemo(() => {
     const keys = new Set<string>();
 

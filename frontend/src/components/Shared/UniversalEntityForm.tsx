@@ -88,6 +88,7 @@ export interface UniversalEntityFormProps {
   externalLoadError?: unknown | null;
   externalFkOptions?: Record<string, Array<{ id: string | number; name: string }>>;
   onSubmittingChange?: (isSubmitting: boolean) => void;
+  onValuesChange?: (values: Record<string, unknown>) => void;
 }
 
 type SchemaChoice = { value: unknown; label: string };
@@ -1369,6 +1370,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   externalLoadError,
   externalFkOptions,
   onSubmittingChange,
+  onValuesChange,
 }) => {
   const { isAuthenticated, loading: authLoading } = useAuthState();
   const stableInitialValues = useDeepStableValue(initialValues);
@@ -2611,6 +2613,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             <DynamicFormEngine
               schema={stableDynamicSchema as any}
               initialValues={formInitialValues}
+              onValuesChange={onValuesChange}
               isSubmitting={submitting}
               submitLabel={entityId ? 'Save' : 'Create'}
               keyFieldKeys={preferredKeys}

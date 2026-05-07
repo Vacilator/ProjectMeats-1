@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Skeleton } from 'antd';
 import { ClipboardList } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -11,16 +11,9 @@ import {
   TransactionalEmptyStateGuidance,
   TransactionalEmptyStateGuidanceItem,
 } from '../components/Onboarding';
-import { LocationSelector } from '../components/Shared';
+import { UnifiedForm } from '../components/UnifiedForm';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
-import { SmartProductAutocomplete } from '../components/Inquiry/SmartProductAutocomplete';
-import { getChoices, type ChoiceOption } from '@/services/choicesService';
-import {
-  formatTradeDate,
-  getTradeDateInputValue,
-  getTradeWeightInputValue,
-  normalizeTradeUnit,
-} from '@/utils/trade';
+import { formatTradeDate } from '@/utils/trade';
 
 // Styled Components
 const Header = styled.div`
@@ -232,219 +225,6 @@ const DeleteButton = styled.button`
   }
 `;
 
-const FormOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  overflow-y: auto;
-
-  @media (max-width: 520px) {
-    align-items: flex-start;
-  }
-`;
-
-const FormContainer = styled.div`
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-surface-foreground));
-  border-radius: 12px;
-  padding: 0;
-  width: 100%;
-  max-width: 600px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  border: 1px solid rgb(var(--color-border));
-`;
-
-const FormHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-
-  @media (max-width: 520px) {
-    padding: 16px;
-  }
-`;
-
-const FormTitle = styled.h2`
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  padding: 0;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-
-  &:hover {
-    color: rgb(var(--color-text-primary));
-  }
-`;
-
-const Form = styled.form`
-  padding: 24px;
-
-  @media (max-width: 520px) {
-    padding: 16px;
-  }
-`;
-
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-`;
-
-const Label = styled.label`
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  font-size: 14px;
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-  min-height: 44px;
-
-  @media (max-width: 520px) {
-    /* Prevent iOS Safari zoom-on-focus */
-    font-size: 16px;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-
-  /* Hide number input spinner buttons */
-  &[type='number']::-webkit-inner-spin-button,
-  &[type='number']::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  &[type='number'] {
-    -moz-appearance: textfield;
-  }
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-  min-height: 44px;
-
-  @media (max-width: 520px) {
-    /* Prevent iOS Safari zoom-on-focus */
-    font-size: 16px;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  resize: vertical;
-  transition: border-color 0.2s;
-
-  @media (max-width: 520px) {
-    /* Prevent iOS Safari zoom-on-focus */
-    font-size: 16px;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const FieldHint = styled.div`
-  margin-top: 6px;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary));
-  font-style: italic;
-`;
-
-const FormActions = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 24px;
-
-  @media (max-width: 520px) {
-    flex-wrap: wrap;
-
-    & > button {
-      flex: 1 1 100%;
-      min-height: 44px;
-    }
-  }
-`;
-
-const CancelButton = styled.button`
-  background: rgb(var(--color-text-secondary));
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-text-secondary));
-  }
-`;
-
-const SubmitButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-primary-hover));
-  }
-`;
-
 const PurchaseOrders: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -463,62 +243,8 @@ const PurchaseOrders: React.FC = () => {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [freshFrozenOptions, setFreshFrozenOptions] = useState<ChoiceOption[]>([]);
-  const [packageTypeOptions, setPackageTypeOptions] = useState<ChoiceOption[]>([]);
-  const [weightUnitOptions, setWeightUnitOptions] = useState<ChoiceOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<PurchaseOrder | null>(null);
-
-  type PurchaseOrderFormData = {
-    order_number: string;
-    supplier: string;
-
-    product: string;
-    item_description: string;
-    fresh_or_frozen: string;
-    package_type: string;
-    quantity: string;
-    weight_per_unit: string;
-    price_per_unit: string;
-
-    total_weight: string;
-    weight_unit: string;
-
-    total_amount: string;
-    status: string;
-    order_date: string;
-    delivery_date: string;
-    notes: string;
-    logistics_scenario: string;
-    pick_up_location: string | null;
-    delivery_location: string | null;
-  };
-
-  const [formData, setFormData] = useState<PurchaseOrderFormData>({
-    order_number: '',
-    supplier: '',
-
-    product: '',
-    item_description: '',
-    fresh_or_frozen: '',
-    package_type: '',
-    quantity: '',
-    weight_per_unit: '',
-    price_per_unit: '',
-
-    total_weight: '',
-    weight_unit: 'LBS',
-
-    total_amount: '',
-    status: 'pending',
-    order_date: '',
-    delivery_date: '',
-    notes: '',
-    logistics_scenario: 'supplier_delivery',
-    pick_up_location: null, // Phase 4: Location integration
-    delivery_location: null, // Phase 4: Location integration
-  });
 
   useEffect(() => {
     const reviewType = searchParams.get('review');
@@ -559,83 +285,9 @@ const PurchaseOrders: React.FC = () => {
     setSearchParams(searchParams);
   }, [searchParams, setSearchParams, cockpitPrefill]);
 
-  // Apply prefill once we have loaded suppliers + existing orders (for next suggested order_number)
-  useEffect(() => {
-    if (!pendingCreatePrefill || !showForm) return;
-
-    const supplierId = pendingCreatePrefill.supplierId ?? '';
-    const noteParts: string[] = [];
-
-    if (pendingCreatePrefill.query) {
-      noteParts.push(`Cockpit search: "${pendingCreatePrefill.query}"`);
-    }
-
-    if (pendingCreatePrefill.contextEntity?.label) {
-      noteParts.push(`Context: ${pendingCreatePrefill.contextEntity.label}`);
-    }
-
-    const suggestedNotes = noteParts.join('\n');
-
-    setFormData((prev) => ({
-      ...prev,
-      order_number: prev.order_number || getNextOrderNumber(),
-      supplier: supplierId || prev.supplier,
-      order_date: prev.order_date || new Date().toISOString().split('T')[0],
-      notes: prev.notes || suggestedNotes,
-    }));
-
-    setPendingCreatePrefill(null);
-  }, [pendingCreatePrefill, showForm, suppliers.length, purchaseOrders.length]);
-
   useEffect(() => {
     loadData();
   }, []);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const [ff, pkg, wu] = await Promise.all([
-          getChoices('fresh_or_frozen'),
-          getChoices('package_type'),
-          getChoices('weight_unit'),
-        ]);
-        setFreshFrozenOptions(ff);
-        setPackageTypeOptions(pkg);
-        setWeightUnitOptions(wu);
-      } catch {
-        setFreshFrozenOptions([]);
-        setPackageTypeOptions([]);
-        setWeightUnitOptions([]);
-      }
-    })();
-  }, []);
-
-  const effectiveFreshFrozenOptions: ChoiceOption[] = freshFrozenOptions.length
-    ? freshFrozenOptions
-    : [
-        { value: 'Fresh', label: 'Fresh' },
-        { value: 'Frozen', label: 'Frozen' },
-      ];
-
-  const effectivePackageTypeOptions: ChoiceOption[] = packageTypeOptions.length
-    ? packageTypeOptions
-    : [
-        { value: 'Boxed wax lined', label: 'Boxed wax lined' },
-        { value: 'Boxed CO2', label: 'Boxed CO2' },
-        { value: 'Combo bins', label: 'Combo bins' },
-        { value: 'Totes', label: 'Totes' },
-        { value: 'Bags', label: 'Bags' },
-        { value: 'Bulk', label: 'Bulk' },
-        { value: 'Poly-Multiple', label: 'Poly-Multiple' },
-        { value: 'Nude', label: 'Nude' },
-      ];
-
-  const effectiveWeightUnitOptions: ChoiceOption[] = weightUnitOptions.length
-    ? weightUnitOptions
-    : [
-        { value: 'LBS', label: 'LBS' },
-        { value: 'KG', label: 'KG' },
-      ];
 
   const [exporting, setExporting] = useState(false);
 
@@ -696,135 +348,9 @@ const PurchaseOrders: React.FC = () => {
     }
   };
 
-  // Calculate next suggested order number (display-only): 2YYNNN
-  const getNextOrderNumber = () => {
-    const year2 = String(new Date().getFullYear()).slice(-2);
-    const prefix = `2${year2}`;
-
-    let maxSeq = 0;
-    purchaseOrders.forEach((po) => {
-      const val = String(po.order_number || '');
-      if (!val.startsWith(prefix)) return;
-      const tail = val.slice(prefix.length);
-      if (!/^[0-9]+$/.test(tail)) return;
-      const seq = Number(tail);
-      if (Number.isFinite(seq)) maxSeq = Math.max(maxSeq, seq);
-    });
-
-    const next = maxSeq + 1;
-    return `${prefix}${String(next).padStart(3, '0')}`;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const purchaseOrderData: Partial<PurchaseOrder> & { supplier: number; total_amount: number } = {
-        supplier: parseInt(formData.supplier),
-        total_amount: parseFloat(formData.total_amount),
-        status: formData.status,
-        order_date: formData.order_date,
-        delivery_date: formData.delivery_date || undefined,
-        notes: formData.notes || undefined,
-        logistics_scenario: formData.logistics_scenario,
-        pick_up_location: formData.pick_up_location || undefined,
-        delivery_location: formData.delivery_location || undefined,
-
-        product: formData.product || undefined,
-        item_description: formData.item_description || undefined,
-        fresh_or_frozen: formData.fresh_or_frozen || undefined,
-        package_type: formData.package_type || undefined,
-        quantity: formData.quantity ? parseInt(formData.quantity) : undefined,
-        total_weight: formData.total_weight ? parseFloat(formData.total_weight) : undefined,
-        weight_unit: normalizeTradeUnit(formData.weight_unit) || undefined,
-        price_per_unit: formData.price_per_unit ? parseFloat(formData.price_per_unit) : undefined,
-      };
-
-      // Always let backend auto-generate order_number (2YYNNN).
-      // We intentionally omit order_number from the payload.
-
-      if (editingPurchaseOrder) {
-        await apiService.updatePurchaseOrder(editingPurchaseOrder.id, purchaseOrderData);
-      } else {
-        await apiService.createPurchaseOrder(purchaseOrderData);
-      }
-
-      await loadPurchaseOrders();
-      setShowForm(false);
-      setEditingPurchaseOrder(null);
-      setFormData({
-        order_number: '',
-        supplier: '',
-
-        product: '',
-        item_description: '',
-        fresh_or_frozen: '',
-        package_type: '',
-        quantity: '',
-        weight_per_unit: '',
-        price_per_unit: '',
-
-        total_weight: '',
-        weight_unit: 'LBS',
-
-        total_amount: '',
-        status: 'pending',
-        order_date: '',
-        delivery_date: '',
-        notes: '',
-        logistics_scenario: 'supplier_delivery',
-        pick_up_location: null, // Phase 4: Reset location
-        delivery_location: null, // Phase 4: Reset location
-      });
-    } catch (error: unknown) {
-      // Log detailed error information
-      const err = error as Error & { response?: { status: number; data: unknown }; stack?: string };
-      console.error('Error saving purchase order:', {
-        message: err.message || 'Unknown error',
-        stack: err.stack || 'No stack trace available',
-        response: err.response ? {
-          status: err.response.status,
-          data: err.response.data
-        } : 'No response data'
-      });
-      // Display user-friendly error to the UI
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: `Failed to save purchase order: ${err.message || 'Please try again later'}`,
-      });
-    }
-  };
-
   const handleEdit = (purchaseOrder: PurchaseOrder) => {
+    setPendingCreatePrefill(null);
     setEditingPurchaseOrder(purchaseOrder);
-    setFormData({
-      order_number: purchaseOrder.order_number,
-      supplier: purchaseOrder.supplier.toString(),
-
-      product: (purchaseOrder.product || '') as string,
-      item_description: purchaseOrder.item_description || '',
-      fresh_or_frozen: purchaseOrder.fresh_or_frozen || '',
-      package_type: purchaseOrder.package_type || '',
-      quantity: purchaseOrder.quantity != null ? String(purchaseOrder.quantity) : '',
-      weight_per_unit: '',
-      price_per_unit: purchaseOrder.price_per_unit != null ? String(purchaseOrder.price_per_unit) : '',
-
-      total_weight: getTradeWeightInputValue(purchaseOrder).totalWeight,
-      weight_unit: getTradeWeightInputValue(purchaseOrder).weightUnit,
-
-      total_amount: purchaseOrder.total_amount.toString(),
-      status: purchaseOrder.status,
-      order_date: getTradeDateInputValue(purchaseOrder.trade_timeline, 'order_date', purchaseOrder.order_date),
-      delivery_date: getTradeDateInputValue(
-        purchaseOrder.trade_timeline,
-        'delivery_date',
-        purchaseOrder.delivery_date || ''
-      ),
-      notes: purchaseOrder.notes || '',
-      logistics_scenario: purchaseOrder.logistics_scenario || 'supplier_delivery',
-      pick_up_location: purchaseOrder.pick_up_location || null, // Phase 4: Populate location
-      delivery_location: purchaseOrder.delivery_location || null, // Phase 4: Populate location
-    });
     setShowForm(true);
   };
 
@@ -863,29 +389,6 @@ const PurchaseOrders: React.FC = () => {
     }
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-
-    setFormData((prev) => {
-      const key = name as keyof PurchaseOrderFormData;
-      const next = { ...prev, [key]: value } as PurchaseOrderFormData;
-
-      const qty = Number(next.quantity);
-      const wpu = Number(next.weight_per_unit);
-      if (key === 'quantity' || key === 'weight_per_unit') {
-        if (Number.isFinite(qty) && qty > 0 && Number.isFinite(wpu) && wpu > 0) {
-          next.total_weight = String(qty * wpu);
-        } else if (!next.total_weight) {
-          next.total_weight = '';
-        }
-      }
-
-      return next;
-    });
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
@@ -902,29 +405,41 @@ const PurchaseOrders: React.FC = () => {
   };
 
   const openCreatePurchaseOrder = () => {
-    setFormData({
-      order_number: getNextOrderNumber(),
-      supplier: '',
-      product: '',
-      item_description: '',
-      fresh_or_frozen: '',
-      package_type: '',
-      quantity: '',
-      weight_per_unit: '',
-      price_per_unit: '',
-      total_weight: '',
-      weight_unit: 'LBS',
-      total_amount: '',
-      status: 'pending',
-      order_date: '',
-      delivery_date: '',
-      notes: '',
-      logistics_scenario: 'supplier_delivery',
-      pick_up_location: null,
-      delivery_location: null,
-    });
+    setPendingCreatePrefill(null);
     setEditingPurchaseOrder(null);
     setShowForm(true);
+  };
+
+  const purchaseOrderCreateInitialValues = useMemo(() => {
+    const noteParts: string[] = [];
+
+    if (pendingCreatePrefill?.query) {
+      noteParts.push(`Cockpit search: "${pendingCreatePrefill.query}"`);
+    }
+
+    if (pendingCreatePrefill?.contextEntity?.label) {
+      noteParts.push(`Context: ${pendingCreatePrefill.contextEntity.label}`);
+    }
+
+    return {
+      supplier: pendingCreatePrefill?.supplierId || undefined,
+      order_date: new Date().toISOString().split('T')[0],
+      notes: noteParts.join('\n') || undefined,
+      status: 'pending',
+      weight_unit: 'LBS',
+      logistics_scenario: 'supplier_delivery',
+    } satisfies Record<string, unknown>;
+  }, [pendingCreatePrefill]);
+
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingPurchaseOrder(null);
+    setPendingCreatePrefill(null);
+  };
+
+  const handleFormSuccess = async () => {
+    await loadPurchaseOrders();
+    handleFormClose();
   };
 
   if (loading) {
@@ -1130,250 +645,17 @@ const PurchaseOrders: React.FC = () => {
         </TableWrapper>
       )}
 
-      {showForm && (
-        <FormOverlay>
-          <FormContainer>
-            <FormHeader>
-              <FormTitle>
-                {editingPurchaseOrder ? 'Edit Purchase Order' : 'Add New Purchase Order'}
-              </FormTitle>
-              <CloseButton onClick={() => setShowForm(false)}>×</CloseButton>
-            </FormHeader>
-            <Form onSubmit={handleSubmit}>
-              <FormGroup>
-                <Label>Type of Pick Up</Label>
-                <Select 
-                  name="logistics_scenario" 
-                  value={formData.logistics_scenario} 
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="we_pickup">Tenant - Pickup (We Handle Logistics)</option>
-                  <option value="supplier_delivery">Supplier - Delivering</option>
-                  <option value="customer_pickup">Customer - Picking Up</option>
-                </Select>
-                <FieldHint>
-                  {formData.logistics_scenario === 'customer_pickup' && '🚗 Customer picks up from supplier'}
-                  {formData.logistics_scenario === 'supplier_delivery' && '🚚 Supplier delivers to us'}
-                  {formData.logistics_scenario === 'we_pickup' && '🚛 Tenant pickup / our logistics'}
-                </FieldHint>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Purchase Order Number</Label>
-                <Input
-                  type="text"
-                  name="order_number"
-                  value={formData.order_number || getNextOrderNumber()}
-                  onChange={handleInputChange}
-                  disabled
-                />
-                <FieldHint>Auto-generated format: 2YYNNN (example: 226040)</FieldHint>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Supplier</Label>
-                <Select
-                  name="supplier"
-                  value={formData.supplier}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select a supplier</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Product</Label>
-                <SmartProductAutocomplete
-                  value={formData.product}
-                  onChange={(productId, product) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      product: productId,
-                      item_description:
-                        prev.item_description
-                        || product?.name
-                        || product?.description
-                        || product?.description_of_product_item
-                        || '',
-                      fresh_or_frozen: prev.fresh_or_frozen || product?.fresh_or_frozen || '',
-                      package_type: prev.package_type || product?.package_type || '',
-                    }));
-                  }}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Description</Label>
-                <TextArea
-                  name="item_description"
-                  value={formData.item_description}
-                  onChange={handleInputChange}
-                  rows={2}
-                  placeholder="Auto-filled from product name (editable)"
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Fresh / Frozen</Label>
-                <Select name="fresh_or_frozen" value={formData.fresh_or_frozen} onChange={handleInputChange} required>
-                  <option value="">Select…</option>
-                  {effectiveFreshFrozenOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Package Type</Label>
-                <Select name="package_type" value={formData.package_type} onChange={handleInputChange} required>
-                  <option value="">Select…</option>
-                  {effectivePackageTypeOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Qty</Label>
-                <Input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Weight per Unit</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="weight_per_unit"
-                  value={formData.weight_per_unit}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Total Weight</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="total_weight"
-                  value={formData.total_weight}
-                  onChange={handleInputChange}
-                  placeholder="Auto-calculated (qty * weight per unit)"
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Weight Unit</Label>
-                <Select name="weight_unit" value={formData.weight_unit} onChange={handleInputChange} required>
-                  {effectiveWeightUnitOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Cost per lb</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="price_per_unit"
-                  value={formData.price_per_unit}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Total Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="total_amount"
-                  value={formData.total_amount}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Status</Label>
-                <Select name="status" value={formData.status} onChange={handleInputChange} required>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                </Select>
-              </FormGroup>
-              <FormGroup>
-                <Label>Order Date</Label>
-                <Input
-                  type="date"
-                  name="order_date"
-                  value={formData.order_date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Delivery Date</Label>
-                <Input
-                  type="date"
-                  name="delivery_date"
-                  value={formData.delivery_date}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Notes</Label>
-                <TextArea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows={3}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <LocationSelector
-                  value={formData.pick_up_location}
-                  onChange={(id) => setFormData({ ...formData, pick_up_location: id })}
-                  label="Pick-up Location"
-                  placeholder="Select pick-up location"
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <LocationSelector
-                  value={formData.delivery_location}
-                  onChange={(id) => setFormData({ ...formData, delivery_location: id })}
-                  label="Delivery Location"
-                  placeholder="Select delivery location"
-                />
-              </FormGroup>
-
-              <FormActions>
-                <CancelButton type="button" onClick={() => setShowForm(false)}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">
-                  {editingPurchaseOrder ? 'Update' : 'Create'} Purchase Order
-                </SubmitButton>
-              </FormActions>
-            </Form>
-          </FormContainer>
-        </FormOverlay>
-      )}
+      <UnifiedForm
+        entityType="purchase_order"
+        mode={editingPurchaseOrder ? 'edit' : 'create'}
+        isOpen={showForm}
+        onClose={handleFormClose}
+        onSuccess={() => {
+          void handleFormSuccess();
+        }}
+        entityId={editingPurchaseOrder?.id}
+        initialValues={editingPurchaseOrder ? undefined : purchaseOrderCreateInitialValues}
+      />
     </>
   );
 };

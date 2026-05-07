@@ -4,14 +4,14 @@
  * Consolidated creation surface for records spawned from within form submissions.
  *
  * IMPORTANT:
- * - Uses EntityFormSurface → UniversalEntityForm so creation stays schema-driven and consistent.
+ * - Uses UnifiedForm so creation stays schema-driven and draft-safe.
  * - Keeps the existing QuickCreateModal prop contract so callers don’t need refactors.
  */
 
 import React, { useMemo } from 'react';
 
-import { EntityFormSurface } from '../Shared/EntityFormSurface';
 import type { EntityFormContext } from '../Shared/EntityFormSurface';
+import { UnifiedForm } from '../UnifiedForm';
 
 interface QuickCreateModalProps {
   entityType: string;
@@ -81,7 +81,7 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
   if (!isOpen || !entityType) return null;
 
   return (
-    <EntityFormSurface
+    <UnifiedForm
       entityType={entityType}
       mode="create"
       variant={inline ? 'inline' : 'modal'}

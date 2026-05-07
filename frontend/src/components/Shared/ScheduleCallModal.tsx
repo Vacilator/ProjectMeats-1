@@ -30,7 +30,7 @@ import { z } from 'zod';
 import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
-import { EntityFormSurface } from './EntityFormSurface';
+import { UnifiedForm } from '@/components/UnifiedForm';
 import { CallTimer } from '../Calls';
 
 // ============================================================================
@@ -714,7 +714,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 
       {/* Inquiry Modal */}
       {showInquiryModal && initialData?.id && (
-        <EntityFormSurface
+        <UnifiedForm
           entityType="inquiries"
           mode="create"
           isOpen={showInquiryModal}

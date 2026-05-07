@@ -73,6 +73,7 @@ export interface EntityFormSurfaceProps {
 
   /** Context entity for cascade-prefill across Cockpit etc. */
   context?: EntityFormContext;
+  onValuesChange?: (values: Record<string, unknown>) => void;
 }
 
 const normalizeEntityType = (raw: string): string => {
@@ -153,6 +154,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   entityId,
   initialValues,
   context,
+  onValuesChange,
 }) => {
   const normalized = useMemo(() => normalizeEntityType(entityType), [entityType]);
   const normalizedEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
@@ -194,6 +196,8 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         initialEntityType={initialEntityType}
         initialEntityId={initialEntityId}
         sourceCallId={context?.sourceCallId}
+        initialValues={stableInitialValues}
+        onValuesChange={onValuesChange}
       />
     );
   }
@@ -400,6 +404,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         externalLoadError={formLoadError}
         externalFkOptions={fkOptions}
         onSubmittingChange={setFormSubmitting}
+        onValuesChange={onValuesChange}
       />
     );
   }
@@ -438,6 +443,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
           externalLoadError={formLoadError}
           externalFkOptions={fkOptions}
           onSubmittingChange={setFormSubmitting}
+          onValuesChange={onValuesChange}
         />
       ) : formLoadError ? (
         errorBody

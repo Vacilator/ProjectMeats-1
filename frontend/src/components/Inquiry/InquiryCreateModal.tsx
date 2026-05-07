@@ -42,6 +42,8 @@ export interface InquiryCreateModalProps {
   onSuccess: (created?: unknown) => void;
   initialEntityType?: EntityType;
   initialEntityId?: string | number;
+  initialValues?: Record<string, unknown>;
+  onValuesChange?: (values: Record<string, unknown>) => void;
 
   /**
    * When enabled, customer inquiries can select a supplier + plant per product line.
@@ -369,14 +371,87 @@ const inquiryCreateSchema = z.object({
 
 type InquiryCreateValues = z.infer<typeof inquiryCreateSchema>;
 
+const normalizeOptionalString = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return '';
+};
+
+const buildInitialLines = (initialValues?: Record<string, unknown>): LineItem[] => {
+  const sourceRows = Array.isArray(initialValues?.products)
+    ? initialValues.products
+    : Array.isArray(initialValues?.items)
+      ? initialValues.items
+      : [];
+
+  const rows = sourceRows
+    .map((row, index) => {
+      const record =
+        row && typeof row === 'object' && !Array.isArray(row)
+          ? (row as Record<string, unknown>)
+          : null;
+
+      if (!record) {
+        return null;
+      }
+
+      const productId = normalizeOptionalString(record.productId ?? record.product);
+      const quantity = normalizeOptionalString(record.quantity);
+      const desiredPricePerUnit = normalizeOptionalString(
+        record.desiredPricePerUnit ?? record.desired_price_per_unit,
+      );
+      const actualPricePerUnit = normalizeOptionalString(
+        record.actualPricePerUnit ?? record.actual_price_per_unit,
+      );
+
+      if (!productId && !quantity && !desiredPricePerUnit && !actualPricePerUnit) {
+        return null;
+      }
+
+      return {
+        key: `line-${Date.now()}-${index}`,
+        productId,
+        supplierId: normalizeOptionalString(record.supplierId ?? record.supplier),
+        plantId: normalizeOptionalString(record.plantId ?? record.plant),
+        quantity,
+        desiredUom: normalizeOptionalString(record.desiredUom ?? record.desired_uom) || 'LBS',
+        desiredPricePerUnit,
+        actualPricePerUnit,
+        notes: normalizeOptionalString(record.notes),
+      } satisfies LineItem;
+    })
+    .filter((row): row is LineItem => row !== null);
+
+  return rows.length ? rows : [newLine()];
+};
+
 const buildInquiryCreateDefaults = (opts: {
   initialEntityType?: EntityType;
   initialEntityId?: string | number;
+  initialValues?: Record<string, unknown>;
 }): InquiryCreateValues => ({
-  entityType: opts.initialEntityType ?? 'customer',
-  entityId: opts.initialEntityId != null ? String(opts.initialEntityId) : '',
-  validUntil: '',
-  notes: '',
+  entityType:
+    (normalizeOptionalString(
+      opts.initialValues?.entityType ?? opts.initialValues?.entity_type,
+    ) as EntityType) ||
+    (opts.initialValues?.supplier != null ? 'supplier' : undefined) ||
+    opts.initialEntityType ||
+    'customer',
+  entityId:
+    normalizeOptionalString(
+      opts.initialValues?.entityId ??
+        opts.initialValues?.customer ??
+        opts.initialValues?.supplier,
+    ) ||
+    (opts.initialEntityId != null ? String(opts.initialEntityId) : ''),
+  validUntil: normalizeOptionalString(
+    opts.initialValues?.validUntil ?? opts.initialValues?.valid_until,
+  ),
+  notes: normalizeOptionalString(opts.initialValues?.notes),
 });
 
 export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
@@ -385,11 +460,17 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   onSuccess,
   initialEntityType,
   initialEntityId,
+  initialValues,
+  onValuesChange,
   enableSupplierPlantSelection = false,
   sourceCallId,
 }) => {
+  const defaultValues = useMemo(
+    () => buildInquiryCreateDefaults({ initialEntityType, initialEntityId, initialValues }),
+    [initialEntityId, initialEntityType, initialValues],
+  );
   const form = useZodForm<InquiryCreateValues>(inquiryCreateSchema, {
-    defaultValues: buildInquiryCreateDefaults({ initialEntityType, initialEntityId }),
+    defaultValues,
   });
 
   const submitting = form.formState.isSubmitting;
@@ -397,11 +478,13 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
   const entityType = form.watch('entityType');
   const entityId = form.watch('entityId');
+  const validUntil = form.watch('validUntil');
+  const notes = form.watch('notes');
 
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
 
-  const [lines, setLines] = useState<LineItem[]>([newLine()]);
+  const [lines, setLines] = useState<LineItem[]>(() => buildInitialLines(initialValues));
   const [uomOptions, setUomOptions] = useState<ChoiceOption[]>([]);
 
   const canSubmit = useMemo(() => !submitting, [submitting]);
@@ -427,8 +510,9 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    form.reset(buildInquiryCreateDefaults({ initialEntityType, initialEntityId }));
-  }, [form, initialEntityId, initialEntityType, isOpen]);
+    form.reset(defaultValues);
+    setLines(buildInitialLines(initialValues));
+  }, [defaultValues, form, initialValues, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -528,10 +612,33 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
     })();
   }, [isOpen, lines, showSupplierPlantSelection]);
 
+  useEffect(() => {
+    if (!isOpen || !onValuesChange) {
+      return;
+    }
+
+    onValuesChange({
+      entityType,
+      entityId,
+      validUntil,
+      notes,
+      products: lines.map((line) => ({
+        product: line.productId,
+        supplier: line.supplierId || undefined,
+        plant: line.plantId || undefined,
+        quantity: line.quantity,
+        desired_uom: line.desiredUom,
+        desired_price_per_unit: line.desiredPricePerUnit,
+        actual_price_per_unit: line.actualPricePerUnit,
+        notes: line.notes,
+      })),
+    });
+  }, [entityId, entityType, isOpen, lines, notes, onValuesChange, validUntil]);
+
   const reset = () => {
     setError(null);
-    form.reset(buildInquiryCreateDefaults({ initialEntityType, initialEntityId }));
-    setLines([newLine()]);
+    form.reset(defaultValues);
+    setLines(buildInitialLines(initialValues));
     setEntityOptions([]);
   };
 

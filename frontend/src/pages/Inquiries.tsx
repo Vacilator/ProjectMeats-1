@@ -21,7 +21,7 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
 import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
-import { EntityFormSurface } from '../components/Shared';
+import { UnifiedForm } from '../components/UnifiedForm';
 import { inquiryService } from '../services/inquiryService';
 
 // ============================================================================
@@ -804,8 +804,8 @@ const Inquiries: React.FC = () => {
       </Table>
       </TableWrapper>
 
-      {/* Create Inquiry (EntityFormSurface → enhanced inquiry form by default) */}
-      <EntityFormSurface
+      {/* Create Inquiry (UnifiedForm → enhanced inquiry form by default) */}
+      <UnifiedForm
         entityType="inquiry"
         mode="create"
         isOpen={showCreateModal}
