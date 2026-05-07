@@ -458,7 +458,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert additive exception-queue schema and leave failed trades in manual investigation mode.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-08.2 trades-requiring-intervention-dashboard**
+- [x] **CTE-08.2 trades-requiring-intervention-dashboard**
   - **Status:** Ready
   - **Why now:** Operators need a dedicated control tower to see halted trades, understand failure causes, and recover them without database spelunking.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / 16b / Epic 8
@@ -869,7 +869,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert new node renderers; existing simple nodes remain unchanged.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-05.2 create-variant-workflow**
+- [x] **RT-05.2 create-variant-workflow**
   - **Status:** Blocked
   - **Why now:** Operators need to create process variants without rebuilding from scratch.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-05
@@ -984,7 +984,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Remove ApprovalGate from templates; processes execute without gate (auto-approve behavior).
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-07.2 cockpit-approval-panel**
+- [x] **RT-07.2 cockpit-approval-panel**
   - **Status:** Blocked
   - **Why now:** Pending approvals must be visible and actionable from the Process Cockpit.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
@@ -1002,7 +1002,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Hide approval panel; approvals still actionable via direct API.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-07.3 approval-gate-template-example**
+- [x] **RT-07.3 approval-gate-template-example**
   - **Status:** Blocked
   - **Why now:** The EndToEndInquiryToPOProcess template should demonstrate the approval pattern.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
@@ -1038,7 +1038,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable Celery task; fields show "calculating..." placeholder.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-08.2 auto-invoice-generation**
+- [x] **RT-08.2 auto-invoice-generation**
   - **Status:** Blocked
   - **Why now:** Manual invoice creation is error-prone and delays payment cycles.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
@@ -1056,7 +1056,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable auto-generation; manual invoice creation remains available.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-08.3 cockpit-financials-tab**
+- [x] **RT-08.3 cockpit-financials-tab**
   - **Status:** Blocked
   - **Why now:** Traders need aggregated financial views within the process context.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
@@ -1082,7 +1082,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Hide Financials tab; other cockpit tabs unchanged.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-09.1 analytics-service-and-dashboard**
+- [x] **RT-09.1 analytics-service-and-dashboard**
   - **Status:** Blocked
   - **Why now:** Traders need data-driven insights into their process performance.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-09
@@ -1100,7 +1100,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Hide Analytics tab; telemetry data preserved for future use.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-09.2 analytics-export-and-metrics-surface**
+- [x] **RT-09.2 analytics-export-and-metrics-surface**
   - **Status:** Blocked
   - **Why now:** Key metrics should be accessible outside the dedicated analytics page.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-09
@@ -1118,7 +1118,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Remove export buttons and metric widgets; analytics page remains.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-10.1 template-library-page**
+- [x] **RT-10.1 template-library-page**
   - **Status:** Blocked
   - **Why now:** Self-service template discovery reduces dependency on developers.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-10
@@ -1144,7 +1144,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Hide Template Library page; editor remains accessible directly.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **RT-10.2 template-version-history-and-publish**
+- [x] **RT-10.2 template-version-history-and-publish**
   - **Status:** Blocked
   - **Why now:** Operators need confidence that published templates are stable and reversible.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-10
