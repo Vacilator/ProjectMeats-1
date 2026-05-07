@@ -19,12 +19,12 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
-| **P0 (Now)** | CTE-04.1 draft-sales-order-generation | Phase 16 | backend |
-| P1 | CTE-04.2 sales-order-approval-pdf | Phase 16 | backend |
+| Shipped | CTE-04.1 draft-sales-order-generation | Phase 16 | backend |
+| Shipped | CTE-04.2 sales-order-approval-pdf | Phase 16 | backend |
+| Shipped | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
+| **P0 (Now)** | CTE-04.4 carrier-reply-parser | Phase 16 | backend |
+| P1 | CTE-04.5 happy-path-orchestrator-e2e | Phase 16 | full-stack |
 | P1.5 | CTE-04.7 unified-inquiry-po-form | Phase 16 | frontend |
-| P2 | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
-| P3 | CTE-04.4 carrier-reply-parser | Phase 16 | backend |
-| P4 | CTE-04.5 happy-path-orchestrator-e2e | Phase 16 | full-stack |
 | P5 | CTE-05–08 (distributed hardening) | Phase 16 | backend |
 | P6 | RT-01–04 (runtime intelligence) | Phase 17 | full-stack |
 | P7 | RT-05 (editor stabilization) | Phase 17 | frontend |
@@ -158,12 +158,12 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ## Active Backlog (Execution Order)
 
 
-### Phase 16 — Core Trading Engine (Remaining: 11 tickets)
+### Phase 16 — Core Trading Engine (Remaining: 8 tickets)
 
 #### Epic CTE-04: Sales & Logistics Cascade
 
-- [ ] **CTE-04.1 draft-sales-order-generation-from-fulfill-or-approved-source**
-  - **Status:** Ready
+- [x] **CTE-04.1 draft-sales-order-generation-from-fulfill-or-approved-source**
+  - **Status:** Shipped on `development` (PR #4952)
   - **Why now:** The engine needs one deterministic way to create draft sales orders either directly from `FULFILL` inquiries or from approved supplier sourcing.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
   - **Scope:** Auto-generate draft `SalesOrder` rows from either (a) direct `FULFILL` inquiry routing or (b) approved supplier POs, persisting route/source lineage and avoiding duplicate sales-order creation.
@@ -193,8 +193,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert draft sales-order generation and preserve upstream inquiry/supplier-PO approvals.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-04.2 sales-order-approval-pdf-and-customer-email**
-  - **Status:** Blocked
+- [x] **CTE-04.2 sales-order-approval-pdf-and-customer-email**
+  - **Status:** Shipped on `development` (PR #4955)
   - **Why now:** Customer-facing commitments need the same approval/PDF/email rigor as supplier POs before the engine can claim end-to-end automation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
   - **Scope:** Extend the generic approval flow to `SalesOrder`, build the customer review/approve/send path, and tie customer-facing PDF generation plus outbound email to the approved sales-order transition.
@@ -202,7 +202,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/backend/documents
   - **Likely touched paths:** `backend/tenant_apps/sales_orders/`, document-generation/email services, customer-facing review UI/services/tests
   - **Dependencies:** CTE-04.1
-  - **Blockers:** CTE-04.1
+  - **Blockers:** None
   - **Acceptance criteria:** Sales-order approval generates the customer PDF/email exactly once and keeps explicit audit/send history tied to the approved order.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.sales_orders apps.integrations tenant_apps.workflows`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** High
@@ -211,8 +211,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Disable sales-order approval side effects before reverting state/UI changes.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **CTE-04.3 carrier-rfq-match-and-outbound-freight-inquiry**
-  - **Status:** Blocked
+- [x] **CTE-04.3 carrier-rfq-match-and-outbound-freight-inquiry**
+  - **Status:** Shipped on `development` (PR #4956)
   - **Why now:** Once the commercial trade is approved, logistics procurement needs the same deterministic RFQ fan-out for carriers.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
   - **Scope:** Match carriers/logistics providers for approved sales/order lanes and send outbound freight inquiry RFQs tied to the source sales order and/or supplier PO.
@@ -220,7 +220,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** backend/logistics/integrations
   - **Likely touched paths:** `backend/tenant_apps/carriers/`, `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/sales_orders/`, outbound email services/tests
   - **Dependencies:** CTE-04.2
-  - **Blockers:** CTE-04.2
+  - **Blockers:** None
   - **Acceptance criteria:** Approved trades can generate auditable outbound carrier RFQs with explicit source-order linkage and recipient selection rules.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.sales_orders tenant_apps.carriers apps.integrations`
   - **Tenant/RLS impact:** High
@@ -230,7 +230,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **CTE-04.4 structured-carrier-reply-parser-and-draft-carrier-po**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Carrier responses need to become draft logistics commitments instead of staying trapped in unstructured inbox replies.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 16 / Epic 4
   - **Scope:** Parse carrier replies with OpenAI structured outputs, normalize freight quote/acceptance data, and generate draft `CarrierPurchaseOrder` rows linked to the originating trade documents.
@@ -238,7 +238,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** backend/ai/logistics
   - **Likely touched paths:** `backend/apps/integrations/`, `backend/tenant_apps/purchase_orders/`, `backend/tenant_apps/ai_assistant/`, `backend/tenant_apps/carriers/`, tests
   - **Dependencies:** CTE-04.3
-  - **Blockers:** CTE-04.3
+  - **Blockers:** None
   - **Acceptance criteria:** Positive carrier replies can create draft `CarrierPurchaseOrder` rows with source-order lineage and explicit confidence/error handling.
   - **Validation commands:** `cd backend && python manage.py test tenant_apps.purchase_orders tenant_apps.carriers tenant_apps.ai_assistant apps.integrations`; `cd backend && python manage.py makemigrations --check`
   - **Tenant/RLS impact:** High
