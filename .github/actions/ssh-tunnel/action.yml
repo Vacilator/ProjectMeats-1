@@ -1,0 +1,68 @@
+name: "SSH Tunnel Setup"
+description: "Establish an SSH tunnel to a remote database via bastion host"
+
+inputs:
+  ssh_host:
+    description: "Bastion host address"
+    required: true
+  ssh_user:
+    description: "SSH username"
+    required: true
+  ssh_password:
+    description: "SSH password (via SSHPASS)"
+    required: true
+  db_host:
+    description: "Remote database host"
+    required: true
+  db_port:
+    description: "Remote database port"
+    required: false
+    default: "5432"
+  local_port:
+    description: "Local port to forward to"
+    required: false
+    default: "5433"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install SSH tools
+      shell: bash
+      run: |
+        if ! command -v sshpass &>/dev/null || ! command -v lsof &>/dev/null; then
+          sudo apt-get update -qq
+          sudo apt-get install -y openssh-client sshpass postgresql-client lsof
+        fi
+
+    - name: Setup SSH tunnel
+      shell: bash
+      env:
+        SSHPASS: ${{ inputs.ssh_password }}
+      run: |
+        set -euo pipefail
+
+        LOCAL_PORT="${{ inputs.local_port }}"
+        DB_HOST="${{ inputs.db_host }}"
+        DB_PORT="${{ inputs.db_port }}"
+        BASTION_USER="${{ inputs.ssh_user }}"
+        BASTION_HOST="${{ inputs.ssh_host }}"
+
+        bash .github/scripts/setup-ssh-tunnel.sh
+
+    - name: Verify tunnel connectivity
+      shell: bash
+      run: |
+        set -euo pipefail
+        LOCAL_PORT="${{ inputs.local_port }}"
+
+        MAX_WAIT=15
+        ELAPSED=0
+        while ! nc -z 127.0.0.1 "$LOCAL_PORT" 2>/dev/null; do
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "✗ Tunnel not reachable on port $LOCAL_PORT after ${MAX_WAIT}s" >&2
+            exit 1
+          fi
+          sleep 1
+          ELAPSED=$((ELAPSED + 1))
+        done
+        echo "✓ SSH tunnel active on 127.0.0.1:${LOCAL_PORT}"

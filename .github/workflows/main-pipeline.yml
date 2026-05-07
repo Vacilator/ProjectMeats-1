@@ -255,6 +255,7 @@ jobs:
       require_redis_readiness: false
       run_backend_lane: ${{ needs.resolve-deploy-plan.outputs.run_backend_lane == 'true' }}
       run_frontend_lane: ${{ needs.resolve-deploy-plan.outputs.run_frontend_lane == 'true' }}
+      skip_tests_in_deploy: true
 
   deploy-uat:
     name: "Deploy UAT"

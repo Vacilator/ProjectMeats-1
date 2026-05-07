@@ -1,0 +1,70 @@
+name: "Docker Pull with Retry"
+description: "Pull a Docker image with exponential backoff retry and optional GHCR registry translation"
+
+inputs:
+  image_ref:
+    description: "The full image reference to pull (tag or digest)"
+    required: true
+  docr_registry:
+    description: "DigitalOcean Container Registry prefix to translate from"
+    required: false
+    default: ""
+  ghcr_registry:
+    description: "GitHub Container Registry prefix to translate to"
+    required: false
+    default: ""
+  max_attempts:
+    description: "Maximum number of pull attempts"
+    required: false
+    default: "5"
+  initial_delay:
+    description: "Initial delay in seconds between retries"
+    required: false
+    default: "5"
+
+outputs:
+  resolved_ref:
+    description: "The resolved image reference (after GHCR translation if applicable)"
+    value: ${{ steps.pull.outputs.resolved_ref }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Pull image with retry
+      id: pull
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        IMAGE_REF="${{ inputs.image_ref }}"
+        DOCR_REG="${{ inputs.docr_registry }}"
+        GHCR_REG="${{ inputs.ghcr_registry }}"
+        MAX_ATTEMPTS="${{ inputs.max_attempts }}"
+        DELAY="${{ inputs.initial_delay }}"
+
+        # Translate DOCR → GHCR if both registries provided
+        if [ -n "$DOCR_REG" ] && [ -n "$GHCR_REG" ]; then
+          IMAGE_REF="$(printf '%s' "$IMAGE_REF" | sed "s#^${DOCR_REG}#${GHCR_REG}#")"
+        fi
+
+        echo "resolved_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
+
+        attempt=1
+        while [ $attempt -le $MAX_ATTEMPTS ]; do
+          echo "docker pull attempt ${attempt}/${MAX_ATTEMPTS}: ${IMAGE_REF}"
+          if docker pull "$IMAGE_REF"; then
+            echo "✓ Pull succeeded"
+            exit 0
+          fi
+
+          if [ $attempt -lt $MAX_ATTEMPTS ]; then
+            echo "Pull failed; retrying in ${DELAY}s..."
+            sleep "$DELAY"
+            DELAY=$((DELAY * 2))
+          fi
+
+          attempt=$((attempt + 1))
+        done
+
+        echo "✗ docker pull failed after ${MAX_ATTEMPTS} attempts" >&2
+        exit 1
