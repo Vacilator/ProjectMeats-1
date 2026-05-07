@@ -1160,7 +1160,7 @@ const OptionListsPage: React.FC = () => {
           }}
           cancelButtonProps={{ disabled: savingProductPref }}
           onOk={() => productPrefForm.submit()}
-          destroyOnClose
+          destroyOnHidden
           footer={(() => {
             const hasOverride = Boolean(editingProductPref?.pref?.id);
             const canRemove = hasOverride && canEditProductOverrides;
@@ -1331,7 +1331,7 @@ const OptionListsPage: React.FC = () => {
           }}
           cancelButtonProps={{ disabled: savingProduct }}
           onOk={() => productForm.submit()}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form form={productForm} layout="vertical" onFinish={handleSaveProduct}>
             <Form.Item

@@ -111,7 +111,7 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
       title="AI Command Center"
       footer={null}
       width={700}
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: 0 } }}
     >
       <OmniboxContainer>

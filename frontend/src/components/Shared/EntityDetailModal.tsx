@@ -416,7 +416,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       title={config.displayName}
       footer={modalFooter}
       width={700}
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: 24 } }}
     >
       {isLoading ? (

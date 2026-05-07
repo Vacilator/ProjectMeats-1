@@ -605,7 +605,7 @@ const ConfigurationsPage: React.FC = () => {
             title={null}
             footer={null}
             width={720}
-            destroyOnClose
+            destroyOnHidden
             styles={{ body: { padding: 0 } }}
           >
             <CreateModalContent>

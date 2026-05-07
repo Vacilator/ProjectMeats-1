@@ -377,7 +377,7 @@ const BillingPage: React.FC = () => {
         onOk={() => void savePlan()}
         okText="Save"
         confirmLoading={isSavingPlan}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={managePlanForm} layout="vertical" preserve={false}>
           <Form.Item
@@ -425,7 +425,7 @@ const BillingPage: React.FC = () => {
         onOk={() => void savePaymentMethod()}
         okText="Save"
         confirmLoading={isSavingPaymentMethod}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={paymentMethodForm} layout="vertical" preserve={false}>
           <Form.Item

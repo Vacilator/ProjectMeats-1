@@ -71,7 +71,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       title={title}
       footer={footer}
       width={500}
-      destroyOnClose
+      destroyOnHidden
     >
       <Message>{message}</Message>
     </AntModal>

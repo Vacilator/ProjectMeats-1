@@ -199,7 +199,7 @@ export const TenantListModal: React.FC<TenantListModalProps> = ({
       cancelButtonProps={{ disabled: saving }}
       okText={isEdit ? 'Save' : 'Create'}
       width={780}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical">
         <Form.Item

@@ -333,7 +333,7 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
             </Button>
           </ModalFooter>
         }
-        destroyOnClose
+        destroyOnHidden
       >
         {editingField && (
           <Form>

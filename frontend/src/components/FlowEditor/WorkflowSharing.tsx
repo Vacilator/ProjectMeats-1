@@ -362,7 +362,7 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
       onCancel={onClose}
       footer={null}
       width={700}
-      destroyOnClose
+      destroyOnHidden
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Space>
