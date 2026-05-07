@@ -562,7 +562,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ### Epic AMB-03 - Predictive anomaly detection
 
-- [ ] **AMB-03.1 product-anomaly-baseline-service-and-threshold-contract**
+- [x] **AMB-03.1 product-anomaly-baseline-service-and-threshold-contract**
   - **Status:** Blocked
   - **Why now:** Form-level anomaly warnings need one canonical baseline/threshold service before any UI can warn operators about suspicious values.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-03
@@ -580,7 +580,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert the additive baseline service and any supporting endpoint without altering stored transactional data.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **AMB-03.2 universal-form-soft-warning-anomaly-flow**
+- [x] **AMB-03.2 universal-form-soft-warning-anomaly-flow**
   - **Status:** Blocked
   - **Why now:** Operators need anomaly feedback inside the save flow instead of discovering suspect values after records are committed.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-03
