@@ -43,6 +43,7 @@ type FieldUi = {
   visible_when?: {
     field: string;
     equals?: unknown;
+    in?: unknown[];
     truthy?: boolean;
   };
 };
@@ -1018,6 +1019,10 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
     if (typeof rule.equals !== 'undefined') {
       return raw === rule.equals;
+    }
+
+    if (Array.isArray(rule.in) && rule.in.length > 0) {
+      return rule.in.some((candidate) => raw === candidate);
     }
 
     if (rule.truthy) {

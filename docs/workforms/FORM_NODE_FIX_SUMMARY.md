@@ -274,3 +274,13 @@ This PR addresses the issue reported on 2026-02-21:
 - ✅ Improved UX with field counts and loading states
 
 The root cause was the lack of URL encoding for entity IDs containing dots (tenant_apps.*). With proper encoding, the backend can now correctly parse and return field data.
+
+## Supplier Plant Department Contact form follow-up
+
+- Promoted the department selector to the primary **Plant Contact Type** field with the exact ordered options `Sales`, `QA`, `Shipping / Loadout`, `Certification`, and `Accounting` while still preserving legacy `booking` records.
+- Expanded the schema-driven conditional logic so `Sales` and `QA` share the same searchable responsibility fields, `Shipping / Loadout` reveals the title dropdown, and every selected department gets a filtered **Documents Responsible For** multi-select.
+- Switched the responsibility fields to reusable searchable multi-select behavior:
+  - **Protein Types Responsible For** uses the canonical protein choice list
+  - **Items Responsible For** hydrates from `/api/v1/master-products/`
+  - **Documents Responsible For** now comes from a centralized master-document registry covering Spec Sheets, COAs, Pictures of Label, certification docs, Statements, Claims, Credits, Checks, Bills, and shipping paperwork
+- Added additive `visible_when.in` support in `DynamicFormEngine` so one field definition can stay visible for multiple department values without duplicating schema rows.

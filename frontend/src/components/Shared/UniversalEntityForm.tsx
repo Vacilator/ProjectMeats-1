@@ -121,6 +121,12 @@ export type BackendSchema = {
   key_fields?: string[];
 };
 
+type PreloadedDropdownOption = {
+  value: string;
+  label: string;
+  metadata?: Record<string, unknown>;
+};
+
 const EMPTY_FORM_VALUES: Record<string, unknown> = {};
 const EXTRACTABLE_ENTITY_KEYS = new Set(['purchase_order', 'sales_order', 'invoice', 'carrier_po']);
 
@@ -421,57 +427,68 @@ export const mapDrfOptionsType = (t: string | undefined): string => {
 
 type ContactFormContext = 'default' | 'shipping_loadout' | 'certification';
 
-const CONTACT_DOCUMENT_OPTIONS: Record<string, SchemaChoice[]> = {
-  default: [],
-  sales: [
-    { value: 'BOLs', label: 'BOLs' },
-    { value: 'Sales Order Confirmation', label: 'Sales Order Confirmation' },
-    { value: 'Release Number', label: 'Release Number' },
-    { value: 'COAs', label: 'COAs' },
-    { value: 'Spec Sheets', label: 'Spec Sheets' },
-    { value: 'Picture of Label', label: 'Picture of Label' },
-    { value: 'Certification Documents', label: 'Certification Documents' },
-  ],
-  qa: [
-    { value: 'COAs', label: 'COAs' },
-    { value: 'Spec Sheets', label: 'Spec Sheets' },
-    { value: 'Picture of Label', label: 'Picture of Label' },
-    { value: 'Certification Documents', label: 'Certification Documents' },
-  ],
-  shipping_loadout: [
-    { value: 'Shipping Supervisor', label: 'Shipping Supervisor' },
-    { value: 'Load Coordinator', label: 'Load Coordinator' },
-    { value: 'Billing', label: 'Billing' },
-    { value: 'Fresh / Frozen Shipping', label: 'Fresh / Frozen Shipping' },
-    { value: 'DC Shipping', label: 'DC Shipping' },
-  ],
-  certification: [
-    { value: 'LOG (Letter of Guarantee)', label: 'LOG (Letter of Guarantee)' },
-    { value: 'Plant Type of Certification', label: 'Plant Type of Certification' },
-    { value: 'Audit Reports', label: 'Audit Reports' },
-    { value: 'Animal Welfare', label: 'Animal Welfare' },
-    { value: 'Spec Sheet', label: 'Spec Sheet' },
-    { value: 'Picture of Label', label: 'Picture of Label' },
-  ],
-  accounting: [
-    { value: 'Statements', label: 'Statements' },
-    { value: 'Claims', label: 'Claims' },
-    { value: 'Credits', label: 'Credits' },
-    { value: 'Credit Limit', label: 'Credit Limit' },
-    { value: 'BOLs', label: 'BOLs' },
-    { value: 'Sales Order Confirmation', label: 'Sales Order Confirmation' },
-    { value: 'Release Number', label: 'Release Number' },
-    { value: 'COAs', label: 'COAs' },
-  ],
-  // Legacy alias: keep `booking` mapping so older department values still render options.
-  booking: [
-    { value: 'Shipping Supervisor', label: 'Shipping Supervisor' },
-    { value: 'Load Coordinator', label: 'Load Coordinator' },
-    { value: 'Billing', label: 'Billing' },
-    { value: 'Fresh / Frozen Shipping', label: 'Fresh / Frozen Shipping' },
-    { value: 'DC Shipping', label: 'DC Shipping' },
-  ],
-};
+type ContactDepartmentKey =
+  | 'sales'
+  | 'qa'
+  | 'shipping'
+  | 'certification'
+  | 'accounting'
+  | 'booking';
+
+const CONTACT_DEPARTMENT_CHOICES: SchemaChoice[] = [
+  { value: 'sales', label: 'Sales' },
+  { value: 'qa', label: 'QA' },
+  { value: 'shipping', label: 'Shipping / Loadout' },
+  { value: 'certification', label: 'Certification' },
+  { value: 'accounting', label: 'Accounting' },
+];
+
+const CONTACT_PROTEIN_TYPE_CHOICES: SchemaChoice[] = [
+  { value: 'Beef', label: 'Beef' },
+  { value: 'Chicken', label: 'Chicken' },
+  { value: 'Duck', label: 'Duck' },
+  { value: 'Pork', label: 'Pork' },
+  { value: 'Lamb', label: 'Lamb' },
+  { value: 'Turkey', label: 'Turkey' },
+  { value: 'Fish', label: 'Fish' },
+  { value: 'Horse', label: 'Horse' },
+  { value: 'Other', label: 'Other' },
+];
+
+const CONTACT_MASTER_DOCUMENT_OPTIONS: Array<{
+  value: string;
+  label: string;
+  departments: ContactDepartmentKey[];
+}> = [
+  { value: 'Spec Sheets', label: 'Spec Sheets', departments: ['sales', 'qa', 'certification'] },
+  { value: 'COAs', label: 'COAs', departments: ['sales', 'qa', 'certification'] },
+  { value: 'Picture of Label', label: 'Picture of Label', departments: ['sales', 'qa', 'certification'] },
+  {
+    value: 'Certification Documents',
+    label: 'Certification Documents',
+    departments: ['sales', 'qa', 'certification'],
+  },
+  { value: 'LOG (Letter of Guarantee)', label: 'LOG (Letter of Guarantee)', departments: ['certification'] },
+  { value: 'Plant Type of Certification', label: 'Plant Type of Certification', departments: ['certification'] },
+  { value: 'Audit Reports', label: 'Audit Reports', departments: ['certification'] },
+  { value: 'Animal Welfare', label: 'Animal Welfare', departments: ['certification'] },
+  { value: 'Halal', label: 'Halal', departments: ['certification'] },
+  { value: 'Kosher', label: 'Kosher', departments: ['certification'] },
+  { value: 'BOLs', label: 'BOLs', departments: ['sales', 'shipping', 'booking', 'accounting'] },
+  { value: 'Release Number', label: 'Release Number', departments: ['sales', 'shipping', 'booking', 'accounting'] },
+  {
+    value: 'Sales Order Confirmation',
+    label: 'Sales Order Confirmation',
+    departments: ['sales', 'accounting'],
+  },
+  { value: 'Loading Instructions', label: 'Loading Instructions', departments: ['shipping', 'booking'] },
+  { value: 'Appointment Confirmations', label: 'Appointment Confirmations', departments: ['shipping', 'booking'] },
+  { value: 'Statements', label: 'Statements', departments: ['accounting'] },
+  { value: 'Claims', label: 'Claims', departments: ['accounting'] },
+  { value: 'Credits', label: 'Credits', departments: ['accounting'] },
+  { value: 'Checks', label: 'Checks', departments: ['accounting'] },
+  { value: 'Bills', label: 'Bills', departments: ['accounting'] },
+];
 
 const asSchemaChoices = (value: unknown): SchemaChoice[] => {
   if (!Array.isArray(value)) return [];
@@ -495,6 +512,86 @@ const asSchemaChoices = (value: unknown): SchemaChoice[] => {
       };
     })
     .filter((item): item is SchemaChoice => item !== null);
+};
+
+const dedupeChoices = (value: SchemaChoice[]): SchemaChoice[] => {
+  const seen = new Set<string>();
+  const normalized: SchemaChoice[] = [];
+
+  value.forEach((choice) => {
+    const key = String(choice.value ?? '').trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    normalized.push({
+      value: String(choice.value ?? '').trim(),
+      label: String(choice.label ?? choice.value ?? '').trim(),
+    });
+  });
+
+  return normalized;
+};
+
+const mergeDropdownOptions = (
+  primary: PreloadedDropdownOption[],
+  secondary: PreloadedDropdownOption[] = []
+): PreloadedDropdownOption[] => {
+  const seen = new Set<string>();
+  const merged: PreloadedDropdownOption[] = [];
+
+  [...primary, ...secondary].forEach((option) => {
+    const value = String(option.value ?? '').trim();
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    merged.push({
+      value,
+      label: String(option.label ?? value).trim() || value,
+      ...(option.metadata ? { metadata: option.metadata } : {}),
+    });
+  });
+
+  return merged;
+};
+
+const buildContactDocumentOptionGroups = (
+  additionalChoices: SchemaChoice[] = []
+): Record<string, SchemaChoice[]> => {
+  const byDepartment: Record<string, SchemaChoice[]> = {
+    default: CONTACT_MASTER_DOCUMENT_OPTIONS.map(({ value, label }) => ({ value, label })),
+    sales: CONTACT_MASTER_DOCUMENT_OPTIONS.filter((option) => option.departments.includes('sales')).map(
+      ({ value, label }) => ({ value, label })
+    ),
+    qa: CONTACT_MASTER_DOCUMENT_OPTIONS.filter((option) => option.departments.includes('qa')).map(
+      ({ value, label }) => ({ value, label })
+    ),
+    shipping: CONTACT_MASTER_DOCUMENT_OPTIONS.filter((option) => option.departments.includes('shipping')).map(
+      ({ value, label }) => ({ value, label })
+    ),
+    booking: CONTACT_MASTER_DOCUMENT_OPTIONS.filter((option) => option.departments.includes('booking')).map(
+      ({ value, label }) => ({ value, label })
+    ),
+    shipping_loadout: CONTACT_MASTER_DOCUMENT_OPTIONS.filter((option) =>
+      option.departments.includes('shipping') || option.departments.includes('booking')
+    ).map(({ value, label }) => ({ value, label })),
+    certification: CONTACT_MASTER_DOCUMENT_OPTIONS.filter((option) =>
+      option.departments.includes('certification')
+    ).map(({ value, label }) => ({ value, label })),
+    accounting: CONTACT_MASTER_DOCUMENT_OPTIONS.filter((option) =>
+      option.departments.includes('accounting')
+    ).map(({ value, label }) => ({ value, label })),
+  };
+
+  if (!additionalChoices.length) {
+    return Object.fromEntries(
+      Object.entries(byDepartment).map(([key, choices]) => [key, dedupeChoices(choices)])
+    );
+  }
+
+  return Object.fromEntries(
+    Object.entries(byDepartment).map(([key, choices]) => [
+      key,
+      dedupeChoices([...choices, ...additionalChoices]),
+    ])
+  );
 };
 
 const hasContextValue = (value: unknown): boolean => {
@@ -536,7 +633,7 @@ const getShippingLoadoutTitleChoices = (values?: Record<string, unknown> | null)
     { value: 'Shipping Supervisor', label: 'Shipping Supervisor' },
     { value: 'Load Coordinator', label: 'Load Coordinator' },
     { value: 'Billing', label: 'Billing' },
-    { value: 'Fresh / Frozen Shipping', label: 'Fresh / Frozen Shipping' },
+    { value: 'Prepay / Frozen Shipping', label: 'Prepay / Frozen Shipping' },
     { value: 'DC Shipping', label: 'DC Shipping' },
   ];
 };
@@ -892,12 +989,7 @@ export const augmentSchemaForFrontend = (
       : 'Plant Contact Type';
   const shippingTitleChoices = getShippingLoadoutTitleChoices(values);
   const providedDocumentChoices = asSchemaChoices(values?.documentsResponsibleOptions);
-  const documentChoices =
-    providedDocumentChoices.length > 0
-      ? providedDocumentChoices
-      : CONTACT_DOCUMENT_OPTIONS[
-          context === 'default' ? String(values?.department ?? '').trim().toLowerCase() || 'default' : context
-        ] || CONTACT_DOCUMENT_OPTIONS.default;
+  const documentOptionGroups = buildContactDocumentOptionGroups(providedDocumentChoices);
 
   const withField = (
     list: BackendField[],
@@ -927,21 +1019,12 @@ export const augmentSchemaForFrontend = (
 
       const currentDept = String(values?.department ?? '').trim().toLowerCase();
 
-      const filteredChoices = (field.choices || []).filter((choice) => {
-        const value = String(choice.value).toLowerCase();
-
-        // Hide legacy BOOKING unless the record already has it.
-        if (value === 'booking' && currentDept !== 'booking') return false;
-        return true;
-      });
-
-      const choices = filteredChoices.map((choice) => {
-        if (String(choice.value).toLowerCase() !== 'booking') return choice;
-        return {
-          ...choice,
-          label: 'Shipping / Loadout (Legacy)',
-        };
-      });
+      const choices = [
+        ...CONTACT_DEPARTMENT_CHOICES,
+        ...(currentDept === 'booking'
+          ? [{ value: 'booking', label: 'Shipping / Loadout (Legacy)' }]
+          : []),
+      ];
 
       return {
         ...field,
@@ -953,7 +1036,7 @@ export const augmentSchemaForFrontend = (
             : field.placeholder,
         help_text:
           isDepartmentScopedContact
-            ? field.help_text || 'Select the department first to reveal the right responsibility fields.'
+            ? 'Department this contact belongs to'
             : field.help_text,
         choices,
       };
@@ -1027,7 +1110,7 @@ export const augmentSchemaForFrontend = (
     required: Boolean(existing?.required),
     placeholder: 'Select protein types',
     help_text: existing?.help_text || '',
-    choices: existing?.choices || [],
+    choices: existing?.choices?.length ? existing.choices : CONTACT_PROTEIN_TYPE_CHOICES,
     ui: {
       ...((existing?.ui as Record<string, unknown> | null) || {}),
       widget: 'multi_select',
@@ -1039,7 +1122,7 @@ export const augmentSchemaForFrontend = (
         ? {
             visible_when: {
               field: 'department',
-              equals: 'sales',
+              in: ['sales', 'qa'],
             },
           }
         : {}),
@@ -1065,7 +1148,7 @@ export const augmentSchemaForFrontend = (
         ? {
             visible_when: {
               field: 'department',
-              equals: 'sales',
+              in: ['sales', 'qa'],
             },
           }
         : {}),
@@ -1093,14 +1176,14 @@ export const augmentSchemaForFrontend = (
           }
         : {}),
       option_groups: {
-        default: context === 'certification' ? documentChoices : CONTACT_DOCUMENT_OPTIONS.default,
-        sales: CONTACT_DOCUMENT_OPTIONS.sales,
-        shipping: CONTACT_DOCUMENT_OPTIONS.shipping_loadout,
-        booking: CONTACT_DOCUMENT_OPTIONS.booking,
-        qa: context === 'certification' ? documentChoices : CONTACT_DOCUMENT_OPTIONS.qa,
-        accounting: CONTACT_DOCUMENT_OPTIONS.accounting,
-        shipping_loadout: CONTACT_DOCUMENT_OPTIONS.shipping_loadout,
-        certification: documentChoices.length > 0 ? documentChoices : CONTACT_DOCUMENT_OPTIONS.certification,
+        default: documentOptionGroups.default,
+        sales: documentOptionGroups.sales,
+        shipping: documentOptionGroups.shipping,
+        booking: documentOptionGroups.booking,
+        qa: documentOptionGroups.qa,
+        accounting: documentOptionGroups.accounting,
+        shipping_loadout: documentOptionGroups.shipping_loadout,
+        certification: documentOptionGroups.certification,
       },
     },
   }));
@@ -1461,6 +1544,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const [productOptions, setProductOptions] = useState<
     Record<string, Array<{ value: string; label: string }>>
   >({});
+  const [asyncDropdownOptions, setAsyncDropdownOptions] = useState<
+    Record<string, PreloadedDropdownOption[]>
+  >({});
   const [loadingProducts, setLoadingProducts] = useState<Record<string, boolean>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -1474,6 +1560,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     };
   }, [onSubmittingChange, submitting]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setAsyncDropdownOptions({});
+    }
+  }, [isOpen]);
+
   const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const endpoint = useMemo(() => normalizeEntityEndpoint(entityType), [entityType]);
   const stableResolvedInitialValues = useDeepStableValue(resolvedInitialValues);
@@ -1484,6 +1576,19 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     ? initialResolvedValues
     : stableResolvedInitialValues;
   const resolvedFkOptions = externalFkOptions ?? fkOptions;
+  const mergedDropdownOptions = useMemo(() => {
+    const allKeys = new Set([
+      ...Object.keys(asyncDropdownOptions),
+      ...Object.keys(dropdownOptions),
+    ]);
+    const next: Record<string, PreloadedDropdownOption[]> = {};
+
+    allKeys.forEach((key) => {
+      next[key] = mergeDropdownOptions(dropdownOptions[key] || [], asyncDropdownOptions[key] || []);
+    });
+
+    return next;
+  }, [asyncDropdownOptions, dropdownOptions]);
 
   const getSelectPopupContainer = useCallback((triggerNode: HTMLElement) => {
     return getDefaultSelectPopupContainer(triggerNode);
@@ -1694,6 +1799,100 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       cancelled = true;
     };
   }, [externalFkOptions, fkLoadSignature, isOpen, resolvedSchema?.fields]);
+
+  useEffect(() => {
+    if (!isOpen || !resolvedSchema?.fields?.length) return;
+
+    const masterProductFieldKeys = resolvedSchema.fields
+      .filter((field) => {
+        const ui = field.ui && typeof field.ui === 'object' ? (field.ui as Record<string, unknown>) : null;
+        const dataSource =
+          ui?.data_source && typeof ui.data_source === 'object'
+            ? (ui.data_source as Record<string, unknown>)
+            : null;
+
+        return (
+          !field.related_entity &&
+          String(field.type || '').toLowerCase() === 'select' &&
+          String(ui?.widget || '').toLowerCase() === 'multi_select' &&
+          String(dataSource?.type || '').toLowerCase() === 'master_products' &&
+          !dropdownOptions[String(field.key)]?.length
+        );
+      })
+      .map((field) => String(field.key));
+
+    if (!masterProductFieldKeys.length) return;
+
+    let cancelled = false;
+
+    const loadMasterProductOptions = async () => {
+      try {
+        const response = await businessApi.get('/master-products/', {
+          params: { page_size: 5000, limit: 5000, is_active: true },
+        });
+        if (cancelled) return;
+
+        const payload = response.data as unknown;
+        const payloadObj =
+          typeof payload === 'object' && payload ? (payload as Record<string, unknown>) : null;
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payloadObj?.results)
+            ? payloadObj.results
+            : [];
+
+        const baseOptions = mergeDropdownOptions(
+          (Array.isArray(rows) ? rows : []).map((rowValue) => {
+            const row =
+              rowValue && typeof rowValue === 'object'
+                ? (rowValue as Record<string, unknown>)
+                : {};
+            const displayName = String(
+              row.display_name ?? row.item_name ?? row.name ?? row.id ?? ''
+            ).trim();
+            const protein = String(row.protein ?? '').trim();
+
+            return {
+              value: displayName,
+              label: displayName,
+              metadata: protein ? { protein_types: [protein] } : undefined,
+            };
+          })
+        );
+
+        setAsyncDropdownOptions((prev) => {
+          const next = { ...prev };
+          let changed = false;
+
+          masterProductFieldKeys.forEach((fieldKey) => {
+            const selectedValues = getValueAtPath(resolvedFormInitialValues, fieldKey);
+            const selectedOptions = Array.isArray(selectedValues)
+              ? selectedValues
+                  .map((item) => String(item ?? '').trim())
+                  .filter(Boolean)
+                  .map((item) => ({ value: item, label: item }))
+              : [];
+            const mergedOptions = mergeDropdownOptions(selectedOptions, baseOptions);
+
+            if (!isEqual(prev[fieldKey], mergedOptions)) {
+              next[fieldKey] = mergedOptions;
+              changed = true;
+            }
+          });
+
+          return changed ? next : prev;
+        });
+      } catch (error) {
+        console.error('[UniversalEntityForm] Failed to load master product dropdown options:', error);
+      }
+    };
+
+    void loadMasterProductOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dropdownOptions, isOpen, resolvedFormInitialValues, resolvedSchema?.fields]);
 
   const preferredKeys = useMemo(() => {
     const normalized = schemaEntityKey.toLowerCase();
@@ -2617,7 +2816,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
               showAllFields={showAdvanced}
               onShowAllFieldsChange={setShowAdvanced}
               showAllFieldsToggle={false}
-              dropdownOptions={dropdownOptions}
+              dropdownOptions={mergedDropdownOptions}
               formConfig={formConfig}
               onSubmit={(data) => {
                 void submit(data);
