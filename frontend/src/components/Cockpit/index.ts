@@ -15,6 +15,7 @@ export { ProcessFlowHeader, NodeDetailPopover } from './ProcessFlowHeader';
 export { ProcessQuickActions } from './ProcessQuickActions';
 export { MissingDependencyResolver } from './MissingDependencyResolver';
 export { CockpitApprovalPanel } from './CockpitApprovalPanel';
+export { CockpitFinancialsPanel } from './CockpitFinancialsPanel';
 export type { TradeLineageFlowProps } from './TradeLineageFlow';
 export type { ProcessFlowHeaderProps, NodeDetailPopoverProps } from './ProcessFlowHeader';
 export type { ProcessQuickActionsProps, ProcessActionId } from './ProcessQuickActions';
