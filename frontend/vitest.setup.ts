@@ -1,6 +1,7 @@
-import { afterEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { server } from './src/test/mocks/server';
 
 // Global axios mock to prevent real XHR/network calls in tests (can cause hangs under JSDOM)
 vi.mock('axios', () => {
@@ -176,5 +177,10 @@ afterEach(() => {
   }
   activeIntervalIds.clear();
 
+  server.resetHandlers();
   cleanup();
 });
+
+// MSW lifecycle: start before all tests, close after all
+beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+afterAll(() => server.close());

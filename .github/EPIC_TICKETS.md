@@ -566,7 +566,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ### Epic AMB-03 - Predictive anomaly detection
 
-- [ ] **AMB-03.1 product-anomaly-baseline-service-and-threshold-contract**
+- [x] **AMB-03.1 product-anomaly-baseline-service-and-threshold-contract**
   - **Status:** Ready
   - **Why now:** Form-level anomaly warnings need one canonical baseline/threshold service before any UI can warn operators about suspicious values.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-03
@@ -1232,7 +1232,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Rollback:** Remove factories; existing tests unchanged.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **INFRA-01.2 frontend-msw-mock-service-worker-setup**
+- [x] **INFRA-01.2 frontend-msw-mock-service-worker-setup**
   - **Status:** Blocked
   - **Why now:** Frontend tests that hit real APIs are flaky. MSW provides deterministic API mocking that works with Vitest and matches OpenAPI contracts.
   - **Scope:** Add MSW (Mock Service Worker) setup to frontend test infrastructure. Create handlers for core API endpoints (auth, tenants, workflows, entities). Integrate with existing Vitest config.
@@ -1264,7 +1264,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 
 ### Gap 3: Phase 17 — API Contract Safety (High ROI)
 
-- [ ] **RT-00.1 openapi-schema-snapshot-regression-gate**
+- [x] **RT-00.1 openapi-schema-snapshot-regression-gate**
   - **Status:** Blocked
   - **Why now:** Phase 17–18 adds many new API endpoints. Without a schema regression gate, breaking changes can slip into production. This is a one-time CI addition that protects all future work.
   - **Scope:** Add CI step that generates OpenAPI schema and diffs against committed snapshot. Fail PR if schema changes without explicit `--update-schema` flag. Protects against accidental field removal, type changes, or endpoint deletion.
@@ -1280,7 +1280,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 
 ### Gap 4: Cross-Phase — Performance Baseline (Medium Impact)
 
-- [ ] **INFRA-02.1 lighthouse-ci-budget-for-critical-pages**
+- [x] **INFRA-02.1 lighthouse-ci-budget-for-critical-pages**
   - **Status:** Blocked
   - **Why now:** Phase 17 (Process Cockpit) and Phase 18 (Analytics Dashboard) add heavy React Flow + chart components. Without a performance budget, page load can degrade silently. Adding Lighthouse CI now sets the baseline before new pages ship.
   - **Scope:** Add Lighthouse CI to PR pipeline for 5 critical pages: Dashboard, Process Cockpit, Entity Detail, Workflow Editor, Template Library. Set budgets: FCP < 2s, TTI < 4s, Bundle size < 500KB per route.
