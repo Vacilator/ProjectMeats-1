@@ -86,16 +86,18 @@ def emit_trade_event(
     # Dispatch to handlers
     _dispatch(event)
 
-    # Telemetry
-    logger.info(
-        f"Telemetry: domain_event.emitted",
+    # Telemetry (includes trace context for correlation)
+    from apps.core.logging import get_current_trace, log_trade_step
+
+    trace_ctx = get_current_trace()
+    log_trade_step(
+        step_name="domain_event.emitted",
+        message=f"Event emitted: {event.event_type.value if isinstance(event.event_type, TradeEventType) else event.event_type}",
+        entity_type=event.entity_type,
+        entity_id=event.entity_id,
         extra={
-            "event_type": event.event_type.value if isinstance(event.event_type, TradeEventType) else event.event_type,
             "event_id": event.event_id,
-            "tenant_id": event.tenant_id,
-            "trade_id": event.trade_id,
-            "entity_type": event.entity_type,
-            "entity_id": event.entity_id,
+            "trace_id": trace_ctx.trace_id if trace_ctx else "",
         },
     )
 

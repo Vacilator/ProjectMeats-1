@@ -452,6 +452,9 @@ LOGGING = {
             "format": "{levelname} {message}",
             "style": "{",
         },
+        "trade_json": {
+            "()": "apps.core.logging.JSONTradeFormatter",
+        },
     },
     "filters": {
         "redact_sensitive_data": {
@@ -517,6 +520,11 @@ LOGGING = {
         "apps.core.exceptions": {
             "handlers": ["console", "debug_file"],
             "level": "DEBUG",
+            "propagate": False,
+        },
+        "trade": {
+            "handlers": ["console"],
+            "level": "INFO",
             "propagate": False,
         },
     },
