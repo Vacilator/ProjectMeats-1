@@ -16,6 +16,9 @@ from tenant_apps.sales_orders.serializers import SalesOrderSerializer
 from tenant_apps.sales_orders.services.approval_dispatch import (
     approve_sales_order_and_send_to_customer,
 )
+from tenant_apps.carriers.services.freight_inquiry import (
+    send_carrier_freight_inquiries,
+)
 from apps.core.exporting import CsvExportMixin
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 import logging
@@ -106,6 +109,30 @@ class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewset
 
         so.restore()
         return Response(SalesOrderSerializer(so).data)
+
+    @action(detail=True, methods=["post"], url_path="send-carrier-freight-inquiries")
+    def send_freight_inquiries(self, request, pk=None):
+        """Send outbound freight inquiry RFQs to matched carriers for this SO."""
+        sales_order = self.get_object()
+        carrier_ids = request.data.get("carrier_ids", None)
+
+        result = send_carrier_freight_inquiries(
+            tenant=request.tenant,
+            sales_order=sales_order,
+            user=request.user if request.user.is_authenticated else None,
+            carrier_ids=carrier_ids,
+        )
+        if not result.success:
+            return Response(
+                {"error": result.error_message, "code": result.error_code, "details": result.details},
+                status=result.http_status,
+            )
+        return Response({
+            "message": f"Freight inquiries sent to {result.inquiries_sent} carrier(s).",
+            "inquiries_sent": result.inquiries_sent,
+            "inquiries_failed": result.inquiries_failed,
+            "details": result.details,
+        })
 
     def perform_create(self, serializer):
         """Set the tenant and auto-generate our_sales_order_num when creating a new sales order.
