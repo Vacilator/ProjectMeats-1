@@ -25,6 +25,7 @@ import {
   formatIntegerValue,
 } from './numberFormatting';
 import { TradeLineageFlow } from '../Cockpit/TradeLineageFlow';
+import { ProcessFlowHeader } from '../Cockpit/ProcessFlowHeader';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -633,6 +634,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               <SectionHeader>
                 <SectionTitle>Process Flow</SectionTitle>
               </SectionHeader>
+              <ProcessFlowHeader inquiryId={String(inquiry.id)} />
               <TradeLineageFlow inquiryId={String(inquiry.id)} compact />
             </Section>
 
