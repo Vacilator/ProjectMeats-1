@@ -663,6 +663,80 @@ If any test fails, report with:
 
 ---
 
-**Document Version:** 2.0  
-**Last Updated:** 2026-02-19  
+**Document Version:** 3.0  
+**Last Updated:** 2026-05-07  
 **Related PRs:** #2910, #2921, #2928, #3046, #3049, #3053
+
+---
+
+## Phase 17 — RT-01: EndToEndInquiryToPOProcess Template Test Suite
+
+> **33 test cases** covering the multi-trigger EndToEndInquiryToPOProcess Workform template.  
+> **Canonical reference:** `MASTER_PLAN.md` → Phase 17 / Epic RT-01
+
+### Category 1: Template Registration & Schema (5 tests)
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 1 | Template JSON validates against workform schema | No schema errors |
+| 2 | Runtime registration succeeds for new tenant | Template available in tenant template list |
+| 3 | Registration is idempotent (re-register same template) | No duplicate; version preserved |
+| 4 | Template metadata includes all 5 trigger definitions | triggers array length = 5 |
+| 5 | Template includes telemetry event definitions for all major steps | ≥ 8 telemetry events defined |
+
+### Category 2: Multi-Trigger Routing (10 tests)
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 6 | New Inquiry trigger starts at FormProcess entry | Process begins at inquiry intake step |
+| 7 | Direct Customer PO trigger skips inquiry, starts at PO validation | Process begins at PO validation step |
+| 8 | Standalone Bid trigger starts at bid creation step | Process begins at bid entry |
+| 9 | Manual SO trigger starts at sales order generation | Process begins at SO draft |
+| 10 | Trader PO trigger starts at trader PO reception | Process begins at trader PO intake |
+| 11 | "No preceding process" safety check blocks invalid state | Error returned when prerequisite missing |
+| 12 | Trigger with missing required fields returns validation error | 400 with field-level errors |
+| 13 | Two triggers fired simultaneously for same entity are deduplicated | Only first trigger executes |
+| 14 | Trigger from wrong tenant returns 403 | Cross-tenant execution blocked |
+| 15 | Unknown trigger type returns descriptive error | 400 with "unknown trigger" message |
+
+### Category 3: Loop & Condition Logic (8 tests)
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 16 | ForEachSupplier loop iterates over all matched suppliers | Loop count = matched supplier count |
+| 17 | ForEachSupplier with zero suppliers skips loop body | Process continues past loop |
+| 18 | DoUntilDueDate continues until date reached | Loop exits on or after due date |
+| 19 | DoUntilDueDate with past date exits immediately | No loop iterations |
+| 20 | BidSelection applies margin logic correctly | Winning bid has highest margin |
+| 21 | BidSelection with no qualifying bids goes to fallback path | Fallback handler triggered |
+| 22 | Generate Sales Order creates valid SO from selected bid | SO record created with bid lineage |
+| 23 | PO wait logic times out after configured period | Timeout event fires; process flags for review |
+
+### Category 4: Supplier Plant Contact Integration (5 tests)
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 24 | RFQ recipient resolved from Plant Contact Type "Sales" | Email sent to sales contact |
+| 25 | RFQ with multiple "Responsible For" values sends to all | Multiple recipients in email |
+| 26 | Missing Plant Contact falls back to default supplier email | Fallback email used; warning logged |
+| 27 | Conditional fields shown based on Plant Contact Type | Only relevant fields visible |
+| 28 | Multi-select Plant Contact Types filter correctly | Only matching contacts returned |
+
+### Category 5: Telemetry & Observability (3 tests)
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 29 | Each major step emits telemetry event | Events captured for trigger, loop start/end, bid selection, SO generation, PO send |
+| 30 | Telemetry includes tenant_id and execution_id | All events have both fields |
+| 31 | Failed step emits error telemetry with stack context | Error event includes step name and error type |
+
+### Category 6: Tenant Safety (2 tests)
+
+| # | Test Case | Expected Result |
+|---|-----------|-----------------|
+| 32 | Template execution cannot access other tenant's suppliers | RLS blocks cross-tenant query |
+| 33 | Process output records belong to executing tenant only | All created records have correct tenant_id |
+
+---
+
+**Test Reference:** Rowena/TX PO 226052 example should exercise triggers 1 (New Inquiry) and 2 (Direct Customer PO) with ForEachSupplier and BidSelection paths.

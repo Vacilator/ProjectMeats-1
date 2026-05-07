@@ -829,3 +829,11 @@ If any test fails, report with:
 **Manual UAT:** ⏳ Pending
 
 ---
+
+## Phase 17 — RT-01: EndToEndInquiryToPOProcess Template Tests
+
+> **Full test suite (33 test cases)** is maintained in `docs/FORM_PROCESS_TESTING_GUIDE.md` under the "Phase 17 — RT-01" section.  
+> Categories: Template Registration, Multi-Trigger Routing, Loop/Condition Logic, Plant Contact Integration, Telemetry, Tenant Safety.  
+> **Canonical reference:** `MASTER_PLAN.md` → Phase 17 / Epic RT-01
+
+---
