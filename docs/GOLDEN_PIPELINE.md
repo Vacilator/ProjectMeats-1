@@ -2,7 +2,7 @@
 
 **Status**: ✅ Golden Standard Achieved
 
-**Last Updated**: 2026-03-22
+**Last Updated**: 2026-05-07
 
 This document is the **single source of truth** for how ProjectMeats builds, tests, migrates, and deploys across environments.
 
@@ -69,8 +69,10 @@ python config/manage_env.py audit
 ### PR validation
 
 - Lint/test/build gates run on PRs.
+- PR validation must run pre-commit against the PR diff inside the infrastructure drift gate so local hygiene hooks and CI enforce the same repo rules without blocking on unrelated baseline cleanup.
 - Migration checks must fail if there are unapplied migrations.
 - Dependency review plus workflow/Dockerfile security linting must run in PR validation.
+- PR validation must publish a markdown evidence report summarizing the current run's required checks and upload it as an artifact; same-repo PRs may also receive that report as an in-place PR comment.
 - Workflow, Docker, deploy, and automation-governance changes require human Code Owner review and are never Dependabot auto-merged.
 
 ### Deploy pipeline (high level)
@@ -140,6 +142,9 @@ Do **not** validate via reverse proxy ports as the primary health signal.
 # Verify repo golden state
 bash scripts/verify_golden_state.sh
 
+# Run the same targeted hygiene pass CI enforces on PR diffs
+pre-commit run --from-ref origin/development --to-ref HEAD
+
 # Run a management command on dev/uat/prod (via GitHub Actions)
 gh workflow run "🎮 Ops - Run Management Command" \
   --repo Meats-Central/ProjectMeats \
@@ -163,7 +168,7 @@ gh workflow run "↩ Roll Back Production Release (By Digest)" \
 - **Development / tag-retained hosts:** prefer `.github/scripts/deployment-rollback.sh development <frontend|backend|all>` and let the script fall back to the previous locally retained environment tag.
 - **UAT / Production:** treat the previous successful `reusable-deploy.yml` backend/frontend digest refs as the rollback source of truth. Export `BACKEND_IMAGE_REF` / `FRONTEND_IMAGE_REF` using those immutable refs, then run `.github/scripts/deployment-rollback.sh uat|production <frontend|backend|all>`.
 - **Database safety:** migration backups live under `/root/projectmeats/db_backups/<environment>/`, and non-dev deploys verify those archives with `pg_restore --list` before migrations continue. Restore the matching backup if schema drift, not just app code, caused the incident.
-- **Release path:** there is currently no dedicated release-tag workflow. Production release governance is: merge to `main` -> successful deploy -> optional manual GitHub Release from the deployed commit SHA using `gh release create <tag> --target <sha> --generate-notes`.
+- **Release path:** `.github/workflows/release.yml` is the canonical post-production release workflow. Production governance remains: merge to `main` -> successful Golden deploy -> release publication from the deployed SHA only.
 - See `docs/runbooks/INCIDENT_RESPONSE.md` for incident triage and `docs/runbooks/DISASTER_RECOVERY.md` for restore drills / PITR verification.
 
 ### Non-dev observability ownership

@@ -9,11 +9,16 @@ This file is the canonical entry point required by GitHub. It summarises the mos
 ## ⚡ Quick Start
 
 1. Read the **[full contributing guide](docs/getting-started/CONTRIBUTING.md)** before opening a PR.
-2. Run the infrastructure drift gate before every commit:
+2. Install the local hygiene hooks from an environment that already has the backend dependencies available:
+   ```bash
+   python3 -m pip install pre-commit
+   pre-commit install
+   ```
+3. Run the infrastructure drift gate before every commit:
    ```bash
    bash .github/scripts/check_infrastructure.sh
    ```
-3. Follow the **[branch naming convention](#branch-naming)** and **[branch hygiene policy](#branch-hygiene)**.
+4. Follow the **[branch naming convention](#branch-naming)** and **[branch hygiene policy](#branch-hygiene)**.
 
 ---
 
@@ -26,6 +31,14 @@ bash .github/scripts/check_infrastructure.sh
 ```
 
 (Internally, this runs `scripts/verify_golden_state.sh` plus workflow validation.)
+
+Before opening a PR, run the same targeted hygiene pass that CI uses for branch diffs:
+
+```bash
+pre-commit run --from-ref origin/development --to-ref HEAD
+```
+
+If you touch workflows, Golden Pipeline docs, branch-protection docs, or the golden-file registry, pre-commit now replays the Golden guardrails automatically via `scripts/verify_golden_state.sh`.
 
 The script verifies:
 
@@ -43,6 +56,8 @@ The script verifies:
 | `run-name:` in `main-pipeline.yml` | Pipeline has a descriptive run name |
 
 **Every workflow run also executes this check as its first job.** A failing golden-state check blocks the entire pipeline.
+
+PR validation now also publishes a markdown evidence report summarizing the required PR checks and uploads it as a workflow artifact. Same-repo PRs receive the same report as a sticky PR comment.
 
 See [`docs/GOLDEN_PIPELINE.md`](docs/GOLDEN_PIPELINE.md) and [`docs/PIPELINE_FINAL_VERIFICATION.md`](docs/PIPELINE_FINAL_VERIFICATION.md) for the full reference.
 
@@ -114,6 +129,7 @@ git fetch --all --prune
 Before opening a pull request, verify **all** items below:
 
 - [ ] `bash scripts/verify_golden_state.sh` passes locally
+- [ ] `pre-commit run --from-ref origin/development --to-ref HEAD` passes locally
 - [ ] Branch follows naming convention (`<type>/<description>`)
 - [ ] All new models inherit from `TenantAwareModel`
 - [ ] ViewSets filter by `tenant=request.tenant`

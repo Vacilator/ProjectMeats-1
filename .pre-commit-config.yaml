@@ -8,12 +8,14 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+      - id: check-case-conflict
       - id: check-yaml
       - id: check-added-large-files
         args: ['--maxkb=10240']  # 10MB limit
       - id: check-merge-conflict
       - id: check-json
       - id: check-toml
+      - id: detect-private-key
       - id: mixed-line-ending
       - id: check-ast  # Validate Python syntax
 
@@ -40,7 +42,7 @@ repos:
       - id: flake8
         files: ^backend/.*\.py$
         args: ['--max-line-length=100', '--extend-ignore=E203,W503']
-  
+
   # Python syntax validation for migrations
   - repo: local
     hooks:
@@ -50,20 +52,27 @@ repos:
         language: system
         files: ^backend/apps/.*/migrations/.*\.py$
         exclude: ^backend/apps/.*/migrations/__pycache__/
-      
+
       - id: validate-django-migrations
         name: Validate Django Migrations
         entry: bash -c 'cd backend && python manage.py makemigrations --check --dry-run'
         language: system
         pass_filenames: false
         always_run: true
-      
+
       - id: lint-docker-ports
         name: Lint Docker Port Bindings
         description: Prevent privileged port bindings (< 1024) in Docker deployments
         entry: ./scripts/lint-docker-ports.sh
         language: script
         files: ^(\.github/workflows/.*\.(yml|yaml)|docker-compose.*\.(yml|yaml))$
+        pass_filenames: false
+
+      - id: validate-golden-file-guardrails
+        name: Validate Golden File Guardrails
+        entry: bash scripts/verify_golden_state.sh
+        language: system
+        files: ^(\.github/workflows/.*\.(yml|yaml)|\.github/scripts/.*\.sh|scripts/verify_golden_state\.sh|docs/GOLDEN_PIPELINE\.md|docs/reference/GOLDEN_PIPELINE\.md|docs/guides/BRANCH_PROTECTION_SETUP\.md|\.github/workflows/README\.md|CONTRIBUTING\.md|manifests/GOLDEN_FILES\.md|\.pre-commit-config\.yaml)$
         pass_filenames: false
 
       - id: enforce-master-plan-canonical

@@ -1,0 +1,196 @@
+name: PR Evidence Rubric
+
+on:
+  workflow_call:
+    inputs:
+      needs-json:
+        description: JSON-serialized needs object from the caller workflow
+        required: true
+        type: string
+      pr-number:
+        description: Pull request number
+        required: true
+        type: number
+      head-sha:
+        description: Head commit SHA for the PR
+        required: true
+        type: string
+      run-url:
+        description: URL for the workflow run that produced the evidence
+        required: true
+        type: string
+      workflow-name:
+        description: Human-readable workflow name
+        required: true
+        type: string
+      allow-pr-comment:
+        description: Whether the workflow can write a PR comment
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  publish-evidence:
+    name: Publish PR Evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Generate PR evidence rubric
+        env:
+          NEEDS_JSON: ${{ inputs.needs-json }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+          HEAD_SHA: ${{ inputs.head-sha }}
+          RUN_URL: ${{ inputs.run-url }}
+          WORKFLOW_NAME: ${{ inputs.workflow-name }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          order = [
+              ("infrastructure-check", "Infrastructure Drift Gate + pre-commit"),
+              ("dependency-review", "Dependency Review"),
+              ("automation-security", "Automation Security"),
+              ("openapi-artifact", "OpenAPI Artifact"),
+              ("validate-migrations", "Validate Migrations"),
+              ("backend-smoke", "Backend Smoke Tests"),
+              ("backend-tests", "Backend Tests"),
+              ("frontend-typecheck", "Frontend Type Check"),
+              ("frontend-tests", "Frontend Unit Tests"),
+              ("frontend-prod-smoke", "Frontend Prod Smoke"),
+              ("mobile-checks", "Mobile Lint/Test/Type Check"),
+              ("validate-copilot-squad", "Validate Copilot Squad"),
+          ]
+          status_icons = {
+              "success": "✅",
+              "failure": "❌",
+              "cancelled": "⚪",
+              "skipped": "➖",
+          }
+
+          def result_for(job_id: str) -> str:
+              return needs.get(job_id, {}).get("result", "missing")
+
+          overall = "success"
+          for job_id, _label in order:
+              result = result_for(job_id)
+              if result not in {"success", "skipped"}:
+                  overall = result
+                  break
+
+          overall_icon = status_icons.get(overall, "❓")
+          generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+          lines = [
+              "<!-- pr-evidence-rubric -->",
+              "# PR Evidence Report",
+              "",
+              f"- **Workflow:** {os.environ['WORKFLOW_NAME']}",
+              f"- **PR:** #{os.environ['PR_NUMBER']}",
+              f"- **Commit:** `{os.environ['HEAD_SHA']}`",
+              f"- **Run:** [View workflow run]({os.environ['RUN_URL']})",
+              f"- **Generated:** {generated_at}",
+              f"- **Overall rubric:** {overall_icon} `{overall}`",
+              "",
+              "| Gate | Result |",
+              "| --- | --- |",
+          ]
+
+          for job_id, label in order:
+              result = result_for(job_id)
+              icon = status_icons.get(result, "❓")
+              lines.append(f"| {label} | {icon} `{result}` |")
+
+          lines.extend(
+              [
+                  "",
+                  "## Evidence notes",
+                  "",
+                  "- `Infrastructure Drift Gate + pre-commit` includes the changed-file repo hygiene run and Golden drift checks.",
+                  "- This report reflects the actual job results from the current PR Validation run; it does not replace required checks.",
+                  "- `AI PR Gatekeeper` remains a separate required workflow outside this rubric.",
+                  "",
+              ]
+          )
+
+          with open("pr-evidence-report.md", "w", encoding="utf-8") as handle:
+              handle.write("\n".join(lines))
+          PY
+
+      - name: Publish step summary
+        run: cat pr-evidence-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload PR evidence artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: pr-evidence-report-${{ inputs.pr-number }}
+          path: pr-evidence-report.md
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upsert PR evidence comment
+        if: ${{ inputs.allow-pr-comment }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.request
+
+          marker = "<!-- pr-evidence-rubric -->"
+          token = os.environ.get("GITHUB_TOKEN")
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          pr_number = os.environ["PR_NUMBER"]
+
+          try:
+              with open("pr-evidence-report.md", "r", encoding="utf-8") as handle:
+                  body = handle.read()
+
+              def request(method: str, url: str, payload=None):
+                  data = None if payload is None else json.dumps(payload).encode("utf-8")
+                  req = urllib.request.Request(
+                      url,
+                      data=data,
+                      method=method,
+                      headers={
+                          "Authorization": f"Bearer {token}",
+                          "Accept": "application/vnd.github+json",
+                          "Content-Type": "application/json",
+                      },
+                  )
+                  with urllib.request.urlopen(req) as response:
+                      return json.loads(response.read().decode("utf-8"))
+
+              comments_url = f"{api_url}/repos/{repository}/issues/{pr_number}/comments?per_page=100"
+              comments = request("GET", comments_url)
+              existing = next((comment for comment in comments if marker in comment.get("body", "")), None)
+
+              if existing:
+                  request(
+                      "PATCH",
+                      f"{api_url}/repos/{repository}/issues/comments/{existing['id']}",
+                      {"body": body},
+                  )
+                  print("Updated existing PR evidence comment.")
+              else:
+                  request(
+                      "POST",
+                      f"{api_url}/repos/{repository}/issues/{pr_number}/comments",
+                      {"body": body},
+                  )
+                  print("Created PR evidence comment.")
+          except Exception as exc:  # Best-effort comment publishing only.
+              print(f"Warning: unable to publish PR evidence comment: {exc}", file=sys.stderr)
+          PY
