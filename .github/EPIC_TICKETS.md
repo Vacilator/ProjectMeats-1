@@ -1674,3 +1674,244 @@
   - **Risk level:** Medium
   - **Rollback:** Remove the ambient page actions and keep the backend draft service disabled for later reuse.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+---
+
+## Phase 17: Process Runtime Intelligence & Unified Operations
+
+> **Execution gate:** All Phase 17 tickets are blocked behind Phase 16 CTE contracts shipping on `development`.  
+> **Canonical reference:** `MASTER_PLAN.md` → Phase 17
+
+- [ ] **RT-01.1 end-to-end-inquiry-to-po-process-workform-template**
+  - **Status:** Blocked
+  - **Why now:** The complete multi-trigger EndToEndInquiryToPOProcess template is the runtime foundation that all other Phase 17 epics depend on.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-01
+  - **Scope:** Create and register the production-ready JSON template with all 5 triggers (New Inquiry, Direct Customer PO, Standalone Bid, Manual SO, Trader PO), "no preceding process" safety check, FormProcess group, ForEachSupplier loop, DoUntilDueDate, BidSelection (margin logic), Generate/Send Sales Order, PO wait logic, Supplier Plant Department Contacts integration (Plant Contact Type dropdown + conditional fields + multi-selects), and telemetry events for every major step.
+  - **Non-goals:** Editor rendering of the template (that is RT-05).
+  - **Primary domain:** backend/workforms
+  - **Likely touched paths:** `backend/tenant_apps/workflows/templates/`, `backend/tenant_apps/workflows/services/`, `backend/tenant_apps/workflows/tests/`, `docs/FORM_PROCESS_TESTING_GUIDE.md`
+  - **Dependencies:** Phase 16 CTE contracts (CTE-01 through CTE-04)
+  - **Blockers:** Phase 16 CTE contracts
+  - **Acceptance criteria:** Template JSON validates against schema; runtime registration succeeds; all 5 trigger paths execute in isolated tenant test; telemetry events fire for each major step; 33 test cases pass per FORM_PROCESS_TESTING_GUIDE.md.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows --noinput`; `bash scripts/verify_golden_state.sh`
+  - **Tenant/RLS impact:** High (template executes tenant-scoped data)
+  - **Secrets/infra impact:** None
+  - **Risk level:** High (complex template with multiple execution paths)
+  - **Rollback:** Remove template registration; existing templates unaffected (additive-only).
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-02.1 ai-inbox-15-minute-auto-sync-and-login-refresh**
+  - **Status:** Blocked
+  - **Why now:** Reliable auto-sync is the foundation for AI Inbox production readiness.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
+  - **Scope:** Implement Celery beat task for 15-minute email sync cycle plus frontend polling with instant login refresh trigger.
+  - **Non-goals:** Parsing engine overhaul (that is RT-02.2).
+  - **Primary domain:** backend/celery + frontend/polling
+  - **Likely touched paths:** `backend/apps/integrations/tasks.py`, `backend/projectmeats/celery.py`, `frontend/src/services/aiInboxService.ts`, `frontend/src/hooks/useAIInbox.ts`
+  - **Dependencies:** Existing email ingestion seam (shipped)
+  - **Blockers:** Phase 16 CTE contracts (sequencing gate)
+  - **Acceptance criteria:** Celery beat fires every 15 minutes; frontend detects new items within 30s of login; no duplicate syncs within window.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Medium (sync is tenant-scoped)
+  - **Secrets/infra impact:** Low (uses existing Microsoft Graph credentials)
+  - **Risk level:** Low
+  - **Rollback:** Disable Celery beat task; manual sync remains functional.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-02.2 ai-inbox-parsing-engine-overhaul**
+  - **Status:** Blocked
+  - **Why now:** Reliable extraction of PO numbers and form fields enables auto-creation of missing dependencies.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
+  - **Scope:** Overhaul parsing engine to extract PO numbers, all universal form fields, and auto-create missing dependencies (Supplier → Customer → Contact → Plant) in correct creation order with idempotent retry.
+  - **Non-goals:** Feedback training loop (that is RT-02.3).
+  - **Primary domain:** backend/ai_assistant
+  - **Likely touched paths:** `backend/tenant_apps/ai_assistant/services/email_parser.py`, `backend/tenant_apps/ai_assistant/services/dependency_resolver.py`, `backend/tenant_apps/{suppliers,customers,contacts}/`
+  - **Dependencies:** RT-02.1
+  - **Blockers:** RT-02.1
+  - **Acceptance criteria:** Parser extracts PO numbers from Rowena/TX PO 226052 test case; missing dependencies auto-created in correct order; idempotent on retry; no orphan records on failure.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant --noinput`
+  - **Tenant/RLS impact:** High (creates tenant-scoped records)
+  - **Secrets/infra impact:** Low
+  - **Risk level:** Medium (dependency creation order matters)
+  - **Rollback:** Disable auto-creation; manual entry remains available.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-02.3 ai-inbox-feedback-loop-training**
+  - **Status:** Blocked
+  - **Why now:** Thumbs up/down + mandatory comment enables continuous model improvement.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
+  - **Scope:** Add thumbs up/down + mandatory comment feedback UI on every parsed inbox item; persist feedback in tenant-scoped table; wire to model retraining pipeline signal.
+  - **Non-goals:** Actual model retraining automation (future).
+  - **Primary domain:** frontend + backend/ai_assistant
+  - **Likely touched paths:** `frontend/src/components/AIInbox/`, `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`
+  - **Dependencies:** RT-02.2
+  - **Blockers:** RT-02.2
+  - **Acceptance criteria:** Every parsed item shows feedback buttons; comment required on thumbs-down; feedback persists and is queryable for training.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.ai_assistant --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Medium
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Hide feedback UI; data persists for future use.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-02.4 ai-inbox-process-cockpit-routing**
+  - **Status:** Blocked
+  - **Why now:** "Action required" items must route into Process Cockpit with editable draft forms.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-02
+  - **Scope:** Route every "action required" inbox item directly into Process Cockpit with editable draft form pre-populated with full parsed payload.
+  - **Non-goals:** Process Cockpit infrastructure (that is RT-03).
+  - **Primary domain:** frontend + backend
+  - **Likely touched paths:** `frontend/src/pages/ProcessCockpit/`, `frontend/src/components/AIInbox/`, `backend/tenant_apps/ai_assistant/views.py`
+  - **Dependencies:** RT-02.2, RT-03.1
+  - **Blockers:** RT-02.2, RT-03.1
+  - **Acceptance criteria:** "Action required" items have "Open in Cockpit" action; clicking opens editable draft form with parsed payload; form saves create proper entity records.
+  - **Validation commands:** `npm -C frontend run test:ci`; `cd backend && python manage.py test tenant_apps.ai_assistant --noinput`
+  - **Tenant/RLS impact:** Medium
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Remove routing button; items remain in inbox.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-03.1 process-cockpit-consolidation**
+  - **Status:** Blocked
+  - **Why now:** Single entry point for all process monitoring eliminates fragmented UX.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
+  - **Scope:** Consolidate Workforms Monitoring, In Progress, History, Operational Tasks, and AI Inbox into a single `/process-cockpit` route with tabbed/filtered views.
+  - **Non-goals:** React Flow diagrams (that is RT-03.2).
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/pages/ProcessCockpit/`, `frontend/src/routes/`, `frontend/src/components/Navigation/`
+  - **Dependencies:** Phase 16 CTE contracts (sequencing gate)
+  - **Blockers:** Phase 16 CTE contracts
+  - **Acceptance criteria:** `/process-cockpit` loads with all five consolidated views; existing deep links redirect; no data loss from consolidation.
+  - **Validation commands:** `npm -C frontend run test:ci`; `npm -C frontend run verify-standards`
+  - **Tenant/RLS impact:** Low (presentation layer only; backend APIs unchanged)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Revert route; original pages remain functional.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-03.2 per-entity-react-flow-process-diagram**
+  - **Status:** Blocked
+  - **Why now:** Visual process flow per entity is the key differentiator for the cockpit.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
+  - **Scope:** Add "View Process Flow" button on every entity record (Inquiry, SO, PO, Bid) that opens a scoped React Flow diagram showing the entity's execution path with current step highlighted.
+  - **Non-goals:** Editable flow (that is RT-05).
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/components/ProcessFlow/`, `frontend/src/components/FlowEditor/`, `frontend/src/pages/ProcessCockpit/`
+  - **Dependencies:** RT-03.1
+  - **Blockers:** RT-03.1
+  - **Acceptance criteria:** Each entity type renders a correct process flow diagram; current step is visually highlighted; diagram loads in < 2s.
+  - **Validation commands:** `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Low (reads existing execution data)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium (React Flow performance with complex graphs)
+  - **Rollback:** Hide "View Process Flow" button; cockpit remains functional.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-03.3 cockpit-dynamic-header-and-failure-messaging**
+  - **Status:** Blocked
+  - **Why now:** Clickable nodes with contact details and clear failure messaging eliminate "forever-running" confusion.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-03
+  - **Scope:** Implement dynamic header on flow diagrams with clickable nodes showing contact details (Plant Contact Type, Title, Responsibilities), status, docs, and plain-English inputs/outputs. Improve failure messaging to eliminate ambiguous "forever-running" states.
+  - **Non-goals:** Full editor capabilities (that is RT-05).
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/components/ProcessFlow/`, `frontend/src/components/FlowEditor/nodes/`
+  - **Dependencies:** RT-03.2
+  - **Blockers:** RT-03.2
+  - **Acceptance criteria:** Clicking a node shows enriched contact details; failed steps show clear error messages with recovery hints; no process shows "running" for > 24h without explanation.
+  - **Validation commands:** `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Low
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Revert node click handlers; basic flow remains visible.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-04.1 node-plant-contact-enrichment**
+  - **Status:** Blocked
+  - **Why now:** Workform nodes must intelligently use Plant Contact Type, Title, and "Responsible For" for RFQ/PO recipient selection.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-04
+  - **Scope:** Update SendEmail/RFQ node, Purchase Order Form Nodes, and BidSelection to resolve recipients using Plant Contact Type, Title, and "Responsible For" multi-selects from the enriched contact model.
+  - **Non-goals:** UI visualization of contacts (that is RT-04.2).
+  - **Primary domain:** backend/workforms
+  - **Likely touched paths:** `backend/tenant_apps/workflows/services/`, `backend/tenant_apps/workflows/nodes/`, `backend/tenant_apps/suppliers/`
+  - **Dependencies:** Plant Contact model enhancements (shipped in Phase 14.5)
+  - **Blockers:** Phase 16 CTE contracts (sequencing gate)
+  - **Acceptance criteria:** SendEmail node resolves correct recipient from Plant Contact Type; PO node includes contact title in generated documents; BidSelection respects "Responsible For" assignment.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows --noinput`
+  - **Tenant/RLS impact:** Medium (queries tenant-scoped contacts)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert to manual recipient selection; existing node behavior unchanged.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-04.2 cockpit-contact-visualization**
+  - **Status:** Blocked
+  - **Why now:** Operators need to see which contact is responsible at each process step.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-04
+  - **Scope:** Surface enriched Plant Contact data (Type, Title, Responsibilities, email, phone) in all Workform nodes and Process Cockpit flow visualizations.
+  - **Non-goals:** Contact editing in cockpit (read-only display).
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/components/ProcessFlow/`, `frontend/src/components/FlowEditor/nodes/`, `frontend/src/pages/ProcessCockpit/`
+  - **Dependencies:** RT-04.1, RT-03.2
+  - **Blockers:** RT-04.1, RT-03.2
+  - **Acceptance criteria:** Process flow nodes display assigned contact name/type; clicking shows full contact details; missing contacts show clear "unassigned" indicator.
+  - **Validation commands:** `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Low
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Hide contact display; nodes remain functional.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-04.3 quick-master-data-creation-in-context**
+  - **Status:** Blocked
+  - **Why now:** Operators must be able to create missing dependencies without leaving the process context.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-04
+  - **Scope:** Add quick master-data creation flows (Supplier, Customer, Contact, Plant) inside AI Inbox review panels and form nodes when missing dependencies are detected during parsing or execution.
+  - **Non-goals:** Full master-data management UI (existing pages handle that).
+  - **Primary domain:** frontend + backend
+  - **Likely touched paths:** `frontend/src/components/AIInbox/`, `frontend/src/components/QuickCreate/`, `backend/tenant_apps/{suppliers,customers,contacts}/views.py`
+  - **Dependencies:** RT-02.2, RT-04.1
+  - **Blockers:** RT-02.2, RT-04.1
+  - **Acceptance criteria:** Missing dependency triggers inline creation form; created entity immediately available in the process context; no page navigation required.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.suppliers tenant_apps.customers --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** High (creates tenant-scoped records)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Remove inline creation; operators use existing master-data pages.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-05.1 editor-visual-support-for-complex-nodes**
+  - **Status:** Blocked
+  - **Why now:** The editor must render FormProcess groups, ForEach/DoUntil nodes, conditional fields, and multi-selects for the EndToEndInquiryToPOProcess template.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-05
+  - **Scope:** Add visual rendering support in the Workform Editor for FormProcess group containers, ForEach/DoUntil loop nodes, conditional field visibility, and multi-select configuration panels.
+  - **Non-goals:** Full template editing (just rendering/display for now).
+  - **Primary domain:** frontend/editor
+  - **Likely touched paths:** `frontend/src/components/FlowEditor/nodes/`, `frontend/src/components/FlowEditor/panels/`, `frontend/src/components/FlowEditor/`
+  - **Dependencies:** RT-01.1 (template must exist to render), RT-03.2 (React Flow enhancements)
+  - **Blockers:** RT-01.1, RT-03.2, plus RT-01–RT-04 must be verified on dev
+  - **Acceptance criteria:** EndToEndInquiryToPOProcess template loads in editor without errors; groups/loops/conditions render with correct visual hierarchy; auto-layout produces readable graph.
+  - **Validation commands:** `npm -C frontend run test:ci`; `npm -C frontend run verify-standards`
+  - **Tenant/RLS impact:** None (editor is presentation-only)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium (complex visual rendering)
+  - **Rollback:** Revert new node renderers; existing simple nodes remain unchanged.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **RT-05.2 create-variant-workflow**
+  - **Status:** Blocked
+  - **Why now:** Operators need to create process variants without rebuilding from scratch.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-05
+  - **Scope:** Add "Create Variant" action in the editor that clones an existing process template into a new editable version with variant metadata, preserving lineage to the source template.
+  - **Non-goals:** Version diffing or merge capabilities.
+  - **Primary domain:** frontend + backend/workforms
+  - **Likely touched paths:** `frontend/src/components/FlowEditor/`, `backend/tenant_apps/workflows/views.py`, `backend/tenant_apps/workflows/services/`
+  - **Dependencies:** RT-05.1
+  - **Blockers:** RT-05.1
+  - **Acceptance criteria:** "Create Variant" produces a valid clone with new ID and variant metadata; source lineage is preserved; original template is unchanged.
+  - **Validation commands:** `cd backend && python manage.py test tenant_apps.workflows --noinput`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Medium (creates tenant-scoped template)
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Remove variant action; existing templates and clone behavior unchanged.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`

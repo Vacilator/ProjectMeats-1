@@ -1163,3 +1163,47 @@ const ConditionBuilder = () => (
 ---
 
 **End of Document** - Last Updated: 2026-02-09 05:18 UTC
+
+---
+
+## Phase 17 Editor Stabilization (RT-05)
+
+> **Execution gate:** RT-05 only begins after RT-01 through RT-04 are verified on `development`.  
+> **Canonical reference:** `MASTER_PLAN.md` → Phase 17 / Epic RT-05
+
+### RT-05.1: Visual Support for Complex Node Types
+
+**Goal:** The Workform Editor must render FormProcess groups, ForEach/DoUntil loop nodes, conditional field visibility, and multi-select configuration panels so the EndToEndInquiryToPOProcess template loads and edits cleanly.
+
+**Deliverables:**
+1. `FormProcessGroupNode` — container node that visually groups child steps with collapse/expand
+2. `ForEachLoopNode` / `DoUntilLoopNode` — loop nodes with iteration-count badges and internal sub-graphs
+3. Conditional field rendering — fields show/hide based on trigger type or previous node outputs
+4. Multi-select configuration panel — select multiple Plant Contact Types, Responsibilities, etc.
+5. Auto-layout algorithm update — handle nested groups and loops without overlap
+
+**Acceptance criteria:**
+- EndToEndInquiryToPOProcess template loads in editor without errors
+- Groups and loops render with correct visual hierarchy
+- Auto-layout produces readable graph for 20+ node templates
+- Existing simple node types remain unchanged
+
+### RT-05.2: Create Variant Workflow
+
+**Goal:** Operators can create process variants from existing templates without rebuilding from scratch.
+
+**Deliverables:**
+1. "Create Variant" button in editor toolbar (visible for saved templates)
+2. Clone service that preserves lineage (source_template_id, variant_metadata)
+3. Variant badge/indicator in template list and editor header
+4. Validation that variant name is unique within tenant
+
+**Acceptance criteria:**
+- "Create Variant" produces a valid clone with new ID
+- Source lineage preserved in template metadata
+- Original template unchanged after variant creation
+- Variant appears in template list with visual indicator
+
+---
+
+**Phase 17 Editor Stabilization — Last Updated: 2026-05-07**

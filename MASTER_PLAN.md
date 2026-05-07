@@ -488,6 +488,82 @@ Hardcode the exact happy-path B2B trading pipeline around Inquiry intake, routin
 
 **Planning conclusion only:** the target Phase 16 Core Trading Engine architecture is now frozen for planning and backlog decomposition. This seals the intended happy-path seams from inquiry intake through supplier/customer/carrier document generation. It does **not** mean Phase 16 is implemented, shipped, or execution-complete. Current execution priority remains Phase 14 and its named prerequisites.
 
+## Phase 17: Process Runtime Intelligence & Unified Operations
+
+### Goal
+Deliver the production-grade process execution layer: a multi-trigger EndToEndInquiryToPOProcess Workform template, a reliable AI Inbox with auto-sync and dependency creation, a consolidated Process Cockpit with rich React Flow visualizations, deeper master-data integration (Plant Contact enrichment), and post-runtime editor stabilization.
+
+### Architecture status
+- **Execution status:** planned only, not started. Blocked by Phase 16 CTE contracts shipping on `development`.
+- **Backlog placement:** appended to `.github/EPIC_TICKETS.md` after Phase 16 CTE tickets.
+- **Execution order once unblocked:** RT-01 (template) → RT-02 (inbox) → RT-03 (cockpit) → RT-04 (master data) → RT-05 (editor, gated on RT-01–04 verification on dev).
+
+### Epics
+
+#### RT-01: Finalize Multi-Trigger EndToEndInquiryToPOProcess Workform
+- All 5 triggers: New Inquiry, Direct Customer PO, Standalone Bid, Manual SO, Trader PO
+- "No preceding process" safety check on each trigger
+- Full FormProcess group + ForEachSupplier loop + DoUntilDueDate + BidSelection (margin logic)
+- Generate/Send Sales Order + PO wait logic
+- Supplier Plant Department Contacts integration (Plant Contact Type dropdown + conditional fields + multi-selects)
+- Telemetry events for every major step
+- **Deliverable:** JSON template + runtime registration + test cases
+
+#### RT-02: Elevate AI Inbox to Production Grade
+- RT-02.1: 15-minute auto-sync + instant login refresh (Celery beat + frontend polling)
+- RT-02.2: Overhaul parsing engine — extract PO numbers, all universal form fields, auto-create missing dependencies (Supplier → Customer → Contact → Plant) in correct order
+- RT-02.3: Thumbs up/down + mandatory comment feedback loop that trains the model
+- RT-02.4: Route "action required" items directly into Process Cockpit with editable draft form + full parsed payload
+
+#### RT-03: Deliver Consolidated Process Cockpit + Rich React Flow
+- RT-03.1: Consolidate Workforms Monitoring, In Progress, History, Operational Tasks, AI Inbox into `/process-cockpit`
+- RT-03.2: Per-entity "View Process Flow" opening scoped React Flow diagram
+- RT-03.3: Dynamic header + clickable nodes (contact details, status, docs, plain-English I/O) + failure messaging improvements
+
+#### RT-04: Strengthen Master Data Integration
+- RT-04.1: Update SendEmail / RFQ node, PO Form Nodes, BidSelection to use Plant Contact Type, Title, and "Responsible For" multi-selects
+- RT-04.2: Surface enriched contact data in all Workform nodes and Process Cockpit visualizations
+- RT-04.3: Quick master-data creation flows inside AI Inbox review and form nodes for missing dependencies
+
+#### RT-05: Stabilize Workform Editor (Post-Runtime)
+- RT-05.1: Visual support for FormProcess groups, ForEach/DoUntil nodes, conditional fields, multi-selects
+- RT-05.2: Auto-layout and validation for EndToEndInquiryToPOProcess + basic "Create Variant" workflow
+- **Execution gate:** only begins after RT-01–04 verified on `development`
+
+### Acceptance Criteria
+1. EndToEndInquiryToPOProcess template loads, validates, and executes all 5 trigger paths in isolated tenant test
+2. AI Inbox auto-syncs within 15 minutes of new mail; parsed payload creates missing dependencies idempotently
+3. Process Cockpit renders all active/completed processes with per-entity React Flow diagrams (< 2s load)
+4. Every process node surfaces enriched Plant Contact data when available
+5. Editor loads the EndToEndInquiryToPOProcess template cleanly with correct group/loop/condition visualization
+
+### Dependencies
+- Phase 16 CTE contracts must ship first (RT-01 uses CTE seams for PO/SO generation)
+- RT-02 depends on existing AI email ingestion seam (shipped)
+- RT-03 depends on existing React Flow infrastructure (shipped)
+- RT-04 depends on Plant Contact model enhancements (shipped in Phase 14.5)
+- RT-05 is double-gated: requires RT-01–04 verified
+
+### Risk Register
+| Risk | L×I | Mitigation |
+|------|-----|------------|
+| Template schema too complex for editor | M×M | Additive-only; editor stabilization is separate epic |
+| AI Inbox parser accuracy < 80% | M×H | Feedback loop (RT-02.3) enables continuous improvement |
+| Cockpit performance with large process graphs | L×M | Virtualization + pagination built into React Flow layer |
+| Missing dependency creation causes data corruption | M×H | Ordered creation (Supplier→Customer→Contact→Plant) + transaction rollback |
+
+### Testing Strategy
+- Unit: Template registration, trigger routing, loop/condition logic, contact resolution
+- Integration: Full process execution per trigger path; inbox sync + parse + create flow
+- E2E: Cockpit navigation + React Flow rendering + node click interactions
+- Tenant safety: Every test verifies cross-tenant isolation via RLS assertions
+
+### Rollback Approach
+- All changes additive-only (no existing template/endpoint removal)
+- Feature flags on cockpit route and inbox auto-sync
+- Template versioning allows side-by-side old/new
+- Editor changes isolated to new node type renderers (existing nodes unchanged)
+
 ## Phase 19: Ambient AI & Contextual Next-Best-Actions
 
 ### Goal
