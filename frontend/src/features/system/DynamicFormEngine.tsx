@@ -115,6 +115,13 @@ interface DynamicFormEngineProps {
 
   /** Preloaded form config to keep the renderer prop-driven. */
   formConfig?: Partial<DynamicFormConfig>;
+
+  /**
+   * Callback when user selects "+ Add New" on a FK field.
+   * Receives the field key and related entity type.
+   * Parent should open an inline creation modal and call back with the new ID.
+   */
+  onCreateEntity?: (fieldKey: string, entityType: string) => void;
 }
 
 export interface DynamicFormConfig {
@@ -538,6 +545,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   submitLabel,
   dropdownOptions = {},
   formConfig: preloadedFormConfig,
+  onCreateEntity,
 }) => {
   const stableInitialValues = useDeepStableValue(initialValues || EMPTY_INITIAL_VALUES);
   // Stabilize schema.fields identity when parents rebuild arrays on each render.
@@ -682,11 +690,25 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   // Get options for a select field (static or dynamic)
   const getFieldOptions = (field: FieldDefinition): PreloadedOption[] => {
+    let options: PreloadedOption[];
     // Use provided options first
     if (field.options?.length) {
-      return field.options.map((opt) => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
+      options = field.options.map((opt) => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
+    } else {
+      options = dropdownOptions[field.key] || EMPTY_OPTIONS;
     }
-    return dropdownOptions[field.key] || EMPTY_OPTIONS;
+
+    // Prepend "+ Add New" option for FK fields with allow_create
+    if ((field.ui as Record<string, unknown> | undefined)?.allow_create && field.related_entity) {
+      const entityLabel = String(field.label || field.key).replace(/\s*\*$/, '');
+      const addNewOption: PreloadedOption = {
+        value: '__CREATE_NEW__',
+        label: `+ Add New ${entityLabel}`,
+      };
+      return [addNewOption, ...options];
+    }
+
+    return options;
   };
 
   const getMetadataItems = (
@@ -1267,7 +1289,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                 <Select
                   id={field.key}
                   value={controllerField.value || ''}
-                  onChange={controllerField.onChange}
+                  onChange={(val) => {
+                    if (val === '__CREATE_NEW__' && onCreateEntity && field.related_entity) {
+                      onCreateEntity(field.key, field.related_entity);
+                      return;
+                    }
+                    controllerField.onChange(val);
+                  }}
                   options={resolvedOptions}
                   placeholder={field.placeholder || 'Select an option'}
                   error={error?.message as string}
@@ -1383,6 +1411,34 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
   };
 
+  /** Renders fields with section dividers inserted between groups. */
+  const renderFieldsWithSections = (fields: FieldDefinition[]) => {
+    const renderedSections = new Set<string>();
+    const output: React.ReactNode[] = [];
+
+    for (const field of fields) {
+      if (!isFieldVisible(field)) continue;
+
+      const section = field.ui?.section;
+      const sectionTitle = typeof section === 'string' ? section : section?.title;
+      const sectionDescription = typeof section === 'object' ? section?.description : undefined;
+
+      if (sectionTitle && !renderedSections.has(sectionTitle)) {
+        renderedSections.add(sectionTitle);
+        output.push(
+          <SectionHeaderContainer key={`section-${sectionTitle}`}>
+            <SectionTitle>{sectionTitle}</SectionTitle>
+            {sectionDescription && <SectionDescription>{sectionDescription}</SectionDescription>}
+          </SectionHeaderContainer>
+        );
+      }
+
+      output.push(renderField(field));
+    }
+
+    return output;
+  };
+
   return (
     <FormContainer onSubmit={handleSubmit(onSubmit, onInvalid)}>
       <FormHeader>
@@ -1390,7 +1446,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         {schema.description && <FormDescription>{schema.description}</FormDescription>}
       </FormHeader>
 
-      {(hasKeySplit ? keyFields : stableFields).map((field) => renderField(field))}
+      {renderFieldsWithSections(hasKeySplit ? keyFields : stableFields)}
 
       {hasKeySplit && otherFields.length > 0 && showAllFieldsToggle && (
         <ToggleRow>
@@ -1407,7 +1463,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
       {hasKeySplit && otherFields.length > 0 && (
         <CollapsibleSection $visible={effectiveShowAllFields}>
-          {otherFields.map((field) => renderField(field))}
+          {renderFieldsWithSections(otherFields)}
         </CollapsibleSection>
       )}
 
@@ -1485,4 +1541,25 @@ const ToggleRow = styled.div`
 
 const CollapsibleSection = styled.div<{ $visible: boolean }>`
   display: ${p => p.$visible ? 'block' : 'none'};
+`;
+
+const SectionHeaderContainer = styled.div`
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid rgb(var(--color-border-secondary, 229 231 235));
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary, 17 24 39));
+  margin: 0;
+  letter-spacing: 0.01em;
+`;
+
+const SectionDescription = styled.p`
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-tertiary, 107 114 128));
+  margin: 0.25rem 0 0 0;
 `;
