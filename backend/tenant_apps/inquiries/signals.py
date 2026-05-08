@@ -173,16 +173,25 @@ def log_inquiry_activity(sender, instance, created, **kwargs):
             
             # Auto-create follow-up call when status changes to 'quoted'
             if instance.status == 'quoted' and old_status != 'quoted':
-                try:
-                    from .services.auto_followup import create_followup_call
-                    call = create_followup_call(instance, created_by=instance.created_by)
-                    if call:
-                        logger.info(
-                            f"Auto-created follow-up call for inquiry {instance.inquiry_number}: "
-                            f"scheduled for {call.scheduled_for}"
+                def _deferred_followup():
+                    try:
+                        from .services.auto_followup import create_followup_call
+                        call = create_followup_call(instance, created_by=instance.created_by)
+                        if call:
+                            logger.info(
+                                "[Inquiry:%s] Auto-created follow-up call scheduled=%s",
+                                instance.inquiry_number,
+                                call.scheduled_for,
+                            )
+                    except Exception as e:
+                        logger.error(
+                            "[Inquiry:%s] Failed to create follow-up call: %s",
+                            instance.inquiry_number,
+                            str(e),
+                            exc_info=True,
                         )
-                except Exception as e:
-                    logger.error(f"Failed to create follow-up call for inquiry {instance.inquiry_number}: {e}")
+
+                transaction.on_commit(_deferred_followup)
 
     old_route_decision = getattr(instance, '_old_route_decision', None)
     route_changed = bool(instance.route_decision and old_route_decision != instance.route_decision)
