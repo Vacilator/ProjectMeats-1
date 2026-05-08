@@ -53,11 +53,14 @@ const Suppliers: React.FC = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  const productsByCachedRef = React.useRef(productsBySupplierId);
+  productsByCachedRef.current = productsBySupplierId;
+
   const loadSupplierProducts = useCallback(
     async (supplierId: string | number) => {
       const id = String(supplierId);
       if (!id) return;
-      if (productsBySupplierId[id]?.length) return;
+      if (productsByCachedRef.current[id]?.length) return;
 
       setProductsLoadingBySupplierId((prev) => ({ ...prev, [id]: true }));
       try {
@@ -69,7 +72,7 @@ const Suppliers: React.FC = () => {
         setProductsLoadingBySupplierId((prev) => ({ ...prev, [id]: false }));
       }
     },
-    [productsBySupplierId]
+    []
   );
 
   const handleDelete = useCallback(
@@ -82,6 +85,26 @@ const Suppliers: React.FC = () => {
     },
     [suppliersQuery]
   );
+
+  const handleCreateClose = useCallback(() => {
+    setCreateOpen(false);
+  }, []);
+
+  const handleCreateSuccess = useCallback(() => {
+    setCreateOpen(false);
+    void suppliersQuery.refetch();
+  }, [suppliersQuery]);
+
+  const handleEditClose = useCallback(() => {
+    setEditOpen(false);
+    setEditingSupplierId(null);
+  }, []);
+
+  const handleEditSuccess = useCallback(() => {
+    setEditOpen(false);
+    setEditingSupplierId(null);
+    void suppliersQuery.refetch();
+  }, [suppliersQuery]);
 
   const columns: ColumnsType<SupplierListRow> = useMemo(
     () => [
@@ -222,11 +245,8 @@ const Suppliers: React.FC = () => {
         mode="create"
         variant="modal"
         isOpen={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSuccess={() => {
-          setCreateOpen(false);
-          void suppliersQuery.refetch();
-        }}
+        onClose={handleCreateClose}
+        onSuccess={handleCreateSuccess}
       />
 
       <EntityFormSurface
@@ -235,15 +255,8 @@ const Suppliers: React.FC = () => {
         variant="modal"
         isOpen={editOpen}
         entityId={editingSupplierId ?? undefined}
-        onClose={() => {
-          setEditOpen(false);
-          setEditingSupplierId(null);
-        }}
-        onSuccess={() => {
-          setEditOpen(false);
-          setEditingSupplierId(null);
-          void suppliersQuery.refetch();
-        }}
+        onClose={handleEditClose}
+        onSuccess={handleEditSuccess}
       />
     </div>
   );

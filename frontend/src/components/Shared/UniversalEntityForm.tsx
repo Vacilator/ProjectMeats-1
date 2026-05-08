@@ -1851,14 +1851,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const productSearchSeqRef = useRef<Record<string, number>>({});
+  const onSubmittingChangeRef = useRef(onSubmittingChange);
+  onSubmittingChangeRef.current = onSubmittingChange;
 
   useEffect(() => {
-    onSubmittingChange?.(submitting);
+    onSubmittingChangeRef.current?.(submitting);
 
     return () => {
-      onSubmittingChange?.(false);
+      onSubmittingChangeRef.current?.(false);
     };
-  }, [onSubmittingChange, submitting]);
+  }, [submitting]);
 
   useEffect(() => {
     if (!isOpen) {

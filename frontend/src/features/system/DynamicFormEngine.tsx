@@ -615,9 +615,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   const watchedValues = useWatch({ control });
   const lastValuesSignatureRef = useRef<string | null>(null);
+  const onValuesChangeRef = useRef(onValuesChange);
+  onValuesChangeRef.current = onValuesChange;
 
   useEffect(() => {
-    if (!onValuesChange) {
+    if (!onValuesChangeRef.current) {
       lastValuesSignatureRef.current = null;
       return;
     }
@@ -631,8 +633,8 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
 
     lastValuesSignatureRef.current = nextSignature;
-    onValuesChange(nextValues as Record<string, any>);
-  }, [onValuesChange, watchedValues]);
+    onValuesChangeRef.current(nextValues as Record<string, any>);
+  }, [watchedValues]);
 
   const dependencyFieldKeys = useMemo(() => {
     const keys = new Set<string>();

@@ -586,31 +586,44 @@ const Inquiries: React.FC = () => {
     await openInquiryDetail(String(inquiry.id));
   };
 
-  const handleCreateSuccess = () => {
+  const handleCreateSuccess = useCallback(() => {
     setShowCreateModal(false);
     void inquiriesQuery.refetch();
-  };
+  }, [inquiriesQuery]);
 
-  const handleUpdateInquiry = (updatedInquiry: any) => {
+  const handleCreateClose = useCallback(() => {
+    setShowCreateModal(false);
+  }, []);
+
+  const handleDetailClose = useCallback(() => {
+    setShowDetailModal(false);
+    setDetailReviewMode(false);
+    clearReviewParams();
+  }, [clearReviewParams]);
+
+  const handleCloneClose = useCallback(() => {
+    setShowCloneModal(false);
+  }, []);
+
+  const handleUpdateInquiry = useCallback((updatedInquiry: any) => {
     setSelectedInquiry(updatedInquiry);
     void inquiriesQuery.refetch();
-  };
+  }, [inquiriesQuery]);
   
-  const handleClone = (inquiry: any) => {
+  const handleClone = useCallback((inquiry: any) => {
     setDetailReviewMode(false);
     setSelectedInquiry(inquiry);
     setShowDetailModal(false);
     setShowCloneModal(true);
-  };
+  }, []);
   
-  const handleCloned = (newInquiry: any) => {
+  const handleCloned = useCallback((newInquiry: any) => {
     setShowCloneModal(false);
     void inquiriesQuery.refetch();
-    // Open the newly cloned inquiry
     setSelectedInquiry(newInquiry);
     setDetailReviewMode(false);
     setShowDetailModal(true);
-  };
+  }, [inquiriesQuery]);
   
   const handleCreateFromTemplate = async (templateId: string) => {
     setShowTemplateMenu(false);
@@ -809,23 +822,19 @@ const Inquiries: React.FC = () => {
         entityType="inquiry"
         mode="create"
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={handleCreateClose}
         context={{
           customerId: prefillEntityType === 'customer' ? prefillEntityId : undefined,
           supplierId: prefillEntityType === 'supplier' ? prefillEntityId : undefined,
         }}
-        onSuccess={() => handleCreateSuccess()}
+        onSuccess={handleCreateSuccess}
       />
 
       {/* Inquiry Detail Modal */}
       {showDetailModal && selectedInquiry ? (
         <InquiryDetailModal
           isOpen={showDetailModal}
-          onClose={() => {
-            setShowDetailModal(false);
-            setDetailReviewMode(false);
-            clearReviewParams();
-          }}
+          onClose={handleDetailClose}
           inquiry={selectedInquiry}
           reviewMode={detailReviewMode}
           onUpdate={handleUpdateInquiry}
@@ -837,7 +846,7 @@ const Inquiries: React.FC = () => {
       {showCloneModal && selectedInquiry ? (
         <CloneInquiryModal
           isOpen={showCloneModal}
-          onClose={() => setShowCloneModal(false)}
+          onClose={handleCloneClose}
           onCloned={handleCloned}
           inquiry={selectedInquiry}
         />

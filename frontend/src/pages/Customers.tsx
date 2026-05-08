@@ -111,11 +111,14 @@ const Customers: React.FC = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  const productsByCachedRef = React.useRef(productsByCustomerId);
+  productsByCachedRef.current = productsByCustomerId;
+
   const loadCustomerProducts = useCallback(
     async (customerId: string | number) => {
       const id = String(customerId);
       if (!id) return;
-      if (productsByCustomerId[id]?.length) return;
+      if (productsByCachedRef.current[id]?.length) return;
 
       setProductsLoadingByCustomerId((prev) => ({ ...prev, [id]: true }));
       try {
@@ -127,7 +130,7 @@ const Customers: React.FC = () => {
         setProductsLoadingByCustomerId((prev) => ({ ...prev, [id]: false }));
       }
     },
-    [productsByCustomerId]
+    []
   );
 
   const handleDelete = useCallback(
@@ -140,6 +143,26 @@ const Customers: React.FC = () => {
     },
     [customersQuery]
   );
+
+  const handleCreateClose = useCallback(() => {
+    setCreateOpen(false);
+  }, []);
+
+  const handleCreateSuccess = useCallback(() => {
+    setCreateOpen(false);
+    void customersQuery.refetch();
+  }, [customersQuery]);
+
+  const handleEditClose = useCallback(() => {
+    setEditOpen(false);
+    setEditingCustomerId(null);
+  }, []);
+
+  const handleEditSuccess = useCallback(() => {
+    setEditOpen(false);
+    setEditingCustomerId(null);
+    void customersQuery.refetch();
+  }, [customersQuery]);
 
   const columns: ColumnsType<CustomerListRow> = useMemo(
     () => [
@@ -286,11 +309,8 @@ const Customers: React.FC = () => {
         mode="create"
         variant="modal"
         isOpen={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSuccess={() => {
-          setCreateOpen(false);
-          void customersQuery.refetch();
-        }}
+        onClose={handleCreateClose}
+        onSuccess={handleCreateSuccess}
       />
 
       <EntityFormSurface
@@ -299,15 +319,8 @@ const Customers: React.FC = () => {
         variant="modal"
         isOpen={editOpen}
         entityId={editingCustomerId ?? undefined}
-        onClose={() => {
-          setEditOpen(false);
-          setEditingCustomerId(null);
-        }}
-        onSuccess={() => {
-          setEditOpen(false);
-          setEditingCustomerId(null);
-          void customersQuery.refetch();
-        }}
+        onClose={handleEditClose}
+        onSuccess={handleEditSuccess}
       />
     </PageContainer>
   );

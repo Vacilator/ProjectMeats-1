@@ -702,6 +702,45 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     toast.info(`Coming soon: New ${action}`);
   };
 
+  const handleInquiryClose = useCallback(() => {
+    setIsInquiryCreateOpen(false);
+  }, []);
+
+  const handleInquirySuccess = useCallback(() => {
+    void countsQuery.refetch();
+    void tabItemsQuery.refetch();
+    setIsInquiryCreateOpen(false);
+  }, [countsQuery, tabItemsQuery]);
+
+  const handleSalesOrderClose = useCallback(() => {
+    setIsSalesOrderCreateOpen(false);
+  }, []);
+
+  const handleSalesOrderSuccess = useCallback(() => {
+    void countsQuery.refetch();
+    void tabItemsQuery.refetch();
+    setIsSalesOrderCreateOpen(false);
+  }, [countsQuery, tabItemsQuery]);
+
+  const handleScheduleCallClose = useCallback(() => {
+    setShowScheduleCallModal(false);
+  }, []);
+
+  const handleScheduleCallSuccess = useCallback(() => {
+    void countsQuery.refetch();
+    void tabItemsQuery.refetch();
+  }, [countsQuery, tabItemsQuery]);
+
+  const handleInquiryCallClose = useCallback(() => {
+    setShowInquiryCallModal(false);
+  }, []);
+
+  const handleInquiryCallSuccess = useCallback(() => {
+    void countsQuery.refetch();
+    void tabItemsQuery.refetch();
+    setShowInquiryCallModal(false);
+  }, [countsQuery, tabItemsQuery]);
+
   if (!canonicalType) {
     return (
       <Page>
@@ -763,16 +802,12 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
         entityType="inquiry"
         mode="create"
         isOpen={isInquiryCreateOpen}
-        onClose={() => setIsInquiryCreateOpen(false)}
+        onClose={handleInquiryClose}
         context={{
           customerId: canonicalType === 'customer' ? entityId : undefined,
           supplierId: canonicalType === 'supplier' ? entityId : undefined,
         }}
-        onSuccess={() => {
-          void countsQuery.refetch();
-          void tabItemsQuery.refetch();
-          setIsInquiryCreateOpen(false);
-        }}
+        onSuccess={handleInquirySuccess}
       />
 
       {canonicalType === 'customer' && (
@@ -780,23 +815,16 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
           entityType="sales-orders"
           mode="create"
           isOpen={isSalesOrderCreateOpen}
-          onClose={() => setIsSalesOrderCreateOpen(false)}
+          onClose={handleSalesOrderClose}
           context={{ customerId: entityId }}
-          onSuccess={() => {
-            void countsQuery.refetch();
-            void tabItemsQuery.refetch();
-            setIsSalesOrderCreateOpen(false);
-          }}
+          onSuccess={handleSalesOrderSuccess}
         />
       )}
 
       <ScheduleCallModal
         isOpen={showScheduleCallModal}
-        onClose={() => setShowScheduleCallModal(false)}
-        onSuccess={() => {
-          void countsQuery.refetch();
-          void tabItemsQuery.refetch();
-        }}
+        onClose={handleScheduleCallClose}
+        onSuccess={handleScheduleCallSuccess}
         defaultCallPurpose={defaultCallPurpose}
         defaultEntityType={canonicalType ?? undefined}
         defaultEntityId={Number.isFinite(Number(entityId)) ? entityId : undefined}
@@ -804,12 +832,8 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
       <InquiryCallModal
         isOpen={showInquiryCallModal}
-        onClose={() => setShowInquiryCallModal(false)}
-        onSuccess={() => {
-          void countsQuery.refetch();
-          void tabItemsQuery.refetch();
-          setShowInquiryCallModal(false);
-        }}
+        onClose={handleInquiryCallClose}
+        onSuccess={handleInquiryCallSuccess}
         initialEntityType={canonicalType ?? undefined}
         initialEntityId={Number.isFinite(Number(entityId)) ? entityId : undefined}
       />

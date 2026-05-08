@@ -156,6 +156,12 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
     setEditingId(null);
   }, []);
 
+  const handleQuickEditSuccess = useCallback(() => {
+    setQuickEditOpen(false);
+    setEditingId(null);
+    onReload?.();
+  }, [onReload]);
+
   const handleQuickEdit = useCallback(
     (row: Row) => {
       const id = String((row as any)?.id ?? '').trim();
@@ -290,10 +296,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
         isOpen={quickEditOpen}
         entityId={editingId ?? undefined}
         onClose={closeQuickEdit}
-        onSuccess={() => {
-          closeQuickEdit();
-          onReload?.();
-        }}
+        onSuccess={handleQuickEditSuccess}
       />
     </>
   );

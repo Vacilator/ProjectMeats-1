@@ -4,7 +4,7 @@
  * Full carrier management: database, scorecards, compliance, performance metrics.
  * Follows the FreightOrders/SalesOrders pattern with AntD Table + EntityFormSurface.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Button, Card, Input, Skeleton, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
@@ -114,6 +114,24 @@ const Carriers: React.FC = () => {
   });
 
   const carriers = carriersQuery.data || [];
+
+  const handleCreateClose = useCallback(() => {
+    setIsCreateOpen(false);
+  }, []);
+
+  const handleCreateSuccess = useCallback(() => {
+    setIsCreateOpen(false);
+    void carriersQuery.refetch();
+  }, [carriersQuery]);
+
+  const handleEditClose = useCallback(() => {
+    setEditingCarrierId(null);
+  }, []);
+
+  const handleEditSuccess = useCallback(() => {
+    setEditingCarrierId(null);
+    void carriersQuery.refetch();
+  }, [carriersQuery]);
 
   const filteredCarriers = useMemo(() => {
     if (!searchText.trim()) return carriers;
@@ -335,11 +353,8 @@ const Carriers: React.FC = () => {
         mode="create"
         variant="modal"
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => {
-          setIsCreateOpen(false);
-          void carriersQuery.refetch();
-        }}
+        onClose={handleCreateClose}
+        onSuccess={handleCreateSuccess}
       />
 
       <EntityFormSurface
@@ -348,11 +363,8 @@ const Carriers: React.FC = () => {
         variant="modal"
         entityId={editingCarrierId || undefined}
         isOpen={Boolean(editingCarrierId)}
-        onClose={() => setEditingCarrierId(null)}
-        onSuccess={() => {
-          setEditingCarrierId(null);
-          void carriersQuery.refetch();
-        }}
+        onClose={handleEditClose}
+        onSuccess={handleEditSuccess}
       />
     </PageContainer>
   );

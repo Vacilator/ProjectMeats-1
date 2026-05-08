@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -234,27 +234,39 @@ const Contacts: React.FC = () => {
     setShowForm(true);
   }, [searchParams]);
 
-  const clearCreateParam = () => {
+  const clearCreateParam = useCallback(() => {
     if (searchParams.get('create') !== '1') return;
     const next = new URLSearchParams(searchParams);
     next.delete('create');
     setSearchParams(next, { replace: true });
-  };
+  }, [searchParams, setSearchParams]);
 
 
-  const handleEdit = (contact: Contact) => {
+  const handleEdit = useCallback((contact: Contact) => {
     setEditingContact(contact);
     setShowForm(true);
-  };
+  }, []);
 
-  const handleDelete = async (id: number) => {
+  const handleFormClose = useCallback(() => {
+    setShowForm(false);
+    setEditingContact(null);
+    clearCreateParam();
+  }, [clearCreateParam]);
+
+  const handleFormSuccess = useCallback(() => {
+    setShowForm(false);
+    setEditingContact(null);
+    clearCreateParam();
+    void contactsQuery.refetch();
+  }, [clearCreateParam, contactsQuery]);
+
+  const handleDelete = useCallback(async (id: number) => {
     if (window.confirm('Are you sure you want to delete this contact?')) {
       try {
         await apiService.deleteContact(id);
         alert('Contact deleted successfully!');
-        await contactsQuery.refetch(); // Re-fetch to update the list
+        await contactsQuery.refetch();
       } catch (error: unknown) {
-        // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
         logger.error('[Contacts] Error deleting contact:', error);
         const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
         const errorMessage = err?.response?.data?.detail 
@@ -264,7 +276,7 @@ const Contacts: React.FC = () => {
         alert(`Error: ${errorMessage}`);
       }
     }
-  };
+  }, [contactsQuery]);
 
 
 
@@ -348,18 +360,9 @@ const Contacts: React.FC = () => {
           mode={editingContact ? 'edit' : 'create'}
           entityId={editingContact?.id}
           isOpen={showForm}
-          onClose={() => {
-            setShowForm(false);
-            setEditingContact(null);
-            clearCreateParam();
-          }}
+          onClose={handleFormClose}
           initialValues={contactInitialValues}
-          onSuccess={() => {
-            setShowForm(false);
-            setEditingContact(null);
-            clearCreateParam();
-            void contactsQuery.refetch();
-          }}
+          onSuccess={handleFormSuccess}
         />
       )}
     </Container>

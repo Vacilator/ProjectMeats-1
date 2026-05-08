@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Button, Card, Skeleton, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -65,6 +65,24 @@ const FreightOrders: React.FC = () => {
     },
     staleTime: 15 * 1000,
   });
+
+  const handleCreateClose = useCallback(() => {
+    setIsCreateOpen(false);
+  }, []);
+
+  const handleCreateSuccess = useCallback(() => {
+    setIsCreateOpen(false);
+    void freightOrdersQuery.refetch();
+  }, [freightOrdersQuery]);
+
+  const handleEditClose = useCallback(() => {
+    setEditingOrderId(null);
+  }, []);
+
+  const handleEditSuccess = useCallback(() => {
+    setEditingOrderId(null);
+    void freightOrdersQuery.refetch();
+  }, [freightOrdersQuery]);
 
   const columns = useMemo<ColumnsType<FreightOrder>>(
     () => [
@@ -279,11 +297,8 @@ const FreightOrders: React.FC = () => {
         mode="create"
         variant="modal"
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => {
-          setIsCreateOpen(false);
-          void freightOrdersQuery.refetch();
-        }}
+        onClose={handleCreateClose}
+        onSuccess={handleCreateSuccess}
       />
 
       <EntityFormSurface
@@ -292,11 +307,8 @@ const FreightOrders: React.FC = () => {
         variant="modal"
         entityId={editingOrderId || undefined}
         isOpen={Boolean(editingOrderId)}
-        onClose={() => setEditingOrderId(null)}
-        onSuccess={() => {
-          setEditingOrderId(null);
-          void freightOrdersQuery.refetch();
-        }}
+        onClose={handleEditClose}
+        onSuccess={handleEditSuccess}
       />
     </div>
   );
