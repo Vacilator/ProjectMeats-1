@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { businessApi } from '@/services/businessApi';
+import { logger } from '@/utils/logger';
 
 interface TaskStatus {
   task_id: string;
@@ -37,7 +38,7 @@ export const useBackgroundTask = () => {
       setPolling(true);
       return response.data.task_id;
     } catch (err) {
-      console.error('Failed to start task:', err);
+      logger.error('Failed to start task', { component: 'useBackgroundTask' }, err);
       throw err;
     }
   }, []);
@@ -54,7 +55,7 @@ export const useBackgroundTask = () => {
 
       return response.data;
     } catch (err) {
-      console.error('Failed to check task status:', err);
+      logger.error('Failed to check task status', { component: 'useBackgroundTask' }, err);
       setPolling(false);
       throw err;
     }
@@ -107,7 +108,7 @@ export const useBatchBackgroundTasks = () => {
 
       return taskIds;
     } catch (err) {
-      console.error('Failed to start batch tasks:', err);
+      logger.error('Failed to start batch tasks', { component: 'useBatchBackgroundTasks' }, err);
       throw err;
     }
   }, [tasks]);
@@ -127,7 +128,7 @@ export const useBatchBackgroundTasks = () => {
       });
       setTasks(newTasks);
     } catch (err) {
-      console.error('Failed to check batch status:', err);
+      logger.error('Failed to check batch status', { component: 'useBatchBackgroundTasks' }, err);
     }
   }, [tasks]);
 

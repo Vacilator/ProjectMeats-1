@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '../services/apiService';
 import { withTenantQueryKey } from '../utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 export interface AdminPermissions {
   can_manage_users: boolean;
@@ -88,11 +89,11 @@ export function useAdminPermissions() {
           }
         }
 
-        console.error('[useAdminPermissions] Failed to fetch permissions:', {
+        logger.error('Failed to fetch admin permissions', { component: 'useAdminPermissions', metadata: {
           status: error.response?.status,
           data: error.response?.data,
           message: error.message,
-        });
+        } }, error);
 
         // For other errors, return default permissions
         return getDefaultPermissions();

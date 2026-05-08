@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { businessApi } from '@/services/businessApi';
+import { logger } from '@/utils/logger';
 
 export interface FormVersion {
   version_number: number;
@@ -87,7 +88,7 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to fetch version history';
       setError(errorMsg);
-      console.error('[useFormVersioning] Error fetching history:', err);
+      logger.error('Error fetching version history', { component: 'useFormVersioning' }, err);
     } finally {
       setLoading(false);
     }

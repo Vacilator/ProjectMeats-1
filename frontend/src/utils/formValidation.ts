@@ -5,6 +5,8 @@
  * Supports: min_length, max_length, min, max, pattern, email, url, phone, required
  */
 
+import { logger } from './logger';
+
 export interface ValidationRule {
   min_length?: number;
   max_length?: number;
@@ -127,7 +129,7 @@ export function validateField(
         };
       }
     } catch (e) {
-      console.warn('Invalid regex pattern:', rules.pattern);
+      logger.warn('Invalid regex pattern', { component: 'formValidation', metadata: { pattern: rules.pattern } });
     }
   }
 

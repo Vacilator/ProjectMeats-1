@@ -13,6 +13,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../services/apiService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -85,7 +86,7 @@ export function useActionItemCounts(
         
         // Handle authentication failure - stop all polling immediately
         if (status === 401) {
-          console.error('[ActionItemCounts] Authentication failed. Stopping background polling.');
+          logger.error('Authentication failed - stopping background polling', { component: 'useActionItemCounts' }, err);
           setIsAuthFailure(true);
           setError('Authentication required');
           setCounts(DEFAULT_COUNTS);
@@ -99,7 +100,7 @@ export function useActionItemCounts(
           setError(null);
         } else {
           // Only log unexpected errors
-          console.warn('[ActionItemCounts] Fetch error:', err.message, 'Status:', status);
+          logger.warn('Action item counts fetch error', { component: 'useActionItemCounts', metadata: { message: err.message, status } });
           setError(err.message || 'Failed to fetch action item counts');
         }
         

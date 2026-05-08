@@ -62,7 +62,7 @@ export const initSentry = (config?: SentryConfig): void => {
   
   // Don't initialize if DSN is missing
   if (!sentryDsn) {
-    console.warn('[Sentry] DSN not configured, error tracking disabled');
+    logger.warn('Sentry DSN not configured, error tracking disabled', { component: 'Sentry' });
     return;
   }
   

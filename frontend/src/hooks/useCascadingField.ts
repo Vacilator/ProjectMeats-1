@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { businessApi } from '@/services/businessApi';
 import { EMPTY_CHOICES } from '@/services/choiceConstants';
+import { logger } from '@/utils/logger';
 
 const areOptionsEqual = (
   currentOptions: CascadingFieldOption[],
@@ -166,7 +167,7 @@ export const useCascadingField = ({
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to fetch cascaded options';
       setError(errorMsg);
-      console.error('[useCascadingField] Error fetching options:', err);
+      logger.error('Error fetching cascading options', { component: 'useCascadingField' }, err);
       setOptions((prev) => (prev.length ? (EMPTY_CHOICES as CascadingFieldOption[]) : prev));
     } finally {
       setLoading(false);

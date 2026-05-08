@@ -38,7 +38,7 @@ export interface UseTimeoutReturn {
  * const { isTimedOut, resetTimeout } = useTimeout({
  *   isLoading,
  *   timeout: 5000,
- *   onTimeout: () => console.log('Request timed out!')
+ *   onTimeout: () => logger.debug('Request timed out!')
  * });
  * 
  * if (isTimedOut) {

@@ -3,6 +3,8 @@
  * Note: colorthief types are not available, using 'any' sparingly
  */
 
+import { logger } from './logger';
+
 let cachedColorThiefModule: any | null = null;
 let cachedColorThiefInstance: any | null = null;
 
@@ -169,7 +171,7 @@ const extractDominantColorViaCanvas = (img: HTMLImageElement): number[] | null =
     return best?.rgb ?? null;
   } catch (e) {
     // SecurityError (tainted canvas) or unsupported image type
-    console.warn('Canvas color extraction failed:', e);
+    logger.warn('Canvas color extraction failed', { component: 'themeUtils', metadata: { error: e } });
     return null;
   } finally {
     // Avoid holding onto a canvas in memory
@@ -277,7 +279,7 @@ export const extractBrandColors = async (logoUrl: string): Promise<number[] | nu
 
     return extractDominantColorViaCanvas(img);
   } catch (error) {
-    console.error('Error in extractBrandColors:', error);
+    logger.error('Error in extractBrandColors', { component: 'themeUtils' }, error);
     return null;
   } finally {
     revoke?.();
@@ -336,6 +338,6 @@ export const loadTenantBrandingColors = async (logoUrl: string): Promise<void> =
       applyBrandColorToTheme(brandColor);
     }
   } catch (error) {
-    console.error('Failed to load tenant branding colors:', error);
+    logger.error('Failed to load tenant branding colors', { component: 'themeUtils' }, error);
   }
 };

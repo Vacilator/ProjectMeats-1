@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
+import { logger } from './logger';
 
 /**
  * Hook to measure component render performance.
@@ -28,8 +29,9 @@ export function useRenderPerformance(componentName: string) {
 
     if (process.env.NODE_ENV === 'development' && renderTime > 16) {
       // Warn if render takes longer than one frame (16ms @ 60fps)
-      console.warn(
-        `[Performance] ${componentName} render #${renderCount.current} took ${renderTime.toFixed(2)}ms`
+      logger.warn(
+        `${componentName} render #${renderCount.current} took ${renderTime.toFixed(2)}ms`,
+        { component: 'Performance' }
       );
     }
 

@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { businessApi } from '@/services/businessApi';
+import { logger } from '@/utils/logger';
 
 interface NodeLock {
   locked: boolean;
@@ -40,7 +41,7 @@ export const useNodeLocking = (workflowId: string, nodeId: string) => {
         startHeartbeat();
       }
     } catch (err) {
-      console.error('Lock acquisition failed:', err);
+      logger.error('Lock acquisition failed', { component: 'useNodeLocking' }, err);
     } finally {
       setLoading(false);
     }
@@ -54,7 +55,7 @@ export const useNodeLocking = (workflowId: string, nodeId: string) => {
       setLockState(null);
       stopHeartbeat();
     } catch (err) {
-      console.error('Lock release failed:', err);
+      logger.error('Lock release failed', { component: 'useNodeLocking' }, err);
     }
   }, [workflowId, nodeId]);
 
@@ -64,7 +65,7 @@ export const useNodeLocking = (workflowId: string, nodeId: string) => {
     try {
       await businessApi.post(`/workflows/${workflowId}/nodes/${nodeId}/lock/renew/`);
     } catch (err) {
-      console.error('Lock renewal failed:', err);
+      logger.error('Lock renewal failed', { component: 'useNodeLocking' }, err);
       stopHeartbeat();
     }
   }, [workflowId, nodeId]);
