@@ -72,9 +72,9 @@ export interface StatCardGridProps {
 }
 
 export const StatCardGrid: React.FC<StatCardGridProps> = ({ items, columns }) => (
-  <Grid $cols={columns || items.length}>
+  <Grid $cols={columns || items.length} role="list" aria-label="Statistics">
     {items.map((item, idx) => (
-      <CardItem key={idx}>
+      <CardItem key={idx} role="listitem" aria-label={`${item.label}: ${item.value}`}>
         <Value $alert={item.alert && Number(item.value) > 0}>
           {item.value}
         </Value>

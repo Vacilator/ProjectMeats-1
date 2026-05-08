@@ -126,6 +126,11 @@ const ModeCard = styled.button<{ $active: boolean }>`
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.04);
   }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
 `;
 
 const SuggestionChip = styled.button<{ $confidence: number }>`
@@ -154,6 +159,11 @@ const SuggestionChip = styled.button<{ $confidence: number }>`
   &:hover {
     transform: scale(1.02);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
   }
 `;
 

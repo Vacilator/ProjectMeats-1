@@ -9,7 +9,7 @@
  * Additive only — does not replace existing pages.
  */
 import React from 'react';
-import { Badge, Button, Collapse, Space, Tag, Typography } from 'antd';
+import { Badge, Button, Collapse, Skeleton, Space, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { Package, Truck, Snowflake, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -127,12 +127,15 @@ export const OperationsPanel: React.FC = () => {
             icon={<ExternalLink size={11} />}
             onClick={(e) => { e.stopPropagation(); navigate('/cold-storage'); }}
             style={{ fontSize: '0.7rem', padding: 0 }}
+            aria-label="Open cold storage page"
           >
             Open
           </Button>
         </SectionRow>
       ),
-      children: (
+      children: coldStorageQuery.isLoading ? (
+        <Skeleton.Input active size="small" style={{ width: 80 }} />
+      ) : (
         <MiniStat>
           <MiniStatValue>{coldStorageQuery.data?.count ?? '—'}</MiniStatValue>
           <MiniStatLabel>active lots in inventory</MiniStatLabel>
@@ -158,12 +161,15 @@ export const OperationsPanel: React.FC = () => {
             icon={<ExternalLink size={11} />}
             onClick={(e) => { e.stopPropagation(); navigate('/logistics/freight-orders'); }}
             style={{ fontSize: '0.7rem', padding: 0 }}
+            aria-label="Open freight orders page"
           >
             Open
           </Button>
         </SectionRow>
       ),
-      children: (
+      children: freightQuery.isLoading ? (
+        <Skeleton.Input active size="small" style={{ width: 120 }} />
+      ) : (
         <MiniStat>
           <MiniStatValue>{freightQuery.data?.total ?? '—'}</MiniStatValue>
           <MiniStatLabel>total freight orders</MiniStatLabel>
@@ -190,12 +196,15 @@ export const OperationsPanel: React.FC = () => {
             icon={<ExternalLink size={11} />}
             onClick={(e) => { e.stopPropagation(); navigate('/logistics/carriers'); }}
             style={{ fontSize: '0.7rem', padding: 0 }}
+            aria-label="Open carriers page"
           >
             Open
           </Button>
         </SectionRow>
       ),
-      children: (
+      children: carriersQuery.isLoading ? (
+        <Skeleton.Input active size="small" style={{ width: 80 }} />
+      ) : (
         <MiniStat>
           <MiniStatValue>{carriersQuery.data?.count ?? '—'}</MiniStatValue>
           <MiniStatLabel>registered carriers</MiniStatLabel>
@@ -205,7 +214,7 @@ export const OperationsPanel: React.FC = () => {
   ];
 
   return (
-    <PanelWrapper>
+    <PanelWrapper role="region" aria-label="Operations overview">
       <Collapse
         ghost
         size="small"
