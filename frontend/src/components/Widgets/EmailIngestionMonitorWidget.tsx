@@ -14,6 +14,7 @@ import { Mail, RefreshCw, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-re
 import { useNavigate } from 'react-router-dom';
 
 import { businessApi } from '../../services/businessApi';
+import { logger } from '@/utils/logger';
 import {
   buildEmailSyncCtaMessage,
   emailSyncNeedsReconnect,
@@ -255,7 +256,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       const response = await businessApi.get<EmailLogsResponse>('/integrations/email/logs/?limit=5');
       setEmails(response.data.emails);
     } catch (error) {
-      console.error('Failed to fetch email logs:', error);
+      logger.error('Failed to fetch email logs:', error);
     } finally {
       setLoading(false);
     }
@@ -328,7 +329,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
 
       await fetchEmailLogs();
     } catch (error: any) {
-      console.error('Failed to trigger sync:', error);
+      logger.error('Failed to trigger sync:', error);
 
       const code = getEmailSyncErrorCode(error?.response?.data);
 

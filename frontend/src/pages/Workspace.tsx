@@ -38,6 +38,7 @@ import { CommandBar } from '../components/Cockpit';
 import { CommandPalette } from '../components/Navigation/CommandPalette';
 import { useCommandPalette } from '../hooks/useCommandPalette';
 import { apiClient } from '../services/apiService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -443,7 +444,7 @@ export const WorkspacePage: React.FC = () => {
       } catch (err: any) {
         // 404 means no saved layout - fall through to localStorage
         if (err.response?.status !== 404) {
-          console.error('Failed to load workspace layout from API:', err);
+          logger.error('Failed to load workspace layout from API:', err);
         }
       }
 
@@ -458,7 +459,7 @@ export const WorkspacePage: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error('Failed to load workspace layout from localStorage:', err);
+        logger.error('Failed to load workspace layout from localStorage:', err);
       }
     };
 
@@ -490,7 +491,7 @@ export const WorkspacePage: React.FC = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (err) {
-      console.error('Failed to save workspace layout to localStorage:', err);
+      logger.error('Failed to save workspace layout to localStorage:', err);
     }
 
     // Also save to backend API
@@ -498,7 +499,7 @@ export const WorkspacePage: React.FC = () => {
       setIsSaving(true);
       await apiClient.put('cockpit/workspace-layout/', data);
     } catch (err) {
-      console.error('Failed to save workspace layout to API:', err);
+      logger.error('Failed to save workspace layout to API:', err);
       // localStorage already has the backup
     } finally {
       setIsSaving(false);
@@ -528,7 +529,7 @@ export const WorkspacePage: React.FC = () => {
     } catch (err) {
       // 404 is fine - no saved layout to delete
       if ((err as any).response?.status !== 404) {
-        console.error('Failed to reset workspace layout in API:', err);
+        logger.error('Failed to reset workspace layout in API:', err);
       }
     }
     

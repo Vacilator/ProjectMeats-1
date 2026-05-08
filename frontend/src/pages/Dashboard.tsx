@@ -7,6 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 import SupplierPerformanceChart from '../components/Visualization/SupplierPerformanceChart';
 import PurchaseOrderTrends from '../components/Visualization/PurchaseOrderTrends';
+import { logger } from '@/utils/logger';
 
 interface DashboardStats {
   suppliers: number;
@@ -216,7 +217,7 @@ const Dashboard: React.FC = () => {
       activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setRecentActivity(activities.slice(0, 8));
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      logger.error('Error fetching dashboard stats:', error);
       setError('Failed to load dashboard data. Please check your connection.');
     } finally {
       setLoading(false);
@@ -253,7 +254,7 @@ const Dashboard: React.FC = () => {
         navigate('/ai-assistant');
         break;
       default:
-        console.warn('Unknown action:', action);
+        logger.warn('Unknown action:', action);
     }
   };
 

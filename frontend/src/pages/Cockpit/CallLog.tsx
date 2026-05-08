@@ -28,6 +28,7 @@ import { ScheduleCallModal } from '../../components/Shared/ScheduleCallModal';
 import { InquiryCallModal } from '../../components/Calls/InquiryCallModal';
 import { businessApi } from '../../services/businessApi';
 import { formatToLocal } from '../../utils/formatters';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -715,7 +716,7 @@ export const CallLog: React.FC = () => {
 
       setCalls(callsData);
     } catch (err: any) {
-      console.error('Failed to fetch scheduled calls:', err);
+      logger.error('Failed to fetch scheduled calls:', err);
       setError(err.response?.data?.detail || 'Failed to load scheduled calls');
     } finally {
       setLoading(false);
@@ -744,7 +745,7 @@ export const CallLog: React.FC = () => {
         c.id === callId ? { ...c, is_completed: true } : c
       ));
     } catch (err: any) {
-      console.error('Failed to complete call:', err);
+      logger.error('Failed to complete call:', err);
       showAlert({
         type: 'error',
         title: 'Error',
@@ -794,7 +795,7 @@ export const CallLog: React.FC = () => {
       await businessApi.delete(`/workspace/scheduled-calls/${callId}/`);
       await fetchScheduledCalls();
     } catch (err: any) {
-      console.error('Failed to delete call:', err);
+      logger.error('Failed to delete call:', err);
       showAlert({
         type: 'error',
         title: 'Error',
@@ -920,7 +921,7 @@ export const CallLog: React.FC = () => {
       
       setDraggedCall(null);
     } catch (err: any) {
-      console.error('Failed to reschedule call:', err);
+      logger.error('Failed to reschedule call:', err);
       showAlert({
         type: 'error',
         title: 'Error',

@@ -14,6 +14,7 @@ import {
 import { UnifiedForm } from '../components/UnifiedForm';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { formatTradeDate } from '@/utils/trade';
+import { logger } from '@/utils/logger';
 
 // Styled Components
 const Header = styled.div`
@@ -324,7 +325,7 @@ const PurchaseOrders: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error exporting purchase orders:', error);
+      logger.error('Error exporting purchase orders:', error);
       showAlert({
         title: 'Export Failed',
         content: 'Could not export purchase orders. Please try again.',
@@ -345,7 +346,7 @@ const PurchaseOrders: React.FC = () => {
       setPurchaseOrders(posData);
       setSuppliers(suppliersData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      logger.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -356,7 +357,7 @@ const PurchaseOrders: React.FC = () => {
       const data = await apiService.getPurchaseOrders();
       setPurchaseOrders(data);
     } catch (error) {
-      console.error('Error loading purchase orders:', error);
+      logger.error('Error loading purchase orders:', error);
     }
   };
 
@@ -387,7 +388,7 @@ const PurchaseOrders: React.FC = () => {
       await loadPurchaseOrders(); // Re-fetch to update the list
     } catch (error: unknown) {
       // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-      console.error('Error deleting purchase order:', error);
+      logger.error('Error deleting purchase order:', error);
       const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
       const errorMessage = err?.response?.data?.detail
         || err?.response?.data?.message

@@ -465,7 +465,9 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
   // Refresh dependency check
   const handleRefreshDeps = useCallback(() => {
     if (depCheck?.inquiry_id) {
-      traderService.checkDependencies(depCheck.inquiry_id).then(setDepCheck);
+      traderService.checkDependencies(depCheck.inquiry_id)
+        .then(setDepCheck)
+        .catch(() => { /* dependency refresh is best-effort */ });
     }
   }, [depCheck?.inquiry_id]);
 

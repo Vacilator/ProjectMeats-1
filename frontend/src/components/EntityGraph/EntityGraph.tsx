@@ -32,6 +32,7 @@ import { X, Edit2, ExternalLink, ChevronRight } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import { EntityNode, EntityNodeData } from './EntityNode';
 import EntityEdge from './EntityEdge';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -413,7 +414,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
       
       setTruncated(isTruncated);
     } catch (err: any) {
-      console.error('Failed to fetch entity graph:', err);
+      logger.error('Failed to fetch entity graph:', err);
       setError(err.response?.data?.error || 'Failed to load entity graph');
     } finally {
       setLoading(false);

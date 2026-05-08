@@ -118,7 +118,7 @@ jobs:
 
           echo "🔍 Filtering test tenants (schema_name starting with 'test_')..."
 
-          grep -v "^INSERT INTO.*apps_tenants_tenant.*'test_" /tmp/prod_data.sql > /tmp/filtered_data.sql || true
+          grep -v "^INSERT INTO.*tenants_tenant.*'test_" /tmp/prod_data.sql > /tmp/filtered_data.sql || true
 
           if [ ! -s /tmp/filtered_data.sql ]; then
             cp /tmp/prod_data.sql /tmp/filtered_data.sql
@@ -256,7 +256,7 @@ jobs:
                 AND table_name NOT LIKE 'django_%'
             ) LOOP
               -- Delete only non-test tenant data
-              EXECUTE format('DELETE FROM %I.%I WHERE tenant_id NOT IN (SELECT id FROM apps_tenants_tenant WHERE schema_name LIKE ''test_%%'');',
+              EXECUTE format('DELETE FROM %I.%I WHERE tenant_id NOT IN (SELECT id FROM tenants_tenant WHERE schema_name LIKE ''test_%%'');',
                 r.table_schema, r.table_name);
               RAISE NOTICE 'Cleared %', r.table_name;
             END LOOP;
@@ -355,7 +355,7 @@ jobs:
             -p 5433 \
             -U "${{ secrets.DB_USER }}" \
             -d "${{ secrets.DB_NAME }}" \
-            -t -c "SELECT COUNT(*) FROM apps_tenants_tenant;" | xargs)
+            -t -c "SELECT COUNT(*) FROM tenants_tenant;" | xargs)
 
           echo "Total tenants in UAT: $TENANT_COUNT"
 
@@ -364,7 +364,7 @@ jobs:
             -p 5433 \
             -U "${{ secrets.DB_USER }}" \
             -d "${{ secrets.DB_NAME }}" \
-            -t -c "SELECT COUNT(*) FROM apps_tenants_tenant WHERE schema_name LIKE 'test_%';" | xargs)
+            -t -c "SELECT COUNT(*) FROM tenants_tenant WHERE schema_name LIKE 'test_%';" | xargs)
 
           echo "Test tenants preserved: $TEST_TENANT_COUNT"
 

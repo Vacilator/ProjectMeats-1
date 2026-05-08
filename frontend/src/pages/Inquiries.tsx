@@ -565,7 +565,7 @@ const Inquiries: React.FC = () => {
       setDetailReviewMode(reviewMode);
       setShowDetailModal(true);
     } catch (err) {
-      console.error('Failed to fetch inquiry details:', err);
+      logger.error('Failed to fetch inquiry details:', err);
     }
   }, []);
 
@@ -634,7 +634,7 @@ const Inquiries: React.FC = () => {
       setShowDetailModal(true);
       void inquiriesQuery.refetch();
     } catch (err) {
-      console.error('Failed to create inquiry from template:', err);
+      logger.error('Failed to create inquiry from template:', err);
       showAlert({
         type: 'error',
         title: 'Error',

@@ -18,6 +18,7 @@ import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -248,7 +249,7 @@ const CustomerLocations: React.FC = () => {
       }
       setLocations(response.data.results || response.data);
     } catch (error) {
-      console.error('Error loading locations:', error);
+      logger.error('Error loading locations:', error);
       message.warning('Locations API not yet implemented. Using empty dataset.');
       setLocations([]);
     } finally {
@@ -261,7 +262,7 @@ const CustomerLocations: React.FC = () => {
       const response = await apiClient.get('customers/');
       setCustomers(response.data.results || response.data);
     } catch (error) {
-      console.error('Error loading customers:', error);
+      logger.error('Error loading customers:', error);
     }
   };
 
@@ -314,7 +315,7 @@ const CustomerLocations: React.FC = () => {
       message.success('Location deleted successfully');
       loadLocations(contextCustomerId);
     } catch (error: any) {
-      console.error('Error deleting location:', error);
+      logger.error('Error deleting location:', error);
       message.error('Failed to delete location');
     }
   };

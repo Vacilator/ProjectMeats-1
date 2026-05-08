@@ -16,6 +16,7 @@ import {
   CheckCircle, MessageSquare, FileText, Workflow, Info
 } from 'lucide-react';
 import { useNotifications, Notification, NotificationType } from '../../contexts/NotificationsContext';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -333,7 +334,7 @@ function groupNotificationsByTime(notifications: Notification[]): Record<string,
   
   // Defensive check: ensure notifications is an array
   if (!Array.isArray(notifications)) {
-    console.warn('[NotificationPanel] Expected array, got:', typeof notifications);
+    logger.warn('[NotificationPanel] Expected array, got:', typeof notifications);
     return groups;
   }
   

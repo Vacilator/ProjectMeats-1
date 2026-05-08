@@ -3,6 +3,7 @@ import { Skeleton } from 'antd';
 import { useParams } from 'react-router-dom';
 import { adminClient } from '../../services/apiService';
 import { Clock, CheckCircle, Activity, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 
 interface StepDetail {
@@ -42,7 +43,7 @@ export const WorkflowExecutionDetails: React.FC = () => {
       const response = await adminClient.get(`/admin/system-config/api/runs/${runId}/`);
       setRunData(response.data);
     } catch (error) {
-      console.error('Failed to fetch run details:', error);
+      logger.error('Failed to fetch run details:', error);
     } finally {
       setLoading(false);
     }
@@ -53,7 +54,7 @@ export const WorkflowExecutionDetails: React.FC = () => {
       const response = await adminClient.get(`/admin/system-config/api/runs/${runId}/execution-log/`);
       setExecutionLog(response.data.timeline || []);
     } catch (error) {
-      console.error('Failed to fetch execution log:', error);
+      logger.error('Failed to fetch execution log:', error);
     }
   };
 

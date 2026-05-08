@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import * as LucideIcons from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 interface IconProps {
   name: string;
@@ -188,7 +189,7 @@ const Icon: React.FC<IconProps> = ({ name, size = 20, className = '', color }) =
   }
 
   // Fallback: render the name as text (for debugging) or use a default icon
-  console.warn(`Icon not found: "${name}" (tried: ${pascalName})`);
+  logger.warn(`Icon not found: "${name}" (tried: ${pascalName})`);
   const FallbackIcon = LucideIcons.HelpCircle;
   return <FallbackIcon size={size} className={className} color={color} />;
 };

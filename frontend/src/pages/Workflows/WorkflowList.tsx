@@ -15,6 +15,7 @@ import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { withTenantQueryKey } from '../../utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 interface Blueprint {
   id: string;
@@ -136,7 +137,7 @@ export const WorkflowList: React.FC = () => {
       navigate(`/workflows/run/${data.run_id}`);
     },
     onError: (error: any) => {
-      console.error('Failed to start workflow:', error);
+      logger.error('Failed to start workflow:', error);
       showAlert({
         type: 'error',
         title: 'Error',

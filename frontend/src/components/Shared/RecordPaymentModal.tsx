@@ -30,6 +30,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -314,7 +315,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Failed to record payment:', err);
+      logger.error('Failed to record payment:', err);
       setError(err.response?.data?.message || 'Failed to record payment');
     } finally {
       setLoading(false);

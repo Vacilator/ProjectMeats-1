@@ -12,6 +12,7 @@ import { extractBrandColors } from '@/utils/themeUtils';
 import { injectTenantColors } from '@/config/theme';
 import { formatUsPhone } from '@/utils/phone';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 interface Tenant {
   id: string;
@@ -309,7 +310,7 @@ const AdminProfilePage: React.FC = () => {
       injectTenantColors(primaryLight, primaryDark, 'light');
       toast.success(`Extracted theme colors: ${primaryLight} / ${primaryDark}`);
     } catch (e) {
-      console.error('Failed to extract colors from logo:', e);
+      logger.error('Failed to extract colors from logo:', e);
       toast.error('Failed to extract colors from logo');
     } finally {
       setExtractingColors(false);

@@ -17,6 +17,7 @@ import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from 
 import { apiClient } from '../../services/apiService';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface Product {
   id: string;
@@ -164,7 +165,7 @@ const CustomerProducts: React.FC = () => {
       const response = await apiClient.get(`/customers/${id}/`);
       setCustomer(response.data);
     } catch (error) {
-      console.error('Error fetching customer:', error);
+      logger.error('Error fetching customer:', error);
       message.error('Failed to load customer details');
     }
   };
@@ -176,7 +177,7 @@ const CustomerProducts: React.FC = () => {
       const response = await apiClient.get(`/customers/${id}/products/`);
       setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      logger.error('Error fetching products:', error);
       message.error('Failed to load products');
     } finally {
       setLoading(false);
@@ -198,7 +199,7 @@ const CustomerProducts: React.FC = () => {
       const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       setSystemProducts(data);
     } catch (error) {
-      console.error('Error fetching system products:', error);
+      logger.error('Error fetching system products:', error);
       message.error('Failed to load product catalog');
     } finally {
       setLoadingSystemProducts(false);
@@ -231,7 +232,7 @@ const CustomerProducts: React.FC = () => {
       setSelectedProductIds([]);
       fetchProducts();
     } catch (error) {
-      console.error('Error adding products:', error);
+      logger.error('Error adding products:', error);
       message.error('Failed to add products');
     } finally {
       setAddingProducts(false);
@@ -256,7 +257,7 @@ const CustomerProducts: React.FC = () => {
       message.success('Product association removed successfully');
       fetchProducts();
     } catch (error) {
-      console.error('Error removing product:', error);
+      logger.error('Error removing product:', error);
       message.error('Failed to remove product association');
     }
   };

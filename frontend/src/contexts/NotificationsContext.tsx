@@ -383,7 +383,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
         }
       } catch (err) {
         // Silently fail polling - it's not critical
-        // console.warn('[NotificationsContext] Polling failed');
+        // logger.warn('[NotificationsContext] Polling failed');
       }
     }, pollingInterval);
     

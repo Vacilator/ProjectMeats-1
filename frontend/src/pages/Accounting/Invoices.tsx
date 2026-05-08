@@ -29,6 +29,7 @@ import { apiClient } from '../../services/apiService';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
 import { formatTradeDate, formatTradeWeight } from '../../utils/trade';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -444,7 +445,7 @@ const Invoices: React.FC = () => {
       
       setInvoices(invoicesWithOutstanding);
     } catch (err: any) {
-      console.error('Failed to fetch invoices:', err);
+      logger.error('Failed to fetch invoices:', err);
       setError(err.response?.data?.message || 'Failed to load invoices');
     } finally {
       setLoading(false);

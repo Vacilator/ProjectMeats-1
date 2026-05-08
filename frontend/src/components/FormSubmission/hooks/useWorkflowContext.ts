@@ -30,6 +30,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Node } from '@xyflow/react';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -234,7 +235,7 @@ export function useWorkflowContext(
   // Set field value for current node
   const setValue = useCallback((fieldKey: string, value: any) => {
     if (!currentNodeId) {
-      console.warn('[useWorkflowContext] Cannot setValue without currentNodeId');
+      logger.warn('[useWorkflowContext] Cannot setValue without currentNodeId');
       return;
     }
     

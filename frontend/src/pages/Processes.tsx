@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 import { apiService, PurchaseOrder } from '../services/apiService';
+import { logger } from '@/utils/logger';
 
 const Processes: React.FC = () => {
   const { theme } = useTheme();
@@ -22,7 +23,7 @@ const Processes: React.FC = () => {
       const data = await apiService.getPurchaseOrders();
       setPurchaseOrders(data);
     } catch (err) {
-      console.error('Error fetching processes:', err);
+      logger.error('Error fetching processes:', err);
       setError('Failed to load process data');
     } finally {
       setLoading(false);

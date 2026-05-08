@@ -10,6 +10,7 @@ import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } 
 import { apiClient } from '@/services/apiService';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useToast } from '@/hooks/useToast';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -367,7 +368,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
       setItems(itemsData);
       setHasChanges(false);
     } catch (error) {
-      console.error('Failed to load items:', error);
+      logger.error('Failed to load items:', error);
       toast.error('Failed to load option list items');
       setItems([]); // Reset to empty array on error
     } finally {
@@ -450,7 +451,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
       setItems(items.filter(item => item.id !== id));
       setHasChanges(true);
     } catch (error) {
-      console.error('Failed to delete item:', error);
+      logger.error('Failed to delete item:', error);
       toast.error('Failed to delete item. It may still be in use.');
     }
   };
@@ -525,7 +526,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
       onSave();
       onClose();
     } catch (error) {
-      console.error('Failed to save items:', error);
+      logger.error('Failed to save items:', error);
       toast.error('Failed to save changes. Please try again.');
     } finally {
       setSaving(false);

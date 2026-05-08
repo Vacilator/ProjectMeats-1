@@ -19,6 +19,7 @@ import {
 
 import { AdminGuard } from '@/components/Admin';
 import type { AdminPermissions } from '@/hooks/useAdminPermissions';
+import { logger } from '@/utils/logger';
 import {
   settlementEventsService,
   type SettlementEvent,
@@ -114,7 +115,7 @@ export const SettlementQueue: React.FC = () => {
       setEvents(nextEvents);
       setSelectedEvent((current) => nextEvents.find((event) => event.id === current?.id) ?? null);
     } catch (loadError) {
-      console.error('[SettlementQueue] Failed to load queue', loadError);
+      logger.error('[SettlementQueue] Failed to load queue', loadError);
       setError('Unable to load the settlement review queue.');
     } finally {
       setLoading(false);
@@ -191,7 +192,7 @@ export const SettlementQueue: React.FC = () => {
       setSelectedEvent(null);
       await loadQueue();
     } catch (submitError) {
-      console.error('[SettlementQueue] Failed to apply override', submitError);
+      logger.error('[SettlementQueue] Failed to apply override', submitError);
       message.error('Unable to apply the settlement override.');
     } finally {
       setSubmitting(false);
@@ -214,7 +215,7 @@ export const SettlementQueue: React.FC = () => {
       setSelectedEvent(null);
       await loadQueue();
     } catch (submitError) {
-      console.error('[SettlementQueue] Failed to reject settlement event', submitError);
+      logger.error('[SettlementQueue] Failed to reject settlement event', submitError);
       message.error('Unable to reject the settlement event.');
     } finally {
       setSubmitting(false);

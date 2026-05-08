@@ -13,6 +13,7 @@ import styled from 'styled-components';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { logger } from '@/utils/logger';
 
 
 interface WorkflowRun {
@@ -386,7 +387,7 @@ export const WorkflowMonitor: React.FC = () => {
       const response = await adminClient.get('/admin/system-config/api/runs/my-workflows/', { params });
       setWorkflows(response.data.results || []);
     } catch (error) {
-      console.error('Failed to fetch workflows:', error);
+      logger.error('Failed to fetch workflows:', error);
     } finally {
       setLoading(false);
     }
