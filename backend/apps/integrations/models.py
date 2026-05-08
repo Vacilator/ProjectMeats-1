@@ -423,6 +423,8 @@ class EmailReviewDraft(models.Model):
         ('purchase_order', 'Purchase Order'),
         ('bill_of_lading', 'Bill of Lading'),
         ('new_customer', 'New Customer'),
+        ('invoice', 'Invoice'),
+        ('pricing_sheet', 'Pricing Sheet'),
     ]
 
     STATUS_CHOICES = [

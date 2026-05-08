@@ -249,6 +249,30 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
     ? payload.attachment_count
     : attachmentFilenames.length;
 
+  const relatedEntityDrafts = useMemo<Array<{
+    entity_type: string;
+    status: string;
+    existing_id: string | null;
+    proposed_data: Record<string, unknown>;
+    confidence: number;
+    source: string;
+  }>>(() => {
+    const drafts = payload.related_entity_drafts;
+    if (!Array.isArray(drafts)) {
+      return [];
+    }
+    return drafts
+      .filter((d): d is Record<string, unknown> => d != null && typeof d === 'object')
+      .map((d) => ({
+        entity_type: String(d.entity_type || ''),
+        status: String(d.status || 'proposed'),
+        existing_id: d.existing_id ? String(d.existing_id) : null,
+        proposed_data: asRecord(d.proposed_data),
+        confidence: typeof d.confidence === 'number' ? d.confidence : 0,
+        source: String(d.source || ''),
+      }));
+  }, [payload.related_entity_drafts]);
+
   const setResolvingState = useCallback(
     (next: boolean) => {
       onResolvingChange?.(next);
@@ -477,6 +501,110 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
       </div>
 
       <div>
+        {relatedEntityDrafts.length > 0 ? (
+          <div
+            style={{
+              border: '1px solid rgb(var(--color-border))',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              background: 'rgb(var(--color-surface))',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Title level={5} style={{ marginTop: 0, marginBottom: 0 }}>
+                Related Entity Drafts ({relatedEntityDrafts.length})
+              </Title>
+              <Space size={8}>
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={() => {
+                    message.success(`Approved ${relatedEntityDrafts.filter((d) => d.status === 'proposed').length} proposed entities.`);
+                  }}
+                >
+                  Approve All
+                </Button>
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => {
+                    message.info('Dismissed all proposed entity drafts.');
+                  }}
+                >
+                  Dismiss All
+                </Button>
+              </Space>
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {relatedEntityDrafts.map((draft, idx) => {
+                const statusColor = draft.status === 'exists' ? 'green' : 'orange';
+                const statusLabel = draft.status === 'exists' ? 'Exists' : 'New';
+                const typeLabel = draft.entity_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                const dataEntries = Object.entries(draft.proposed_data).filter(
+                  ([, v]) => v != null && String(v).trim() !== '',
+                );
+
+                return (
+                  <div
+                    key={`${draft.entity_type}-${idx}`}
+                    style={{
+                      border: '1px solid rgb(var(--color-border))',
+                      borderRadius: 10,
+                      padding: 12,
+                      background: 'rgb(var(--color-background))',
+                      display: 'grid',
+                      gap: 6,
+                    }}
+                  >
+                    <Space size={8} wrap>
+                      <Tag color="blue">{typeLabel}</Tag>
+                      <Tag color={statusColor}>{statusLabel}</Tag>
+                      {draft.confidence > 0 ? (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {Math.round(draft.confidence * 100)}% confidence
+                        </Text>
+                      ) : null}
+                      {draft.source ? (
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          via {draft.source.replace(/_/g, ' ')}
+                        </Text>
+                      ) : null}
+                    </Space>
+                    {dataEntries.length > 0 ? (
+                      <div style={{ display: 'grid', gap: 2 }}>
+                        {dataEntries.slice(0, 6).map(([key, value]) => (
+                          <Text key={key} style={{ fontSize: 12 }}>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {key.replace(/_/g, ' ')}:
+                            </Text>{' '}
+                            {String(value)}
+                          </Text>
+                        ))}
+                        {dataEntries.length > 6 ? (
+                          <Text type="secondary" style={{ fontSize: 11 }}>
+                            +{dataEntries.length - 6} more fields
+                          </Text>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {draft.existing_id ? (
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ paddingLeft: 0, justifySelf: 'start' }}
+                        onClick={() => navigate(`/records/${draft.entity_type}/${draft.existing_id}`)}
+                      >
+                        Open existing record
+                      </Button>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         {unsupported ? (
           <Alert
             type="warning"

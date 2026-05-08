@@ -208,6 +208,16 @@ export const aiStaffApi = {
     );
     return unwrap(res);
   },
+
+  batchResolve: async (
+    feedbackIds: string[],
+  ): Promise<{ resolved: Array<{ id: string; status: string }>; errors: Array<{ id: string; error: string }>; total_resolved: number }> => {
+    const res = await businessApi.post(
+      '/ai-assistant/review/batch-resolve/',
+      { feedback_ids: feedbackIds },
+    );
+    return unwrap(res);
+  },
 };
 
 export const aiFeedbackApi = {

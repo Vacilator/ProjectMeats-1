@@ -12,6 +12,7 @@ from tenant_apps.ai_assistant.models import AIFeedbackLog, AILineageEvent
 from tenant_apps.workflows.models import NotificationPriority, NotificationType, UserNotification
 
 from .ai_classification import classify_ingested_email
+from .dependency_drafter import build_related_entity_drafts
 from .inquiry_drafts import upsert_inquiry_draft_from_email
 from .models import EmailLog, EmailReviewDraft, ExternalAuthProvider
 
@@ -252,6 +253,34 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
             classification['attachment_count'] = len(attachment_meta)
             classification['attachment_filenames'] = [a['name'] for a in attachment_meta]
             classification['attachment_details'] = attachment_meta
+
+        # Build dependency-aware related entity drafts
+        try:
+            related_drafts = build_related_entity_drafts(
+                classification=classification,
+                email_log=instance,
+                tenant=instance.tenant,
+            )
+            if related_drafts:
+                classification['related_entity_drafts'] = related_drafts
+                _record_email_lineage_event(
+                    instance,
+                    event_type='dependency_drafts_proposed',
+                    summary=f'Proposed {len(related_drafts)} related entity draft(s) from email.',
+                    target_type='',
+                    target_id='',
+                    metadata={
+                        'draft_count': len(related_drafts),
+                        'entity_types': [d['entity_type'] for d in related_drafts],
+                        'statuses': [d['status'] for d in related_drafts],
+                    },
+                )
+        except Exception:
+            logger.warning(
+                'Dependency draft proposal failed for email %s; continuing without related drafts',
+                instance.id,
+                exc_info=True,
+            )
 
         inquiry, _ = upsert_inquiry_draft_from_email(instance, classification)
         if inquiry is not None:
