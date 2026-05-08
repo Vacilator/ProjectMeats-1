@@ -321,6 +321,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             entityType={tableEntityType}
             data={rows as any}
             enableQuickEdit={!isMixed}
+            enableBulkActions
             recordPathForRow={(_t, row: any) => {
               const rowId = String(row?.id ?? '').trim();
               const rowType = String(row?.type ?? tableEntityType).trim();
