@@ -1,7 +1,7 @@
 # MASTER_PLAN.md (Canonical)
 
-**Status**: 🔄 Living document (canonical source of truth)  
-**Last Updated**: 2026-05-07  
+**Status**: 🔄 Living document (canonical source of truth)
+**Last Updated**: 2026-05-07
 **Primary Focus**: Industry Leader State execution — all Phase 12-19 backlog items shipped; advancing to zero-touch SaaS excellence across 3 new phases.
 
 This file is the **canonical plan + current truth snapshot**.
@@ -1380,9 +1380,9 @@ Benchmark context: Salesforce/HubSpot (CRM + search), Airtable/Retool (data UX),
 
 ## 🚨 EMERGENCY: Node Config Blackout & Registry Normalization
 
-**Date Added**: March 17, 2026  
-**Severity**: CRITICAL  
-**Status**: MERGED — PR #3455, #3460, #3552  
+**Date Added**: March 17, 2026
+**Severity**: CRITICAL
+**Status**: MERGED — PR #3455, #3460, #3552
 **Priority**: P0 (Previously blocked 60%+ of workflow editor functionality)
 
 ### Resolution (Shipped)
@@ -1404,7 +1404,7 @@ Based on a deep architectural audit of the provided source files and error logs,
 
 #### II. 🤖 COPILOT CLI DELEGATION: EMERGENCY RESTORATION
 
-**Mode:** `plan`  
+**Mode:** `plan`
 **Agent:** `claude-opus-4.5` (followed by `claude-sonnet-4.5` in `automode`)
 
 **Detailed Prompt:**
@@ -1453,8 +1453,8 @@ Based on a deep architectural audit of the provided source files and error logs,
 
 ## 📍 Cockpit Consolidation & Search-First Operations
 
-**Date Added**: March 17, 2026  
-**Priority**: P0 (Eliminates 2-3 click navigation friction)  
+**Date Added**: March 17, 2026
+**Priority**: P0 (Eliminates 2-3 click navigation friction)
 **Status**: MERGED — PR #3542 (breadcrumb + quick actions), PR #3552 (hero search + nav stability), PR #3553 (plan/audit log)
 
 ### I. ANALYSIS: Cockpit Consolidation & Search-First Operations
@@ -1474,7 +1474,7 @@ The "Smart Wizard" has failed to provide architectural value and currently creat
 
 ### II. 🤖 COPILOT CLI DELEGATION
 
-**Mode:** `plan`  
+**Mode:** `plan`
 **Agent:** `claude-sonnet-4.5`
 
 **Detailed Prompt:**
@@ -1513,8 +1513,8 @@ The "Smart Wizard" has failed to provide architectural value and currently creat
 
 ## 🎨 Form Node Configuration & Layout Fixes
 
-**Date Added**: March 17, 2026  
-**Priority**: P1 (UX inconsistency + user confusion)  
+**Date Added**: March 17, 2026
+**Priority**: P1 (UX inconsistency + user confusion)
 **Status**: MERGED — PR #3552 (formStep deprecation cleanup + LR auto-layout)
 
 ### I. ANALYSIS: File State Retrieval & Context Assessment
@@ -1601,8 +1601,8 @@ echo "\n- [x] $(date +'%Y-%m-%d %H:%M') Cleaned up inaccurate deprecation warnin
 
 ## 🎯 Cockpit & WorkForms Strategic Overhaul - Unified Command Center
 
-**Date Added**: March 17, 2026  
-**Priority**: P0 (Transforms fragmented pages → Unified operational hub)  
+**Date Added**: March 17, 2026
+**Priority**: P0 (Transforms fragmented pages → Unified operational hub)
 **Status**: ✅ COMPLETE — Cockpit consolidation + WorkForms command-center views shipped (see PR log in `.github/MASTER_PLAN.md`)
 
 ### Completed (Shipped)
@@ -1685,7 +1685,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 ## Phase 1: UI/UX Enhancement [x] COMPLETE
 
-**Completion Date**: January 2026  
+**Completion Date**: January 2026
 **Status**: ✅ 100% Complete
 
 ### Deliverables
@@ -1709,8 +1709,8 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 ## Phase 2: Forms/Workflows - AI-Powered [~] ✅ INFRASTRUCTURE VERIFIED
 
-**Status**: ✅ Infrastructure Verified (March 3, 2026) - Ready for Feature Development  
-**Estimated Effort**: 29-37 hours (5 todos)  
+**Status**: ✅ Infrastructure Verified (March 3, 2026) - Ready for Feature Development
+**Estimated Effort**: 29-37 hours (5 todos)
 **Completed**: 1/5 (20%) - Infrastructure + API Layer
 
 ### Completed Deliverables
@@ -1755,7 +1755,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 ## Phase 3: Search Intelligence [~] ✅ INFRASTRUCTURE VERIFIED
 
-**Status**: ✅ Infrastructure Verified (March 3, 2026) - Ready for Feature Development  
+**Status**: ✅ Infrastructure Verified (March 3, 2026) - Ready for Feature Development
 **Estimated Effort**: 26-33 hours (4 todos)
 
 ### Planned Deliverables
@@ -1777,7 +1777,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 ## Phase 4: Admin Management [x] COMPLETE
 
-**Completion Date**: January 2026  
+**Completion Date**: January 2026
 **Status**: ✅ 100% Complete
 
 ### Deliverables
@@ -1801,8 +1801,8 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 ## Phase 5: Integrations [x] COMPLETE ✅
 
-**Status**: 100% Complete - Microsoft OAuth + Email Ingestion  
-**Completion Date**: February 28, 2026  
+**Status**: 100% Complete - Microsoft OAuth + Email Ingestion
+**Completion Date**: February 28, 2026
 **Estimated Effort**: 40-49 hours (completed)
 
 ### Completed Deliverables
@@ -1851,7 +1851,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 ## Phase 6: Performance & Security [x] COMPLETE
 
-**Completion Date**: February 27, 2026  
+**Completion Date**: February 27, 2026
 **Status**: ✅ 6/6 Complete (Workflows RLS hardening added as Phase 6.7)
 
 ### Completed Deliverables
@@ -1859,15 +1859,15 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
   - Backend: Token encryption, HTML sanitization
   - Frontend: DOMPurify XSS prevention, AES-GCM encryption
   - Files: `backend/apps/core/security.py`, `frontend/src/utils/security.ts`
-  
+
 - [x] 6.3: E2E Test Coverage (31 Playwright tests, 5 browsers) - **DEPLOYED**
   - Test suites: Auth, workflow, navigation
   - Files: `frontend/e2e/*.spec.ts`, `frontend/playwright.config.ts`
-  
+
 - [x] 6.5: Frontend Optimization (performance monitoring) - **DEPLOYED**
   - Hooks: useRenderPerformance, useDebounce, useInView, MemoCache
   - Files: `frontend/src/utils/performance.ts`
-  
+
 - [x] 6.6: Load Testing (Locust framework) - **DEPLOYED**
   - 3 user profiles, 4 task sets, 450+ lines
   - Files: `backend/locustfile.py`, `docs/LOAD_TESTING.md`
@@ -1885,7 +1885,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 **Git References**:
 - PRs: #3301-#3304 (Gap Analysis Phase 6)
-- Branches: 
+- Branches:
   - `feat/gap-analysis-phase6-2-security-hardening`
   - `feat/gap-analysis-phase6-3-e2e-tests`
   - `feat/gap-analysis-phase6-5-frontend-optimization`
@@ -1897,8 +1897,8 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 ## Phase 7: Intelligent Workform Editor [x] 100% COMPLETE
 
-**Status**: ✅ Complete — March 2026  
-**Start Date**: February 2026  
+**Status**: ✅ Complete — March 2026
+**Start Date**: February 2026
 **Progress**: 100% (11/11 sub-phases complete)
 
 ### Completed Deliverables
@@ -1909,7 +1909,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
   - Redis caching with 10-minute TTL (~90% cost reduction)
   - Graceful degradation to static suggestions
   - 8 unit tests for connectivity checks
-  - **Files**: 
+  - **Files**:
     - `backend/apps/core/management/commands/check_infrastructure.py` (management command)
     - `backend/tenant_apps/workflows/views.py` (+89 lines)
     - `frontend/src/components/FlowEditor/components/AISuggestionsPanel.tsx` (+120 lines)
@@ -1973,7 +1973,7 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 ## Phase 8: Advanced Caching & Parallelization [~] ✅ INFRASTRUCTURE VERIFIED
 
-**Status**: ✅ Infrastructure Verified (March 3, 2026) - Ready for Feature Development  
+**Status**: ✅ Infrastructure Verified (March 3, 2026) - Ready for Feature Development
 **Target Start**: Q2 2026 (April) - **Infrastructure Ready**
 
 ### Planned Deliverables
@@ -2185,8 +2185,8 @@ operations = [
 - ~~**Microsoft OAuth**: Blocks 4 todos (Phase 5)~~ ✅ **VERIFIED** - Phase 5 complete (Feb 28, 2026)
 - ~~**Sentry**: Blocks 1 todo (Phase 6.4)~~ ✅ **VERIFIED** - Operational in dev (Feb 28, 2026)
 
-**Total Blocked in Dev**: 0 todos (0%) 🎉  
-**Previously Blocked**: 15 todos (21%)  
+**Total Blocked in Dev**: 0 todos (0%) 🎉
+**Previously Blocked**: 15 todos (21%)
 **All Unblocked**: March 3, 2026 - Full infrastructure stack operational
 
 **Infrastructure Verification Evidence**:
@@ -2273,10 +2273,10 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 
 ## Phase 10: DRY/Canonical Architecture Standardization [ ] PLANNED
 
-**Status**: 📋 PLANNED - Evidence-based refactor from comprehensive 10-agent deep-dive audit  
-**Priority**: P0 (Foundation for sustainable scaling)  
-**Estimated Effort**: 180-220 hours (60+ todos across 8 tracks)  
-**Target Start**: April 2026  
+**Status**: 📋 PLANNED - Evidence-based refactor from comprehensive 10-agent deep-dive audit
+**Priority**: P0 (Foundation for sustainable scaling)
+**Estimated Effort**: 180-220 hours (60+ todos across 8 tracks)
+**Target Start**: April 2026
 **Audit Date**: April 13, 2026
 
 ---
@@ -2298,7 +2298,7 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 | Flow Engine | 85% | Hardcoded prefix routing | 78 node types |
 | Documentation/Types | 48% | 184 `any`, 24.9% return hints | 300+ files |
 
-**Total Critical Violations**: 150+  
+**Total Critical Violations**: 150+
 **Estimated Code Reduction**: 5,000+ lines (duplicate elimination)
 
 ---
@@ -2306,7 +2306,7 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 ### 🔴 TRACK 1: CRITICAL SECURITY & DATA INTEGRITY (Week 1)
 
 #### 10.1.1: Backend Missing Permissions [CRITICAL]
-**Severity**: 🔴 DATA LEAKAGE RISK  
+**Severity**: 🔴 DATA LEAKAGE RISK
 **Effort**: 2 hours
 
 **4 ViewSets with NO permission_classes:**
@@ -2318,7 +2318,7 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 | `backend/tenant_apps/workflows/views.py` | `UserNotificationViewSet` | ~1500 | Verify explicit permissions |
 
 #### 10.1.2: Backend Missing Tenant Filtering [CRITICAL]
-**Severity**: 🔴 CROSS-TENANT DATA EXPOSURE  
+**Severity**: 🔴 CROSS-TENANT DATA EXPOSURE
 **Effort**: 4 hours
 
 **17 ViewSets missing tenant filter in `get_queryset()`:**
@@ -2336,7 +2336,7 @@ def get_queryset(self):
 ```
 
 #### 10.1.3: Frontend NotificationsContext fetch() Bypass [CRITICAL]
-**Severity**: 🔴 BYPASSES AUTH INTERCEPTORS  
+**Severity**: 🔴 BYPASSES AUTH INTERCEPTORS
 **Effort**: 3 hours
 
 **File**: `frontend/src/contexts/NotificationsContext.tsx`
@@ -2358,7 +2358,7 @@ def get_queryset(self):
 ### 🟠 TRACK 2: FRONTEND FORM CONSOLIDATION (Weeks 2-4)
 
 #### 10.2.1: Eliminate Inquiry Form Duplication [HIGH]
-**Severity**: 🟠 2,640 LINES DUPLICATE CODE  
+**Severity**: 🟠 2,640 LINES DUPLICATE CODE
 **Effort**: 16 hours
 
 **Files to Consolidate:**
@@ -2372,7 +2372,7 @@ def get_queryset(self):
 **Target**: Single `UnifiedInquiryForm` component supporting create/edit/view/clone modes
 
 #### 10.2.2: Consolidate SearchableSelect (4 Duplicates) [HIGH]
-**Severity**: 🟠 1,125 LINES DUPLICATE CODE  
+**Severity**: 🟠 1,125 LINES DUPLICATE CODE
 **Effort**: 8 hours
 
 **4 Implementations to Merge:**
@@ -2747,10 +2747,10 @@ service = UniversalSearchService(tenant=tenant)  # ← Not pgvector!
 
 # 🚀 PHASE 10B: FEATURE ENHANCEMENTS & INDUSTRY BEST PRACTICES
 
-**Status**: 📋 PLANNED - Feature gaps identified via 6-agent deep-dive  
-**Priority**: P1 (Competitive differentiation)  
-**Estimated Effort**: 400-500 hours (80+ todos across 10 tracks)  
-**Target Start**: After Phase 10A technical debt  
+**Status**: 📋 PLANNED - Feature gaps identified via 6-agent deep-dive
+**Priority**: P1 (Competitive differentiation)
+**Estimated Effort**: 400-500 hours (80+ todos across 10 tracks)
+**Target Start**: After Phase 10A technical debt
 **Research Date**: April 13, 2026
 
 ---
@@ -2769,7 +2769,7 @@ service = UniversalSearchService(tenant=tenant)  # ← Not pgvector!
 | Backend Infrastructure | 7/10 | Job monitoring, API versioning | 🟠 HIGH |
 | AI/ML Integration | 6/10 | Streaming, vector RAG, moderation | 🟠 HIGH |
 
-**Total Missing Features**: 60+  
+**Total Missing Features**: 60+
 **Industry Leader Gap**: ~30% behind Camunda/n8n/Retool
 
 ---
@@ -2901,15 +2901,15 @@ export const tokens = {
 {
   steps: [
     { id: 'type', fields: ['order_type'] },
-    { 
-      id: 'domestic', 
+    {
+      id: 'domestic',
       showWhen: { field: 'order_type', equals: 'domestic' },
-      fields: ['state', 'city'] 
+      fields: ['state', 'city']
     },
-    { 
-      id: 'international', 
+    {
+      id: 'international',
       showWhen: { field: 'order_type', equals: 'international' },
-      fields: ['country', 'customs_info'] 
+      fields: ['country', 'customs_info']
     },
     { id: 'review' }  // Always shown
   ]
@@ -3321,7 +3321,7 @@ interface SavedView {
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Add vector column
-ALTER TABLE ai_assistant_vectormemory 
+ALTER TABLE ai_assistant_vectormemory
   ADD COLUMN embedding_vec vector(1536);
 
 -- Similarity query
@@ -3424,10 +3424,10 @@ F9 (AI) ────────────────────────
 
 ## Executive Summary
 
-**Project**: ProjectMeats Phase 10 - DRY/Canonical Architecture Standardization  
-**Duration**: 20 weeks (5 months)  
-**Total Effort**: ~1,160 hours (~29 developer-weeks)  
-**ROI**: +50% developer velocity, -70% production incidents, +40% user engagement  
+**Project**: ProjectMeats Phase 10 - DRY/Canonical Architecture Standardization
+**Duration**: 20 weeks (5 months)
+**Total Effort**: ~1,160 hours (~29 developer-weeks)
+**ROI**: +50% developer velocity, -70% production incidents, +40% user engagement
 
 ### Business Impact
 
@@ -3485,7 +3485,7 @@ F9 (AI) ────────────────────────
 
 ### 🔴 WEEK 0: SECURITY BLOCKERS (MANDATORY BEFORE PHASE 10)
 
-**Duration**: 1 day (6 hours)  
+**Duration**: 1 day (6 hours)
 **Status**: BLOCKING - Cannot proceed until complete
 
 | Task | Hours | Deliverable | Acceptance Criteria |
@@ -3500,7 +3500,7 @@ F9 (AI) ────────────────────────
 
 ### 🔴 SPRINT 1 (Weeks 1-2): FOUNDATION SECURITY & MOBILE
 
-**Theme**: "Make it safe and usable on phones"  
+**Theme**: "Make it safe and usable on phones"
 **Effort**: 80 hours
 
 #### Deliverables
@@ -3534,7 +3534,7 @@ F9 (AI) ────────────────────────
 
 ### 🟠 SPRINT 2 (Weeks 3-4): CORE TECHNICAL DEBT
 
-**Theme**: "Consolidate duplicate code"  
+**Theme**: "Consolidate duplicate code"
 **Effort**: 88 hours
 
 #### Deliverables
@@ -3565,7 +3565,7 @@ F9 (AI) ────────────────────────
 
 ### 🟠 SPRINT 3-4 (Weeks 5-8): DRY ARCHITECTURE
 
-**Theme**: "Single source of truth for everything"  
+**Theme**: "Single source of truth for everything"
 **Effort**: 160 hours
 
 #### Deliverables
@@ -3599,7 +3599,7 @@ F9 (AI) ────────────────────────
 
 ### 🟡 SPRINT 5-6 (Weeks 9-12): FEATURE ENHANCEMENTS
 
-**Theme**: "Match industry leaders"  
+**Theme**: "Match industry leaders"
 **Effort**: 144 hours
 
 #### Deliverables
@@ -3633,7 +3633,7 @@ F9 (AI) ────────────────────────
 
 ### 🟢 SPRINT 7-8 (Weeks 13-16): ADVANCED FEATURES
 
-**Theme**: "Delight power users"  
+**Theme**: "Delight power users"
 **Effort**: 128 hours
 
 #### Deliverables
@@ -3664,7 +3664,7 @@ F9 (AI) ────────────────────────
 
 ### 🔵 SPRINT 9-10 (Weeks 17-20): POLISH & DOCUMENTATION
 
-**Theme**: "Production-ready excellence"  
+**Theme**: "Production-ready excellence"
 **Effort**: 96 hours
 
 #### Deliverables
@@ -3959,11 +3959,11 @@ This section incorporates additional DRY/canonical standards for **(1) frontend/
 
 ---
 
-**Master Plan Version**: 3.1.0  
-**Strategic Roadmap Added**: 2026-04-13  
-**Phase 10C Added**: 2026-04-13  
-**Maintained By**: Development Team + AI Assistants  
-**Next Review**: May 15, 2026  
+**Master Plan Version**: 3.1.0
+**Strategic Roadmap Added**: 2026-04-13
+**Phase 10C Added**: 2026-04-13
+**Maintained By**: Development Team + AI Assistants
+**Next Review**: May 15, 2026
 **Phase 10 Estimated Completion**: August 2026
 
 ---
