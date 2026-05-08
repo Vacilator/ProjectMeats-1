@@ -16,6 +16,7 @@ import {
   TransactionalEmptyStateGuidance,
   TransactionalEmptyStateGuidanceItem,
 } from '@/components/Onboarding';
+import { StatCardGrid } from '@/components/Shared/StatCardGrid';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
@@ -61,32 +62,6 @@ const PageHeader = styled.div`
   gap: 0.75rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
-`;
-
-const StatsRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-`;
-
-const StatCard = styled(Card)`
-  .ant-card-body {
-    padding: 0.75rem 1rem;
-  }
-`;
-
-const StatValue = styled.div`
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary, 17 24 39));
-`;
-
-const StatLabel = styled.div`
-  font-size: 0.75rem;
-  color: rgb(var(--color-text-tertiary, 107 114 128));
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 `;
 
 const CapacityGrid = styled.div`
@@ -338,31 +313,12 @@ const ColdStorage: React.FC = () => {
         </Space>
       </PageHeader>
 
-      <StatsRow>
-        <StatCard size="small">
-          <StatValue>{stats.totalFacilities}</StatValue>
-          <StatLabel>Facilities</StatLabel>
-        </StatCard>
-        <StatCard size="small">
-          <StatValue>{stats.totalLots}</StatValue>
-          <StatLabel>Active Lots</StatLabel>
-        </StatCard>
-        <StatCard size="small">
-          <StatValue>{stats.totalWeight.toLocaleString()}</StatValue>
-          <StatLabel>Total Weight (LBS)</StatLabel>
-        </StatCard>
-        <StatCard size="small">
-          <StatValue style={{ color: stats.expiringSoon > 0 ? 'rgb(var(--color-warning, 234 179 8))' : undefined }}>
-            {stats.expiringSoon}
-          </StatValue>
-          <StatLabel>
-            <Space size={4}>
-              <AlertTriangle size={10} />
-              Expiring Soon
-            </Space>
-          </StatLabel>
-        </StatCard>
-      </StatsRow>
+      <StatCardGrid items={[
+        { value: stats.totalFacilities, label: 'Facilities' },
+        { value: stats.totalLots, label: 'Active Lots' },
+        { value: stats.totalWeight.toLocaleString(), label: 'Total Weight (LBS)' },
+        { value: stats.expiringSoon, label: 'Expiring Soon', icon: <AlertTriangle size={11} />, alert: true },
+      ]} />
 
       {/* Facility Capacity Cards */}
       {facilities.length > 0 && (
