@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -29,15 +28,11 @@ class Migration(migrations.Migration):
                 ("modified_on", models.DateTimeField(auto_now=True)),
                 (
                     "product_code",
-                    models.CharField(
-                        help_text="Unique product code", max_length=50, unique=True
-                    ),
+                    models.CharField(help_text="Unique product code", max_length=50, unique=True),
                 ),
                 (
                     "description_of_product_item",
-                    models.TextField(
-                        help_text="Detailed description of the product item"
-                    ),
+                    models.TextField(help_text="Detailed description of the product item"),
                 ),
                 (
                     "type_of_protein",
@@ -113,9 +108,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "tested_product",
-                    models.BooleanField(
-                        default=False, help_text="Is this a tested product?"
-                    ),
+                    models.BooleanField(default=False, help_text="Is this a tested product?"),
                 ),
                 (
                     "supplier_item_number",
@@ -180,9 +173,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "namp",
-                    models.CharField(
-                        blank=True, default="", help_text="NAMP code", max_length=50
-                    ),
+                    models.CharField(blank=True, default="", help_text="NAMP code", max_length=50),
                 ),
                 (
                     "usda",
@@ -214,9 +205,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "is_active",
-                    models.BooleanField(
-                        default=True, help_text="Is this product active?"
-                    ),
+                    models.BooleanField(default=True, help_text="Is this product active?"),
                 ),
                 (
                     "supplier",

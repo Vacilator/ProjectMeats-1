@@ -70,7 +70,7 @@ const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, ac
           {renderAccordionContent(item)}
         </AccordionNavLinkInner>
         {sidebarExpanded && (
-          <ExpandButton 
+          <ExpandButton
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -138,4 +138,3 @@ Test the following scenarios:
 ## Date
 - Initial Fix: 2026-02-05
 - Working Fix: 2026-02-05 (same day, v2)
-

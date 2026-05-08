@@ -172,13 +172,9 @@ def evaluate_approval_gate(
         passed = _evaluate_rule(rule, context)
 
         if passed:
-            evaluation.rules_passed.append(
-                f"{rule.rule_type.value}: {rule.description or rule.context_field}"
-            )
+            evaluation.rules_passed.append(f"{rule.rule_type.value}: {rule.description or rule.context_field}")
         else:
-            evaluation.rules_failed.append(
-                f"{rule.rule_type.value}: {rule.description or rule.context_field}"
-            )
+            evaluation.rules_failed.append(f"{rule.rule_type.value}: {rule.description or rule.context_field}")
             if rule.auto_approve_on_pass:
                 all_auto_approve_rules_pass = False
 
@@ -187,15 +183,11 @@ def evaluate_approval_gate(
     if auto_approve_rules and all_auto_approve_rules_pass:
         evaluation.status = ApprovalStatus.AUTO_APPROVED
         evaluation.auto_approved = True
-        evaluation.reason = (
-            f"All {len(auto_approve_rules)} auto-approve rules passed."
-        )
+        evaluation.reason = f"All {len(auto_approve_rules)} auto-approve rules passed."
         logger.info("ApprovalGate %s: auto-approved (%d rules passed)", gate_id, len(auto_approve_rules))
     else:
         evaluation.status = ApprovalStatus.PENDING
-        evaluation.reason = (
-            f"{len(evaluation.rules_failed)} rule(s) require manual approval."
-        )
+        evaluation.reason = f"{len(evaluation.rules_failed)} rule(s) require manual approval."
         logger.info(
             "ApprovalGate %s: pending manual approval (%d passed, %d failed)",
             gate_id,
@@ -339,14 +331,16 @@ def config_from_dict(data: dict[str, Any]) -> ApprovalGateConfig:
     """Parse ApprovalGateConfig from a JSON-serializable dict (template node data)."""
     rules = []
     for rule_data in data.get("rules", []):
-        rules.append(ApprovalRule(
-            rule_type=ApprovalRuleType(rule_data.get("rule_type", "custom")),
-            threshold=Decimal(str(rule_data["threshold"])) if rule_data.get("threshold") is not None else None,
-            operator=rule_data.get("operator", "gte"),
-            context_field=rule_data.get("context_field", ""),
-            auto_approve_on_pass=rule_data.get("auto_approve_on_pass", False),
-            description=rule_data.get("description", ""),
-        ))
+        rules.append(
+            ApprovalRule(
+                rule_type=ApprovalRuleType(rule_data.get("rule_type", "custom")),
+                threshold=Decimal(str(rule_data["threshold"])) if rule_data.get("threshold") is not None else None,
+                operator=rule_data.get("operator", "gte"),
+                context_field=rule_data.get("context_field", ""),
+                auto_approve_on_pass=rule_data.get("auto_approve_on_pass", False),
+                description=rule_data.get("description", ""),
+            )
+        )
 
     return ApprovalGateConfig(
         rules=rules,

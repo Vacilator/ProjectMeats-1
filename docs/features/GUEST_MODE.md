@@ -1,8 +1,8 @@
 # Guest Mode
 
 > **Consolidated**: This is the authoritative guide for guest mode.
-> 
-> **Archived docs**: 
+>
+> **Archived docs**:
 > - `GUEST_MODE_QUICK_REF.md` (quick reference)
 > - `GUEST_USER_PERMISSIONS_GUIDE.md` (permissions details)
 >
@@ -246,17 +246,17 @@ const handleGuestLogin = async () => {
     const response = await axios.post(
       'http://localhost:8000/api/v1/core/auth/guest-login/'
     );
-    
+
     const { token, user, tenant } = response.data;
-    
+
     // Store auth data
     localStorage.setItem('authToken', token);
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('currentTenant', JSON.stringify(tenant));
-    
+
     // Redirect to dashboard
     navigate('/dashboard');
-    
+
     // Show welcome message
     toast.success(response.data.message);
   } catch (error) {
@@ -266,8 +266,8 @@ const handleGuestLogin = async () => {
 };
 
 // JSX
-<Button 
-  variant="outlined" 
+<Button
+  variant="outlined"
   onClick={handleGuestLogin}
   fullWidth
 >
@@ -289,7 +289,7 @@ const isGuestTenant = currentTenant?.settings?.is_guest_tenant === true;
 // Show banner
 {isGuest && (
   <Alert severity="info" sx={{ mb: 2 }}>
-    You are using ProjectMeats in guest mode. 
+    You are using ProjectMeats in guest mode.
     <Link href="/signup">Create an account</Link> for full access.
   </Alert>
 )}
@@ -346,9 +346,9 @@ if (isGuestTenant && recordCount >= maxRecords) {
    # Scheduled task (e.g., daily at midnight)
    from apps.tenants.models import Tenant
    from apps.customers.models import Customer
-   
+
    guest_tenant = Tenant.objects.get(slug='guest-demo')
-   
+
    # Delete old guest data (older than 7 days)
    Customer.objects.filter(
        tenant=guest_tenant,
@@ -410,37 +410,37 @@ from rest_framework.test import APIClient
 from apps.tenants.models import Tenant, TenantUser
 
 class GuestModeTests(TestCase):
-    
+
     def setUp(self):
         # Run create_guest_tenant command
         from django.core.management import call_command
         call_command('create_guest_tenant')
-        
+
         self.client = APIClient()
-    
+
     def test_guest_login_creates_token(self):
         response = self.client.post('/api/v1/core/auth/guest-login/')
         self.assertEqual(response.status_code, 200)
         self.assertIn('token', response.data)
         self.assertIn('user', response.data)
         self.assertIn('tenant', response.data)
-    
+
     def test_guest_user_is_not_superuser(self):
         response = self.client.post('/api/v1/core/auth/guest-login/')
         user_data = response.data['user']
         self.assertFalse(user_data['is_superuser'])
         self.assertFalse(user_data['is_staff'])
-    
+
     def test_guest_user_has_admin_role(self):
         response = self.client.post('/api/v1/core/auth/guest-login/')
         tenant_data = response.data['tenant']
         self.assertEqual(tenant_data['role'], 'admin')
-    
+
     def test_guest_can_access_tenant_data(self):
         # Login as guest
         response = self.client.post('/api/v1/core/auth/guest-login/')
         token = response.data['token']
-        
+
         # Access tenant data
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
         response = self.client.get('/api/v1/customers/')
@@ -559,13 +559,13 @@ Start with limited features, unlock more as guest explores
 
 Guest mode provides a **zero-friction way** for users to try ProjectMeats:
 
-✅ **No signup required** - Instant access with one click  
-✅ **Tenant-scoped** - Full multi-tenancy support  
-✅ **Admin permissions** - Try all features within guest tenant  
-✅ **Secure** - NOT superuser, isolated from other tenants  
-✅ **Easy setup** - One management command  
-✅ **Frontend-ready** - Simple API integration  
+✅ **No signup required** - Instant access with one click
+✅ **Tenant-scoped** - Full multi-tenancy support
+✅ **Admin permissions** - Try all features within guest tenant
+✅ **Secure** - NOT superuser, isolated from other tenants
+✅ **Easy setup** - One management command
+✅ **Frontend-ready** - Simple API integration
 
-**Implementation Date**: October 12, 2025  
-**Status**: ✅ Complete (Backend + Frontend UI)  
-**Developer**: GitHub Copilot  
+**Implementation Date**: October 12, 2025
+**Status**: ✅ Complete (Backend + Frontend UI)
+**Developer**: GitHub Copilot

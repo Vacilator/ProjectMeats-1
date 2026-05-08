@@ -4,27 +4,26 @@ from django.db import migrations, models
 
 
 def backfill_supplier_phone_slots(apps, schema_editor):
-    Supplier = apps.get_model('suppliers', 'Supplier')
+    Supplier = apps.get_model("suppliers", "Supplier")
 
     for s in Supplier.objects.all().iterator():
-        legacy_phone = (s.phone or '').strip()
+        legacy_phone = (s.phone or "").strip()
         if not legacy_phone:
             continue
 
         # Only backfill when the new slots are empty.
-        if (s.phone_mobile or '').strip() or (s.phone_office or '').strip():
+        if (s.phone_mobile or "").strip() or (s.phone_office or "").strip():
             continue
 
-        if (s.phone_type or '').strip() == 'mobile':
+        if (s.phone_type or "").strip() == "mobile":
             s.phone_mobile = legacy_phone
         else:
             s.phone_office = legacy_phone
 
-        s.save(update_fields=['phone_mobile', 'phone_office'])
+        s.save(update_fields=["phone_mobile", "phone_office"])
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("suppliers", "0016_supplier_phone_type"),
     ]

@@ -1,9 +1,9 @@
 /**
  * Field Configuration Modal
- * 
+ *
  * Modal for adding/editing form fields with auto-populate suggestions.
  * Provides comprehensive field configuration options.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 4 - FormBuilder Suite
  */
@@ -64,7 +64,7 @@ const CloseButton = styled.button`
   cursor: pointer;
   border-radius: 6px;
   display: flex;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
   }
@@ -78,7 +78,7 @@ const Content = styled.div`
 
 const FormGroup = styled.div`
   margin-bottom: 20px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -105,7 +105,7 @@ const Input = styled.input`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -122,7 +122,7 @@ const TextArea = styled.textarea`
   font-size: 14px;
   min-height: 80px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -138,7 +138,7 @@ const Select = styled.select`
   color: rgb(var(--color-text-primary));
   font-size: 14px;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -195,7 +195,7 @@ const SuggestionItem = styled.button`
   text-align: left;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.05);
@@ -257,11 +257,11 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   align-items: center;
   gap: 8px;
   border: none;
-  
+
   ${props => props.variant === 'primary' ? `
     background: rgb(var(--color-primary));
     color: white;
-    
+
     &:hover {
       opacity: 0.9;
     }
@@ -269,7 +269,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
     background: rgb(var(--color-surface-hover));
     color: rgb(var(--color-text-primary));
     border: 1px solid rgb(var(--color-border));
-    
+
     &:hover {
       background: rgb(var(--color-surface-active));
     }
@@ -314,7 +314,7 @@ export const FieldConfigModal: React.FC = () => {
     saveField,
     steps
   } = useFormBuilderStore();
-  
+
   // Field state
   const [fieldData, setFieldData] = useState<FormField>({
     id: generateId(),
@@ -326,11 +326,11 @@ export const FieldConfigModal: React.FC = () => {
     validation: [],
     width: 'full'
   });
-  
+
   // Suggestions state
   const [suggestions, setSuggestions] = useState<AutoPopulateSuggestion[]>([]);
   const [availableVariables, setAvailableVariables] = useState<Variable[]>([]);
-  
+
   // Load editing field
   useEffect(() => {
     if (editingField) {
@@ -348,14 +348,14 @@ export const FieldConfigModal: React.FC = () => {
       });
     }
   }, [editingField, isFieldModalOpen]);
-  
+
   // Generate suggestions when field label changes
   useEffect(() => {
     if (!fieldData.label || !activeStepId) {
       setSuggestions([]);
       return;
     }
-    
+
     // Mock available variables (in real implementation, get from upstream nodes)
     const mockVariables: Variable[] = [
       {
@@ -392,39 +392,39 @@ export const FieldConfigModal: React.FC = () => {
         sampleValue: '+1234567890'
       }
     ];
-    
+
     setAvailableVariables(mockVariables);
-    
+
     // Generate suggestions
     const newSuggestions = generateAutoPopulateSuggestions(
       fieldData,
       mockVariables,
       3
     );
-    
+
     setSuggestions(newSuggestions);
   }, [fieldData.label, fieldData.type, activeStepId]);
-  
+
   const handleSave = () => {
     if (!activeStepId) return;
     if (!fieldData.label.trim()) {
       showAlert({ type: 'warning', title: 'Validation', content: 'Field label is required' });
       return;
     }
-    
+
     saveField(activeStepId, fieldData);
   };
-  
+
   const handleChange = (key: keyof FormField, value: any) => {
     setFieldData(prev => ({ ...prev, [key]: value }));
   };
-  
+
   // Apply suggestion
   const handleApplySuggestion = (suggestion: AutoPopulateSuggestion) => {
     const sourceVariable = availableVariables.find(
       v => v.path === suggestion.sourceField
     );
-    
+
     if (sourceVariable) {
       setFieldData(prev => ({
         ...prev,
@@ -437,7 +437,7 @@ export const FieldConfigModal: React.FC = () => {
       }));
     }
   };
-  
+
   return (
     <Overlay isOpen={isFieldModalOpen} onClick={closeFieldModal}>
       <Modal onClick={(e) => e.stopPropagation()}>
@@ -447,7 +447,7 @@ export const FieldConfigModal: React.FC = () => {
             <X size={20} />
           </CloseButton>
         </Header>
-        
+
         <Content>
           <FormGroup>
             <Label htmlFor="field-label">
@@ -462,7 +462,7 @@ export const FieldConfigModal: React.FC = () => {
               placeholder="e.g., Customer Name"
             />
           </FormGroup>
-          
+
           <FormGroup>
             <Label htmlFor="field-type">Field Type</Label>
             <Select
@@ -477,7 +477,7 @@ export const FieldConfigModal: React.FC = () => {
               ))}
             </Select>
           </FormGroup>
-          
+
           <FormGroup>
             <Label htmlFor="field-placeholder">Placeholder</Label>
             <Input
@@ -488,7 +488,7 @@ export const FieldConfigModal: React.FC = () => {
               placeholder="e.g., Enter your name..."
             />
           </FormGroup>
-          
+
           <FormGroup>
             <Label htmlFor="field-help">Help Text</Label>
             <TextArea
@@ -498,7 +498,7 @@ export const FieldConfigModal: React.FC = () => {
               placeholder="Optional help text for users..."
             />
           </FormGroup>
-          
+
           <FormGroup>
             <CheckboxLabel>
               <Checkbox
@@ -509,7 +509,7 @@ export const FieldConfigModal: React.FC = () => {
               Required field
             </CheckboxLabel>
           </FormGroup>
-          
+
           <FormGroup>
             <Label htmlFor="field-width">Field Width</Label>
             <Select
@@ -522,7 +522,7 @@ export const FieldConfigModal: React.FC = () => {
               <option value="third">Third Width</option>
             </Select>
           </FormGroup>
-          
+
           {suggestions.length > 0 && (
             <SuggestionBox>
               <SuggestionHeader>
@@ -551,7 +551,7 @@ export const FieldConfigModal: React.FC = () => {
             </SuggestionBox>
           )}
         </Content>
-        
+
         <Footer>
           <Button onClick={closeFieldModal}>Cancel</Button>
           <Button variant="primary" onClick={handleSave}>

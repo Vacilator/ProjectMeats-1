@@ -8,7 +8,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("workflows", "0011_remove_workflowexecution_workflows_w_tenant__43465b_idx_and_more"),
         ("tenants", "0010_add_tenant_configuration"),
@@ -32,7 +31,6 @@ class Migration(migrations.Migration):
             name="custom_data",
             field=models.JSONField(blank=True, default=dict),
         ),
-        
         # TenantForm - already has tenant field
         migrations.AddField(
             model_name="tenantform",
@@ -50,7 +48,6 @@ class Migration(migrations.Migration):
             name="custom_data",
             field=models.JSONField(blank=True, default=dict),
         ),
-        
         # TenantFormEntity - needs tenant field (null + populate + alter pattern)
         migrations.AddField(
             model_name="tenantformentity",
@@ -80,7 +77,7 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             sql="UPDATE workflows_tenantformentity SET tenant_id = (SELECT tenant_id FROM workflows_tenantform WHERE workflows_tenantform.id = workflows_tenantformentity.form_id) WHERE tenant_id IS NULL;",
-            reverse_sql=migrations.RunSQL.noop
+            reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.AlterField(
             model_name="tenantformentity",
@@ -91,7 +88,6 @@ class Migration(migrations.Migration):
                 to="tenants.tenant",
             ),
         ),
-        
         # TenantFormField - needs tenant field
         migrations.AddField(
             model_name="tenantformfield",
@@ -127,7 +123,7 @@ class Migration(migrations.Migration):
                 "JOIN workflows_tenantform tf ON tf.id = tfe.form_id "
                 "WHERE tff.form_entity_id = tfe.id AND tff.tenant_id IS NULL;"
             ),
-            reverse_sql=migrations.RunSQL.noop
+            reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.AlterField(
             model_name="tenantformfield",
@@ -138,7 +134,6 @@ class Migration(migrations.Migration):
                 to="tenants.tenant",
             ),
         ),
-        
         # TenantFormRule - needs tenant field
         migrations.AddField(
             model_name="tenantformrule",
@@ -168,7 +163,7 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             sql="UPDATE workflows_tenantformrule SET tenant_id = (SELECT tenant_id FROM workflows_tenantform WHERE workflows_tenantform.id = workflows_tenantformrule.form_id) WHERE tenant_id IS NULL;",
-            reverse_sql=migrations.RunSQL.noop
+            reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.AlterField(
             model_name="tenantformrule",
@@ -179,7 +174,6 @@ class Migration(migrations.Migration):
                 to="tenants.tenant",
             ),
         ),
-        
         # TenantWorkflow - already has tenant field
         migrations.AddField(
             model_name="tenantworkflow",
@@ -197,7 +191,6 @@ class Migration(migrations.Migration):
             name="custom_data",
             field=models.JSONField(blank=True, default=dict),
         ),
-        
         # TenantWorkflowCondition - needs tenant field
         migrations.AddField(
             model_name="tenantworkflowcondition",
@@ -227,7 +220,7 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             sql="UPDATE workflows_tenantworkflowcondition SET tenant_id = (SELECT tenant_id FROM workflows_tenantworkflow WHERE workflows_tenantworkflow.id = workflows_tenantworkflowcondition.workflow_id) WHERE tenant_id IS NULL;",
-            reverse_sql=migrations.RunSQL.noop
+            reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.AlterField(
             model_name="tenantworkflowcondition",
@@ -238,7 +231,6 @@ class Migration(migrations.Migration):
                 to="tenants.tenant",
             ),
         ),
-        
         # TenantWorkflowAction - needs tenant field
         migrations.AddField(
             model_name="tenantworkflowaction",
@@ -268,7 +260,7 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             sql="UPDATE workflows_tenantworkflowaction SET tenant_id = (SELECT tenant_id FROM workflows_tenantworkflow WHERE workflows_tenantworkflow.id = workflows_tenantworkflowaction.workflow_id) WHERE tenant_id IS NULL;",
-            reverse_sql=migrations.RunSQL.noop
+            reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.AlterField(
             model_name="tenantworkflowaction",
@@ -279,7 +271,6 @@ class Migration(migrations.Migration):
                 to="tenants.tenant",
             ),
         ),
-        
         # WorkflowExecutionLog - needs tenant field
         migrations.AddField(
             model_name="workflowexecutionlog",
@@ -309,7 +300,7 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             sql="UPDATE workflows_workflowexecutionlog SET tenant_id = (SELECT tenant_id FROM workflows_tenantworkflow WHERE workflows_tenantworkflow.id = workflows_workflowexecutionlog.workflow_id) WHERE tenant_id IS NULL;",
-            reverse_sql=migrations.RunSQL.noop
+            reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.AlterField(
             model_name="workflowexecutionlog",
@@ -320,7 +311,6 @@ class Migration(migrations.Migration):
                 to="tenants.tenant",
             ),
         ),
-        
         # Row-Level Security (RLS) for all workflow models
         migrations.RunSQL(
             sql="""
@@ -331,7 +321,7 @@ class Migration(migrations.Migration):
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
             CREATE POLICY tenantlist_tenant_insert ON workflows_tenantlist
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- TenantForm RLS
             ALTER TABLE workflows_tenantform ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS tenantform_tenant_isolation ON workflows_tenantform;
@@ -339,7 +329,7 @@ class Migration(migrations.Migration):
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
             CREATE POLICY tenantform_tenant_insert ON workflows_tenantform
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- TenantFormEntity RLS
             ALTER TABLE workflows_tenantformentity ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS tenantformentity_tenant_isolation ON workflows_tenantformentity;
@@ -347,7 +337,7 @@ class Migration(migrations.Migration):
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
             CREATE POLICY tenantformentity_tenant_insert ON workflows_tenantformentity
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- TenantFormField RLS
             ALTER TABLE workflows_tenantformfield ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS tenantformfield_tenant_isolation ON workflows_tenantformfield;
@@ -355,7 +345,7 @@ class Migration(migrations.Migration):
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
             CREATE POLICY tenantformfield_tenant_insert ON workflows_tenantformfield
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- TenantFormRule RLS
             ALTER TABLE workflows_tenantformrule ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS tenantformrule_tenant_isolation ON workflows_tenantformrule;
@@ -363,7 +353,7 @@ class Migration(migrations.Migration):
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
             CREATE POLICY tenantformrule_tenant_insert ON workflows_tenantformrule
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- TenantWorkflow RLS
             ALTER TABLE workflows_tenantworkflow ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS tenantworkflow_tenant_isolation ON workflows_tenantworkflow;
@@ -371,7 +361,7 @@ class Migration(migrations.Migration):
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
             CREATE POLICY tenantworkflow_tenant_insert ON workflows_tenantworkflow
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- TenantWorkflowCondition RLS
             ALTER TABLE workflows_tenantworkflowcondition ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition;
@@ -379,7 +369,7 @@ class Migration(migrations.Migration):
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
             CREATE POLICY tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- TenantWorkflowAction RLS
             ALTER TABLE workflows_tenantworkflowaction ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction;
@@ -387,7 +377,7 @@ class Migration(migrations.Migration):
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
             CREATE POLICY tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- WorkflowExecutionLog RLS
             ALTER TABLE workflows_workflowexecutionlog ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog;
@@ -401,38 +391,38 @@ class Migration(migrations.Migration):
             DROP POLICY IF EXISTS tenantlist_tenant_insert ON workflows_tenantlist;
             DROP POLICY IF EXISTS tenantlist_tenant_isolation ON workflows_tenantlist;
             ALTER TABLE workflows_tenantlist DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS tenantform_tenant_insert ON workflows_tenantform;
             DROP POLICY IF EXISTS tenantform_tenant_isolation ON workflows_tenantform;
             ALTER TABLE workflows_tenantform DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS tenantformentity_tenant_insert ON workflows_tenantformentity;
             DROP POLICY IF EXISTS tenantformentity_tenant_isolation ON workflows_tenantformentity;
             ALTER TABLE workflows_tenantformentity DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS tenantformfield_tenant_insert ON workflows_tenantformfield;
             DROP POLICY IF EXISTS tenantformfield_tenant_isolation ON workflows_tenantformfield;
             ALTER TABLE workflows_tenantformfield DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS tenantformrule_tenant_insert ON workflows_tenantformrule;
             DROP POLICY IF EXISTS tenantformrule_tenant_isolation ON workflows_tenantformrule;
             ALTER TABLE workflows_tenantformrule DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS tenantworkflow_tenant_insert ON workflows_tenantworkflow;
             DROP POLICY IF EXISTS tenantworkflow_tenant_isolation ON workflows_tenantworkflow;
             ALTER TABLE workflows_tenantworkflow DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS tenantworkflowcondition_tenant_insert ON workflows_tenantworkflowcondition;
             DROP POLICY IF EXISTS tenantworkflowcondition_tenant_isolation ON workflows_tenantworkflowcondition;
             ALTER TABLE workflows_tenantworkflowcondition DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS tenantworkflowaction_tenant_insert ON workflows_tenantworkflowaction;
             DROP POLICY IF EXISTS tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction;
             ALTER TABLE workflows_tenantworkflowaction DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS workflowexecutionlog_tenant_insert ON workflows_workflowexecutionlog;
             DROP POLICY IF EXISTS workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog;
             ALTER TABLE workflows_workflowexecutionlog DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

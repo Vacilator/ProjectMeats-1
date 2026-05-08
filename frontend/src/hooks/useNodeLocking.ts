@@ -1,6 +1,6 @@
 /**
  * Workflow Node Locking Hook (Phase 7.3: Real-Time Collaboration)
- * 
+ *
  * Distributed locking with automatic heartbeat renewal.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -18,7 +18,7 @@ const HEARTBEAT_INTERVAL = 30000; // 30 seconds (half of TTL)
 
 /**
  * Hook for managing workflow node locks.
- * 
+ *
  * Automatically sends heartbeat every 30 seconds to maintain lock.
  */
 export const useNodeLocking = (workflowId: string, nodeId: string) => {

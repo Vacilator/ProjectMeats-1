@@ -1,9 +1,9 @@
 /**
  * Container Styling Utilities
- * 
+ *
  * Centralized styling for container nodes in the Flow Editor.
  * Provides theme-aware colors, shadows, and visual feedback.
- * 
+ *
  * Phase 7.2: Enhanced Container Management
  */
 
@@ -20,7 +20,7 @@ export interface ContainerTheme {
 
 /**
  * Get container theme colors based on state
- * 
+ *
  * @param isExpanded - Whether container is expanded
  * @param isDragging - Whether container is being dragged
  * @param isDropTarget - Whether container is a valid drop target
@@ -70,7 +70,7 @@ export function getContainerTheme(
 
 /**
  * Calculate container size based on children count
- * 
+ *
  * @param childrenCount - Number of child nodes
  * @param isExpanded - Whether container is expanded
  * @returns Width and height in pixels
@@ -106,7 +106,7 @@ export function calculateContainerSize(
 
 /**
  * Get container icon based on type
- * 
+ *
  * @param containerType - Type of container node
  * @returns Icon component name (for lucide-react)
  */
@@ -127,7 +127,7 @@ export function getContainerIcon(
 
 /**
  * Check if a node is inside a container's boundaries
- * 
+ *
  * @param nodePosition - Position of node to check
  * @param nodeSize - Size of node to check
  * @param containerPosition - Position of container
@@ -143,7 +143,7 @@ export function isNodeInsideContainer(
   threshold: number = 20
 ): boolean {
   const HEADER_HEIGHT = 48;
-  
+
   // Calculate node center point
   const nodeCenterX = nodePosition.x + nodeSize.width / 2;
   const nodeCenterY = nodePosition.y + nodeSize.height / 2;
@@ -165,7 +165,7 @@ export function isNodeInsideContainer(
 
 /**
  * Generate CSS transform for container animation
- * 
+ *
  * @param isExpanded - Whether container is expanded
  * @param isDragging - Whether container is being dragged
  * @returns CSS transform string
@@ -180,7 +180,7 @@ export function getContainerTransform(
 
 /**
  * Get container badge text (child count, status, etc.)
- * 
+ *
  * @param childrenCount - Number of child nodes
  * @param isExpanded - Whether container is expanded
  * @returns Badge text or null
@@ -202,7 +202,7 @@ export function getContainerBadge(
 
 /**
  * Calculate snap points for aligning child nodes within container
- * 
+ *
  * @param containerPosition - Container position
  * @param containerSize - Container size
  * @param gridSize - Grid size for snapping (default: 20)
@@ -215,7 +215,7 @@ export function getContainerSnapPoints(
 ): Array<{ x: number; y: number }> {
   const HEADER_HEIGHT = 48;
   const PADDING = 32;
-  
+
   const snapPoints: Array<{ x: number; y: number }> = [];
 
   // Center horizontal line

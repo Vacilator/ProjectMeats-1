@@ -147,7 +147,7 @@ if command -v psql &> /dev/null && [ -n "${CI:-}" ]; then
     echo "Creating test database for migration validation..."
     PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_migration_validation;" 2>/dev/null || true
     PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE test_migration_validation;" 2>/dev/null || true
-    
+
     if python manage.py migrate --noinput 2>&1; then
         echo "✅ Migrations applied successfully on fresh database"
     else
@@ -167,7 +167,7 @@ if command -v psql &> /dev/null && [ -n "${CI:-}" ]; then
         export DATABASE_URL="$ORIGINAL_DB_URL"
         exit 1
     fi
-    
+
     # Cleanup
     PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_migration_validation;" 2>/dev/null || true
     export DATABASE_URL="$ORIGINAL_DB_URL"

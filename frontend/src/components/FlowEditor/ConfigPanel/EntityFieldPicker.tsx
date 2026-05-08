@@ -1,6 +1,6 @@
 /**
  * EntityFieldPicker Component
- * 
+ *
  * Allows users to select fields from an entity schema and add them to a form.
  * Features:
  * - Entity selection dropdown
@@ -8,7 +8,7 @@
  * - Selected fields list (drag-and-drop ordering)
  * - Search/filter fields
  * - Field metadata display (type, required, etc.)
- * 
+ *
  * Phase 2.3 of WF-ENH-2026-Q1
  * Created: 2026-02-06
  */
@@ -26,8 +26,8 @@ import {
   Input,
   EmptyState,
 } from './shared/StyledComponents';
-import { 
-  FieldListSkeleton, 
+import {
+  FieldListSkeleton,
   EntitySelectorSkeleton,
   RetryButton,
   ErrorStateContainer,
@@ -343,7 +343,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     effectiveEntityType,
     { enabled: !!effectiveEntityType }
   );
-  
+
   // Timeout detection for fields loading
   const { isTimedOut: fieldsTimedOut, resetTimeout: resetFieldsTimeout } = useTimeout({
     isLoading: fieldsLoading,
@@ -352,7 +352,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
       logger.warn('[EntityFieldPicker] Field loading timed out after 5s');
     }
   });
-  
+
   // Timeout detection for entities loading
   const { isTimedOut: entitiesTimedOut, resetTimeout: resetEntitiesTimeout } = useTimeout({
     isLoading: entitiesLoading,
@@ -361,7 +361,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
       logger.warn('[EntityFieldPicker] Entity loading timed out after 5s');
     }
   });
-  
+
   const availableFields = fieldsData?.fields || [];
   const loading = entitiesLoading || fieldsLoading;
   const error = entitiesError || fieldsError;
@@ -431,13 +431,13 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     resetFieldsTimeout(); // Reset timeout when changing entity
     // Clear selected fields when changing entity type
     onFieldsChange([]);
-    
+
     if (onEntityTypeChange) {
       logger.debug('Notifying parent of entity change', { component: 'EntityFieldPicker' });
       onEntityTypeChange(entityType);
     }
   };
-  
+
   // Retry handlers
   const handleRetryEntities = () => {
     logger.debug('Retrying entity list fetch', { component: 'EntityFieldPicker' });
@@ -445,7 +445,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     resetEntitiesTimeout();
     refetchEntities();
   };
-  
+
   const handleRetryFields = () => {
     logger.debug('Retrying fields fetch', { component: 'EntityFieldPicker' });
     setRetryCount(prev => prev + 1);
@@ -527,7 +527,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
 
   const handleDragOver = (e: React.DragEvent, targetFieldId: string) => {
     e.preventDefault();
-    
+
     if (!draggedFieldId || draggedFieldId === targetFieldId) return;
 
     const draggedIndex = selectedFields.findIndex(f => f.fieldId === draggedFieldId);
@@ -561,7 +561,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     // Field type filter
     if (fieldTypeFilter !== 'all') {
       const fieldTypeLower = field.type.toLowerCase();
-      
+
       // Check if filter is a category (text, number, date, etc.)
       if (fieldTypeFilter in fieldTypeCategories) {
         const category = fieldTypeFilter as keyof typeof fieldTypeCategories;
@@ -639,37 +639,37 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
 
           {/* Field Type Filter */}
           <FilterRow>
-            <FilterButton 
+            <FilterButton
               $active={fieldTypeFilter === 'all'}
               onClick={() => setFieldTypeFilter('all')}
             >
               All Types
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               $active={fieldTypeFilter === 'text'}
               onClick={() => setFieldTypeFilter('text')}
             >
               Text
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               $active={fieldTypeFilter === 'number'}
               onClick={() => setFieldTypeFilter('number')}
             >
               Number
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               $active={fieldTypeFilter === 'date'}
               onClick={() => setFieldTypeFilter('date')}
             >
               Date
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               $active={fieldTypeFilter === 'boolean'}
               onClick={() => setFieldTypeFilter('boolean')}
             >
               Boolean
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               $active={fieldTypeFilter === 'relation'}
               onClick={() => setFieldTypeFilter('relation')}
             >
@@ -686,8 +686,8 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
               <ActionButton onClick={handleClearAll} disabled={checkedFields.size === 0}>
                 Clear All
               </ActionButton>
-              <ActionButton 
-                onClick={handleAddSelected} 
+              <ActionButton
+                onClick={handleAddSelected}
                 disabled={checkedFields.size === 0}
                 style={{ marginLeft: 'auto' }}
               >
@@ -695,12 +695,12 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
               </ActionButton>
             </BulkActions>
           )}
-          
+
           {/* Entity loading skeleton */}
           {entitiesLoading && (
             <EntitySelectorSkeleton />
           )}
-          
+
           {/* Entity loading error with retry */}
           {entitiesError && (
             <ErrorStateContainer>
@@ -717,7 +717,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
               </RetryButton>
             </ErrorStateContainer>
           )}
-          
+
           {/* Entity loading timeout */}
           {entitiesTimedOut && !entitiesError && (
             <TimeoutContainer>
@@ -730,7 +730,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
               </RetryButton>
             </TimeoutContainer>
           )}
-          
+
           {/* Fields loading skeleton */}
           {fieldsLoading && !fieldsTimedOut ? (
             <FieldListSkeleton count={5} />
@@ -764,8 +764,8 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
             <FieldsList>
               {filteredAvailableFields.length === 0 ? (
                 <EmptyState>
-                  {availableFields.length === 0 
-                    ? 'No fields found' 
+                  {availableFields.length === 0
+                    ? 'No fields found'
                     : 'No fields match your filters'}
                 </EmptyState>
               ) : (

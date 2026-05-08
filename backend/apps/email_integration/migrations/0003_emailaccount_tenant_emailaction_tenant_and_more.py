@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("email_integration", "0002_emailaccount_webhook_client_state_hash"),
         ("tenants", "0015_alter_tenantinvitation_role_alter_tenantuser_role"),

@@ -19,7 +19,6 @@ from apps.core.services.etl import (
     validate_source_manifest,
 )
 
-
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "etl"
 
 

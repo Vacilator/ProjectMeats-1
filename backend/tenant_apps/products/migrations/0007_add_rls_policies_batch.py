@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("products", "0006_product_custom_data_alter_product_tenant"),
     ]

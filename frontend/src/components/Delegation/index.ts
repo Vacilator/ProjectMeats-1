@@ -3,12 +3,12 @@
  */
 export { default as DelegateTaskModal } from './DelegateTaskModal';
 export { default as DelegationHistory } from './DelegationHistory';
-export type { 
-  User, 
-  DelegationData, 
-  DelegateTaskModalProps 
+export type {
+  User,
+  DelegationData,
+  DelegateTaskModalProps
 } from './DelegateTaskModal';
-export type { 
-  DelegationRecord, 
-  DelegationHistoryProps 
+export type {
+  DelegationRecord,
+  DelegationHistoryProps
 } from './DelegationHistory';

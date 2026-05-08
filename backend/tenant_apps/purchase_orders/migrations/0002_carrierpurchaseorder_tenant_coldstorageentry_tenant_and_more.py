@@ -5,60 +5,69 @@ from django.conf import settings
 from django.db import migrations, models
 
 
-
 def add_tenant_field_if_not_exists(apps, schema_editor):
     """Add tenant field only if it doesn't exist"""
     from django.db import connection
-    
+
     tables = [
-        'purchase_orders_carrierpurchaseorder',
-        'purchase_orders_coldstorageentry',
-        'purchase_orders_purchaseorder',
-        'purchase_orders_purchaseorderhistory',
+        "purchase_orders_carrierpurchaseorder",
+        "purchase_orders_coldstorageentry",
+        "purchase_orders_purchaseorder",
+        "purchase_orders_purchaseorderhistory",
     ]
-    
+
     with connection.cursor() as cursor:
         for table in tables:
             # Check if tenant_id column exists
-            cursor.execute("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_schema='public' AND table_name=%s 
+            cursor.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema='public' AND table_name=%s
                 AND column_name='tenant_id';
-            """, [table])
-            
+            """,
+                [table],
+            )
+
             if not cursor.fetchone():
                 # Check if any tenants exist
                 cursor.execute("SELECT id FROM tenants_tenant LIMIT 1;")
                 result = cursor.fetchone()
-                
+
                 if result:
                     # Production path: Tenant exists, use it as default
                     default_tenant_id = result[0]
-                    cursor.execute(f"""
-                        ALTER TABLE {table} 
-                        ADD COLUMN tenant_id UUID NOT NULL DEFAULT %s 
+                    cursor.execute(
+                        f"""
+                        ALTER TABLE {table}
+                        ADD COLUMN tenant_id UUID NOT NULL DEFAULT %s
                         REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED;
-                    """, [default_tenant_id])
-                    
+                    """,
+                        [default_tenant_id],
+                    )
+
                     # Remove the default after adding the column
-                    cursor.execute(f"""
-                        ALTER TABLE {table} 
+                    cursor.execute(
+                        f"""
+                        ALTER TABLE {table}
                         ALTER COLUMN tenant_id DROP DEFAULT;
-                    """)
+                    """
+                    )
                 else:
                     # Test/Fresh DB path: No tenants exist yet, add as nullable
-                    cursor.execute(f"""
-                        ALTER TABLE {table} 
-                        ADD COLUMN tenant_id UUID NULL 
+                    cursor.execute(
+                        f"""
+                        ALTER TABLE {table}
+                        ADD COLUMN tenant_id UUID NULL
                         REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED;
-                    """)
+                    """
+                    )
 
 
 def add_indexes_if_not_exist(apps, schema_editor):
     """Add indexes only if they don't exist"""
     from django.db import connection
-    
+
     with connection.cursor() as cursor:
         # This will be filled with actual index creation SQL if we find any
         # For now, we'll let Django's index management handle it
@@ -66,7 +75,6 @@ def add_indexes_if_not_exist(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("carriers", "0002_carrier_tenant_and_more"),
         ("contacts", "0002_contact_tenant_and_more"),

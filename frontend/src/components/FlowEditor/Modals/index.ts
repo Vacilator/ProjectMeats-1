@@ -1,8 +1,8 @@
 /**
  * FlowEditor Modals
- * 
+ *
  * Export all modal components
- * 
+ *
  * Updated: 2026-02-12 - Phase 6 (Added SharedTemplateDeleteModal)
  */
 

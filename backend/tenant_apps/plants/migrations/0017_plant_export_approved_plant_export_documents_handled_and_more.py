@@ -7,7 +7,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0004_tenantauditevent"),
         ("plants", "0016_remove_plant_plants_plan_tenant__9efb37_idx_and_more"),

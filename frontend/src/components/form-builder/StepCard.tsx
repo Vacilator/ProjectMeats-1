@@ -1,9 +1,9 @@
 /**
  * Step Card Component
- * 
+ *
  * Draggable card for each form step with expand/collapse.
  * Shows step stats and provides quick actions.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 4 - FormBuilder Suite
  */
@@ -31,7 +31,7 @@ const Card = styled.div`
   background: rgb(var(--color-surface));
   overflow: hidden;
   transition: all 0.2s;
-  
+
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
@@ -44,7 +44,7 @@ const CardHeader = styled.div`
   gap: 12px;
   cursor: pointer;
   user-select: none;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
   }
@@ -53,7 +53,7 @@ const CardHeader = styled.div`
 const DragHandle = styled.div`
   color: rgb(var(--color-text-tertiary));
   cursor: grab;
-  
+
   &:active {
     cursor: grabbing;
   }
@@ -69,7 +69,7 @@ const ExpandButton = styled.button`
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  
+
   &:hover {
     background: rgb(var(--color-surface-active));
   }
@@ -112,15 +112,15 @@ const IconButton = styled.button<{ variant?: 'danger' }>`
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: ${props => props.variant === 'danger' 
-    ? 'rgb(var(--color-error))' 
+  color: ${props => props.variant === 'danger'
+    ? 'rgb(var(--color-error))'
     : 'rgb(var(--color-text-secondary))'};
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   &:hover {
     background: ${props => props.variant === 'danger'
       ? 'rgba(var(--color-error), 0.1)'
@@ -136,7 +136,7 @@ const CardBody = styled.div<{ expanded: boolean }>`
 
 const Section = styled.div`
   margin-top: 16px;
-  
+
   &:first-child {
     margin-top: 0;
   }
@@ -169,7 +169,7 @@ const AddButton = styled.button`
   display: flex;
   align-items: center;
   gap: 6px;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.1);
     border-color: rgb(var(--color-primary));
@@ -190,7 +190,7 @@ const FieldItem = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  
+
   &:hover {
     background: rgb(var(--color-surface-active));
   }
@@ -232,7 +232,7 @@ const EmptyMessage = styled.div`
  */
 export const StepCard: React.FC<StepCardProps> = ({ step }) => {
   const [expanded, setExpanded] = useState(true);
-  
+
   const {
     removeStep,
     openFieldModal,
@@ -240,11 +240,11 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
     openRuleModal,
     openMappingModal
   } = useFormBuilderStore();
-  
+
   const handleToggleExpand = () => {
     setExpanded(!expanded);
   };
-  
+
   const handleRemoveStep = () => {
     void (async () => {
       const confirmed = await confirmDialog({
@@ -259,7 +259,7 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
       }
     })();
   };
-  
+
   const handleRemoveField = (fieldId: string) => {
     void (async () => {
       const field = step.fields.find(f => f.id === fieldId);
@@ -275,21 +275,21 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
       }
     })();
   };
-  
+
   return (
     <Card>
       <CardHeader onClick={handleToggleExpand}>
         <DragHandle>
           <GripVertical size={20} />
         </DragHandle>
-        
+
         <ExpandButton onClick={(e) => {
           e.stopPropagation();
           handleToggleExpand();
         }}>
           {expanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
         </ExpandButton>
-        
+
         <HeaderContent>
           <StepTitle>{step.name}</StepTitle>
           <StepStats>
@@ -298,7 +298,7 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
             <StatItem>{step.mappings.length} mappings</StatItem>
           </StepStats>
         </HeaderContent>
-        
+
         <HeaderActions onClick={(e) => e.stopPropagation()}>
           <IconButton
             onClick={() => openFieldModal(step.id)}
@@ -315,7 +315,7 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
           </IconButton>
         </HeaderActions>
       </CardHeader>
-      
+
       <CardBody expanded={expanded}>
         {/* Fields Section */}
         <Section>
@@ -326,7 +326,7 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
               Add Field
             </AddButton>
           </SectionHeader>
-          
+
           {step.fields.length > 0 ? (
             <FieldList>
               {step.fields.map(field => (
@@ -359,7 +359,7 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
             </EmptyMessage>
           )}
         </Section>
-        
+
         {/* Rules Section */}
         <Section>
           <SectionHeader>
@@ -369,7 +369,7 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
               Add Rule
             </AddButton>
           </SectionHeader>
-          
+
           {step.rules.length > 0 ? (
             <FieldList>
               {step.rules.map(rule => (
@@ -397,7 +397,7 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
             </EmptyMessage>
           )}
         </Section>
-        
+
         {/* Mappings Section */}
         <Section>
           <SectionHeader>
@@ -407,7 +407,7 @@ export const StepCard: React.FC<StepCardProps> = ({ step }) => {
               Manage Mappings
             </AddButton>
           </SectionHeader>
-          
+
           {step.mappings.length > 0 ? (
             <FieldList>
               {step.mappings.map(mapping => (

@@ -9,13 +9,12 @@ from django.utils import timezone
 
 from apps.core.models import PortalDocumentReference, PortalGrant, PortalGrantDocumentAccess
 from apps.core.serializers import (
-    PortalDocumentReferenceSerializer,
     PortalDocumentReferencePublicSerializer,
+    PortalDocumentReferenceSerializer,
     PortalGrantDocumentAccessSerializer,
     PortalGrantSerializer,
 )
 from apps.tenants.models import Tenant
-
 
 User = get_user_model()
 

@@ -8,7 +8,7 @@ import { Node, Edge } from '@xyflow/react';
 
 import { MEATSCENTRAL_INQUIRY_FLOW_TEMPLATE } from '@/workforms/templates';
 
-export type TemplateCategory = 
+export type TemplateCategory =
   | 'forms'
   | 'approvals'
   | 'onboarding'

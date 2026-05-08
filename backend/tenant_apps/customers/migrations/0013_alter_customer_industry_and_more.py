@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("customers", "0012_customer_phone_mobile_customer_phone_office_and_more"),
     ]

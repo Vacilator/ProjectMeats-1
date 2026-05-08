@@ -184,7 +184,7 @@ Use for values derived from environment configuration:
    ```bash
    vim config/env.manifest.json
    ```
-   
+
    Add to appropriate category:
    ```json
    "NEW_API_KEY": {

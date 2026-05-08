@@ -1,11 +1,11 @@
 /**
  * useFormValidation Hook
- * 
+ *
  * Provides real-time form validation with hybrid approach:
  * - Validates on change AFTER first blur (touched state)
  * - Tracks touched/dirty state per field
  * - Calculates step validity for "Next" button disabling
- * 
+ *
  * Usage:
  *   const {
  *     errors,
@@ -116,7 +116,7 @@ export function useFormValidation(
   // Validate all fields in the step
   const validateStep = useCallback((): Record<string, string> => {
     const stepErrors: Record<string, string> = {};
-    
+
     fields.forEach(field => {
       const value = formData[field.key];
       const error = validateField(field.key, value);
@@ -138,20 +138,20 @@ export function useFormValidation(
     for (const field of fields) {
       if (field.required) {
         const value = formData[field.key];
-        if (value === undefined || value === null || value === '' || 
+        if (value === undefined || value === null || value === '' ||
             (Array.isArray(value) && value.length === 0)) {
           return false;
         }
       }
     }
-    
+
     // Check for existing errors on touched fields
     for (const fieldKey of touchedFields) {
       if (errors[fieldKey]) {
         return false;
       }
     }
-    
+
     return true;
   }, [fields, formData, errors, touchedFields]);
 
@@ -240,7 +240,7 @@ export function useFormValidation(
     for (const field of fields) {
       if (field.required) {
         const value = formData[field.key];
-        if (value === undefined || value === null || value === '' || 
+        if (value === undefined || value === null || value === '' ||
             (Array.isArray(value) && value.length === 0)) {
           count++;
         }

@@ -1,22 +1,22 @@
 /**
  * Action Items Widget
- * 
+ *
  * Displays pending tasks and action items assigned to the current user.
  * Provides quick access to task management and completion tracking.
- * 
+ *
  * Features:
  * - Task list with priority indicators
  * - Due date warnings
  * - Quick task completion
  * - Task categorization
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { 
-  CheckSquare, Clock, AlertCircle, ChevronRight 
+import {
+  CheckSquare, Clock, AlertCircle, ChevronRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';
@@ -111,11 +111,11 @@ const MetaBadge = styled.div<{ $warning?: boolean }>`
   gap: 4px;
   padding: 2px 8px;
   border-radius: 4px;
-  background: ${props => props.$warning 
-    ? 'rgba(var(--color-error), 0.1)' 
+  background: ${props => props.$warning
+    ? 'rgba(var(--color-error), 0.1)'
     : 'rgba(var(--color-primary), 0.1)'};
-  color: ${props => props.$warning 
-    ? 'rgb(var(--color-error))' 
+  color: ${props => props.$warning
+    ? 'rgb(var(--color-error))'
     : 'rgb(var(--color-primary))'};
 `;
 
@@ -151,7 +151,7 @@ const formatDueDate = (dueDate: string): string => {
   const now = new Date();
   const diffTime = date.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays < 0) return 'Overdue';
   if (diffDays === 0) return 'Due today';
   if (diffDays === 1) return 'Due tomorrow';

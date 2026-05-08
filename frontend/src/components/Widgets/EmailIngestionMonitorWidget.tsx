@@ -1,10 +1,10 @@
 /**
  * Email Ingestion Monitor Widget
- * 
+ *
  * Displays recent order-related emails ingested from Microsoft Outlook.
  * Shows processing status and allows manual sync trigger.
  * Designed for Cockpit Dashboard widget grid.
- * 
+ *
  * Created: 2026-02-28 - Phase 5.6 Email Ingestion Monitoring
  */
 import React, { useState, useEffect } from 'react';
@@ -95,12 +95,12 @@ const Button = styled.button<{ $primary?: boolean }>`
   gap: 4px;
   font-size: 11px;
   transition: all 0.15s ease;
-  
+
   &:hover:not(:disabled) {
     background: ${props => props.$primary ? 'rgb(var(--color-primary-dark))' : 'rgb(var(--color-background))'};
     color: ${props => props.$primary ? 'white' : 'rgb(var(--color-primary))'};
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -124,7 +124,7 @@ const EmailItem = styled.div`
   flex-direction: column;
   gap: 6px;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -157,7 +157,7 @@ const StatusBadge = styled.div<{ $status: EmailLog['status'] }>`
   align-items: center;
   gap: 4px;
   white-space: nowrap;
-  
+
   ${props => {
     switch (props.$status) {
       case 'logged':
@@ -207,14 +207,14 @@ const EmptyState = styled.div`
   text-align: center;
   color: rgb(var(--color-text-secondary));
   flex: 1;
-  
+
   svg {
     width: 48px;
     height: 48px;
     opacity: 0.3;
     margin-bottom: 12px;
   }
-  
+
   p {
     margin: 0;
     font-size: 12px;
@@ -223,12 +223,12 @@ const EmptyState = styled.div`
 
 const LoadingState = styled(EmptyState)`
   color: rgb(var(--color-primary));
-  
+
   svg {
     opacity: 1;
     animation: spin 1s linear infinite;
   }
-  
+
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }

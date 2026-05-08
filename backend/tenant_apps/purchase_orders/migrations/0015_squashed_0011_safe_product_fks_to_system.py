@@ -13,8 +13,8 @@
 # - This remains safe in long-lived environments: if 0011 is already applied, this squashed
 #   migration is considered applied because it "replaces" 0011.
 
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

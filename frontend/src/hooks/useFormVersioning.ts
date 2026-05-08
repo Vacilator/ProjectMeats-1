@@ -1,6 +1,6 @@
 /**
  * Form Version Control Hook (Phase 2.4)
- * 
+ *
  * Manages form versioning with snapshot, rollback, and history capabilities.
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -24,10 +24,10 @@ export interface VersionDiff {
 
 /**
  * Hook for managing form version control.
- * 
+ *
  * @param formId - UUID of the form
  * @param autoFetch - Whether to automatically fetch version history on mount
- * 
+ *
  * @returns Object with version control operations:
  *   - versions: Array of version history
  *   - loading: Whether operation is in progress
@@ -37,7 +37,7 @@ export interface VersionDiff {
  *   - rollback: Rollback to previous version
  *   - compareVersions: Get diff between two versions
  *   - refreshHistory: Manually refresh version history
- * 
+ *
  * @example
  * ```tsx
  * const FormEditor = ({ formId }) => {
@@ -48,15 +48,15 @@ export interface VersionDiff {
  *     createVersion,
  *     rollback
  *   } = useFormVersioning(formId);
- *   
+ *
  *   const handleSave = async () => {
  *     // Save form changes
  *     await saveForm(formData);
- *     
+ *
  *     // Create version snapshot
  *     await createVersion('Added notification step');
  *   };
- *   
+ *
  *   return (
  *     <>
  *       <Button onClick={handleSave}>Save & Version</Button>
@@ -112,10 +112,10 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
       const response = await businessApi.post(
         `/forms/${formId}/enable-versioning/`
       );
-      
+
       // Refresh history to show initial version
       await fetchVersionHistory();
-      
+
       return response.data;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to enable versioning';
@@ -143,10 +143,10 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
         `/forms/${formId}/create-version/`,
         { change_summary: changeSummary }
       );
-      
+
       // Refresh history to show new version
       await fetchVersionHistory();
-      
+
       return response.data;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to create version';
@@ -174,10 +174,10 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
         `/forms/${formId}/rollback/`,
         { version_number: versionNumber }
       );
-      
+
       // Refresh history to show rollback version
       await fetchVersionHistory();
-      
+
       return response.data;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to rollback';
@@ -209,7 +209,7 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
           }
         }
       );
-      
+
       return response.data;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to compare versions';
@@ -234,7 +234,7 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
 
 /**
  * Helper function to check if form has versioning enabled.
- * 
+ *
  * @param form - Form object
  * @returns True if versioning is enabled
  */
@@ -244,7 +244,7 @@ export const isVersioningEnabled = (form: any): boolean => {
 
 /**
  * Helper function to get current version number.
- * 
+ *
  * @param form - Form object
  * @returns Current version number or null
  */
@@ -254,7 +254,7 @@ export const getCurrentVersion = (form: any): number | null => {
 
 /**
  * Helper function to format version label.
- * 
+ *
  * @param version - Version object
  * @returns Formatted label (e.g., "v3 (Current)")
  */

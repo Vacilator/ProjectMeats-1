@@ -306,15 +306,15 @@ import ResponsiveTable, { Column } from '../../components/Shared/ResponsiveTable
 const columns: Column<PurchaseOrder>[] = [
   { key: 'order_number', label: 'Order #', sortable: true },
   { key: 'supplier_name', label: 'Supplier', sortable: true },
-  { 
-    key: 'order_date', 
-    label: 'Order Date', 
+  {
+    key: 'order_date',
+    label: 'Order Date',
     sortable: true,
     render: (order) => formatDateLocal(order.order_date)
   },
-  { 
-    key: 'total_amount', 
-    label: 'Total Amount', 
+  {
+    key: 'total_amount',
+    label: 'Total Amount',
     sortable: true,
     render: (order) => formatCurrency(parseFloat(order.total_amount))
   },
@@ -346,7 +346,7 @@ const columns: Column<PurchaseOrder>[] = [
 // Keep only page-specific styled components (StatusBadge, ActionButton, etc.)
 ```
 
-**Result:** 
+**Result:**
 - 147 lines removed
 - Sorting logic eliminated (built-in)
 - Loading/empty states handled automatically
@@ -487,6 +487,6 @@ For questions or issues:
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-01-10  
+**Document Version:** 1.0
+**Last Updated:** 2026-01-10
 **Maintained By:** UI Standardization Team

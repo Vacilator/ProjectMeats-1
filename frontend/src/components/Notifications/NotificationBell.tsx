@@ -1,6 +1,6 @@
 /**
  * NotificationBell component - displays notification icon with unread count badge.
- * 
+ *
  * Features:
  * - Unread count badge
  * - Click to open notification panel
@@ -44,17 +44,17 @@ const BellButton = styled.button<{ $hasUnread: boolean; $isAnimating: boolean }>
   border-radius: 8px;
   transition: background-color 0.2s ease;
   color: rgb(var(--color-text-secondary));
-  
+
   &:hover {
     background-color: rgb(var(--color-surface-hover));
     color: rgb(var(--color-text-primary));
   }
-  
+
   &:focus {
     outline: none;
     box-shadow: 0 0 0 2px rgb(var(--color-primary) / 0.3);
   }
-  
+
   ${({ $isAnimating }) => $isAnimating && css`
     animation: ${shake} 0.5s ease-in-out;
   `}
@@ -74,7 +74,7 @@ const Badge = styled.span<{ $count: number }>`
   color: white;
   background-color: rgb(var(--color-error));
   border-radius: 9px;
-  
+
   /* Adjust for large numbers */
   ${({ $count }) => $count > 99 && css`
     font-size: 9px;
@@ -109,7 +109,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastCount, setLastCount] = useState(unreadCount);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   // Animate when new notifications arrive
   useEffect(() => {
     if (unreadCount > lastCount && !isOpen) {
@@ -119,7 +119,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
     }
     setLastCount(unreadCount);
   }, [unreadCount, lastCount, isOpen]);
-  
+
   // Close panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -127,16 +127,16 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
         setIsOpen(false);
       }
     };
-    
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
-  
+
   // Close panel on Escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -144,24 +144,24 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
         setIsOpen(false);
       }
     };
-    
+
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen]);
-  
+
   const handleToggle = () => {
     if (!isOpen) {
       fetchNotifications();
     }
     setIsOpen(!isOpen);
   };
-  
+
   const handleClose = () => {
     setIsOpen(false);
   };
-  
+
   const displayCount = unreadCount > 99 ? '99+' : unreadCount;
-  
+
   return (
     <BellContainer ref={containerRef} className={className}>
       <BellButton
@@ -180,7 +180,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
           </Badge>
         )}
       </BellButton>
-      
+
       <PanelContainer $isOpen={isOpen}>
         <NotificationPanel onClose={handleClose} />
       </PanelContainer>

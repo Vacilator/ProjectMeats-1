@@ -1,6 +1,6 @@
 /**
  * SchemaEditor Component - Simplified with API Integration
- * 
+ *
  * Business-friendly spreadsheet editor for defining form fields.
  * Fetches and saves schema_config to/from Django backend.
  */
@@ -109,13 +109,13 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
     color: white;
     &:hover { background: rgba(var(--color-primary), 0.85); }
   `}
-  
+
   ${props => props.variant === 'secondary' && `
     background: rgb(var(--color-border));
     color: rgb(var(--color-text-secondary));
     &:hover { background: rgb(var(--color-border)); }
   `}
-  
+
   ${props => props.variant === 'danger' && `
     background: rgb(var(--color-error));
     color: white;
@@ -128,13 +128,13 @@ const StatusMessage = styled.div<{ type: 'success' | 'error' }>`
   border-radius: 6px;
   margin-bottom: 1rem;
   font-size: 14px;
-  
+
   ${props => props.type === 'success' && `
     background: rgba(var(--color-success), 0.14);
     color: rgb(var(--color-success));
     border: 1px solid rgba(var(--color-success), 0.35);
   `}
-  
+
   ${props => props.type === 'error' && `
     background: rgba(var(--color-error), 0.14);
     color: rgb(var(--color-error));
@@ -149,7 +149,7 @@ const TypeBadge = styled.span<{ fieldType: string }>`
   font-size: 11px;
   font-weight: 600;
   margin-left: 8px;
-  
+
   ${props => {
     if (props.fieldType === 'reference') return `
       background: rgba(var(--color-info), 0.14);
@@ -169,11 +169,11 @@ const TypeBadge = styled.span<{ fieldType: string }>`
 const GhostRow = styled.tr`
   background: rgb(var(--color-surface));
   cursor: pointer;
-  
+
   &:hover {
     background: rgb(var(--color-border));
   }
-  
+
   td {
     text-align: center;
     color: rgb(var(--color-text-muted));
@@ -330,7 +330,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
           headers: csrfToken ? { 'X-CSRFToken': csrfToken } : undefined,
         }
       );
-      
+
       const schemaConfig = response.data.schema_config || [];
       setFields(schemaConfig);
       setLoading(false);
@@ -356,7 +356,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
             : undefined,
         }
       );
-      
+
       setMessage({ text: '✅ Saved successfully!', type: 'success' });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
@@ -429,7 +429,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const handleUpdateField = (index: number, key: keyof FieldDefinition, value: any) => {
     const updated = [...fields];
     updated[index] = { ...updated[index], [key]: value };
-    
+
     // Auto-generate key from label if key is being set from a new field
     if (key === 'label' && updated[index].label === 'New Field') {
       const sanitizedKey = value
@@ -438,9 +438,9 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
         .replace(/^_+|_+$/g, '');
       updated[index].key = sanitizedKey || `field_${Date.now()}`;
     }
-    
+
     setFields(updated);
-    
+
     // Clear errors for this field when user makes changes
     if (fieldErrors[index]) {
       const newErrors = { ...fieldErrors };
@@ -464,7 +464,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
 
   const handleSaveWithValidation = async () => {
     const validation = validateFields();
-    
+
     if (!validation.valid) {
       setFieldErrors(validation.fieldErrors);
       setMessage({
@@ -486,7 +486,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   return (
     <Container>
       {message && <StatusMessage type={message.type}>{message.text}</StatusMessage>}
-      
+
       <Toolbar>
         <Button variant="secondary" onClick={() => setShowPreview(true)}>
           👁️ Preview Form
@@ -576,7 +576,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                     ))}
                   </>
                 )}
-                
+
                 {field.type === 'reference' && (
                   <Select
                     value={field.referenceEntity || ''}
@@ -593,7 +593,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                     ))}
                   </Select>
                 )}
-                
+
                 {field.type === 'lookup' && (
                   <QueryBuilder
                     value={field.lookupFilter || ''}
@@ -603,7 +603,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                     }}
                   />
                 )}
-                
+
                 {!['select', 'radio', 'checkbox', 'reference', 'lookup'].includes(field.type) && (
                   <Input
                     value=""

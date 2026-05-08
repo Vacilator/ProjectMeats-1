@@ -1,9 +1,9 @@
 /**
  * Save Status Indicator Component
  * Phase 7.5: Incremental Auto-Save
- * 
+ *
  * Displays the current save status of a workflow/form with visual feedback.
- * 
+ *
  * Created: 2026-02-27
  */
 
@@ -62,7 +62,7 @@ const Container = styled.div<{ $status: SaveStatus }>`
   font-size: 13px;
   font-weight: 500;
   transition: all 0.2s ease;
-  
+
   ${({ $status }) => {
     switch ($status) {
       case 'idle':
@@ -101,7 +101,7 @@ const IconWrapper = styled.div<{ $animate?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   ${({ $animate }) =>
     $animate &&
     `
@@ -150,7 +150,7 @@ function formatLastSaved(date: Date): string {
 
 /**
  * Displays the current save status with appropriate icon and text.
- * 
+ *
  * @example
  * ```tsx
  * <SaveStatusIndicator

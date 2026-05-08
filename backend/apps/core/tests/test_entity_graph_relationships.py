@@ -26,14 +26,15 @@ from datetime import date
 from django.db import connection
 from django.test import TestCase
 
-from apps.core.services.entity_graph import EntityGraphService
-from apps.tenants.models import Tenant
 from tenant_apps.contacts.models import Contact
 from tenant_apps.customers.models import Customer
 from tenant_apps.purchase_orders.models import PurchaseOrder
 from tenant_apps.sales_orders.models import SalesOrder
 from tenant_apps.suppliers.models import Supplier
+
+from apps.core.services.entity_graph import EntityGraphService
 from apps.system.models.product import Product
+from apps.tenants.models import Tenant
 
 
 class EntityGraphRelationshipsTestCase(TestCase):

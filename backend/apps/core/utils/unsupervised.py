@@ -47,7 +47,7 @@ DEFAULT_AUTO_EXECUTE_THRESHOLD = 0.85
 DEFAULT_REVIEW_THRESHOLD = 0.50  # Below this → auto-reject
 
 # Cache key for tenant-specific policy overrides
-_POLICY_KEY_PREFIX = 'pm:ai_policy:'
+_POLICY_KEY_PREFIX = "pm:ai_policy:"
 
 
 @dataclass
@@ -60,20 +60,20 @@ class ExecutionDecision:
     threshold_used: float
     reason: str
     decision_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
-    tenant_id: str = ''
+    tenant_id: str = ""
     context: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            'decision_id': self.decision_id,
-            'approved': self.approved,
-            'action_type': self.action_type,
-            'confidence_score': self.confidence_score,
-            'threshold_used': self.threshold_used,
-            'reason': self.reason,
-            'tenant_id': self.tenant_id,
-            'timestamp': self.timestamp,
+            "decision_id": self.decision_id,
+            "approved": self.approved,
+            "action_type": self.action_type,
+            "confidence_score": self.confidence_score,
+            "threshold_used": self.threshold_used,
+            "reason": self.reason,
+            "tenant_id": self.tenant_id,
+            "timestamp": self.timestamp,
         }
 
 
@@ -85,11 +85,11 @@ class ExecutionAuditRecord:
     started_at: float = field(default_factory=time.time)
     completed_at: float | None = None
     success: bool | None = None
-    result_id: str = ''
-    error: str = ''
+    result_id: str = ""
+    error: str = ""
     rolled_back: bool = False
 
-    def record_outcome(self, success: bool, result_id: str = '', error: str = '') -> None:
+    def record_outcome(self, success: bool, result_id: str = "", error: str = "") -> None:
         self.completed_at = time.time()
         self.success = success
         self.result_id = result_id
@@ -98,17 +98,13 @@ class ExecutionAuditRecord:
     def to_dict(self) -> dict[str, Any]:
         return {
             **self.decision.to_dict(),
-            'started_at': self.started_at,
-            'completed_at': self.completed_at,
-            'success': self.success,
-            'result_id': self.result_id,
-            'error': self.error,
-            'rolled_back': self.rolled_back,
-            'duration_ms': (
-                (self.completed_at - self.started_at) * 1000
-                if self.completed_at
-                else None
-            ),
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "success": self.success,
+            "result_id": self.result_id,
+            "error": self.error,
+            "rolled_back": self.rolled_back,
+            "duration_ms": ((self.completed_at - self.started_at) * 1000 if self.completed_at else None),
         }
 
 
@@ -123,20 +119,22 @@ class UnsupervisedPolicy:
     """
 
     # Actions that are NEVER auto-executable regardless of confidence
-    BLOCKED_ACTIONS: set[str] = frozenset({
-        'delete_tenant',
-        'delete_customer',
-        'delete_supplier',
-        'modify_rls_policy',
-        'change_billing',
-    })
+    BLOCKED_ACTIONS: set[str] = frozenset(
+        {
+            "delete_tenant",
+            "delete_customer",
+            "delete_supplier",
+            "modify_rls_policy",
+            "change_billing",
+        }
+    )
 
     # Maximum auto-executions per tenant per hour (safety valve)
     MAX_AUTO_EXECUTIONS_PER_HOUR = 50
 
     def __init__(self, tenant_id: str):
         self.tenant_id = str(tenant_id)
-        self._rate_key = f'{_POLICY_KEY_PREFIX}{self.tenant_id}:rate'
+        self._rate_key = f"{_POLICY_KEY_PREFIX}{self.tenant_id}:rate"
 
     def evaluate(
         self,
@@ -172,9 +170,9 @@ class UnsupervisedPolicy:
         # Check confidence threshold
         if confidence_score < threshold:
             reason = (
-                f'Confidence {confidence_score:.2f} below threshold {threshold:.2f}'
+                f"Confidence {confidence_score:.2f} below threshold {threshold:.2f}"
                 if confidence_score >= DEFAULT_REVIEW_THRESHOLD
-                else f'Confidence {confidence_score:.2f} below minimum review threshold'
+                else f"Confidence {confidence_score:.2f} below minimum review threshold"
             )
             return ExecutionDecision(
                 approved=False,
@@ -193,7 +191,7 @@ class UnsupervisedPolicy:
                 action_type=action_type,
                 confidence_score=confidence_score,
                 threshold_used=threshold,
-                reason=f'Rate limit exceeded ({self.MAX_AUTO_EXECUTIONS_PER_HOUR}/hour)',
+                reason=f"Rate limit exceeded ({self.MAX_AUTO_EXECUTIONS_PER_HOUR}/hour)",
                 tenant_id=self.tenant_id,
                 context=context,
             )
@@ -204,13 +202,13 @@ class UnsupervisedPolicy:
             action_type=action_type,
             confidence_score=confidence_score,
             threshold_used=threshold,
-            reason='Confidence meets threshold; auto-execution approved',
+            reason="Confidence meets threshold; auto-execution approved",
             tenant_id=self.tenant_id,
             context=context,
         )
 
         logger.info(
-            '[UnsupervisedPolicy] APPROVED action=%s confidence=%.2f threshold=%.2f tenant=%s decision=%s',
+            "[UnsupervisedPolicy] APPROVED action=%s confidence=%.2f threshold=%.2f tenant=%s decision=%s",
             action_type,
             confidence_score,
             threshold,
@@ -234,10 +232,10 @@ class UnsupervisedPolicy:
         """Get auto-execution stats for this tenant (for monitoring)."""
         rate_count = cache.get(self._rate_key) or 0
         return {
-            'tenant_id': self.tenant_id,
-            'auto_executions_this_hour': rate_count,
-            'max_per_hour': self.MAX_AUTO_EXECUTIONS_PER_HOUR,
-            'threshold': self._get_threshold('default'),
+            "tenant_id": self.tenant_id,
+            "auto_executions_this_hour": rate_count,
+            "max_per_hour": self.MAX_AUTO_EXECUTIONS_PER_HOUR,
+            "threshold": self._get_threshold("default"),
         }
 
     def _get_threshold(self, action_type: str) -> float:
@@ -246,13 +244,13 @@ class UnsupervisedPolicy:
         Checks for tenant-specific overrides in cache, falls back to defaults.
         """
         # Check tenant-specific override
-        override_key = f'{_POLICY_KEY_PREFIX}{self.tenant_id}:threshold:{action_type}'
+        override_key = f"{_POLICY_KEY_PREFIX}{self.tenant_id}:threshold:{action_type}"
         override = cache.get(override_key)
         if override is not None:
             return float(override)
 
         # Check tenant-level default override
-        tenant_default_key = f'{_POLICY_KEY_PREFIX}{self.tenant_id}:threshold:default'
+        tenant_default_key = f"{_POLICY_KEY_PREFIX}{self.tenant_id}:threshold:default"
         tenant_default = cache.get(tenant_default_key)
         if tenant_default is not None:
             return float(tenant_default)
@@ -294,10 +292,10 @@ class _AuditContext:
         if exc_type is not None:
             self._record.record_outcome(
                 success=False,
-                error=f'{exc_type.__name__}: {exc_val}',
+                error=f"{exc_type.__name__}: {exc_val}",
             )
             logger.warning(
-                '[UnsupervisedPolicy] FAILED decision=%s action=%s error=%s',
+                "[UnsupervisedPolicy] FAILED decision=%s action=%s error=%s",
                 self._record.decision.decision_id,
                 self._record.decision.action_type,
                 self._record.error,
@@ -307,7 +305,7 @@ class _AuditContext:
             self._record.record_outcome(success=True)
 
         # Store audit record in cache for monitoring (short retention)
-        audit_key = f'{_POLICY_KEY_PREFIX}audit:{self._record.decision.decision_id}'
+        audit_key = f"{_POLICY_KEY_PREFIX}audit:{self._record.decision.decision_id}"
         try:
             cache.set(audit_key, self._record.to_dict(), 86400)  # 24h retention
         except Exception:
@@ -319,8 +317,8 @@ class _AuditContext:
 
 def execution_guard(
     action_type: str,
-    confidence_kwarg: str = 'confidence_score',
-    tenant_kwarg: str = 'tenant_id',
+    confidence_kwarg: str = "confidence_score",
+    tenant_kwarg: str = "tenant_id",
 ) -> callable:
     """Decorator that enforces unsupervised execution policy on a function.
 
@@ -338,23 +336,22 @@ def execution_guard(
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            tenant_id = kwargs.get(tenant_kwarg, '')
+            tenant_id = kwargs.get(tenant_kwarg, "")
             confidence = kwargs.get(confidence_kwarg, 0.0)
 
             if not tenant_id:
-                raise ValueError(f'{tenant_kwarg} is required for unsupervised execution')
+                raise ValueError(f"{tenant_kwarg} is required for unsupervised execution")
 
             policy = UnsupervisedPolicy(tenant_id)
             decision = policy.evaluate(
                 action_type=action_type,
                 confidence_score=confidence,
-                context={'function': func.__qualname__},
+                context={"function": func.__qualname__},
             )
 
             if not decision.approved:
                 raise PermissionError(
-                    f'Unsupervised execution denied: {decision.reason} '
-                    f'(decision_id={decision.decision_id})'
+                    f"Unsupervised execution denied: {decision.reason} " f"(decision_id={decision.decision_id})"
                 )
 
             with policy.audit_execution(decision) as audit:

@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("tenants", "0005_baseline_metadata_cleanup"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -36,9 +35,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="tenantinvitation",
             name="usage_count",
-            field=models.PositiveIntegerField(
-                default=0, help_text="Current number of times used"
-            ),
+            field=models.PositiveIntegerField(default=0, help_text="Current number of times used"),
         ),
         migrations.AddConstraint(
             model_name="tenantinvitation",

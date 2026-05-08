@@ -6,12 +6,13 @@ import json
 from unittest.mock import Mock
 
 from django.test import TestCase
+
 from tenant_apps.workflows.services.prompter import AIPrompter
 
 
 class AIPrompterTestCase(TestCase):
     """Test suite for AIPrompter service"""
-    
+
     def setUp(self):
         self.prompter = AIPrompter()
         self.tenant = Mock()
@@ -23,29 +24,31 @@ class AIPrompterTestCase(TestCase):
                 {"id": "node2", "type": "form", "data": {"label": "Enter Data"}},
             ]
         }
-    
+
     def test_load_template_success(self):
         template = self.prompter.load_template()
         self.assertIn("Meat Industry Workflow Architect", template)
         self.assertIn("triggerManual", template)
         self.assertIn("conditionIf", template)
-    
+
     def test_parse_ai_response_valid(self):
-        valid_response = json.dumps({
-            "suggestions": [
-                {
-                    "type": "conditionIf",
-                    "label": "Temperature Breach?",
-                    "description": "Branch if > 40°F",
-                    "reasoning": "Safety",
-                    "priority": 1,
-                }
-            ],
-            "confidence": 0.95,
-        })
+        valid_response = json.dumps(
+            {
+                "suggestions": [
+                    {
+                        "type": "conditionIf",
+                        "label": "Temperature Breach?",
+                        "description": "Branch if > 40°F",
+                        "reasoning": "Safety",
+                        "priority": 1,
+                    }
+                ],
+                "confidence": 0.95,
+            }
+        )
         parsed = self.prompter.parse_ai_response(valid_response)
         self.assertEqual(len(parsed["suggestions"]), 1)
-    
+
     def test_get_fallback_suggestions(self):
         fallback = self.prompter.get_fallback_suggestions(self.tenant, self.current_flow)
         self.assertEqual(fallback["mode"], "static")
@@ -93,9 +96,7 @@ class AIPrompterTestCase(TestCase):
     def test_fallback_suggestions_max_three(self):
         """Each domain returns at most three suggestions."""
         for domain in ("cold_storage_monitoring", "quality_inspection", "carrier_compliance"):
-            fallback = self.prompter.get_fallback_suggestions(
-                self.tenant, self.current_flow, template_domain=domain
-            )
+            fallback = self.prompter.get_fallback_suggestions(self.tenant, self.current_flow, template_domain=domain)
             self.assertLessEqual(
                 len(fallback["suggestions"]),
                 3,

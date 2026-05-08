@@ -7,10 +7,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.core.services.data_governance import (
-    build_governance_posture_report,
-    summarize_governance_reports,
-)
+from apps.core.services.data_governance import build_governance_posture_report, summarize_governance_reports
 from apps.tenants.models import Tenant
 from apps.tenants.rls import tenant_rls
 
@@ -117,9 +114,7 @@ class Command(BaseCommand):
                 f"send_default_pii_disabled={observability['sentry_send_default_pii_disabled']} "
                 f"probe_ok={observability['redaction_probe']['all_checks_passed']}"
             )
-            self.stdout.write(
-                f"  retention checksum={report['retention_contract']['checksum']}"
-            )
+            self.stdout.write(f"  retention checksum={report['retention_contract']['checksum']}")
             if report["warnings"]:
                 for warning in report["warnings"]:
                     self.stdout.write(f"  warning: {warning}")

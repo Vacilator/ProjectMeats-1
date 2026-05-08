@@ -1,6 +1,6 @@
 /**
  * ConfigPanel Components
- * 
+ *
  * Export all configuration panel components
  */
 // NOTE: NodeConfigPanel is legacy and intentionally not exported to prevent regressions.

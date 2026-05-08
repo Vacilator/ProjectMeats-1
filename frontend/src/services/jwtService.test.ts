@@ -1,6 +1,6 @@
 /**
  * Tests for JWT Token Management Service
- * 
+ *
  * Wave S1: Security Hardening - Frontend JWT Integration
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';

@@ -1,6 +1,6 @@
 /**
  * DynamicConfigPanel Tests
- * 
+ *
  * Tests null safety, rendering, and interaction behaviors.
  * Created: 2026-02-21 - Null Safety Testing
  */
@@ -250,11 +250,11 @@ describe('DynamicConfigPanel', () => {
 
     /**
      * Test fallback schema for unknown types.
-     * 
+     *
      * IMPORTANT: As of PR #3217, schemaRegistry.getSchema() ALWAYS returns a valid schema
      * via createFallbackSchema(). The error panel has been REMOVED because all 50 node types
      * now have either explicit schemas or auto-generated fallback schemas.
-     * 
+     *
      * This test verifies the NEW behavior: unknown types render with fallback config.
      */
     it('should show error panel when schema not found', () => {
@@ -291,7 +291,7 @@ describe('DynamicConfigPanel', () => {
       );
 
       const nameInput = screen.getByTestId('field-name') as HTMLInputElement;
-      
+
       fireEvent.change(nameInput, { target: { value: 'New Name' } });
 
       await waitFor(() => {

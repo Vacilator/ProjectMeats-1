@@ -201,10 +201,10 @@ send_slack_notification() {
   fi
 
   echo "📤 Sending Slack notification..."
-  
+
   local payload
   payload=$(create_slack_payload)
-  
+
   local response
   response=$(curl -X POST \
     -H "Content-Type: application/json" \
@@ -214,10 +214,10 @@ send_slack_notification() {
     --retry-delay 2 \
     -w "\n%{http_code}" \
     "$SLACK_WEBHOOK_URL" 2>/dev/null)
-  
+
   local http_code
   http_code=$(echo "$response" | tail -n1)
-  
+
   if [ "$http_code" = "200" ]; then
     echo "✓ Slack notification sent successfully"
     return 0
@@ -235,10 +235,10 @@ send_teams_notification() {
   fi
 
   echo "📤 Sending Teams notification..."
-  
+
   local payload
   payload=$(create_teams_payload)
-  
+
   local response
   response=$(curl -X POST \
     -H "Content-Type: application/json" \
@@ -248,10 +248,10 @@ send_teams_notification() {
     --retry-delay 2 \
     -w "\n%{http_code}" \
     "$TEAMS_WEBHOOK_URL" 2>/dev/null)
-  
+
   local http_code
   http_code=$(echo "$response" | tail -n1)
-  
+
   if [ "$http_code" = "200" ] || [ "$http_code" = "202" ]; then
     echo "✓ Teams notification sent successfully"
     return 0

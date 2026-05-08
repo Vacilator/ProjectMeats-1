@@ -30,8 +30,9 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-import factory
 from django.contrib.auth import get_user_model
+
+import factory
 from factory.django import DjangoModelFactory
 
 User = get_user_model()

@@ -1,6 +1,6 @@
 # Golden Schema ETL Runbook
 
-**Status:** GA-01.1 scaffold only  
+**Status:** GA-01.1 scaffold only
 **Contract version:** `ga01.1.v1`
 
 This runbook defines the **normalized import contract** for the Day 0 ETL lane. It does **not** execute writes yet. GA-01.1 establishes the manifest shape, entity ordering, tenant-assertion rules, side-effect suppression rules, and the journal/error-report shapes that GA-01.2 will persist.

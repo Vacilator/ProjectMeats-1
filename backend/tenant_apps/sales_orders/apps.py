@@ -3,6 +3,5 @@ from django.apps import AppConfig
 
 class SalesOrdersConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = 'tenant_apps.sales_orders'
-    verbose_name = '📋 Sales Orders'
-
+    name = "tenant_apps.sales_orders"
+    verbose_name = "📋 Sales Orders"

@@ -31,15 +31,11 @@ class TestSelectDraftPurpose(TestCase):
         self.assertEqual(select_draft_purpose(ctx), "introduction")
 
     def test_overdue_balance_triggers_payment_reminder(self):
-        ctx = self._ctx(
-            balance=BalanceSummary(total_outstanding=5000, overdue_count=2, days_overdue_max=30)
-        )
+        ctx = self._ctx(balance=BalanceSummary(total_outstanding=5000, overdue_count=2, days_overdue_max=30))
         self.assertEqual(select_draft_purpose(ctx), "payment_reminder")
 
     def test_many_delays_triggers_order_update(self):
-        ctx = self._ctx(
-            delays=DelaySummary(total_delays=3, avg_delay_days=5)
-        )
+        ctx = self._ctx(delays=DelaySummary(total_delays=3, avg_delay_days=5))
         self.assertEqual(select_draft_purpose(ctx), "order_update")
 
     def test_no_orders_triggers_introduction(self):
@@ -47,9 +43,7 @@ class TestSelectDraftPurpose(TestCase):
         self.assertEqual(select_draft_purpose(ctx), "introduction")
 
     def test_default_follow_up(self):
-        ctx = self._ctx(
-            recent_orders=[OrderSummary("o1", "ORD-001", "2025-01-01", 1000.0)]
-        )
+        ctx = self._ctx(recent_orders=[OrderSummary("o1", "ORD-001", "2025-01-01", 1000.0)])
         self.assertEqual(select_draft_purpose(ctx), "follow_up")
 
 
@@ -166,9 +160,7 @@ class TestGenerateEmailDraft(TestCase):
         self.assertEqual(result.draft.metadata["entity_id"], "s1")
 
     def test_single_order_uses_singular(self):
-        ctx = self._ctx(
-            recent_orders=[OrderSummary("o1", "PO-001", "2025-01-15", 5000.0)]
-        )
+        ctx = self._ctx(recent_orders=[OrderSummary("o1", "PO-001", "2025-01-15", 5000.0)])
         result = generate_email_draft(ctx)
         # Subject should not have trailing "s"
         self.assertIn("recent order ", result.draft.subject)

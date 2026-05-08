@@ -8,7 +8,9 @@ per the pipeline configuration. Please use uat.meatscentral.com for all staging/
 """
 
 import logging
+
 from decouple import config
+
 from .production import *
 
 # Log deprecation warning if old staging domain is detected
@@ -71,9 +73,7 @@ FRONTEND_URL = config("FRONTEND_URL", default="https://uat.meatscentral.com")
 # WARNING: Adding SMTP variables will cause Errno 111 and 504 timeouts
 # IMPORTANT: SENDGRID_API_KEY or EMAIL_HOST_PASSWORD must be set as environment variable
 # Do not hardcode API keys in source code
-EMAIL_BACKEND = config(
-    "EMAIL_BACKEND", default="sendgrid_backend.SendgridBackend"
-)
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="sendgrid_backend.SendgridBackend")
 SENDGRID_API_KEY = config("SENDGRID_API_KEY", default=config("EMAIL_HOST_PASSWORD", default=""))
 SENDGRID_SANDBOX_MODE_IN_DEBUG = False
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@meatscentral.com")

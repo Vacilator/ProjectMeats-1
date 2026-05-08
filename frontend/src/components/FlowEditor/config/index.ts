@@ -1,8 +1,8 @@
 /**
  * Configuration Engine - Public API
- * 
+ *
  * Central export point for all configuration engine modules.
- * 
+ *
  * Created: 2026-02-18
  * Phase: D.1 - Foundation
  * Updated: 2026-02-18 - Phase D.2 - Dynamic Panel
@@ -40,7 +40,7 @@ export { evaluateCondition, getConditionalDependencies } from './conditionalLogi
 export { validateField, validateAllFields, isFormValid } from './validationEngine';
 
 // Field renderers (Phase D.2)
-export { 
+export {
   renderTextField,
   renderSelectField,
   renderToggleField

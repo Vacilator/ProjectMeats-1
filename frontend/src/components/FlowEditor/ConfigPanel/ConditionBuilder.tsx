@@ -1,16 +1,16 @@
 /**
  * Condition Builder Component
- * 
+ *
  * Reusable component for building conditional logic rules.
  * Used for conditional visibility, step transitions, and field dependencies.
- * 
+ *
  * Features:
  * - Multiple condition operators (equals, contains, greater than, etc.)
  * - AND/OR logic between multiple conditions
  * - Field reference with auto-complete
  * - Value input with type awareness
  * - Visual condition preview
- * 
+ *
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  */
 import React, { useState } from 'react';
@@ -200,7 +200,7 @@ const LogicButton = styled.button<{ $active: boolean }>`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover:not(:disabled) {
     background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.1)'};
   }
@@ -209,7 +209,7 @@ const LogicButton = styled.button<{ $active: boolean }>`
     opacity: 0.6;
     cursor: not-allowed;
   }
-  
+
   &:not(:last-child) {
     border-right: 1px solid rgb(var(--color-border));
   }
@@ -231,7 +231,7 @@ const ConditionItem = styled.div`
   border-radius: var(--radius-md);
   position: relative;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
@@ -269,7 +269,7 @@ const ValueInput = styled.input`
   color: rgb(var(--color-text-primary));
   background: rgb(var(--color-surface));
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -286,7 +286,7 @@ const DeleteButton = styled.button`
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
   flex-shrink: 0;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-error), 0.1);
     color: rgb(var(--color-error));
@@ -348,7 +348,7 @@ const AddButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover:not(:disabled) {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
@@ -424,15 +424,15 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
 
   const formatConditionPreview = (condition: ConditionRule): string => {
     if (!condition.field || !condition.operator) return 'Incomplete condition';
-    
+
     const field = availableFields.find(f => f.key === condition.field);
     const fieldLabel = field?.label || condition.field;
     const operator = OPERATOR_DEFINITIONS[condition.operator];
-    
+
     if (!operator.requiresValue) {
       return `${fieldLabel} ${operator.label}`;
     }
-    
+
     return `${fieldLabel} ${operator.symbol} "${condition.value || ''}"`;
   };
 
@@ -460,8 +460,8 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
             </LogicButton>
           </LogicToggle>
           <HelpText>
-            {logic === 'and' 
-              ? 'All conditions must be true' 
+            {logic === 'and'
+              ? 'All conditions must be true'
               : 'At least one condition must be true'}
           </HelpText>
         </LogicSelector>
@@ -476,7 +476,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
         <ConditionList>
           {conditions.map((condition, index) => {
             const operatorDef = OPERATOR_DEFINITIONS[condition.operator];
-            const applicableOperators = condition.field 
+            const applicableOperators = condition.field
               ? getApplicableOperators(condition.field)
               : Object.keys(OPERATOR_DEFINITIONS) as ConditionOperator[];
 
@@ -489,14 +489,14 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                     <LogicLine />
                   </LogicDivider>
                 )}
-                
+
                 <ConditionItem>
                   <ConditionRow>
                     <FieldGroup>
                       <ConditionLabel>Field</ConditionLabel>
                       <Select
                         value={condition.field}
-                        onChange={(e) => handleUpdateCondition(condition.id, { 
+                        onChange={(e) => handleUpdateCondition(condition.id, {
                           field: e.target.value,
                           operator: 'equals', // Reset operator when field changes
                           value: '',
@@ -516,8 +516,8 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                       <ConditionLabel>Operator</ConditionLabel>
                       <Select
                         value={condition.operator}
-                        onChange={(e) => handleUpdateCondition(condition.id, { 
-                          operator: e.target.value as ConditionOperator 
+                        onChange={(e) => handleUpdateCondition(condition.id, {
+                          operator: e.target.value as ConditionOperator
                         })}
                         disabled={disabled || !condition.field}
                       >
@@ -538,8 +538,8 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                         <ValueInput
                           type={getFieldType(condition.field) === 'number' ? 'number' : 'text'}
                           value={condition.value || ''}
-                          onChange={(e) => handleUpdateCondition(condition.id, { 
-                            value: e.target.value 
+                          onChange={(e) => handleUpdateCondition(condition.id, {
+                            value: e.target.value
                           })}
                           placeholder="Enter value..."
                           disabled={disabled}

@@ -1,6 +1,6 @@
 /**
  * Inquiry Analytics Page
- * 
+ *
  * Win/Loss reporting dashboard for inquiry performance tracking.
  */
 import React from 'react';

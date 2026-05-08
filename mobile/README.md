@@ -18,7 +18,7 @@ This mobile app provides core functionality for managing meat sales operations o
 
 ### Phase 2 (Planned)
 - [ ] Customer management (CRUD operations)
-- [ ] Supplier management (CRUD operations) 
+- [ ] Supplier management (CRUD operations)
 - [ ] Contact management
 - [ ] Plant management
 - [ ] Carrier management
@@ -97,7 +97,7 @@ expo start
 # iOS Simulator
 npm run ios
 
-# Android Emulator  
+# Android Emulator
 npm run android
 
 # Web browser (for testing)

@@ -1,32 +1,32 @@
 /**
  * Form Configuration Panel
- * 
+ *
  * Configuration panel for forms and form processes.
  * Manages form-level settings including visibility, navigation, and validation.
- * 
+ *
  * Features:
  * - Form title and description editing
  * - Conditional visibility for entire form
  * - Navigation controls (back/skip/auto-advance)
  * - Form-level validation rules
  * - Field list management (add/edit/delete/reorder)
- * 
+ *
  * Phase E.2: Panel Migration - Batch 1 (1 of 3)
  * Updated: 2026-02-25 - Phase 2 Standardization
- * 
+ *
  * Changes:
  * - Replaced 30+ local styled components with shared components
  * - Massive code reduction expected (40%+)
  * - Maintained exact same functionality
  * - Updated terminology: "Form Step" → "Form"
- * 
+ *
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  * Last Updated: 2026-02-18 - Phase E.2 Panel Migration
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { 
-  ChevronDown, ChevronUp, GripVertical, Plus, Edit2, Trash2, 
+import {
+  ChevronDown, ChevronUp, GripVertical, Plus, Edit2, Trash2,
   Eye, EyeOff, CheckCircle, Database, Zap
 } from 'lucide-react';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
@@ -69,14 +69,14 @@ export interface FormStepData {
   stepDescription?: string;
   entityType?: string;  // Phase 3: Entity selection
   fields: FormField[];
-  
+
   // Visibility configuration
   visibility?: {
     mode: 'always' | 'conditional';
     conditions?: ConditionRule[];
     logic?: ConditionLogic;
   };
-  
+
   // Navigation configuration
   navigation?: {
     allowBack: boolean;
@@ -86,7 +86,7 @@ export interface FormStepData {
     nextLabel?: string;
     skipLabel?: string;
   };
-  
+
   // Validation configuration
   validation?: {
     mode: 'all' | 'minimum';
@@ -142,7 +142,7 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.05)'};
@@ -165,7 +165,7 @@ const FieldItem = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
@@ -175,7 +175,7 @@ const FieldItem = styled.div`
 const DragHandle = styled.div`
   color: rgb(var(--color-text-tertiary));
   cursor: grab;
-  
+
   &:active {
     cursor: grabbing;
   }
@@ -219,11 +219,11 @@ const FieldMeta = styled.div`
 
 const FieldBadge = styled.span<{ $type?: 'required' | 'optional' }>`
   padding: 2px 6px;
-  background: ${props => props.$type === 'required' 
-    ? 'rgba(var(--color-error), 0.1)' 
+  background: ${props => props.$type === 'required'
+    ? 'rgba(var(--color-error), 0.1)'
     : 'rgba(var(--color-border), 0.5)'};
-  color: ${props => props.$type === 'required' 
-    ? 'rgb(var(--color-error))' 
+  color: ${props => props.$type === 'required'
+    ? 'rgb(var(--color-error))'
     : 'rgb(var(--color-text-tertiary))'};
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -248,7 +248,7 @@ const IconButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   &:hover {
     background: rgb(var(--color-border));
     color: rgb(var(--color-text-primary));
@@ -267,12 +267,12 @@ const AddFieldButton = styled.button`
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.05);
@@ -297,7 +297,7 @@ const ValidationModeButton = styled.button<{ $active: boolean }>`
   cursor: pointer;
   border-radius: var(--radius-md);
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
   }
@@ -355,7 +355,7 @@ const mapEntityFieldTypeToFormFieldType = (djangoType: string): FormFieldType =>
     'ForeignKey': 'select',
     'ManyToManyField': 'multi-select',
   };
-  
+
   return mapping[djangoType] || 'text';
 };
 
@@ -379,7 +379,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     entityType: step.entityType || '',
   });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  
+
   // Phase A.3: Field search and filter
   const [fieldSearchTerm, setFieldSearchTerm] = useState<string>('');
   const [fieldTypeFilter, setFieldTypeFilter] = useState<string>('all');
@@ -391,24 +391,24 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   const [pickedFields, setPickedFields] = useState<SelectedField[]>([]);
 
   // Phase A: Enhanced entity and field loading with error handling
-  const { 
-    data: entities = [], 
+  const {
+    data: entities = [],
     isLoading: entitiesLoading,
     isError: entitiesError,
-    error: entitiesErrorMessage 
+    error: entitiesErrorMessage
   } = useEntityList();
-  
-  const { 
-    data: fieldsData, 
+
+  const {
+    data: fieldsData,
     isLoading: fieldsLoading,
     isError: fieldsError,
-    error: fieldsErrorMessage 
+    error: fieldsErrorMessage
   } = useEntityFields(
     localStep.entityType,
     { enabled: !!localStep.entityType }
   );
   const availableEntityFields = fieldsData?.fields || [];
-  
+
   // Phase 7: Smart Auto-Map integration
   const {
     suggestions,
@@ -421,7 +421,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     clearSuggestions,
   } = useAutoMapping();
   const [showAutoMapping, setShowAutoMapping] = useState<boolean>(false);
-  
+
   // Phase A.3: Filter available fields by search term and type
   const filteredEntityFields = availableEntityFields
     .filter(field => {
@@ -429,14 +429,14 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
       if (localStep.fields.some(f => f.label === field.label)) {
         return false;
       }
-      
+
       // Filter by search term (label or name)
-      if (fieldSearchTerm && 
+      if (fieldSearchTerm &&
           !field.label.toLowerCase().includes(fieldSearchTerm.toLowerCase()) &&
           !field.name.toLowerCase().includes(fieldSearchTerm.toLowerCase())) {
         return false;
       }
-      
+
       // Filter by field type
       if (fieldTypeFilter !== 'all') {
         const formFieldType = mapEntityFieldTypeToFormFieldType(field.field_type);
@@ -444,7 +444,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
           return false;
         }
       }
-      
+
       return true;
     });
 
@@ -485,10 +485,10 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   const handleMoveField = (fieldId: string, direction: 'up' | 'down') => {
     const index = localStep.fields.findIndex(f => f.id === fieldId);
     if (index === -1) return;
-    
+
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= localStep.fields.length) return;
-    
+
     const newFields = [...localStep.fields];
     [newFields[index], newFields[newIndex]] = [newFields[newIndex], newFields[index]];
     handleUpdate({ fields: newFields });
@@ -513,8 +513,8 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     }));
 
     // Add to step fields
-    handleUpdate({ 
-      fields: [...localStep.fields, ...newFormFields] 
+    handleUpdate({
+      fields: [...localStep.fields, ...newFormFields]
     });
 
     setShowFieldPicker(false);
@@ -664,7 +664,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   {autoMappingLoading ? 'Analyzing...' : 'Generate Suggestions'}
                 </PrimaryButton>
               </AutoMapActions>
-              
+
               {suggestions && suggestions.suggestions.length > 0 && (
                 <AutoMappingSuggestionsPanel
                   suggestions={suggestions.suggestions}
@@ -692,7 +692,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   }}
                 />
               )}
-              
+
               {autoMappingError && (
                 <ErrorMessage style={{ marginTop: '12px' }}>
                   {autoMappingError}
@@ -758,15 +758,15 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 <Label>
                   Add Fields from {entities.find(e => e.id === localStep.entityType)?.label_plural}
                 </Label>
-                
-                <PrimaryButton 
+
+                <PrimaryButton
                   onClick={handleOpenFieldPicker}
                   style={{ width: '100%', marginTop: '8px' }}
                 >
                   <Plus size={16} style={{ marginRight: '6px' }} />
                   Open Field Picker ({availableEntityFields.length - localStep.fields.length} available)
                 </PrimaryButton>
-                
+
                 <HelpText>
                   {fieldsLoading ? (
                     '⏳ Loading fields...'

@@ -1,6 +1,6 @@
 /**
  * Admin Components - Index
- * 
+ *
  * Barrel export for all admin workspace components.
  */
 

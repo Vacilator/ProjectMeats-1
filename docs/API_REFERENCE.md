@@ -1,8 +1,8 @@
 # ProjectMeats API Reference
 
-**Version**: 2.0.0  
-**Base URL**: `https://meatscentral.com/api/v1/` (Production)  
-**Environments**: `https://dev.meatscentral.com/api/v1/` | `https://uat.meatscentral.com/api/v1/`  
+**Version**: 2.0.0
+**Base URL**: `https://meatscentral.com/api/v1/` (Production)
+**Environments**: `https://dev.meatscentral.com/api/v1/` | `https://uat.meatscentral.com/api/v1/`
 **Documentation**: `/api/docs/` (Swagger UI) | `/api/redoc/` (ReDoc)
 
 ---

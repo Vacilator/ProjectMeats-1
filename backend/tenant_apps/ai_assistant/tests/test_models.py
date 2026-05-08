@@ -6,22 +6,21 @@ Note: The test settings (`projectmeats.settings.test`) may exclude `tenant_apps.
 (e.g. when optional Postgres extensions aren't available). In that case, skip this module's tests.
 """
 
-import unittest
 import json
+import unittest
 import uuid
 from datetime import timedelta
 from unittest.mock import patch
-from django.test import override_settings
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.utils import timezone
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework.response import Response
 
-if 'tenant_apps.ai_assistant' not in settings.INSTALLED_APPS:
-    raise unittest.SkipTest('tenant_apps.ai_assistant is excluded from INSTALLED_APPS in test settings')
+if "tenant_apps.ai_assistant" not in settings.INSTALLED_APPS:
+    raise unittest.SkipTest("tenant_apps.ai_assistant is excluded from INSTALLED_APPS in test settings")
 
 from tenant_apps.ai_assistant.models import (
     AIApproval,
@@ -39,6 +38,7 @@ from tenant_apps.ai_assistant.models import (
     MessageTypeChoices,
 )
 from tenant_apps.ai_assistant.session_utils import bind_context_to_tenant
+
 from apps.tenants.models import Tenant, TenantUser
 
 
@@ -50,9 +50,7 @@ class ChatSessionModelTest(TestCase):
         """Set up test data shared across all tests."""
         unique_id = uuid.uuid4().hex[:8]
         cls.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         cls.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -71,7 +69,7 @@ class ChatSessionModelTest(TestCase):
             modified_by=self.user,
             session_status=ChatSessionStatusChoices.ACTIVE,
         )
-        
+
         self.assertIsNotNone(session.id)
         self.assertEqual(session.title, "Test Session")
         self.assertEqual(session.session_status, "active")
@@ -85,7 +83,7 @@ class ChatSessionModelTest(TestCase):
             created_by=self.user,
             modified_by=self.user,
         )
-        
+
         self.assertIsInstance(session.id, uuid.UUID)
 
     def test_chat_session_status_choices(self):
@@ -102,11 +100,7 @@ class ChatSessionModelTest(TestCase):
 
     def test_chat_session_context_data(self):
         """Test storing context data in JSON field."""
-        context = {
-            "entity_type": "supplier",
-            "entity_id": 123,
-            "topic": "pricing inquiry"
-        }
+        context = {"entity_type": "supplier", "entity_id": 123, "topic": "pricing inquiry"}
         session = ChatSession.objects.create(
             title="With Context",
             owner=self.user,
@@ -114,7 +108,7 @@ class ChatSessionModelTest(TestCase):
             modified_by=self.user,
             context_data=context,
         )
-        
+
         self.assertEqual(session.context_data, context)
         self.assertEqual(session.context_data["entity_type"], "supplier")
 
@@ -126,7 +120,7 @@ class ChatSessionModelTest(TestCase):
             created_by=self.user,
             modified_by=self.user,
         )
-        
+
         self.assertIn("My Chat", str(session))
 
     def test_chat_session_str_without_title(self):
@@ -136,7 +130,7 @@ class ChatSessionModelTest(TestCase):
             created_by=self.user,
             modified_by=self.user,
         )
-        
+
         self.assertIn("Session", str(session))
         self.assertIn(session.id.hex[:8], str(session))
 
@@ -149,9 +143,7 @@ class ChatMessageModelTest(TestCase):
         """Set up test data shared across all tests."""
         unique_id = uuid.uuid4().hex[:8]
         cls.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         cls.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -160,7 +152,7 @@ class ChatMessageModelTest(TestCase):
             created_by=cls.user,
         )
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="owner")
-        
+
         cls.session = ChatSession.objects.create(
             title="Test Session",
             owner=cls.user,
@@ -178,7 +170,7 @@ class ChatMessageModelTest(TestCase):
             message_type=MessageTypeChoices.USER,
             content="What suppliers have beef ribeye?",
         )
-        
+
         self.assertIsNotNone(message.id)
         self.assertEqual(message.message_type, "user")
         self.assertIn("ribeye", message.content)
@@ -193,16 +185,12 @@ class ChatMessageModelTest(TestCase):
             message_type=MessageTypeChoices.ASSISTANT,
             content="I found 3 suppliers with beef ribeye in stock.",
         )
-        
+
         self.assertEqual(message.message_type, "assistant")
 
     def test_message_metadata(self):
         """Test storing metadata on messages."""
-        metadata = {
-            "model": "gpt-4o-mini",
-            "tokens_used": 150,
-            "processing_time": 1.2
-        }
+        metadata = {"model": "gpt-4o-mini", "tokens_used": 150, "processing_time": 1.2}
         message = ChatMessage.objects.create(
             session=self.session,
             owner=self.user,
@@ -212,7 +200,7 @@ class ChatMessageModelTest(TestCase):
             content="Response",
             metadata=metadata,
         )
-        
+
         self.assertEqual(message.metadata["model"], "gpt-4o-mini")
         self.assertEqual(message.metadata["tokens_used"], 150)
 
@@ -227,7 +215,7 @@ class ChatMessageModelTest(TestCase):
             message_type=MessageTypeChoices.USER,
             content=long_content,
         )
-        
+
         str_repr = str(message)
         self.assertIn("...", str_repr)
         self.assertTrue(len(str_repr) < len(long_content))
@@ -241,9 +229,7 @@ class AIConfigurationModelTest(TestCase):
         """Set up test data shared across all tests."""
         unique_id = uuid.uuid4().hex[:8]
         cls.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         cls.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -264,7 +250,7 @@ class AIConfigurationModelTest(TestCase):
             is_default=True,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(config.provider, "openai")
         self.assertEqual(config.model_name, "gpt-4o-mini")
         self.assertTrue(config.is_active)
@@ -273,18 +259,16 @@ class AIConfigurationModelTest(TestCase):
     def test_ai_configuration_tenant_isolation(self):
         """Test that AI configurations are isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create config for first tenant
         config1 = AIConfiguration.objects.create(
             name=f"Config 1 {unique_id}",
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -292,13 +276,13 @@ class AIConfigurationModelTest(TestCase):
             contact_email=f"admin-{unique_id}@othercompany.com",
             created_by=other_user,
         )
-        
+
         # Create config for second tenant
         config2 = AIConfiguration.objects.create(
             name=f"Config 2 {unique_id}",
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_configs = AIConfiguration.objects.for_tenant(self.tenant)
         self.assertIn(config1, tenant1_configs)
@@ -313,7 +297,7 @@ class AIConfigurationModelTest(TestCase):
             model_name="claude-3",
             tenant=self.tenant,
         )
-        
+
         str_repr = str(config)
         self.assertIn("anthropic", str_repr)
         self.assertIn("claude-3", str_repr)
@@ -420,9 +404,10 @@ class SwarmWorkformAndCommsToolsTest(TestCase):
         TenantUser.objects.create(tenant=cls.tenant, user=cls.owner, role="owner")
 
     def test_trigger_workform_creates_execution(self):
-        from apps.system.models import TenantWorkForm
         from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
         from tenant_apps.workflows.models import TenantWorkFormExecution
+
+        from apps.system.models import TenantWorkForm
 
         wf = TenantWorkForm.objects.create(
             tenant=self.tenant,
@@ -437,15 +422,17 @@ class SwarmWorkformAndCommsToolsTest(TestCase):
         )
 
         ex = ToolExecutor()
-        result = ex._trigger_workform({"workflow_id": str(wf.id), "initial_data": {"hello": "world"}}, tenant=self.tenant, user=self.owner)
+        result = ex._trigger_workform(
+            {"workflow_id": str(wf.id), "initial_data": {"hello": "world"}}, tenant=self.tenant, user=self.owner
+        )
 
         self.assertIn("execution_id", result)
         self.assertEqual(result["status"], "completed")
         self.assertEqual(TenantWorkFormExecution.objects.filter(tenant=self.tenant, workform=wf).count(), 1)
 
     def test_draft_vendor_email_persists_draft(self):
-        from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
         from tenant_apps.ai_assistant.models import CommunicationLog, CommunicationStatus
+        from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
         from tenant_apps.suppliers.models import Supplier
 
         supplier = Supplier.objects.create(tenant=self.tenant, name="ACME", email="acme@example.com")
@@ -548,26 +535,26 @@ class AIDocumentViewSetTenantScopingTests(TestCase):
         AILineageEvent.objects.create(
             tenant=self.tenant_a,
             document=self.document_a,
-            event_type='document_ingested',
-            source_type='upload',
-            target_type='document',
-            summary='Document uploaded into the AI assistant.',
+            event_type="document_ingested",
+            source_type="upload",
+            target_type="document",
+            summary="Document uploaded into the AI assistant.",
         )
         AILineageEvent.objects.create(
             tenant=self.tenant_a,
             document=self.document_a,
-            event_type='document_parsed',
-            source_type='document',
-            target_type='parsed_document',
-            summary='Document parsed successfully.',
+            event_type="document_parsed",
+            source_type="document",
+            target_type="parsed_document",
+            summary="Document parsed successfully.",
         )
         AILineageEvent.objects.create(
             tenant=self.tenant_b,
             document=self.document_b,
-            event_type='document_ingested',
-            source_type='upload',
-            target_type='document',
-            summary='Foreign tenant lineage event.',
+            event_type="document_ingested",
+            source_type="upload",
+            target_type="document",
+            summary="Foreign tenant lineage event.",
         )
 
         response = AIDocumentViewSet.as_view({"get": "retrieve"})(
@@ -576,14 +563,15 @@ class AIDocumentViewSetTenantScopingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['original_filename'], 'a.txt')
-        self.assertEqual(response.data['lineage_summary']['event_count'], 2)
-        self.assertEqual(response.data['lineage_summary']['latest_event_type'], 'document_parsed')
+        self.assertEqual(response.data["original_filename"], "a.txt")
+        self.assertEqual(response.data["lineage_summary"]["event_count"], 2)
+        self.assertEqual(response.data["lineage_summary"]["latest_event_type"], "document_parsed")
         self.assertEqual(
-            response.data['lineage_summary']['latest_summary'],
-            'Document parsed successfully.',
+            response.data["lineage_summary"]["latest_summary"],
+            "Document parsed successfully.",
         )
-        self.assertEqual(len(response.data['lineage_summary']['recent_events']), 2)
+        self.assertEqual(len(response.data["lineage_summary"]["recent_events"]), 2)
+
 
 class ChatSessionTenantBindingTests(TestCase):
     def setUp(self):
@@ -680,7 +668,7 @@ class ChatSessionTenantBindingTests(TestCase):
             content="legacy",
         )
 
-    def _request(self, method: str, path: str, tenant, data=None, format='json'):
+    def _request(self, method: str, path: str, tenant, data=None, format="json"):
         request_factory = getattr(self.factory, method.lower())
         request = request_factory(path, data or {}, format=format)
         self._force_authenticate(request, user=self.user)
@@ -825,7 +813,7 @@ class ChatSessionTenantBindingTests(TestCase):
         legacy_session.refresh_from_db()
         self.assertIsNone(legacy_session.tenant_id)
 
-    @override_settings(OPENAI_API_KEY='test-key', AI_SEMANTIC_CACHE_ENABLED=True)
+    @override_settings(OPENAI_API_KEY="test-key", AI_SEMANTIC_CACHE_ENABLED=True)
     @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.lookup_cached_response")
     @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.build_context_signature", return_value="ctx-a")
     @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.store_cached_response")
@@ -841,11 +829,11 @@ class ChatSessionTenantBindingTests(TestCase):
         from tenant_apps.ai_assistant.views import ChatBotAPIViewSet
 
         mock_lookup_cached_response.return_value = SemanticCacheHit(
-            entry_id='cache-entry-1',
-            response_text='Cached answer',
+            entry_id="cache-entry-1",
+            response_text="Cached answer",
             similarity=0.991,
-            model_name='gpt-4o-mini',
-            created_at='2026-05-05T00:00:00+00:00',
+            model_name="gpt-4o-mini",
+            created_at="2026-05-05T00:00:00+00:00",
         )
         mock_run_tool_loop.side_effect = AssertionError("Tool loop should not execute on cache hit")
 
@@ -874,7 +862,7 @@ class ChatSessionTenantBindingTests(TestCase):
         self.assertTrue(assistant_message.metadata["cache_hit"])
 
     @override_settings(
-        OPENAI_API_KEY='test-key',
+        OPENAI_API_KEY="test-key",
         AI_SEMANTIC_CACHE_ENABLED=False,
         AI_CHAT_COMPACTION_ENABLED=True,
         AI_CHAT_COMPACTION_MIN_MESSAGES=4,
@@ -950,7 +938,7 @@ class ChatSessionTenantBindingTests(TestCase):
         )
 
     @override_settings(
-        OPENAI_API_KEY='test-key',
+        OPENAI_API_KEY="test-key",
         AI_SEMANTIC_CACHE_ENABLED=False,
         AI_CHAT_COMPACTION_ENABLED=True,
     )
@@ -1130,10 +1118,7 @@ class ChatSessionRlsRegressionTests(TestCase):
                 """,
                 [list(expected_tables.keys())],
             )
-            relation_rows = {
-                row[0]: {"rls_enabled": row[1], "rls_forced": row[2]}
-                for row in cursor.fetchall()
-            }
+            relation_rows = {row[0]: {"rls_enabled": row[1], "rls_forced": row[2]} for row in cursor.fetchall()}
 
             cursor.execute(
                 """
@@ -1163,6 +1148,7 @@ class AIControlPlaneFlowTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         from rest_framework.test import APIRequestFactory, force_authenticate
+
         from tenant_apps.suppliers.models import Supplier
 
         unique_id = uuid.uuid4().hex[:8]
@@ -1214,31 +1200,31 @@ class AIControlPlaneFlowTest(TestCase):
         cls.factory = APIRequestFactory()
         cls._force_authenticate = force_authenticate
 
-    def _create_run(self, tenant=None, requested_by=None, user_message='Draft a vendor email'):
+    def _create_run(self, tenant=None, requested_by=None, user_message="Draft a vendor email"):
         active_tenant = tenant or self.tenant_a
         return AIRun.objects.create(
             tenant=active_tenant,
             session=self.session if active_tenant == self.tenant_a else None,
             requested_by=requested_by or self.requester,
-            source='chat',
-            event_type='user_chat',
+            source="chat",
+            event_type="user_chat",
             status=AIRunStatus.RUNNING,
-            intent='action_create',
+            intent="action_create",
             user_message=user_message,
-            request_payload={'message': user_message},
+            request_payload={"message": user_message},
         )
 
     def _request(self, method: str, path: str, tenant, user=None, data=None):
         request_factory = getattr(self.factory, method.lower())
-        request = request_factory(path, data or {}, format='json')
+        request = request_factory(path, data or {}, format="json")
         if user is not None:
             self._force_authenticate(request, user=user)
         request.tenant = tenant
         return request
 
     def _items(self, response):
-        if isinstance(response.data, dict) and 'results' in response.data:
-            return response.data['results']
+        if isinstance(response.data, dict) and "results" in response.data:
+            return response.data["results"]
         return response.data
 
     def test_draft_vendor_email_creates_pending_approval_records(self):
@@ -1246,11 +1232,11 @@ class AIControlPlaneFlowTest(TestCase):
 
         run = self._create_run()
         result = ToolExecutor().execute(
-            'draft_vendor_email',
+            "draft_vendor_email",
             {
-                'vendor_id': str(self.supplier.id),
-                'vendor_type': 'supplier',
-                'context': 'Please confirm tomorrow delivery.',
+                "vendor_id": str(self.supplier.id),
+                "vendor_type": "supplier",
+                "context": "Please confirm tomorrow delivery.",
             },
             tenant=self.tenant_a,
             user=self.requester,
@@ -1259,7 +1245,7 @@ class AIControlPlaneFlowTest(TestCase):
         )
 
         payload = json.loads(result)
-        self.assertTrue(payload['data']['approval_required'])
+        self.assertTrue(payload["data"]["approval_required"])
 
         run.refresh_from_db()
         task = AITask.objects.get(run=run)
@@ -1275,13 +1261,13 @@ class AIControlPlaneFlowTest(TestCase):
         from tenant_apps.ai_assistant.swarm.executor import ToolExecutor
         from tenant_apps.ai_assistant.views import AIApprovalViewSet
 
-        run = self._create_run(user_message='Draft supplier follow-up')
+        run = self._create_run(user_message="Draft supplier follow-up")
         ToolExecutor().execute(
-            'draft_vendor_email',
+            "draft_vendor_email",
             {
-                'vendor_id': str(self.supplier.id),
-                'vendor_type': 'supplier',
-                'context': 'Please send updated pricing.',
+                "vendor_id": str(self.supplier.id),
+                "vendor_type": "supplier",
+                "context": "Please send updated pricing.",
             },
             tenant=self.tenant_a,
             user=self.requester,
@@ -1290,13 +1276,13 @@ class AIControlPlaneFlowTest(TestCase):
         )
         approval = AIApproval.objects.get(run=run)
 
-        response = AIApprovalViewSet.as_view({'post': 'approve'})(
+        response = AIApprovalViewSet.as_view({"post": "approve"})(
             self._request(
-                'post',
-                f'/api/v1/ai-assistant/approvals/{approval.id}/approve/',
+                "post",
+                f"/api/v1/ai-assistant/approvals/{approval.id}/approve/",
                 tenant=self.tenant_a,
                 user=self.owner,
-                data={'resolution_note': 'Approved for supplier follow-up.'},
+                data={"resolution_note": "Approved for supplier follow-up."},
             ),
             pk=str(approval.id),
         )
@@ -1312,13 +1298,13 @@ class AIControlPlaneFlowTest(TestCase):
         self.assertEqual(run.status, AIRunStatus.COMPLETED)
         self.assertEqual(CommunicationLog.objects.filter(tenant=self.tenant_a).count(), 1)
 
-        second = AIApprovalViewSet.as_view({'post': 'approve'})(
+        second = AIApprovalViewSet.as_view({"post": "approve"})(
             self._request(
-                'post',
-                f'/api/v1/ai-assistant/approvals/{approval.id}/approve/',
+                "post",
+                f"/api/v1/ai-assistant/approvals/{approval.id}/approve/",
                 tenant=self.tenant_a,
                 user=self.owner,
-                data={'resolution_note': 'Retry'},
+                data={"resolution_note": "Retry"},
             ),
             pk=str(approval.id),
         )
@@ -1331,35 +1317,35 @@ class AIControlPlaneFlowTest(TestCase):
         foreign_run = self._create_run(
             tenant=self.tenant_b,
             requested_by=self.other_user,
-            user_message='Foreign approval',
+            user_message="Foreign approval",
         )
         foreign_task = AITask.objects.create(
             tenant=self.tenant_b,
             run=foreign_run,
             requested_by=self.other_user,
-            tool_name='draft_vendor_email',
+            tool_name="draft_vendor_email",
             sequence=1,
             status=AITaskStatus.APPROVAL_REQUIRED,
             requires_approval=True,
-            input_payload={'context': 'Foreign approval payload'},
+            input_payload={"context": "Foreign approval payload"},
         )
         foreign_approval = AIApproval.objects.create(
             tenant=self.tenant_b,
             run=foreign_run,
             task=foreign_task,
             requested_by=self.other_user,
-            tool_name='draft_vendor_email',
+            tool_name="draft_vendor_email",
             status=AIApprovalStatus.PENDING,
             request_payload=foreign_task.input_payload,
         )
 
-        response = AIApprovalViewSet.as_view({'post': 'approve'})(
+        response = AIApprovalViewSet.as_view({"post": "approve"})(
             self._request(
-                'post',
-                f'/api/v1/ai-assistant/approvals/{foreign_approval.id}/approve/',
+                "post",
+                f"/api/v1/ai-assistant/approvals/{foreign_approval.id}/approve/",
                 tenant=self.tenant_a,
                 user=self.owner,
-                data={'resolution_note': 'Should not cross tenant boundary'},
+                data={"resolution_note": "Should not cross tenant boundary"},
             ),
             pk=str(foreign_approval.id),
         )
@@ -1372,13 +1358,13 @@ class AIControlPlaneFlowTest(TestCase):
         from tenant_apps.ai_assistant.views import AIApprovalViewSet
 
         missing_id = uuid.uuid4()
-        response = AIApprovalViewSet.as_view({'post': 'deny'})(
+        response = AIApprovalViewSet.as_view({"post": "deny"})(
             self._request(
-                'post',
-                f'/api/v1/ai-assistant/approvals/{missing_id}/deny/',
+                "post",
+                f"/api/v1/ai-assistant/approvals/{missing_id}/deny/",
                 tenant=self.tenant_a,
                 user=self.owner,
-                data={'resolution_note': 'Missing approval'},
+                data={"resolution_note": "Missing approval"},
             ),
             pk=str(missing_id),
         )
@@ -1388,46 +1374,46 @@ class AIControlPlaneFlowTest(TestCase):
     def test_run_and_approval_queries_are_tenant_scoped(self):
         from tenant_apps.ai_assistant.views import AIApprovalViewSet, AIRunViewSet
 
-        own_run = self._create_run(user_message='Own run')
-        owner_run = self._create_run(requested_by=self.owner, user_message='Owner run')
-        foreign_run = self._create_run(tenant=self.tenant_b, requested_by=self.other_user, user_message='Foreign run')
+        own_run = self._create_run(user_message="Own run")
+        owner_run = self._create_run(requested_by=self.owner, user_message="Owner run")
+        foreign_run = self._create_run(tenant=self.tenant_b, requested_by=self.other_user, user_message="Foreign run")
 
         own_task = AITask.objects.create(
             tenant=self.tenant_a,
             run=own_run,
             requested_by=self.requester,
-            tool_name='draft_vendor_email',
+            tool_name="draft_vendor_email",
             sequence=1,
             status=AITaskStatus.APPROVAL_REQUIRED,
             requires_approval=True,
-            input_payload={'vendor_id': str(self.supplier.id), 'vendor_type': 'supplier', 'context': 'Own'},
+            input_payload={"vendor_id": str(self.supplier.id), "vendor_type": "supplier", "context": "Own"},
         )
         owner_task = AITask.objects.create(
             tenant=self.tenant_a,
             run=owner_run,
             requested_by=self.owner,
-            tool_name='draft_vendor_email',
+            tool_name="draft_vendor_email",
             sequence=1,
             status=AITaskStatus.APPROVAL_REQUIRED,
             requires_approval=True,
-            input_payload={'vendor_id': str(self.supplier.id), 'vendor_type': 'supplier', 'context': 'Owner'},
+            input_payload={"vendor_id": str(self.supplier.id), "vendor_type": "supplier", "context": "Owner"},
         )
         foreign_task = AITask.objects.create(
             tenant=self.tenant_b,
             run=foreign_run,
             requested_by=self.other_user,
-            tool_name='draft_vendor_email',
+            tool_name="draft_vendor_email",
             sequence=1,
             status=AITaskStatus.APPROVAL_REQUIRED,
             requires_approval=True,
-            input_payload={'vendor_id': str(self.supplier.id), 'vendor_type': 'supplier', 'context': 'Foreign'},
+            input_payload={"vendor_id": str(self.supplier.id), "vendor_type": "supplier", "context": "Foreign"},
         )
         AIApproval.objects.create(
             tenant=self.tenant_a,
             run=own_run,
             task=own_task,
             requested_by=self.requester,
-            tool_name='draft_vendor_email',
+            tool_name="draft_vendor_email",
             status=AIApprovalStatus.PENDING,
             request_payload=own_task.input_payload,
         )
@@ -1436,7 +1422,7 @@ class AIControlPlaneFlowTest(TestCase):
             run=owner_run,
             task=owner_task,
             requested_by=self.owner,
-            tool_name='draft_vendor_email',
+            tool_name="draft_vendor_email",
             status=AIApprovalStatus.PENDING,
             request_payload=owner_task.input_payload,
         )
@@ -1445,25 +1431,25 @@ class AIControlPlaneFlowTest(TestCase):
             run=foreign_run,
             task=foreign_task,
             requested_by=self.other_user,
-            tool_name='draft_vendor_email',
+            tool_name="draft_vendor_email",
             status=AIApprovalStatus.PENDING,
             request_payload=foreign_task.input_payload,
         )
 
-        own_runs_response = AIRunViewSet.as_view({'get': 'list'})(
-            self._request('get', '/api/v1/ai-assistant/runs/', tenant=self.tenant_a, user=self.requester)
+        own_runs_response = AIRunViewSet.as_view({"get": "list"})(
+            self._request("get", "/api/v1/ai-assistant/runs/", tenant=self.tenant_a, user=self.requester)
         )
         self.assertEqual(own_runs_response.status_code, 200)
-        own_run_ids = {item['id'] for item in self._items(own_runs_response)}
+        own_run_ids = {item["id"] for item in self._items(own_runs_response)}
         self.assertIn(str(own_run.id), own_run_ids)
         self.assertNotIn(str(owner_run.id), own_run_ids)
         self.assertNotIn(str(foreign_run.id), own_run_ids)
 
-        admin_approvals_response = AIApprovalViewSet.as_view({'get': 'list'})(
-            self._request('get', '/api/v1/ai-assistant/approvals/', tenant=self.tenant_a, user=self.owner)
+        admin_approvals_response = AIApprovalViewSet.as_view({"get": "list"})(
+            self._request("get", "/api/v1/ai-assistant/approvals/", tenant=self.tenant_a, user=self.owner)
         )
         self.assertEqual(admin_approvals_response.status_code, 200)
-        admin_approval_run_ids = {item['run'] for item in self._items(admin_approvals_response)}
+        admin_approval_run_ids = {item["run"] for item in self._items(admin_approvals_response)}
         self.assertIn(own_run.id, admin_approval_run_ids)
         self.assertIn(owner_run.id, admin_approval_run_ids)
         self.assertNotIn(foreign_run.id, admin_approval_run_ids)
@@ -1471,7 +1457,7 @@ class AIControlPlaneFlowTest(TestCase):
     def test_control_plane_endpoints_require_authentication(self):
         from tenant_apps.ai_assistant.views import AIRunViewSet
 
-        response = AIRunViewSet.as_view({'get': 'list'})(
-            self._request('get', '/api/v1/ai-assistant/runs/', tenant=self.tenant_a)
+        response = AIRunViewSet.as_view({"get": "list"})(
+            self._request("get", "/api/v1/ai-assistant/runs/", tenant=self.tenant_a)
         )
         self.assertEqual(response.status_code, 401)

@@ -33,27 +33,27 @@ code {
   .studio-table {
     @apply border-collapse w-full;
   }
-  
+
   .studio-table th {
     @apply bg-surface text-text-primary font-semibold text-left px-4 py-2 border border-border;
   }
-  
+
   .studio-table td {
     @apply border border-border px-4 py-2;
   }
-  
+
   .studio-card {
     @apply bg-surface border border-border rounded-lg shadow-sm p-4;
   }
-  
+
   .studio-button-primary {
     @apply bg-primary text-white px-4 py-2 rounded hover:opacity-90 transition-opacity;
   }
-  
+
   .studio-button-secondary {
     @apply bg-secondary text-white px-4 py-2 rounded hover:opacity-90 transition-opacity;
   }
-  
+
   .studio-input {
     @apply border border-border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary;
   }
@@ -64,21 +64,21 @@ code {
   .scrollbar-thin {
     scrollbar-width: thin;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-track {
     background: rgb(var(--color-surface));
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border));
     border-radius: 4px;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background: rgb(var(--color-text-muted));
   }

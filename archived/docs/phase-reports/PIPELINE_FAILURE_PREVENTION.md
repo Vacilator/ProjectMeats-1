@@ -1,7 +1,7 @@
 # Pipeline Failure Prevention Guide
 
-**Date:** February 17, 2026  
-**Version:** 1.0.0  
+**Date:** February 17, 2026
+**Version:** 1.0.0
 **Status:** 🛡️ CRITICAL - MANDATORY READING
 
 ---
@@ -115,7 +115,7 @@ python manage.py migrate --check
    brew install actionlint  # macOS
    # OR
    curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
-   
+
    # Run validation
    actionlint .github/workflows/*.yml
    ```
@@ -146,7 +146,7 @@ python manage.py migrate --check
    ```bash
    # Extract INSTALLED_APPS
    grep -A 100 "INSTALLED_APPS" backend/projectmeats/settings/base.py
-   
+
    # Check each app directory exists
    for app in $(grep "\".*\"," backend/projectmeats/settings/base.py | grep -v "#"); do
      app_path=$(echo "$app" | tr -d ' ",' | tr '.' '/')
@@ -160,7 +160,7 @@ python manage.py migrate --check
    ```bash
    # List archived apps
    ls -la backend/archived/
-   
+
    # Ensure none are in INSTALLED_APPS
    grep -f <(ls backend/archived/) backend/projectmeats/settings/base.py
    ```
@@ -474,7 +474,7 @@ jobs:
 
 ---
 
-**Document Status:** ✅ ACTIVE - Version 1.0.0  
-**Last Updated:** February 17, 2026  
-**Next Review:** March 17, 2026  
+**Document Status:** ✅ ACTIVE - Version 1.0.0
+**Last Updated:** February 17, 2026
+**Next Review:** March 17, 2026
 **Owner:** Infrastructure Team

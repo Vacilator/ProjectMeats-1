@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     """
     Idempotent index creation for tenant-related fields.
-    
+
     Uses SeparateDatabaseAndState with IF NOT EXISTS to safely handle
     environments where indexes may already exist from earlier migrations.
     """
@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
             database_operations=[
                 migrations.RunSQL(
                     sql="""
-                        CREATE INDEX IF NOT EXISTS sales_order_tenant__027d51_idx 
+                        CREATE INDEX IF NOT EXISTS sales_order_tenant__027d51_idx
                         ON sales_orders_salesorder (tenant_id, our_sales_order_num);
                     """,
                     reverse_sql="DROP INDEX IF EXISTS sales_order_tenant__027d51_idx;",

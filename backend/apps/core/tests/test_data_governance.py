@@ -4,18 +4,18 @@ from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 
 from apps.core.services.data_governance import (
-    ARCHIVE_TARGETS,
     ARCHIVE_TARGET_DETAILS,
+    ARCHIVE_TARGETS,
     EXEMPTION_RULES,
     LEGAL_HOLD_CONTRACT,
     OPERATOR_EVIDENCE_FIELDS,
-    RETENTION_YEARS,
     RESTORE_CONTRACT,
+    RETENTION_YEARS,
     _logging_redaction_configured,
     build_eligibility_q,
     default_retention_cutoff,
-    get_retention_contract_checksum,
     get_retention_contract,
+    get_retention_contract_checksum,
     subtract_years,
 )
 
@@ -71,7 +71,10 @@ class DataGovernanceContractTest(SimpleTestCase):
         labels = {target.model_label for target in ARCHIVE_TARGETS}
 
         self.assertTrue(labels.issubset(set(ARCHIVE_TARGET_DETAILS)))
-        self.assertIn("purchase_order__order_date", ARCHIVE_TARGET_DETAILS["tenant_apps.purchase_orders.models.PurchaseOrderItem"]["eligibility_fields"])
+        self.assertIn(
+            "purchase_order__order_date",
+            ARCHIVE_TARGET_DETAILS["tenant_apps.purchase_orders.models.PurchaseOrderItem"]["eligibility_fields"],
+        )
 
     def test_cutoff_defaults_to_seven_year_window(self):
         cutoff = default_retention_cutoff()

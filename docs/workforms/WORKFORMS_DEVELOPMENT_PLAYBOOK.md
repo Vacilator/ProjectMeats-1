@@ -1,8 +1,8 @@
 # Workforms Development Playbook
 
-**Purpose**: Streamlined SDLC for Intelligent Workform Editor development  
-**Owner**: Development Team  
-**Last Updated**: February 21, 2026  
+**Purpose**: Streamlined SDLC for Intelligent Workform Editor development
+**Owner**: Development Team
+**Last Updated**: February 21, 2026
 **Version**: 1.0
 
 ---
@@ -77,7 +77,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 ```
 
-**Types**: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `perf`  
+**Types**: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `perf`
 **Scopes**: `flow`, `form`, `config`, `palette`, `modal`, `api`
 
 ---

@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ai_assistant", "0008_fix_ai_assistant_rls_policies_safe_current_setting"),
         ("tenants", "0011_bootstrap_rls_session_vars"),
@@ -100,9 +99,7 @@ class Migration(migrations.Migration):
                 "verbose_name": "AI Document",
                 "verbose_name_plural": "AI Documents",
                 "db_table": "ai_assistant_documents",
-                "indexes": [
-                    models.Index(fields=["tenant", "owner", "created_on"], name="aidoc_tnt_owner_created_idx")
-                ],
+                "indexes": [models.Index(fields=["tenant", "owner", "created_on"], name="aidoc_tnt_owner_created_idx")],
             },
         ),
         migrations.RunSQL(

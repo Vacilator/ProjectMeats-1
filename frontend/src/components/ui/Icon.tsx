@@ -1,10 +1,10 @@
 /**
  * Icon Component
- * 
+ *
  * Renders icons from either:
  * - Lucide icon names (e.g., "file-text", "clipboard-list")
  * - Emoji strings (e.g., "📄", "📋")
- * 
+ *
  * Automatically detects the type and renders appropriately.
  */
 import React from 'react';
@@ -165,10 +165,10 @@ const Icon: React.FC<IconProps> = ({ name, size = 20, className = '', color }) =
   // If it's an emoji, render as text
   if (isEmoji(name)) {
     return (
-      <span 
-        className={className} 
-        style={{ 
-          fontSize: `${size}px`, 
+      <span
+        className={className}
+        style={{
+          fontSize: `${size}px`,
           lineHeight: 1,
           display: 'inline-flex',
           alignItems: 'center',
@@ -206,12 +206,12 @@ export const AVAILABLE_ICONS = [
   { name: 'clipboard-check', label: 'Completed', category: 'documents' },
   { name: 'folder', label: 'Folder', category: 'documents' },
   { name: 'folder-open', label: 'Open Folder', category: 'documents' },
-  
+
   // People
   { name: 'user', label: 'Person', category: 'people' },
   { name: 'users', label: 'Team', category: 'people' },
   { name: 'building', label: 'Company', category: 'people' },
-  
+
   // Business
   { name: 'briefcase', label: 'Business', category: 'business' },
   { name: 'shopping-cart', label: 'Order', category: 'business' },
@@ -221,25 +221,25 @@ export const AVAILABLE_ICONS = [
   { name: 'receipt', label: 'Invoice', category: 'business' },
   { name: 'percent', label: 'Discount', category: 'business' },
   { name: 'tag', label: 'Price Tag', category: 'business' },
-  
+
   // Logistics
   { name: 'truck', label: 'Shipping', category: 'logistics' },
   { name: 'box', label: 'Box', category: 'logistics' },
   { name: 'package', label: 'Package', category: 'logistics' },
   { name: 'map-pin', label: 'Location', category: 'logistics' },
   { name: 'globe', label: 'Global', category: 'logistics' },
-  
+
   // Communication
   { name: 'mail', label: 'Email', category: 'communication' },
   { name: 'phone', label: 'Phone', category: 'communication' },
   { name: 'message-square', label: 'Message', category: 'communication' },
   { name: 'send', label: 'Send', category: 'communication' },
   { name: 'bell', label: 'Notification', category: 'communication' },
-  
+
   // Time
   { name: 'calendar', label: 'Calendar', category: 'time' },
   { name: 'clock', label: 'Time', category: 'time' },
-  
+
   // Status
   { name: 'check-circle', label: 'Success', category: 'status' },
   { name: 'x-circle', label: 'Error', category: 'status' },
@@ -247,7 +247,7 @@ export const AVAILABLE_ICONS = [
   { name: 'info', label: 'Info', category: 'status' },
   { name: 'star', label: 'Favorite', category: 'status' },
   { name: 'activity', label: 'Activity', category: 'status' },
-  
+
   // Actions
   { name: 'edit', label: 'Edit', category: 'actions' },
   { name: 'trash', label: 'Delete', category: 'actions' },
@@ -260,20 +260,20 @@ export const AVAILABLE_ICONS = [
   { name: 'copy', label: 'Copy', category: 'actions' },
   { name: 'link', label: 'Link', category: 'actions' },
   { name: 'external-link', label: 'External', category: 'actions' },
-  
+
   // Security
   { name: 'lock', label: 'Locked', category: 'security' },
   { name: 'unlock', label: 'Unlocked', category: 'security' },
   { name: 'key', label: 'Key', category: 'security' },
   { name: 'eye', label: 'View', category: 'security' },
   { name: 'eye-off', label: 'Hidden', category: 'security' },
-  
+
   // Charts
   { name: 'bar-chart', label: 'Bar Chart', category: 'charts' },
   { name: 'pie-chart', label: 'Pie Chart', category: 'charts' },
   { name: 'trending-up', label: 'Growth', category: 'charts' },
   { name: 'trending-down', label: 'Decline', category: 'charts' },
-  
+
   // Tech
   { name: 'settings', label: 'Settings', category: 'tech' },
   { name: 'database', label: 'Database', category: 'tech' },

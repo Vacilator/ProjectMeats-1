@@ -1931,8 +1931,8 @@ Deliverables:
 
 ## Phase 16: The Core Trading Engine (End-to-End Automation)
 
-**Date Added:** 2026-05-04  
-**Priority:** Planned-only follow-on architecture  
+**Date Added:** 2026-05-04
+**Priority:** Planned-only follow-on architecture
 **Status:** PLANNING ONLY — translated into blocked tickets in `.github/EPIC_TICKETS.md`; execution remains blocked behind the active higher-priority backlog.
 
 ### Happy-path state machine

@@ -41,10 +41,10 @@ const renderWidget = useCallback((widget: WidgetConfig) => {
 ```typescript
 const renderWidget = useCallback((widget: WidgetConfig) => {
   // Handle both old format (kebab-case) and new format (PascalCase)
-  const normalizedType = widget.type.includes('-') 
+  const normalizedType = widget.type.includes('-')
     ? widget.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('') + 'Widget'
     : widget.type;
-  
+
   switch (normalizedType) {
     case 'QuickActionsWidget':
       return <QuickActionsWidget />;

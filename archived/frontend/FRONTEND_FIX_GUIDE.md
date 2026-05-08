@@ -3,7 +3,7 @@
 ## Problem
 The frontend fails to compile with errors:
 ```
-Module not found: Error: You attempted to import /workspaces/ProjectMeats/frontend/node_modules/react-refresh/runtime.js 
+Module not found: Error: You attempted to import /workspaces/ProjectMeats/frontend/node_modules/react-refresh/runtime.js
 which falls outside of the project src/ directory. Relative imports outside of src/ are not supported.
 ```
 
@@ -39,7 +39,7 @@ module.exports = function override(config, env) {
   config.resolve.plugins = config.resolve.plugins.filter(
     plugin => !(plugin instanceof ModuleScopePlugin)
   );
-  
+
   return config;
 };
 EOCONFIG
@@ -151,4 +151,3 @@ npx serve -s build
 - https://github.com/facebook/create-react-app/issues/11771
 - https://github.com/timarney/react-app-rewired
 - https://craco.js.org/
-

@@ -1,15 +1,15 @@
 /**
  * useFormDataMapping Hook
- * 
+ *
  * Manages automatic data mapping between form nodes and workflow nodes.
  * Exposes form outputs as connection points for downstream workflow logic.
- * 
+ *
  * Features:
  * - Auto-detects form fields as potential data sources
  * - Generates handle IDs for each output field
  * - Tracks mappings between form nodes and workflow nodes
  * - Provides validation for data type compatibility
- * 
+ *
  * Created: 2026-02-21 - Phase 1: Hybrid Functionality
  */
 

@@ -56,14 +56,15 @@ class WorkflowCollaborationConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4400)
             return
 
-        from channels.db import database_sync_to_async
         from django.db import connection
+
+        from channels.db import database_sync_to_async
 
         @database_sync_to_async
         def _workflow_exists_for_tenant() -> bool:
             from apps.system.models import TenantWorkForm
 
-            if connection.vendor == 'postgresql':
+            if connection.vendor == "postgresql":
                 from apps.tenants.rls import set_current_tenant
 
                 set_current_tenant(str(tenant.id))
@@ -71,7 +72,7 @@ class WorkflowCollaborationConsumer(AsyncJsonWebsocketConsumer):
             try:
                 return TenantWorkForm.objects.filter(id=workflow_uuid, tenant_id=tenant.id).exists()
             finally:
-                if connection.vendor == 'postgresql':
+                if connection.vendor == "postgresql":
                     with connection.cursor() as cursor:
                         cursor.execute("RESET app.current_tenant_id")
                         cursor.execute("RESET app.current_tenant")

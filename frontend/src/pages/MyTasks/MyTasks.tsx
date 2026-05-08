@@ -1,10 +1,10 @@
 /**
  * MyTasks Page Component
- * 
+ *
  * Displays action items assigned to the current user across all forms and workflows.
  * Connects to the action-items API endpoint.
  * Supports task delegation via DelegateTaskModal.
- * 
+ *
  * Phase 5 Enhancement: Added "In Progress Workflows" section
  */
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
@@ -139,7 +139,7 @@ const SearchInput = styled.input`
   border: 1px solid rgb(var(--color-border, 224 224 224));
   border-radius: 6px;
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -194,12 +194,12 @@ const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean; $isAtRisk?
   display: flex;
   align-items: flex-start;
   padding: 16px 20px;
-  background: ${props => props.$isAtRisk 
+  background: ${props => props.$isAtRisk
     ? 'linear-gradient(135deg, rgba(var(--color-error), 0.05) 0%, rgb(var(--color-surface, 255 255 255)) 100%)'
     : 'rgb(var(--color-surface, 255 255 255))'
   };
   border-radius: 8px;
-  box-shadow: ${props => props.$isAtRisk 
+  box-shadow: ${props => props.$isAtRisk
     ? '0 2px 8px rgba(var(--color-error), 0.2)'
     : 'var(--shadow-sm)'
   };
@@ -467,7 +467,7 @@ const WorkflowCard = styled.div`
   border-radius: 8px;
   padding: 20px;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary, 102 126 234));
     box-shadow: var(--shadow-md);
@@ -582,7 +582,7 @@ const LoadingSpinner = styled.div`
   justify-content: center;
   align-items: center;
   padding: 60px;
-  
+
   &::after {
     content: '';
     width: 40px;
@@ -615,17 +615,17 @@ type TasksTab = 'tasks' | 'ai-review';
 // Format date helper
 const formatDueDate = (dateStr: string | null): string => {
   if (!dateStr) return 'No due date';
-  
+
   const date = new Date(dateStr);
   const now = new Date();
   const diff = date.getTime() - now.getTime();
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-  
+
   if (days < 0) return `${Math.abs(days)} days overdue`;
   if (days === 0) return 'Due today';
   if (days === 1) return 'Due tomorrow';
   if (days <= 7) return `Due in ${days} days`;
-  
+
   return `Due ${date.toLocaleDateString()}`;
 };
 
@@ -638,7 +638,7 @@ export const MyTasks: React.FC = () => {
   const { actionItems, actionItemCounts, loading, error, fetchActionItems } = useNotifications();
   const activeTab: TasksTab = searchParams.get('tab') === 'ai-review' ? 'ai-review' : 'tasks';
   const highlightedDraftId = searchParams.get('draft');
-  
+
   // Workflow executions state
   const [workflowExecutions, setWorkflowExecutions] = useState<WorkflowExecution[]>([]);
   const [workflowsLoading, setWorkflowsLoading] = useState(true);
@@ -648,26 +648,26 @@ export const MyTasks: React.FC = () => {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [selectedReview, setSelectedReview] = useState<PendingReviewItem | null>(null);
-  
+
   // Local filter state
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'smart' | 'due_date' | 'priority' | 'form'>('smart');
-  
+
   // Delegation state
   const [showDelegateModal, setShowDelegateModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<ActionItem | null>(null);
   const [isDelegating, setIsDelegating] = useState(false);
   const [showDelegationHistory, setShowDelegationHistory] = useState(false);
-  
+
   // Mock available users - in production, this would come from an API
   const [availableUsers] = useState<User[]>([
     { id: '1', name: 'John Smith', email: 'john@example.com', role: 'Sales Rep', department: 'Sales' },
     { id: '2', name: 'Jane Doe', email: 'jane@example.com', role: 'Manager', department: 'Operations' },
     { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'Analyst', department: 'Finance' },
   ]);
-  
+
   // Delegation history - in production, this would come from an API
   const [delegationHistory] = useState([
     {
@@ -789,7 +789,7 @@ export const MyTasks: React.FC = () => {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
@@ -875,26 +875,26 @@ export const MyTasks: React.FC = () => {
       window.location.href = `/workflows/run/${item.submission_id}`;
     }
   };
-  
+
   // Handle delegate click
   const handleDelegateClick = useCallback((e: React.MouseEvent, item: ActionItem) => {
     e.stopPropagation();
     setSelectedTask(item);
     setShowDelegateModal(true);
   }, []);
-  
+
   // Handle delegation
   const handleDelegate = useCallback(async (data: DelegationData) => {
     if (!selectedTask) return;
-    
+
     setIsDelegating(true);
     try {
       // In production, this would call the API
       logger.debug('Delegating task', { taskId: selectedTask.id, delegateUserId: data.delegateUserId });
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Close modal and refresh data
       setShowDelegateModal(false);
       setSelectedTask(null);
@@ -905,7 +905,7 @@ export const MyTasks: React.FC = () => {
       setIsDelegating(false);
     }
   }, [selectedTask, fetchActionItems]);
-  
+
   // Handle revoke delegation
   const handleRevokeDelegation = useCallback(async (delegationId: string) => {
     logger.debug('Revoking delegation', { delegationId });
@@ -1164,11 +1164,11 @@ export const MyTasks: React.FC = () => {
                 <WorkflowHeader>
                   <WorkflowTitle>{execution.workflow_name}</WorkflowTitle>
                 </WorkflowHeader>
-                
+
                 <WorkflowMeta>
                   📍 {execution.current_step_name} • Started {formatTimeAgo(execution.created_at)}
                 </WorkflowMeta>
-                
+
                 <ProgressBar>
                   <ProgressFill $percent={execution.progress_percent} />
                 </ProgressBar>
@@ -1176,7 +1176,7 @@ export const MyTasks: React.FC = () => {
                   <span>Step {execution.completed_nodes} of {execution.total_nodes}</span>
                   <span>{execution.progress_percent}% complete</span>
                 </ProgressText>
-                
+
                 <WorkflowActions>
                   <ResumeButton
                     onClick={() => handleResumeWorkflow(execution)}
@@ -1346,12 +1346,12 @@ export const MyTasks: React.FC = () => {
           })}
         </TaskList>
       )}
-      
+
       {/* Delegation History Toggle */}
       <HistoryToggle onClick={() => setShowDelegationHistory(!showDelegationHistory)}>
         {showDelegationHistory ? '▼' : '▶'} Delegation History ({delegationHistory.length})
       </HistoryToggle>
-      
+
       {/* Delegation History Panel */}
       <HistoryContainer $isOpen={showDelegationHistory}>
         <DelegationHistory
@@ -1360,7 +1360,7 @@ export const MyTasks: React.FC = () => {
           currentUserId="current"
         />
       </HistoryContainer>
-      
+
       {/* Delegate Task Modal */}
       <DelegateTaskModal
         isOpen={showDelegateModal}

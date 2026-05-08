@@ -52,15 +52,12 @@ def visible_products_qs(
         is_active=False,
     ).values_list("product_id", flat=True)
 
-    return (
-        base.filter(
-            Q(is_system=True) & ~Q(id__in=hidden_ids)
-            | Q(
-                is_system=False,
-                tenant_preferences__tenant=tenant,
-                tenant_preferences__is_active=True,
-                tenant_preferences__is_custom=True,
-            )
+    return base.filter(
+        Q(is_system=True) & ~Q(id__in=hidden_ids)
+        | Q(
+            is_system=False,
+            tenant_preferences__tenant=tenant,
+            tenant_preferences__is_active=True,
+            tenant_preferences__is_custom=True,
         )
-        .distinct()
-    )
+    ).distinct()

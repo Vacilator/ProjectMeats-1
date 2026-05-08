@@ -151,7 +151,7 @@
             <strong>Note:</strong> You have access to multiple tenants. The invitation will be sent for your primary tenant.
         </div>
         {% endif %}
-        
+
         <div class="form-group">
             <label for="id_email">Email Address *</label>
             {{ form.email }}
@@ -159,7 +159,7 @@
                 <p style="color: #DC2626; font-size: 12px; margin-top: 5px;">{{ form.email.errors.0 }}</p>
             {% endif %}
         </div>
-        
+
         <div class="form-group">
             <label for="id_role">Role *</label>
             {{ form.role }}
@@ -174,7 +174,7 @@
                 <strong>Readonly:</strong> View-only access
             </p>
         </div>
-        
+
         <div class="form-group">
             <label for="id_message">Custom Message (Optional)</label>
             {{ form.message }}
@@ -185,7 +185,7 @@
                 Add a personal message to the invitation email
             </p>
         </div>
-        
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">📧 Send Invitation</button>
             <a href="{% url 'admin:tenants_tenantinvitation_changelist' %}" class="btn btn-secondary">Cancel</a>

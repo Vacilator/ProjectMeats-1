@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from apps.core.tests.factories import TenantFactory
 from tenant_apps.workflows.models import TenantForm
 from tenant_apps.workflows.services.template_registry import (
     E2E_TEMPLATE_FILE,
@@ -15,6 +14,8 @@ from tenant_apps.workflows.services.template_registry import (
     register_e2e_template,
     validate_template_schema,
 )
+
+from apps.core.tests.factories import TenantFactory
 
 
 class TemplateFileTest(TestCase):
@@ -113,9 +114,7 @@ class TemplateFileTest(TestCase):
         action_types = [n["data"].get("actionType") for n in data["nodes"]]
         self.assertIn("generate_sales_order", action_types)
         self.assertIn("send_email", action_types)
-        sales_order_node = next(
-            n for n in data["nodes"] if n["data"].get("actionType") == "generate_sales_order"
-        )
+        sales_order_node = next(n for n in data["nodes"] if n["data"].get("actionType") == "generate_sales_order")
         self.assertEqual(
             sales_order_node["data"]["outputContract"]["supplierContactPath"],
             "records.sales_order.contact_routing.supplier_contact",
@@ -140,9 +139,7 @@ class TemplateFileTest(TestCase):
     def test_template_purchase_order_variants_expose_contact_prepopulation(self):
         data = get_e2e_template_data()
         po_steps = [
-            n
-            for n in data["nodes"]
-            if n["type"] == "formStep" and n["data"].get("entityType") == "purchase_order"
+            n for n in data["nodes"] if n["type"] == "formStep" and n["data"].get("entityType") == "purchase_order"
         ]
         self.assertEqual(len(po_steps), 2)
         for node in po_steps:
@@ -173,11 +170,15 @@ class TemplateFileTest(TestCase):
         bs_to_ag = [e for e in edges if e["source"] == "bid-selection" and e["target"] == "approval-gate-margin"]
         self.assertEqual(len(bs_to_ag), 1)
         # approval-gate-margin -> form-step-sales-order (approved)
-        ag_to_f2 = [e for e in edges if e["source"] == "approval-gate-margin" and e["target"] == "form-step-sales-order"]
+        ag_to_f2 = [
+            e for e in edges if e["source"] == "approval-gate-margin" and e["target"] == "form-step-sales-order"
+        ]
         self.assertEqual(len(ag_to_f2), 1)
         self.assertEqual(ag_to_f2[0].get("label"), "approved")
         # approval-gate-margin -> rejection escalation
-        ag_to_rej = [e for e in edges if e["source"] == "approval-gate-margin" and e["target"] == "approval-rejected-escalation"]
+        ag_to_rej = [
+            e for e in edges if e["source"] == "approval-gate-margin" and e["target"] == "approval-rejected-escalation"
+        ]
         self.assertEqual(len(ag_to_rej), 1)
         self.assertEqual(ag_to_rej[0].get("label"), "rejected")
 

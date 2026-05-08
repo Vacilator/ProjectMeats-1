@@ -51,8 +51,8 @@ import { Button } from '@/components/ui';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui';
 
 <Card padding="md">
-  <CardHeader 
-    title="Dashboard" 
+  <CardHeader
+    title="Dashboard"
     description="Welcome back!"
     actions={<Button>New</Button>}
   />
@@ -70,8 +70,8 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui';
 ```tsx
 import { PageContainer } from '@/components/ui';
 
-<PageContainer 
-  title="Dashboard" 
+<PageContainer
+  title="Dashboard"
   description="Manage your meat operations"
   actions={<Button>Add Item</Button>}
   maxWidth="lg"

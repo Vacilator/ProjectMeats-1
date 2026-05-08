@@ -1,9 +1,9 @@
 /**
  * Session Manager Context
- * 
+ *
  * Manages session expiration state globally across the app.
  * Used by apiService.ts to trigger SessionExpiredModal instead of hard redirects.
- * 
+ *
  * Features:
  * - Global session expired flag
  * - Modal visibility control
@@ -53,7 +53,7 @@ export const SessionManagerProvider: React.FC<SessionManagerProviderProps> = ({ 
   // Register the global handler on mount
   React.useEffect(() => {
     registerGlobalSessionExpiredHandler(showSessionExpired);
-    
+
     return () => {
       // Clean up on unmount
       registerGlobalSessionExpiredHandler(() => {
@@ -69,13 +69,13 @@ export const SessionManagerProvider: React.FC<SessionManagerProviderProps> = ({ 
     // Preserve current location for redirect after login
     const currentPath = window.location.pathname + window.location.search;
     localStorage.setItem('redirectAfterLogin', currentPath);
-    
+
     hideSessionExpired();
-    
+
     // Small delay to ensure modal closes before navigation
     setTimeout(() => {
-      navigate('/login', { 
-        state: { 
+      navigate('/login', {
+        state: {
           from: currentPath,
           reason: 'session_expired'
         }
@@ -85,7 +85,7 @@ export const SessionManagerProvider: React.FC<SessionManagerProviderProps> = ({ 
 
   const handleGoToLogin = useCallback(() => {
     hideSessionExpired();
-    
+
     // Small delay to ensure modal closes before navigation
     setTimeout(() => {
       navigate('/login');

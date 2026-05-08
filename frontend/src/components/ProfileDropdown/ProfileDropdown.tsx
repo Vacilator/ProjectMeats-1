@@ -59,10 +59,10 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
     // Open Django admin in new tab
     // In deployed environments, admin is proxied through the same domain as the frontend
     // In local dev (localhost), use the API base URL
-    
+
     const hostname = window.location.hostname;
     let adminUrl: string;
-    
+
     if (hostname.includes('localhost')) {
       // Local dev: use backend directly
       const baseBackendUrl = config.API_BASE_URL.replace('/api/v1', '');
@@ -72,7 +72,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
       const protocol = window.location.protocol;
       adminUrl = `${protocol}//${hostname}/admin/`;
     }
-    
+
     // Use window.location.href for more reliable navigation
     window.location.href = adminUrl;
     setIsOpen(false);

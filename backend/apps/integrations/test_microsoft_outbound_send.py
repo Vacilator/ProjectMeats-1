@@ -1,8 +1,9 @@
 import os
 from unittest.mock import Mock, patch
 
-import requests
 from django.test import SimpleTestCase
+
+import requests
 
 from apps.integrations.providers.base import EmailProviderError
 from apps.integrations.providers.microsoft import MicrosoftGraphProvider

@@ -1,6 +1,6 @@
 /**
  * Production Error Boundary
- * 
+ *
  * Catches React component errors and provides:
  * - User-friendly error UI
  * - Error logging to external services
@@ -156,10 +156,10 @@ export class ErrorBoundary extends Component<Props, State> {
               </Paragraph>
               <Paragraph>
                 <Text strong>Stack Trace:</Text>
-                <pre style={{ 
-                  fontSize: 12, 
-                  background: 'rgb(var(--color-bg-secondary))', 
-                  padding: 12, 
+                <pre style={{
+                  fontSize: 12,
+                  background: 'rgb(var(--color-bg-secondary))',
+                  padding: 12,
                   borderRadius: 4,
                   overflow: 'auto',
                   maxHeight: 300
@@ -169,16 +169,16 @@ export class ErrorBoundary extends Component<Props, State> {
               </Paragraph>
             </Typography>
           </Card>
-          
+
           {errorInfo.componentStack && (
             <Card size="small">
               <Typography>
                 <Paragraph>
                   <Text strong>Component Stack:</Text>
-                  <pre style={{ 
-                    fontSize: 12, 
-                    background: 'rgb(var(--color-bg-secondary))', 
-                    padding: 12, 
+                  <pre style={{
+                    fontSize: 12,
+                    background: 'rgb(var(--color-bg-secondary))',
+                    padding: 12,
                     borderRadius: 4,
                     overflow: 'auto',
                     maxHeight: 300

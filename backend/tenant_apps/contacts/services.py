@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, Sequence
 
 from django.db.models import Q
 
-from apps.core.models import StatusChoices
 from tenant_apps.contacts.models import Contact, ContactDepartmentChoices
+
+from apps.core.models import StatusChoices
 
 if TYPE_CHECKING:
     from tenant_apps.suppliers.models import Supplier
@@ -164,7 +165,9 @@ def resolve_supplier_contact_route(
     )
     requested_items = _requested_items(inquiry)
     requested_proteins = _requested_proteins(inquiry)
-    contact_candidates = list(contacts) if contacts is not None else list(_supplier_contact_candidates(tenant=tenant, supplier=supplier))
+    contact_candidates = (
+        list(contacts) if contacts is not None else list(_supplier_contact_candidates(tenant=tenant, supplier=supplier))
+    )
 
     ranked: list[tuple[int, int, int, int, SupplierContactResolution]] = []
     for contact in contact_candidates:
@@ -229,7 +232,9 @@ def resolve_supplier_contact_route(
                 )
             ),
         )
-        ranked.append((score, -department_rank, 1 if contact.plant_id in relevant_plant_ids else 0, -contact.id, resolution))
+        ranked.append(
+            (score, -department_rank, 1 if contact.plant_id in relevant_plant_ids else 0, -contact.id, resolution)
+        )
 
     if ranked:
         ranked.sort(reverse=True)
@@ -251,11 +256,7 @@ def resolve_supplier_contact_route(
         )
 
     fallback_contact = next(
-        (
-            contact
-            for contact in sorted(contact_candidates, key=lambda item: item.id)
-            if _clean(contact.email)
-        ),
+        (contact for contact in sorted(contact_candidates, key=lambda item: item.id) if _clean(contact.email)),
         None,
     )
     if fallback_contact is not None:
@@ -505,11 +506,7 @@ def _supplier_contact_candidates(*, tenant, supplier: Supplier):
             tenant=tenant,
             status=StatusChoices.ACTIVE,
         )
-        .filter(
-            Q(supplier=supplier)
-            | Q(plant__supplier=supplier)
-            | Q(suppliers=supplier)
-        )
+        .filter(Q(supplier=supplier) | Q(plant__supplier=supplier) | Q(suppliers=supplier))
         .select_related("plant")
         .distinct()
     )
@@ -534,9 +531,13 @@ def _relevant_plant_ids(
     return relevant
 
 
-def _resolve_booking_email_fallback(*, supplier: Supplier, relevant_plant_ids: set[int]) -> SupplierContactResolution | None:
+def _resolve_booking_email_fallback(
+    *, supplier: Supplier, relevant_plant_ids: set[int]
+) -> SupplierContactResolution | None:
     plants = list(
-        supplier.supplier_plants.exclude(booking_contact_email="").exclude(booking_contact_email__isnull=True).order_by("id")
+        supplier.supplier_plants.exclude(booking_contact_email="")
+        .exclude(booking_contact_email__isnull=True)
+        .order_by("id")
     )
     if relevant_plant_ids:
         plants.sort(key=lambda plant: (0 if plant.id in relevant_plant_ids else 1, plant.id))

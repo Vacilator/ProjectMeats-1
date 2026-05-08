@@ -19,7 +19,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   margin: 0 8px 4px 8px;
   height: 60px;
   box-sizing: border-box;
-  
+
   &:hover {
     background-color: ${e=>e.$isDarkMode?"rgba(255, 255, 255, 0.08)":"rgba(0, 0, 0, 0.04)"};
     color: ${e=>e.$isDarkMode?"white":"rgb(var(--color-text-primary))"};
@@ -27,7 +27,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
 `,zy=ac`
   background-color: ${e=>e.$isDarkMode?"rgba(var(--color-primary), 0.15)":"rgba(var(--color-primary), 0.1)"};
   color: ${e=>e.$isDarkMode?"white":"rgb(var(--color-text-primary))"};
-  
+
   &::before {
     content: '';
     position: absolute;
@@ -46,9 +46,9 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
 `,sL=m(JA)`
   ${l0}
   position: relative;
-  
+
   ${e=>e.$active&&zy}
-  
+
   ${e=>e.$hasActiveChild&&ac`
     color: ${e.$isDarkMode?"rgba(255, 255, 255, 0.95)":"rgb(var(--color-text-primary))"};
   `}
@@ -60,11 +60,11 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   ${l0}
   position: relative;
   cursor: pointer;
-  
+
   ${e=>e.$active&&!e.$hasExactActiveChild&&ac`
     background-color: ${e.$isDarkMode?"rgba(var(--color-primary), 0.15)":"rgba(var(--color-primary), 0.1)"};
     color: ${e.$isDarkMode?"white":"rgb(var(--color-text-primary))"};
-    
+
     &::before {
       content: '';
       position: absolute;
@@ -81,7 +81,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
       background-color: ${e.$isDarkMode?"rgba(var(--color-primary), 0.2)":"rgba(var(--color-primary), 0.15)"};
     }
   `}
-  
+
   ${e=>e.$active&&e.$hasExactActiveChild&&ac`
     color: ${e.$isDarkMode?"rgba(255, 255, 255, 0.95)":"rgba(30, 41, 59, 0.95)"};
   `}
@@ -101,7 +101,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  
+
   ${e=>e.$active&&zy}
 `,dL=m.button`
   display: flex;
@@ -117,7 +117,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   transition: all 0.15s ease;
   margin-left: auto;
   flex-shrink: 0;
-  
+
   &:hover {
     background: ${e=>e.$isDarkMode?"rgba(255, 255, 255, 0.1)":"rgba(0, 0, 0, 0.05)"};
     color: ${e=>e.$isDarkMode?"white":"rgb(var(--color-text-primary))"};
@@ -141,7 +141,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   letter-spacing: 0.01em;
 `,fL=m.div`
   overflow: hidden;
-  /* 
+  /*
    * max-height is set to a large value to enable CSS transitions.
    * CSS cannot animate to 'auto' height, so we use a value large enough
    * to accommodate deeply nested navigation (supports ~25 items at 40px each).
@@ -394,7 +394,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   outline: none;
   font-size: 14px;
   color: ${e=>e.$theme.colors.textPrimary};
-  
+
   &::placeholder {
     color: ${e=>e.$theme.colors.textSecondary};
   }
@@ -510,7 +510,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
-  
+
   /* Prevent body scroll when modal is open */
   &::before {
     content: '';
@@ -530,7 +530,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  
+
   /* Responsive: Full width on mobile */
   @media (max-width: 640px) {
     max-width: calc(100vw - 2rem);
@@ -568,7 +568,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
     color: rgb(var(--color-text-primary));
     background: rgba(var(--color-text-primary), 0.1);
   }
-  
+
   &:focus {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
@@ -578,16 +578,16 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   flex: 1;
   overflow-y: auto;
   color: rgb(var(--color-text-primary));
-  
+
   /* Custom scrollbar */
   &::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: rgb(var(--color-background));
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border));
     border-radius: 4px;
@@ -599,11 +599,11 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   justify-content: flex-end;
   gap: 0.75rem;
   background: rgb(var(--color-surface-hover));
-  
+
   /* Stack buttons on mobile */
   @media (max-width: 640px) {
     flex-direction: column-reverse;
-    
+
     button {
       width: 100%;
     }
@@ -1178,7 +1178,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   cursor: pointer;
   border: none;
   font-family: var(--font-sans);
-  
+
   /* Disable effects */
   &:disabled {
     opacity: 0.5;
@@ -1783,7 +1783,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -1822,12 +1822,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   border-radius: var(--radius-md);
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -1840,7 +1840,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -1855,12 +1855,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 0.875rem;
   min-height: 80px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -1991,7 +1991,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -2013,7 +2013,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 0.875rem;
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -2028,7 +2028,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -2044,7 +2044,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   color: rgb(var(--color-text-primary));
   min-height: 80px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -2065,7 +2065,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-text-primary), 0.05);
   }
@@ -2078,11 +2078,11 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover:not(:disabled) {
     opacity: 0.9;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -2122,12 +2122,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: ${e=>e.hasError?"rgba(239, 68, 68, 1)":"rgb(var(--color-primary))"};
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -2263,7 +2263,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -2288,12 +2288,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   border-radius: var(--radius-md);
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -2306,7 +2306,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -2321,12 +2321,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 0.875rem;
   min-height: 100px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -2398,7 +2398,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -2423,12 +2423,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   border-radius: var(--radius-md);
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -2441,7 +2441,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -2456,12 +2456,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 0.875rem;
   min-height: 100px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -2537,7 +2537,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -2562,12 +2562,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   border-radius: var(--radius-md);
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -2580,7 +2580,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -3356,7 +3356,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   height: calc(100vh - 180px);
   overflow: hidden;
   transition: grid-template-columns 0.3s ease;
-  
+
   /* Stack layout on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -3440,12 +3440,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
 `,Roe=m.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Reduce minimum width on smaller screens */
   @media (min-width: 769px) {
     min-width: 800px;
   }
-  
+
   @media (max-width: 768px) {
     min-width: 600px;
   }
@@ -4153,7 +4153,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -4167,30 +4167,30 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
     border: 1px solid rgb(var(--color-border));
     border-radius: var(--radius-lg);
   }
-  
+
   .ant-table-thead > tr > th {
     background: rgb(var(--color-surface));
     color: rgb(var(--color-text-primary));
     font-weight: 600;
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr > td {
     color: rgb(var(--color-text-primary));
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr:hover > td {
     background: rgb(var(--color-surface-hover));
   }
-  
+
   .ant-pagination {
     margin-top: 1rem;
   }
-  
+
   .ant-pagination-item-active {
     border-color: rgb(var(--color-primary));
-    
+
     a {
       color: rgb(var(--color-primary));
     }
@@ -4200,7 +4200,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   text-decoration: none;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     text-decoration: underline;
   }
@@ -4251,7 +4251,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -4271,14 +4271,14 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   text-align: center;
   padding: 3rem 1rem;
   color: rgb(var(--color-text-secondary));
-  
+
   h3 {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: rgb(var(--color-text-primary));
   }
-  
+
   p {
     margin-bottom: 1.5rem;
   }
@@ -4317,7 +4317,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -4331,30 +4331,30 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
     border: 1px solid rgb(var(--color-border));
     border-radius: var(--radius-lg);
   }
-  
+
   .ant-table-thead > tr > th {
     background: rgb(var(--color-surface));
     color: rgb(var(--color-text-primary));
     font-weight: 600;
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr > td {
     color: rgb(var(--color-text-primary));
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr:hover > td {
     background: rgb(var(--color-surface-hover));
   }
-  
+
   .ant-pagination {
     margin-top: 1rem;
   }
-  
+
   .ant-pagination-item-active {
     border-color: rgb(var(--color-primary));
-    
+
     a {
       color: rgb(var(--color-primary));
     }
@@ -4364,7 +4364,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   text-decoration: none;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     text-decoration: underline;
   }
@@ -4413,7 +4413,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -4433,14 +4433,14 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   text-align: center;
   padding: 3rem 1rem;
   color: rgb(var(--color-text-secondary));
-  
+
   h3 {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: rgb(var(--color-text-primary));
   }
-  
+
   p {
     margin-bottom: 1.5rem;
   }
@@ -4992,7 +4992,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   gap: 1.5rem;
   height: calc(100vh - 180px);
   overflow: hidden;
-  
+
   /* Responsive: Stack on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -5051,7 +5051,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-weight: 500;
   border-radius: var(--radius-sm);
   white-space: nowrap;
-  
+
   ${e=>{switch(e.type){case"completed":return`
           background: rgba(34, 197, 94, 0.1);
           color: rgb(34, 197, 94);
@@ -5173,7 +5173,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   margin: 0;
 `,Ii=m.div`
   margin-bottom: 1rem;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -5196,7 +5196,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-weight: 500;
   border-radius: var(--radius-md);
   white-space: nowrap;
-  
+
   ${e=>{switch(e.type){case"completed":return`
           background: rgba(34, 197, 94, 0.15);
           color: rgb(34, 197, 94);
@@ -5218,12 +5218,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   min-height: 500px;
   overflow-y: auto;
   width: 100%;
-  
+
   /* Ensure calendar takes full width */
   .ant-picker-calendar {
     width: 100%;
   }
-  
+
   /* Responsive width for calendar */
   @media (max-width: 768px) {
     min-width: 300px;
@@ -5250,7 +5250,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   align-items: center;
   gap: 0.5rem;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
     border-color: rgb(var(--color-primary));
@@ -5281,7 +5281,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   min-height: 60px;
   position: relative;
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
@@ -5299,7 +5299,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   overflow: hidden;
   opacity: ${e=>e.isDragging?.5:1};
   transition: opacity 0.2s ease;
-  
+
   &:hover {
     opacity: 0.9;
   }
@@ -5348,7 +5348,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   position: relative;
   padding: 0.25rem;
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
@@ -5676,7 +5676,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   transition: grid-template-columns 0.3s ease;
   flex: 1;
   overflow: hidden;
-  
+
   /* Stack layout on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -5736,7 +5736,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
 `,mce=m.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Allow table to shrink on smaller screens */
   @media (max-width: 768px) {
     min-width: 600px; /* Minimum width to prevent column squashing */
@@ -5821,7 +5821,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -5835,12 +5835,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(34, 197, 94, 0.15);
     border-color: rgba(34, 197, 94, 0.5);
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -5895,7 +5895,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   transition: grid-template-columns 0.3s ease;
   flex: 1;
   overflow: hidden;
-  
+
   /* Stack layout on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -5955,7 +5955,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
 `,zce=m.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Allow table to shrink on smaller screens */
   @media (max-width: 768px) {
     min-width: 600px;
@@ -6040,7 +6040,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -6054,12 +6054,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(34, 197, 94, 0.15);
     border-color: rgba(34, 197, 94, 0.5);
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -6136,7 +6136,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   transition: grid-template-columns 0.3s ease;
   flex: 1;
   overflow: hidden;
-  
+
   /* Stack layout on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -6217,12 +6217,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
 `,aue=m.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Reduce minimum width on smaller screens */
   @media (min-width: 769px) {
     min-width: 800px;
   }
-  
+
   @media (max-width: 768px) {
     min-width: 600px;
   }
@@ -6306,7 +6306,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -6320,12 +6320,12 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(34, 197, 94, 0.15);
     border-color: rgba(34, 197, 94, 0.5);
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -6386,7 +6386,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 10px ${e=>e.$theme.colors.shadow};
-  
+
   /* Only enable horizontal scroll on small screens when truly needed */
   @media (max-width: 768px) {
     overflow-x: auto;
@@ -6394,7 +6394,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
 `,Sue=m.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Allow table to shrink on smaller screens */
   @media (max-width: 768px) {
     min-width: 600px;
@@ -7593,7 +7593,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
             })));
           }
         }
-        
+
         if (${_}.value === undefined) {
           if (${k} in input) {
             newResult[${k}] = undefined;
@@ -7601,7 +7601,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
         } else {
           newResult[${k}] = ${_}.value;
         }
-        
+
       `):g.write(`
         if (${_}.issues.length) {
           payload.issues = payload.issues.concat(${_}.issues.map(iss => ({
@@ -7609,7 +7609,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
             path: iss.path ? [${k}, ...iss.path] : [${k}]
           })));
         }
-        
+
         if (${_}.value === undefined) {
           if (${k} in input) {
             newResult[${k}] = undefined;
@@ -7617,7 +7617,7 @@ var kN=Object.defineProperty;var J1=e=>{throw TypeError(e)};var $N=(e,t,r)=>t in
         } else {
           newResult[${k}] = ${_}.value;
         }
-        
+
       `)}g.write("payload.value = newResult;"),g.write("return payload;");const S=g.compile();return(j,_)=>S(p,j,_)};let a;const s=Mf,c=!YR.jitless,d=c&&v0e.value,f=t.catchall;let h;e._zod.parse=(p,g)=>{h??(h=n.value);const v=p.value;return s(v)?c&&d&&(g==null?void 0:g.async)===!1&&g.jitless!==!0?(a||(a=o(t.shape)),p=a(p,g),f?dN([],v,p,g,h,e):p):r(p,g):(p.issues.push({expected:"object",code:"invalid_type",input:v,inst:e}),p)}});function pA(e,t,r,n){for(const a of e)if(a.issues.length===0)return t.value=a.value,t;const o=e.filter(a=>!ks(a));return o.length===1?(t.value=o[0].value,o[0]):(t.issues.push({code:"invalid_union",input:t.value,inst:r,errors:e.map(a=>a.issues.map(s=>Za(s,n,Ga())))}),t)}const i1e=W("$ZodUnion",(e,t)=>{at.init(e,t),Fe(e._zod,"optin",()=>t.options.some(o=>o._zod.optin==="optional")?"optional":void 0),Fe(e._zod,"optout",()=>t.options.some(o=>o._zod.optout==="optional")?"optional":void 0),Fe(e._zod,"values",()=>{if(t.options.every(o=>o._zod.values))return new Set(t.options.flatMap(o=>Array.from(o._zod.values)))}),Fe(e._zod,"pattern",()=>{if(t.options.every(o=>o._zod.pattern)){const o=t.options.map(a=>a._zod.pattern);return new RegExp(`^(${o.map(a=>K1(a.source)).join("|")})$`)}});const r=t.options.length===1,n=t.options[0]._zod.run;e._zod.parse=(o,a)=>{if(r)return n(o,a);let s=!1;const c=[];for(const u of t.options){const d=u._zod.run({value:o.value,issues:[]},a);if(d instanceof Promise)c.push(d),s=!0;else{if(d.issues.length===0)return d;c.push(d)}}return s?Promise.all(c).then(u=>pA(u,o,e,a)):pA(c,o,e,a)}}),s1e=W("$ZodIntersection",(e,t)=>{at.init(e,t),e._zod.parse=(r,n)=>{const o=r.value,a=t.left._zod.run({value:o,issues:[]},n),s=t.right._zod.run({value:o,issues:[]},n);return a instanceof Promise||s instanceof Promise?Promise.all([a,s]).then(([u,d])=>gA(r,u,d)):gA(r,a,s)}});function Gx(e,t){if(e===t)return{valid:!0,data:e};if(e instanceof Date&&t instanceof Date&&+e==+t)return{valid:!0,data:e};if(_c(e)&&_c(t)){const r=Object.keys(t),n=Object.keys(e).filter(a=>r.indexOf(a)!==-1),o={...e,...t};for(const a of n){const s=Gx(e[a],t[a]);if(!s.valid)return{valid:!1,mergeErrorPath:[a,...s.mergeErrorPath]};o[a]=s.data}return{valid:!0,data:o}}if(Array.isArray(e)&&Array.isArray(t)){if(e.length!==t.length)return{valid:!1,mergeErrorPath:[]};const r=[];for(let n=0;n<e.length;n++){const o=e[n],a=t[n],s=Gx(o,a);if(!s.valid)return{valid:!1,mergeErrorPath:[n,...s.mergeErrorPath]};r.push(s.data)}return{valid:!0,data:r}}return{valid:!1,mergeErrorPath:[]}}function gA(e,t,r){const n=new Map;let o;for(const c of t.issues)if(c.code==="unrecognized_keys"){o??(o=c);for(const u of c.keys)n.has(u)||n.set(u,{}),n.get(u).l=!0}else e.issues.push(c);for(const c of r.issues)if(c.code==="unrecognized_keys")for(const u of c.keys)n.has(u)||n.set(u,{}),n.get(u).r=!0;else e.issues.push(c);const a=[...n].filter(([,c])=>c.l&&c.r).map(([c])=>c);if(a.length&&o&&e.issues.push({...o,keys:a}),ks(e))return e;const s=Gx(t.value,r.value);if(!s.valid)throw new Error(`Unmergable intersection. Error path: ${JSON.stringify(s.mergeErrorPath)}`);return e.value=s.data,e}const l1e=W("$ZodEnum",(e,t)=>{at.init(e,t);const r=XR(t.entries),n=new Set(r);e._zod.values=n,e._zod.pattern=new RegExp(`^(${r.filter(o=>b0e.has(typeof o)).map(o=>typeof o=="string"?rl(o):o.toString()).join("|")})$`),e._zod.parse=(o,a)=>{const s=o.value;return n.has(s)||o.issues.push({code:"invalid_value",values:r,input:s,inst:e}),o}}),c1e=W("$ZodLiteral",(e,t)=>{if(at.init(e,t),t.values.length===0)throw new Error("Cannot create literal schema with no valid values");const r=new Set(t.values);e._zod.values=r,e._zod.pattern=new RegExp(`^(${t.values.map(n=>typeof n=="string"?rl(n):n?rl(n.toString()):String(n)).join("|")})$`),e._zod.parse=(n,o)=>{const a=n.value;return r.has(a)||n.issues.push({code:"invalid_value",values:t.values,input:a,inst:e}),n}}),u1e=W("$ZodTransform",(e,t)=>{at.init(e,t),e._zod.parse=(r,n)=>{if(n.direction==="backward")throw new ZR(e.constructor.name);const o=t.transform(r.value,r);if(n.async)return(o instanceof Promise?o:Promise.resolve(o)).then(s=>(r.value=s,r));if(o instanceof Promise)throw new Os;return r.value=o,r}});function mA(e,t){return e.issues.length&&t===void 0?{issues:[],value:void 0}:e}const fN=W("$ZodOptional",(e,t)=>{at.init(e,t),e._zod.optin="optional",e._zod.optout="optional",Fe(e._zod,"values",()=>t.innerType._zod.values?new Set([...t.innerType._zod.values,void 0]):void 0),Fe(e._zod,"pattern",()=>{const r=t.innerType._zod.pattern;return r?new RegExp(`^(${K1(r.source)})?$`):void 0}),e._zod.parse=(r,n)=>{if(t.innerType._zod.optin==="optional"){const o=t.innerType._zod.run(r,n);return o instanceof Promise?o.then(a=>mA(a,r.value)):mA(o,r.value)}return r.value===void 0?r:t.innerType._zod.run(r,n)}}),d1e=W("$ZodExactOptional",(e,t)=>{fN.init(e,t),Fe(e._zod,"values",()=>t.innerType._zod.values),Fe(e._zod,"pattern",()=>t.innerType._zod.pattern),e._zod.parse=(r,n)=>t.innerType._zod.run(r,n)}),f1e=W("$ZodNullable",(e,t)=>{at.init(e,t),Fe(e._zod,"optin",()=>t.innerType._zod.optin),Fe(e._zod,"optout",()=>t.innerType._zod.optout),Fe(e._zod,"pattern",()=>{const r=t.innerType._zod.pattern;return r?new RegExp(`^(${K1(r.source)}|null)$`):void 0}),Fe(e._zod,"values",()=>t.innerType._zod.values?new Set([...t.innerType._zod.values,null]):void 0),e._zod.parse=(r,n)=>r.value===null?r:t.innerType._zod.run(r,n)}),h1e=W("$ZodDefault",(e,t)=>{at.init(e,t),e._zod.optin="optional",Fe(e._zod,"values",()=>t.innerType._zod.values),e._zod.parse=(r,n)=>{if(n.direction==="backward")return t.innerType._zod.run(r,n);if(r.value===void 0)return r.value=t.defaultValue,r;const o=t.innerType._zod.run(r,n);return o instanceof Promise?o.then(a=>vA(a,t)):vA(o,t)}});function vA(e,t){return e.value===void 0&&(e.value=t.defaultValue),e}const p1e=W("$ZodPrefault",(e,t)=>{at.init(e,t),e._zod.optin="optional",Fe(e._zod,"values",()=>t.innerType._zod.values),e._zod.parse=(r,n)=>(n.direction==="backward"||r.value===void 0&&(r.value=t.defaultValue),t.innerType._zod.run(r,n))}),g1e=W("$ZodNonOptional",(e,t)=>{at.init(e,t),Fe(e._zod,"values",()=>{const r=t.innerType._zod.values;return r?new Set([...r].filter(n=>n!==void 0)):void 0}),e._zod.parse=(r,n)=>{const o=t.innerType._zod.run(r,n);return o instanceof Promise?o.then(a=>bA(a,e)):bA(o,e)}});function bA(e,t){return!e.issues.length&&e.value===void 0&&e.issues.push({code:"invalid_type",expected:"nonoptional",input:e.value,inst:t}),e}const m1e=W("$ZodCatch",(e,t)=>{at.init(e,t),Fe(e._zod,"optin",()=>t.innerType._zod.optin),Fe(e._zod,"optout",()=>t.innerType._zod.optout),Fe(e._zod,"values",()=>t.innerType._zod.values),e._zod.parse=(r,n)=>{if(n.direction==="backward")return t.innerType._zod.run(r,n);const o=t.innerType._zod.run(r,n);return o instanceof Promise?o.then(a=>(r.value=a.value,a.issues.length&&(r.value=t.catchValue({...r,error:{issues:a.issues.map(s=>Za(s,n,Ga()))},input:r.value}),r.issues=[]),r)):(r.value=o.value,o.issues.length&&(r.value=t.catchValue({...r,error:{issues:o.issues.map(a=>Za(a,n,Ga()))},input:r.value}),r.issues=[]),r)}}),v1e=W("$ZodPipe",(e,t)=>{at.init(e,t),Fe(e._zod,"values",()=>t.in._zod.values),Fe(e._zod,"optin",()=>t.in._zod.optin),Fe(e._zod,"optout",()=>t.out._zod.optout),Fe(e._zod,"propValues",()=>t.in._zod.propValues),e._zod.parse=(r,n)=>{if(n.direction==="backward"){const a=t.out._zod.run(r,n);return a instanceof Promise?a.then(s=>yd(s,t.in,n)):yd(a,t.in,n)}const o=t.in._zod.run(r,n);return o instanceof Promise?o.then(a=>yd(a,t.out,n)):yd(o,t.out,n)}});function yd(e,t,r){return e.issues.length?(e.aborted=!0,e):t._zod.run({value:e.value,issues:e.issues},r)}const b1e=W("$ZodReadonly",(e,t)=>{at.init(e,t),Fe(e._zod,"propValues",()=>t.innerType._zod.propValues),Fe(e._zod,"values",()=>t.innerType._zod.values),Fe(e._zod,"optin",()=>{var r,n;return(n=(r=t.innerType)==null?void 0:r._zod)==null?void 0:n.optin}),Fe(e._zod,"optout",()=>{var r,n;return(n=(r=t.innerType)==null?void 0:r._zod)==null?void 0:n.optout}),e._zod.parse=(r,n)=>{if(n.direction==="backward")return t.innerType._zod.run(r,n);const o=t.innerType._zod.run(r,n);return o instanceof Promise?o.then(yA):yA(o)}});function yA(e){return e.value=Object.freeze(e.value),e}const y1e=W("$ZodCustom",(e,t)=>{lr.init(e,t),at.init(e,t),e._zod.parse=(r,n)=>r,e._zod.check=r=>{const n=r.value,o=t.fn(n);if(o instanceof Promise)return o.then(a=>xA(a,r,n,e));xA(o,r,n,e)}});function xA(e,t,r,n){if(!e){const o={code:"custom",input:r,inst:n,path:[...n._zod.def.path??[]],continue:!n._zod.def.abort};n._zod.def.params&&(o.params=n._zod.def.params),t.issues.push(Sc(o))}}var wA;class x1e{constructor(){this._map=new WeakMap,this._idmap=new Map}add(t,...r){const n=r[0];return this._map.set(t,n),n&&typeof n=="object"&&"id"in n&&this._idmap.set(n.id,t),this}clear(){return this._map=new WeakMap,this._idmap=new Map,this}remove(t){const r=this._map.get(t);return r&&typeof r=="object"&&"id"in r&&this._idmap.delete(r.id),this._map.delete(t),this}get(t){const r=t._zod.parent;if(r){const n={...this.get(r)??{}};delete n.id;const o={...n,...this._map.get(t)};return Object.keys(o).length?o:void 0}return this._map.get(t)}has(t){return this._map.has(t)}}function w1e(){return new x1e}(wA=globalThis).__zod_globalRegistry??(wA.__zod_globalRegistry=w1e());const ec=globalThis.__zod_globalRegistry;function j1e(e,t){return new e({type:"string",...ve(t)})}function _1e(e,t){return new e({type:"string",format:"email",check:"string_format",abort:!1,...ve(t)})}function jA(e,t){return new e({type:"string",format:"guid",check:"string_format",abort:!1,...ve(t)})}function S1e(e,t){return new e({type:"string",format:"uuid",check:"string_format",abort:!1,...ve(t)})}function C1e(e,t){return new e({type:"string",format:"uuid",check:"string_format",abort:!1,version:"v4",...ve(t)})}function k1e(e,t){return new e({type:"string",format:"uuid",check:"string_format",abort:!1,version:"v6",...ve(t)})}function $1e(e,t){return new e({type:"string",format:"uuid",check:"string_format",abort:!1,version:"v7",...ve(t)})}function P1e(e,t){return new e({type:"string",format:"url",check:"string_format",abort:!1,...ve(t)})}function O1e(e,t){return new e({type:"string",format:"emoji",check:"string_format",abort:!1,...ve(t)})}function E1e(e,t){return new e({type:"string",format:"nanoid",check:"string_format",abort:!1,...ve(t)})}function A1e(e,t){return new e({type:"string",format:"cuid",check:"string_format",abort:!1,...ve(t)})}function T1e(e,t){return new e({type:"string",format:"cuid2",check:"string_format",abort:!1,...ve(t)})}function I1e(e,t){return new e({type:"string",format:"ulid",check:"string_format",abort:!1,...ve(t)})}function M1e(e,t){return new e({type:"string",format:"xid",check:"string_format",abort:!1,...ve(t)})}function D1e(e,t){return new e({type:"string",format:"ksuid",check:"string_format",abort:!1,...ve(t)})}function z1e(e,t){return new e({type:"string",format:"ipv4",check:"string_format",abort:!1,...ve(t)})}function R1e(e,t){return new e({type:"string",format:"ipv6",check:"string_format",abort:!1,...ve(t)})}function N1e(e,t){return new e({type:"string",format:"cidrv4",check:"string_format",abort:!1,...ve(t)})}function F1e(e,t){return new e({type:"string",format:"cidrv6",check:"string_format",abort:!1,...ve(t)})}function L1e(e,t){return new e({type:"string",format:"base64",check:"string_format",abort:!1,...ve(t)})}function B1e(e,t){return new e({type:"string",format:"base64url",check:"string_format",abort:!1,...ve(t)})}function q1e(e,t){return new e({type:"string",format:"e164",check:"string_format",abort:!1,...ve(t)})}function U1e(e,t){return new e({type:"string",format:"jwt",check:"string_format",abort:!1,...ve(t)})}function H1e(e,t){return new e({type:"string",format:"datetime",check:"string_format",offset:!1,local:!1,precision:null,...ve(t)})}function W1e(e,t){return new e({type:"string",format:"date",check:"string_format",...ve(t)})}function V1e(e,t){return new e({type:"string",format:"time",check:"string_format",precision:null,...ve(t)})}function K1e(e,t){return new e({type:"string",format:"duration",check:"string_format",...ve(t)})}function G1e(e,t){return new e({type:"number",coerce:!0,checks:[],...ve(t)})}function Z1e(e,t){return new e({type:"number",check:"number_format",abort:!1,format:"safeint",...ve(t)})}function Y1e(e,t){return new e({type:"boolean",...ve(t)})}function X1e(e){return new e({type:"unknown"})}function Q1e(e,t){return new e({type:"never",...ve(t)})}function _A(e,t){return new iN({check:"less_than",...ve(t),value:e,inclusive:!1})}function my(e,t){return new iN({check:"less_than",...ve(t),value:e,inclusive:!0})}function SA(e,t){return new sN({check:"greater_than",...ve(t),value:e,inclusive:!1})}function vy(e,t){return new sN({check:"greater_than",...ve(t),value:e,inclusive:!0})}function CA(e,t){return new pwe({check:"multiple_of",...ve(t),value:e})}function hN(e,t){return new mwe({check:"max_length",...ve(t),maximum:e})}function zf(e,t){return new vwe({check:"min_length",...ve(t),minimum:e})}function pN(e,t){return new bwe({check:"length_equals",...ve(t),length:e})}function J1e(e,t){return new ywe({check:"string_format",format:"regex",...ve(t),pattern:e})}function eje(e){return new xwe({check:"string_format",format:"lowercase",...ve(e)})}function tje(e){return new wwe({check:"string_format",format:"uppercase",...ve(e)})}function rje(e,t){return new jwe({check:"string_format",format:"includes",...ve(t),includes:e})}function nje(e,t){return new _we({check:"string_format",format:"starts_with",...ve(t),prefix:e})}function oje(e,t){return new Swe({check:"string_format",format:"ends_with",...ve(t),suffix:e})}function yl(e){return new Cwe({check:"overwrite",tx:e})}function aje(e){return yl(t=>t.normalize(e))}function ije(){return yl(e=>e.trim())}function sje(){return yl(e=>e.toLowerCase())}function lje(){return yl(e=>e.toUpperCase())}function cje(){return yl(e=>m0e(e))}function uje(e,t,r){return new e({type:"array",element:t,...ve(r)})}function dje(e,t,r){return new e({type:"custom",check:"custom",fn:t,...ve(r)})}function fje(e){const t=hje(r=>(r.addIssue=n=>{if(typeof n=="string")r.issues.push(Sc(n,r.value,t._zod.def));else{const o=n;o.fatal&&(o.continue=!1),o.code??(o.code="custom"),o.input??(o.input=r.value),o.inst??(o.inst=t),o.continue??(o.continue=!t._zod.def.abort),r.issues.push(Sc(o))}},e(r.value,r)));return t}function hje(e,t){const r=new lr({check:"custom",...ve(t)});return r._zod.check=e,r}function gN(e){let t=(e==null?void 0:e.target)??"draft-2020-12";return t==="draft-4"&&(t="draft-04"),t==="draft-7"&&(t="draft-07"),{processors:e.processors??{},metadataRegistry:(e==null?void 0:e.metadata)??ec,target:t,unrepresentable:(e==null?void 0:e.unrepresentable)??"throw",override:(e==null?void 0:e.override)??(()=>{}),io:(e==null?void 0:e.io)??"output",counter:0,seen:new Map,cycles:(e==null?void 0:e.cycles)??"ref",reused:(e==null?void 0:e.reused)??"inline",external:(e==null?void 0:e.external)??void 0}}function Tt(e,t,r={path:[],schemaPath:[]}){var f,h;var n;const o=e._zod.def,a=t.seen.get(e);if(a)return a.count++,r.schemaPath.includes(e)&&(a.cycle=r.path),a.schema;const s={schema:{},count:1,cycle:void 0,path:r.path};t.seen.set(e,s);const c=(h=(f=e._zod).toJSONSchema)==null?void 0:h.call(f);if(c)s.schema=c;else{const p={...r,schemaPath:[...r.schemaPath,e],path:r.path};if(e._zod.processJSONSchema)e._zod.processJSONSchema(t,s.schema,p);else{const v=s.schema,x=t.processors[o.type];if(!x)throw new Error(`[toJSONSchema]: Non-representable type encountered: ${o.type}`);x(e,t,v,p)}const g=e._zod.parent;g&&(s.ref||(s.ref=g),Tt(g,t,p),t.seen.get(g).isParent=!0)}const u=t.metadataRegistry.get(e);return u&&Object.assign(s.schema,u),t.io==="input"&&Lt(e)&&(delete s.schema.examples,delete s.schema.default),t.io==="input"&&s.schema._prefault&&((n=s.schema).default??(n.default=s.schema._prefault)),delete s.schema._prefault,t.seen.get(e).schema}function mN(e,t){var s,c,u,d;const r=e.seen.get(t);if(!r)throw new Error("Unprocessed schema. This is a bug in Zod.");const n=new Map;for(const f of e.seen.entries()){const h=(s=e.metadataRegistry.get(f[0]))==null?void 0:s.id;if(h){const p=n.get(h);if(p&&p!==f[0])throw new Error(`Duplicate schema id "${h}" detected during JSON Schema conversion. Two different schemas cannot share the same id when converted together.`);n.set(h,f[0])}}const o=f=>{var x;const h=e.target==="draft-2020-12"?"$defs":"definitions";if(e.external){const b=(x=e.external.registry.get(f[0]))==null?void 0:x.id,w=e.external.uri??(C=>C);if(b)return{ref:w(b)};const S=f[1].defId??f[1].schema.id??`schema${e.counter++}`;return f[1].defId=S,{defId:S,ref:`${w("__shared")}#/${h}/${S}`}}if(f[1]===r)return{ref:"#"};const g=`#/${h}/`,v=f[1].schema.id??`__schema${e.counter++}`;return{defId:v,ref:g+v}},a=f=>{if(f[1].schema.$ref)return;const h=f[1],{ref:p,defId:g}=o(f);h.def={...h.schema},g&&(h.defId=g);const v=h.schema;for(const x in v)delete v[x];v.$ref=p};if(e.cycles==="throw")for(const f of e.seen.entries()){const h=f[1];if(h.cycle)throw new Error(`Cycle detected: #/${(c=h.cycle)==null?void 0:c.join("/")}/<root>
 
 Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.`)}for(const f of e.seen.entries()){const h=f[1];if(t===f[0]){a(f);continue}if(e.external){const g=(u=e.external.registry.get(f[0]))==null?void 0:u.id;if(t!==f[0]&&g){a(f);continue}}if((d=e.metadataRegistry.get(f[0]))==null?void 0:d.id){a(f);continue}if(h.cycle){a(f);continue}if(h.count>1&&e.reused==="ref"){a(f);continue}}}function vN(e,t){var s,c,u;const r=e.seen.get(t);if(!r)throw new Error("Unprocessed schema. This is a bug in Zod.");const n=d=>{const f=e.seen.get(d);if(f.ref===null)return;const h=f.def??f.schema,p={...h},g=f.ref;if(f.ref=null,g){n(g);const x=e.seen.get(g),b=x.schema;if(b.$ref&&(e.target==="draft-07"||e.target==="draft-04"||e.target==="openapi-3.0")?(h.allOf=h.allOf??[],h.allOf.push(b)):Object.assign(h,b),Object.assign(h,p),d._zod.parent===g)for(const S in h)S==="$ref"||S==="allOf"||S in p||delete h[S];if(b.$ref&&x.def)for(const S in h)S==="$ref"||S==="allOf"||S in x.def&&JSON.stringify(h[S])===JSON.stringify(x.def[S])&&delete h[S]}const v=d._zod.parent;if(v&&v!==g){n(v);const x=e.seen.get(v);if(x!=null&&x.schema.$ref&&(h.$ref=x.schema.$ref,x.def))for(const b in h)b==="$ref"||b==="allOf"||b in x.def&&JSON.stringify(h[b])===JSON.stringify(x.def[b])&&delete h[b]}e.override({zodSchema:d,jsonSchema:h,path:f.path??[]})};for(const d of[...e.seen.entries()].reverse())n(d[0]);const o={};if(e.target==="draft-2020-12"?o.$schema="https://json-schema.org/draft/2020-12/schema":e.target==="draft-07"?o.$schema="http://json-schema.org/draft-07/schema#":e.target==="draft-04"?o.$schema="http://json-schema.org/draft-04/schema#":e.target,(s=e.external)!=null&&s.uri){const d=(c=e.external.registry.get(t))==null?void 0:c.id;if(!d)throw new Error("Schema is missing an `id` property");o.$id=e.external.uri(d)}Object.assign(o,r.def??r.schema);const a=((u=e.external)==null?void 0:u.defs)??{};for(const d of e.seen.entries()){const f=d[1];f.def&&f.defId&&(a[f.defId]=f.def)}e.external||Object.keys(a).length>0&&(e.target==="draft-2020-12"?o.$defs=a:o.definitions=a);try{const d=JSON.parse(JSON.stringify(o));return Object.defineProperty(d,"~standard",{value:{...t["~standard"],jsonSchema:{input:Rf(t,"input",e.processors),output:Rf(t,"output",e.processors)}},enumerable:!1,writable:!1}),d}catch{throw new Error("Error converting schema to JSON.")}}function Lt(e,t){const r=t??{seen:new Set};if(r.seen.has(e))return!1;r.seen.add(e);const n=e._zod.def;if(n.type==="transform")return!0;if(n.type==="array")return Lt(n.element,r);if(n.type==="set")return Lt(n.valueType,r);if(n.type==="lazy")return Lt(n.getter(),r);if(n.type==="promise"||n.type==="optional"||n.type==="nonoptional"||n.type==="nullable"||n.type==="readonly"||n.type==="default"||n.type==="prefault")return Lt(n.innerType,r);if(n.type==="intersection")return Lt(n.left,r)||Lt(n.right,r);if(n.type==="record"||n.type==="map")return Lt(n.keyType,r)||Lt(n.valueType,r);if(n.type==="pipe")return Lt(n.in,r)||Lt(n.out,r);if(n.type==="object"){for(const o in n.shape)if(Lt(n.shape[o],r))return!0;return!1}if(n.type==="union"){for(const o of n.options)if(Lt(o,r))return!0;return!1}if(n.type==="tuple"){for(const o of n.items)if(Lt(o,r))return!0;return!!(n.rest&&Lt(n.rest,r))}return!1}const pje=(e,t={})=>r=>{const n=gN({...r,processors:t});return Tt(e,n),mN(n,e),vN(n,e)},Rf=(e,t,r={})=>n=>{const{libraryOptions:o,target:a}=n??{},s=gN({...o??{},target:a,io:t,processors:r});return Tt(e,s),mN(s,e),vN(s,e)},gje={guid:"uuid",url:"uri",datetime:"date-time",json_string:"json-string",regex:""},mje=(e,t,r,n)=>{const o=r;o.type="string";const{minimum:a,maximum:s,format:c,patterns:u,contentEncoding:d}=e._zod.bag;if(typeof a=="number"&&(o.minLength=a),typeof s=="number"&&(o.maxLength=s),c&&(o.format=gje[c]??c,o.format===""&&delete o.format,c==="time"&&delete o.format),d&&(o.contentEncoding=d),u&&u.size>0){const f=[...u];f.length===1?o.pattern=f[0].source:f.length>1&&(o.allOf=[...f.map(h=>({...t.target==="draft-07"||t.target==="draft-04"||t.target==="openapi-3.0"?{type:"string"}:{},pattern:h.source}))])}},vje=(e,t,r,n)=>{const o=r,{minimum:a,maximum:s,format:c,multipleOf:u,exclusiveMaximum:d,exclusiveMinimum:f}=e._zod.bag;typeof c=="string"&&c.includes("int")?o.type="integer":o.type="number",typeof f=="number"&&(t.target==="draft-04"||t.target==="openapi-3.0"?(o.minimum=f,o.exclusiveMinimum=!0):o.exclusiveMinimum=f),typeof a=="number"&&(o.minimum=a,typeof f=="number"&&t.target!=="draft-04"&&(f>=a?delete o.minimum:delete o.exclusiveMinimum)),typeof d=="number"&&(t.target==="draft-04"||t.target==="openapi-3.0"?(o.maximum=d,o.exclusiveMaximum=!0):o.exclusiveMaximum=d),typeof s=="number"&&(o.maximum=s,typeof d=="number"&&t.target!=="draft-04"&&(d<=s?delete o.maximum:delete o.exclusiveMaximum)),typeof u=="number"&&(o.multipleOf=u)},bje=(e,t,r,n)=>{r.type="boolean"},yje=(e,t,r,n)=>{r.not={}},xje=(e,t,r,n)=>{},wje=(e,t,r,n)=>{const o=e._zod.def,a=XR(o.entries);a.every(s=>typeof s=="number")&&(r.type="number"),a.every(s=>typeof s=="string")&&(r.type="string"),r.enum=a},jje=(e,t,r,n)=>{const o=e._zod.def,a=[];for(const s of o.values)if(s===void 0){if(t.unrepresentable==="throw")throw new Error("Literal `undefined` cannot be represented in JSON Schema")}else if(typeof s=="bigint"){if(t.unrepresentable==="throw")throw new Error("BigInt literals cannot be represented in JSON Schema");a.push(Number(s))}else a.push(s);if(a.length!==0)if(a.length===1){const s=a[0];r.type=s===null?"null":typeof s,t.target==="draft-04"||t.target==="openapi-3.0"?r.enum=[s]:r.const=s}else a.every(s=>typeof s=="number")&&(r.type="number"),a.every(s=>typeof s=="string")&&(r.type="string"),a.every(s=>typeof s=="boolean")&&(r.type="boolean"),a.every(s=>s===null)&&(r.type="null"),r.enum=a},_je=(e,t,r,n)=>{if(t.unrepresentable==="throw")throw new Error("Custom types cannot be represented in JSON Schema")},Sje=(e,t,r,n)=>{if(t.unrepresentable==="throw")throw new Error("Transforms cannot be represented in JSON Schema")},Cje=(e,t,r,n)=>{const o=r,a=e._zod.def,{minimum:s,maximum:c}=e._zod.bag;typeof s=="number"&&(o.minItems=s),typeof c=="number"&&(o.maxItems=c),o.type="array",o.items=Tt(a.element,t,{...n,path:[...n.path,"items"]})},kje=(e,t,r,n)=>{var d;const o=r,a=e._zod.def;o.type="object",o.properties={};const s=a.shape;for(const f in s)o.properties[f]=Tt(s[f],t,{...n,path:[...n.path,"properties",f]});const c=new Set(Object.keys(s)),u=new Set([...c].filter(f=>{const h=a.shape[f]._zod;return t.io==="input"?h.optin===void 0:h.optout===void 0}));u.size>0&&(o.required=Array.from(u)),((d=a.catchall)==null?void 0:d._zod.def.type)==="never"?o.additionalProperties=!1:a.catchall?a.catchall&&(o.additionalProperties=Tt(a.catchall,t,{...n,path:[...n.path,"additionalProperties"]})):t.io==="output"&&(o.additionalProperties=!1)},$je=(e,t,r,n)=>{const o=e._zod.def,a=o.inclusive===!1,s=o.options.map((c,u)=>Tt(c,t,{...n,path:[...n.path,a?"oneOf":"anyOf",u]}));a?r.oneOf=s:r.anyOf=s},Pje=(e,t,r,n)=>{const o=e._zod.def,a=Tt(o.left,t,{...n,path:[...n.path,"allOf",0]}),s=Tt(o.right,t,{...n,path:[...n.path,"allOf",1]}),c=d=>"allOf"in d&&Object.keys(d).length===1,u=[...c(a)?a.allOf:[a],...c(s)?s.allOf:[s]];r.allOf=u},Oje=(e,t,r,n)=>{const o=e._zod.def,a=Tt(o.innerType,t,n),s=t.seen.get(e);t.target==="openapi-3.0"?(s.ref=o.innerType,r.nullable=!0):r.anyOf=[a,{type:"null"}]},Eje=(e,t,r,n)=>{const o=e._zod.def;Tt(o.innerType,t,n);const a=t.seen.get(e);a.ref=o.innerType},Aje=(e,t,r,n)=>{const o=e._zod.def;Tt(o.innerType,t,n);const a=t.seen.get(e);a.ref=o.innerType,r.default=JSON.parse(JSON.stringify(o.defaultValue))},Tje=(e,t,r,n)=>{const o=e._zod.def;Tt(o.innerType,t,n);const a=t.seen.get(e);a.ref=o.innerType,t.io==="input"&&(r._prefault=JSON.parse(JSON.stringify(o.defaultValue)))},Ije=(e,t,r,n)=>{const o=e._zod.def;Tt(o.innerType,t,n);const a=t.seen.get(e);a.ref=o.innerType;let s;try{s=o.catchValue(void 0)}catch{throw new Error("Dynamic catch values are not supported in JSON Schema")}r.default=s},Mje=(e,t,r,n)=>{const o=e._zod.def,a=t.io==="input"?o.in._zod.def.type==="transform"?o.out:o.in:o.out;Tt(a,t,n);const s=t.seen.get(e);s.ref=a},Dje=(e,t,r,n)=>{const o=e._zod.def;Tt(o.innerType,t,n);const a=t.seen.get(e);a.ref=o.innerType,r.readOnly=!0},bN=(e,t,r,n)=>{const o=e._zod.def;Tt(o.innerType,t,n);const a=t.seen.get(e);a.ref=o.innerType};function kA(e,t){try{var r=e()}catch(n){return t(n)}return r&&r.then?r.then(void 0,t):r}function zje(e,t){for(var r={};e.length;){var n=e[0],o=n.code,a=n.message,s=n.path.join(".");if(!r[s])if("unionErrors"in n){var c=n.unionErrors[0].errors[0];r[s]={message:c.message,type:c.code}}else r[s]={message:a,type:o};if("unionErrors"in n&&n.unionErrors.forEach(function(f){return f.errors.forEach(function(h){return e.push(h)})}),t){var u=r[s].types,d=u&&u[n.code];r[s]=q1(s,t,r,o,d?[].concat(d,n.message):n.message)}e.shift()}return r}function Rje(e,t){for(var r={};e.length;){var n=e[0],o=n.code,a=n.message,s=n.path.join(".");if(!r[s])if(n.code==="invalid_union"&&n.errors.length>0){var c=n.errors[0][0];r[s]={message:c.message,type:c.code}}else r[s]={message:a,type:o};if(n.code==="invalid_union"&&n.errors.forEach(function(f){return f.forEach(function(h){return e.push(h)})}),t){var u=r[s].types,d=u&&u[n.code];r[s]=q1(s,t,r,o,d?[].concat(d,n.message):n.message)}e.shift()}return r}function Nje(e,t,r){if(r===void 0&&(r={}),(function(n){return"_def"in n&&typeof n._def=="object"&&"typeName"in n._def})(e))return function(n,o,a){try{return Promise.resolve(kA(function(){return Promise.resolve(e[r.mode==="sync"?"parse":"parseAsync"](n,t)).then(function(s){return a.shouldUseNativeValidation&&Vx({},a),{errors:{},values:r.raw?Object.assign({},n):s}})},function(s){if((function(c){return Array.isArray(c==null?void 0:c.issues)})(s))return{values:{},errors:lA(zje(s.errors,!a.shouldUseNativeValidation&&a.criteriaMode==="all"),a)};throw s}))}catch(s){return Promise.reject(s)}};if((function(n){return"_zod"in n&&typeof n._zod=="object"})(e))return function(n,o,a){try{return Promise.resolve(kA(function(){return Promise.resolve((r.mode==="sync"?E0e:A0e)(e,n,t)).then(function(s){return a.shouldUseNativeValidation&&Vx({},a),{errors:{},values:r.raw?Object.assign({},n):s}})},function(s){if((function(c){return c instanceof Z1})(s))return{values:{},errors:lA(Rje(s.issues,!a.shouldUseNativeValidation&&a.criteriaMode==="all"),a)};throw s}))}catch(s){return Promise.reject(s)}};throw new Error("Invalid input: not a Zod schema")}const Fje=W("ZodISODateTime",(e,t)=>{Fwe.init(e,t),tt.init(e,t)});function Lje(e){return H1e(Fje,e)}const Bje=W("ZodISODate",(e,t)=>{Lwe.init(e,t),tt.init(e,t)});function qje(e){return W1e(Bje,e)}const Uje=W("ZodISOTime",(e,t)=>{Bwe.init(e,t),tt.init(e,t)});function Hje(e){return V1e(Uje,e)}const Wje=W("ZodISODuration",(e,t)=>{qwe.init(e,t),tt.init(e,t)});function Vje(e){return K1e(Wje,e)}const Kje=(e,t)=>{Z1.init(e,t),e.name="ZodError",Object.defineProperties(e,{format:{value:r=>O0e(e,r)},flatten:{value:r=>P0e(e,r)},addIssue:{value:r=>{e.issues.push(r),e.message=JSON.stringify(e.issues,Kx,2)}},addIssues:{value:r=>{e.issues.push(...r),e.message=JSON.stringify(e.issues,Kx,2)}},isEmpty:{get(){return e.issues.length===0}}})},qr=W("ZodError",Kje,{Parent:Error}),Gje=Qh(qr),Zje=Jh(qr),Yje=ep(qr),Xje=tp(qr),Qje=M0e(qr),Jje=D0e(qr),e_e=z0e(qr),t_e=R0e(qr),r_e=N0e(qr),n_e=F0e(qr),o_e=L0e(qr),a_e=B0e(qr),it=W("ZodType",(e,t)=>(at.init(e,t),Object.assign(e["~standard"],{jsonSchema:{input:Rf(e,"input"),output:Rf(e,"output")}}),e.toJSONSchema=pje(e,{}),e.def=t,e.type=t.type,Object.defineProperty(e,"_def",{value:t}),e.check=(...r)=>e.clone(Jo(t,{checks:[...t.checks??[],...r.map(n=>typeof n=="function"?{_zod:{check:n,def:{check:"custom"},onattach:[]}}:n)]}),{parent:!0}),e.with=e.check,e.clone=(r,n)=>ea(e,r,n),e.brand=()=>e,e.register=((r,n)=>(r.add(e,n),e)),e.parse=(r,n)=>Gje(e,r,n,{callee:e.parse}),e.safeParse=(r,n)=>Yje(e,r,n),e.parseAsync=async(r,n)=>Zje(e,r,n,{callee:e.parseAsync}),e.safeParseAsync=async(r,n)=>Xje(e,r,n),e.spa=e.safeParseAsync,e.encode=(r,n)=>Qje(e,r,n),e.decode=(r,n)=>Jje(e,r,n),e.encodeAsync=async(r,n)=>e_e(e,r,n),e.decodeAsync=async(r,n)=>t_e(e,r,n),e.safeEncode=(r,n)=>r_e(e,r,n),e.safeDecode=(r,n)=>n_e(e,r,n),e.safeEncodeAsync=async(r,n)=>o_e(e,r,n),e.safeDecodeAsync=async(r,n)=>a_e(e,r,n),e.refine=(r,n)=>e.check(nSe(r,n)),e.superRefine=r=>e.check(oSe(r)),e.overwrite=r=>e.check(yl(r)),e.optional=()=>EA(e),e.exactOptional=()=>H_e(e),e.nullable=()=>AA(e),e.nullish=()=>EA(AA(e)),e.nonoptional=r=>Y_e(e,r),e.array=()=>A_e(e),e.or=r=>D_e([e,r]),e.and=r=>R_e(e,r),e.transform=r=>TA(e,q_e(r)),e.default=r=>K_e(e,r),e.prefault=r=>Z_e(e,r),e.catch=r=>Q_e(e,r),e.pipe=r=>TA(e,r),e.readonly=()=>tSe(e),e.describe=r=>{const n=e.clone();return ec.add(n,{description:r}),n},Object.defineProperty(e,"description",{get(){var r;return(r=ec.get(e))==null?void 0:r.description},configurable:!0}),e.meta=(...r)=>{if(r.length===0)return ec.get(e);const n=e.clone();return ec.add(n,r[0]),n},e.isOptional=()=>e.safeParse(void 0).success,e.isNullable=()=>e.safeParse(null).success,e.apply=r=>r(e),e)),yN=W("_ZodString",(e,t)=>{Y1.init(e,t),it.init(e,t),e._zod.processJSONSchema=(n,o,a)=>mje(e,n,o);const r=e._zod.bag;e.format=r.format??null,e.minLength=r.minimum??null,e.maxLength=r.maximum??null,e.regex=(...n)=>e.check(J1e(...n)),e.includes=(...n)=>e.check(rje(...n)),e.startsWith=(...n)=>e.check(nje(...n)),e.endsWith=(...n)=>e.check(oje(...n)),e.min=(...n)=>e.check(zf(...n)),e.max=(...n)=>e.check(hN(...n)),e.length=(...n)=>e.check(pN(...n)),e.nonempty=(...n)=>e.check(zf(1,...n)),e.lowercase=n=>e.check(eje(n)),e.uppercase=n=>e.check(tje(n)),e.trim=()=>e.check(ije()),e.normalize=(...n)=>e.check(aje(...n)),e.toLowerCase=()=>e.check(sje()),e.toUpperCase=()=>e.check(lje()),e.slugify=()=>e.check(cje())}),i_e=W("ZodString",(e,t)=>{Y1.init(e,t),yN.init(e,t),e.email=r=>e.check(_1e(s_e,r)),e.url=r=>e.check(P1e(l_e,r)),e.jwt=r=>e.check(U1e(__e,r)),e.emoji=r=>e.check(O1e(c_e,r)),e.guid=r=>e.check(jA($A,r)),e.uuid=r=>e.check(S1e(xd,r)),e.uuidv4=r=>e.check(C1e(xd,r)),e.uuidv6=r=>e.check(k1e(xd,r)),e.uuidv7=r=>e.check($1e(xd,r)),e.nanoid=r=>e.check(E1e(u_e,r)),e.guid=r=>e.check(jA($A,r)),e.cuid=r=>e.check(A1e(d_e,r)),e.cuid2=r=>e.check(T1e(f_e,r)),e.ulid=r=>e.check(I1e(h_e,r)),e.base64=r=>e.check(L1e(x_e,r)),e.base64url=r=>e.check(B1e(w_e,r)),e.xid=r=>e.check(M1e(p_e,r)),e.ksuid=r=>e.check(D1e(g_e,r)),e.ipv4=r=>e.check(z1e(m_e,r)),e.ipv6=r=>e.check(R1e(v_e,r)),e.cidrv4=r=>e.check(N1e(b_e,r)),e.cidrv6=r=>e.check(F1e(y_e,r)),e.e164=r=>e.check(q1e(j_e,r)),e.datetime=r=>e.check(Lje(r)),e.date=r=>e.check(qje(r)),e.time=r=>e.check(Hje(r)),e.duration=r=>e.check(Vje(r))});function by(e){return j1e(i_e,e)}const tt=W("ZodStringFormat",(e,t)=>{Qe.init(e,t),yN.init(e,t)}),s_e=W("ZodEmail",(e,t)=>{Ewe.init(e,t),tt.init(e,t)}),$A=W("ZodGUID",(e,t)=>{Pwe.init(e,t),tt.init(e,t)}),xd=W("ZodUUID",(e,t)=>{Owe.init(e,t),tt.init(e,t)}),l_e=W("ZodURL",(e,t)=>{Awe.init(e,t),tt.init(e,t)}),c_e=W("ZodEmoji",(e,t)=>{Twe.init(e,t),tt.init(e,t)}),u_e=W("ZodNanoID",(e,t)=>{Iwe.init(e,t),tt.init(e,t)}),d_e=W("ZodCUID",(e,t)=>{Mwe.init(e,t),tt.init(e,t)}),f_e=W("ZodCUID2",(e,t)=>{Dwe.init(e,t),tt.init(e,t)}),h_e=W("ZodULID",(e,t)=>{zwe.init(e,t),tt.init(e,t)}),p_e=W("ZodXID",(e,t)=>{Rwe.init(e,t),tt.init(e,t)}),g_e=W("ZodKSUID",(e,t)=>{Nwe.init(e,t),tt.init(e,t)}),m_e=W("ZodIPv4",(e,t)=>{Uwe.init(e,t),tt.init(e,t)}),v_e=W("ZodIPv6",(e,t)=>{Hwe.init(e,t),tt.init(e,t)}),b_e=W("ZodCIDRv4",(e,t)=>{Wwe.init(e,t),tt.init(e,t)}),y_e=W("ZodCIDRv6",(e,t)=>{Vwe.init(e,t),tt.init(e,t)}),x_e=W("ZodBase64",(e,t)=>{Kwe.init(e,t),tt.init(e,t)}),w_e=W("ZodBase64URL",(e,t)=>{Zwe.init(e,t),tt.init(e,t)}),j_e=W("ZodE164",(e,t)=>{Ywe.init(e,t),tt.init(e,t)}),__e=W("ZodJWT",(e,t)=>{Qwe.init(e,t),tt.init(e,t)}),xN=W("ZodNumber",(e,t)=>{cN.init(e,t),it.init(e,t),e._zod.processJSONSchema=(n,o,a)=>vje(e,n,o),e.gt=(n,o)=>e.check(SA(n,o)),e.gte=(n,o)=>e.check(vy(n,o)),e.min=(n,o)=>e.check(vy(n,o)),e.lt=(n,o)=>e.check(_A(n,o)),e.lte=(n,o)=>e.check(my(n,o)),e.max=(n,o)=>e.check(my(n,o)),e.int=n=>e.check(PA(n)),e.safe=n=>e.check(PA(n)),e.positive=n=>e.check(SA(0,n)),e.nonnegative=n=>e.check(vy(0,n)),e.negative=n=>e.check(_A(0,n)),e.nonpositive=n=>e.check(my(0,n)),e.multipleOf=(n,o)=>e.check(CA(n,o)),e.step=(n,o)=>e.check(CA(n,o)),e.finite=()=>e;const r=e._zod.bag;e.minValue=Math.max(r.minimum??Number.NEGATIVE_INFINITY,r.exclusiveMinimum??Number.NEGATIVE_INFINITY)??null,e.maxValue=Math.min(r.maximum??Number.POSITIVE_INFINITY,r.exclusiveMaximum??Number.POSITIVE_INFINITY)??null,e.isInt=(r.format??"").includes("int")||Number.isSafeInteger(r.multipleOf??.5),e.isFinite=!0,e.format=r.format??null}),S_e=W("ZodNumberFormat",(e,t)=>{Jwe.init(e,t),xN.init(e,t)});function PA(e){return Z1e(S_e,e)}const C_e=W("ZodBoolean",(e,t)=>{e1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>bje(e,r,n)});function k_e(e){return Y1e(C_e,e)}const $_e=W("ZodUnknown",(e,t)=>{t1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>xje()});function OA(){return X1e($_e)}const P_e=W("ZodNever",(e,t)=>{r1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>yje(e,r,n)});function O_e(e){return Q1e(P_e,e)}const E_e=W("ZodArray",(e,t)=>{n1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Cje(e,r,n,o),e.element=t.element,e.min=(r,n)=>e.check(zf(r,n)),e.nonempty=r=>e.check(zf(1,r)),e.max=(r,n)=>e.check(hN(r,n)),e.length=(r,n)=>e.check(pN(r,n)),e.unwrap=()=>e.element});function A_e(e,t){return uje(E_e,e,t)}const T_e=W("ZodObject",(e,t)=>{a1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>kje(e,r,n,o),Fe(e,"shape",()=>t.shape),e.keyof=()=>N_e(Object.keys(e._zod.def.shape)),e.catchall=r=>e.clone({...e._zod.def,catchall:r}),e.passthrough=()=>e.clone({...e._zod.def,catchall:OA()}),e.loose=()=>e.clone({...e._zod.def,catchall:OA()}),e.strict=()=>e.clone({...e._zod.def,catchall:O_e()}),e.strip=()=>e.clone({...e._zod.def,catchall:void 0}),e.extend=r=>_0e(e,r),e.safeExtend=r=>S0e(e,r),e.merge=r=>C0e(e,r),e.pick=r=>w0e(e,r),e.omit=r=>j0e(e,r),e.partial=(...r)=>k0e(wN,e,r[0]),e.required=(...r)=>$0e(jN,e,r[0])});function I_e(e,t){const r={type:"object",shape:e??{},...ve(t)};return new T_e(r)}const M_e=W("ZodUnion",(e,t)=>{i1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>$je(e,r,n,o),e.options=t.options});function D_e(e,t){return new M_e({type:"union",options:e,...ve(t)})}const z_e=W("ZodIntersection",(e,t)=>{s1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Pje(e,r,n,o)});function R_e(e,t){return new z_e({type:"intersection",left:e,right:t})}const Zx=W("ZodEnum",(e,t)=>{l1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(n,o,a)=>wje(e,n,o),e.enum=t.entries,e.options=Object.values(t.entries);const r=new Set(Object.keys(t.entries));e.extract=(n,o)=>{const a={};for(const s of n)if(r.has(s))a[s]=t.entries[s];else throw new Error(`Key ${s} not found in enum`);return new Zx({...t,checks:[],...ve(o),entries:a})},e.exclude=(n,o)=>{const a={...t.entries};for(const s of n)if(r.has(s))delete a[s];else throw new Error(`Key ${s} not found in enum`);return new Zx({...t,checks:[],...ve(o),entries:a})}});function N_e(e,t){const r=Array.isArray(e)?Object.fromEntries(e.map(n=>[n,n])):e;return new Zx({type:"enum",entries:r,...ve(t)})}const F_e=W("ZodLiteral",(e,t)=>{c1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>jje(e,r,n),e.values=new Set(t.values),Object.defineProperty(e,"value",{get(){if(t.values.length>1)throw new Error("This schema contains multiple valid literal values. Use `.values` instead.");return t.values[0]}})});function L_e(e,t){return new F_e({type:"literal",values:Array.isArray(e)?e:[e],...ve(t)})}const B_e=W("ZodTransform",(e,t)=>{u1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Sje(e,r),e._zod.parse=(r,n)=>{if(n.direction==="backward")throw new ZR(e.constructor.name);r.addIssue=a=>{if(typeof a=="string")r.issues.push(Sc(a,r.value,t));else{const s=a;s.fatal&&(s.continue=!1),s.code??(s.code="custom"),s.input??(s.input=r.value),s.inst??(s.inst=e),r.issues.push(Sc(s))}};const o=t.transform(r.value,r);return o instanceof Promise?o.then(a=>(r.value=a,r)):(r.value=o,r)}});function q_e(e){return new B_e({type:"transform",transform:e})}const wN=W("ZodOptional",(e,t)=>{fN.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>bN(e,r,n,o),e.unwrap=()=>e._zod.def.innerType});function EA(e){return new wN({type:"optional",innerType:e})}const U_e=W("ZodExactOptional",(e,t)=>{d1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>bN(e,r,n,o),e.unwrap=()=>e._zod.def.innerType});function H_e(e){return new U_e({type:"optional",innerType:e})}const W_e=W("ZodNullable",(e,t)=>{f1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Oje(e,r,n,o),e.unwrap=()=>e._zod.def.innerType});function AA(e){return new W_e({type:"nullable",innerType:e})}const V_e=W("ZodDefault",(e,t)=>{h1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Aje(e,r,n,o),e.unwrap=()=>e._zod.def.innerType,e.removeDefault=e.unwrap});function K_e(e,t){return new V_e({type:"default",innerType:e,get defaultValue(){return typeof t=="function"?t():JR(t)}})}const G_e=W("ZodPrefault",(e,t)=>{p1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Tje(e,r,n,o),e.unwrap=()=>e._zod.def.innerType});function Z_e(e,t){return new G_e({type:"prefault",innerType:e,get defaultValue(){return typeof t=="function"?t():JR(t)}})}const jN=W("ZodNonOptional",(e,t)=>{g1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Eje(e,r,n,o),e.unwrap=()=>e._zod.def.innerType});function Y_e(e,t){return new jN({type:"nonoptional",innerType:e,...ve(t)})}const X_e=W("ZodCatch",(e,t)=>{m1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Ije(e,r,n,o),e.unwrap=()=>e._zod.def.innerType,e.removeCatch=e.unwrap});function Q_e(e,t){return new X_e({type:"catch",innerType:e,catchValue:typeof t=="function"?t:()=>t})}const J_e=W("ZodPipe",(e,t)=>{v1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Mje(e,r,n,o),e.in=t.in,e.out=t.out});function TA(e,t){return new J_e({type:"pipe",in:e,out:t})}const eSe=W("ZodReadonly",(e,t)=>{b1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>Dje(e,r,n,o),e.unwrap=()=>e._zod.def.innerType});function tSe(e){return new eSe({type:"readonly",innerType:e})}const rSe=W("ZodCustom",(e,t)=>{y1e.init(e,t),it.init(e,t),e._zod.processJSONSchema=(r,n,o)=>_je(e,r)});function nSe(e,t={}){return dje(rSe,e,t)}function oSe(e){return fje(e)}function aSe(e){return G1e(xN,e)}const iSe=m.form`
@@ -7642,7 +7642,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
   font-weight: 500;
   color: rgb(var(--color-text-primary));
   margin-bottom: 0.5rem;
-  
+
   ${e=>e.required&&`
     &::after {
       content: ' *';
@@ -8042,7 +8042,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
   background-color: rgb(var(--color-surface-hover));
   border-radius: 50%;
   margin-bottom: 1.5rem;
-  
+
   svg {
     color: rgb(var(--color-text-secondary));
     opacity: 0.5;

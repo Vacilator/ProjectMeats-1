@@ -48,7 +48,7 @@ These are assumptions and should be reordered based on real user pain.
 ### Gaps to close
 - **Customer identity**: portal users tied to customer accounts + roles
 - **Pricing engine**: contract pricing, price lists, overrides, effective dates
-- **Portal UX**: curated, limited workflows (not “internal cockpit”) 
+- **Portal UX**: curated, limited workflows (not “internal cockpit”)
 
 ### Proposed backend modules
 **New/extended models** (tenant‑aware where applicable):
@@ -157,4 +157,3 @@ These are assumptions and should be reordered based on real user pain.
   - UI module boundaries
   - security constraints
   - migration/RLS notes
-

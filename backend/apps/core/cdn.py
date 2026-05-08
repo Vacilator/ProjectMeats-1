@@ -10,54 +10,51 @@ from django.utils.deprecation import MiddlewareMixin
 class CDNMiddleware(MiddlewareMixin):
     """
     Rewrite static file URLs to use CDN.
-    
+
     Configuration:
         CDN_ENABLED: Enable/disable CDN (default: False)
         CDN_BASE_URL: CDN URL (e.g., https://cdn.meatscentral.com)
         STATIC_URL: Fallback local URL
     """
-    
+
     def __init__(self, get_response):
         self.get_response = get_response
-        self.cdn_enabled = getattr(settings, 'CDN_ENABLED', False)
-        self.cdn_base_url = getattr(settings, 'CDN_BASE_URL', '')
-        
+        self.cdn_enabled = getattr(settings, "CDN_ENABLED", False)
+        self.cdn_base_url = getattr(settings, "CDN_BASE_URL", "")
+
     def process_response(self, request, response):
         """
         Rewrite static URLs in HTML responses.
         """
         if not self.cdn_enabled or not self.cdn_base_url:
             return response
-        
-        if 'text/html' not in response.get('Content-Type', ''):
+
+        if "text/html" not in response.get("Content-Type", ""):
             return response
-        
+
         # Rewrite STATIC_URL to CDN_BASE_URL
-        content = response.content.decode('utf-8')
-        content = content.replace(
-            f'"{settings.STATIC_URL}',
-            f'"{self.cdn_base_url}/'
-        )
-        
-        response.content = content.encode('utf-8')
+        content = response.content.decode("utf-8")
+        content = content.replace(f'"{settings.STATIC_URL}', f'"{self.cdn_base_url}/')
+
+        response.content = content.encode("utf-8")
         return response
 
 
 class StaticFileCacheHeadersMiddleware(MiddlewareMixin):
     """
     Add cache headers for static files.
-    
+
     Cache-Control: public, max-age=3600 (1 hour)
     """
-    
+
     def process_response(self, request, response):
         """
         Add cache headers for static assets.
         """
         if request.path.startswith(settings.STATIC_URL):
-            response['Cache-Control'] = 'public, max-age=3600'
-            response['Vary'] = 'Accept-Encoding'
-        
+            response["Cache-Control"] = "public, max-age=3600"
+            response["Vary"] = "Accept-Encoding"
+
         return response
 
 

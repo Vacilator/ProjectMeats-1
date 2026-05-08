@@ -1,9 +1,11 @@
 """
 Bug Reports views for ProjectMeats.
 """
-from rest_framework import viewsets, filters
+from rest_framework import filters, viewsets
 from rest_framework.permissions import IsAuthenticated
+
 from django_filters.rest_framework import DjangoFilterBackend
+
 from .models import BugReport
 from .serializers import BugReportSerializer
 
@@ -27,18 +29,17 @@ class BugReportViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_at", "updated_at", "severity"]
     ordering = ["-created_at"]
 
-
     def get_queryset(self):
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             return BugReport.objects.none()
         return BugReport.objects.filter(tenant=tenant)
 
     def perform_create(self, serializer):
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             from rest_framework.exceptions import ValidationError
 
-            raise ValidationError({'tenant': 'Tenant context required'})
+            raise ValidationError({"tenant": "Tenant context required"})
 
-        serializer.save(tenant=tenant, reporter=getattr(self.request, 'user', None))
+        serializer.save(tenant=tenant, reporter=getattr(self.request, "user", None))

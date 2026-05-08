@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -62,9 +61,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "address",
-                    models.TextField(
-                        blank=True, help_text="Supplier address", null=True
-                    ),
+                    models.TextField(blank=True, help_text="Supplier address", null=True),
                 ),
                 (
                     "street_address",
@@ -77,9 +74,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "city",
-                    models.CharField(
-                        blank=True, help_text="City", max_length=100, null=True
-                    ),
+                    models.CharField(blank=True, help_text="City", max_length=100, null=True),
                 ),
                 (
                     "state",
@@ -101,9 +96,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "country",
-                    models.CharField(
-                        blank=True, help_text="Country", max_length=100, null=True
-                    ),
+                    models.CharField(blank=True, help_text="Country", max_length=100, null=True),
                 ),
                 (
                     "edible_inedible",
@@ -210,15 +203,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "offer_contracts",
-                    models.BooleanField(
-                        default=False, help_text="Does supplier offer contracts?"
-                    ),
+                    models.BooleanField(default=False, help_text="Does supplier offer contracts?"),
                 ),
                 (
                     "offers_export_documents",
-                    models.BooleanField(
-                        default=False, help_text="Does supplier offer export documents?"
-                    ),
+                    models.BooleanField(default=False, help_text="Does supplier offer export documents?"),
                 ),
                 (
                     "accounting_payment_terms",
@@ -337,15 +326,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "credit_app_sent",
-                    models.BooleanField(
-                        default=False, help_text="Has credit application been sent?"
-                    ),
+                    models.BooleanField(default=False, help_text="Has credit application been sent?"),
                 ),
                 (
                     "credit_app_set_up",
-                    models.BooleanField(
-                        default=False, help_text="Has credit application been set up?"
-                    ),
+                    models.BooleanField(default=False, help_text="Has credit application been set up?"),
                 ),
                 (
                     "contacts",

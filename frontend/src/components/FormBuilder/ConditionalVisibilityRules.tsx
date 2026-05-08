@@ -1,6 +1,6 @@
 /**
  * ConditionalVisibilityRules Component
- * 
+ *
  * UI for configuring conditional visibility rules for form fields.
  * Allows setting conditions based on other field values to show/hide fields.
  */
@@ -11,7 +11,7 @@ import styled, { css, keyframes } from 'styled-components';
 // TYPES
 // ============================================================================
 
-export type ConditionOperator = 
+export type ConditionOperator =
   | 'equals'
   | 'not_equals'
   | 'contains'
@@ -111,7 +111,7 @@ const ActionSelect = styled.select`
   background: rgb(var(--color-surface, 255 255 255));
   color: rgb(var(--color-text-primary, 44 62 80));
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -133,7 +133,7 @@ const DeleteButton = styled.button`
   font-size: 18px;
   line-height: 1;
   transition: background 0.15s ease;
-  
+
   &:hover {
     background: rgba(var(--color-error), 0.1);
   }
@@ -160,7 +160,7 @@ const LogicalOperatorBadge = styled.div<{ $operator: LogicalOperator }>`
   font-weight: 600;
   min-width: 40px;
   text-align: center;
-  
+
   ${props => props.$operator === 'AND' ? css`
     background: rgba(var(--color-info), 0.1);
     color: rgb(var(--color-info));
@@ -177,7 +177,7 @@ const Select = styled.select`
   font-size: 14px;
   background: rgb(var(--color-surface, 255 255 255));
   min-width: 150px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -191,7 +191,7 @@ const Input = styled.input`
   border-radius: 6px;
   font-size: 14px;
   min-width: 120px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -207,7 +207,7 @@ const RemoveConditionButton = styled.button`
   padding: 4px;
   line-height: 1;
   font-size: 16px;
-  
+
   &:hover {
     color: rgb(var(--color-error));
   }
@@ -225,7 +225,7 @@ const AddConditionButton = styled.button`
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary, 102 126 234));
     color: rgb(var(--color-primary, 102 126 234));
@@ -244,7 +244,7 @@ const LogicalToggle = styled.button<{ $isAnd: boolean }>`
   cursor: pointer;
   transition: all 0.15s ease;
   margin-top: 12px;
-  
+
   ${props => props.$isAnd ? css`
     background: rgba(var(--color-info), 0.1);
     color: rgb(var(--color-info));
@@ -270,7 +270,7 @@ const AddRuleButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary, 102 126 234));
     color: rgb(var(--color-primary, 102 126 234));
@@ -389,8 +389,8 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
       operator: 'equals',
       value: '',
     };
-    onChange(rules.map(r => 
-      r.id === ruleId 
+    onChange(rules.map(r =>
+      r.id === ruleId
         ? { ...r, conditions: [...r.conditions, newCondition] }
         : r
     ));
@@ -405,8 +405,8 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
   }, [rules, onChange]);
 
   const updateCondition = useCallback((
-    ruleId: string, 
-    conditionId: string, 
+    ruleId: string,
+    conditionId: string,
     updates: Partial<VisibilityCondition>
   ) => {
     onChange(rules.map(r =>
@@ -432,14 +432,14 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
   const toggleLogicalOperator = useCallback((ruleId: string) => {
     const rule = rules.find(r => r.id === ruleId);
     if (rule) {
-      updateRule(ruleId, { 
-        logicalOperator: rule.logicalOperator === 'AND' ? 'OR' : 'AND' 
+      updateRule(ruleId, {
+        logicalOperator: rule.logicalOperator === 'AND' ? 'OR' : 'AND'
       });
     }
   }, [rules, updateRule]);
 
   const renderConditionValue = (
-    condition: VisibilityCondition, 
+    condition: VisibilityCondition,
     field: FormField | undefined,
     ruleId: string
   ) => {
@@ -451,8 +451,8 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
       return (
         <Select
           value={String(condition.value)}
-          onChange={(e) => updateCondition(ruleId, condition.id, { 
-            value: e.target.value === 'true' 
+          onChange={(e) => updateCondition(ruleId, condition.id, {
+            value: e.target.value === 'true'
           })}
         >
           <option value="true">Checked</option>
@@ -480,8 +480,8 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
         <Input
           type="number"
           value={String(condition.value)}
-          onChange={(e) => updateCondition(ruleId, condition.id, { 
-            value: e.target.value ? Number(e.target.value) : '' 
+          onChange={(e) => updateCondition(ruleId, condition.id, {
+            value: e.target.value ? Number(e.target.value) : ''
           })}
           placeholder="Enter number..."
         />
@@ -536,8 +536,8 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
               <RuleTitle>
                 <ActionSelect
                   value={rule.action}
-                  onChange={(e) => updateRule(rule.id, { 
-                    action: e.target.value as 'show' | 'hide' 
+                  onChange={(e) => updateRule(rule.id, {
+                    action: e.target.value as 'show' | 'hide'
                   })}
                 >
                   <option value="show">Show</option>
@@ -545,7 +545,7 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
                 </ActionSelect>
                 <RuleText>this field when:</RuleText>
               </RuleTitle>
-              <DeleteButton 
+              <DeleteButton
                 onClick={() => removeRule(rule.id)}
                 aria-label="Delete rule"
                 title="Delete rule"
@@ -558,7 +558,7 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
               {rule.conditions.map((condition, index) => {
                 const field = conditionFields.find(f => f.id === condition.fieldId);
                 const operators = getAvailableOperators(field);
-                
+
                 return (
                   <ConditionRow key={condition.id}>
                     {index > 0 && (
@@ -566,16 +566,16 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
                         {rule.logicalOperator}
                       </LogicalOperatorBadge>
                     )}
-                    
+
                     <Select
                       value={condition.fieldId}
                       onChange={(e) => {
                         const newField = conditionFields.find(f => f.id === e.target.value);
                         const newOperators = getAvailableOperators(newField);
-                        updateCondition(rule.id, condition.id, { 
+                        updateCondition(rule.id, condition.id, {
                           fieldId: e.target.value,
-                          operator: newOperators.includes(condition.operator) 
-                            ? condition.operator 
+                          operator: newOperators.includes(condition.operator)
+                            ? condition.operator
                             : newOperators[0],
                           value: '',
                         });
@@ -586,13 +586,13 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
                         <option key={f.id} value={f.id}>{f.label}</option>
                       ))}
                     </Select>
-                    
+
                     <Select
                       value={condition.operator}
-                      onChange={(e) => updateCondition(rule.id, condition.id, { 
+                      onChange={(e) => updateCondition(rule.id, condition.id, {
                         operator: e.target.value as ConditionOperator,
-                        value: NO_VALUE_OPERATORS.includes(e.target.value as ConditionOperator) 
-                          ? '' 
+                        value: NO_VALUE_OPERATORS.includes(e.target.value as ConditionOperator)
+                          ? ''
                           : condition.value,
                       })}
                     >
@@ -600,9 +600,9 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
                         <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
                       ))}
                     </Select>
-                    
+
                     {renderConditionValue(condition, field, rule.id)}
-                    
+
                     <RemoveConditionButton
                       onClick={() => removeCondition(rule.id, condition.id)}
                       aria-label="Remove condition"
@@ -610,20 +610,20 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
                     >
                       ✕
                     </RemoveConditionButton>
-                    
+
                     {errors[condition.id] && (
                       <ErrorMessage>{errors[condition.id]}</ErrorMessage>
                     )}
                   </ConditionRow>
                 );
               })}
-              
+
               <AddConditionButton onClick={() => addCondition(rule.id)}>
                 + Add condition
               </AddConditionButton>
-              
+
               {rule.conditions.length > 1 && (
-                <LogicalToggle 
+                <LogicalToggle
                   $isAnd={rule.logicalOperator === 'AND'}
                   onClick={() => toggleLogicalOperator(rule.id)}
                 >
@@ -637,7 +637,7 @@ export const ConditionalVisibilityRules: React.FC<ConditionalVisibilityRulesProp
           </RuleCard>
         ))
       )}
-      
+
       <AddRuleButton onClick={addRule}>
         + Add visibility rule
       </AddRuleButton>

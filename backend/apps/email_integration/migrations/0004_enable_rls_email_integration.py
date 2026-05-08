@@ -3,7 +3,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('email_integration', '0003_emailaccount_tenant_emailaction_tenant_and_more'),
+        ("email_integration", "0003_emailaccount_tenant_emailaction_tenant_and_more"),
     ]
 
     operations = [

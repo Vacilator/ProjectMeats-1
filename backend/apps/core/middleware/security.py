@@ -3,8 +3,9 @@ Security middleware for Django REST Framework.
 Provides security headers and input validation.
 """
 
-from django.utils.deprecation import MiddlewareMixin
 from django.http import HttpRequest, HttpResponse
+from django.utils.deprecation import MiddlewareMixin
+
 from apps.core.security import SecurityUtils
 
 
@@ -26,7 +27,7 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
             Modified response with security headers
         """
         headers = SecurityUtils.get_security_headers()
-        
+
         for header, value in headers.items():
             response[header] = value
 
@@ -46,7 +47,7 @@ class InputSanitizationMiddleware(MiddlewareMixin):
         Args:
             request: HTTP request
         """
-        if request.method in ['POST', 'PUT', 'PATCH'] and hasattr(request, 'data'):
+        if request.method in ["POST", "PUT", "PATCH"] and hasattr(request, "data"):
             # Note: This is a simplified example
             # In production, you'd want more sophisticated sanitization
             # that preserves data types and structure
@@ -71,8 +72,8 @@ class SecureSessionMiddleware(MiddlewareMixin):
         """
         if response.cookies:
             for cookie in response.cookies.values():
-                cookie['secure'] = True  # HTTPS only
-                cookie['httponly'] = True  # No JavaScript access
-                cookie['samesite'] = 'Strict'  # CSRF protection
+                cookie["secure"] = True  # HTTPS only
+                cookie["httponly"] = True  # No JavaScript access
+                cookie["samesite"] = "Strict"  # CSRF protection
 
         return response

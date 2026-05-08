@@ -1,9 +1,9 @@
 /**
  * Document Upload Card
- * 
+ *
  * Phase 4: Hybrid Task Renderer
  * Interaction card for document upload workflow nodes.
- * 
+ *
  * Features:
  * - Drag-and-drop file upload
  * - Progress indicator
@@ -11,7 +11,7 @@
  * - File size limits
  * - Preview uploaded files
  * - Integration with workflow context
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Hybrid Task Renderer Implementation
  */
 
@@ -62,7 +62,7 @@ const CardIcon = styled.div`
   background: rgb(var(--color-primary) / 0.1);
   border-radius: var(--radius-md);
   color: rgb(var(--color-primary));
-  
+
   svg {
     width: 24px;
     height: 24px;
@@ -84,24 +84,24 @@ const CardDescription = styled.p`
 `;
 
 const DropZone = styled.div<{ $isDragging: boolean; $hasFile: boolean }>`
-  border: 2px dashed ${props => 
-    props.$hasFile 
-      ? 'rgb(var(--color-success))' 
-      : props.$isDragging 
-        ? 'rgb(var(--color-primary))' 
+  border: 2px dashed ${props =>
+    props.$hasFile
+      ? 'rgb(var(--color-success))'
+      : props.$isDragging
+        ? 'rgb(var(--color-primary))'
         : 'rgb(var(--color-border))'
   };
   border-radius: var(--radius-lg);
   padding: 40px 20px;
   text-align: center;
-  background: ${props => 
-    props.$isDragging 
-      ? 'rgb(var(--color-primary) / 0.05)' 
+  background: ${props =>
+    props.$isDragging
+      ? 'rgb(var(--color-primary) / 0.05)'
       : 'rgb(var(--color-surface-hover))'
   };
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgb(var(--color-primary) / 0.05);
@@ -110,13 +110,13 @@ const DropZone = styled.div<{ $isDragging: boolean; $hasFile: boolean }>`
 
 const DropZoneIcon = styled.div<{ $hasFile: boolean }>`
   margin-bottom: 16px;
-  
+
   svg {
     width: 48px;
     height: 48px;
-    color: ${props => 
-      props.$hasFile 
-        ? 'rgb(var(--color-success))' 
+    color: ${props =>
+      props.$hasFile
+        ? 'rgb(var(--color-success))'
         : 'rgb(var(--color-text-tertiary))'
     };
   }
@@ -187,7 +187,7 @@ const FileIcon = styled.div`
   border-radius: var(--radius-md);
   color: rgb(var(--color-success));
   flex-shrink: 0;
-  
+
   svg {
     width: 20px;
     height: 20px;
@@ -222,11 +222,11 @@ const RemoveButton = styled.button`
   cursor: pointer;
   color: rgb(var(--color-error));
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-error) / 0.2);
   }
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -244,7 +244,7 @@ const ErrorMessage = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -484,9 +484,9 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
         </CardIcon>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      
+
       {description && <CardDescription>{description}</CardDescription>}
-      
+
       {!uploadedFile && !isUploading && (
         <>
           <DropZone
@@ -509,7 +509,7 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
             </DropZoneText>
             <DropZoneHint>or click to browse</DropZoneHint>
           </DropZone>
-          
+
           <FileInput
             ref={fileInputRef}
             type="file"
@@ -519,7 +519,7 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
           />
         </>
       )}
-      
+
       {isUploading && (
         <UploadProgress>
           <ProgressBar>
@@ -528,7 +528,7 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
           <ProgressText>Uploading... {uploadProgress}%</ProgressText>
         </UploadProgress>
       )}
-      
+
       {uploadedFile && !isUploading && (
         <FilePreview>
           <FileIcon>
@@ -545,7 +545,7 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
           )}
         </FilePreview>
       )}
-      
+
       {error && (
         <ErrorMessage>
           <AlertCircle />

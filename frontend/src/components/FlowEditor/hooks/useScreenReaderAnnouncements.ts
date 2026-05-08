@@ -1,10 +1,10 @@
 /**
  * @fileoverview Custom hook for managing screen reader announcements
  * @module FlowEditor/hooks/useScreenReaderAnnouncements
- * 
+ *
  * Provides polite and assertive announcements for screen readers.
  * Implements ARIA live regions for dynamic content updates.
- * 
+ *
  * @see Phase 7.6: Accessibility & i18n
  */
 
@@ -19,17 +19,17 @@ export type AnnouncementPriority = 'polite' | 'assertive';
 
 /**
  * Hook for managing screen reader announcements
- * 
+ *
  * Creates ARIA live regions and provides announce function.
  * Handles announcement queue and timing to prevent overwhelming users.
- * 
+ *
  * @example
  * ```typescript
  * const { announce } = useScreenReaderAnnouncements();
- * 
+ *
  * // Polite announcement (default)
  * announce('Node added to workflow');
- * 
+ *
  * // Assertive announcement (urgent)
  * announce('Error: Failed to save workflow', 'assertive');
  * ```
@@ -136,20 +136,20 @@ export function useScreenReaderAnnouncements() {
 
 /**
  * Hook for focus management
- * 
+ *
  * Provides utilities for managing focus in complex UI:
  * - Focus trapping in modals
  * - Focus restoration after dismissal
  * - Skip links for navigation
- * 
+ *
  * @example
  * ```typescript
  * const { trapFocus, restoreFocus } = useFocusManagement();
- * 
+ *
  * const handleOpenModal = () => {
  *   trapFocus(modalRef.current);
  * };
- * 
+ *
  * const handleCloseModal = () => {
  *   restoreFocus();
  * };
@@ -243,13 +243,13 @@ export function useFocusManagement() {
 
 /**
  * Hook for reduced motion preference
- * 
+ *
  * Detects user's motion preference and provides flag for conditional animations.
- * 
+ *
  * @example
  * ```typescript
  * const prefersReducedMotion = useReducedMotion();
- * 
+ *
  * <animated.div
  *   style={{
  *     transition: prefersReducedMotion ? 'none' : 'all 0.3s ease',
@@ -280,13 +280,13 @@ export function useReducedMotion(): boolean {
 
 /**
  * Hook for high contrast mode detection
- * 
+ *
  * Detects Windows High Contrast mode or forced-colors media query.
- * 
+ *
  * @example
  * ```typescript
  * const isHighContrast = useHighContrastMode();
- * 
+ *
  * // Adjust UI for high contrast
  * <div className={isHighContrast ? 'high-contrast' : 'normal'}>
  * ```

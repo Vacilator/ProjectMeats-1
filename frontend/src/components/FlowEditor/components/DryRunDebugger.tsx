@@ -1,6 +1,6 @@
 /**
  * Dry Run Debugger (Phase 7)
- * 
+ *
  * Test individual workflow steps with mock data:
  * - Step-by-step execution simulation
  * - Mock input data (schema-derived)
@@ -361,7 +361,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
 
     setIsRunning(false);
   };
-  
+
   const handleReset = () => {
     setExecutionHistory([]);
 
@@ -373,7 +373,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       recordTimelineStep(selectedNode.id, 'reset', 'pending');
     }
   };
-  
+
   const handleExportResults = () => {
     const results = {
       node: {
@@ -384,7 +384,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       executionHistory,
       timestamp: new Date().toISOString(),
     };
-    
+
     const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -393,7 +393,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     a.click();
     URL.revokeObjectURL(url);
   };
-  
+
   const currentStep = executionHistory[executionHistory.length - 1];
 
   const executionVariables = useMemo(() => {
@@ -421,7 +421,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       </DebuggerContainer>
     );
   }
-  
+
   return (
     <DebuggerContainer>
       <DebuggerHeader>
@@ -471,7 +471,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
           </IconButton>
         </ActionButtons>
       </DebuggerHeader>
-      
+
       <DebuggerContent>
         {/* Mock Input Section */}
         <Section>
@@ -531,7 +531,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
             )}
           </InputEditor>
         </Section>
-        
+
         {/* Execution Controls */}
         <ExecutionControls>
           <RunButton onClick={handleRunStep} disabled={isRunning}>
@@ -589,7 +589,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
             Reset Timeline
           </StepButton>
         </ExecutionControls>
-        
+
         {/* Output / Variables */}
         {currentStep && (
           <Section>
@@ -642,7 +642,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
             )}
           </Section>
         )}
-        
+
         {/* Execution Timeline */}
         {executionHistory.length > 0 && (
           <Section>
@@ -677,13 +677,13 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
 
 function generateMockInput(node: Node): Record<string, any> {
   const mock: Record<string, any> = {};
-  
+
   // Standard workflow variables
   mock.workflowId = 'wf_123456';
   mock.executionId = 'exec_' + Date.now();
   mock.timestamp = new Date().toISOString();
   mock.userId = 'user_test';
-  
+
   // Add upstream variables (simulated)
   mock.previousStepOutput = {
     status: 'success',
@@ -694,14 +694,14 @@ function generateMockInput(node: Node): Record<string, any> {
       items: ['Product A', 'Product B'],
     },
   };
-  
+
   // Add node-specific data from node.data
   Object.keys(node.data || {}).forEach(key => {
     if (!['label', 'type', 'position'].includes(key)) {
       mock[key] = node.data[key];
     }
   });
-  
+
   return mock;
 }
 
@@ -711,7 +711,7 @@ function generateMockOutput(node: Node, input: Record<string, any>): Record<stri
     nodeId: node.id,
     executedAt: new Date().toISOString(),
   };
-  
+
   // Type-specific outputs
   switch (node.type) {
     case 'form':
@@ -723,14 +723,14 @@ function generateMockOutput(node: Node, input: Record<string, any>): Record<stri
       };
       output.submittedAt = new Date().toISOString();
       break;
-      
+
     case 'conditionIf':
       output.conditionMet = true;
       output.evaluatedRules = [
         { rule: 'orderTotal > 1000', result: true },
       ];
       break;
-      
+
     case 'action':
       output.actionResult = {
         success: true,
@@ -738,18 +738,18 @@ function generateMockOutput(node: Node, input: Record<string, any>): Record<stri
         recordId: 'rec_' + Date.now(),
       };
       break;
-      
+
     case 'trigger':
       output.triggered = true;
       output.triggerType = node.data.triggerType || 'manual';
       output.payload = input;
       break;
-      
+
     default:
       output.message = 'Step executed successfully';
       output.data = { ...input };
   }
-  
+
   return output;
 }
 
@@ -936,7 +936,7 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   font-size: 13px;
   font-weight: 500;
   transition: all 0.2s;
-  
+
   &:hover {
     background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.1)'};
   }
@@ -953,7 +953,7 @@ const IconButton = styled.button`
   cursor: pointer;
   color: rgb(var(--color-text-secondary));
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.1);
     border-color: rgb(var(--color-primary));
@@ -1029,7 +1029,7 @@ const InputField = styled.div`
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -1044,7 +1044,7 @@ const FieldLabel = styled.label`
 
 const FieldValue = styled.div`
   flex: 1;
-  
+
   input {
     width: 100%;
     padding: 8px 12px;
@@ -1054,7 +1054,7 @@ const FieldValue = styled.div`
     color: rgb(var(--color-text-primary));
     font-size: 13px;
     font-family: 'Courier New', monospace;
-    
+
     &:focus {
       outline: none;
       border-color: rgb(var(--color-primary));
@@ -1072,7 +1072,7 @@ const JsonEditor = styled.textarea`
   font-family: 'Courier New', monospace;
   font-size: 13px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
   }
@@ -1097,22 +1097,22 @@ const RunButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.9);
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(var(--color-overlay), 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
-  
+
   .spinner {
     animation: spin 1s linear infinite;
   }
-  
+
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -1132,13 +1132,13 @@ const StepButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.1);
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
   }
-  
+
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
@@ -1158,7 +1158,7 @@ const OutputField = styled.div`
   display: flex;
   gap: 12px;
   margin-bottom: 12px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -1179,12 +1179,12 @@ const LoadingState = styled.div`
   align-items: center;
   justify-content: center;
   padding: 40px;
-  
+
   .spinner {
     font-size: 32px;
     animation: spin 1s linear infinite;
   }
-  
+
   p {
     margin-top: 16px;
     color: rgb(var(--color-text-secondary));
@@ -1196,7 +1196,7 @@ const ErrorState = styled.div`
     margin: 0 0 12px 0;
     color: rgb(var(--color-error));
   }
-  
+
   pre {
     margin: 0;
     padding: 12px;
@@ -1222,7 +1222,7 @@ const HistoryItem = styled.div<{ $status: string }>`
   border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.05);
   }
@@ -1280,14 +1280,14 @@ const EmptyState = styled.div`
   height: 100%;
   padding: 40px;
   text-align: center;
-  
+
   h3 {
     margin: 16px 0 8px;
     font-size: 18px;
     font-weight: 600;
     color: rgb(var(--color-text-primary));
   }
-  
+
   p {
     margin: 0;
     font-size: 14px;

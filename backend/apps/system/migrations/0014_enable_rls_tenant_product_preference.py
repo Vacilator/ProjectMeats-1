@@ -3,7 +3,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('system', '0013_seed_default_choice_lists'),
+        ("system", "0013_seed_default_choice_lists"),
     ]
 
     operations = [

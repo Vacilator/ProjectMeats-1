@@ -1,8 +1,8 @@
 # Process Cockpit Enhancement Specification
 
-**Version:** 1.0  
-**Last Updated:** 2026-05-07  
-**Phase:** 18 (Process Intelligence Scale & Self-Service Operations)  
+**Version:** 1.0
+**Last Updated:** 2026-05-07
+**Phase:** 18 (Process Intelligence Scale & Self-Service Operations)
 **Canonical Reference:** `MASTER_PLAN.md` → Phase 18 / Epic RT-06
 
 ---
@@ -181,15 +181,15 @@ New view in Process Cockpit with charts:
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-05-07  
+**Document Version:** 1.0
+**Last Updated:** 2026-05-07
 **Authority:** `MASTER_PLAN.md` → Phase 18
 
 ---
 
 ## Premium Process Cockpit Redesign (Shipped)
 
-**Shipped:** 2026-05-07  
+**Shipped:** 2026-05-07
 **PR:** Cockpit Redesign + AI Parsing Overhaul
 
 ### Design Philosophy

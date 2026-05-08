@@ -1,24 +1,24 @@
 /**
  * Calendar Widget
- * 
+ *
  * Displays upcoming events, appointments, and deadlines in a compact calendar view.
  * Provides quick access to event details and calendar management.
- * 
+ *
  * Features:
  * - Monthly mini calendar
  * - Event list for selected date
  * - Today's schedule
  * - Event type indicators
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   MapPin
 } from 'lucide-react';
@@ -108,16 +108,16 @@ const DayLabel = styled.div`
   padding: 4px 0;
 `;
 
-const DayCell = styled.button<{ 
-  $isToday?: boolean; 
+const DayCell = styled.button<{
+  $isToday?: boolean;
   $isSelected?: boolean;
   $hasEvents?: boolean;
   $isOtherMonth?: boolean;
 }>`
   position: relative;
   aspect-ratio: 1;
-  border: 1px solid ${props => props.$isSelected 
-    ? 'rgb(var(--color-primary))' 
+  border: 1px solid ${props => props.$isSelected
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: var(--radius-sm);
   background: ${props => {
@@ -236,10 +236,10 @@ const getEventColor = (type: string): string => {
 
 const formatTime = (dateString: string): string => {
   const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
     minute: '2-digit',
-    hour12: true 
+    hour12: true
   });
 };
 
@@ -248,25 +248,25 @@ const getDaysInMonth = (year: number, month: number): Date[] => {
   const lastDay = new Date(year, month + 1, 0);
   const daysInMonth = lastDay.getDate();
   const startingDayOfWeek = firstDay.getDay();
-  
+
   const days: Date[] = [];
-  
+
   // Add previous month's trailing days
   for (let i = startingDayOfWeek - 1; i >= 0; i--) {
     days.push(new Date(year, month, -i));
   }
-  
+
   // Add current month's days
   for (let i = 1; i <= daysInMonth; i++) {
     days.push(new Date(year, month, i));
   }
-  
+
   // Add next month's leading days to complete the grid
   const remainingDays = 35 - days.length; // 5 weeks
   for (let i = 1; i <= remainingDays; i++) {
     days.push(new Date(year, month + 1, i));
   }
-  
+
   return days;
 };
 
@@ -293,7 +293,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
       try {
         const startDate = new Date(year, month, 1);
         const endDate = new Date(year, month + 1, 0);
-        
+
         const response = await businessApi.get('/calendar/events/', {
           params: {
             start_date: startDate.toISOString(),
@@ -356,7 +356,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
             const isSelected = date.getTime() === selectedDate.getTime();
             const isOtherMonth = date.getMonth() !== month;
             const hasEvents = getEventsForDate(date).length > 0;
-            
+
             return (
               <DayCell
                 key={i}
@@ -375,7 +375,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
         {selectedDateEvents.length > 0 ? (
           <EventsList>
             {selectedDateEvents.map(event => (
-              <EventItem 
+              <EventItem
                 key={event.id}
                 onClick={() => navigate(`/calendar/events/${event.id}`)}
               >

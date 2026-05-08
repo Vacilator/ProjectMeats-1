@@ -1,6 +1,6 @@
 /**
  * FieldConfigurationPanel Component
- * 
+ *
  * Inline field editor for configuring individual form fields.
  * Features:
  * - Field label editing
@@ -10,7 +10,7 @@
  * - Help text
  * - Placeholder text
  * - Default value
- * 
+ *
  * Phase 2.4 of WF-ENH-2026-Q1
  * Created: 2026-02-06
  */
@@ -56,10 +56,10 @@ export interface FieldConfig extends SelectedField {
 interface FieldConfigurationPanelProps {
   /** Field being configured */
   field: FieldConfig;
-  
+
   /** Callback when field configuration changes */
   onChange: (field: FieldConfig) => void;
-  
+
   /** Callback when done editing */
   onClose?: () => void;
 }
@@ -245,7 +245,7 @@ export const FieldConfigurationPanel: React.FC<FieldConfigurationPanelProps> = (
       value: 1,
       message: 'Validation failed',
     };
-    
+
     handleChange({
       customValidation: [...(localField.customValidation || []), newRule],
     });
@@ -384,7 +384,7 @@ export const FieldConfigurationPanel: React.FC<FieldConfigurationPanelProps> = (
             </ValidationRuleItem>
           ))}
         </ValidationRulesList>
-        
+
         <AddButton onClick={handleAddValidationRule}>
           + Add Custom Validation
         </AddButton>

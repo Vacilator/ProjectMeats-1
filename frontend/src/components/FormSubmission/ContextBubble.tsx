@@ -1,9 +1,9 @@
 /**
  * Context Bubble Component
- * 
+ *
  * Phase 5: Context Inheritance
  * Shows available data from previous workflow nodes.
- * 
+ *
  * Features:
  * - Lists all nodes with data in workflow context
  * - Groups fields by node
@@ -11,7 +11,7 @@
  * - Click to insert {{nodeId.fieldKey}} template
  * - Search/filter capabilities
  * - Visual indicator of data types
- * 
+ *
  * Usage:
  * ```typescript
  * <ContextBubble
@@ -20,19 +20,19 @@
  *   position="right"
  * />
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 5 Context Inheritance Implementation
  */
 
 import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
-import { 
-  Database, 
-  Search, 
-  ChevronDown, 
-  ChevronRight, 
+import {
+  Database,
+  Search,
+  ChevronDown,
+  ChevronRight,
   ChevronUp,
-  Copy, 
+  Copy,
   CheckCircle,
   Type,
   Hash,
@@ -50,19 +50,19 @@ import { WorkflowContext, AvailableDataNode } from './hooks/useWorkflowContext';
 export interface ContextBubbleProps {
   /** Workflow context */
   context: WorkflowContext;
-  
+
   /** Called when user clicks to insert a template */
   onInsert?: (template: string) => void;
-  
+
   /** Position of the bubble */
   position?: 'right' | 'left' | 'floating';
-  
+
   /** Show compact view */
   compact?: boolean;
-  
+
   /** Show inherited data panel (Phase 4 enhancement) */
   showInheritedData?: boolean;
-  
+
   /** Current step ID for showing inheritance chain */
   currentStepId?: string;
 }
@@ -90,7 +90,7 @@ const BubbleContainer = styled.div<{ $position: string; $compact: boolean }>`
       `;
     }
   }}
-  
+
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
@@ -109,7 +109,7 @@ const BubbleHeader = styled.div`
   color: rgb(var(--color-text-primary));
   font-weight: 600;
   font-size: 14px;
-  
+
   svg {
     width: 18px;
     height: 18px;
@@ -130,13 +130,13 @@ const SearchInput = styled.input`
   border-radius: var(--radius-md);
   font-size: 13px;
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
@@ -153,7 +153,7 @@ const NodeGroup = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
   overflow: hidden;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -169,11 +169,11 @@ const NodeHeader = styled.button<{ $expanded: boolean }>`
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-surface-active));
   }
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -216,15 +216,15 @@ const FieldItem = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
-    
+
     .copy-icon {
       opacity: 1;
     }
   }
-  
+
   &:active {
     background: rgb(var(--color-surface-active));
   }
@@ -237,7 +237,7 @@ const FieldIcon = styled.div`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -271,7 +271,7 @@ const FieldValue = styled.div`
 const CopyIcon = styled.div`
   opacity: 0;
   transition: opacity 0.2s;
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -288,7 +288,7 @@ const EmptyState = styled.div`
 
 const EmptyIcon = styled.div`
   margin-bottom: 12px;
-  
+
   svg {
     width: 48px;
     height: 48px;
@@ -311,11 +311,11 @@ const InheritanceToggle = styled.button`
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-primary) / 0.15);
   }
-  
+
   svg {
     width: 12px;
     height: 12px;
@@ -339,7 +339,7 @@ const InheritancePanelHeader = styled.div`
 
 const InheritanceStep = styled.div`
   border-bottom: 1px solid rgb(var(--color-border));
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -354,7 +354,7 @@ const InheritanceStepHeader = styled.div`
   font-size: 12px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
-  
+
   small {
     opacity: 0.6;
     font-weight: normal;
@@ -367,7 +367,7 @@ const InheritanceStepData = styled.div`
   font-size: 11px;
   color: rgb(var(--color-text-secondary));
   background: rgb(var(--color-surface));
-  
+
   pre {
     margin: 0;
     white-space: pre-wrap;
@@ -426,7 +426,7 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
   // Filter available data by search query
   const filteredData = useMemo(() => {
     if (!searchQuery) return context.availableData;
-    
+
     const query = searchQuery.toLowerCase();
     return context.availableData
       .map(node => ({
@@ -438,14 +438,14 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
       }))
       .filter(node => node.fields.length > 0);
   }, [context.availableData, searchQuery]);
-  
+
   // Get inheritance chain for current step
   const inheritanceChain = useMemo(() => {
     if (!currentStepId || !showInheritedData) return [];
-    
+
     const currentIndex = context.nodes.findIndex(n => n.id === currentStepId);
     if (currentIndex <= 0) return [];
-    
+
     // Get all previous nodes that have data
     return context.nodes
       .slice(0, currentIndex)
@@ -474,11 +474,11 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
   // Handle field click
   const handleFieldClick = (nodeId: string, fieldKey: string) => {
     const template = `{{${nodeId}.${fieldKey}}}`;
-    
+
     if (onInsert) {
       onInsert(template);
     }
-    
+
     // Copy to clipboard
     navigator.clipboard.writeText(template);
     setCopiedTemplate(template);
@@ -500,7 +500,7 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
           </InheritanceToggle>
         )}
       </BubbleHeader>
-      
+
       {/* Inherited Data Panel (Phase 4 enhancement) */}
       {showInheritedData && showInheritancePanel && inheritanceChain.length > 0 && (
         <InheritancePanel>
@@ -520,7 +520,7 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
           ))}
         </InheritancePanel>
       )}
-      
+
       <SearchBox>
         <SearchInput
           type="text"
@@ -529,14 +529,14 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </SearchBox>
-      
+
       <NodesContainer>
         {filteredData.length === 0 ? (
           <EmptyState>
             <EmptyIcon>
               <Database />
             </EmptyIcon>
-            {searchQuery 
+            {searchQuery
               ? 'No fields match your search'
               : 'No data available yet. Complete previous steps to see data here.'
             }
@@ -544,10 +544,10 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
         ) : (
           filteredData.map(node => {
             const isExpanded = expandedNodes.has(node.nodeId);
-            
+
             return (
               <NodeGroup key={node.nodeId}>
-                <NodeHeader 
+                <NodeHeader
                   $expanded={isExpanded}
                   onClick={() => toggleNode(node.nodeId)}
                 >
@@ -555,7 +555,7 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
                   <NodeLabel>{node.nodeLabel}</NodeLabel>
                   <NodeBadge>{node.fields.length}</NodeBadge>
                 </NodeHeader>
-                
+
                 <FieldsList $show={isExpanded}>
                   {node.fields.map(field => (
                     <FieldItem
@@ -566,12 +566,12 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
                       <FieldIcon>
                         {getFieldTypeIcon(field.type || 'string')}
                       </FieldIcon>
-                      
+
                       <FieldInfo>
                         <FieldLabel>{field.label || field.key}</FieldLabel>
                         <FieldValue>{formatFieldValue(field.value)}</FieldValue>
                       </FieldInfo>
-                      
+
                       <CopyIcon className="copy-icon">
                         {copiedTemplate === `{{${node.nodeId}.${field.key}}}` ? (
                           <CheckCircle />

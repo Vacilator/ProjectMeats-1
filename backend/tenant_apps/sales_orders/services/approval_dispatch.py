@@ -12,17 +12,18 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
 
-from apps.core.services.pdf_generator import generate_document_pdf_for_instance
-from apps.integrations.models import ExternalAuthProvider
-from apps.integrations.providers.base import EmailProviderError, TokenExpiredError
-from apps.integrations.providers.microsoft import MicrosoftGraphProvider
-from apps.tenants.rls import set_current_tenant
 from tenant_apps.sales_orders.models import (
     SalesOrder,
     SalesOrderApprovalDispatch,
     SalesOrderApprovalDispatchStatus,
     SalesOrderStatus,
 )
+
+from apps.core.services.pdf_generator import generate_document_pdf_for_instance
+from apps.integrations.models import ExternalAuthProvider
+from apps.integrations.providers.base import EmailProviderError, TokenExpiredError
+from apps.integrations.providers.microsoft import MicrosoftGraphProvider
+from apps.tenants.rls import set_current_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -124,9 +125,7 @@ def approve_sales_order_and_send_to_customer(
 
         # Generate PDF
         try:
-            pdf_filename, pdf_content = _ensure_pdf(
-                dispatch=dispatch, sales_order=locked_sales_order
-            )
+            pdf_filename, pdf_content = _ensure_pdf(dispatch=dispatch, sales_order=locked_sales_order)
         except Exception as exc:
             return _record_failure(
                 dispatch,
@@ -187,9 +186,7 @@ def approve_sales_order_and_send_to_customer(
         dispatch.sent_at = timezone.now()
         dispatch.provider_message_id = getattr(send_result, "message_id", "") or ""
         dispatch.provider_thread_id = getattr(send_result, "thread_id", "") or ""
-        dispatch.provider_internet_message_id = (
-            getattr(send_result, "internet_message_id", "") or ""
-        )
+        dispatch.provider_internet_message_id = getattr(send_result, "internet_message_id", "") or ""
         dispatch.save()
 
         _mark_sales_order_approved(locked_sales_order, dispatch=dispatch)
@@ -272,11 +269,7 @@ def _resolve_recipient(sales_order: SalesOrder) -> tuple[str, str]:
 
 
 def _build_subject(sales_order: SalesOrder) -> str:
-    ref = (
-        sales_order.our_sales_order_number_for_customer
-        or sales_order.our_sales_order_num
-        or f"SO-{sales_order.pk}"
-    )
+    ref = sales_order.our_sales_order_number_for_customer or sales_order.our_sales_order_num or f"SO-{sales_order.pk}"
     return f"Sales Order {ref}"
 
 

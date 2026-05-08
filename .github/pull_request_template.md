@@ -206,9 +206,9 @@ psql -d projectmeats -c "SELECT tablename, policyname FROM pg_policies WHERE pol
 
 <!-- What should reviewers pay special attention to? -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ### Review Checklist
 

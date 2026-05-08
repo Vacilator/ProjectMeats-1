@@ -7,21 +7,24 @@ from django.db import migrations, models
 def create_table_with_tenant_if_not_exists(apps, schema_editor):
     """Create AIConfiguration table with tenant field if it doesn't exist"""
     from django.db import connection
-    
+
     with connection.cursor() as cursor:
         # Check if table exists
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
+                SELECT FROM information_schema.tables
                 WHERE table_schema = 'public'
                 AND table_name = 'ai_assistant_configurations'
             );
-        """)
+        """
+        )
         table_exists = cursor.fetchone()[0]
-        
+
         if not table_exists:
             # Table doesn't exist - create it with tenant field from the start
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE ai_assistant_configurations (
                     id BIGSERIAL PRIMARY KEY,
                     tenant_id UUID NOT NULL REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED,
@@ -32,59 +35,72 @@ def create_table_with_tenant_if_not_exists(apps, schema_editor):
                     is_default BOOLEAN NOT NULL DEFAULT FALSE,
                     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
                 );
-            """)
-            
+            """
+            )
+
             # Add index for tenant lookups
-            cursor.execute("""
-                CREATE INDEX ai_assistant_configurations_tenant_id_idx 
+            cursor.execute(
+                """
+                CREATE INDEX ai_assistant_configurations_tenant_id_idx
                 ON ai_assistant_configurations(tenant_id);
-            """)
+            """
+            )
         else:
             # Table exists - check if tenant_id column exists
-            cursor.execute("""
-                SELECT column_name 
-                FROM information_schema.columns 
+            cursor.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
                 WHERE table_schema='public'
                 AND table_name='ai_assistant_configurations'
                 AND column_name='tenant_id';
-            """)
-            
+            """
+            )
+
             if not cursor.fetchone():
                 # Add tenant_id column to existing table
                 cursor.execute("SELECT id FROM tenants_tenant LIMIT 1;")
                 result = cursor.fetchone()
-                
+
                 if result:
                     # Production path: Tenant exists, use it as default
                     default_tenant_id = result[0]
-                    cursor.execute("""
-                        ALTER TABLE ai_assistant_configurations 
-                        ADD COLUMN tenant_id UUID NOT NULL DEFAULT %s 
+                    cursor.execute(
+                        """
+                        ALTER TABLE ai_assistant_configurations
+                        ADD COLUMN tenant_id UUID NOT NULL DEFAULT %s
                         REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED;
-                    """, [default_tenant_id])
-                    
+                    """,
+                        [default_tenant_id],
+                    )
+
                     # Remove the default after adding the column
-                    cursor.execute("""
-                        ALTER TABLE ai_assistant_configurations 
+                    cursor.execute(
+                        """
+                        ALTER TABLE ai_assistant_configurations
                         ALTER COLUMN tenant_id DROP DEFAULT;
-                    """)
+                    """
+                    )
                 else:
                     # Test/Fresh DB path: No tenants exist yet, add as nullable
-                    cursor.execute("""
-                        ALTER TABLE ai_assistant_configurations 
-                        ADD COLUMN tenant_id UUID NULL 
+                    cursor.execute(
+                        """
+                        ALTER TABLE ai_assistant_configurations
+                        ADD COLUMN tenant_id UUID NULL
                         REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED;
-                    """)
-                
+                    """
+                    )
+
                 # Add index
-                cursor.execute("""
-                    CREATE INDEX IF NOT EXISTS ai_assistant_configurations_tenant_id_idx 
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS ai_assistant_configurations_tenant_id_idx
                     ON ai_assistant_configurations(tenant_id);
-                """)
+                """
+                )
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ai_assistant", "0001_initial"),
         ("tenants", "0001_initial"),

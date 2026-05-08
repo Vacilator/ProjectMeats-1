@@ -50,10 +50,10 @@ The application automatically detects the tenant and environment from `window.lo
 
 ### Key Features
 
-✅ **Automatic tenant detection** from domain  
-✅ **Environment-aware** API URL configuration  
-✅ **Override support** via `window.ENV` for custom deployments  
-✅ **Type-safe** TypeScript implementation  
+✅ **Automatic tenant detection** from domain
+✅ **Environment-aware** API URL configuration
+✅ **Override support** via `window.ENV` for custom deployments
+✅ **Type-safe** TypeScript implementation
 ✅ **Fully tested** with comprehensive unit tests
 
 ### Tenant Context API

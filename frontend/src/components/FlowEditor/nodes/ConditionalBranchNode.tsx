@@ -1,9 +1,9 @@
 /**
  * Conditional Branch Node Component
- * 
+ *
  * Implements if/else logic branching in workflow execution.
  * Evaluates conditions and routes to different paths based on results.
- * 
+ *
  * Phase 7.4: Advanced Node Types - Conditional Branching
  */
 
@@ -20,7 +20,7 @@ import { GitBranch, Plus, Trash2 } from 'lucide-react';
 /**
  * Condition evaluation types
  */
-export type ConditionOperator = 
+export type ConditionOperator =
   | 'equals'
   | 'not_equals'
   | 'greater_than'
@@ -86,15 +86,15 @@ export interface ConditionalBranchNodeProps extends NodeProps<Node<ConditionalBr
 const NodeContainer = styled.div<{ isEvaluating?: boolean }>`
   min-width: 280px;
   background: rgb(var(--color-surface));
-  border: 2px solid ${props => 
-    props.isEvaluating 
-      ? 'rgb(var(--color-info))' 
+  border: 2px solid ${props =>
+    props.isEvaluating
+      ? 'rgb(var(--color-info))'
       : 'rgb(var(--color-border))'
   };
   border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
   transition: all 0.2s ease;
-  
+
   &:hover {
     box-shadow: 0 4px 16px rgba(var(--color-overlay), 0.15);
   }
@@ -158,15 +158,15 @@ const BranchRow = styled.div<{ branchType: 'true' | 'false' }>`
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: ${props => 
-    props.branchType === 'true' 
-      ? 'rgba(var(--color-success), 0.08)' 
+  background: ${props =>
+    props.branchType === 'true'
+      ? 'rgba(var(--color-success), 0.08)'
       : 'rgba(var(--color-error), 0.08)'
   };
   border-radius: var(--radius-sm);
-  border: 1px solid ${props => 
-    props.branchType === 'true' 
-      ? 'rgba(var(--color-success), 0.2)' 
+  border: 1px solid ${props =>
+    props.branchType === 'true'
+      ? 'rgba(var(--color-success), 0.2)'
       : 'rgba(var(--color-error), 0.2)'
   };
 `;
@@ -175,9 +175,9 @@ const BranchLabel = styled.div<{ branchType: 'true' | 'false' }>`
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: ${props => 
-    props.branchType === 'true' 
-      ? 'rgb(var(--color-success))' 
+  color: ${props =>
+    props.branchType === 'true'
+      ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-error))'
   };
 `;
@@ -188,14 +188,14 @@ const BranchBadge = styled.div<{ branchType: 'true' | 'false' }>`
   font-weight: 600;
   text-transform: uppercase;
   border-radius: var(--radius-xs);
-  background: ${props => 
-    props.branchType === 'true' 
-      ? 'rgba(var(--color-success), 0.15)' 
+  background: ${props =>
+    props.branchType === 'true'
+      ? 'rgba(var(--color-success), 0.15)'
       : 'rgba(var(--color-error), 0.15)'
   };
-  color: ${props => 
-    props.branchType === 'true' 
-      ? 'rgb(var(--color-success))' 
+  color: ${props =>
+    props.branchType === 'true'
+      ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-error))'
   };
 `;
@@ -206,14 +206,14 @@ const EvaluationResult = styled.div<{ result: boolean }>`
   font-size: 12px;
   font-weight: 500;
   border-radius: var(--radius-sm);
-  background: ${props => 
-    props.result 
-      ? 'rgba(var(--color-success), 0.1)' 
+  background: ${props =>
+    props.result
+      ? 'rgba(var(--color-success), 0.1)'
       : 'rgba(var(--color-error), 0.1)'
   };
-  color: ${props => 
-    props.result 
-      ? 'rgb(var(--color-success))' 
+  color: ${props =>
+    props.result
+      ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-error))'
   };
   text-align: center;
@@ -222,9 +222,9 @@ const EvaluationResult = styled.div<{ result: boolean }>`
 const StyledHandle = styled(Handle)<{ handleType: 'true' | 'false' }>`
   width: 14px;
   height: 14px;
-  border: 2px solid ${props => 
-    props.handleType === 'true' 
-      ? 'rgb(var(--color-success))' 
+  border: 2px solid ${props =>
+    props.handleType === 'true'
+      ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-error))'
   };
   background: rgb(var(--color-surface));
@@ -241,11 +241,11 @@ const StyledHandle = styled(Handle)<{ handleType: 'true' | 'false' }>`
   &[data-handlepos='bottom'] {
     bottom: -12px;
   }
-  
+
   &:hover {
-    background: ${props => 
-      props.handleType === 'true' 
-        ? 'rgba(var(--color-success), 0.2)' 
+    background: ${props =>
+      props.handleType === 'true'
+        ? 'rgba(var(--color-success), 0.2)'
         : 'rgba(var(--color-error), 0.2)'
     };
     transform: scale(1.08);
@@ -261,22 +261,22 @@ const StyledHandle = styled(Handle)<{ handleType: 'true' | 'false' }>`
  */
 function getConditionSummary(data: ConditionalBranchData): string {
   const { conditionGroups, groupLogic } = data;
-  
+
   if (conditionGroups.length === 0) {
     return 'No conditions defined';
   }
-  
+
   const groupSummaries = conditionGroups.map(group => {
     const condCount = group.conditions.length;
     if (condCount === 0) return null;
-    
+
     return `${condCount} condition${condCount > 1 ? 's' : ''} (${group.logic})`;
   }).filter(Boolean);
-  
+
   if (groupSummaries.length === 0) {
     return 'No conditions defined';
   }
-  
+
   return groupSummaries.join(` ${groupLogic} `);
 }
 
@@ -286,17 +286,17 @@ function getConditionSummary(data: ConditionalBranchData): string {
 
 /**
  * Conditional Branch Node
- * 
+ *
  * Implements if/else branching logic in workflows. Evaluates conditions
  * and routes execution to true or false branch based on result.
- * 
+ *
  * Features:
  * - Multiple condition groups with AND/OR logic
  * - Rich set of comparison operators
  * - Visual feedback for evaluation results
  * - Labeled true/false branches
  * - Configurable via DynamicConfigPanel
- * 
+ *
  * Usage:
  * ```tsx
  * const node = {
@@ -321,14 +321,14 @@ function getConditionSummary(data: ConditionalBranchData): string {
  * };
  * ```
  */
-export const ConditionalBranchNode: React.FC<ConditionalBranchNodeProps> = ({ 
-  data, 
-  selected 
+export const ConditionalBranchNode: React.FC<ConditionalBranchNodeProps> = ({
+  data,
+  selected
 }) => {
   const [isEvaluating, setIsEvaluating] = useState(false);
 
   const conditionSummary = getConditionSummary(data);
-  
+
   const trueBranchLabel = data.trueBranchLabel || 'True';
   const falseBranchLabel = data.falseBranchLabel || 'False';
 
@@ -350,7 +350,7 @@ export const ConditionalBranchNode: React.FC<ConditionalBranchNodeProps> = ({
         }}
         aria-label="Conditional Branch input"
       />
-      
+
       {/* Header */}
       <NodeHeader>
         <IconWrapper>
@@ -363,27 +363,27 @@ export const ConditionalBranchNode: React.FC<ConditionalBranchNodeProps> = ({
           )}
         </NodeTitle>
       </NodeHeader>
-      
+
       {/* Body */}
       <NodeBody>
         {/* Condition summary */}
         <ConditionSummary>
           {conditionSummary}
         </ConditionSummary>
-        
+
         {/* Branch labels */}
         <BranchesContainer>
           <BranchRow branchType="true">
             <BranchLabel branchType="true">{trueBranchLabel}</BranchLabel>
             <BranchBadge branchType="true">True</BranchBadge>
           </BranchRow>
-          
+
           <BranchRow branchType="false">
             <BranchLabel branchType="false">{falseBranchLabel}</BranchLabel>
             <BranchBadge branchType="false">False</BranchBadge>
           </BranchRow>
         </BranchesContainer>
-        
+
         {/* Evaluation result (if enabled) */}
         {data.showResult && data.lastResult !== null && data.lastResult !== undefined && (
           <EvaluationResult result={data.lastResult}>
@@ -391,7 +391,7 @@ export const ConditionalBranchNode: React.FC<ConditionalBranchNodeProps> = ({
           </EvaluationResult>
         )}
       </NodeBody>
-      
+
       {/* Output handles */}
       <StyledHandle
         type="source"

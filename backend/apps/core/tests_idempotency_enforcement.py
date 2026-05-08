@@ -5,17 +5,13 @@ race condition handling, operation key generation, and error recovery.
 """
 
 import uuid
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 from django.utils import timezone
 
 from apps.core.models import IdempotencyKey
-from apps.core.services.idempotency_enforcement import (
-    enforce_idempotency,
-    generate_operation_key,
-    _serialize_result,
-)
+from apps.core.services.idempotency_enforcement import _serialize_result, enforce_idempotency, generate_operation_key
 from apps.tenants.models import Tenant
 
 
@@ -82,9 +78,7 @@ class EnforceIdempotencyTests(TestCase):
 
     def test_different_tenants_same_key_both_succeed(self):
         """Same key for different tenants should both create."""
-        other_tenant = Tenant.objects.create(
-            name="Other", slug="other-idem", schema_name="other_idem"
-        )
+        other_tenant = Tenant.objects.create(name="Other", slug="other-idem", schema_name="other_idem")
 
         result1 = enforce_idempotency(
             tenant_id=str(self.tenant.pk),
@@ -126,9 +120,7 @@ class EnforceIdempotencyTests(TestCase):
             creator_fn=lambda: {"id": "cached_val", "name": "Test"},
         )
 
-        record = IdempotencyKey.objects.get(
-            tenant=self.tenant, idempotency_key="test:check_cache"
-        )
+        record = IdempotencyKey.objects.get(tenant=self.tenant, idempotency_key="test:check_cache")
         self.assertEqual(record.response_status, 201)
         self.assertEqual(record.response_body["id"], "cached_val")
         self.assertIsNone(record.locked_until)  # Lock released
@@ -153,12 +145,8 @@ class GenerateOperationKeyTests(TestCase):
 
     def test_different_fingerprints_different_keys(self):
         """Different fingerprints should produce different keys."""
-        key1 = generate_operation_key(
-            source="webhook", entity_type="Inquiry", fingerprint="a"
-        )
-        key2 = generate_operation_key(
-            source="webhook", entity_type="Inquiry", fingerprint="b"
-        )
+        key1 = generate_operation_key(source="webhook", entity_type="Inquiry", fingerprint="a")
+        key2 = generate_operation_key(source="webhook", entity_type="Inquiry", fingerprint="b")
         self.assertNotEqual(key1, key2)
 
     def test_format_includes_source_and_type(self):

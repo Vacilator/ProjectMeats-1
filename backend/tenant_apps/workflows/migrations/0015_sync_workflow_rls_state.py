@@ -6,7 +6,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("workflows", "0014_refactor_to_tenantaware_corrected"),
     ]
@@ -14,15 +13,14 @@ class Migration(migrations.Migration):
     operations = [
         # Enable RLS and create policies for all 17 workflow tables
         # Using DO blocks to make operations idempotent
-        
         migrations.RunSQL(
             sql="""
             DO $$
             BEGIN
                 -- TenantList
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_tenantlist' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_tenantlist'
                     AND policyname = 'tenantlist_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_tenantlist ENABLE ROW LEVEL SECURITY;
@@ -33,8 +31,8 @@ class Migration(migrations.Migration):
 
                 -- TenantForm
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_tenantform' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_tenantform'
                     AND policyname = 'tenantform_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_tenantform ENABLE ROW LEVEL SECURITY;
@@ -45,8 +43,8 @@ class Migration(migrations.Migration):
 
                 -- TenantFormEntity
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_tenantformentity' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_tenantformentity'
                     AND policyname = 'tenantformentity_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_tenantformentity ENABLE ROW LEVEL SECURITY;
@@ -57,8 +55,8 @@ class Migration(migrations.Migration):
 
                 -- TenantFormField
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_tenantformfield' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_tenantformfield'
                     AND policyname = 'tenantformfield_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_tenantformfield ENABLE ROW LEVEL SECURITY;
@@ -69,8 +67,8 @@ class Migration(migrations.Migration):
 
                 -- TenantFormRule
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_tenantformrule' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_tenantformrule'
                     AND policyname = 'tenantformrule_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_tenantformrule ENABLE ROW LEVEL SECURITY;
@@ -81,8 +79,8 @@ class Migration(migrations.Migration):
 
                 -- TenantWorkflow
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_tenantworkflow' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_tenantworkflow'
                     AND policyname = 'tenantworkflow_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_tenantworkflow ENABLE ROW LEVEL SECURITY;
@@ -93,8 +91,8 @@ class Migration(migrations.Migration):
 
                 -- TenantWorkflowCondition
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_tenantworkflowcondition' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_tenantworkflowcondition'
                     AND policyname = 'tenantworkflowcondition_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_tenantworkflowcondition ENABLE ROW LEVEL SECURITY;
@@ -105,8 +103,8 @@ class Migration(migrations.Migration):
 
                 -- TenantWorkflowAction
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_tenantworkflowaction' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_tenantworkflowaction'
                     AND policyname = 'tenantworkflowaction_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_tenantworkflowaction ENABLE ROW LEVEL SECURITY;
@@ -117,8 +115,8 @@ class Migration(migrations.Migration):
 
                 -- WorkflowExecutionLog
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_workflowexecutionlog' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_workflowexecutionlog'
                     AND policyname = 'workflowexecutionlog_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_workflowexecutionlog ENABLE ROW LEVEL SECURITY;
@@ -129,8 +127,8 @@ class Migration(migrations.Migration):
 
                 -- FormSubmission
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_formsubmission' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_formsubmission'
                     AND policyname = 'formsubmission_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_formsubmission ENABLE ROW LEVEL SECURITY;
@@ -143,8 +141,8 @@ class Migration(migrations.Migration):
 
                 -- FormSubmissionFile
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_formsubmissionfile' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_formsubmissionfile'
                     AND policyname = 'formsubmissionfile_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_formsubmissionfile ENABLE ROW LEVEL SECURITY;
@@ -160,8 +158,8 @@ class Migration(migrations.Migration):
 
                 -- FormSubmissionEvent
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_formsubmissionevent' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_formsubmissionevent'
                     AND policyname = 'formsubmissionevent_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_formsubmissionevent ENABLE ROW LEVEL SECURITY;
@@ -177,8 +175,8 @@ class Migration(migrations.Migration):
 
                 -- StepAssignment
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_stepassignment' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_stepassignment'
                     AND policyname = 'stepassignment_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_stepassignment ENABLE ROW LEVEL SECURITY;
@@ -189,8 +187,8 @@ class Migration(migrations.Migration):
 
                 -- UserNotification
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_usernotification' 
+                    SELECT 1 FROM pg_policies
+                    WHERE tablename = 'workflows_usernotification'
                     AND policyname = 'usernotification_tenant_isolation'
                 ) THEN
                     ALTER TABLE workflows_usernotification ENABLE ROW LEVEL SECURITY;
@@ -243,6 +241,6 @@ class Migration(migrations.Migration):
                 ALTER TABLE workflows_usernotification DISABLE ROW LEVEL SECURITY;
                 -- workflowexecution table does not exist (skipped)
             END $$;
-            """
+            """,
         ),
     ]

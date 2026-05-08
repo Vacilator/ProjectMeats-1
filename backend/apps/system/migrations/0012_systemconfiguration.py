@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("system", "0011_tenantform_is_workform_tenantform_parent_workform"),
     ]

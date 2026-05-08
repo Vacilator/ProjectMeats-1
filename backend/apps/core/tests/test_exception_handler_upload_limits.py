@@ -16,17 +16,17 @@ class ExceptionHandlerUploadLimitsTests(SimpleTestCase):
         self.view = _DummyView()
 
     def test_request_data_too_big_returns_413_not_500(self):
-        req = self.factory.post('/api/v1/ai-assistant/ai-documents/', data={})
-        resp = exception_handler(RequestDataTooBig('too big'), {'request': req, 'view': self.view})
+        req = self.factory.post("/api/v1/ai-assistant/ai-documents/", data={})
+        resp = exception_handler(RequestDataTooBig("too big"), {"request": req, "view": self.view})
 
         self.assertIsNotNone(resp)
         self.assertEqual(resp.status_code, 413)
-        self.assertEqual(resp.data.get('code'), 'PAYLOAD_TOO_LARGE')
+        self.assertEqual(resp.data.get("code"), "PAYLOAD_TOO_LARGE")
 
     def test_suspicious_operation_returns_400(self):
-        req = self.factory.post('/api/v1/ai-assistant/ai-documents/', data={})
-        resp = exception_handler(SuspiciousOperation('bad payload'), {'request': req, 'view': self.view})
+        req = self.factory.post("/api/v1/ai-assistant/ai-documents/", data={})
+        resp = exception_handler(SuspiciousOperation("bad payload"), {"request": req, "view": self.view})
 
         self.assertIsNotNone(resp)
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.data.get('code'), 'SUSPICIOUS_OPERATION')
+        self.assertEqual(resp.data.get("code"), "SUSPICIOUS_OPERATION")

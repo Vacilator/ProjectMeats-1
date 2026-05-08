@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("locations", "0002_enable_rls_locations"),
         ("sales_orders", "0005_metadata_lockdown"),

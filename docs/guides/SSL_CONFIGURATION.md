@@ -1,13 +1,13 @@
 # SSL Configuration Guide
 
-> **Consolidated**: This guide supersedes the archived `SSL_SETUP.md` (basic setup).  
+> **Consolidated**: This guide supersedes the archived `SSL_SETUP.md` (basic setup).
 > **Last Updated**: 2026-02-01
 
 ## 🎯 Overview
 
 This guide provides step-by-step instructions for deploying the **zero-downtime SSL renewal system** using Let's Encrypt's webroot authentication method.
 
-**Status**: ✅ Code merged in PR #1548  
+**Status**: ✅ Code merged in PR #1548
 **Next**: Configure servers and GitHub secrets
 
 ---
@@ -387,8 +387,8 @@ If missing `^~`, redeploy the container.
 
 **Error:**
 ```
-Failed authorization procedure. uat.meatscentral.com (http-01): 
-urn:ietf:params:acme:error:unauthorized :: The client lacks sufficient 
+Failed authorization procedure. uat.meatscentral.com (http-01):
+urn:ietf:params:acme:error:unauthorized :: The client lacks sufficient
 authorization :: Invalid response from http://uat.meatscentral.com/.well-known/acme-challenge/TOKEN
 ```
 
@@ -397,10 +397,10 @@ authorization :: Invalid response from http://uat.meatscentral.com/.well-known/a
    ```bash
    # Create test file
    echo "test" | sudo tee /var/www/certbot/test.txt
-   
+
    # Access via HTTP
    curl http://uat.meatscentral.com/.well-known/acme-challenge/test.txt
-   
+
    # Should return: test
    ```
 
@@ -469,6 +469,6 @@ If issues persist after following this guide:
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-01-03  
+**Document Version**: 1.0
+**Last Updated**: 2026-01-03
 **Status**: Ready for deployment

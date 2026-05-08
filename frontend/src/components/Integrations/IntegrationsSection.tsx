@@ -153,7 +153,7 @@ export const IntegrationsSection: React.FC = () => {
           ))}
         </ConnectionsList>
       )}
-      
+
       {/* Email Ingestion Monitor - Phase 5.5 */}
       {microsoftConnection && !microsoftConnection.is_expired && (
         <MonitorSection>
@@ -198,7 +198,7 @@ const RefreshButton = styled.button`
   border-radius: 8px;
   cursor: pointer;
   color: rgb(var(--color-text-secondary));
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -215,7 +215,7 @@ const ConnectionsList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
-  
+
   h3 {
     font-size: 16px;
     font-weight: 600;
@@ -231,12 +231,12 @@ const ConnectionItem = styled.div`
   background: rgb(var(--color-background));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
-  
+
   strong {
     display: block;
     margin-bottom: 4px;
   }
-  
+
   div {
     font-size: 14px;
     color: rgb(var(--color-text-secondary));
@@ -254,11 +254,11 @@ const DisconnectButton = styled.button`
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-error), 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;

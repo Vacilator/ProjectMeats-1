@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("system", "0010_product_is_system_tenantproductpreference_is_custom"),
     ]

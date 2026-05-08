@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -34,27 +33,19 @@ class Migration(migrations.Migration):
                 ("modified_on", models.DateTimeField(auto_now=True)),
                 (
                     "our_sales_order_num",
-                    models.CharField(
-                        help_text="Our sales order number", max_length=100, unique=True
-                    ),
+                    models.CharField(help_text="Our sales order number", max_length=100, unique=True),
                 ),
                 (
                     "date_time_stamp",
-                    models.DateTimeField(
-                        auto_now_add=True, help_text="Date and time when SO was created"
-                    ),
+                    models.DateTimeField(auto_now_add=True, help_text="Date and time when SO was created"),
                 ),
                 (
                     "pick_up_date",
-                    models.DateField(
-                        blank=True, help_text="Scheduled pick up date", null=True
-                    ),
+                    models.DateField(blank=True, help_text="Scheduled pick up date", null=True),
                 ),
                 (
                     "delivery_date",
-                    models.DateField(
-                        blank=True, help_text="Scheduled delivery date", null=True
-                    ),
+                    models.DateField(blank=True, help_text="Scheduled delivery date", null=True),
                 ),
                 (
                     "delivery_po_num",
@@ -76,9 +67,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "quantity",
-                    models.IntegerField(
-                        blank=True, help_text="Quantity of items", null=True
-                    ),
+                    models.IntegerField(blank=True, help_text="Quantity of items", null=True),
                 ),
                 (
                     "total_weight",
@@ -126,9 +115,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "notes",
-                    models.TextField(
-                        blank=True, default="", help_text="Additional notes"
-                    ),
+                    models.TextField(blank=True, default="", help_text="Additional notes"),
                 ),
                 (
                     "carrier",

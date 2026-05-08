@@ -1,16 +1,16 @@
 /**
  * Quick Stats Widget
- * 
+ *
  * Displays key performance metrics in a compact grid.
  * Shows business stats: orders, revenue, customers, suppliers.
- * 
+ *
  * Features:
  * - Real-time stat updates from backend API
  * - Auto-refresh every 5 minutes
  * - Loading and error states
- * 
+ *
  * Updated: 2026-02-04 - Phase 1.3 - Connected to real API
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */

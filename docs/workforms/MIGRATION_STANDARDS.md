@@ -1,6 +1,6 @@
 # Workforms Editor - Migration Standards
 
-**Last Updated:** 2026-02-21  
+**Last Updated:** 2026-02-21
 **Status:** 🔒 ENFORCED - All Changes Must Be Additive-Only
 
 ---
@@ -35,12 +35,12 @@ nodeTypes.myNewNode = MyNewNode;
 export const formNodeSchema = {
   // Existing fields...
   existingField: { type: 'string', required: true },
-  
+
   // NEW field with default
-  newOptionalField: { 
-    type: 'array', 
+  newOptionalField: {
+    type: 'array',
     required: false,
-    default: [] 
+    default: []
   }
 };
 ```
@@ -58,7 +58,7 @@ class NewFeatureViewSet(viewsets.ModelViewSet):
 # ✅ SAFE: New field with default or null=True
 class TenantWorkflow(models.Model):
     # Existing fields...
-    
+
     new_feature_flag = models.BooleanField(
         default=False,
         help_text="New feature (additive)"
@@ -99,10 +99,10 @@ export const schema = {
 
 // ✅ INSTEAD: Mark deprecated
 export const schema = {
-  oldField: { 
+  oldField: {
     type: 'string',
     deprecated: true,
-    fallbackTo: 'newField' 
+    fallbackTo: 'newField'
   }
 };
 ```
@@ -142,7 +142,7 @@ class OldViewSet(viewsets.ModelViewSet):
 # ✅ INSTEAD: Mark as unused + hide from API
 class TenantWorkflow(models.Model):
     old_field_unused = models.CharField(
-        null=True, 
+        null=True,
         editable=False,
         help_text="DEPRECATED: Do not use"
     )
@@ -210,7 +210,7 @@ class EnhancedViewSet(viewsets.ModelViewSet):
 # Step 2: Keep old endpoint with deprecation warning
 class LegacyViewSet(viewsets.ModelViewSet):
     """DEPRECATED: Use /api/v2/enhanced/ instead"""
-    
+
     def list(self, request, *args, **kwargs):
         warnings.warn("This endpoint is deprecated", DeprecationWarning)
         # Redirect or proxy to new endpoint
@@ -360,7 +360,7 @@ pg_restore -d projectmeats_dev /backups/latest.dump
 
 ---
 
-**Document Version:** 1.0  
-**Maintainer:** Infrastructure Team  
-**Review Date:** 2026-02-28 (1 week)  
+**Document Version:** 1.0
+**Maintainer:** Infrastructure Team
+**Review Date:** 2026-02-28 (1 week)
 **Enforcement:** 🔒 MANDATORY - CI checks enforce additive-only

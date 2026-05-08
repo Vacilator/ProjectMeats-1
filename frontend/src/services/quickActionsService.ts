@@ -16,7 +16,7 @@ class CancelTokenManager {
   create(key: string): CancelTokenSource {
     // Cancel existing request with same key
     this.cancel(key);
-    
+
     const source = axios.CancelToken.source();
     this.tokens.set(key, source);
     return source;
@@ -264,7 +264,7 @@ export const formSubmissionService = {
    * @param cancelKey - Optional key for cancellation tracking
    */
   async get(submissionId: string, cancelKey?: string): Promise<FormSubmission> {
-    const config = cancelKey 
+    const config = cancelKey
       ? { cancelToken: cancelTokenManager.create(cancelKey).token }
       : {};
     try {
@@ -290,14 +290,14 @@ export const formSubmissionService = {
     // Cancel any pending save for this field (debounce)
     const cancelKey = `autosave-${submissionId}-${stepId}-${fieldKey}`;
     cancelTokenManager.cancel(cancelKey);  // Just cancel, don't create new yet
-    
+
     // Create new cancel token
     const source = cancelTokenManager.create(cancelKey);
-    
+
     try {
       logger.debug('[autoSave] Saving:', { submissionId, stepId, fieldKey, valueType: typeof value });
       const response = await apiClient.post(
-        `/workflows/form-submissions/${submissionId}/auto_save/`, 
+        `/workflows/form-submissions/${submissionId}/auto_save/`,
         { step_id: stepId, field_key: fieldKey, value },
         { cancelToken: source.token }
       );
@@ -306,7 +306,7 @@ export const formSubmissionService = {
       return response.data;
     } catch (err: any) {
       cancelTokenManager.remove(cancelKey);
-      
+
       if (axios.isCancel(err)) {
         logger.debug('[autoSave] Cancelled:', { submissionId, stepId, fieldKey });
         // Mark error with __CANCEL__ for easier detection
@@ -314,7 +314,7 @@ export const formSubmissionService = {
         (cancelError as any).__CANCEL__ = true;
         throw cancelError;
       }
-      
+
       logger.error('[autoSave] Error:', {
         submissionId,
         stepId,
@@ -379,7 +379,7 @@ export const formSubmissionService = {
     const formData = new FormData();
     formData.append('field_key', fieldKey);
     formData.append('file', file);
-    
+
     const response = await apiClient.post(
       `/workflows/form-submissions/${submissionId}/upload/`,
       formData,
@@ -439,14 +439,14 @@ export const entityOptionsService = {
    * @param limit - Optional limit for number of results
    */
   async getOptions(
-    entityType: string, 
-    search?: string, 
+    entityType: string,
+    search?: string,
     limit?: number
   ): Promise<EntityOptionsResponse & { total_count: number; has_more: boolean }> {
     const params: Record<string, string> = {};
     if (search) params.q = search;
     if (limit) params.limit = String(limit);
-    
+
     const response = await apiClient.get(`/workflows/entity-options/${entityType}/`, { params });
     return response.data;
   },
@@ -461,10 +461,10 @@ export const entityOptionsService = {
     filterParams?: Record<string, any>
   ): Promise<EntityOptionsResponse & { total_count: number; has_more: boolean }> {
     const params = { q: query, ...(filterParams ?? {}) };
-    const config = cancelKey 
+    const config = cancelKey
       ? { params, cancelToken: cancelTokenManager.create(cancelKey).token }
       : { params };
-    
+
     try {
       const response = await apiClient.get(`/workflows/entity-options/${entityType}/`, config);
       if (cancelKey) cancelTokenManager.remove(cancelKey);

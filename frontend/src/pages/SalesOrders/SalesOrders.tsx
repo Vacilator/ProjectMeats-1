@@ -1,15 +1,15 @@
 /**
  * Sales Orders Page
- * 
+ *
  * Comprehensive sales order management with customer tracking and activity logging.
- * 
+ *
  * Features:
  * - View all sales orders with status filtering
  * - Search by customer, order number, or date range
  * - Side panel with order details and activity feed
  * - Theme-compliant styling (32px headers, color variables)
  * - Timezone-aware date formatting
- * 
+ *
  * Pattern: Follows Claims.tsx architecture for consistency
  */
 import React, { useState, useEffect, useMemo } from 'react';
@@ -170,7 +170,7 @@ const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
   transition: grid-template-columns 0.3s ease;
   min-width: 0;
   max-width: 100%;
-  
+
   /* Stack layout on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -283,12 +283,12 @@ const TableContainer = styled.div`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Reduce minimum width on smaller screens */
   @media (min-width: 769px) {
     min-width: 800px;
   }
-  
+
   @media (max-width: 768px) {
     min-width: 600px;
   }
@@ -702,37 +702,37 @@ export const SalesOrdersPage: React.FC = () => {
         <MainContent>
           {/* Filters and Search */}
           <FilterBar>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'all'}
               onClick={() => setStatusFilter('all')}
             >
               All ({statusCounts.all})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'draft'}
               onClick={() => setStatusFilter('draft')}
             >
               Draft ({statusCounts.draft})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'confirmed'}
               onClick={() => setStatusFilter('confirmed')}
             >
               Confirmed ({statusCounts.confirmed})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'processing'}
               onClick={() => setStatusFilter('processing')}
             >
               Processing ({statusCounts.processing})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'shipped'}
               onClick={() => setStatusFilter('shipped')}
             >
               Shipped ({statusCounts.shipped})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'delivered'}
               onClick={() => setStatusFilter('delivered')}
             >

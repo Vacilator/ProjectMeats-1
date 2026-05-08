@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("carriers", "0004_carrier_departments_array_and_more"),
         ("tenants", "0010_add_tenant_configuration"),

@@ -32,7 +32,7 @@ const Editor: React.FC<EditorProps> = () => {
       if (parts.length === 2) return parts.pop()?.split(';').shift();
       return null;
     };
-    const token = getCookie('csrftoken') || 
+    const token = getCookie('csrftoken') ||
                   document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     setCsrfToken(token || null);
 

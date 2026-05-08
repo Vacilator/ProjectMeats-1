@@ -1,11 +1,11 @@
 /**
  * Nested Children Renderer
- * 
+ *
  * Renders an array of child configurations within a parent node.
  * Each child is rendered using its own schema with DynamicConfigPanel.
- * 
+ *
  * Phase E.3: Schema + Config Integration + Reusability
- * 
+ *
  * Created: 2026-02-19
  */
 
@@ -47,7 +47,7 @@ const ChildItem = styled.div<{ $expanded: boolean }>`
   background: rgb(var(--color-background));
   overflow: hidden;
   transition: all 0.2s ease;
-  
+
   &:hover {
     border-color: rgba(var(--color-primary), 0.5);
     box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
@@ -76,7 +76,7 @@ const ChildHeader = styled.div`
 const DragHandle = styled.div`
   color: rgb(var(--color-text-tertiary));
   cursor: grab;
-  
+
   &:active {
     cursor: grabbing;
   }
@@ -195,7 +195,7 @@ const ErrorMessage = styled.div`
 
 /**
  * Nested Children Renderer
- * 
+ *
  * Renders an expandable/collapsible list of child configurations.
  * Each child is a mini-form using the provided childSchema.
  */
@@ -222,7 +222,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
   const [expandedChildren, setExpandedChildren] = useState<Set<number>>(
     new Set(value.length === 1 ? [0] : []) // Auto-expand if only one child
   );
-  
+
   // Toggle child expansion
   const toggleExpanded = useCallback((index: number) => {
     setExpandedChildren(prev => {
@@ -235,7 +235,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
       return next;
     });
   }, []);
-  
+
   // Add new child
   const handleAddChild = useCallback(() => {
     const newChild = effectiveChildSchema?.sections?.reduce((acc, section) => {
@@ -246,20 +246,20 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
       });
       return acc;
     }, {} as any) || {};
-    
+
     const newValue = [...value, newChild];
     onChange(newValue);
-    
+
     // Auto-expand new child
     setExpandedChildren(prev => new Set([...prev, newValue.length - 1]));
   }, [effectiveChildSchema, value, onChange]);
-  
+
   // Remove child
   const handleRemoveChild = useCallback((index: number, e: React.MouseEvent) => {
     e.stopPropagation();
     const newValue = value.filter((_, i) => i !== index);
     onChange(newValue);
-    
+
     // Update expanded indices
     setExpandedChildren(prev => {
       const next = new Set<number>();
@@ -270,26 +270,26 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
       return next;
     });
   }, [value, onChange]);
-  
+
   // Update child data
   const handleUpdateChild = useCallback((index: number, childData: any) => {
     const newValue = value.map((child, i) => i === index ? childData : child);
     onChange(newValue);
   }, [value, onChange]);
-  
+
   // Get child title (from first text field or index)
   const getChildTitle = (child: any, index: number): string => {
     // Try to find a title/name/label field
     const titleField = effectiveChildSchema?.sections?.flatMap(s => s.fields)
       .find(f => ['title', 'name', 'label', 'stepTitle'].includes(f.id));
-    
+
     if (titleField && child[titleField.id]) {
       return child[titleField.id];
     }
-    
+
     return `Item ${index + 1}`;
   };
-  
+
   return (
     <Container>
       {value.length === 0 ? (
@@ -300,7 +300,7 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
         <ChildrenList>
           {value.map((child, index) => {
             const isExpanded = expandedChildren.has(index);
-            
+
             return (
               <ChildItem key={index} $expanded={isExpanded}>
                 <ChildHeader
@@ -319,23 +319,23 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
                   <DragHandle onClick={(e) => e.stopPropagation()}>
                     <GripVertical size={16} />
                   </DragHandle>
-                  
+
                   <ExpandIcon>
                     {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </ExpandIcon>
-                  
+
                   <ChildTitle>
                     <ChildIndex>{index + 1}</ChildIndex>
                     {getChildTitle(child, index)}
                   </ChildTitle>
-                  
+
                   <Actions>
                     <DeleteButton aria-label={`Delete item ${index + 1}`} onClick={(e) => handleRemoveChild(index, e)}>
                       <Trash2 size={16} />
                     </DeleteButton>
                   </Actions>
                 </ChildHeader>
-                
+
                 {isExpanded && (
                   <ChildContent>
                     {/* Render child fields inline without full DynamicConfigPanel */}
@@ -496,12 +496,12 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
           })}
         </ChildrenList>
       )}
-      
+
       <AddButton onClick={handleAddChild}>
         <Plus size={16} />
         Add {field.label?.replace(/^Child\s+/i, '') || 'Item'}
       </AddButton>
-      
+
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </Container>
   );

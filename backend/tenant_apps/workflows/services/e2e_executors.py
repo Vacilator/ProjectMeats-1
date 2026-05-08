@@ -103,7 +103,9 @@ class E2EProcessExecutors:
 
             logger.info(
                 "[E2E] Generated Sales Order %s for tenant=%s (bid=%s)",
-                so.pk, self.tenant.pk, selected_bid.get("id"),
+                so.pk,
+                self.tenant.pk,
+                selected_bid.get("id"),
             )
 
             return ExecutorResult(
@@ -138,26 +140,31 @@ class E2EProcessExecutors:
 
             criteria = config.get("selectionCriteria", {})
             min_margin = Decimal(str(criteria.get("minimumMarginPercent", 5.0)))
-            factors_config = criteria.get("factorsWeighted", [
-                {"factor": "price", "weight": 0.4},
-                {"factor": "reliability", "weight": 0.25},
-                {"factor": "lead_time", "weight": 0.2},
-                {"factor": "quality_score", "weight": 0.15},
-            ])
+            factors_config = criteria.get(
+                "factorsWeighted",
+                [
+                    {"factor": "price", "weight": 0.4},
+                    {"factor": "reliability", "weight": 0.25},
+                    {"factor": "lead_time", "weight": 0.2},
+                    {"factor": "quality_score", "weight": 0.15},
+                ],
+            )
 
             evaluations: list[BidEvaluation] = []
             for bid in bids:
                 score = self._compute_weighted_score(bid, factors_config)
                 margin = Decimal(str(bid.get("margin_percent", 0)))
-                evaluations.append(BidEvaluation(
-                    bid_id=str(bid.get("id", "")),
-                    supplier_name=bid.get("supplier_name", "Unknown"),
-                    price=Decimal(str(bid.get("price", 0))),
-                    margin_percent=margin,
-                    weighted_score=score,
-                    meets_threshold=margin >= min_margin,
-                    factors={f["factor"]: bid.get(f["factor"], 0) for f in factors_config},
-                ))
+                evaluations.append(
+                    BidEvaluation(
+                        bid_id=str(bid.get("id", "")),
+                        supplier_name=bid.get("supplier_name", "Unknown"),
+                        price=Decimal(str(bid.get("price", 0))),
+                        margin_percent=margin,
+                        weighted_score=score,
+                        meets_threshold=margin >= min_margin,
+                        factors={f["factor"]: bid.get(f["factor"], 0) for f in factors_config},
+                    )
+                )
 
             # Filter by threshold, then sort by weighted score
             eligible = [e for e in evaluations if e.meets_threshold]
@@ -176,7 +183,9 @@ class E2EProcessExecutors:
 
             logger.info(
                 "[E2E] Bid selected: %s (score=%.3f, margin=%.2f%%)",
-                winner.supplier_name, winner.weighted_score, winner.margin_percent,
+                winner.supplier_name,
+                winner.weighted_score,
+                winner.margin_percent,
             )
 
             return ExecutorResult(
@@ -286,7 +295,9 @@ class E2EProcessExecutors:
 
             logger.info(
                 "[E2E] Created Supplier PO %s for tenant=%s (supplier=%s)",
-                po.pk, self.tenant.pk, supplier_id,
+                po.pk,
+                self.tenant.pk,
+                supplier_id,
             )
 
             return ExecutorResult(
@@ -313,9 +324,9 @@ class E2EProcessExecutors:
         """
         try:
             from tenant_apps.workflows.services.contact_resolution import (
-                resolve_rfq_recipient,
-                resolve_po_contact,
                 resolve_bid_evaluator,
+                resolve_po_contact,
+                resolve_rfq_recipient,
             )
 
             supplier_id = self.context.get("current_supplier", {}).get("id") or self.context.get("supplier_id")
@@ -425,7 +436,6 @@ class E2EProcessExecutors:
         )
         return _contact_to_dict(contact)
 
-
     def resolve_rfq_contacts_for_send(self, config: dict[str, Any]) -> ExecutorResult:
         """Resolve contacts for SendEmail/RFQ node dispatch (master-data-rfq-node).
 
@@ -434,14 +444,9 @@ class E2EProcessExecutors:
         ForEachSupplier loop.
         """
         try:
-            from tenant_apps.workflows.services.contact_resolution import (
-                resolve_rfq_recipient,
-            )
+            from tenant_apps.workflows.services.contact_resolution import resolve_rfq_recipient
 
-            supplier_id = (
-                self.context.get("current_supplier", {}).get("id")
-                or self.context.get("supplier_id")
-            )
+            supplier_id = self.context.get("current_supplier", {}).get("id") or self.context.get("supplier_id")
             if not supplier_id:
                 return ExecutorResult(
                     success=False,
@@ -450,9 +455,7 @@ class E2EProcessExecutors:
                 )
 
             Supplier = apps.get_model("suppliers", "Supplier")
-            supplier = Supplier.objects.filter(
-                id=supplier_id, tenant=self.tenant
-            ).first()
+            supplier = Supplier.objects.filter(id=supplier_id, tenant=self.tenant).first()
             if not supplier:
                 return ExecutorResult(
                     success=False,
@@ -511,26 +514,18 @@ class E2EProcessExecutors:
 
         # Enhance with contact details from the winning supplier
         try:
-            from tenant_apps.workflows.services.contact_resolution import (
-                resolve_bid_evaluator,
-            )
+            from tenant_apps.workflows.services.contact_resolution import resolve_bid_evaluator
 
             selected_bid_id = base_result.data.get("selected_bid_id")
             bids = self.context.get("received_bids", [])
-            winning_bid = next(
-                (b for b in bids if str(b.get("id")) == selected_bid_id), {}
-            )
+            winning_bid = next((b for b in bids if str(b.get("id")) == selected_bid_id), {})
             supplier_id = winning_bid.get("supplier_id")
 
             if supplier_id:
                 Supplier = apps.get_model("suppliers", "Supplier")
-                supplier = Supplier.objects.filter(
-                    id=supplier_id, tenant=self.tenant
-                ).first()
+                supplier = Supplier.objects.filter(id=supplier_id, tenant=self.tenant).first()
                 if supplier:
-                    evaluator = resolve_bid_evaluator(
-                        tenant=self.tenant, supplier=supplier
-                    )
+                    evaluator = resolve_bid_evaluator(tenant=self.tenant, supplier=supplier)
                     base_result.data["supplier_contact"] = _contact_to_dict(evaluator)
 
         except Exception as e:
@@ -545,15 +540,9 @@ class E2EProcessExecutors:
         results stored in context.
         """
         try:
-            from tenant_apps.workflows.services.contact_resolution import (
-                resolve_po_contact,
-                resolve_rfq_recipient,
-            )
+            from tenant_apps.workflows.services.contact_resolution import resolve_po_contact, resolve_rfq_recipient
 
-            supplier_id = (
-                self.context.get("selected_bid", {}).get("supplier_id")
-                or self.context.get("supplier_id")
-            )
+            supplier_id = self.context.get("selected_bid", {}).get("supplier_id") or self.context.get("supplier_id")
             if not supplier_id:
                 return ExecutorResult(
                     success=True,
@@ -562,24 +551,16 @@ class E2EProcessExecutors:
                 )
 
             Supplier = apps.get_model("suppliers", "Supplier")
-            supplier = Supplier.objects.filter(
-                id=supplier_id, tenant=self.tenant
-            ).first()
+            supplier = Supplier.objects.filter(id=supplier_id, tenant=self.tenant).first()
             if not supplier:
                 return ExecutorResult(
                     success=True,
                     data={"prefilled": False, "reason": "supplier_not_found"},
                 )
 
-            billing_contact = resolve_po_contact(
-                tenant=self.tenant, supplier=supplier, contact_type="Accounting"
-            )
-            shipping_contact = resolve_po_contact(
-                tenant=self.tenant, supplier=supplier, contact_type="Operations"
-            )
-            sales_contact = resolve_rfq_recipient(
-                tenant=self.tenant, supplier=supplier
-            )
+            billing_contact = resolve_po_contact(tenant=self.tenant, supplier=supplier, contact_type="Accounting")
+            shipping_contact = resolve_po_contact(tenant=self.tenant, supplier=supplier, contact_type="Operations")
+            sales_contact = resolve_rfq_recipient(tenant=self.tenant, supplier=supplier)
 
             return ExecutorResult(
                 success=True,

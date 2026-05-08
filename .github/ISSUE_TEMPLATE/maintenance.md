@@ -85,5 +85,5 @@ assignees: ''
 
 ---
 
-**Branch Naming**: Use `chore/descriptive-name` format  
+**Branch Naming**: Use `chore/descriptive-name` format
 **PR Title Format**: `chore: description` or `chore(scope): description` following [Conventional Commits](https://www.conventionalcommits.org/)

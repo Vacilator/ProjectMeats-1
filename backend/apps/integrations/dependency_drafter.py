@@ -44,10 +44,10 @@ def build_related_entity_drafts(
     drafts: list[dict[str, Any]] = []
     payload = classification or {}
 
-    contact_name = _text(payload.get('contact_name'))
-    contact_company = _text(payload.get('contact_company'))
-    sender_email = _text(payload.get('sender_email')) or _text(getattr(email_log, 'sender_email', ''))
-    sender_name = _text(getattr(email_log, 'sender_name', '')) or contact_name
+    contact_name = _text(payload.get("contact_name"))
+    contact_company = _text(payload.get("contact_company"))
+    sender_email = _text(payload.get("sender_email")) or _text(getattr(email_log, "sender_email", ""))
+    sender_name = _text(getattr(email_log, "sender_name", "")) or contact_name
 
     # --- Supplier draft ---
     supplier_draft = _propose_supplier(
@@ -59,8 +59,8 @@ def build_related_entity_drafts(
         drafts.append(supplier_draft)
 
     # --- Customer draft (if category suggests new customer) ---
-    category = _text(payload.get('category'))
-    if category == 'New Customer' and contact_company:
+    category = _text(payload.get("category"))
+    if category == "New Customer" and contact_company:
         customer_draft = _propose_customer(
             name=contact_company,
             tenant=tenant,
@@ -80,52 +80,56 @@ def build_related_entity_drafts(
             drafts.append(contact_draft)
 
     # --- Inquiry draft (for PO / New Customer emails) ---
-    draft_type = _text(payload.get('draft_type'))
-    if draft_type in ('purchase_order', 'new_customer'):
+    draft_type = _text(payload.get("draft_type"))
+    if draft_type in ("purchase_order", "new_customer"):
         inquiry_draft = _propose_inquiry(payload, email_log)
         if inquiry_draft:
             drafts.append(inquiry_draft)
 
     # --- Invoice / BOL drafts from attachment document types ---
-    att_doc_types = payload.get('attachment_document_types') or []
+    att_doc_types = payload.get("attachment_document_types") or []
     for att in att_doc_types:
         if not isinstance(att, dict):
             continue
-        doc_type = _text(att.get('doc_type'))
-        att_name = _text(att.get('name'))
-        if doc_type == 'invoice':
-            drafts.append({
-                'entity_type': 'invoice',
-                'status': 'proposed',
-                'existing_id': None,
-                'proposed_data': {
-                    'source_attachment': att_name,
-                    'total_amount': _text(payload.get('total_amount')),
-                    'po_number': _text(payload.get('po_number')),
-                    'contact_company': contact_company,
-                },
-                'confidence': float(payload.get('confidence') or 0.0),
-                'source': 'attachment',
-            })
-        elif doc_type == 'bill_of_lading':
-            drafts.append({
-                'entity_type': 'bill_of_lading',
-                'status': 'proposed',
-                'existing_id': None,
-                'proposed_data': {
-                    'source_attachment': att_name,
-                    'bol_number': _text(payload.get('bol_number')),
-                    'po_number': _text(payload.get('po_number')),
-                },
-                'confidence': float(payload.get('confidence') or 0.0),
-                'source': 'attachment',
-            })
+        doc_type = _text(att.get("doc_type"))
+        att_name = _text(att.get("name"))
+        if doc_type == "invoice":
+            drafts.append(
+                {
+                    "entity_type": "invoice",
+                    "status": "proposed",
+                    "existing_id": None,
+                    "proposed_data": {
+                        "source_attachment": att_name,
+                        "total_amount": _text(payload.get("total_amount")),
+                        "po_number": _text(payload.get("po_number")),
+                        "contact_company": contact_company,
+                    },
+                    "confidence": float(payload.get("confidence") or 0.0),
+                    "source": "attachment",
+                }
+            )
+        elif doc_type == "bill_of_lading":
+            drafts.append(
+                {
+                    "entity_type": "bill_of_lading",
+                    "status": "proposed",
+                    "existing_id": None,
+                    "proposed_data": {
+                        "source_attachment": att_name,
+                        "bol_number": _text(payload.get("bol_number")),
+                        "po_number": _text(payload.get("po_number")),
+                    },
+                    "confidence": float(payload.get("confidence") or 0.0),
+                    "source": "attachment",
+                }
+            )
 
     return drafts
 
 
 def _text(value: Any) -> str:
-    return str(value or '').strip()
+    return str(value or "").strip()
 
 
 def _propose_supplier(*, name: str, email: str, tenant: Any) -> dict[str, Any] | None:
@@ -133,34 +137,34 @@ def _propose_supplier(*, name: str, email: str, tenant: Any) -> dict[str, Any] |
         return None
 
     try:
-        Supplier = apps.get_model('suppliers', 'Supplier')
+        Supplier = apps.get_model("suppliers", "Supplier")
         existing = Supplier.objects.filter(
             tenant=tenant,
             company_name__iexact=name,
         ).first()
         if existing:
             return {
-                'entity_type': 'supplier',
-                'status': 'exists',
-                'existing_id': str(existing.pk),
-                'proposed_data': {'company_name': name, 'email': email},
-                'confidence': 1.0,
-                'source': 'email_body',
+                "entity_type": "supplier",
+                "status": "exists",
+                "existing_id": str(existing.pk),
+                "proposed_data": {"company_name": name, "email": email},
+                "confidence": 1.0,
+                "source": "email_body",
             }
     except Exception:
-        logger.debug('Supplier model lookup failed', exc_info=True)
+        logger.debug("Supplier model lookup failed", exc_info=True)
 
     return {
-        'entity_type': 'supplier',
-        'status': 'proposed',
-        'existing_id': None,
-        'proposed_data': {
-            'company_name': name,
-            'email': email,
-            'status': 'active',
+        "entity_type": "supplier",
+        "status": "proposed",
+        "existing_id": None,
+        "proposed_data": {
+            "company_name": name,
+            "email": email,
+            "status": "active",
         },
-        'confidence': 0.7,
-        'source': 'email_body',
+        "confidence": 0.7,
+        "source": "email_body",
     }
 
 
@@ -169,44 +173,48 @@ def _propose_customer(*, name: str, tenant: Any) -> dict[str, Any] | None:
         return None
 
     try:
-        Customer = apps.get_model('customers', 'Customer')
+        Customer = apps.get_model("customers", "Customer")
         existing = Customer.objects.filter(
             tenant=tenant,
             company_name__iexact=name,
         ).first()
         if existing:
             return {
-                'entity_type': 'customer',
-                'status': 'exists',
-                'existing_id': str(existing.pk),
-                'proposed_data': {'company_name': name},
-                'confidence': 1.0,
-                'source': 'email_body',
+                "entity_type": "customer",
+                "status": "exists",
+                "existing_id": str(existing.pk),
+                "proposed_data": {"company_name": name},
+                "confidence": 1.0,
+                "source": "email_body",
             }
     except Exception:
-        logger.debug('Customer model lookup failed', exc_info=True)
+        logger.debug("Customer model lookup failed", exc_info=True)
 
     return {
-        'entity_type': 'customer',
-        'status': 'proposed',
-        'existing_id': None,
-        'proposed_data': {
-            'company_name': name,
-            'status': 'active',
+        "entity_type": "customer",
+        "status": "proposed",
+        "existing_id": None,
+        "proposed_data": {
+            "company_name": name,
+            "status": "active",
         },
-        'confidence': 0.6,
-        'source': 'email_body',
+        "confidence": 0.6,
+        "source": "email_body",
     }
 
 
 def _propose_contact(
-    *, name: str, email: str, company: str, tenant: Any,
+    *,
+    name: str,
+    email: str,
+    company: str,
+    tenant: Any,
 ) -> dict[str, Any] | None:
     if not email and not name:
         return None
 
     try:
-        Contact = apps.get_model('contacts', 'Contact')
+        Contact = apps.get_model("contacts", "Contact")
         if email:
             existing = Contact.objects.filter(
                 tenant=tenant,
@@ -214,55 +222,56 @@ def _propose_contact(
             ).first()
             if existing:
                 return {
-                    'entity_type': 'contact',
-                    'status': 'exists',
-                    'existing_id': str(existing.pk),
-                    'proposed_data': {
-                        'name': name,
-                        'email': email,
-                        'company': company,
+                    "entity_type": "contact",
+                    "status": "exists",
+                    "existing_id": str(existing.pk),
+                    "proposed_data": {
+                        "name": name,
+                        "email": email,
+                        "company": company,
                     },
-                    'confidence': 1.0,
-                    'source': 'email_body',
+                    "confidence": 1.0,
+                    "source": "email_body",
                 }
     except Exception:
-        logger.debug('Contact model lookup failed', exc_info=True)
+        logger.debug("Contact model lookup failed", exc_info=True)
 
-    parts = name.split(' ', 1) if name else ['', '']
+    parts = name.split(" ", 1) if name else ["", ""]
     return {
-        'entity_type': 'contact',
-        'status': 'proposed',
-        'existing_id': None,
-        'proposed_data': {
-            'first_name': parts[0],
-            'last_name': parts[1] if len(parts) > 1 else '',
-            'email': email,
-            'company': company,
-            'contact_type': 'General',
+        "entity_type": "contact",
+        "status": "proposed",
+        "existing_id": None,
+        "proposed_data": {
+            "first_name": parts[0],
+            "last_name": parts[1] if len(parts) > 1 else "",
+            "email": email,
+            "company": company,
+            "contact_type": "General",
         },
-        'confidence': 0.65,
-        'source': 'email_body',
+        "confidence": 0.65,
+        "source": "email_body",
     }
 
 
 def _propose_inquiry(
-    payload: dict[str, Any], email_log: Any,
+    payload: dict[str, Any],
+    email_log: Any,
 ) -> dict[str, Any] | None:
     return {
-        'entity_type': 'inquiry',
-        'status': 'proposed',
-        'existing_id': None,
-        'proposed_data': {
-            'contact_name': _text(payload.get('contact_name')),
-            'contact_email': _text(payload.get('sender_email')) or _text(getattr(email_log, 'sender_email', '')),
-            'contact_company': _text(payload.get('contact_company')),
-            'requested_protein': _text(payload.get('requested_protein')),
-            'requested_product_name': _text(payload.get('requested_product_name')),
-            'requested_quantity': _text(payload.get('requested_quantity')),
-            'requested_uom': _text(payload.get('requested_uom')),
-            'po_number': _text(payload.get('po_number')),
-            'notes': _text(payload.get('summary')),
+        "entity_type": "inquiry",
+        "status": "proposed",
+        "existing_id": None,
+        "proposed_data": {
+            "contact_name": _text(payload.get("contact_name")),
+            "contact_email": _text(payload.get("sender_email")) or _text(getattr(email_log, "sender_email", "")),
+            "contact_company": _text(payload.get("contact_company")),
+            "requested_protein": _text(payload.get("requested_protein")),
+            "requested_product_name": _text(payload.get("requested_product_name")),
+            "requested_quantity": _text(payload.get("requested_quantity")),
+            "requested_uom": _text(payload.get("requested_uom")),
+            "po_number": _text(payload.get("po_number")),
+            "notes": _text(payload.get("summary")),
         },
-        'confidence': float(payload.get('confidence') or 0.0),
-        'source': 'combined',
+        "confidence": float(payload.get("confidence") or 0.0),
+        "source": "combined",
     }

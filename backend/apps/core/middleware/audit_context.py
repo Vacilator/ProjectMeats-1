@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from django.utils.deprecation import MiddlewareMixin
 
-from apps.system.models.audit_log import ConfigAuditLog
 from apps.core.utils.audit_context import AuditRequestContext, clear_audit_context, set_audit_context
+from apps.system.models.audit_log import ConfigAuditLog
 
 
 class AuditContextMiddleware(MiddlewareMixin):
@@ -20,11 +20,11 @@ class AuditContextMiddleware(MiddlewareMixin):
         except Exception:
             ip = None
 
-        ua = (request.META.get('HTTP_USER_AGENT') or '')[:500]
+        ua = (request.META.get("HTTP_USER_AGENT") or "")[:500]
         set_audit_context(
             AuditRequestContext(
-                tenant=getattr(request, 'tenant', None),
-                user=getattr(request, 'user', None),
+                tenant=getattr(request, "tenant", None),
+                user=getattr(request, "user", None),
                 ip_address=ip,
                 user_agent=ua,
             )

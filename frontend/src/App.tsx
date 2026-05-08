@@ -129,12 +129,12 @@ import WorkFormsMonitoring from './pages/WorkForms/Monitoring';
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
   const { activeSubmission, isFormModalOpen, closeFormModal } = useQuickActions();
-  
+
   // Always render if we have a submission and modal is open
   if (!activeSubmission || !isFormModalOpen) {
     return null;
   }
-  
+
   // Use key to force remount when submission changes
   return (
     <FormSubmissionModal
@@ -164,8 +164,8 @@ const App: React.FC = () => {
     const updateFaviconAndTitle = () => {
       // Get environment from runtime config (set by deployment pipeline)
       // Falls back to build-time env or 'development' for local dev
-      const environment = 
-        window.ENV?.ENVIRONMENT || 
+      const environment =
+        window.ENV?.ENVIRONMENT ||
         (typeof import.meta !== 'undefined' ? import.meta.env?.MODE : undefined) ||
         (typeof process !== 'undefined' ? process.env?.NODE_ENV : undefined) ||
         'development';
@@ -264,7 +264,7 @@ const App: React.FC = () => {
                 {/* Canonical record destination */}
                 <Route path="records/:entityType/:id" element={<UniversalEntityRecordRoute />} />
                 <Route path="records/:entityType/:id/edit" element={<UniversalEntityRecordRoute mode="edit" />} />
-                
+
                 {/* Suppliers & Related */}
                 <Route path="suppliers" element={<Suppliers />} />
                 <Route
@@ -296,7 +296,7 @@ const App: React.FC = () => {
                 />
                 <Route path="plants/:id/products" element={<PlantProducts />} />
                 <Route path="locations/:id" element={<LocationDetailView />} />
-                
+
                 {/* Customers & Related */}
                 <Route path="customers" element={<Customers />} />
                 <Route
@@ -321,7 +321,7 @@ const App: React.FC = () => {
                   element={<CustomerLocationContactDetail />}
                 />
                 <Route path="customers/:id/products" element={<CustomerProducts />} />
-                
+
                 {/* Orders */}
                 <Route path="purchase-orders" element={<PurchaseOrders />} />
                 <Route path="purchase-orders/:id/review" element={<PurchaseOrderReview />} />
@@ -329,7 +329,7 @@ const App: React.FC = () => {
                 <Route path="sales-orders" element={<SalesOrders />} />
                 <Route path="sales-orders/attachments" element={<Navigate to="/sales-orders" replace />} />
                 <Route path="deals" element={<DealDesk />} />
-                
+
                 {/* Accounting */}
                 <Route path="accounts-receivables" element={<AccountsReceivables />} />
                 <Route path="accounting/claims" element={<Claims />} />
@@ -340,7 +340,7 @@ const App: React.FC = () => {
                 <Route path="accounting/payables" element={<Payables />} />
                 <Route path="accounting/payables/pos" element={<PayablePOs />} />
                 <Route path="accounting/settlements" element={<SettlementQueue />} />
-                
+
                 {/* Other Pages */}
                 <Route path="trader-cockpit" element={<React.Suspense fallback={null}><TraderCockpitPage /></React.Suspense>} />
                 <Route path="cold-storage" element={<ColdStorage />} />
@@ -358,13 +358,13 @@ const App: React.FC = () => {
                 <Route path="settings/email-integrations" element={<Settings />} />
                 <Route path="settings/notifications" element={<NotificationPreferences />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
-                
+
                 {/* Inquiries & Fulfillments */}
                 <Route path="inquiries" element={<Inquiries />} />
                 <Route path="inquiries/templates" element={<InquiryTemplates />} />
                 <Route path="inquiries/analytics" element={<InquiryAnalytics />} />
                 <Route path="fulfillments" element={<Fulfillments />} />
-                
+
                 {/* WorkForms (consolidated forms + workflows) */}
                 <Route path="workforms" element={<WorkFormsLayout />}>
                   <Route index element={<Navigate to="/workforms/catalog" replace />} />
@@ -379,7 +379,7 @@ const App: React.FC = () => {
                   <Route
                     path="editor"
                     element={
-                      <Suspense fallback={<Skeleton active />}> 
+                      <Suspense fallback={<Skeleton active />}>
                         <WorkFormsEditor />
                       </Suspense>
                     }
@@ -387,13 +387,13 @@ const App: React.FC = () => {
                   <Route
                     path="editor/:id"
                     element={
-                      <Suspense fallback={<Skeleton active />}> 
+                      <Suspense fallback={<Skeleton active />}>
                         <WorkFormsEditor />
                       </Suspense>
                     }
                   />
                 </Route>
-                
+
                 {/* Legacy routes - redirect to WorkForms */}
                 <Route path="forms-flows/*" element={<Navigate to="/workforms" replace />} />
                 <Route path="workflows" element={<Navigate to="/workforms/catalog" replace />} />
@@ -408,11 +408,11 @@ const App: React.FC = () => {
                       : <Navigate to="/workforms/catalog" replace />
                   }
                 />
-                
+
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
                 <Route path="my-tasks" element={<MyTasksRedirect />} />
-                
+
                 {/* Admin Workspace - Wrapped with error boundary */}
                 <Route path="workspace" element={
                   <AdminErrorBoundary fallbackTitle="Admin Workspace Error">
@@ -468,15 +468,15 @@ const App: React.FC = () => {
                   path="cockpit/interventions"
                   element={<Navigate to="/process-cockpit?view=action-required" replace />}
                 />
-                
+
                 {/* Backward compatibility redirect */}
                 <Route path="admin/*" element={<Navigate to={`/workspace/${window.location.pathname.replace('/admin/', '')}`} replace />} />
-                
+
                 {/* Cockpit (Command Center Dashboard) */}
                 <Route
                   path="cockpit"
                   element={
-                    <Suspense fallback={<Skeleton active />}> 
+                    <Suspense fallback={<Skeleton active />}>
                       <CockpitPage />
                     </Suspense>
                   }

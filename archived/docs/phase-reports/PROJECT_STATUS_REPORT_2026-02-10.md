@@ -1,5 +1,5 @@
 # Project Status Report - Feb 10, 2026
-**Generated**: 2026-02-10 09:05 UTC  
+**Generated**: 2026-02-10 09:05 UTC
 **Session**: f747fd8c-fe49-4f34-a129-abf51e0635b7
 
 ---
@@ -62,7 +62,7 @@
 - Frees up visual space in container
 
 #### 2. Fixed Pointer-Events Blocking Clicks
-**Before**: Blanket `pointer-events: none !important` blocked ALL interactions  
+**Before**: Blanket `pointer-events: none !important` blocked ALL interactions
 **After**: Granular pointer-events control per element type
 
 ```typescript
@@ -125,13 +125,13 @@ const handleNodesChange = useCallback((changes) => {
 ```typescript
 // Log when allNodes changes (React Flow state updates)
 useEffect(() => {
-  console.log(`[Container ${id}] allNodes changed. Count:`, allNodes.length, 
+  console.log(`[Container ${id}] allNodes changed. Count:`, allNodes.length,
     'My children:', allNodes.filter(n => n.parentId === id).length);
 }, [allNodes, id]);
 
 // Log when stats are recalculated
 console.log(`[Container ${id}] Recalculating stats. Total nodes in flow:`, allNodes.length);
-console.log(`[Container ${id}] Found ${childNodes.length} child nodes:`, 
+console.log(`[Container ${id}] Found ${childNodes.length} child nodes:`,
   childNodes.map(n => ({ id: n.id, type: n.type, hidden: n.hidden, parentId: n.parentId })));
 ```
 
@@ -192,7 +192,7 @@ From debug logs:
 ```typescript
 // CRITICAL FIX: If container is expanded, use a MUCH larger hit area
 // Expanded containers can be 600px+ tall but measured dimensions may lag
-const effectiveHeight = container.data?.isExpanded ? 
+const effectiveHeight = container.data?.isExpanded ?
                         Math.max(containerHeight, 500) : // Minimum 500px for expanded
                         containerHeight;
 

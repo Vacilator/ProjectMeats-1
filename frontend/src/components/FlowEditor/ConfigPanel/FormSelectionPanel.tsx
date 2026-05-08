@@ -1,11 +1,11 @@
 /**
  * FormSelectionPanel Component
- * 
+ *
  * First panel shown when configuring Form or Form Process nodes.
  * Allows user to choose between:
  * - Creating a new form (shows name input)
  * - Using an existing form (shows cascading dropdown)
- * 
+ *
  * Phase 2.2 of WF-ENH-2026-Q1
  * Created: 2026-02-06
  * Updated: 2026-02-25 - Phase 2 Standardization
@@ -32,10 +32,10 @@ import { logger } from '@/utils/logger';
 interface FormSelectionPanelProps {
   /** Node type: 'formStep' or container */
   nodeType: 'formStep' | 'formProcessGroup' | 'formBook';
-  
+
   /** Currently selected form ID (if editing existing node) */
   selectedFormId?: string;
-  
+
   /** Callback when selection changes */
   onSelectionChange: (selection: {
     mode: 'new' | 'existing';
@@ -43,10 +43,10 @@ interface FormSelectionPanelProps {
     formName?: string;
     form?: TenantForm;
   }) => void;
-  
+
   /** Callback when user wants to proceed */
   onProceed: () => void;
-  
+
   /** Optional: Filter forms by type */
   filterType?: 'single_step' | 'multi_step';
 }
@@ -221,7 +221,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
   const loadExistingForms = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const forms = await workformsApi.listTenantForms({
         type: filterType,
@@ -245,7 +245,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
   const handleModeChange = (newMode: 'new' | 'existing') => {
     setMode(newMode);
     setError(null);
-    
+
     if (newMode === 'new') {
       onSelectionChange({
         mode: 'new',
@@ -289,7 +289,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
       <div>
         <Title>Configure {nodeTypeLabel}</Title>
         <Description>
-          {nodeType === 'formStep' 
+          {nodeType === 'formStep'
             ? 'Choose whether to create a new form or use an existing one from your library.'
             : 'Choose whether to create a new form process or use an existing one.'}
         </Description>

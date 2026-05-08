@@ -9,45 +9,41 @@ from django.db import migrations, models
 
 def _normalize_uuid(raw_value):
     try:
-        return str(uuid.UUID(str(raw_value or '').strip()))
+        return str(uuid.UUID(str(raw_value or "").strip()))
     except (TypeError, ValueError, AttributeError):
-        return ''
+        return ""
 
 
 def backfill_chat_tenant_fields(apps, schema_editor):
-    ChatSession = apps.get_model('ai_assistant', 'ChatSession')
-    ChatMessage = apps.get_model('ai_assistant', 'ChatMessage')
-    Tenant = apps.get_model('tenants', 'Tenant')
+    ChatSession = apps.get_model("ai_assistant", "ChatSession")
+    ChatMessage = apps.get_model("ai_assistant", "ChatMessage")
+    Tenant = apps.get_model("tenants", "Tenant")
 
-    valid_tenant_ids = {
-        str(tenant_id)
-        for tenant_id in Tenant.objects.values_list('id', flat=True)
-    }
+    valid_tenant_ids = {str(tenant_id) for tenant_id in Tenant.objects.values_list("id", flat=True)}
 
     for session in ChatSession.objects.filter(tenant__isnull=True).iterator():
         context_data = session.context_data if isinstance(session.context_data, dict) else {}
-        tenant_id = _normalize_uuid(context_data.get('tenant_id'))
+        tenant_id = _normalize_uuid(context_data.get("tenant_id"))
         if tenant_id and tenant_id in valid_tenant_ids:
             session.tenant_id = tenant_id
-            session.save(update_fields=['tenant'])
+            session.save(update_fields=["tenant"])
 
-    for message in ChatMessage.objects.filter(tenant__isnull=True).select_related('session').iterator():
-        session_tenant_id = str(getattr(message.session, 'tenant_id', '') or '').strip()
+    for message in ChatMessage.objects.filter(tenant__isnull=True).select_related("session").iterator():
+        session_tenant_id = str(getattr(message.session, "tenant_id", "") or "").strip()
         if session_tenant_id:
             message.tenant_id = session_tenant_id
-            message.save(update_fields=['tenant'])
+            message.save(update_fields=["tenant"])
 
 
 def clear_chat_tenant_fields(apps, schema_editor):
-    ChatSession = apps.get_model('ai_assistant', 'ChatSession')
-    ChatMessage = apps.get_model('ai_assistant', 'ChatMessage')
+    ChatSession = apps.get_model("ai_assistant", "ChatSession")
+    ChatMessage = apps.get_model("ai_assistant", "ChatMessage")
 
     ChatMessage.objects.update(tenant=None)
     ChatSession.objects.update(tenant=None)
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ai_assistant", "0015_tenantaimemory"),
         ("tenants", "0015_alter_tenantinvitation_role_alter_tenantuser_role"),

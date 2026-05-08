@@ -1,6 +1,6 @@
 /**
  * Background Task Hook (Phase 8.4: Background Job Processing)
- * 
+ *
  * React hook for triggering and monitoring Celery tasks.
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -47,7 +47,7 @@ export const useBackgroundTask = () => {
     try {
       const response = await businessApi.get(`/tasks/${id}/status/`);
       setStatus(response.data);
-      
+
       // Stop polling if task completed
       if (['SUCCESS', 'FAILURE'].includes(response.data.status)) {
         setPolling(false);

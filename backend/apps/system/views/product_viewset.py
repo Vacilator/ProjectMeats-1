@@ -9,11 +9,12 @@ This replaces tenant_apps.products.views.ProductViewSet.
 import logging
 
 from django.db.models import Prefetch
-from rest_framework import viewsets, permissions, status
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.filters import SearchFilter, OrderingFilter
+
 from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.system.models import Product, TenantProductPreference
@@ -60,24 +61,24 @@ class SystemProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = SystemProductPagination
-    
+
     # Search fields
-    search_fields = ['product_code', 'name', 'description', 'namp_code', 'usda_code']
-    
+    search_fields = ["product_code", "name", "description", "namp_code", "usda_code"]
+
     # Filterset fields
     filterset_fields = [
-        'category',
-        'protein_type',
-        'fresh_or_frozen',
-        'package_type',
-        'is_active',
-        'tested_product',
+        "category",
+        "protein_type",
+        "fresh_or_frozen",
+        "package_type",
+        "is_active",
+        "tested_product",
     ]
-    
+
     # Ordering fields
-    ordering_fields = ['product_code', 'name', 'category', 'unit_weight', 'created_at']
-    ordering = ['product_code']
-    
+    ordering_fields = ["product_code", "name", "category", "unit_weight", "created_at"]
+    ordering = ["product_code"]
+
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:
             return [permissions.IsAuthenticated()]
@@ -89,7 +90,7 @@ class SystemProductViewSet(viewsets.ModelViewSet):
         if self.request.method in permissions.SAFE_METHODS:
             return SystemProductSerializer
         return SystemProductWriteSerializer
-    
+
     def get_queryset(self):
         """Return products visible to the current tenant.
 
@@ -97,8 +98,8 @@ class SystemProductViewSet(viewsets.ModelViewSet):
         Regular users get tenant-visible products only.
         """
 
-        include_inactive_raw = str(self.request.query_params.get('include_inactive') or '').lower()
-        include_inactive = include_inactive_raw in ('1', 'true', 'yes')
+        include_inactive_raw = str(self.request.query_params.get("include_inactive") or "").lower()
+        include_inactive = include_inactive_raw in ("1", "true", "yes")
 
         # Non-staff users must never be able to include globally inactive products.
         if not (self.request.user.is_staff or self.request.user.is_superuser):
@@ -126,7 +127,7 @@ class SystemProductViewSet(viewsets.ModelViewSet):
         if protein_param:
             from django.db.models import Q
 
-            proteins = [p.strip() for p in protein_param.split(',')]
+            proteins = [p.strip() for p in protein_param.split(",")]
             q_objects = Q()
             for p in proteins:
                 q_objects |= Q(protein_type__iexact=p)
@@ -145,33 +146,35 @@ class SystemProductViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='my-products')
+    @action(detail=False, methods=["get"], url_path="my-products")
     def my_products(self, request):
         """
         Get products customized for current tenant.
-        
+
         Returns system products filtered by TenantProductPreference:
         - Only products tenant has marked as active
         - Includes tenant-specific display names, pricing
         - Ordered by tenant's sort_order preference
         """
-        if not hasattr(request, 'tenant') or not request.tenant:
-            return Response(
-                {"error": "Tenant context required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+        if not hasattr(request, "tenant") or not request.tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
         # Get tenant preferences
-        preferences = TenantProductPreference.objects.filter(
-            tenant=request.tenant,
-            is_active=True,
-            product__is_active=True,
-        ).select_related('product').order_by('sort_order', 'product__name')
-        
+        preferences = (
+            TenantProductPreference.objects.filter(
+                tenant=request.tenant,
+                is_active=True,
+                product__is_active=True,
+            )
+            .select_related("product")
+            .order_by("sort_order", "product__name")
+        )
+
         # Build response with tenant customizations
         from apps.system.serializers import TenantProductSerializer
-        serializer = TenantProductSerializer(preferences, many=True, context={'request': request})
-        
+
+        serializer = TenantProductSerializer(preferences, many=True, context={"request": request})
+
         return Response(serializer.data)
 
 
@@ -190,42 +193,43 @@ class TenantProductPreferenceViewSet(viewsets.ModelViewSet):
 
     permission_classes = [permissions.IsAuthenticated, IsTenantAdminOrOwnerForTenantContext]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    
+
     # Filterset fields
-    filterset_fields = ['is_active', 'is_favorite', 'preferred_supplier']
-    
+    filterset_fields = ["is_active", "is_favorite", "preferred_supplier"]
+
     # Ordering fields
-    ordering_fields = ['sort_order', 'created_at', 'updated_at']
-    ordering = ['sort_order']
-    
+    ordering_fields = ["sort_order", "created_at", "updated_at"]
+    ordering = ["sort_order"]
+
     def get_serializer_class(self):
         """Return appropriate serializer."""
         from apps.system.serializers import TenantProductPreferenceSerializer
+
         return TenantProductPreferenceSerializer
-    
+
     def get_queryset(self):
         """Filter preferences by tenant."""
-        if not hasattr(self.request, 'tenant') or not self.request.tenant:
+        if not hasattr(self.request, "tenant") or not self.request.tenant:
             logger.warning("No tenant context in TenantProductPreferenceViewSet")
             return TenantProductPreference.objects.none()
-        
-        return TenantProductPreference.objects.filter(
-            tenant=self.request.tenant
-        ).select_related('product', 'preferred_supplier')
-    
+
+        return TenantProductPreference.objects.filter(tenant=self.request.tenant).select_related(
+            "product", "preferred_supplier"
+        )
+
     def create(self, request, *args, **kwargs):
         """Upsert by (tenant, product).
 
         Frontend toggle flows can race or have stale state; allowing an idempotent
         create avoids unique-constraint 400s.
         """
-        if not hasattr(request, 'tenant') or not request.tenant:
+        if not hasattr(request, "tenant") or not request.tenant:
             return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        product = serializer.validated_data.get('product')
+        product = serializer.validated_data.get("product")
         existing = None
         if product is not None:
             existing = TenantProductPreference.objects.filter(tenant=request.tenant, product=product).first()
@@ -242,7 +246,7 @@ class TenantProductPreferenceViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Auto-assign tenant on creation."""
-        if not hasattr(self.request, 'tenant') or not self.request.tenant:
+        if not hasattr(self.request, "tenant") or not self.request.tenant:
             raise ValueError("Tenant context is required")
 
         serializer.save(tenant=self.request.tenant)

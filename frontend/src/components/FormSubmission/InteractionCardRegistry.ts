@@ -1,16 +1,16 @@
 /**
  * Interaction Card Registry
- * 
+ *
  * Phase 4: Hybrid Task Renderer
  * Defines all interaction card types for workflow execution.
- * 
+ *
  * Interaction cards are non-form workflow steps that require user interaction:
  * - Document uploads
  * - Manual approvals
  * - AI verification results
  * - Payment processing
  * - Data validation
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Hybrid Task Renderer Implementation
  */
 
@@ -24,16 +24,16 @@ import { WorkflowContext } from './hooks/useWorkflowContext';
 export interface InteractionCardProps {
   /** Current workflow node */
   node: any;
-  
+
   /** Workflow context for data access */
   context: WorkflowContext;
-  
+
   /** Callback when card is completed */
   onComplete: (data: Record<string, any>) => void;
-  
+
   /** Callback when card needs to wait (async) */
   onWait?: () => void;
-  
+
   /** Read-only mode */
   readOnly?: boolean;
 }
@@ -41,28 +41,28 @@ export interface InteractionCardProps {
 export interface InteractionCardDefinition {
   /** Node type identifier */
   nodeType: string;
-  
+
   /** Display title */
   title: string;
-  
+
   /** Icon component */
   icon: LucideIcon;
-  
+
   /** Card renderer component */
   renderer: React.ComponentType<InteractionCardProps>;
-  
+
   /** Required fields for completion */
   requiredFields: string[];
-  
+
   /** Function to check if card is complete */
   completionCondition: (data: any) => boolean;
-  
+
   /** Optional: Auto-advance after completion */
   autoAdvance?: boolean;
-  
+
   /** Optional: Requires async processing */
   requiresPolling?: boolean;
-  
+
   /** Optional: Can be skipped */
   skippable?: boolean;
 }
@@ -82,7 +82,7 @@ import { AIVerificationCard } from './cards/AIVerificationCard';
 
 /**
  * Central registry of all interaction card types.
- * 
+ *
  * To add a new card type:
  * 1. Create component in ./cards/
  * 2. Add definition here
@@ -101,7 +101,7 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     autoAdvance: true,
     skippable: false,
   },
-  
+
   // Manual Approval Card
   manual_approval: {
     nodeType: 'pendingApproval',
@@ -113,7 +113,7 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     autoAdvance: true,
     skippable: false,
   },
-  
+
   // AI Verification Card
   ai_verification: {
     nodeType: 'actionScript',
@@ -121,14 +121,14 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     icon: Cpu,
     renderer: AIVerificationCard,
     requiredFields: ['confidence_score', 'verification_result'],
-    completionCondition: (data) => 
-      data.confidence_score !== undefined && 
+    completionCondition: (data) =>
+      data.confidence_score !== undefined &&
       data.verification_result !== undefined,
     autoAdvance: true,
     requiresPolling: true,
     skippable: false,
   },
-  
+
   // Payment Processing Card (placeholder for future)
   payment_processing: {
     nodeType: 'pendingPayment',
@@ -141,7 +141,7 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     requiresPolling: true,
     skippable: false,
   },
-  
+
   // Data Validation Card (placeholder for future)
   data_validation: {
     nodeType: 'pendingResponse',
@@ -196,15 +196,15 @@ export function isCardComplete(
 ): boolean {
   const cardDef = INTERACTION_CARDS[cardKey];
   if (!cardDef) return false;
-  
+
   // Check required fields
   const hasRequiredFields = cardDef.requiredFields.every(field => {
     const value = data[field];
     return value !== undefined && value !== null && value !== '';
   });
-  
+
   if (!hasRequiredFields) return false;
-  
+
   // Check completion condition
   return cardDef.completionCondition(data);
 }
@@ -217,12 +217,12 @@ export function detectCardType(nodeData: any): InteractionCardDefinition | undef
   if (nodeData.interactionType) {
     return INTERACTION_CARDS[nodeData.interactionType];
   }
-  
+
   // Fallback: match by node type
   if (nodeData.type) {
     return getCardDefinition(nodeData.type);
   }
-  
+
   return undefined;
 }
 

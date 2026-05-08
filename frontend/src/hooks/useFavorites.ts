@@ -1,14 +1,14 @@
 /**
  * useFavorites Hook
- * 
+ *
  * TanStack Query hook for managing user favorites with backend persistence.
- * 
+ *
  * Features:
  * - Optimistic updates for instant UI feedback
  * - Automatic cache invalidation
  * - Client-side isFavorited check for performance
  * - Error handling with rollback
- * 
+ *
  * Created: 2026-02-23 - Cockpit Phase 2A
  */
 
@@ -95,21 +95,21 @@ export const useFavorites = () => {
     { previousFavorites?: Favorite[] }
   >({
     mutationFn: toggleFavorite,
-    
+
     // Optimistic update
     onMutate: async (params) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: favoritesKey });
-      
+
       // Snapshot previous value
       const previousFavorites = queryClient.getQueryData<Favorite[]>(favoritesKey);
-      
+
       // Optimistically update cache
       queryClient.setQueryData<Favorite[]>(favoritesKey, (old = []) => {
         const exists = old.find(
           f => f.entity_type === params.entity_type && f.entity_id === params.entity_id
         );
-        
+
         if (exists) {
           // Remove
           return old.filter(
@@ -129,17 +129,17 @@ export const useFavorites = () => {
           ];
         }
       });
-      
+
       return { previousFavorites };
     },
-    
+
     // Rollback on error
     onError: (err, variables, context) => {
       if (context?.previousFavorites) {
         queryClient.setQueryData(favoritesKey, context.previousFavorites);
       }
     },
-    
+
     // Refetch after mutation settles
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: favoritesKey });

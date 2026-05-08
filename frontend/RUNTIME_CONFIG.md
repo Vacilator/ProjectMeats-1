@@ -133,7 +133,7 @@ Example from `.github/workflows/11-dev-deployment.yml`:
       ENVIRONMENT: "development"
     };
     JS'
-    
+
     # Deploy container with volume mount
     sudo docker run -d \
       -p 8080:80 \
@@ -180,7 +180,7 @@ npm run test:ci
    ```bash
    # Modify build/env-config.js
    echo 'window.ENV = { API_BASE_URL: "https://test.example.com/api/v1" };' > build/env-config.js
-   
+
    # Serve and test
    npx serve -s build
    ```
@@ -191,12 +191,12 @@ npm run test:ci
 
 ## Benefits
 
-✅ **Single build, multiple environments** - Same Docker image for dev, UAT, and prod  
-✅ **Runtime configuration** - No rebuild needed to change API endpoints  
-✅ **Environment consistency** - All environments use the same deployment pattern  
-✅ **Backward compatible** - Falls back to build-time env vars if runtime config unavailable  
-✅ **Type-safe** - TypeScript definitions for all config values  
-✅ **Well-tested** - 14 unit tests with 94% coverage  
+✅ **Single build, multiple environments** - Same Docker image for dev, UAT, and prod
+✅ **Runtime configuration** - No rebuild needed to change API endpoints
+✅ **Environment consistency** - All environments use the same deployment pattern
+✅ **Backward compatible** - Falls back to build-time env vars if runtime config unavailable
+✅ **Type-safe** - TypeScript definitions for all config values
+✅ **Well-tested** - 14 unit tests with 94% coverage
 
 ## Migration Guide
 
@@ -211,7 +211,7 @@ If you have existing code using `process.env.REACT_APP_*`:
    ```typescript
    // Before
    const url = process.env.REACT_APP_API_BASE_URL || 'default';
-   
+
    // After
    const url = config.API_BASE_URL;
    ```
@@ -219,7 +219,7 @@ If you have existing code using `process.env.REACT_APP_*`:
 3. For dynamic config access:
    ```typescript
    import { getRuntimeConfig } from '../config/runtime';
-   
+
    const value = getRuntimeConfig('CUSTOM_VALUE', 'default');
    ```
 

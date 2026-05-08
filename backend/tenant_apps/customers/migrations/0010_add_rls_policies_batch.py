@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("customers", "0009_alter_customer_plant"),
     ]

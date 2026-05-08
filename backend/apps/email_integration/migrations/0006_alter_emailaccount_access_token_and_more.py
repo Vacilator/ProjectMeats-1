@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("email_integration", "0005_fix_email_rls_uuid_cast_safety"),
     ]

@@ -120,17 +120,17 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
             </View>
           )}
         </View>
-        
+
         <View style={styles.headerButtons}>
-          <TouchableOpacity 
-            style={[styles.headerButton, styles.switchButton]} 
+          <TouchableOpacity
+            style={[styles.headerButton, styles.switchButton]}
             onPress={handleSwitchTenant}
           >
             <Text style={styles.headerButtonText}>{t.home.switchBtn}</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.headerButton, styles.logoutButton]} 
+
+          <TouchableOpacity
+            style={[styles.headerButton, styles.logoutButton]}
             onPress={handleLogout}
           >
             <Text style={styles.headerButtonText}>{t.home.logout}</Text>
@@ -141,7 +141,7 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
       {/* Dashboard */}
       <ScrollView style={styles.content}>
         <Text style={styles.sectionTitle}>{t.home.dashboard}</Text>
-        
+
         {loading ? (
           <View style={styles.loadingContainer}>
             <Text>{t.home.loadingDashboard}</Text>
@@ -154,28 +154,28 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
               onPress={() => handleEntityPress('Customer')}
               color="#3498db"
             />
-            
+
             <EntityCard
               title={t.home.suppliers}
               count={dashboardData.suppliers}
               onPress={() => handleEntityPress('Supplier')}
               color="#e74c3c"
             />
-            
+
             <EntityCard
               title={t.home.contacts}
               count={dashboardData.contacts}
               onPress={() => handleEntityPress('Contact')}
               color="#f39c12"
             />
-            
+
             <EntityCard
               title={t.home.plants}
               count={dashboardData.plants}
               onPress={() => handleEntityPress('Plant')}
               color="#27ae60"
             />
-            
+
             <EntityCard
               title={t.home.carriers}
               count={dashboardData.carriers}
@@ -188,28 +188,28 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
         {/* Quick Actions */}
         <Text style={styles.sectionTitle}>{t.home.quickActions}</Text>
         <View style={styles.quickActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.quickActionButton, styles.workFormsButton]}
             onPress={() => navigation.navigate('WorkForms')}
           >
             <Text style={[styles.quickActionText, styles.workFormsButtonText]}>WorkForms</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.quickActionButton}
             onPress={() => Alert.alert(t.home.comingSoon, t.home.featureSoon)}
           >
             <Text style={styles.quickActionText}>{t.home.createOrder}</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.quickActionButton}
             onPress={() => Alert.alert(t.home.comingSoon, t.home.featureSoon)}
           >
             <Text style={styles.quickActionText}>{t.home.viewReports}</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.quickActionButton}
             onPress={() => Alert.alert(t.home.comingSoon, t.home.featureSoon)}
           >

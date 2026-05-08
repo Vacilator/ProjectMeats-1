@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("fulfillments", "0005_fulfillmentproduct_custom_data_and_more"),
     ]

@@ -89,9 +89,7 @@ def resolve_rfq_recipient(
 
     # 4. Fallback contact type
     if fallback_contact_type and fallback_contact_type != preferred_contact_type:
-        fallback_match = contacts.filter(
-            contact_type__iexact=fallback_contact_type
-        ).first()
+        fallback_match = contacts.filter(contact_type__iexact=fallback_contact_type).first()
         if fallback_match:
             return _to_resolved(fallback_match, "fallback_type_match")
 
@@ -188,17 +186,9 @@ def _to_resolved(contact: Any, method: str) -> ResolvedContact:
     # Gather responsibilities from M2M relations
     responsibilities: list[str] = []
     if hasattr(contact, "protein_responsibilities"):
-        responsibilities.extend(
-            contact.protein_responsibilities.values_list(
-                "protein__name", flat=True
-            )[:10]
-        )
+        responsibilities.extend(contact.protein_responsibilities.values_list("protein__name", flat=True)[:10])
     if hasattr(contact, "product_responsibilities"):
-        responsibilities.extend(
-            contact.product_responsibilities.values_list(
-                "master_product__name", flat=True
-            )[:10]
-        )
+        responsibilities.extend(contact.product_responsibilities.values_list("master_product__name", flat=True)[:10])
 
     return ResolvedContact(
         contact_id=str(contact.pk),

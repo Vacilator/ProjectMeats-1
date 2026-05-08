@@ -1,22 +1,22 @@
 /**
  * useUndoRedo Hook
- * 
+ *
  * Provides undo/redo functionality for React Flow nodes and edges.
  * Manages history stack and state restoration for flow editing.
- * 
+ *
  * Features:
  * - Automatic state snapshots on changes
  * - Configurable history limit
  * - Keyboard shortcuts integration (Ctrl+Z/Y)
  * - Optimized for performance with debouncing
- * 
+ *
  * React Flow Best Practices:
  * - Use shallow comparison for state changes
  * - Debounce rapid changes to avoid excessive snapshots
  * - Clear future history on new changes
- * 
+ *
  * Created: 2026-02-21 - Phase 3 Performance & Stability
- * 
+ *
  * @module useUndoRedo
  */
 
@@ -71,22 +71,22 @@ export interface UseUndoRedoReturn {
 
 /**
  * useUndoRedo Hook
- * 
+ *
  * Manages undo/redo functionality for flow editor state.
- * 
+ *
  * @example
  * ```tsx
  * const { state, setState, undo, redo, canUndo, canRedo } = useUndoRedo({
  *   nodes: [],
  *   edges: []
  * });
- * 
+ *
  * // Update state (creates snapshot)
  * setState({ nodes: newNodes, edges: newEdges });
- * 
+ *
  * // Undo last change
  * if (canUndo) undo();
- * 
+ *
  * // Redo last undone change
  * if (canRedo) redo();
  * ```

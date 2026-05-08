@@ -1,9 +1,9 @@
 /**
  * Container Breadcrumbs Component
- * 
+ *
  * Navigation breadcrumb trail showing current container hierarchy.
  * Allows clicking to navigate back to parent containers or main canvas.
- * 
+ *
  * Created: 2026-02-07
  */
 import React from 'react';
@@ -38,15 +38,15 @@ const BreadcrumbContainer = styled.div`
   font-size: 13px;
   overflow-x: auto;
   white-space: nowrap;
-  
+
   &::-webkit-scrollbar {
     height: 4px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: rgba(var(--color-border), 0.1);
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgba(var(--color-border), 0.3);
     border-radius: 2px;
@@ -58,11 +58,11 @@ const BreadcrumbItem = styled.button<{ $isLast: boolean }>`
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background: ${props => props.$isLast 
-    ? 'rgba(var(--color-primary), 0.15)' 
+  background: ${props => props.$isLast
+    ? 'rgba(var(--color-primary), 0.15)'
     : 'transparent'};
-  color: ${props => props.$isLast 
-    ? 'rgb(var(--color-primary))' 
+  color: ${props => props.$isLast
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-text-secondary))'};
   border: none;
   border-radius: 4px;
@@ -70,12 +70,12 @@ const BreadcrumbItem = styled.button<{ $isLast: boolean }>`
   font-weight: ${props => props.$isLast ? '600' : '500'};
   cursor: ${props => props.$isLast ? 'default' : 'pointer'};
   transition: all 0.2s ease;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.1);
     color: rgb(var(--color-primary));
   }
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -86,7 +86,7 @@ const Separator = styled.div`
   display: flex;
   align-items: center;
   color: rgba(var(--color-text-secondary), 0.5);
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -105,13 +105,13 @@ export const ContainerBreadcrumbs: React.FC<ContainerBreadcrumbsProps> = ({
     // Don't show breadcrumbs if only on main canvas
     return null;
   }
-  
+
   return (
     <BreadcrumbContainer>
       {breadcrumbs.map((breadcrumb, index) => {
         const isLast = index === breadcrumbs.length - 1;
         const isFirst = index === 0;
-        
+
         return (
           <React.Fragment key={breadcrumb.id || 'main'}>
             <BreadcrumbItem
@@ -122,7 +122,7 @@ export const ContainerBreadcrumbs: React.FC<ContainerBreadcrumbsProps> = ({
               {isFirst && <Home size={14} />}
               {breadcrumb.name}
             </BreadcrumbItem>
-            
+
             {!isLast && (
               <Separator>
                 <ChevronRight />

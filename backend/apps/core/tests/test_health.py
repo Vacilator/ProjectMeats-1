@@ -12,150 +12,155 @@ from django.test import TestCase, override_settings
 
 class HealthCheckTests(TestCase):
     def test_health_includes_structured_fields(self):
-        resp = self.client.get('/api/v1/health/')
+        resp = self.client.get("/api/v1/health/")
         self.assertEqual(resp.status_code, 200)
 
-        data = json.loads(resp.content.decode('utf-8'))
+        data = json.loads(resp.content.decode("utf-8"))
 
         # Backward compatible fields
-        self.assertIn('database', data)
-        self.assertIn('services', data)
-        self.assertIn('features', data)
+        self.assertIn("database", data)
+        self.assertIn("services", data)
+        self.assertIn("features", data)
 
         # New additive, machine-readable fields
-        self.assertIn('database_status', data)
-        self.assertIsInstance(data['database_status'], dict)
-        self.assertIn('service_summary', data)
+        self.assertIn("database_status", data)
+        self.assertIsInstance(data["database_status"], dict)
+        self.assertIn("service_summary", data)
 
         # Observability/readiness fields (additive)
-        self.assertIn('integration_summary', data)
-        self.assertIsInstance(data['integration_summary'], dict)
-        self.assertIn('integration_warnings', data)
-        self.assertIsInstance(data['integration_warnings'], list)
-        self.assertIn('semantic_indexing', data['features'])
-        self.assertIn('semantic_indexing', data['integration_summary'])
-        self.assertIn('redis_guardrails', data['integration_summary'])
-        self.assertIn('queue_health', data['integration_summary'])
+        self.assertIn("integration_summary", data)
+        self.assertIsInstance(data["integration_summary"], dict)
+        self.assertIn("integration_warnings", data)
+        self.assertIsInstance(data["integration_warnings"], list)
+        self.assertIn("semantic_indexing", data["features"])
+        self.assertIn("semantic_indexing", data["integration_summary"])
+        self.assertIn("redis_guardrails", data["integration_summary"])
+        self.assertIn("queue_health", data["integration_summary"])
 
         # In test runs we do not have Redis configured, so redis readiness should be false.
-        self.assertIs(data['features'].get('redis'), False)
+        self.assertIs(data["features"].get("redis"), False)
 
-    @patch('projectmeats.health.check_all_services', side_effect=Exception('boom'))
+    @patch("projectmeats.health.check_all_services", side_effect=Exception("boom"))
     def test_health_survives_service_check_failure(self, _mock_check):
-        resp = self.client.get('/api/v1/health/')
+        resp = self.client.get("/api/v1/health/")
         self.assertEqual(resp.status_code, 200)
 
-        data = json.loads(resp.content.decode('utf-8'))
-        self.assertIn('services', data)
-        self.assertIn('error', data['services'])
-        self.assertEqual(data['services']['error']['code'], 'service_checks_failed')
+        data = json.loads(resp.content.decode("utf-8"))
+        self.assertIn("services", data)
+        self.assertIn("error", data["services"])
+        self.assertEqual(data["services"]["error"]["code"], "service_checks_failed")
 
-    @patch('projectmeats.health.check_all_services')
+    @patch("projectmeats.health.check_all_services")
     def test_health_surfaces_guardrail_and_queue_warnings_additively(self, mock_services):
         mock_services.return_value = {
-            'redis': {'available': True, 'configured': True, 'is_redis': True},
-            'channel_layer': {'available': True, 'configured': True, 'is_redis': True},
-            'openai': {'api_key_set': False, 'model': 'not-configured'},
-            'sentry': {'enabled': False, 'dsn_set': False, 'sdk_installed': True, 'environment': 'test'},
-            'microsoft_oauth': {'configured': False, 'tenant_id_set': False},
-            'semantic_indexing': {'available': False, 'configured': False, 'required': False, 'mode': 'lexical_fallback'},
-            'sendgrid': {'configured': False},
-            'pgvector': {'available': False},
-            'redis_guardrails': {
-                'configured': True,
-                'available': True,
-                'policy_ok': False,
-                'memory_status': 'critical',
-                'overall_status': 'critical',
+            "redis": {"available": True, "configured": True, "is_redis": True},
+            "channel_layer": {"available": True, "configured": True, "is_redis": True},
+            "openai": {"api_key_set": False, "model": "not-configured"},
+            "sentry": {"enabled": False, "dsn_set": False, "sdk_installed": True, "environment": "test"},
+            "microsoft_oauth": {"configured": False, "tenant_id_set": False},
+            "semantic_indexing": {
+                "available": False,
+                "configured": False,
+                "required": False,
+                "mode": "lexical_fallback",
             },
-            'queue_health': {
-                'configured': True,
-                'available': True,
-                'overall_status': 'critical',
-                'warning_queues': ['pm.email'],
-                'critical_queues': ['pm.workforms'],
+            "sendgrid": {"configured": False},
+            "pgvector": {"available": False},
+            "redis_guardrails": {
+                "configured": True,
+                "available": True,
+                "policy_ok": False,
+                "memory_status": "critical",
+                "overall_status": "critical",
             },
-            'summary': {'total_services': 10, 'available': 4, 'configured': 5},
+            "queue_health": {
+                "configured": True,
+                "available": True,
+                "overall_status": "critical",
+                "warning_queues": ["pm.email"],
+                "critical_queues": ["pm.workforms"],
+            },
+            "summary": {"total_services": 10, "available": 4, "configured": 5},
         }
 
-        resp = self.client.get('/api/v1/health/')
+        resp = self.client.get("/api/v1/health/")
         self.assertEqual(resp.status_code, 200)
 
-        data = json.loads(resp.content.decode('utf-8'))
-        self.assertEqual(data['integration_summary']['redis_guardrails']['policy_ok'], False)
-        self.assertEqual(data['integration_summary']['queue_health']['critical_queues'], ['pm.workforms'])
-        codes = {warning['code'] for warning in data['integration_warnings']}
-        self.assertIn('redis_policy_mismatch', codes)
-        self.assertIn('redis_memory_critical', codes)
-        self.assertIn('queue_backlog_warning', codes)
-        self.assertIn('queue_backlog_critical', codes)
+        data = json.loads(resp.content.decode("utf-8"))
+        self.assertEqual(data["integration_summary"]["redis_guardrails"]["policy_ok"], False)
+        self.assertEqual(data["integration_summary"]["queue_health"]["critical_queues"], ["pm.workforms"])
+        codes = {warning["code"] for warning in data["integration_warnings"]}
+        self.assertIn("redis_policy_mismatch", codes)
+        self.assertIn("redis_memory_critical", codes)
+        self.assertIn("queue_backlog_warning", codes)
+        self.assertIn("queue_backlog_critical", codes)
 
-    @patch('projectmeats.health.connection.cursor', side_effect=Exception('db down'))
+    @patch("projectmeats.health.connection.cursor", side_effect=Exception("db down"))
     def test_health_returns_503_when_db_unhealthy(self, _mock_cursor):
-        resp = self.client.get('/api/v1/health/')
+        resp = self.client.get("/api/v1/health/")
         self.assertEqual(resp.status_code, 503)
 
-        data = json.loads(resp.content.decode('utf-8'))
-        self.assertEqual(data['database_status']['status'], 'unhealthy')
-        self.assertEqual(data['database_status']['error']['code'], 'db_connection_failed')
-        self.assertIn('services', data)
+        data = json.loads(resp.content.decode("utf-8"))
+        self.assertEqual(data["database_status"]["status"], "unhealthy")
+        self.assertEqual(data["database_status"]["error"]["code"], "db_connection_failed")
+        self.assertIn("services", data)
 
     def test_ready_endpoint_returns_ready_shape_when_database_is_healthy(self):
-        resp = self.client.get('/api/v1/ready/')
+        resp = self.client.get("/api/v1/ready/")
         self.assertEqual(resp.status_code, 200)
 
-        data = json.loads(resp.content.decode('utf-8'))
-        self.assertEqual(data['status'], 'ready')
-        self.assertIn('timestamp', data)
-        self.assertIn('checks', data)
-        self.assertFalse(data['requires_redis_readiness'])
-        self.assertFalse(data['requires_semantic_index_readiness'])
+        data = json.loads(resp.content.decode("utf-8"))
+        self.assertEqual(data["status"], "ready")
+        self.assertIn("timestamp", data)
+        self.assertIn("checks", data)
+        self.assertFalse(data["requires_redis_readiness"])
+        self.assertFalse(data["requires_semantic_index_readiness"])
 
-    @patch('projectmeats.health.connection.cursor', side_effect=Exception('db down'))
+    @patch("projectmeats.health.connection.cursor", side_effect=Exception("db down"))
     def test_ready_returns_503_when_database_is_unhealthy(self, _mock_cursor):
-        resp = self.client.get('/api/v1/ready/')
+        resp = self.client.get("/api/v1/ready/")
         self.assertEqual(resp.status_code, 503)
 
-        data = json.loads(resp.content.decode('utf-8'))
-        self.assertEqual(data['status'], 'not_ready')
-        self.assertIn('error', data)
+        data = json.loads(resp.content.decode("utf-8"))
+        self.assertEqual(data["status"], "not_ready")
+        self.assertIn("error", data)
 
     @override_settings(REQUIRE_REDIS_READINESS=True)
-    @patch('projectmeats.health.check_all_services')
+    @patch("projectmeats.health.check_all_services")
     def test_ready_returns_503_when_non_dev_redis_gate_fails(self, mock_services):
         mock_services.return_value = {
-            'redis': {'available': False, 'configured': False, 'note': 'Redis fallback in use'},
-            'channel_layer': {'available': False, 'configured': False, 'note': 'In-memory channels in use'},
+            "redis": {"available": False, "configured": False, "note": "Redis fallback in use"},
+            "channel_layer": {"available": False, "configured": False, "note": "In-memory channels in use"},
         }
 
-        resp = self.client.get('/api/v1/ready/')
+        resp = self.client.get("/api/v1/ready/")
         self.assertEqual(resp.status_code, 503)
 
-        data = json.loads(resp.content.decode('utf-8'))
-        self.assertEqual(data['status'], 'not_ready')
-        self.assertTrue(data['requires_redis_readiness'])
-        self.assertEqual(data['checks']['redis'], 'unhealthy')
-        self.assertEqual(data['checks']['channel_layer'], 'unhealthy')
-        self.assertEqual([error['code'] for error in data['errors']], ['redis_not_ready', 'channel_layer_not_ready'])
+        data = json.loads(resp.content.decode("utf-8"))
+        self.assertEqual(data["status"], "not_ready")
+        self.assertTrue(data["requires_redis_readiness"])
+        self.assertEqual(data["checks"]["redis"], "unhealthy")
+        self.assertEqual(data["checks"]["channel_layer"], "unhealthy")
+        self.assertEqual([error["code"] for error in data["errors"]], ["redis_not_ready", "channel_layer_not_ready"])
 
     @override_settings(REQUIRE_SEMANTIC_INDEX_READINESS=True)
-    @patch('projectmeats.health.check_all_services')
+    @patch("projectmeats.health.check_all_services")
     def test_ready_returns_503_when_semantic_index_gate_fails(self, mock_services):
         mock_services.return_value = {
-            'redis': {'available': True, 'configured': True},
-            'channel_layer': {'available': True, 'configured': True},
-            'semantic_indexing': {
-                'available': False,
-                'configured': False,
-                'required': True,
-                'note': 'Semantic indexing is unavailable.',
+            "redis": {"available": True, "configured": True},
+            "channel_layer": {"available": True, "configured": True},
+            "semantic_indexing": {
+                "available": False,
+                "configured": False,
+                "required": True,
+                "note": "Semantic indexing is unavailable.",
             },
         }
 
-        resp = self.client.get('/api/v1/ready/')
+        resp = self.client.get("/api/v1/ready/")
         self.assertEqual(resp.status_code, 503)
 
-        data = json.loads(resp.content.decode('utf-8'))
-        self.assertTrue(data['requires_semantic_index_readiness'])
-        self.assertEqual(data['checks']['semantic_indexing'], 'unhealthy')
-        self.assertEqual([error['code'] for error in data['errors']], ['semantic_indexing_not_ready'])
+        data = json.loads(resp.content.decode("utf-8"))
+        self.assertTrue(data["requires_semantic_index_readiness"])
+        self.assertEqual(data["checks"]["semantic_indexing"], "unhealthy")
+        self.assertEqual([error["code"] for error in data["errors"]], ["semantic_indexing_not_ready"])

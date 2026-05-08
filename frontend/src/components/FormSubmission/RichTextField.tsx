@@ -13,7 +13,7 @@ const RichTextContainer = styled.div<{ $hasError?: boolean }>`
   overflow: hidden;
   background: white;
   transition: border-color 0.2s ease;
-  
+
   &:focus-within {
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
@@ -32,7 +32,7 @@ const Toolbar = styled.div`
 const ToolbarGroup = styled.div`
   display: flex;
   gap: 2px;
-  
+
   &:not(:last-child)::after {
     content: '';
     width: 1px;
@@ -55,12 +55,12 @@ const ToolbarButton = styled.button<{ $active?: boolean }>`
   font-size: 14px;
   font-weight: ${props => props.$active ? '600' : '400'};
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-border));
     color: rgb(var(--color-text-primary));
   }
-  
+
   &:focus {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 1px;
@@ -75,39 +75,39 @@ const EditorArea = styled.div`
   font-size: 14px;
   line-height: 1.6;
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
   }
-  
+
   &[contenteditable="true"]:empty::before {
     content: attr(data-placeholder);
     color: rgb(var(--color-text-muted));
     pointer-events: none;
   }
-  
+
   /* Rich text styles */
   strong, b {
     font-weight: 600;
   }
-  
+
   em, i {
     font-style: italic;
   }
-  
+
   u {
     text-decoration: underline;
   }
-  
+
   ul, ol {
     margin: 8px 0;
     padding-left: 24px;
   }
-  
+
   li {
     margin: 4px 0;
   }
-  
+
   a {
     color: rgb(var(--color-primary));
     text-decoration: underline;
@@ -242,7 +242,7 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
             <u>U</u>
           </ToolbarButton>
         </ToolbarGroup>
-        
+
         <ToolbarGroup>
           <ToolbarButton
             type="button"
@@ -263,7 +263,7 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
             1.
           </ToolbarButton>
         </ToolbarGroup>
-        
+
         <ToolbarGroup>
           <ToolbarButton
             type="button"
@@ -274,7 +274,7 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
           </ToolbarButton>
         </ToolbarGroup>
       </Toolbar>
-      
+
       <EditorArea
         ref={editorRef}
         contentEditable={!disabled}
@@ -289,7 +289,7 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
         aria-label="Rich text editor"
         {...ariaProps}
       />
-      
+
       {maxLength && (
         <CharCount>
           {getCharCount()} / {maxLength}

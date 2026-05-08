@@ -1,6 +1,6 @@
 /**
  * FormField Component
- * 
+ *
  * Renders form fields based on field type with auto-save on blur.
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -40,7 +40,7 @@ const FieldContainer = styled.div`
   margin-bottom: 1.25rem;
   padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--border-color, rgb(var(--color-border)));
-  
+
   &:last-child {
     margin-bottom: 0;
     padding-bottom: 0;
@@ -273,7 +273,7 @@ const FormField: React.FC<FormFieldProps> = ({
 }) => {
   const [localValue, setLocalValue] = useState(value);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Sync local value with external value
   useEffect(() => {
     setLocalValue(value);
@@ -290,12 +290,12 @@ const FormField: React.FC<FormFieldProps> = ({
 
   const handleChange = useCallback((newValue: any) => {
     setLocalValue(newValue);
-    
+
     // Debounce onChange for text inputs
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
-    
+
     debounceRef.current = setTimeout(() => {
       onChange(newValue);
     }, 300);
@@ -319,13 +319,13 @@ const FormField: React.FC<FormFieldProps> = ({
   const handleMultiSelectChange = useCallback((optionValue: string, checked: boolean) => {
     const currentValues = Array.isArray(localValue) ? localValue : [];
     let newValues: string[];
-    
+
     if (checked) {
       newValues = [...currentValues, optionValue];
     } else {
       newValues = currentValues.filter((v: string) => v !== optionValue);
     }
-    
+
     setLocalValue(newValues);
     onChange(newValues);
     onBlur();
@@ -434,7 +434,7 @@ const FormField: React.FC<FormFieldProps> = ({
         const hasOptions = field.options && field.options.length > 0;
         const canCreate = field.related_entity_type && onCreateEntity;
         const entityLabel = field.related_model?.label || field.related_entity_type?.replace('_', ' ') || field.label;
-        
+
         if (!hasOptions && canCreate) {
           return (
             <EmptyOptionsContainer>
@@ -451,7 +451,7 @@ const FormField: React.FC<FormFieldProps> = ({
             </EmptyOptionsContainer>
           );
         }
-        
+
         return (
           <Select
             {...commonProps}

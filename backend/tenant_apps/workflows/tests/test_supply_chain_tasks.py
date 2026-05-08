@@ -29,14 +29,15 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
 
     def setUp(self):
         from django.core.cache import cache
+
         cache.clear()
 
         # Avoid touching the DB/RLS session vars in unit tests (cache + fallback logic only).
         self._set_current_tenant_patcher = patch(
-            'apps.tenants.rls.set_current_tenant',
+            "apps.tenants.rls.set_current_tenant",
             return_value=MagicMock(ok=True, error=None),
         )
-        self._reset_current_tenant_patcher = patch('apps.tenants.rls.reset_current_tenant')
+        self._reset_current_tenant_patcher = patch("apps.tenants.rls.reset_current_tenant")
 
         self._set_current_tenant_patcher.start()
         self._reset_current_tenant_patcher.start()
@@ -168,6 +169,7 @@ class GenerateAITemplateSuggestionsTaskTestCase(TestCase):
     @patch("tenant_apps.workflows.tasks.Tenant")
     def test_tenant_not_found(self, MockTenant):
         from apps.tenants.models import Tenant
+
         MockTenant.objects.get.side_effect = Tenant.DoesNotExist
 
         from tenant_apps.workflows.tasks import generate_ai_template_suggestions

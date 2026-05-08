@@ -1,9 +1,9 @@
 /**
  * Form Reference Node Component
- * 
+ *
  * References a reusable form created with the FormBuilder.
  * Allows embedding complete forms in workflows without rebuilding.
- * 
+ *
  * Created: 2026-02-05 - Phase 3 Task 3.2
  * Part of: WORKFORMS_NAVIGATION_FIX_PLAN Phase 3
  */
@@ -151,7 +151,7 @@ const ActionButton = styled.button`
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.05);
     border-color: rgb(var(--color-primary));
@@ -188,7 +188,7 @@ const Badge = styled.span<{ $type?: 'warning' | 'info' }>`
 export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData>>>(({ data, selected, id }) => {
   const resolvedFormId = data.tenantFormId ?? data.formId;
   const hasForm = Boolean(resolvedFormId);
-  
+
   const handleEditForm = () => {
     // TODO: Open form in FormBuilder (needs a canonical route)
     // Keep as no-op for now.
@@ -205,7 +205,7 @@ export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData
       (data as any).onEdit();
     }
   };
-  
+
   const displayNode = hasForm ? (
     <>
       <FormInfo>
@@ -220,7 +220,7 @@ export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData
             )}
           </FormDetails>
         </FormHeader>
-        
+
         <FormStats>
           <StatItem>
             <StatLabel>Sections</StatLabel>
@@ -231,18 +231,18 @@ export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData
             <StatValue>{data.fieldCount || 0}</StatValue>
           </StatItem>
         </FormStats>
-        
+
         {data.allowEdit && (
           <Badge $type="info">User can edit</Badge>
         )}
-        
+
         {data.prefillData && Object.keys(data.prefillData).length > 0 && (
           <Badge $type="info">
             {Object.keys(data.prefillData).length} fields prefilled
           </Badge>
         )}
       </FormInfo>
-      
+
       <ActionButtons>
         <ActionButton onClick={handlePreviewForm} title="Preview form" role="button">
           <Eye size={14} />

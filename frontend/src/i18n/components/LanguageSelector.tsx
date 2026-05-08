@@ -24,13 +24,13 @@ interface LanguageSelectorProps {
 
 /**
  * Language selector component for switching between supported languages.
- * 
+ *
  * Features:
  * - Dropdown with all supported languages
  * - Persists selection to localStorage
  * - Updates all UI elements reactively
  * - Optional globe icon
- * 
+ *
  * @example
  * <LanguageSelector />
  * <LanguageSelector showIcon={false} />

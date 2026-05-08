@@ -1,6 +1,6 @@
 /**
  * Entity Graph Components (Wave 2: Cockpit Command Center)
- * 
+ *
  * Visualization of entity relationships using React Flow.
  */
 export { EntityGraph } from './EntityGraph';

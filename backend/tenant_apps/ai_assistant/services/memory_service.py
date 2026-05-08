@@ -19,7 +19,6 @@ from django.db.models import QuerySet
 
 from tenant_apps.ai_assistant.models import AIFeedback
 
-
 _WORD_RE = re.compile(r"[a-zA-Z0-9_\-]{3,}")
 
 
@@ -31,29 +30,29 @@ def ingest_feedback(
     assistant_message: str,
     user_correction: str,
     lesson_text: str,
-    entity_type: str = '',
-    entity_id: str = '',
+    entity_type: str = "",
+    entity_id: str = "",
     tags: dict | None = None,
 ) -> AIFeedback:
     """Persist a tenant-scoped lesson learned from user feedback."""
 
-    user_correction = (user_correction or '').strip()
-    lesson_text = (lesson_text or '').strip()
+    user_correction = (user_correction or "").strip()
+    lesson_text = (lesson_text or "").strip()
 
     if not user_correction:
-        raise ValueError('user_correction is required')
+        raise ValueError("user_correction is required")
     if not lesson_text:
-        raise ValueError('lesson_text is required')
+        raise ValueError("lesson_text is required")
 
     return AIFeedback.objects.create(
         tenant=tenant,
-        user=user if getattr(user, 'is_authenticated', False) else None,
-        user_message=(user_message or '').strip(),
-        assistant_message=(assistant_message or '').strip(),
+        user=user if getattr(user, "is_authenticated", False) else None,
+        user_message=(user_message or "").strip(),
+        assistant_message=(assistant_message or "").strip(),
         user_correction=user_correction,
         lesson_text=lesson_text,
-        entity_type=(entity_type or '').strip().lower(),
-        entity_id=(entity_id or '').strip(),
+        entity_type=(entity_type or "").strip().lower(),
+        entity_id=(entity_id or "").strip(),
         tags=tags or {},
         is_active=True,
     )
@@ -61,7 +60,7 @@ def ingest_feedback(
 
 def _tokenize(text: str) -> set[str]:
     tokens = set()
-    for m in _WORD_RE.finditer((text or '').lower()):
+    for m in _WORD_RE.finditer((text or "").lower()):
         w = m.group(0)
         if len(w) >= 3:
             tokens.add(w)
@@ -71,8 +70,17 @@ def _tokenize(text: str) -> set[str]:
 def _candidate_qs(*, tenant: Any) -> QuerySet[AIFeedback]:
     return (
         AIFeedback.objects.filter(tenant=tenant, is_active=True)
-        .only('id', 'lesson_text', 'user_correction', 'user_message', 'assistant_message', 'entity_type', 'entity_id', 'created_on')
-        .order_by('-created_on')
+        .only(
+            "id",
+            "lesson_text",
+            "user_correction",
+            "user_message",
+            "assistant_message",
+            "entity_type",
+            "entity_id",
+            "created_on",
+        )
+        .order_by("-created_on")
     )
 
 
@@ -96,19 +104,21 @@ def get_relevant_lessons(*, tenant: Any, query: str, limit: int = 8, lookback: i
     seen = set()
 
     for r in rows:
-        blob = ' '.join([
-            str(r.entity_type or ''),
-            str(r.entity_id or ''),
-            str(r.user_message or ''),
-            str(r.user_correction or ''),
-            str(r.lesson_text or ''),
-        ]).lower()
+        blob = " ".join(
+            [
+                str(r.entity_type or ""),
+                str(r.entity_id or ""),
+                str(r.user_message or ""),
+                str(r.user_correction or ""),
+                str(r.lesson_text or ""),
+            ]
+        ).lower()
         tokens = _tokenize(blob)
         score = len(q_tokens & tokens)
         if score <= 0:
             continue
 
-        lesson = (r.lesson_text or '').strip()
+        lesson = (r.lesson_text or "").strip()
         if not lesson or lesson in seen:
             continue
 
@@ -122,7 +132,7 @@ def get_relevant_lessons(*, tenant: Any, query: str, limit: int = 8, lookback: i
 def format_lessons_block(lessons: Iterable[str]) -> str:
     lessons_list = [str(x).strip() for x in lessons if str(x).strip()]
     if not lessons_list:
-        return ''
+        return ""
 
     bullets = "\n".join([f"- {l}" for l in lessons_list])
     return (

@@ -6,7 +6,7 @@ services:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile.dev
-    
+
     volumes:
       - ..:/workspaces/ProjectMeats:cached
     depends_on:

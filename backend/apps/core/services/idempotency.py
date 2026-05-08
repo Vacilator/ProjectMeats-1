@@ -17,7 +17,6 @@ from rest_framework.response import Response
 
 from apps.core.models import IdempotencyKey
 
-
 LOCK_TIMEOUT = timedelta(minutes=10)
 
 
@@ -40,15 +39,9 @@ def get_idempotency_key(request: Any) -> str:
 
 def _json_safe(value: Any) -> Any:
     if hasattr(value, "lists"):
-        return {
-            str(key): _json_safe(values if len(values) != 1 else values[0])
-            for key, values in value.lists()
-        }
+        return {str(key): _json_safe(values if len(values) != 1 else values[0]) for key, values in value.lists()}
     if isinstance(value, dict):
-        return {
-            str(key): _json_safe(inner)
-            for key, inner in sorted(value.items(), key=lambda item: str(item[0]))
-        }
+        return {str(key): _json_safe(inner) for key, inner in sorted(value.items(), key=lambda item: str(item[0]))}
     if isinstance(value, (list, tuple)):
         return [_json_safe(item) for item in value]
     if hasattr(value, "chunks") and hasattr(value, "name"):
@@ -114,9 +107,7 @@ def reserve_idempotency_key(
 
     with transaction.atomic():
         record = (
-            IdempotencyKey.objects.select_for_update()
-            .filter(tenant=tenant, idempotency_key=idempotency_key)
-            .first()
+            IdempotencyKey.objects.select_for_update().filter(tenant=tenant, idempotency_key=idempotency_key).first()
         )
 
         if record is None:

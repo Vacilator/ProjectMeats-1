@@ -5,7 +5,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("system", "0014_enable_rls_tenant_product_preference"),
     ]

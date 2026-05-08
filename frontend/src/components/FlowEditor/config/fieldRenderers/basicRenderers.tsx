@@ -1,9 +1,9 @@
 /**
  * Basic Field Renderers
- * 
+ *
  * Simple field renderers for text, textarea, number, select, toggle.
  * Complex field types (entity-selector, field-mapping) use existing components.
- * 
+ *
  * Created: 2026-02-18
  * Phase: D.2 - Dynamic Panel
  * Updated: 2026-02-19 - Phase E: Added dynamic entity type select renderer
@@ -175,19 +175,19 @@ export function renderToggleField(
 
 /**
  * Render an entity type select dropdown (Phase E.2)
- * 
+ *
  * Dynamically loads entity types from the backend API and populates the dropdown.
  * This is the CORRECT way to render entity type selection - NOT EntityFieldPicker.
- * 
+ *
  * EntityFieldPicker is for selecting FIELDS from an entity, not the entity itself.
- * 
+ *
  * Phase E Fix (2026-02-19): Improved loading/error handling for empty dropdown issue
  */
 export function renderEntityTypeSelect(
   props: FieldRendererProps<string>
 ): React.ReactNode {
   const { field, value, onChange, error } = props;
-  
+
   // Fetch entity types from backend API (with fallback to hardcoded entities)
   const { data: entities = [], isLoading, error: fetchError } = useEntityList();
 

@@ -51,7 +51,7 @@ GET /api/v1/cockpit/slots/?q={query}
 
 ### Type-to-Icon Mapping
 - `customer` → Building icon
-- `supplier` → Building/Factory icon  
+- `supplier` → Building/Factory icon
 - `order` → Truck icon
 
 ### Example React Usage

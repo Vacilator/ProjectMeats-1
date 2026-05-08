@@ -1,9 +1,9 @@
 /**
  * Tenant Context Utility
- * 
+ *
  * Extracts tenant and environment information from window.location.hostname
  * to support multi-tenancy via domain detection.
- * 
+ *
  * Domain Pattern Examples:
  * - localhost:3000 -> { tenant: null, environment: 'development' }
  * - dev.meatscentral.com -> { tenant: null, environment: 'development' }
@@ -34,16 +34,16 @@ const ENVIRONMENT_PATTERNS = {
 
 /**
  * Default API base URLs per environment
- * 
+ *
  * UNIFIED PROXY ARCHITECTURE:
  * All environments use same-domain proxying to eliminate CORS issues.
  * Nginx on frontend server proxies /api/ requests to backend server.
- * 
+ *
  * Benefits:
  * - No CORS issues (browser sees same origin)
  * - Simplified configuration
  * - Better security (backend not exposed directly)
- * 
+ *
  * Note: For localhost, we still use direct backend connection since
  * there's no nginx proxy in local development.
  */
@@ -61,19 +61,19 @@ function extractEnvironment(hostname: string): 'development' | 'uat' | 'producti
   if (ENVIRONMENT_PATTERNS.development.some(pattern => hostname.includes(pattern))) {
     return 'development';
   }
-  
+
   // Check for UAT patterns
   if (ENVIRONMENT_PATTERNS.uat.some(pattern => hostname.includes(pattern))) {
     return 'uat';
   }
-  
+
   // Default to production
   return 'production';
 }
 
 /**
  * Extract tenant identifier from hostname
- * 
+ *
  * Examples:
  * - acme-dev.meatscentral.com -> 'acme'
  * - acme-uat.meatscentral.com -> 'acme'
@@ -87,47 +87,47 @@ function extractTenant(hostname: string, environment: string): string | null {
   if (hostname.includes('localhost')) {
     return null;
   }
-  
+
   // Remove port if present
   const hostWithoutPort = hostname.split(':')[0];
-  
+
   // Split hostname into parts
   const parts = hostWithoutPort.split('.');
-  
+
   // If it's just the base domain (e.g., meatscentral.com), no tenant
   if (parts.length <= 2) {
     return null;
   }
-  
+
   // Get the subdomain part
   const subdomain = parts[0];
-  
+
   // Check if subdomain is just an environment indicator
   if (subdomain === 'dev' || subdomain === 'uat' || subdomain === 'www') {
     return null;
   }
-  
+
   // Extract tenant from subdomain (remove environment suffix if present)
   if (environment === 'development' && subdomain.endsWith('-dev')) {
     return subdomain.slice(0, -4);
   }
-  
+
   if (environment === 'uat' && subdomain.endsWith('-uat')) {
     return subdomain.slice(0, -4);
   }
-  
+
   // Return subdomain as tenant identifier
   return subdomain;
 }
 
 /**
  * Build API base URL for tenant and environment
- * 
+ *
  * Priority:
  * 1. Tenant-specific API URL (if tenant detected)
  * 2. Localhost for local development
  * 3. Default API URL for environment
- * 
+ *
  * Note: window.ENV.API_BASE_URL is checked in runtime.ts, not here,
  * to maintain proper configuration priority chain.
  */
@@ -136,11 +136,11 @@ function buildApiBaseUrl(tenant: string | null, environment: 'development' | 'ua
   if (hostname.includes('localhost')) {
     return 'http://localhost:8000/api/v1';
   }
-  
+
   // For tenant-specific domains, construct the API URL
   if (tenant) {
     const protocol = environment === 'development' ? 'http' : 'https';
-    
+
     // Build environment prefix based on environment
     let envPrefix = '';
     if (environment === 'development') {
@@ -151,11 +151,11 @@ function buildApiBaseUrl(tenant: string | null, environment: 'development' | 'ua
       // Production has no prefix
       envPrefix = '';
     }
-    
+
     // Use tenant-specific API endpoint
     return `${protocol}://${tenant}${envPrefix}-api.meatscentral.com/api/v1`;
   }
-  
+
   // Fall back to default API URLs for deployed environments
   return DEFAULT_API_URLS[environment];
 }
@@ -168,7 +168,7 @@ export function getTenantContext(): TenantInfo {
   const environment = extractEnvironment(hostname);
   const tenant = extractTenant(hostname, environment);
   const apiBaseUrl = buildApiBaseUrl(tenant, environment, hostname);
-  
+
   return {
     tenant,
     environment,
@@ -184,13 +184,13 @@ export function getTenantBranding(): {
   logoUrl: string | null;
 } {
   const { tenant } = getTenantContext();
-  
+
   // Default branding
   const defaultBranding = {
     primaryColor: 'rgb(var(--color-primary))', // Ant Design default blue
     logoUrl: null,
   };
-  
+
   // Tenant-specific branding could be loaded from API or configured here
   // This is a placeholder for future enhancement
   if (tenant) {
@@ -198,7 +198,7 @@ export function getTenantBranding(): {
     // For now, return default
     return defaultBranding;
   }
-  
+
   return defaultBranding;
 }
 
@@ -208,7 +208,7 @@ export function getTenantBranding(): {
  */
 export function initializeTenantContext(): TenantInfo {
   const context = getTenantContext();
-  
+
   // Log in development mode only (without exposing full API URL)
   if (process.env.NODE_ENV === 'development') {
     logger.debug('[Tenant Context] Initialized', {
@@ -217,6 +217,6 @@ export function initializeTenantContext(): TenantInfo {
       environment: context.environment,
     });
   }
-  
+
   return context;
 }

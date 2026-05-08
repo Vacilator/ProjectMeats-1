@@ -1,9 +1,9 @@
 /**
  * Live Form Preview Component
- * 
+ *
  * Real-time preview of form configuration showing exactly what users will see.
  * Updates instantly as user edits fields, validations, and conditional logic.
- * 
+ *
  * Created: 2026-02-24
  * Phase: Visual Config Panel Enhancement
  */
@@ -20,10 +20,10 @@ import { Eye, AlertCircle, CheckCircle, Info } from 'lucide-react';
 export interface LiveFormPreviewProps {
   /** Fields to preview */
   fields: FormField[];
-  
+
   /** Form title */
   title?: string;
-  
+
   /** Form description */
   description?: string;
 }
@@ -132,13 +132,13 @@ const Input = styled.input`
   font-size: 14px;
   color: rgb(var(--color-text-primary));
   transition: all 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-muted));
   }
@@ -155,13 +155,13 @@ const Textarea = styled.textarea`
   resize: vertical;
   font-family: inherit;
   transition: all 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-muted));
   }
@@ -176,7 +176,7 @@ const Select = styled.select`
   color: rgb(var(--color-text-primary));
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-info));
@@ -203,7 +203,7 @@ const CheckboxLabel = styled.label`
   cursor: pointer;
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  
+
   input {
     width: 18px;
     height: 18px;
@@ -218,7 +218,7 @@ const RadioLabel = styled.label`
   cursor: pointer;
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  
+
   input {
     width: 18px;
     height: 18px;
@@ -233,7 +233,7 @@ const FileInput = styled.div`
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-info));
     background: rgba(var(--color-primary), 0.05);
@@ -253,14 +253,14 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 48px 24px;
   color: rgb(var(--color-text-muted));
-  
+
   svg {
     width: 48px;
     height: 48px;
     margin-bottom: 16px;
     opacity: 0.3;
   }
-  
+
   p {
     font-size: 14px;
     margin: 0;
@@ -297,7 +297,7 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
           disabled
         />
       );
-      
+
     case 'textarea':
       return (
         <Textarea
@@ -305,7 +305,7 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
           disabled
         />
       );
-      
+
     case 'select':
       return (
         <Select disabled>
@@ -315,7 +315,7 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
           ))}
         </Select>
       );
-      
+
     case 'multiSelect':
       return (
         <Select multiple disabled style={{ minHeight: '120px' }}>
@@ -324,7 +324,7 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
           ))}
         </Select>
       );
-      
+
     case 'radio':
       return (
         <RadioGroup>
@@ -336,7 +336,7 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
           ))}
         </RadioGroup>
       );
-      
+
     case 'checkbox':
       return (
         <CheckboxGroup>
@@ -348,39 +348,39 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
           ))}
         </CheckboxGroup>
       );
-      
+
     case 'file':
       return (
         <FileInput>
           📎 Click to upload or drag and drop
         </FileInput>
       );
-      
+
     case 'signature':
       return (
-        <div style={{ 
-          border: '2px solid rgb(var(--color-border))', 
-          borderRadius: '8px', 
-          padding: '24px', 
+        <div style={{
+          border: '2px solid rgb(var(--color-border))',
+          borderRadius: '8px',
+          padding: '24px',
           textAlign: 'center',
           background: 'rgb(var(--color-surface))'
         }}>
           ✍️ Signature pad will appear here
         </div>
       );
-      
+
     case 'rating':
       return (
         <div style={{ fontSize: '24px' }}>
           ⭐⭐⭐⭐⭐
         </div>
       );
-      
+
     case 'slider':
       return (
         <input type="range" style={{ width: '100%' }} disabled />
       );
-      
+
     default:
       return <Input type="text" placeholder="Unknown field type" disabled />;
   }
@@ -388,7 +388,7 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
 
 const getValidationHints = (field: FormField): React.ReactNode[] => {
   const hints: React.ReactNode[] = [];
-  
+
   if (field.required) {
     hints.push(
       <ValidationHint key="required" type="info">
@@ -397,7 +397,7 @@ const getValidationHints = (field: FormField): React.ReactNode[] => {
       </ValidationHint>
     );
   }
-  
+
   const validationRules: ValidationRule[] = Array.isArray((field as any).validation)
     ? (field as any).validation
     : ((field as any).validation ? [(field as any).validation] : []);
@@ -433,7 +433,7 @@ const getValidationHints = (field: FormField): React.ReactNode[] => {
       );
     }
   });
-  
+
   return hints;
 };
 
@@ -452,7 +452,7 @@ export const LiveFormPreview: React.FC<LiveFormPreviewProps> = ({
         <Eye size={16} />
         <PreviewTitle>Live Preview</PreviewTitle>
       </PreviewHeader>
-      
+
       {fields.length === 0 ? (
         <EmptyState>
           <AlertCircle />
@@ -462,7 +462,7 @@ export const LiveFormPreview: React.FC<LiveFormPreviewProps> = ({
         <PreviewCard>
           {title && <FormTitle>{title}</FormTitle>}
           {description && <FormDescription>{description}</FormDescription>}
-          
+
           <FieldsContainer>
             {fields.map(field => (
               <FieldWrapper key={field.id} width={field.width}>
@@ -476,9 +476,9 @@ export const LiveFormPreview: React.FC<LiveFormPreviewProps> = ({
                     </HelpText>
                   )}
                 </FieldLabel>
-                
+
                 {renderFieldInput(field)}
-                
+
                 {getValidationHints(field)}
               </FieldWrapper>
             ))}

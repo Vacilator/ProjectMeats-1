@@ -1,14 +1,14 @@
 /**
  * Batch Operations Hook for Flow Editor
  * Phase 7.2: Batch Operations
- * 
+ *
  * Provides clipboard functionality and batch node operations:
  * - Copy/Cut/Paste nodes
  * - Duplicate selection
  * - Delete selection
  * - Group alignment
  * - Keyboard shortcuts (Ctrl+C, Ctrl+V, Ctrl+X, Del)
- * 
+ *
  * Created: 2026-02-27
  */
 
@@ -73,7 +73,7 @@ const STORAGE_KEY = 'floweditor_clipboard';
 
 /**
  * Hook for batch node operations with clipboard functionality.
- * 
+ *
  * @example
  * ```tsx
  * const {
@@ -141,7 +141,7 @@ export function useBatchOperations(
     if (selectedNodes.length === 0) return;
 
     const selectedEdges = getSelectedEdges(selectedNodes);
-    
+
     const clipboardData: ClipboardData = {
       nodes: selectedNodes,
       edges: selectedEdges,
@@ -229,7 +229,7 @@ export function useBatchOperations(
         const newSource = idMap.get(edge.source);
         const newTarget = idMap.get(edge.target);
         if (!newSource || !newTarget) return null;
-        
+
         return {
           ...edge,
           id: uuidv4(),

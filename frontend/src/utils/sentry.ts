@@ -1,8 +1,8 @@
 /**
  * Sentry Initialization for Frontend
- * 
+ *
  * Phase 6.4: Real-time error tracking and performance monitoring
- * 
+ *
  * Features:
  * - Error boundary integration
  * - Performance transaction tracking
@@ -54,28 +54,28 @@ export const initSentry = (config?: SentryConfig): void => {
     'unknown';
 
   const enabled = config?.enabled ?? (window as any).ENV?.SENTRY_ENABLED === 'true';
-  
+
   // Don't initialize in development unless explicitly enabled
   if (environment === 'development' && !enabled) {
     return;
   }
-  
+
   // Don't initialize if DSN is missing
   if (!sentryDsn) {
     logger.warn('Sentry DSN not configured, error tracking disabled', { component: 'Sentry' });
     return;
   }
-  
+
   // Determine sample rates based on environment
   const tracesSampleRate = environment === 'production' ? 0.1 : 1.0; // 10% in prod, 100% in dev/uat
   const replaysSessionSampleRate = environment === 'production' ? 0.1 : 0.0; // 10% in prod, disabled in dev
   const replaysOnErrorSampleRate = environment === 'production' ? 1.0 : 0.0; // 100% on errors in prod
-  
+
   Sentry.init({
     dsn: sentryDsn,
     environment,
     release,
-    
+
     // Integrations
     integrations: [
       // React Router v7 tracing integration (Sentry v10)
@@ -93,23 +93,23 @@ export const initSentry = (config?: SentryConfig): void => {
         blockAllMedia: true, // Privacy: block media elements
       }),
     ],
-    
+
     // Performance Monitoring
     tracesSampleRate,
-    
+
     // Session Replay (for debugging production issues)
     replaysSessionSampleRate,
     replaysOnErrorSampleRate,
-    
+
     // Error Filtering
       beforeSend(event, hint) {
       // Filter out non-actionable errors
       const error = hint.originalException;
-      
+
       // Filter network errors that are expected (e.g., offline)
       if (error && typeof error === 'object' && 'message' in error) {
         const message = (error as any).message?.toLowerCase() || '';
-        
+
         // Common transient errors to ignore
         const ignoredPatterns = [
           'network error',
@@ -118,17 +118,17 @@ export const initSentry = (config?: SentryConfig): void => {
           'load failed',
           'cancelled',
         ];
-        
+
         if (ignoredPatterns.some(pattern => message.includes(pattern))) {
           return null; // Don't send to Sentry
         }
       }
-      
+
       // Filter out React hydration warnings (development artifact)
       if (event.message?.includes('hydrat')) {
         return null;
       }
-      
+
       // Mark repo frames as "in-app" so stack traces are easier to route via CODEOWNERS.
       // Note: Sentry JS SDK v10 types don't expose inAppInclude; we tag frames directly.
       try {
@@ -156,11 +156,11 @@ export const initSentry = (config?: SentryConfig): void => {
       beforeSendTransaction(event) {
         return sanitizeTelemetryData(event) as typeof event;
       },
-    
+
     // Privacy
     // Required for Seer (user-impact analysis) + richer debugging context.
     sendDefaultPii: false,
-    
+
     // Context
     initialScope: {
       tags: {
@@ -168,13 +168,13 @@ export const initSentry = (config?: SentryConfig): void => {
         'app.environment': environment,
       },
     },
-    
+
     // Additional Options
     attachStacktrace: true,
     maxBreadcrumbs: 50,
     debug: environment === 'development',
   });
-  
+
   logger.debug('Initialized', {
     component: 'Sentry',
     metadata: { environment, release },

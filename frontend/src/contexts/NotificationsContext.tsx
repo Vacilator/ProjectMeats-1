@@ -1,6 +1,6 @@
 /**
  * Notifications context for managing user notifications across the app.
- * 
+ *
  * Provides:
  * - Real-time notification state
  * - Unread count tracking
@@ -16,7 +16,7 @@ import { logger } from '../utils/logger';
 // TYPES
 // ============================================================================
 
-export type NotificationType = 
+export type NotificationType =
   | 'task_assigned'
   | 'task_due_soon'
   | 'task_overdue'
@@ -107,22 +107,22 @@ interface NotificationsContextType {
   unreadCount: number;
   loading: boolean;
   error: string | null;
-  
+
   // Actions
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   dismissNotification: (id: string) => Promise<void>;
-  
+
   // Action Items
   actionItems: ActionItem[];
   actionItemCounts: ActionItemCounts | null;
   fetchActionItems: () => Promise<void>;
-  
+
   // Preferences
   preferences: NotificationPreferences | null;
   updatePreferences: (prefs: Partial<NotificationPreferences>) => Promise<void>;
-  
+
   // Polling control
   startPolling: () => void;
   stopPolling: () => void;
@@ -241,12 +241,12 @@ interface NotificationsProviderProps {
   pollingInterval?: number; // ms, default 30 seconds
 }
 
-export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ 
-  children, 
-  pollingInterval = 30000 
+export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
+  children,
+  pollingInterval = 30000
 }) => {
   const { isAuthenticated } = useAuth();
-  
+
   // State
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -256,14 +256,14 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
   const [actionItemCounts, setActionItemCounts] = useState<ActionItemCounts | null>(null);
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [pollingActive, setPollingActive] = useState(false);
-  
+
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const [notifs, count] = await Promise.all([
         fetchNotificationsAPI(),
@@ -277,12 +277,12 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       setLoading(false);
     }
   }, [isAuthenticated]);
-  
+
   // Mark single notification as read
   const markAsRead = useCallback(async (id: string) => {
     try {
       await markAsReadAPI(id);
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
@@ -290,12 +290,12 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       setError(getApiErrorMessage(err, 'Failed to mark as read'));
     }
   }, []);
-  
+
   // Mark all as read
   const markAllAsRead = useCallback(async () => {
     try {
       await markAllAsReadAPI();
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() }))
       );
       setUnreadCount(0);
@@ -303,7 +303,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       setError(getApiErrorMessage(err, 'Failed to mark all as read'));
     }
   }, []);
-  
+
   // Dismiss notification
   const dismissNotification = useCallback(async (id: string) => {
     try {
@@ -317,11 +317,11 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       setError(getApiErrorMessage(err, 'Failed to dismiss notification'));
     }
   }, [notifications]);
-  
+
   // Fetch action items
   const fetchActionItems = useCallback(async () => {
     if (!isAuthenticated) return;
-    
+
     try {
       const [items, counts] = await Promise.all([
         fetchActionItemsAPI(),
@@ -334,7 +334,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       logger.warn('Action items not available', { component: 'NotificationsContext' });
     }
   }, [isAuthenticated]);
-  
+
   // Update preferences
   const updatePreferences = useCallback(async (prefs: Partial<NotificationPreferences>) => {
     try {
@@ -345,11 +345,11 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       throw err;
     }
   }, []);
-  
+
   // Polling control
   const startPolling = useCallback(() => setPollingActive(true), []);
   const stopPolling = useCallback(() => setPollingActive(false), []);
-  
+
   // Initial fetch when authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -369,11 +369,11 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       setPollingActive(false);
     }
   }, [isAuthenticated, fetchNotifications, fetchActionItems]);
-  
+
   // Polling effect
   useEffect(() => {
     if (!pollingActive || !isAuthenticated) return;
-    
+
     const interval = setInterval(async () => {
       try {
         const count = await fetchUnreadCountAPI();
@@ -386,10 +386,10 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
         // logger.warn('[NotificationsContext] Polling failed');
       }
     }, pollingInterval);
-    
+
     return () => clearInterval(interval);
   }, [pollingActive, isAuthenticated, pollingInterval, unreadCount, fetchNotifications]);
-  
+
   const value: NotificationsContextType = {
     notifications,
     unreadCount,
@@ -407,7 +407,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
     startPolling,
     stopPolling,
   };
-  
+
   return (
     <NotificationsContext.Provider value={value}>
       {children}

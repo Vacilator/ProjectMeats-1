@@ -1,15 +1,15 @@
 /**
  * Accounting Claims Page
- * 
+ *
  * Comprehensive claims management for payables (to suppliers) and receivables (from customers).
- * 
+ *
  * Features:
  * - Tabbed interface: Payable Claims | Receivable Claims
  * - High-density data table with status badges
  * - Side panel for claim resolution with activity feed
  * - Workflow actions: Approve, Deny, Settle
  * - Filter by status (pending/approved/denied/settled/cancelled)
- * 
+ *
  * Theme Compliance:
  * - Page title: 32px, bold, rgb(var(--color-text-primary))
  * - Tabs: Active = primary color, Inactive = text-secondary
@@ -526,8 +526,8 @@ export const Claims: React.FC = () => {
     }
   };
 
-  const filteredClaims = statusFilter === 'all' 
-    ? claims 
+  const filteredClaims = statusFilter === 'all'
+    ? claims
     : claims.filter(c => c.status === statusFilter);
 
   const statusCounts = {
@@ -552,14 +552,14 @@ export const Claims: React.FC = () => {
         <MainContent>
           {/* Tabs */}
           <TabsContainer>
-            <Tab 
-              isActive={activeTab === 'payable'} 
+            <Tab
+              isActive={activeTab === 'payable'}
               onClick={() => setActiveTab('payable')}
             >
               Payable Claims
             </Tab>
-            <Tab 
-              isActive={activeTab === 'receivable'} 
+            <Tab
+              isActive={activeTab === 'receivable'}
               onClick={() => setActiveTab('receivable')}
             >
               Receivable Claims
@@ -568,31 +568,31 @@ export const Claims: React.FC = () => {
 
           {/* Status Filters */}
           <FilterBar>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'all'}
               onClick={() => setStatusFilter('all')}
             >
               All ({statusCounts.all})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'pending'}
               onClick={() => setStatusFilter('pending')}
             >
               Pending ({statusCounts.pending})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'approved'}
               onClick={() => setStatusFilter('approved')}
             >
               Approved ({statusCounts.approved})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'settled'}
               onClick={() => setStatusFilter('settled')}
             >
               Settled ({statusCounts.settled})
             </FilterButton>
-            <FilterButton 
+            <FilterButton
               isActive={statusFilter === 'denied'}
               onClick={() => setStatusFilter('denied')}
             >
@@ -637,8 +637,8 @@ export const Claims: React.FC = () => {
                     >
                       <TableCell>{claim.claim_number}</TableCell>
                       <TableCell>
-                        {activeTab === 'payable' 
-                          ? `Supplier #${claim.supplier}` 
+                        {activeTab === 'payable'
+                          ? `Supplier #${claim.supplier}`
                           : `Customer #${claim.customer}`}
                       </TableCell>
                       <TableCell>{formatDateLocal(claim.claim_date)}</TableCell>
@@ -738,13 +738,13 @@ export const Claims: React.FC = () => {
             {/* Workflow Actions */}
             {selectedClaim.status === 'pending' && (
               <SidePanelActions>
-                <ActionButton 
+                <ActionButton
                   variant="approve"
                   onClick={() => handleStatusUpdate(selectedClaim.id, 'approved', 'Claim approved')}
                 >
                   ✓ Approve Claim
                 </ActionButton>
-                <ActionButton 
+                <ActionButton
                   variant="deny"
                   onClick={() => handleStatusUpdate(selectedClaim.id, 'denied', 'Claim denied')}
                 >
@@ -755,7 +755,7 @@ export const Claims: React.FC = () => {
 
             {selectedClaim.status === 'approved' && (
               <SidePanelActions>
-                <ActionButton 
+                <ActionButton
                   variant="settle"
                   onClick={() => handleStatusUpdate(selectedClaim.id, 'settled', 'Claim settled')}
                 >

@@ -1,10 +1,10 @@
 /**
  * Variable Picker Component
- * 
+ *
  * Phase 4: Visual Variable Picker (Zapier-style)
  * Popover that shows available variables from previous workflow nodes.
  * Triggered by typing {{ in text fields.
- * 
+ *
  * Features:
  * - Popover triggered by {{ typing
  * - Shows available variables from WorkflowContext
@@ -13,7 +13,7 @@
  * - Click to insert {{nodeId.fieldKey}} template
  * - Keyboard navigation (up/down, enter)
  * - Type indicators (string, number, boolean, etc.)
- * 
+ *
  * Usage:
  * ```typescript
  * <VariablePicker
@@ -24,21 +24,21 @@
  *   position={{ top: 100, left: 200 }}
  * />
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Visual Variable Picker Implementation
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { 
-  Database, 
-  Search, 
-  ChevronRight, 
-  Type, 
-  Hash, 
-  Calendar, 
-  ToggleLeft, 
-  List, 
+import {
+  Database,
+  Search,
+  ChevronRight,
+  Type,
+  Hash,
+  Calendar,
+  ToggleLeft,
+  List,
   FileText,
   ArrowRight,
   AlertTriangle,
@@ -57,19 +57,19 @@ import {
 interface VariablePickerProps {
   /** Workflow context */
   context: WorkflowContext;
-  
+
   /** Whether picker is visible */
   isOpen: boolean;
-  
+
   /** Called when user selects a variable */
   onSelect: (template: string) => void;
-  
+
   /** Called when picker should close */
   onClose: () => void;
-  
+
   /** Position for popover */
   position?: { top: number; left: number };
-  
+
   /** Optional search query */
   searchQuery?: string;
 }
@@ -106,7 +106,7 @@ function getNodeTypeColor(nodeType: string): string {
     loop: 'rgb(var(--color-warning))',
     default: 'rgb(var(--color-info))',
   };
-  
+
   return colorMap[nodeType] || colorMap.default;
 }
 
@@ -126,30 +126,30 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const pickerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
   const search = searchQuery || internalSearch;
-  
+
   // Focus search input when opened
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [isOpen]);
-  
+
   // Handle click outside to close
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
-  
+
   const nodeIndexById = useMemo(() => {
     const m = new Map<string, number>();
     context.nodes.forEach((n, idx) => m.set(n.id, idx));
@@ -180,11 +180,11 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
       template: string;
       potentiallyOutOfScope: boolean;
     }> = [];
-    
+
     context.availableData.forEach(node => {
       node.fields.forEach(field => {
         const template = `{{${node.nodeId}.${field.key}}}`;
-        
+
         // Filter by search query
         const searchLower = search.toLowerCase();
         if (search && !node.nodeLabel.toLowerCase().includes(searchLower) &&
@@ -192,7 +192,7 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
             !(field.label || '').toLowerCase().includes(searchLower)) {
           return;
         }
-        
+
         variables.push({
           nodeId: node.nodeId,
           nodeLabel: node.nodeLabel,
@@ -205,28 +205,28 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
         });
       });
     });
-    
+
     return variables;
   }, [context.availableData, search, currentNodeIndex, nodeIndexById]);
-  
+
   // Group variables by node
   const groupedVariables = useMemo(() => {
     const groups: Record<string, typeof filteredVariables> = {};
-    
+
     filteredVariables.forEach(variable => {
       if (!groups[variable.nodeId]) {
         groups[variable.nodeId] = [];
       }
       groups[variable.nodeId].push(variable);
     });
-    
+
     return groups;
   }, [filteredVariables]);
-  
+
   // Handle keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -245,20 +245,20 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
         onClose();
       }
     };
-    
+
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, filteredVariables, selectedIndex, onSelect, onClose]);
-  
+
   if (!isOpen) return null;
-  
+
   const handleSelect = (template: string) => {
     onSelect(template);
     onClose();
   };
-  
+
   let currentIndex = 0;
-  
+
   return (
     <PickerContainer ref={pickerRef} $position={position}>
       {/* Search Input */}
@@ -273,7 +273,7 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
           onKeyDown={(e) => e.stopPropagation()}
         />
       </SearchContainer>
-      
+
       {/* Variables List */}
       <VariablesList>
         {filteredVariables.length === 0 ? (
@@ -290,7 +290,7 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
           Object.entries(groupedVariables).map(([nodeId, variables]) => {
             const firstVar = variables[0];
             const nodeColor = getNodeTypeColor(firstVar.nodeType);
-            
+
             return (
               <NodeGroup key={nodeId}>
                 <NodeGroupHeader $color={nodeColor}>
@@ -298,11 +298,11 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
                   <span>{firstVar.nodeLabel}</span>
                   <small>({firstVar.nodeType})</small>
                 </NodeGroupHeader>
-                
+
                 {variables.map(variable => {
                   const isSelected = currentIndex === selectedIndex;
                   const itemIndex = currentIndex++;
-                  
+
                   return (
                     <VariableItem
                       key={variable.template}
@@ -331,7 +331,7 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
           })
         )}
       </VariablesList>
-      
+
       {/* Footer */}
       {filteredVariables.length > 0 && (
         <PickerFooter>
@@ -386,7 +386,7 @@ const SearchInput = styled.input`
   color: rgb(var(--color-text-primary));
   font-size: 14px;
   outline: none;
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -396,15 +396,15 @@ const VariablesList = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 8px;
-  
+
   &::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: rgb(var(--color-background));
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border));
     border-radius: 4px;
@@ -427,7 +427,7 @@ const NodeGroupHeader = styled.div<{ $color: string }>`
   color: ${props => props.$color};
   border-bottom: 1px solid ${props => props.$color}33;
   margin-bottom: 4px;
-  
+
   small {
     margin-left: auto;
     opacity: 0.6;
@@ -445,7 +445,7 @@ const VariableItem = styled.div<{ $selected: boolean }>`
   background: ${props => props.$selected ? 'rgb(var(--color-primary) / 0.1)' : 'transparent'};
   border: 1px solid ${props => props.$selected ? 'rgb(var(--color-primary))' : 'transparent'};
   transition: all 0.15s;
-  
+
   &:hover {
     background: rgb(var(--color-primary) / 0.05);
   }
@@ -490,7 +490,7 @@ const PickerFooter = styled.div`
   padding: 8px 12px;
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-background));
-  
+
   small {
     font-size: 11px;
     color: rgb(var(--color-text-secondary));

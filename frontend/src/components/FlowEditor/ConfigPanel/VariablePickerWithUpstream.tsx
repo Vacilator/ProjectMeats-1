@@ -1,9 +1,9 @@
 /**
  * Variable Picker with Upstream Support
- * 
+ *
  * Phase C.3: Enhanced Variable Picker that uses graph-based upstream variable detection
  * instead of relying on WorkflowContext (which may not be initialized).
- * 
+ *
  * Features:
  * - Automatic detection of upstream Form Step Single nodes
  * - Graph traversal to find all available variables
@@ -12,7 +12,7 @@
  * - Search/filter capability
  * - Keyboard navigation
  * - Click to insert {{nodeId.fieldName}} template
- * 
+ *
  * Usage:
  * ```typescript
  * <VariablePickerWithUpstream
@@ -25,21 +25,21 @@
  *   position={{ top: 100, left: 200 }}
  * />
  * ```
- * 
+ *
  * Created: 2026-02-17 - Phase C.3 Upstream Variable Propagation
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import type { Node as FlowNode, Edge as FlowEdge } from '@xyflow/react';
-import { 
-  Search, 
-  ChevronRight, 
-  Type, 
-  Hash, 
-  Calendar, 
-  ToggleLeft, 
-  List, 
+import {
+  Search,
+  ChevronRight,
+  Type,
+  Hash,
+  Calendar,
+  ToggleLeft,
+  List,
   FileText,
   Mail,
   Phone,
@@ -62,28 +62,28 @@ import {
 interface VariablePickerWithUpstreamProps {
   /** Current node ID (to find upstream variables for) */
   currentNodeId: string;
-  
+
   /** All nodes in workflow */
   nodes: FlowNode[];
-  
+
   /** All edges in workflow */
   edges: FlowEdge[];
-  
+
   /** Whether picker is visible */
   isOpen: boolean;
-  
+
   /** Called when user selects a variable */
   onSelect: (template: string, variable: UpstreamVariable) => void;
-  
+
   /** Called when picker should close */
   onClose: () => void;
-  
+
   /** Position for popover */
   position?: { top: number; left: number };
-  
+
   /** Optional initial search query */
   searchQuery?: string;
-  
+
   /** Optional field type filter */
   fieldTypeFilter?: UpstreamVariable['fieldType'][];
 }
@@ -106,7 +106,7 @@ function getTypeIcon(type: UpstreamVariable['fieldType']): React.ReactNode {
     url: <LinkIcon size={14} />,
     json: <Code size={14} />,
   };
-  
+
   return iconMap[type] || <Type size={14} />;
 }
 
@@ -124,7 +124,7 @@ function getTypeColor(type: UpstreamVariable['fieldType']): string {
     url: 'rgb(var(--color-primary))',
     json: 'rgb(var(--color-success))',
   };
-  
+
   return colorMap[type] || 'rgb(var(--color-info))';
 }
 
@@ -176,7 +176,7 @@ const SearchContainer = styled.div`
   align-items: center;
   gap: 8px;
   background: rgb(var(--color-surface));
-  
+
   svg {
     color: rgb(var(--color-text-secondary));
   }
@@ -188,7 +188,7 @@ const Input = styled.input`
   outline: none;
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
@@ -238,7 +238,7 @@ const VariableItem = styled.div<{ $selected?: boolean }>`
   cursor: pointer;
   background: ${props => props.$selected ? 'rgb(var(--color-primary-light))' : 'transparent'};
   transition: background-color 0.15s ease;
-  
+
   &:hover {
     background: ${props => props.$selected ? 'rgb(var(--color-primary-light))' : 'rgb(var(--color-surface-hover))'};
   }
@@ -326,78 +326,78 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
   const [selectedIndex, setSelectedIndex] = useState(0);
   const pickerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
   const search = searchQuery || internalSearch;
-  
+
   // Get upstream variables using the hook
   const { variables, variablesByNode, loading, error } = useUpstreamVariables({
     currentNodeId,
     nodes,
     edges,
   });
-  
+
   // Focus search input when opened
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [isOpen]);
-  
+
   // Handle click outside to close
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as unknown as globalThis.Node)) {
         onClose();
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
-  
+
   // Filter variables by search and type
   const filteredVariables = useMemo(() => {
     let filtered = variables;
-    
+
     // Filter by search query
     if (search) {
       const searchLower = search.toLowerCase();
-      filtered = filtered.filter(v => 
+      filtered = filtered.filter(v =>
         v.nodeName.toLowerCase().includes(searchLower) ||
         v.fieldName.toLowerCase().includes(searchLower) ||
         v.fieldLabel.toLowerCase().includes(searchLower) ||
         v.template.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // Filter by field type
     if (fieldTypeFilter && fieldTypeFilter.length > 0) {
       filtered = filtered.filter(v => fieldTypeFilter.includes(v.fieldType));
     }
-    
+
     return filtered;
   }, [variables, search, fieldTypeFilter]);
-  
+
   // Group filtered variables by node
   const filteredGroupedVariables = useMemo(() => {
     const groups: Record<string, UpstreamVariable[]> = {};
-    
+
     filteredVariables.forEach(variable => {
       if (!groups[variable.nodeId]) {
         groups[variable.nodeId] = [];
       }
       groups[variable.nodeId].push(variable);
     });
-    
+
     return groups;
   }, [filteredVariables]);
-  
+
   // Handle keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -415,20 +415,20 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
         onClose();
       }
     };
-    
+
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, filteredVariables, selectedIndex]);
-  
+
   if (!isOpen) return null;
-  
+
   const handleSelect = (variable: UpstreamVariable) => {
     onSelect(variable.template, variable);
     onClose();
   };
-  
+
   let currentIndex = 0;
-  
+
   return (
     <PickerContainer ref={pickerRef} $position={position}>
       {/* Header */}
@@ -436,7 +436,7 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
         <Title>Available Variables</Title>
         <Count>{filteredVariables.length} {filteredVariables.length === 1 ? 'variable' : 'variables'}</Count>
       </Header>
-      
+
       {/* Search Input */}
       <SearchContainer>
         <Search size={16} />
@@ -449,7 +449,7 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
           onKeyDown={(e) => e.stopPropagation()}
         />
       </SearchContainer>
-      
+
       {/* Variable List */}
       <VariableList>
         {error && (
@@ -459,7 +459,7 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
             <EmptyText>{error}</EmptyText>
           </EmptyState>
         )}
-        
+
         {!error && filteredVariables.length === 0 && (
           <EmptyState>
             <EmptyIcon><Search /></EmptyIcon>
@@ -469,10 +469,10 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
             </EmptyText>
           </EmptyState>
         )}
-        
+
         {!error && filteredVariables.length > 0 && Object.entries(filteredGroupedVariables).map(([nodeId, nodeVariables]) => {
           const firstVar = nodeVariables[0];
-          
+
           return (
             <NodeGroup key={nodeId}>
               <NodeHeader>
@@ -480,11 +480,11 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
                 <span>{firstVar.nodeName}</span>
                 <DistanceBadge>{firstVar.distance} step{firstVar.distance > 1 ? 's' : ''} back</DistanceBadge>
               </NodeHeader>
-              
+
               {nodeVariables.map(variable => {
                 const isSelected = currentIndex === selectedIndex;
                 const itemIndex = currentIndex++;
-                
+
                 return (
                   <VariableItem
                     key={`${variable.nodeId}-${variable.fieldName}`}
@@ -495,7 +495,7 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
                     <TypeIcon $color={getTypeColor(variable.fieldType)}>
                       {getTypeIcon(variable.fieldType)}
                     </TypeIcon>
-                    
+
                     <FieldInfo>
                       <FieldLabel>
                         {variable.fieldLabel}
@@ -503,7 +503,7 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
                       </FieldLabel>
                       <FieldName>{variable.fieldName}</FieldName>
                     </FieldInfo>
-                    
+
                     <Template>{variable.template}</Template>
                   </VariableItem>
                 );
@@ -512,7 +512,7 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
           );
         })}
       </VariableList>
-      
+
       {/* Footer */}
       <Footer>
         Use <kbd>↑</kbd> <kbd>↓</kbd> to navigate • <kbd>Enter</kbd> to select • <kbd>Esc</kbd> to close

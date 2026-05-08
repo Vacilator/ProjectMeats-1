@@ -1,6 +1,6 @@
 /**
  * Authentication service for managing user authentication state.
- * 
+ *
  * Wave S1: Security Hardening - JWT Authentication
  * - Uses JWT tokens (access + refresh) for authentication
  * - Short-lived access tokens (15 min) with automatic refresh
@@ -105,7 +105,7 @@ export class AuthService {
         const normalizedUser = normalizeUserProfile(user);
         this.user = normalizedUser;
         localStorage.setItem('user', JSON.stringify(normalizedUser));
-        
+
         // Store tenant information
         if (tenants && tenants.length > 0) {
           const primaryTenant = tenants[0];
@@ -117,7 +117,7 @@ export class AuthService {
         logger.debug('JWT login successful', { component: 'AuthService' });
         return normalizedUser;
       }
-      
+
       throw new Error('Invalid JWT response');
     } catch (jwtError: any) {
       // If JWT fails with 404 (endpoint not available), fall back to legacy
@@ -125,7 +125,7 @@ export class AuthService {
         logger.debug('JWT endpoint not available, using legacy login', { component: 'AuthService' });
         return this.legacyLogin(credentials);
       }
-      
+
       throw new Error(jwtError.response?.data?.detail || jwtError.response?.data?.error || 'Login failed');
     }
   }
@@ -199,8 +199,8 @@ export class AuthService {
   async signUp(credentials: SignUpCredentials): Promise<UserProfile> {
     try {
       // Determine endpoint based on presence of token
-      const endpoint = credentials.token 
-        ? '/auth/signup-with-invitation/' 
+      const endpoint = credentials.token
+        ? '/auth/signup-with-invitation/'
         : '/auth/signup/';
 
       // Construct payload with correct field mapping
@@ -226,7 +226,7 @@ export class AuthService {
         // Legacy token
         localStorage.setItem('authToken', token);
       }
-      
+
       const normalizedUser = normalizeUserProfile(user);
       this.user = normalizedUser;
       localStorage.setItem('user', JSON.stringify(normalizedUser));
@@ -243,7 +243,7 @@ export class AuthService {
       // Enhanced error handling to capture validation errors
       const serverData = error.response?.data;
       let errorMessage = 'Sign up failed';
-      
+
       if (serverData) {
           if (serverData.error) {
               errorMessage = serverData.error;

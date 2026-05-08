@@ -14,7 +14,7 @@ This directory contains image assets for the mobile application:
 - Format: PNG with transparency
 - Used for: iOS App Store, Android Play Store
 
-### Splash Screen (`splash.png`) 
+### Splash Screen (`splash.png`)
 - Size: 1284x2778 pixels (iPhone 12 Pro Max size)
 - Format: PNG
 - Background: White (#ffffff)

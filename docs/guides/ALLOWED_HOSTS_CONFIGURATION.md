@@ -1,6 +1,6 @@
 # ALLOWED_HOSTS Configuration Guide
 
-**Last Updated**: 2025-12-07  
+**Last Updated**: 2025-12-07
 **Status**: Development settings updated to read from environment variables
 
 ---
@@ -350,6 +350,6 @@ When updating `ALLOWED_HOSTS`, document:
 
 ---
 
-**Last Updated**: 2025-12-07  
-**Maintainer**: DevOps Team  
+**Last Updated**: 2025-12-07
+**Maintainer**: DevOps Team
 **Status**: Active configuration guide

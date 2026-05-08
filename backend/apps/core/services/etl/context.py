@@ -7,12 +7,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Iterator
 
-from apps.core.utils.audit_context import (
-    AuditRequestContext,
-    clear_audit_context,
-    get_audit_context,
-    set_audit_context,
-)
+from apps.core.utils.audit_context import AuditRequestContext, clear_audit_context, get_audit_context, set_audit_context
 
 from .contracts import GOLDEN_ETL_CONTRACT_VERSION, REQUIRED_SUPPRESSED_SIDE_EFFECTS
 

@@ -1,15 +1,15 @@
 /**
  * Insert Variable Button Component
- * 
+ *
  * Phase C.3.1: Reusable button for inserting variables into text fields
  * Opens VariablePickerWithUpstream popover when clicked.
- * 
+ *
  * Features:
  * - Icon button with tooltip
  * - Auto-positioning of picker near button
  * - Integration with VariablePickerWithUpstream
  * - Callback for variable insertion
- * 
+ *
  * Usage:
  * ```typescript
  * <InsertVariableButton
@@ -22,7 +22,7 @@
  *   fieldTypeFilter={['string', 'email']} // Optional
  * />
  * ```
- * 
+ *
  * Created: 2026-02-17 - Phase C.3.1 Config Panel Integration
  */
 
@@ -40,34 +40,34 @@ import { UpstreamVariable } from '../hooks/useUpstreamVariables';
 export interface InsertVariableButtonProps {
   /** Current node ID */
   currentNodeId: string;
-  
+
   /** All nodes in workflow */
   nodes: Node[];
-  
+
   /** All edges in workflow */
   edges: Edge[];
-  
+
   /** Called when user selects a variable */
   onInsert: (template: string, variable: UpstreamVariable) => void;
-  
+
   /** Optional field type filter */
   fieldTypeFilter?: UpstreamVariable['fieldType'][];
-  
+
   /** Button variant */
   variant?: 'primary' | 'secondary' | 'ghost';
-  
+
   /** Button size */
   size?: 'sm' | 'md' | 'lg';
-  
+
   /** Show text label */
   showLabel?: boolean;
-  
+
   /** Custom button text */
   label?: string;
-  
+
   /** Disabled state */
   disabled?: boolean;
-  
+
   /** Tooltip text */
   tooltip?: string;
 }
@@ -81,7 +81,7 @@ const ButtonContainer = styled.div`
   display: inline-block;
 `;
 
-const Button = styled.button<{ 
+const Button = styled.button<{
   $variant: 'primary' | 'secondary' | 'ghost';
   $size: 'sm' | 'md' | 'lg';
   $hasLabel: boolean;
@@ -104,14 +104,14 @@ const Button = styled.button<{
   cursor: pointer;
   transition: all 0.2s;
   border: 1px solid;
-  
+
   ${props => {
     if (props.$variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
         border-color: rgb(var(--color-primary));
         color: rgb(var(--color-text-inverse));
-        
+
         &:hover:not(:disabled) {
           background: rgb(var(--color-primary-hover));
           border-color: rgb(var(--color-primary-hover));
@@ -120,42 +120,42 @@ const Button = styled.button<{
         }
       `;
     }
-    
+
     if (props.$variant === 'secondary') {
       return `
         background: rgb(var(--color-surface));
         border-color: rgb(var(--color-border));
         color: rgb(var(--color-text-primary));
-        
+
         &:hover:not(:disabled) {
           background: rgb(var(--color-surface-hover));
           border-color: rgb(var(--color-primary));
         }
       `;
     }
-    
+
     // ghost
     return `
       background: transparent;
       border-color: transparent;
       color: rgb(var(--color-text-secondary));
-      
+
       &:hover:not(:disabled) {
         background: rgb(var(--color-surface-hover));
         color: rgb(var(--color-primary));
       }
     `;
   }}
-  
+
   &:active:not(:disabled) {
     transform: translateY(0);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &:focus-visible {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
@@ -179,7 +179,7 @@ const Tooltip = styled.div<{ $visible: boolean }>`
   visibility: ${props => props.$visible ? 'visible' : 'hidden'};
   transition: opacity 0.2s, visibility 0.2s;
   z-index: 10002;
-  
+
   &::after {
     content: '';
     position: absolute;
@@ -211,36 +211,36 @@ export const InsertVariableButton: React.FC<InsertVariableButtonProps> = ({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  
+
   // Calculate picker position relative to button
   const getPickerPosition = useCallback(() => {
     if (!buttonRef.current) {
       return { top: 100, left: 200 };
     }
-    
+
     const rect = buttonRef.current.getBoundingClientRect();
     return {
       top: rect.bottom + 8, // 8px below button
       left: Math.max(rect.left, 20), // At least 20px from left edge
     };
   }, []);
-  
+
   const handleClick = () => {
     if (!disabled) {
       setIsPickerOpen(true);
       setShowTooltip(false);
     }
   };
-  
+
   const handleInsert = (template: string, variable: UpstreamVariable) => {
     onInsert(template, variable);
     setIsPickerOpen(false);
   };
-  
+
   const handleClose = () => {
     setIsPickerOpen(false);
   };
-  
+
   return (
     <ButtonContainer>
       <Button
@@ -258,13 +258,13 @@ export const InsertVariableButton: React.FC<InsertVariableButtonProps> = ({
         <Code2 size={size === 'sm' ? 14 : size === 'lg' ? 18 : 16} />
         {showLabel && <span>{label}</span>}
       </Button>
-      
+
       {tooltip && (
         <Tooltip $visible={showTooltip && !isPickerOpen}>
           {tooltip}
         </Tooltip>
       )}
-      
+
       <VariablePickerWithUpstream
         currentNodeId={currentNodeId}
         nodes={nodes}

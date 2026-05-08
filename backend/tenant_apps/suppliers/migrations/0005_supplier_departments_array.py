@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("suppliers", "0004_alter_supplier_shipping_offered_and_more"),
     ]

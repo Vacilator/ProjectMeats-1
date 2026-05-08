@@ -1,6 +1,6 @@
 /**
  * FieldPropertiesEditor Component
- * 
+ *
  * Allows users to edit properties of a field when adding from an entity.
  * Supports:
  * - Custom label override
@@ -8,7 +8,7 @@
  * - Help text override
  * - Validation rules
  * - Default value
- * 
+ *
  * Phase C.1.2 of WF-ENH-2026-Q1
  * Created: 2026-02-18
  */
@@ -43,19 +43,19 @@ import {
 export interface FieldProperties {
   /** Original field from entity */
   entityField: EntityField;
-  
+
   /** Custom label (overrides entity field label) */
   customLabel?: string;
-  
+
   /** Required status (overrides entity field required) */
   customRequired?: boolean;
-  
+
   /** Custom help text (overrides entity help_text) */
   customHelpText?: string;
-  
+
   /** Validation rules */
   validationRules?: ValidationRule[];
-  
+
   /** Default value */
   defaultValue?: any;
 }
@@ -63,16 +63,16 @@ export interface FieldProperties {
 export interface FieldPropertiesEditorProps {
   /** Field to edit properties for */
   field: EntityField;
-  
+
   /** Initial properties (if editing existing) */
   initialProperties?: Partial<FieldProperties>;
-  
+
   /** Callback when properties are saved */
   onSave: (properties: FieldProperties) => void;
-  
+
   /** Callback when editor is cancelled */
   onCancel: () => void;
-  
+
   /** Show as modal overlay (default: true) */
   modal?: boolean;
 }
@@ -199,8 +199,8 @@ export const FieldPropertiesEditor: React.FC<FieldPropertiesEditorProps> = ({
 }) => {
   const [customLabel, setCustomLabel] = useState(initialProperties?.customLabel || '');
   const [customRequired, setCustomRequired] = useState(
-    initialProperties?.customRequired !== undefined 
-      ? initialProperties.customRequired 
+    initialProperties?.customRequired !== undefined
+      ? initialProperties.customRequired
       : field.required
   );
   const [customHelpText, setCustomHelpText] = useState(initialProperties?.customHelpText || '');

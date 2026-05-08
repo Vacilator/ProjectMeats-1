@@ -32,46 +32,46 @@ log_error() {
 # Pre-deployment checks
 check_environment_variables() {
     log_info "Checking required environment variables..."
-    
+
     local required_vars=(
         "DJANGO_SETTINGS_MODULE"
         "SECRET_KEY"
         "DATABASE_URL"
         "ALLOWED_HOSTS"
     )
-    
+
     local missing_vars=()
-    
+
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
             missing_vars+=("$var")
         fi
     done
-    
+
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
         log_error "Missing required environment variables: ${missing_vars[*]}"
         return 1
     fi
-    
+
     log_info "✓ All required environment variables present"
     return 0
 }
 
 check_database_connection() {
     log_info "Checking database connectivity..."
-    
+
     if ! python manage.py check --database default >/dev/null 2>&1; then
         log_error "Database connection failed"
         return 1
     fi
-    
+
     log_info "✓ Database connection successful"
     return 0
 }
 
 check_migrations() {
     log_info "Checking migration status..."
-    
+
     # Check if there are unapplied migrations
     if ! python manage.py migrate --check >/dev/null 2>&1; then
         log_warn "Unapplied migrations detected"
@@ -79,18 +79,18 @@ check_migrations() {
     else
         log_info "✓ All migrations applied"
     fi
-    
+
     return 0
 }
 
 check_static_files() {
     log_info "Checking static files..."
-    
+
     if [[ ! -d "/app/staticfiles" ]] || [[ -z "$(ls -A /app/staticfiles 2>/dev/null)" ]]; then
         log_warn "Static files directory empty or missing"
         return 1
     fi
-    
+
     log_info "✓ Static files present"
     return 0
 }
@@ -99,9 +99,9 @@ check_static_files() {
 health_check() {
     local url="$1"
     local retries=0
-    
+
     log_info "Performing health check on $url"
-    
+
     while [[ $retries -lt $MAX_RETRIES ]]; do
         # Use -L to follow redirects (e.g., HTTP 301 to HTTPS)
         # Still outputs only final HTTP code for validation
@@ -109,14 +109,14 @@ health_check() {
             log_info "✓ Health check passed (attempt $((retries + 1)))"
             return 0
         fi
-        
+
         retries=$((retries + 1))
         if [[ $retries -lt $MAX_RETRIES ]]; then
             log_warn "Health check failed, retrying in ${RETRY_DELAY}s (attempt $retries/$MAX_RETRIES)"
             sleep "$RETRY_DELAY"
         fi
     done
-    
+
     log_error "Health check failed after $MAX_RETRIES attempts"
     return 1
 }
@@ -124,19 +124,19 @@ health_check() {
 # Container health check
 check_container_health() {
     log_info "Checking container health..."
-    
+
     # Check if container is running
     if ! docker ps | grep -q "pm-backend"; then
         log_error "Backend container not running"
         return 1
     fi
-    
+
     # Check container logs for errors
     local error_count=$(docker logs pm-backend --tail 100 2>&1 | grep -i "error" | wc -l)
     if [[ $error_count -gt 5 ]]; then
         log_warn "Found $error_count errors in recent logs"
     fi
-    
+
     log_info "✓ Container health check passed"
     return 0
 }
@@ -144,9 +144,9 @@ check_container_health() {
 # Disk space check
 check_disk_space() {
     log_info "Checking disk space..."
-    
+
     local usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
-    
+
     if [[ $usage -gt 90 ]]; then
         log_error "Disk usage critical: ${usage}%"
         return 1
@@ -155,20 +155,20 @@ check_disk_space() {
     else
         log_info "✓ Disk space OK: ${usage}% used"
     fi
-    
+
     return 0
 }
 
 # Docker cache cleanup
 cleanup_docker_cache() {
     log_info "Cleaning up Docker build cache..."
-    
+
     # Remove old build cache (keep last 7 days)
     docker builder prune -f --filter "until=168h" || true
-    
+
     # Remove dangling images
     docker image prune -f || true
-    
+
     log_info "✓ Docker cache cleaned"
 }
 
@@ -177,19 +177,19 @@ pre_deployment_checks() {
     log_info "========================================="
     log_info "Running Pre-Deployment Checks"
     log_info "========================================="
-    
+
     local failed=0
-    
+
     check_environment_variables || ((failed++))
     check_database_connection || ((failed++))
     check_migrations || ((failed++))
     check_disk_space || ((failed++))
-    
+
     if [[ $failed -gt 0 ]]; then
         log_error "$failed pre-deployment checks failed"
         return 1
     fi
-    
+
     log_info "========================================="
     log_info "✓ All pre-deployment checks passed"
     log_info "========================================="
@@ -201,23 +201,23 @@ post_deployment_checks() {
     log_info "========================================="
     log_info "Running Post-Deployment Checks"
     log_info "========================================="
-    
+
     local failed=0
-    
+
     check_container_health || ((failed++))
     check_static_files || ((failed++))
-    
+
     if [[ -n "$HEALTH_CHECK_URL" ]]; then
         health_check "$HEALTH_CHECK_URL" || ((failed++))
     else
         log_warn "HEALTH_CHECK_URL not set, skipping health check"
     fi
-    
+
     if [[ $failed -gt 0 ]]; then
         log_error "$failed post-deployment checks failed"
         return 1
     fi
-    
+
     log_info "========================================="
     log_info "✓ All post-deployment checks passed"
     log_info "========================================="
@@ -227,10 +227,10 @@ post_deployment_checks() {
 # Rollback function
 rollback() {
     log_error "Deployment failed, initiating rollback..."
-    
+
     # Stop new container
     docker stop pm-backend || true
-    
+
     # Restore from backup if available
     if docker ps -a | grep -q "pm-backend-backup"; then
         log_info "Restoring previous container..."
@@ -238,14 +238,14 @@ rollback() {
         docker rename pm-backend-backup pm-backend || true
         docker start pm-backend || true
     fi
-    
+
     log_info "Rollback completed"
 }
 
 # Main execution
 main() {
     local mode="${1:-pre}"
-    
+
     case "$mode" in
         pre)
             pre_deployment_checks

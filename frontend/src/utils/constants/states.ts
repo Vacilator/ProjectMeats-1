@@ -1,6 +1,6 @@
 /**
  * US States constant for dropdown/select components
- * 
+ *
  * Provides all 50 US states with abbreviations and full names
  * Used in Customers, Suppliers, and other address forms
  */

@@ -1,17 +1,17 @@
 /**
  * TerminalNode Component
- * 
+ *
  * End nodes for workflows:
  * - Success (completed successfully)
  * - Error (terminated with error)
  * - Cancel (user or system cancellation)
- * 
+ *
  * Features:
  * - Final status message
  * - Data to return
  * - Notification settings
  * - Cleanup actions
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';

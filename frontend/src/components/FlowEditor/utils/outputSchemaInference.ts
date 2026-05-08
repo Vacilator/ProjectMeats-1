@@ -1,9 +1,9 @@
 /**
  * Output Schema Inference Utility
- * 
+ *
  * Automatically infers what data a node outputs based on its configuration.
  * This enables Smart Auto-Map to suggest field mappings between connected nodes.
- * 
+ *
  * Created: 2026-03-04 - Smart Auto-Map Phase 3
  */
 
@@ -121,7 +121,7 @@ export function inferOutputSchema(node: Node): NodeOutputSchema | null {
     case 'formBook':
     case 'formProcessGroup':
       return inferOutputSchemaFromFormNode(node);
-    
+
     // Add more node types as needed
     default:
       return null;
@@ -133,14 +133,14 @@ export function inferOutputSchema(node: Node): NodeOutputSchema | null {
  */
 export function extractOutputSchemas(nodes: Node[]): Map<string, NodeOutputSchema> {
   const schemas = new Map<string, NodeOutputSchema>();
-  
+
   nodes.forEach(node => {
     const schema = inferOutputSchema(node);
     if (schema) {
       schemas.set(node.id, schema);
     }
   });
-  
+
   return schemas;
 }
 
@@ -150,10 +150,10 @@ export function extractOutputSchemas(nodes: Node[]): Map<string, NodeOutputSchem
 export function getUpstreamNodes(nodes: Node[], edges: any[], targetNodeId: string): Node[] {
   // Find edges that point to target node
   const incomingEdges = edges.filter(edge => edge.target === targetNodeId);
-  
+
   // Get source nodes from those edges
   const upstreamNodeIds = new Set(incomingEdges.map(edge => edge.source));
-  
+
   return nodes.filter(node => upstreamNodeIds.has(node.id));
 }
 
@@ -167,14 +167,14 @@ export function getUpstreamOutputFields(
 ): OutputFieldSchema[] {
   const upstreamNodes = getUpstreamNodes(nodes, edges, targetNodeId);
   const allFields: OutputFieldSchema[] = [];
-  
+
   upstreamNodes.forEach(node => {
     const schema = inferOutputSchema(node);
     if (schema) {
       allFields.push(...schema.outputFields);
     }
   });
-  
+
   return allFields;
 }
 
@@ -183,11 +183,11 @@ export function getUpstreamOutputFields(
  */
 export function attachOutputSchemaToNode(node: Node): Node {
   const schema = inferOutputSchema(node);
-  
+
   if (!schema) {
     return node; // No changes
   }
-  
+
   return {
     ...node,
     data: {
@@ -206,16 +206,16 @@ export function validateOutputSchema(
   storedSchema: NodeOutputSchema
 ): boolean {
   const currentSchema = inferOutputSchemaFromFormNode(node);
-  
+
   if (!currentSchema) {
     return false; // Node no longer has fields
   }
-  
+
   // Check if field count matches
   if (currentSchema.outputFields.length !== storedSchema.outputFields.length) {
     return false;
   }
-  
+
   // Check if field names match
   const currentFieldNames = new Set(
     currentSchema.outputFields.map(f => f.fieldName)
@@ -223,12 +223,12 @@ export function validateOutputSchema(
   const storedFieldNames = new Set(
     storedSchema.outputFields.map(f => f.fieldName)
   );
-  
+
   for (const name of storedFieldNames) {
     if (!currentFieldNames.has(name)) {
       return false; // Field was deleted
     }
   }
-  
+
   return true;
 }

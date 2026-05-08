@@ -1,15 +1,15 @@
 /**
  * Universal Entity Detail Modal
- * 
+ *
  * Quick view modal for entities accessed from universal search.
  * Displays basic entity information without navigating away from cockpit.
- * 
+ *
  * Features:
  * - Dynamic entity type handling (suppliers, customers, orders, etc.)
  * - Read-only view with key fields
  * - Links to full detail page (when implemented)
  * - Theme-compliant styling
- * 
+ *
  * Usage:
  * ```tsx
  * <EntityDetailModal
@@ -28,8 +28,8 @@ import { Modal as AntModal } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
-import { 
-  Building2, Users, ShoppingCart, Receipt, Package, 
+import {
+  Building2, Users, ShoppingCart, Receipt, Package,
   Truck, User, FileText, Phone, Mail, MapPin, Calendar,
   ExternalLink, Loader, ChevronRight, ChevronDown, Network
 } from 'lucide-react';
@@ -274,7 +274,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   const handleExploreRelations = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Toggle relations view
     if (showRelations) {
       setShowRelations(false);
@@ -291,13 +291,13 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
     setLoadingRelations(true);
     try {
       logger.debug('[EntityDetailModal] Fetching relations for:', { entityType, entityId });
-      
+
       const response = await apiClient.get(
         `/entities/${entityType}/${entityId}/relationships/?counts=true`
       );
-      
+
       const relationshipsData = response.data.relationships || [];
-      
+
       // Fetch top 5 recent items for each relationship
       const relationshipsWithItems = await Promise.all(
         relationshipsData.map(async (rel: any) => {
@@ -330,7 +330,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
           };
         })
       );
-      
+
       setRelationships(relationshipsWithItems.filter(r => r.count > 0));
       setShowRelations(true);
     } catch (err: any) {
@@ -348,7 +348,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       entity,
       timestamp: new Date().toISOString()
     });
-    
+
     // Navigate to list page
     if (listRoute) {
       logger.debug(`[EntityDetailModal] Navigating to: ${listRoute}`);

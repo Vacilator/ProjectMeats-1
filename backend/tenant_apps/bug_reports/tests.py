@@ -4,9 +4,12 @@ Tests for Bug Reports app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from django.test import TestCase
+
 from django.contrib.auth.models import User
+from django.test import TestCase
+
 from tenant_apps.bug_reports.models import BugReport
+
 from apps.tenants.models import Tenant, TenantUser
 
 
@@ -18,9 +21,7 @@ class BugReportModelTest(TestCase):
         """Set up test data shared across all tests."""
         unique_id = uuid.uuid4().hex[:8]
         cls.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         cls.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -40,7 +41,7 @@ class BugReportModelTest(TestCase):
             reporter=self.user,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(report.title, "Login button not working")
         self.assertEqual(report.category, "bug")
         self.assertEqual(report.severity, "high")
@@ -51,7 +52,7 @@ class BugReportModelTest(TestCase):
     def test_bug_report_severity_choices(self):
         """Test different severity levels."""
         severities = ["low", "medium", "high", "critical"]
-        
+
         for severity in severities:
             report = BugReport.objects.create(
                 title=f"{severity.capitalize()} Bug",
@@ -64,7 +65,7 @@ class BugReportModelTest(TestCase):
     def test_bug_report_status_choices(self):
         """Test different status values."""
         statuses = ["new", "in_progress", "resolved", "closed", "wont_fix"]
-        
+
         for status in statuses:
             report = BugReport.objects.create(
                 title=f"Bug with {status}",
@@ -77,7 +78,7 @@ class BugReportModelTest(TestCase):
     def test_bug_report_category_choices(self):
         """Test different category values."""
         categories = ["bug", "feature_request", "question", "feedback"]
-        
+
         for category in categories:
             report = BugReport.objects.create(
                 title=f"Report: {category}",
@@ -98,7 +99,7 @@ class BugReportModelTest(TestCase):
             url="https://app.example.com/dashboard",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(report.browser, "Chrome 120")
         self.assertEqual(report.os, "Windows 11")
         self.assertEqual(report.screen_resolution, "1920x1080")
@@ -114,7 +115,7 @@ class BugReportModelTest(TestCase):
             actual_behavior="Nothing happens, no error shown",
             tenant=self.tenant,
         )
-        
+
         self.assertIn("Open form", report.steps_to_reproduce)
         self.assertIn("success message", report.expected_behavior)
         self.assertIn("Nothing happens", report.actual_behavior)
@@ -127,7 +128,7 @@ class BugReportModelTest(TestCase):
             severity="critical",
             tenant=self.tenant,
         )
-        
+
         str_repr = str(report)
         self.assertIn("CRITICAL", str_repr)
         self.assertIn("Critical Bug", str_repr)
@@ -135,19 +136,17 @@ class BugReportModelTest(TestCase):
     def test_bug_report_tenant_isolation(self):
         """Test that bug reports are properly isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create bug report for first tenant
         report1 = BugReport.objects.create(
             title="Bug 1",
             description="Description",
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -155,18 +154,18 @@ class BugReportModelTest(TestCase):
             contact_email=f"admin-{unique_id}@othercompany.com",
             created_by=other_user,
         )
-        
+
         # Create bug report for second tenant
         report2 = BugReport.objects.create(
             title="Bug 2",
             description="Description",
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_reports = BugReport.objects.for_tenant(self.tenant)
         tenant2_reports = BugReport.objects.for_tenant(other_tenant)
-        
+
         self.assertEqual(tenant1_reports.count(), 1)
         self.assertEqual(tenant2_reports.count(), 1)
         self.assertIn(report1, tenant1_reports)
@@ -184,7 +183,7 @@ class BugReportModelTest(TestCase):
             description="Description",
             tenant=self.tenant,
         )
-        
+
         reports = list(BugReport.objects.for_tenant(self.tenant))
         self.assertEqual(reports[0].title, "Second Bug")  # Most recent first
         self.assertEqual(reports[1].title, "First Bug")

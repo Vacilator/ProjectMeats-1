@@ -1,6 +1,6 @@
 /**
  * Template Selector Modal
- * 
+ *
  * Netflix-style template browsing UI for workflow templates
  * Phase 2.5 - Templates Library
  * Created: 2026-02-04
@@ -9,9 +9,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { X, Search, Star, Clock, Zap } from 'lucide-react';
-import { 
-  FLOW_TEMPLATES, 
-  FlowTemplate, 
+import {
+  FLOW_TEMPLATES,
+  FlowTemplate,
   TemplateCategory,
   TemplateDifficulty,
   CATEGORY_LABELS,

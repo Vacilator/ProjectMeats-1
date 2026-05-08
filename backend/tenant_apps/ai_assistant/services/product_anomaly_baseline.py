@@ -24,11 +24,11 @@ from typing import Optional
 
 from django.utils import timezone
 
-from apps.core.models import WeightUnitChoices
 from tenant_apps.invoices.models import Invoice, InvoiceStatus
 from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
 
+from apps.core.models import WeightUnitChoices
 
 # -------------------------------------------------------------------
 # Contract Types
@@ -194,9 +194,7 @@ def _load_purchase_order_values(
     if field_name == "quantity":
         return _as_float_list(queryset.values_list("quantity", flat=True))
     if field_name == "weight":
-        return _as_float_list(
-            queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True)
-        )
+        return _as_float_list(queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True))
     return []
 
 
@@ -221,9 +219,7 @@ def _load_sales_order_values(
     if field_name == "quantity":
         return _as_float_list(queryset.values_list("quantity", flat=True))
     if field_name == "weight":
-        return _as_float_list(
-            queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True)
-        )
+        return _as_float_list(queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True))
     return []
 
 
@@ -250,9 +246,7 @@ def _load_invoice_values(
     if field_name == "quantity":
         return _as_float_list(queryset.values_list("quantity", flat=True))
     if field_name == "weight":
-        return _as_float_list(
-            queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True)
-        )
+        return _as_float_list(queryset.filter(weight_unit=WeightUnitChoices.LBS).values_list("total_weight", flat=True))
     return []
 
 

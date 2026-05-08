@@ -9,10 +9,11 @@ from typing import Any
 from django.db import transaction
 from django.utils import timezone
 
-from apps.tenants.rls import tenant_rls
 from tenant_apps.inquiries.models import Inquiry, InquiryRouteDecisionChoices
 from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
+
+from apps.tenants.rls import tenant_rls
 
 logger = logging.getLogger(__name__)
 
@@ -65,16 +66,12 @@ def create_draft_from_fulfill(
             )
 
         if not inquiry.customer:
-            raise DraftSalesOrderError(
-                "Inquiry must have a customer assigned before creating a sales order."
-            )
+            raise DraftSalesOrderError("Inquiry must have a customer assigned before creating a sales order.")
 
         # Idempotency: check if draft SO already exists for this inquiry
         existing = _get_existing_sales_order_for_inquiry(tenant=tenant, inquiry=inquiry)
         if existing is not None:
-            return DraftSalesOrderResult(
-                sales_order=existing, created=False, source_type="fulfill"
-            )
+            return DraftSalesOrderResult(sales_order=existing, created=False, source_type="fulfill")
 
         sales_order = _create_sales_order(
             tenant=tenant,
@@ -96,9 +93,7 @@ def create_draft_from_fulfill(
             source_type="fulfill",
         )
 
-        return DraftSalesOrderResult(
-            sales_order=sales_order, created=True, source_type="fulfill"
-        )
+        return DraftSalesOrderResult(sales_order=sales_order, created=True, source_type="fulfill")
 
 
 def create_draft_from_approved_source(
@@ -132,23 +127,16 @@ def create_draft_from_approved_source(
         inquiry = _resolve_inquiry_from_purchase_order(tenant=tenant, purchase_order=purchase_order)
         if not inquiry:
             raise DraftSalesOrderError(
-                "Cannot resolve source inquiry from this purchase order. "
-                "Lineage data is missing or invalid."
+                "Cannot resolve source inquiry from this purchase order. " "Lineage data is missing or invalid."
             )
 
         if not inquiry.customer:
-            raise DraftSalesOrderError(
-                "Source inquiry must have a customer assigned before creating a sales order."
-            )
+            raise DraftSalesOrderError("Source inquiry must have a customer assigned before creating a sales order.")
 
         # Idempotency: check if draft SO already exists
-        existing = _get_existing_sales_order_for_purchase_order(
-            tenant=tenant, purchase_order=purchase_order
-        )
+        existing = _get_existing_sales_order_for_purchase_order(tenant=tenant, purchase_order=purchase_order)
         if existing is not None:
-            return DraftSalesOrderResult(
-                sales_order=existing, created=False, source_type="approved_source"
-            )
+            return DraftSalesOrderResult(sales_order=existing, created=False, source_type="approved_source")
 
         sales_order = _create_sales_order(
             tenant=tenant,
@@ -172,9 +160,7 @@ def create_draft_from_approved_source(
             purchase_order=purchase_order,
         )
 
-        return DraftSalesOrderResult(
-            sales_order=sales_order, created=True, source_type="approved_source"
-        )
+        return DraftSalesOrderResult(sales_order=sales_order, created=True, source_type="approved_source")
 
 
 # ---------------------------------------------------------------------------
@@ -182,9 +168,7 @@ def create_draft_from_approved_source(
 # ---------------------------------------------------------------------------
 
 
-def _get_existing_sales_order_for_inquiry(
-    *, tenant: Any, inquiry: Inquiry
-) -> SalesOrder | None:
+def _get_existing_sales_order_for_inquiry(*, tenant: Any, inquiry: Inquiry) -> SalesOrder | None:
     """Check if a draft SO already exists for this inquiry (deduplication)."""
     # First check via FK
     if inquiry.sales_order_id:
@@ -193,17 +177,11 @@ def _get_existing_sales_order_for_inquiry(
             return so
 
     # Also check via custom_data lineage
-    existing = (
-        SalesOrder.objects.for_tenant(tenant)
-        .filter(custom_data__source_inquiry_id=str(inquiry.id))
-        .first()
-    )
+    existing = SalesOrder.objects.for_tenant(tenant).filter(custom_data__source_inquiry_id=str(inquiry.id)).first()
     return existing
 
 
-def _get_existing_sales_order_for_purchase_order(
-    *, tenant: Any, purchase_order: PurchaseOrder
-) -> SalesOrder | None:
+def _get_existing_sales_order_for_purchase_order(*, tenant: Any, purchase_order: PurchaseOrder) -> SalesOrder | None:
     """Check if a draft SO already exists for this PO (deduplication)."""
     existing = (
         SalesOrder.objects.for_tenant(tenant)
@@ -213,9 +191,7 @@ def _get_existing_sales_order_for_purchase_order(
     return existing
 
 
-def _resolve_inquiry_from_purchase_order(
-    *, tenant: Any, purchase_order: PurchaseOrder
-) -> Inquiry | None:
+def _resolve_inquiry_from_purchase_order(*, tenant: Any, purchase_order: PurchaseOrder) -> Inquiry | None:
     """Resolve the source inquiry from PO's custom_data lineage or reverse FK."""
     # Try custom_data lineage first (set by supplier_quote_po_draft service)
     source_lineage = (purchase_order.custom_data or {}).get("source_lineage", {})

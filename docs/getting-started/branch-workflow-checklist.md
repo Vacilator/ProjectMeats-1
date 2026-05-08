@@ -1,7 +1,7 @@
 # Branch Workflow Checklist - ProjectMeats
 
-**Status**: ✅ CURRENT  
-**Category**: Getting Started  
+**Status**: ✅ CURRENT
+**Category**: Getting Started
 **Last Updated**: 2026-02-01
 
 ---
@@ -539,7 +539,7 @@ git branch -D old-branch-name
 
 ### Issue: Merge conflicts when promoting
 
-**Solution**: 
+**Solution**:
 ```bash
 # Update your branch with latest from target
 git checkout your-branch
@@ -590,5 +590,5 @@ git push origin v1.0.0
 
 ---
 
-**Last Updated**: 2025-12-04  
+**Last Updated**: 2025-12-04
 **Version**: 1.1

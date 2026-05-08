@@ -44,16 +44,16 @@ echo ""
 echo "Creating database backup: $BACKUP_FILE"
 if PGPASSWORD="$DB_PASS" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$DB_NAME" | sudo tee "$BACKUP_FILE" > /dev/null; then
     echo "✅ Database backup created successfully"
-    
+
     # Compress backup
     echo "Compressing backup..."
     sudo gzip "$BACKUP_FILE"
     BACKUP_FILE="${BACKUP_FILE}.gz"
     echo "✅ Backup compressed: $BACKUP_FILE"
-    
+
     # Set permissions
     sudo chmod 600 "$BACKUP_FILE"
-    
+
     # Get file size
     SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
     echo "Backup size: $SIZE"

@@ -91,8 +91,8 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 
 ## Infrastructure Connectivity (Quad Services Stack)
 
-**Diagnostic Tool**: `scripts/infrastructure_diagnostics.py`  
-**Management Command**: `python manage.py check_infrastructure`  
+**Diagnostic Tool**: `scripts/infrastructure_diagnostics.py`
+**Management Command**: `python manage.py check_infrastructure`
 **Reference note**: Treat `manifests/env.manifest.json`, `docs/GOLDEN_PIPELINE.md`, and `docs/runbooks/INCIDENT_RESPONSE.md` as the source of truth for current non-dev Redis and Sentry expectations. This registry section defines the verification surfaces, not a static environment-status matrix.
 
 | Service | Verification Surface | Purpose |
@@ -166,7 +166,7 @@ ssh user@dev.meatscentral.com \
 - ✅ **Sentry**: DSN initialized, error tracking middleware active
 - ✅ **Microsoft Graph**: OAuth token encryption functional, email polling operational
 
-**Last Audit**: February 28, 2026 (Microsoft Graph verified in dev environment)  
+**Last Audit**: February 28, 2026 (Microsoft Graph verified in dev environment)
 **Next Audit**: Scheduled after user configures remaining external services (Redis, OpenAI, Sentry)
 
 ## AI Agent Protocol

@@ -1,27 +1,27 @@
 /**
  * Enhanced Schedule Call Modal - CRUD Support
- * 
+ *
  * Features:
  * - Create new calls
  * - Edit existing calls (via initialData prop)
  * - Full form validation
  * - Theme-compliant styling
  * - Call timer for tracking call duration
- * 
+ *
  * Usage:
  * ```tsx
  * // Create new
  * <ScheduleCallModal isOpen={show} onClose={...} onSuccess={...} />
- * 
+ *
  * // Edit existing
- * <ScheduleCallModal 
+ * <ScheduleCallModal
  *   isOpen={show}
  *   initialData={call}
  *   onClose={...}
  *   onSuccess={...}
  * />
  * ```
- * 
+ *
  * Updated: 2026-02-03 - Added CallTimer support
  */
 import React, { useCallback, useEffect, useState } from 'react';
@@ -146,7 +146,7 @@ const CloseButton = styled.button`
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -176,7 +176,7 @@ const Input = styled.input`
   font-size: 0.875rem;
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -193,7 +193,7 @@ const Select = styled.select`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -211,7 +211,7 @@ const TextArea = styled.textarea`
   color: rgb(var(--color-text-primary));
   min-height: 80px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -237,7 +237,7 @@ const CancelButton = styled.button`
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-text-primary), 0.05);
   }
@@ -252,11 +252,11 @@ const SubmitButton = styled.button`
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover:not(:disabled) {
     opacity: 0.9;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -291,11 +291,11 @@ const NewInquiryButton = styled.button`
   align-items: center;
   gap: 0.5rem;
   transition: all 0.2s;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.2);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -389,7 +389,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   // Call timer state (for logging call duration)
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerDurationSeconds, setTimerDurationSeconds] = useState(0);
-  
+
   // Inquiry modal state
   const [showInquiryModal, setShowInquiryModal] = useState(false);
 
@@ -454,13 +454,13 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
       const endpoint = type === 'supplier' ? '/suppliers/' : '/customers/';
       const response = await businessApi.get(endpoint);
       const data = response.data.results || response.data;
-      
+
       // Map to consistent format
       const options = data.map((item: any) => ({
         id: item.id,
         name: item.name || item.company_name || item.title || `${type} #${item.id}`,
       }));
-      
+
       setEntityOptions(options);
     } catch (err) {
       logger.error(`Failed to fetch ${type} options:`, err);
@@ -595,8 +595,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
                 disabled={isSubmitting || loadingEntities}
               >
                 <option value="">
-                  {loadingEntities 
-                    ? 'Loading...' 
+                  {loadingEntities
+                    ? 'Loading...'
                     : `Select ${entityType === 'supplier' ? 'Supplier' : 'Customer'}`
                   }
                 </option>

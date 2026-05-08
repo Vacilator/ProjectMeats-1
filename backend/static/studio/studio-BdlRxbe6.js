@@ -89,13 +89,13 @@ Data:
     color: white;
     &:hover { background: #339af0; }
   `}
-  
+
   ${o=>o.variant==="secondary"&&`
     background: #e9ecef;
     color: #495057;
     &:hover { background: #dee2e6; }
   `}
-  
+
   ${o=>o.variant==="danger"&&`
     background: #fa5252;
     color: white;
@@ -106,13 +106,13 @@ Data:
   border-radius: 6px;
   margin-bottom: 1rem;
   font-size: 14px;
-  
+
   ${o=>o.type==="success"&&`
     background: #d3f9d8;
     color: #2b8a3e;
     border: 1px solid #8ce99a;
   `}
-  
+
   ${o=>o.type==="error"&&`
     background: #ffe0e0;
     color: #c92a2a;
@@ -125,7 +125,7 @@ Data:
   font-size: 11px;
   font-weight: 600;
   margin-left: 8px;
-  
+
   ${o=>o.fieldType==="reference"?`
       background: #dbe4ff;
       color: #3b5bdb;
@@ -139,11 +139,11 @@ Data:
 `,qe=E.tr`
   background: #f8f9fa;
   cursor: pointer;
-  
+
   &:hover {
     background: #e9ecef;
   }
-  
+
   td {
     text-align: center;
     color: #868e96;

@@ -16,36 +16,36 @@ from tenant_apps.sales_orders.models import SalesOrder
 
 from .models import SettlementEvent, SettlementEventState, SettlementReconciliationReason
 
-_CAMEL_BOUNDARY = re.compile(r'(?<!^)(?=[A-Z])')
+_CAMEL_BOUNDARY = re.compile(r"(?<!^)(?=[A-Z])")
 
 INVOICE_REFERENCE_ALIASES = {
-    'invoice_number',
-    'invoice_no',
-    'invoice_reference',
+    "invoice_number",
+    "invoice_no",
+    "invoice_reference",
 }
 SALES_ORDER_REFERENCE_ALIASES = {
-    'sales_order_number',
-    'sales_order_num',
-    'our_sales_order_num',
+    "sales_order_number",
+    "sales_order_num",
+    "our_sales_order_num",
 }
 PURCHASE_ORDER_REFERENCE_ALIASES = {
-    'purchase_order_number',
-    'purchase_order_num',
-    'po_number',
-    'po_num',
-    'our_purchase_order_num',
-    'supplier_confirmation_order_number',
-    'supplier_confirmation_order_num',
+    "purchase_order_number",
+    "purchase_order_num",
+    "po_number",
+    "po_num",
+    "our_purchase_order_num",
+    "supplier_confirmation_order_number",
+    "supplier_confirmation_order_num",
 }
 PAYMENT_METHOD_ALIASES = {
-    'payment_method',
-    'method',
+    "payment_method",
+    "method",
 }
 REFERENCE_NUMBER_ALIASES = {
-    'transaction_id',
-    'reference_number',
-    'payout_id',
-    'trace_number',
+    "transaction_id",
+    "reference_number",
+    "payout_id",
+    "trace_number",
 }
 
 
@@ -61,31 +61,31 @@ def reconcile_settlement_event(*, event: SettlementEvent) -> dict[str, object]:
     with transaction.atomic():
         locked_event = (
             SettlementEvent.objects.select_for_update()
-            .select_related('source')
+            .select_related("source")
             .filter(id=event.id, tenant=event.tenant)
             .first()
         )
         if not locked_event:
-            return {'success': False, 'reason': 'event_not_found'}
+            return {"success": False, "reason": "event_not_found"}
 
         if locked_event.payment_transaction_id or locked_event.state == SettlementEventState.POSTED:
             return {
-                'success': True,
-                'skipped': True,
-                'state': locked_event.state,
-                'reason_code': locked_event.reconciliation_reason_code,
+                "success": True,
+                "skipped": True,
+                "state": locked_event.state,
+                "reason_code": locked_event.reconciliation_reason_code,
             }
 
-        if _normalize_reference_value(locked_event.direction).lower() != 'credit':
+        if _normalize_reference_value(locked_event.direction).lower() != "credit":
             _mark_event_for_review(
                 locked_event,
                 reason_code=SettlementReconciliationReason.UNSUPPORTED_DIRECTION,
             )
             return {
-                'success': True,
-                'state': locked_event.state,
-                'reason_code': locked_event.reconciliation_reason_code,
-                'requires_review': True,
+                "success": True,
+                "state": locked_event.state,
+                "reason_code": locked_event.reconciliation_reason_code,
+                "requires_review": True,
             }
 
         payload = locked_event.normalized_payload if isinstance(locked_event.normalized_payload, dict) else {}
@@ -96,10 +96,10 @@ def reconcile_settlement_event(*, event: SettlementEvent) -> dict[str, object]:
                 reason_code=SettlementReconciliationReason.MISSING_REFERENCE,
             )
             return {
-                'success': True,
-                'state': locked_event.state,
-                'reason_code': locked_event.reconciliation_reason_code,
-                'requires_review': True,
+                "success": True,
+                "state": locked_event.state,
+                "reason_code": locked_event.reconciliation_reason_code,
+                "requires_review": True,
             }
 
         raw_candidates = _find_reference_candidates(locked_event, reference_map)
@@ -109,23 +109,25 @@ def reconcile_settlement_event(*, event: SettlementEvent) -> dict[str, object]:
                 reason_code=SettlementReconciliationReason.REFERENCE_NOT_FOUND,
             )
             return {
-                'success': True,
-                'state': locked_event.state,
-                'reason_code': locked_event.reconciliation_reason_code,
-                'requires_review': True,
+                "success": True,
+                "state": locked_event.state,
+                "reason_code": locked_event.reconciliation_reason_code,
+                "requires_review": True,
             }
 
-        exact_candidates = [candidate for candidate in raw_candidates if candidate.outstanding_amount == locked_event.amount]
+        exact_candidates = [
+            candidate for candidate in raw_candidates if candidate.outstanding_amount == locked_event.amount
+        ]
         if not exact_candidates:
             _mark_event_for_review(
                 locked_event,
                 reason_code=SettlementReconciliationReason.AMOUNT_MISMATCH,
             )
             return {
-                'success': True,
-                'state': locked_event.state,
-                'reason_code': locked_event.reconciliation_reason_code,
-                'requires_review': True,
+                "success": True,
+                "state": locked_event.state,
+                "reason_code": locked_event.reconciliation_reason_code,
+                "requires_review": True,
             }
 
         if len(exact_candidates) > 1:
@@ -134,20 +136,20 @@ def reconcile_settlement_event(*, event: SettlementEvent) -> dict[str, object]:
                 reason_code=SettlementReconciliationReason.AMBIGUOUS_MATCH,
             )
             return {
-                'success': True,
-                'state': locked_event.state,
-                'reason_code': locked_event.reconciliation_reason_code,
-                'requires_review': True,
+                "success": True,
+                "state": locked_event.state,
+                "reason_code": locked_event.reconciliation_reason_code,
+                "requires_review": True,
             }
 
         candidate = exact_candidates[0]
         payment = _create_payment_transaction(locked_event, candidate, payload)
         _mark_event_posted(locked_event, candidate, payment)
         return {
-            'success': True,
-            'state': locked_event.state,
-            'reason_code': locked_event.reconciliation_reason_code,
-            'payment_transaction_id': payment.id,
+            "success": True,
+            "state": locked_event.state,
+            "reason_code": locked_event.reconciliation_reason_code,
+            "payment_transaction_id": payment.id,
         }
 
 
@@ -157,21 +159,21 @@ def override_settlement_event(
     reviewer: User,
     target_type: str,
     target_id: int,
-    review_note: str = '',
+    review_note: str = "",
 ) -> SettlementEvent:
     with transaction.atomic():
         locked_event = (
             SettlementEvent.objects.select_for_update()
-            .select_related('source')
+            .select_related("source")
             .filter(id=event.id, tenant=event.tenant)
             .first()
         )
         if not locked_event:
-            raise ValidationError('Settlement event no longer exists.')
+            raise ValidationError("Settlement event no longer exists.")
         if locked_event.state == SettlementEventState.POSTED or locked_event.payment_transaction_id:
-            raise ValidationError('This settlement event has already been posted.')
+            raise ValidationError("This settlement event has already been posted.")
         if locked_event.state != SettlementEventState.READY_TO_POST:
-            raise ValidationError('Only review-queue settlement events can be overridden.')
+            raise ValidationError("Only review-queue settlement events can be overridden.")
 
         candidate = _resolve_override_candidate(
             event=locked_event,
@@ -199,34 +201,30 @@ def reject_settlement_event(
     *,
     event: SettlementEvent,
     reviewer: User,
-    review_note: str = '',
+    review_note: str = "",
 ) -> SettlementEvent:
     with transaction.atomic():
-        locked_event = (
-            SettlementEvent.objects.select_for_update()
-            .filter(id=event.id, tenant=event.tenant)
-            .first()
-        )
+        locked_event = SettlementEvent.objects.select_for_update().filter(id=event.id, tenant=event.tenant).first()
         if not locked_event:
-            raise ValidationError('Settlement event no longer exists.')
+            raise ValidationError("Settlement event no longer exists.")
         if locked_event.state == SettlementEventState.POSTED or locked_event.payment_transaction_id:
-            raise ValidationError('Posted settlement events cannot be rejected.')
+            raise ValidationError("Posted settlement events cannot be rejected.")
 
         locked_event.state = SettlementEventState.IGNORED
         locked_event.reconciliation_reason_code = SettlementReconciliationReason.ACCOUNTANT_REJECTED
-        locked_event.last_error = ''
+        locked_event.last_error = ""
         locked_event.processed_at = timezone.now()
         _mark_event_reviewed(locked_event, reviewer=reviewer, review_note=review_note)
         locked_event.save(
             update_fields=[
-                'state',
-                'reconciliation_reason_code',
-                'last_error',
-                'processed_at',
-                'reviewed_by',
-                'reviewed_at',
-                'review_note',
-                'modified_on',
+                "state",
+                "reconciliation_reason_code",
+                "last_error",
+                "processed_at",
+                "reviewed_by",
+                "reviewed_at",
+                "review_note",
+                "modified_on",
             ]
         )
         return locked_event
@@ -234,9 +232,9 @@ def reject_settlement_event(
 
 def _collect_reference_values(payload: dict[str, object]) -> dict[str, set[str]]:
     return {
-        'invoice': _collect_alias_values(payload, INVOICE_REFERENCE_ALIASES),
-        'sales_order': _collect_alias_values(payload, SALES_ORDER_REFERENCE_ALIASES),
-        'purchase_order': _collect_alias_values(payload, PURCHASE_ORDER_REFERENCE_ALIASES),
+        "invoice": _collect_alias_values(payload, INVOICE_REFERENCE_ALIASES),
+        "sales_order": _collect_alias_values(payload, SALES_ORDER_REFERENCE_ALIASES),
+        "purchase_order": _collect_alias_values(payload, PURCHASE_ORDER_REFERENCE_ALIASES),
     }
 
 
@@ -257,13 +255,13 @@ def _collect_alias_values(node: object, aliases: set[str]) -> set[str]:
 
 
 def _normalize_key(key: object) -> str:
-    value = _CAMEL_BOUNDARY.sub('_', str(key))
-    return value.replace('-', '_').lower()
+    value = _CAMEL_BOUNDARY.sub("_", str(key))
+    return value.replace("-", "_").lower()
 
 
 def _normalize_reference_value(value: object) -> str:
     if value is None:
-        return ''
+        return ""
     return str(value).strip()
 
 
@@ -273,32 +271,32 @@ def _find_reference_candidates(
 ) -> list[SettlementMatchCandidate]:
     candidates: dict[tuple[str, int], SettlementMatchCandidate] = {}
 
-    invoice_refs = reference_map['invoice']
+    invoice_refs = reference_map["invoice"]
     if invoice_refs:
         queryset = Invoice.objects.select_for_update().filter(tenant=event.tenant, invoice_number__in=invoice_refs)
         for invoice in queryset:
-            candidates[('invoice', invoice.id)] = SettlementMatchCandidate(
-                entity_type='invoice',
+            candidates[("invoice", invoice.id)] = SettlementMatchCandidate(
+                entity_type="invoice",
                 object_id=invoice.id,
                 reference_value=invoice.invoice_number,
                 outstanding_amount=_get_outstanding_amount(invoice.outstanding_amount, invoice.total_amount),
             )
 
-    sales_refs = reference_map['sales_order']
+    sales_refs = reference_map["sales_order"]
     if sales_refs:
         sales_query = Q()
         for value in sales_refs:
             sales_query |= Q(our_sales_order_num=value) | Q(our_sales_order_number_for_customer=value)
         queryset = SalesOrder.objects.select_for_update().filter(tenant=event.tenant).filter(sales_query)
         for sales_order in queryset:
-            candidates[('sales_order', sales_order.id)] = SettlementMatchCandidate(
-                entity_type='sales_order',
+            candidates[("sales_order", sales_order.id)] = SettlementMatchCandidate(
+                entity_type="sales_order",
                 object_id=sales_order.id,
                 reference_value=sales_order.our_sales_order_num,
                 outstanding_amount=_get_outstanding_amount(sales_order.outstanding_amount, sales_order.total_amount),
             )
 
-    purchase_refs = reference_map['purchase_order']
+    purchase_refs = reference_map["purchase_order"]
     if purchase_refs:
         purchase_query = Q()
         for value in purchase_refs:
@@ -309,11 +307,13 @@ def _find_reference_candidates(
             purchase_query |= Q(supplier_confirmation_order_number=value)
         queryset = PurchaseOrder.objects.select_for_update().filter(tenant=event.tenant).filter(purchase_query)
         for purchase_order in queryset:
-            candidates[('purchase_order', purchase_order.id)] = SettlementMatchCandidate(
-                entity_type='purchase_order',
+            candidates[("purchase_order", purchase_order.id)] = SettlementMatchCandidate(
+                entity_type="purchase_order",
                 object_id=purchase_order.id,
                 reference_value=purchase_order.order_number,
-                outstanding_amount=_get_outstanding_amount(purchase_order.outstanding_amount, purchase_order.total_amount),
+                outstanding_amount=_get_outstanding_amount(
+                    purchase_order.outstanding_amount, purchase_order.total_amount
+                ),
             )
 
     return list(candidates.values())
@@ -324,7 +324,7 @@ def _get_outstanding_amount(current_outstanding: Decimal | None, total_amount: D
         return current_outstanding
     if total_amount is not None:
         return total_amount
-    return Decimal('0.00')
+    return Decimal("0.00")
 
 
 def _create_payment_transaction(
@@ -335,19 +335,19 @@ def _create_payment_transaction(
     notes_override: str | None = None,
 ) -> PaymentTransaction:
     payment_kwargs: dict[str, object] = {
-        'tenant': event.tenant,
-        'amount': event.amount,
-        'payment_date': event.occurred_at.date(),
-        'payment_method': _resolve_payment_method(payload),
-        'reference_number': _resolve_reference_number(event, payload),
-        'notes': notes_override or _build_payment_notes(event, candidate),
+        "tenant": event.tenant,
+        "amount": event.amount,
+        "payment_date": event.occurred_at.date(),
+        "payment_method": _resolve_payment_method(payload),
+        "reference_number": _resolve_reference_number(event, payload),
+        "notes": notes_override or _build_payment_notes(event, candidate),
     }
-    if candidate.entity_type == 'invoice':
-        payment_kwargs['invoice_id'] = candidate.object_id
-    elif candidate.entity_type == 'sales_order':
-        payment_kwargs['sales_order_id'] = candidate.object_id
+    if candidate.entity_type == "invoice":
+        payment_kwargs["invoice_id"] = candidate.object_id
+    elif candidate.entity_type == "sales_order":
+        payment_kwargs["sales_order_id"] = candidate.object_id
     else:
-        payment_kwargs['purchase_order_id'] = candidate.object_id
+        payment_kwargs["purchase_order_id"] = candidate.object_id
     return PaymentTransaction.objects.create(**payment_kwargs)
 
 
@@ -355,7 +355,7 @@ def _resolve_payment_method(payload: dict[str, object]) -> str:
     payment_method_values = _collect_alias_values(payload, PAYMENT_METHOD_ALIASES)
     if not payment_method_values:
         return PaymentMethod.OTHER
-    value = sorted(payment_method_values)[0].lower().replace(' ', '_')
+    value = sorted(payment_method_values)[0].lower().replace(" ", "_")
     valid_choices = {choice for choice, _label in PaymentMethod.choices}
     return value if value in valid_choices else PaymentMethod.OTHER
 
@@ -372,8 +372,8 @@ def _resolve_reference_number(event: SettlementEvent, payload: dict[str, object]
 def _build_payment_notes(event: SettlementEvent, candidate: SettlementMatchCandidate) -> str:
     event_reference = event.external_event_id or event.idempotency_key[:12]
     return (
-        f'Settlement auto-post from {event.provider_code} '
-        f'event {event_reference} via {candidate.entity_type}:{candidate.reference_value}'
+        f"Settlement auto-post from {event.provider_code} "
+        f"event {event_reference} via {candidate.entity_type}:{candidate.reference_value}"
     )
 
 
@@ -384,19 +384,19 @@ def _mark_event_for_review(event: SettlementEvent, *, reason_code: str) -> None:
     event.matched_invoice = None
     event.matched_sales_order = None
     event.matched_purchase_order = None
-    event.last_error = ''
+    event.last_error = ""
     event.processed_at = timezone.now()
     event.save(
         update_fields=[
-            'state',
-            'reconciliation_reason_code',
-            'payment_transaction',
-            'matched_invoice',
-            'matched_sales_order',
-            'matched_purchase_order',
-            'last_error',
-            'processed_at',
-            'modified_on',
+            "state",
+            "reconciliation_reason_code",
+            "payment_transaction",
+            "matched_invoice",
+            "matched_sales_order",
+            "matched_purchase_order",
+            "last_error",
+            "processed_at",
+            "modified_on",
         ]
     )
 
@@ -411,41 +411,41 @@ def _mark_event_posted(
     event.state = SettlementEventState.POSTED
     event.payment_transaction = payment
     event.reconciliation_reason_code = reason_code or _exact_match_reason(candidate.entity_type)
-    event.last_error = ''
+    event.last_error = ""
     event.processed_at = timezone.now()
     event.matched_invoice_id = payment.invoice_id
     event.matched_sales_order_id = payment.sales_order_id
     event.matched_purchase_order_id = payment.purchase_order_id
     event.save(
         update_fields=[
-            'state',
-            'payment_transaction',
-            'reconciliation_reason_code',
-            'last_error',
-            'processed_at',
-            'matched_invoice',
-            'matched_sales_order',
-            'matched_purchase_order',
-            'reviewed_by',
-            'reviewed_at',
-            'review_note',
-            'modified_on',
+            "state",
+            "payment_transaction",
+            "reconciliation_reason_code",
+            "last_error",
+            "processed_at",
+            "matched_invoice",
+            "matched_sales_order",
+            "matched_purchase_order",
+            "reviewed_by",
+            "reviewed_at",
+            "review_note",
+            "modified_on",
         ]
     )
 
 
 def _exact_match_reason(entity_type: str) -> str:
-    if entity_type == 'invoice':
+    if entity_type == "invoice":
         return SettlementReconciliationReason.EXACT_INVOICE_MATCH
-    if entity_type == 'sales_order':
+    if entity_type == "sales_order":
         return SettlementReconciliationReason.EXACT_SALES_ORDER_MATCH
     return SettlementReconciliationReason.EXACT_PURCHASE_ORDER_MATCH
 
 
 def _manual_override_reason(entity_type: str) -> str:
-    if entity_type == 'invoice':
+    if entity_type == "invoice":
         return SettlementReconciliationReason.MANUAL_INVOICE_OVERRIDE
-    if entity_type == 'sales_order':
+    if entity_type == "sales_order":
         return SettlementReconciliationReason.MANUAL_SALES_ORDER_OVERRIDE
     return SettlementReconciliationReason.MANUAL_PURCHASE_ORDER_OVERRIDE
 
@@ -456,52 +456,40 @@ def _resolve_override_candidate(
     target_type: str,
     target_id: int,
 ) -> SettlementMatchCandidate:
-    if target_type == 'invoice':
-        invoice = (
-            Invoice.objects.select_for_update()
-            .filter(tenant=event.tenant, id=target_id)
-            .first()
-        )
+    if target_type == "invoice":
+        invoice = Invoice.objects.select_for_update().filter(tenant=event.tenant, id=target_id).first()
         if not invoice:
-            raise ValidationError('Selected invoice was not found for this tenant.')
+            raise ValidationError("Selected invoice was not found for this tenant.")
         return SettlementMatchCandidate(
-            entity_type='invoice',
+            entity_type="invoice",
             object_id=invoice.id,
             reference_value=invoice.invoice_number,
             outstanding_amount=_get_outstanding_amount(invoice.outstanding_amount, invoice.total_amount),
         )
 
-    if target_type == 'sales_order':
-        sales_order = (
-            SalesOrder.objects.select_for_update()
-            .filter(tenant=event.tenant, id=target_id)
-            .first()
-        )
+    if target_type == "sales_order":
+        sales_order = SalesOrder.objects.select_for_update().filter(tenant=event.tenant, id=target_id).first()
         if not sales_order:
-            raise ValidationError('Selected sales order was not found for this tenant.')
+            raise ValidationError("Selected sales order was not found for this tenant.")
         return SettlementMatchCandidate(
-            entity_type='sales_order',
+            entity_type="sales_order",
             object_id=sales_order.id,
             reference_value=sales_order.our_sales_order_num,
             outstanding_amount=_get_outstanding_amount(sales_order.outstanding_amount, sales_order.total_amount),
         )
 
-    if target_type == 'purchase_order':
-        purchase_order = (
-            PurchaseOrder.objects.select_for_update()
-            .filter(tenant=event.tenant, id=target_id)
-            .first()
-        )
+    if target_type == "purchase_order":
+        purchase_order = PurchaseOrder.objects.select_for_update().filter(tenant=event.tenant, id=target_id).first()
         if not purchase_order:
-            raise ValidationError('Selected purchase order was not found for this tenant.')
+            raise ValidationError("Selected purchase order was not found for this tenant.")
         return SettlementMatchCandidate(
-            entity_type='purchase_order',
+            entity_type="purchase_order",
             object_id=purchase_order.id,
             reference_value=purchase_order.order_number,
             outstanding_amount=_get_outstanding_amount(purchase_order.outstanding_amount, purchase_order.total_amount),
         )
 
-    raise ValidationError('Unsupported override target type.')
+    raise ValidationError("Unsupported override target type.")
 
 
 def _build_manual_payment_notes(
@@ -512,11 +500,11 @@ def _build_manual_payment_notes(
 ) -> str:
     event_reference = event.external_event_id or event.idempotency_key[:12]
     reviewer_label = reviewer.get_full_name().strip() or reviewer.username
-    note_suffix = f' Note: {review_note.strip()}' if review_note.strip() else ''
+    note_suffix = f" Note: {review_note.strip()}" if review_note.strip() else ""
     return (
-        f'Settlement manual override from {event.provider_code} '
-        f'event {event_reference} to {candidate.entity_type}:{candidate.reference_value} '
-        f'by {reviewer_label}.{note_suffix}'
+        f"Settlement manual override from {event.provider_code} "
+        f"event {event_reference} to {candidate.entity_type}:{candidate.reference_value} "
+        f"by {reviewer_label}.{note_suffix}"
     )
 
 

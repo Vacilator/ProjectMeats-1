@@ -6,7 +6,6 @@ from django.db.migrations.operations.special import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("tenants", "0010_add_tenant_configuration"),
         ("workflows", "0015_sync_workflow_rls_state"),
@@ -16,7 +15,6 @@ class Migration(migrations.Migration):
         # NOTE: This migration originally attempted to drop RLS policies and remove tenant fields.
         # That breaks fresh installs and violates our tenant isolation guarantees.
         # We keep only the non-destructive metadata/field alterations below.
-
         migrations.AlterField(
             model_name="tenantform",
             name="custom_data",
@@ -107,5 +105,4 @@ class Migration(migrations.Migration):
                 blank=True, default=dict, help_text="Extensible schema data for dynamic fields defined in Blueprints."
             ),
         ),
-
     ]

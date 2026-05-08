@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("sales_orders", "0006_salesorder_carrier_release_format_and_more"),
     ]

@@ -56,7 +56,7 @@ const SliderInput = styled.input`
   opacity: 0;
   cursor: pointer;
   margin: 0;
-  
+
   &:focus + .slider-thumb {
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
   }
@@ -75,7 +75,7 @@ const SliderThumb = styled.div<{ $percent: number }>`
   pointer-events: none;
   transition: transform 0.1s ease, box-shadow 0.2s ease;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  
+
   &:hover {
     transform: translate(-50%, -50%) scale(1.1);
   }
@@ -114,7 +114,7 @@ export const SliderField: React.FC<SliderFieldProps> = ({
   ariaProps = {},
 }) => {
   const percent = ((value - min) / (max - min)) * 100;
-  
+
   const formatValue = (val: number) => {
     if (unit) return `${val}${unit}`;
     return val.toString();
@@ -127,7 +127,7 @@ export const SliderField: React.FC<SliderFieldProps> = ({
           {formatValue(value)}
         </SliderValue>
       </SliderHeader>
-      
+
       <SliderTrack>
         <SliderFill $percent={percent} />
         <SliderInput
@@ -146,7 +146,7 @@ export const SliderField: React.FC<SliderFieldProps> = ({
         />
         <SliderThumb className="slider-thumb" $percent={percent} />
       </SliderTrack>
-      
+
       {showLabels && (
         <SliderLabels>
           <span>{formatValue(min)}</span>

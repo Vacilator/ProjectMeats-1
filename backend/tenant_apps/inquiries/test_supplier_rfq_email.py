@@ -7,11 +7,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.core.models import ProteinTypeChoices
-from apps.integrations.models import ExternalAuthProvider
-from apps.system.models import Product
 from tenant_apps.contacts.models import Contact
-from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
     Inquiry,
@@ -26,6 +22,11 @@ from tenant_apps.inquiries.services import send_supplier_rfqs_for_inquiry
 from tenant_apps.plants.models import Plant
 from tenant_apps.products.models import MasterProduct
 from tenant_apps.suppliers.models import Supplier
+
+from apps.core.models import ProteinTypeChoices
+from apps.integrations.models import ExternalAuthProvider
+from apps.system.models import Product
+from apps.tenants.models import Tenant, TenantUser
 
 
 class SupplierRFQEmailServiceTests(TestCase):

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("invoices", "0005_claim_invoice_invoices_in_tenant__625d18_idx_and_more"),
     ]

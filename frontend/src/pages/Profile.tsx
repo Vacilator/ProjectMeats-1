@@ -27,9 +27,9 @@ const Profile: React.FC = () => {
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarUrl(reader.result as string);
-      setMessage({ 
-        type: 'success', 
-        text: 'Profile picture uploaded! (Preview only - backend integration needed)' 
+      setMessage({
+        type: 'success',
+        text: 'Profile picture uploaded! (Preview only - backend integration needed)'
       });
     };
     reader.readAsDataURL(file);

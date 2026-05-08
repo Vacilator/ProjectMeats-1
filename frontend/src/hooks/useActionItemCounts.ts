@@ -1,11 +1,11 @@
 /**
  * useActionItemCounts Hook
- * 
+ *
  * Fetches action item counts from the API for sidebar badges.
  * Implements Phase 2 of the Forms & Flows Enhancement Plan.
- * 
+ *
  * Created: 2026-02-03
- * 
+ *
  * Features:
  * - Fetches counts from /api/v1/workflows/action-items/counts/
  * - Polling at configurable interval
@@ -70,7 +70,7 @@ export function useActionItemCounts(
 
   const fetchCounts = useCallback(async () => {
     if (!enabled || !mountedRef.current || isAuthFailure) return;
-    
+
     setLoading(true);
     try {
       const response = await apiClient.get('/workflows/action-items/counts/');
@@ -83,7 +83,7 @@ export function useActionItemCounts(
       if (mountedRef.current) {
         const status = err.response?.status;
         errorCountRef.current += 1;
-        
+
         // Handle authentication failure - stop all polling immediately
         if (status === 401) {
           logger.error('Authentication failed - stopping background polling', { component: 'useActionItemCounts' }, err);
@@ -92,7 +92,7 @@ export function useActionItemCounts(
           setCounts(DEFAULT_COUNTS);
           return;
         }
-        
+
         // Silent errors for 404 (no action items), 502 (backend issue), 503 (service unavailable)
         // These are expected during initial setup or backend maintenance
         if (status === 404 || status === 502 || status === 503) {
@@ -103,7 +103,7 @@ export function useActionItemCounts(
           logger.warn('Action item counts fetch error', { component: 'useActionItemCounts', metadata: { message: err.message, status } });
           setError(err.message || 'Failed to fetch action item counts');
         }
-        
+
         // Reset to defaults on error
         setCounts(DEFAULT_COUNTS);
       }
@@ -120,7 +120,7 @@ export function useActionItemCounts(
     if (!isAuthFailure) {
       fetchCounts();
     }
-    
+
     return () => {
       mountedRef.current = false;
     };
@@ -129,13 +129,13 @@ export function useActionItemCounts(
   // Polling with exponential backoff on errors
   useEffect(() => {
     if (!enabled || pollingInterval <= 0 || isAuthFailure) return;
-    
+
     // Calculate backoff: double interval for each consecutive error (max 5 minutes)
     const backoffMultiplier = Math.min(Math.pow(2, errorCountRef.current), 10);
     const actualInterval = pollingInterval * backoffMultiplier;
-    
+
     pollingRef.current = setInterval(fetchCounts, actualInterval);
-    
+
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);

@@ -1,7 +1,7 @@
 # Django Staff Permissions Explained
 
-**Status**: ✅ CURRENT  
-**Category**: Guides  
+**Status**: ✅ CURRENT
+**Category**: Guides
 **Last Updated**: 2026-02-01
 
 ---
@@ -41,7 +41,7 @@ In Django, there are three main permission levels at the **user level** (not ten
 1. **Manage Users and Groups**
    - Cannot create/edit other users (unless given permission)
    - Cannot assign permissions to other users
-   
+
 2. **Access ALL Models**
    - Can only access models they have explicit permissions for
    - Example: Staff user without Customer permissions cannot see Customer admin
@@ -307,7 +307,7 @@ The guest user is intentionally set to `is_staff=False` to:
 ## When to Use Each Permission Level
 
 ### Regular User (`is_staff=False`)
-**Use for**: 
+**Use for**:
 - ✅ All normal application users
 - ✅ Guest/demo users
 - ✅ Customers accessing the app

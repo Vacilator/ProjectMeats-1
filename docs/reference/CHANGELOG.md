@@ -1,7 +1,7 @@
 # Changelog
 
-**Status**: ✅ CURRENT  
-**Category**: Reference  
+**Status**: ✅ CURRENT
+**Category**: Reference
 **Last Updated**: 2026-02-04
 
 ---

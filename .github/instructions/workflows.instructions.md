@@ -85,7 +85,7 @@ on:
   push:
     branches: [main, development, uat]
   workflow_dispatch:  # Always include manual trigger
-  
+
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false  # Don't cancel production deploys
@@ -99,33 +99,33 @@ jobs:
   # Parallel build jobs
   build-backend:
     # Build backend Docker image
-  
+
   build-frontend:
     # Build frontend Docker image
-  
+
   # Parallel test tracks
   test-backend:
     needs: [build-backend]
     # Backend tests
-  
+
   test-frontend:
     needs: [build-frontend]
     # Frontend tests
-  
+
   # Synchronization point
   migrate:
     needs: [test-backend]
     # Database migrations (decoupled)
-  
+
   # Parallel deployments
   deploy-backend:
     needs: [migrate]
     # Backend deployment via docker run
-  
+
   deploy-frontend:
     needs: [migrate, test-frontend]
     # Frontend deployment via docker run (NOT dependent on deploy-backend)
-  
+
   # Validation
   post-deployment-validation:
     needs: [deploy-backend, deploy-frontend]
@@ -160,13 +160,13 @@ migrate:
   needs: [build-and-push, test-backend]
   environment: ${ENV}-backend
   timeout-minutes: 15
-  
+
   steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    
+
     - name: Run idempotent migrations
       working-directory: ./backend
       env:
@@ -183,10 +183,10 @@ migrate:
           export DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
           export DB_NAME=$(echo "$DATABASE_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
         fi
-        
+
         # Install dependencies (exit on error)
         pip install -r backend/requirements.txt || exit 1
-        
+
         # Run standard Django migrations (NOT migrate_schemas)
         python manage.py migrate --fake-initial --noinput
 ```
@@ -209,7 +209,7 @@ migrate:
 deploy-backend:
   needs: [migrate]
   environment: ${ENV}-backend
-  
+
   steps:
     - name: Deploy
       env:
@@ -217,20 +217,20 @@ deploy-backend:
       run: |
         sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.USER }}@${{ secrets.HOST }} <<'SSH'
         set -euo pipefail
-        
+
         REG="${{ env.REGISTRY }}"
         IMG="${{ env.BACKEND_IMAGE }}"
         TAG="${{ env.ENV }}-${{ github.sha }}"
-        
+
         # Login to registry
         echo "${{ secrets.DO_ACCESS_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_ACCESS_TOKEN }}" --password-stdin
-        
+
         # Pull SHA-tagged image
         docker pull "$REG/$IMG:$TAG"
-        
+
         # Stop old container
         docker rm -f pm-backend projectmeats-backend || true
-        
+
         # Start new container with docker run
         docker run -d --name pm-backend \
           --restart unless-stopped \
@@ -247,7 +247,7 @@ deploy-backend:
 deploy-frontend:
   needs: [migrate, test-frontend]  # NOT deploy-backend (parallel)
   environment: ${ENV}-frontend
-  
+
   steps:
     - name: Deploy
       env:
@@ -255,20 +255,20 @@ deploy-frontend:
       run: |
         sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.USER }}@${{ secrets.HOST }} <<'SSH'
         set -euo pipefail
-        
+
         REG="${{ env.REGISTRY }}"
         IMG="${{ env.FRONTEND_IMAGE }}"
         TAG="${{ env.ENV }}-${{ github.sha }}"
-        
+
         # Login to registry
         echo "${{ secrets.DO_ACCESS_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_ACCESS_TOKEN }}" --password-stdin
-        
+
         # Pull SHA-tagged image
         docker pull "$REG/$IMG:$TAG"
-        
+
         # Stop old container
         docker rm -f pm-frontend projectmeats-frontend || true
-        
+
         # Start new container with docker run
         docker run -d --name pm-frontend \
           --restart unless-stopped \
@@ -288,10 +288,10 @@ deploy-frontend:
 - ❌ Never use `docker-compose up` on remote hosts
 - ❌ Never depend on `:latest` tag
         sudo docker pull "$REG/$IMG:$TAG"
-        
+
         # Stop old container
         sudo docker rm -f container-name || true
-        
+
         # Start new container
         sudo docker run -d --name container-name \
           --restart unless-stopped \
@@ -368,20 +368,20 @@ permissions:
   run: |
     MAX_ATTEMPTS=15
     ATTEMPT=1
-    
+
     while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
       HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
-      
+
       if [ "$HTTP_CODE" = "200" ]; then
         echo "✓ Health check passed"
         exit 0
       fi
-      
+
       echo "Attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE)..."
       sleep 5
       ATTEMPT=$((ATTEMPT + 1))
     done
-    
+
     echo "✗ Health check failed"
     exit 1
 ```
@@ -405,7 +405,7 @@ test-backend:
         --health-retries 5
       ports:
         - 5432:5432
-  
+
   steps:
     - name: Run tests
       env:
@@ -420,7 +420,7 @@ test-backend:
 strategy:
   matrix:
     app: [frontend, backend]
-    
+
 steps:
   - name: Build ${{ matrix.app }}
     uses: docker/build-push-action@v5
@@ -588,7 +588,7 @@ migrate:
 deploy-backend:
   needs: [migrate]
 
-# Frontend Track  
+# Frontend Track
 build-frontend:
   needs: []  # Starts immediately (parallel with backend)
 
@@ -616,7 +616,7 @@ run-name: "🔍 PR Check: ${{ github.event.pull_request.title }}"
 
 # Ops Release Automation
 run-name: >-
-  ${{ 
+  ${{
     github.event_name == 'workflow_run' && format('Auto-Promote: {0} to {1}', github.event.workflow_run.head_branch, github.event.workflow_run.head_branch == 'development' && 'UAT' || 'Production') ||
     format('Manual: {0}', inputs.task)
   }}
@@ -719,12 +719,12 @@ HEALTH_URL="https://$DOMAIN/api/v1/health/"
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
   HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
-  
+
   if [ "$HTTP_CODE" = "200" ]; then
     echo "✓ Health check passed"
     exit 0
   fi
-  
+
   echo "Attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE)..."
   sleep 5
   ATTEMPT=$((ATTEMPT + 1))
@@ -776,7 +776,7 @@ Before deploying to production, verify:
 
 ---
 
-**Document Status**: ✅ LOCKED - Golden Standard Achieved  
-**Last Major Update**: January 4, 2026  
-**Next Review Date**: April 1, 2026  
+**Document Status**: ✅ LOCKED - Golden Standard Achieved
+**Last Major Update**: January 4, 2026
+**Next Review Date**: April 1, 2026
 **Maintained By**: Infrastructure Team

@@ -1,17 +1,17 @@
 /**
  * Payment History List Component
- * 
+ *
  * Displays a chronological list of payment transactions for an order or invoice.
  * Shows date, reference number, amount, and payment method.
- * 
+ *
  * Features:
  * - Fetches payment history from API based on entity type and ID
  * - Shows empty state when no payments exist
  * - Clean, readable design matching theme
  * - Automatic formatting of dates and currency
- * 
+ *
  * Usage:
- * <PaymentHistoryList 
+ * <PaymentHistoryList
  *   entityType="purchase_order"
  *   entityId={123}
  * />
@@ -131,9 +131,9 @@ const ErrorState = styled.div`
 // Component
 // ============================================================================
 
-export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({ 
-  entityType, 
-  entityId 
+export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
+  entityType,
+  entityId
 }) => {
   const [payments, setPayments] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +147,7 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await apiClient.get('payments/', {
         params: { [entityType]: entityId },
       });
@@ -209,26 +209,26 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
             <PaymentDate>{formatDateLocal(payment.payment_date)}</PaymentDate>
             <PaymentAmount>{formatCurrency(parseFloat(payment.amount))}</PaymentAmount>
           </PaymentHeader>
-          
+
           <PaymentDetails>
             <DetailItem>
               <DetailLabel>Method:</DetailLabel>
               <DetailValue>{getPaymentMethodLabel(payment.payment_method)}</DetailValue>
             </DetailItem>
-            
+
             {payment.reference_number && (
               <DetailItem>
                 <DetailLabel>Ref:</DetailLabel>
                 <DetailValue>{payment.reference_number}</DetailValue>
               </DetailItem>
             )}
-            
+
             <DetailItem>
               <DetailLabel>By:</DetailLabel>
               <DetailValue>{payment.created_by_name}</DetailValue>
             </DetailItem>
           </PaymentDetails>
-          
+
           {payment.notes && (
             <DetailItem style={{ fontSize: '12px', marginTop: '4px' }}>
               <DetailLabel>Note:</DetailLabel>

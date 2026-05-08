@@ -1,6 +1,6 @@
 /**
  * AI Suggestion Mode Badge Component
- * 
+ *
  * Phase 2.1: Graceful Degradation UI Indicator
  * Displays whether AI suggestions are active or in static fallback mode.
  */
@@ -16,13 +16,13 @@ interface AISuggestionBadgeProps {
 
 export const AISuggestionBadge: React.FC<AISuggestionBadgeProps> = ({ mode, reason }) => {
   const isAI = mode === 'ai';
-  
+
   const badge = (
     <Badge
       count={
-        <span style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <span style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: '4px',
           padding: '2px 8px',
           backgroundColor: isAI ? 'rgb(var(--color-success))' : 'rgb(var(--color-warning))',
@@ -38,7 +38,7 @@ export const AISuggestionBadge: React.FC<AISuggestionBadgeProps> = ({ mode, reas
       style={{ marginRight: '16px' }}
     />
   );
-  
+
   if (reason) {
     return (
       <Tooltip title={reason} placement="bottom">
@@ -46,6 +46,6 @@ export const AISuggestionBadge: React.FC<AISuggestionBadgeProps> = ({ mode, reas
       </Tooltip>
     );
   }
-  
+
   return badge;
 };

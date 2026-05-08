@@ -1,10 +1,13 @@
-from rest_framework import serializers
-from django.contrib.auth.models import User
-from django.core.cache import cache
-from PIL import Image
 import json
 import re
-from .models import Tenant, TenantUser, TenantDomain, TenantConfiguration
+
+from django.contrib.auth.models import User
+from django.core.cache import cache
+from rest_framework import serializers
+
+from PIL import Image
+
+from .models import Tenant, TenantConfiguration, TenantDomain, TenantUser
 
 
 class TenantSerializer(serializers.ModelSerializer):
@@ -44,25 +47,19 @@ class TenantSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at", "schema_name"]
         # Enable partial updates (PATCH)
         extra_kwargs = {
-            'name': {'required': False},
-            'slug': {'required': False},
-            'contact_email': {'required': False},
+            "name": {"required": False},
+            "slug": {"required": False},
+            "contact_email": {"required": False},
         }
 
     def get_user_count(self, obj):
         """Get the number of active users for this tenant."""
         return obj.users.filter(is_active=True).count()
-    
+
     def get_domains(self, obj):
         """Get list of domains for this tenant."""
-        return [
-            {
-                "domain": domain.domain,
-                "is_primary": domain.is_primary
-            }
-            for domain in obj.tenant_domains.all()
-        ]
-    
+        return [{"domain": domain.domain, "is_primary": domain.is_primary} for domain in obj.tenant_domains.all()]
+
     def get_branding(self, obj):
         """Get branding information including theme settings."""
         theme_settings = obj.get_theme_settings()
@@ -77,61 +74,55 @@ class TenantSerializer(serializers.ModelSerializer):
         """Ensure slug is lowercase and unique."""
         if value:
             value = value.lower()
-            if (
-                Tenant.objects.filter(slug=value)
-                .exclude(pk=self.instance.pk if self.instance else None)
-                .exists()
-            ):
-                raise serializers.ValidationError(
-                    "A tenant with this slug already exists."
-                )
+            if Tenant.objects.filter(slug=value).exclude(pk=self.instance.pk if self.instance else None).exists():
+                raise serializers.ValidationError("A tenant with this slug already exists.")
         return value
-    
+
     def validate_logo(self, value):
         """
         Validate logo upload.
-        
+
         Checks:
         - File type (JPEG, PNG, WebP only)
         - File size (max 5MB)
         - Image validity (can be opened by Pillow)
         - Image dimensions (reasonable size)
-        
+
         Args:
             value: The uploaded file object
-        
+
         Returns:
             The validated file object
-        
+
         Raises:
             ValidationError: If validation fails
         """
         if not value:
             return value
-        
+
         # Check file size (5MB max)
         max_size = 5 * 1024 * 1024  # 5MB in bytes
         if value.size > max_size:
             raise serializers.ValidationError(
                 f"Logo file size must be less than 5MB. Current size: {value.size / 1024 / 1024:.2f}MB"
             )
-        
+
         # Check file type
-        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
         if value.content_type not in allowed_types:
             raise serializers.ValidationError(
                 f"Invalid file type: {value.content_type}. Allowed types: JPEG, PNG, WebP"
             )
-        
+
         # Validate image can be opened and processed
         try:
             image = Image.open(value)
             image.verify()  # Verify it's a valid image
-            
+
             # Re-open for dimension check (verify() closes the file)
             value.seek(0)
             image = Image.open(value)
-            
+
             # Check dimensions (max 4000x4000)
             max_dimension = 4000
             if image.width > max_dimension or image.height > max_dimension:
@@ -139,17 +130,15 @@ class TenantSerializer(serializers.ModelSerializer):
                     f"Image dimensions too large. Max: {max_dimension}x{max_dimension}px, "
                     f"Actual: {image.width}x{image.height}px"
                 )
-            
+
             # Reset file pointer for actual save
             value.seek(0)
-            
+
         except Exception as e:
-            raise serializers.ValidationError(
-                f"Invalid image file. Error: {str(e)}"
-            )
-        
+            raise serializers.ValidationError(f"Invalid image file. Error: {str(e)}")
+
         return value
-    
+
     def validate_settings(self, value):
         """Validate settings JSON field, especially theme colors.
 
@@ -164,64 +153,67 @@ class TenantSerializer(serializers.ModelSerializer):
             try:
                 value = json.loads(value)
             except Exception:
-                raise serializers.ValidationError('Invalid settings JSON')
+                raise serializers.ValidationError("Invalid settings JSON")
 
         if not isinstance(value, dict):
-            raise serializers.ValidationError('Settings must be a JSON object')
+            raise serializers.ValidationError("Settings must be a JSON object")
 
         # Validate theme colors if present
-        theme = value.get('theme', {})
-        hex_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
-        
-        for color_key in ['primary_color', 'primary_color_light', 'primary_color_dark']:
+        theme = value.get("theme", {})
+        hex_pattern = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+        for color_key in ["primary_color", "primary_color_light", "primary_color_dark"]:
             color_value = theme.get(color_key)
             if color_value and not hex_pattern.match(color_value):
-                raise serializers.ValidationError({
-                    'theme': {
-                        color_key: f"Invalid hex color format: {color_value}. Use format: #RRGGBB (e.g., #3498db)"
+                raise serializers.ValidationError(
+                    {
+                        "theme": {
+                            color_key: f"Invalid hex color format: {color_value}. Use format: #RRGGBB (e.g., #3498db)"
+                        }
                     }
-                })
-        
+                )
+
         return value
-    
+
     def update(self, instance, validated_data):
         """
         Override update to handle partial updates and cache clearing.
-        
+
         Ensures:
         - Partial updates work correctly (PATCH support)
         - Logo file uploads are processed atomically
         - Settings (colors) are saved atomically
         - Cache is cleared after successful updates
-        
+
         Args:
             instance: The Tenant instance being updated
             validated_data: The validated data from the request
-        
+
         Returns:
             The updated Tenant instance
         """
         import logging
+
         logger = logging.getLogger(__name__)
-        
+
         logger.info(f"📝 TenantSerializer.update() - Updating tenant {instance.id}")
         logger.info(f"Validated data keys: {list(validated_data.keys())}")
-        
+
         # Handle logo file upload separately if present
-        logo_file = validated_data.pop('logo', None)
+        logo_file = validated_data.pop("logo", None)
         if logo_file is not None:
             logger.info(f"📤 Processing logo upload: {logo_file.name}")
             # Django's FileField handles the file save automatically
             instance.logo = logo_file
         else:
-            request = self.context.get('request')
-            remove_logo_raw = getattr(request, 'data', {}).get('remove_logo') if request else None
-            if str(remove_logo_raw).lower() in ('1', 'true', 'yes', 'on'):
+            request = self.context.get("request")
+            remove_logo_raw = getattr(request, "data", {}).get("remove_logo") if request else None
+            if str(remove_logo_raw).lower() in ("1", "true", "yes", "on"):
                 logger.info("🗑️  Removing tenant logo")
                 instance.logo = None
-        
+
         # Handle settings atomically
-        settings = validated_data.pop('settings', None)
+        settings = validated_data.pop("settings", None)
         if settings is not None:
             logger.info(f"🎨 Updating settings (theme colors): {settings}")
             # Merge with existing settings if partial update
@@ -236,25 +228,25 @@ class TenantSerializer(serializers.ModelSerializer):
                 instance.settings = existing_settings
             else:
                 instance.settings = settings
-        
+
         # Handle remaining fields
         for attr, value in validated_data.items():
             logger.info(f"Setting {attr} = {value}")
             setattr(instance, attr, value)
-        
+
         # Save all changes atomically
         instance.save()
         logger.info(f"✅ Tenant {instance.id} saved successfully")
-        
+
         # Clear tenant branding cache
         cache_keys = [
-            f'tenant_branding_{instance.id}',
-            f'tenant_by_domain_{instance.domain}',
+            f"tenant_branding_{instance.id}",
+            f"tenant_by_domain_{instance.domain}",
         ]
         for key in cache_keys:
             cache.delete(key)
             logger.info(f"🗑️  Cleared cache: {key}")
-        
+
         return instance
 
 
@@ -262,12 +254,8 @@ class TenantCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating new tenants."""
 
     owner_email = serializers.EmailField(write_only=True, required=False)
-    owner_first_name = serializers.CharField(
-        max_length=30, write_only=True, required=False
-    )
-    owner_last_name = serializers.CharField(
-        max_length=30, write_only=True, required=False
-    )
+    owner_first_name = serializers.CharField(max_length=30, write_only=True, required=False)
+    owner_last_name = serializers.CharField(max_length=30, write_only=True, required=False)
 
     class Meta:
         model = Tenant
@@ -362,10 +350,10 @@ class UserTenantSerializer(serializers.ModelSerializer):
 
 class TenantDomainSerializer(serializers.ModelSerializer):
     """Serializer for TenantDomain model (shared-schema approach)."""
-    
+
     tenant_name = serializers.CharField(source="tenant.name", read_only=True)
     tenant_slug = serializers.CharField(source="tenant.slug", read_only=True)
-    
+
     class Meta:
         model = TenantDomain
         fields = [
@@ -379,7 +367,7 @@ class TenantDomainSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
-    
+
     def validate_domain(self, value):
         """Ensure domain is lowercase and unique."""
         if value:
@@ -389,10 +377,9 @@ class TenantDomainSerializer(serializers.ModelSerializer):
                 .exclude(pk=self.instance.pk if self.instance else None)
                 .exists()
             ):
-                raise serializers.ValidationError(
-                    "A domain with this name already exists."
-                )
+                raise serializers.ValidationError("A domain with this name already exists.")
         return value
+
 
 # Note: DomainSerializer and ClientSerializer have been removed as Domain and Client
 # models are not currently defined in models.py. They were intended for django-tenants
@@ -404,13 +391,13 @@ class TenantDomainSerializer(serializers.ModelSerializer):
 class TenantConfigurationSerializer(serializers.ModelSerializer):
     """
     Serializer for TenantConfiguration model.
-    
+
     Handles configuration management with type conversion and validation.
     """
-    
+
     typed_value = serializers.SerializerMethodField()
     updated_by_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = TenantConfiguration
         fields = [
@@ -432,7 +419,7 @@ class TenantConfigurationSerializer(serializers.ModelSerializer):
             "updated_by_name",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "tenant"]
-    
+
     def get_typed_value(self, obj):
         """Return the value converted to its proper data type."""
         try:
@@ -440,64 +427,59 @@ class TenantConfigurationSerializer(serializers.ModelSerializer):
         except (ValueError, TypeError, KeyError):
             # Return string value if conversion fails
             return obj.value
-    
+
     def get_updated_by_name(self, obj):
         """Get the name of the user who last updated this config."""
         if obj.updated_by:
             return f"{obj.updated_by.first_name} {obj.updated_by.last_name}".strip() or obj.updated_by.username
         return None
-    
+
     def validate_value(self, value):
         """Validate value based on data_type."""
-        data_type = self.initial_data.get('data_type', 'string')
-        
-        if data_type == 'boolean':
-            if value.lower() not in ('true', 'false', '1', '0', 'yes', 'no'):
-                raise serializers.ValidationError(
-                    "Boolean value must be 'true', 'false', '1', '0', 'yes', or 'no'"
-                )
-        elif data_type == 'integer':
+        data_type = self.initial_data.get("data_type", "string")
+
+        if data_type == "boolean":
+            if value.lower() not in ("true", "false", "1", "0", "yes", "no"):
+                raise serializers.ValidationError("Boolean value must be 'true', 'false', '1', '0', 'yes', or 'no'")
+        elif data_type == "integer":
             try:
                 int(value)
             except ValueError:
                 raise serializers.ValidationError("Value must be a valid integer")
-        elif data_type == 'float':
+        elif data_type == "float":
             try:
                 float(value)
             except ValueError:
                 raise serializers.ValidationError("Value must be a valid float")
-        elif data_type == 'json':
+        elif data_type == "json":
             import json
+
             try:
                 json.loads(value)
             except json.JSONDecodeError:
                 raise serializers.ValidationError("Value must be valid JSON")
-        
+
         return value
-    
+
     def validate(self, attrs):
         """Validate entire configuration object."""
         # Ensure system configs cannot be deleted (enforced in viewset)
         if self.instance and self.instance.is_system:
-            if 'is_system' in attrs and not attrs['is_system']:
-                raise serializers.ValidationError({
-                    'is_system': 'Cannot change system configuration to non-system'
-                })
-        
+            if "is_system" in attrs and not attrs["is_system"]:
+                raise serializers.ValidationError({"is_system": "Cannot change system configuration to non-system"})
+
         # Ensure required configs have values
-        is_required = attrs.get('is_required', self.instance.is_required if self.instance else False)
-        value = attrs.get('value', self.instance.value if self.instance else None)
-        
+        is_required = attrs.get("is_required", self.instance.is_required if self.instance else False)
+        value = attrs.get("value", self.instance.value if self.instance else None)
+
         if is_required and not value:
-            raise serializers.ValidationError({
-                'value': 'Required configuration must have a value'
-            })
-        
+            raise serializers.ValidationError({"value": "Required configuration must have a value"})
+
         return attrs
-    
+
     def update(self, instance, validated_data):
         """Override update to set updated_by from request context."""
-        request = self.context.get('request')
+        request = self.context.get("request")
         if request and request.user:
-            validated_data['updated_by'] = request.user
+            validated_data["updated_by"] = request.user
         return super().update(instance, validated_data)

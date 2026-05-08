@@ -47,8 +47,8 @@ describe('EntityEdge', () => {
   it('renders with label', () => {
     const { getByText } = render(
       <svg>
-        <EntityEdge 
-          {...defaultProps} 
+        <EntityEdge
+          {...defaultProps}
           data={{ label: 'supplies', relationship: 'supplies' }}
         />
       </svg>
@@ -59,8 +59,8 @@ describe('EntityEdge', () => {
   it('applies correct color for supplies relationship', () => {
     const { container } = render(
       <svg>
-        <EntityEdge 
-          {...defaultProps} 
+        <EntityEdge
+          {...defaultProps}
           data={{ label: 'supplies', relationship: 'supplies' }}
         />
       </svg>
@@ -72,8 +72,8 @@ describe('EntityEdge', () => {
   it('applies correct color for purchases relationship', () => {
     const { container } = render(
       <svg>
-        <EntityEdge 
-          {...defaultProps} 
+        <EntityEdge
+          {...defaultProps}
           data={{ label: 'purchases', relationship: 'purchases' }}
         />
       </svg>
@@ -85,8 +85,8 @@ describe('EntityEdge', () => {
   it('uses default color for unknown relationship', () => {
     const { container } = render(
       <svg>
-        <EntityEdge 
-          {...defaultProps} 
+        <EntityEdge
+          {...defaultProps}
           data={{ label: 'unknown', relationship: 'unknown_type' }}
         />
       </svg>

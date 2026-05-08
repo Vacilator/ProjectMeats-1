@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("sales_orders", "0015_salesorder_deleted_at_salesorder_is_deleted"),
         ("system", "0015_enable_rls_tenant_forms_workforms"),

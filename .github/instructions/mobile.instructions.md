@@ -196,7 +196,7 @@ import { useTenant } from '@/shared/contexts/TenantContext';
 
 const MyScreen = () => {
   const { tenant, switchTenant } = useTenant();
-  
+
   return <Text>Current: {tenant.name}</Text>;
 };
 ```
@@ -262,7 +262,7 @@ import { TextInput, Button } from 'react-native';
 const MyForm = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  
+
   const handleSubmit = () => {
     if (!email) {
       setError('Email is required');
@@ -270,7 +270,7 @@ const MyForm = () => {
     }
     // Handle submission
   };
-  
+
   return (
     <>
       <TextInput
@@ -300,15 +300,15 @@ interface State {
 
 class ErrorBoundary extends Component<Props, State> {
   state = { hasError: false };
-  
+
   static getDerivedStateFromError() {
     return { hasError: true };
   }
-  
+
   componentDidCatch(error: Error, errorInfo: any) {
     console.error('Error:', error, errorInfo);
   }
-  
+
   render() {
     if (this.state.hasError) {
       return <ErrorScreen />;

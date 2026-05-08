@@ -1,18 +1,18 @@
 /**
  * WaitStateNode Component
- * 
+ *
  * Node for waiting on external parties or conditions:
  * - Approval Pending (internal approver)
  * - Document Pending (waiting for upload)
  * - Response Pending (external party action)
  * - Payment Pending (payment confirmation)
- * 
+ *
  * Features:
  * - Deadline/timeout configuration
  * - Reminder settings
  * - Escalation rules
  * - Visual status indicator
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';
@@ -120,7 +120,7 @@ const getWaitTypeInfo = (waitType: WaitType) => {
 
 const formatDeadline = (deadline?: { type: string; value: number | string }) => {
   if (!deadline) return null;
-  
+
   if (deadline.type === 'hours') {
     return `${deadline.value} hours`;
   } else if (deadline.type === 'days') {
@@ -141,14 +141,14 @@ export const WaitStateNode = React.memo<NodeProps<Node<WaitStateNodeData>>>(({ d
 
   // Prepare config preview
   const configPreview: React.ReactNode[] = [];
-  
+
   if (assignedTo) {
     configPreview.push(
       <InfoRow key="assignee">
         <Icon size={14} />
         <span>
-          {assignedTo.type === 'user' ? 'User: ' : 
-           assignedTo.type === 'role' ? 'Role: ' : 
+          {assignedTo.type === 'user' ? 'User: ' :
+           assignedTo.type === 'role' ? 'Role: ' :
            'Email: '}
           {assignedTo.value}
         </span>

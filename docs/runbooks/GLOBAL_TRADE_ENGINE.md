@@ -1,6 +1,6 @@
 # Global Trade Engine Runbook
 
-**Status:** B2B-02.1 contract and surface audit only  
+**Status:** B2B-02.1 contract and surface audit only
 **Contract version:** `b2b-02.1.v1`
 
 This runbook defines the canonical **trade invariants contract** for weight conversion and time handling. It does **not** roll the contract out across the application yet. `B2B-02.1` establishes the rules, sources of truth, and adoption inventory that `B2B-02.2+` must implement.

@@ -1,12 +1,12 @@
 # Frontend Environment Variables
 
-**Status**: ✅ CURRENT  
-**Category**: Reference  
+**Status**: ✅ CURRENT
+**Category**: Reference
 **Last Updated**: 2026-02-01
 
 ---
 
-**Applies To:** React Frontend (Vite/CRA)  
+**Applies To:** React Frontend (Vite/CRA)
 **Source of Truth:** `manifests/env.manifest.json` v5.x
 
 ---
@@ -59,7 +59,7 @@ The app will automatically use `localhost:8000` for API calls.
 
 ### Development (dev.meatscentral.com)
 
-**Frontend URL:** `https://dev.meatscentral.com`  
+**Frontend URL:** `https://dev.meatscentral.com`
 **Backend URL:** `https://dev.meatscentral.com/api/v1`
 
 ```bash
@@ -76,7 +76,7 @@ REACT_APP_AI_ASSISTANT_ENABLED=true
 
 ### UAT/Staging (uat.meatscentral.com)
 
-**Frontend URL:** `https://uat.meatscentral.com`  
+**Frontend URL:** `https://uat.meatscentral.com`
 **Backend URL:** `https://uat.meatscentral.com/api/v1`
 
 ```bash
@@ -89,7 +89,7 @@ REACT_APP_AI_ASSISTANT_ENABLED=true
 
 ### Production (meatscentral.com)
 
-**Frontend URL:** `https://meatscentral.com`  
+**Frontend URL:** `https://meatscentral.com`
 **Backend URL:** `https://meatscentral.com/api/v1`
 
 ```bash
@@ -234,7 +234,7 @@ This means you often **don't need** to set `REACT_APP_API_BASE_URL` explicitly!
    ```bash
    # Bad - secrets in version control
    git add .env
-   
+
    # Good - keep secrets out of git
    echo ".env.local" >> .gitignore
    ```
@@ -243,7 +243,7 @@ This means you often **don't need** to set `REACT_APP_API_BASE_URL` explicitly!
    ```typescript
    // ❌ Bad
    const API_URL = "https://dev.meatscentral.com/api/v1";
-   
+
    // ✅ Good
    import { config } from '@/config/runtime';
    const API_URL = config.API_BASE_URL;
@@ -253,7 +253,7 @@ This means you often **don't need** to set `REACT_APP_API_BASE_URL` explicitly!
    ```bash
    # ❌ Bad - will hit production API
    REACT_APP_API_BASE_URL=https://meatscentral.com/api/v1
-   
+
    # ✅ Good - use local backend
    REACT_APP_API_BASE_URL=http://localhost:8000/api/v1
    ```

@@ -1,6 +1,6 @@
 /**
  * Advanced Performance Monitoring Hooks
- * 
+ *
  * Production-ready performance monitoring utilities:
  * - Bundle size tracking
  * - Long task detection
@@ -113,13 +113,13 @@ export function useMemoryMonitoring(intervalMs = 30000) {
     const checkMemory = () => {
       const memory = (performance as any).memory;
       const usedMB = memory.usedJSHeapSize / 1024 / 1024;
-      
+
       setMemoryUsage(usedMB);
 
       // Detect potential memory leak (continuously increasing)
       if (usedMB > previousUsageRef.current) {
         increasingCountRef.current += 1;
-        
+
         if (increasingCountRef.current > 5) {
           logger.warn(
             `Potential memory leak detected`,
@@ -164,25 +164,25 @@ export function useNetworkMonitoring() {
 
     const observer = new PerformanceObserver((list) => {
       const entries = list.getEntries() as PerformanceResourceTiming[];
-      
+
       const newMetrics = entries.reduce(
         (acc, entry) => {
           acc.requestCount += 1;
           acc.totalTransferSize += entry.transferSize || 0;
           acc.avgLatency += entry.duration;
-          
+
           // Check for failed requests (heuristic)
           if (entry.duration > 5000 || entry.transferSize === 0) {
             acc.failedRequests += 1;
           }
-          
+
           return acc;
         },
         { ...metrics }
       );
 
       newMetrics.avgLatency = newMetrics.avgLatency / newMetrics.requestCount;
-      
+
       setMetrics(newMetrics);
 
       // Log slow requests
@@ -222,11 +222,11 @@ export function useLCP() {
     const observer = new PerformanceObserver((list) => {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
-      
+
       if (lastEntry) {
         const lcpValue = lastEntry.startTime;
         setLCP(lcpValue);
-        
+
         // Log if LCP is poor (> 2.5s)
         if (lcpValue > 2500) {
           logger.warn(
@@ -262,11 +262,11 @@ export function useFID() {
     const observer = new PerformanceObserver((list) => {
       const entries = list.getEntries();
       const firstInput = entries[0];
-      
+
       if (firstInput) {
         const fidValue = (firstInput as any).processingStart - firstInput.startTime;
         setFID(fidValue);
-        
+
         // Log if FID is poor (> 100ms)
         if (fidValue > 100) {
           logger.warn(
@@ -312,11 +312,11 @@ export function usePerformanceDashboard() {
 // Helper functions
 function calculateAvgInterval(times: number[]): number {
   if (times.length < 2) return 0;
-  
+
   const intervals = [];
   for (let i = 1; i < times.length; i++) {
     intervals.push(times[i] - times[i - 1]);
   }
-  
+
   return intervals.reduce((a, b) => a + b, 0) / intervals.length;
 }

@@ -2,7 +2,6 @@
 
 from django.test import TestCase
 
-from apps.core.tests.factories import TenantFactory
 from tenant_apps.contacts.models import Contact
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.workflows.services.contact_resolution import (
@@ -12,6 +11,8 @@ from tenant_apps.workflows.services.contact_resolution import (
     resolve_po_contact,
     resolve_rfq_recipient,
 )
+
+from apps.core.tests.factories import TenantFactory
 
 
 class ContactResolutionBaseTest(TestCase):

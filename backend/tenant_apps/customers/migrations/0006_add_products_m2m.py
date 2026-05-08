@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("customers", "0005_customer_industry_array_and_more"),
         ("products", "0004_state_sync_tenant"),

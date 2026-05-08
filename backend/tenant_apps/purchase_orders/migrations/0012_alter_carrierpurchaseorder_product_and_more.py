@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("purchase_orders", "0011_alter_product_fks_to_system"),
         ("system", "0007_add_container_versioning_fields"),

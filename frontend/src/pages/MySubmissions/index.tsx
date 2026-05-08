@@ -1,6 +1,6 @@
 /**
  * MySubmissions Page
- * 
+ *
  * Lists user's form submissions with status and ability to resume.
  */
 import React, { useState, useEffect, useCallback } from 'react';
@@ -392,7 +392,7 @@ const MySubmissions: React.FC = () => {
           {submissions.map(submission => (
             <SubmissionCard key={submission.id}>
               <FormIcon>{submission.form_icon || '📄'}</FormIcon>
-              
+
               <SubmissionInfo>
                 <FormName>{submission.form_name}</FormName>
                 <SubmissionMeta>
@@ -403,8 +403,8 @@ const MySubmissions: React.FC = () => {
 
               <ProgressContainer>
                 <ProgressBar>
-                  <ProgressFill 
-                    percent={submission.progress.percent} 
+                  <ProgressFill
+                    percent={submission.progress.percent}
                     status={submission.status}
                   />
                 </ProgressBar>
@@ -420,13 +420,13 @@ const MySubmissions: React.FC = () => {
               <ActionsContainer>
                 {(submission.status === 'draft' || submission.status === 'in_progress') && (
                   <>
-                    <ActionButton 
+                    <ActionButton
                       variant="primary"
                       onClick={() => handleResume(submission.form)}
                     >
                       Resume
                     </ActionButton>
-                    <ActionButton 
+                    <ActionButton
                       variant="danger"
                       onClick={() => handleCancel(submission.id)}
                     >
@@ -436,13 +436,13 @@ const MySubmissions: React.FC = () => {
                 )}
                 {(submission.status === 'completed' || submission.status === 'cancelled') && (
                   <>
-                    <ActionButton 
+                    <ActionButton
                       variant="secondary"
                       onClick={() => handleResume(submission.form)}
                     >
                       View
                     </ActionButton>
-                    <ActionButton 
+                    <ActionButton
                       variant="danger"
                       onClick={() => handleDelete(submission.id)}
                     >

@@ -9,30 +9,29 @@ from apps.system.models import TenantForm, TenantWorkForm
 from apps.system.tasks import audit_form_usage
 from apps.tenants.models import Tenant, TenantUser
 
-
 User = get_user_model()
 
 
 class AuditFormUsageUsesFormReferencesTests(TestCase):
     def setUp(self):
         unique = uuid.uuid4().hex[:8]
-        self.user = User.objects.create_user(username=f'u-{unique}', password='pw')
+        self.user = User.objects.create_user(username=f"u-{unique}", password="pw")
 
         self.tenant = Tenant.objects.create(
-            name=f'Tenant {unique}',
-            slug=f'tenant-{unique}',
-            contact_email=f'{unique}@example.com',
+            name=f"Tenant {unique}",
+            slug=f"tenant-{unique}",
+            contact_email=f"{unique}@example.com",
             is_active=True,
             created_by=self.user,
         )
-        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="admin", is_active=True)
 
         self.form = TenantForm.objects.create(
             tenant=self.tenant,
-            name='Form A',
-            description='',
-            type='single_step',
-            form_definition={'entity_type': 'supplier', 'fields': []},
+            name="Form A",
+            description="",
+            type="single_step",
+            form_definition={"entity_type": "supplier", "fields": []},
             created_by=self.user,
             updated_by=self.user,
             usage_count=0,
@@ -40,18 +39,18 @@ class AuditFormUsageUsesFormReferencesTests(TestCase):
 
         self.workform = TenantWorkForm.objects.create(
             tenant=self.tenant,
-            name='WF',
-            description='',
-            status='draft',
+            name="WF",
+            description="",
+            status="draft",
             workflow_definition={
-                'nodes': [
+                "nodes": [
                     {
-                        'id': 'n1',
-                        'type': 'formStep',
-                        'data': {'tenantFormId': str(self.form.id)},
+                        "id": "n1",
+                        "type": "formStep",
+                        "data": {"tenantFormId": str(self.form.id)},
                     }
                 ],
-                'edges': [],
+                "edges": [],
             },
             created_by=self.user,
             updated_by=self.user,

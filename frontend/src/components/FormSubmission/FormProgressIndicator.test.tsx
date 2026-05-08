@@ -144,7 +144,7 @@ describe('FormProgressIndicator', () => {
 
     it('calculates 0% when no steps completed', () => {
       const allPending: FormStep[] = mockSteps.map(s => ({ ...s, status: 'pending' as const }));
-      
+
       render(
         <FormProgressIndicator
           steps={allPending}
@@ -158,7 +158,7 @@ describe('FormProgressIndicator', () => {
 
     it('calculates 100% when all steps completed', () => {
       const allCompleted: FormStep[] = mockSteps.map(s => ({ ...s, status: 'completed' as const }));
-      
+
       render(
         <FormProgressIndicator
           steps={allCompleted}

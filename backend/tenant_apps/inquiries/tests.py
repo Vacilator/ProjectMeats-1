@@ -4,28 +4,31 @@ Tests for Inquiries app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from types import SimpleNamespace
-from django.test import TestCase
-from django.contrib.auth.models import User
 from datetime import date, timedelta
+from types import SimpleNamespace
+
+from django.contrib.auth.models import User
+from django.test import TestCase
 from django.utils import timezone
+
+from tenant_apps.ai_assistant.models import AIFeedbackLog
+from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
     Inquiry,
-    InquiryRouteDecisionChoices,
-    InquiryStatusChoices,
-    InquirySourceChoices,
     InquiryEntityTypeChoices,
+    InquiryRouteDecisionChoices,
+    InquirySourceChoices,
+    InquiryStatusChoices,
     InquiryTemplate,
 )
 from tenant_apps.inquiries.serializers import InquiryCreateSerializer, InquiryDetailSerializer
 from tenant_apps.products.models import MasterProduct
 from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem
-from apps.system.models import Product
-from tenant_apps.customers.models import Customer
-from apps.integrations.models import EmailLog, ExternalAuthProvider
-from apps.tenants.models import Tenant, TenantUser
-from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.workflows.models import UserNotification
+
+from apps.integrations.models import EmailLog, ExternalAuthProvider
+from apps.system.models import Product
+from apps.tenants.models import Tenant, TenantUser
 
 
 class InquiryModelTest(TestCase):
@@ -36,9 +39,7 @@ class InquiryModelTest(TestCase):
         """Set up test data shared across all tests in this class."""
         unique_id = uuid.uuid4().hex[:8]
         cls.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         cls.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -47,7 +48,7 @@ class InquiryModelTest(TestCase):
             created_by=cls.user,
         )
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="owner")
-        
+
         cls.supplier = Supplier.objects.create(
             name=f"Test Supplier {unique_id}",
             tenant=cls.tenant,
@@ -66,7 +67,7 @@ class InquiryModelTest(TestCase):
             source_type=InquirySourceChoices.INBOUND_CALL,
             tenant=self.tenant,
         )
-        
+
         self.assertIsNotNone(inquiry.inquiry_number)
         self.assertTrue(inquiry.inquiry_number.startswith("INQ-"))
         self.assertEqual(inquiry.entity_type, "customer")
@@ -83,7 +84,7 @@ class InquiryModelTest(TestCase):
             source_type=InquirySourceChoices.EMAIL,
             tenant=self.tenant,
         )
-        
+
         self.assertIsNotNone(inquiry.inquiry_number)
         self.assertEqual(inquiry.entity_type, "supplier")
         self.assertEqual(inquiry.supplier, self.supplier)
@@ -101,7 +102,7 @@ class InquiryModelTest(TestCase):
             customer=self.customer,
             tenant=self.tenant,
         )
-        
+
         # Both should have unique inquiry numbers
         self.assertNotEqual(i1.inquiry_number, i2.inquiry_number)
         # Both should follow the pattern
@@ -131,7 +132,7 @@ class InquiryModelTest(TestCase):
             contact_position="Procurement Manager",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(inquiry.contact_name, "John Buyer")
         self.assertEqual(inquiry.contact_email, "john@customer.com")
         self.assertEqual(inquiry.contact_position, "Procurement Manager")
@@ -145,10 +146,10 @@ class InquiryModelTest(TestCase):
             valid_until=valid_until,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(inquiry.valid_until, valid_until)
         self.assertFalse(inquiry.is_expired)
-        
+
         # Test expired inquiry
         expired_inquiry = Inquiry.objects.create(
             entity_type=InquiryEntityTypeChoices.CUSTOMER,
@@ -170,26 +171,24 @@ class InquiryModelTest(TestCase):
             supplier=self.supplier,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(customer_inquiry.entity, self.customer)
         self.assertEqual(supplier_inquiry.entity, self.supplier)
 
     def test_inquiry_tenant_isolation(self):
         """Test that inquiries are properly isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create inquiry for first tenant
         i1 = Inquiry.objects.create(
             entity_type=InquiryEntityTypeChoices.CUSTOMER,
             customer=self.customer,
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -201,18 +200,18 @@ class InquiryModelTest(TestCase):
             name=f"Other Customer {unique_id}",
             tenant=other_tenant,
         )
-        
+
         # Create inquiry for second tenant
         i2 = Inquiry.objects.create(
             entity_type=InquiryEntityTypeChoices.CUSTOMER,
             customer=other_customer,
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_inquiries = Inquiry.objects.for_tenant(self.tenant)
         Inquiry.objects.for_tenant(other_tenant)
-        
+
         self.assertIn(i1, tenant1_inquiries)
         self.assertNotIn(i2, tenant1_inquiries)
 
@@ -223,35 +222,35 @@ class InquiryModelTest(TestCase):
             customer=self.customer,
             tenant=self.tenant,
         )
-        
+
         self.assertIn(inquiry.inquiry_number, str(inquiry))
         self.assertIn(self.customer.name, str(inquiry))
 
     def test_inquiry_core_trading_contract_fields_exist(self):
         """CTE-01.1 contract fields are present on Inquiry before automation lands."""
-        route_decision_field = Inquiry._meta.get_field('route_decision')
+        route_decision_field = Inquiry._meta.get_field("route_decision")
         self.assertEqual(route_decision_field.choices, InquiryRouteDecisionChoices.choices)
         self.assertTrue(route_decision_field.db_index)
 
-        requested_master_product_field = Inquiry._meta.get_field('requested_master_product')
+        requested_master_product_field = Inquiry._meta.get_field("requested_master_product")
         self.assertEqual(
             requested_master_product_field.related_model.__name__,
-            'MasterProduct',
+            "MasterProduct",
         )
 
-        source_email_field = Inquiry._meta.get_field('source_email')
-        self.assertEqual(source_email_field.related_model.__name__, 'EmailLog')
+        source_email_field = Inquiry._meta.get_field("source_email")
+        self.assertEqual(source_email_field.related_model.__name__, "EmailLog")
 
-        supplier_po_field = Inquiry._meta.get_field('supplier_purchase_order')
-        self.assertEqual(supplier_po_field.related_model.__name__, 'PurchaseOrder')
+        supplier_po_field = Inquiry._meta.get_field("supplier_purchase_order")
+        self.assertEqual(supplier_po_field.related_model.__name__, "PurchaseOrder")
 
-        sales_order_field = Inquiry._meta.get_field('sales_order')
-        self.assertEqual(sales_order_field.related_model.__name__, 'SalesOrder')
+        sales_order_field = Inquiry._meta.get_field("sales_order")
+        self.assertEqual(sales_order_field.related_model.__name__, "SalesOrder")
 
-        carrier_po_field = Inquiry._meta.get_field('carrier_purchase_order')
+        carrier_po_field = Inquiry._meta.get_field("carrier_purchase_order")
         self.assertEqual(
             carrier_po_field.related_model.__name__,
-            'CarrierPurchaseOrder',
+            "CarrierPurchaseOrder",
         )
 
 
@@ -276,22 +275,22 @@ class InquiryTradingContractSerializerTest(TestCase):
         cls.customer = Customer.objects.create(name=f"Customer {unique_id}", tenant=cls.tenant)
         cls.master_product = MasterProduct.objects.create(
             tenant=cls.tenant,
-            protein='beef',
-            item_name='Brisket',
-            type='whole',
-            trim='trimmed',
+            protein="beef",
+            item_name="Brisket",
+            type="whole",
+            trim="trimmed",
         )
         cls.system_product = Product.objects.create(
-            product_code=f'BEEF-BRISKET-{unique_id}',
-            name='Brisket',
-            protein_type='beef',
-            category='BEEF',
+            product_code=f"BEEF-BRISKET-{unique_id}",
+            name="Brisket",
+            protein_type="beef",
+            category="BEEF",
         )
         cls.master_product.system_product = cls.system_product
-        cls.master_product.save(update_fields=['system_product'])
+        cls.master_product.save(update_fields=["system_product"])
         cls.fulfill_supplier = Supplier.objects.create(
             tenant=cls.tenant,
-            name=f'Contract Supplier {unique_id}',
+            name=f"Contract Supplier {unique_id}",
         )
         SupplierAvailableItem.objects.create(
             tenant=cls.tenant,
@@ -301,7 +300,7 @@ class InquiryTradingContractSerializerTest(TestCase):
         )
         cls.provider = ExternalAuthProvider.objects.create(
             tenant=cls.tenant,
-            provider_type='microsoft',
+            provider_type="microsoft",
             connected_email=f"inbox-{unique_id}@example.com",
             is_active=True,
             token_expiry=timezone.now() + timedelta(days=1),
@@ -311,10 +310,10 @@ class InquiryTradingContractSerializerTest(TestCase):
             provider=cls.provider,
             message_id=f"message-{unique_id}",
             thread_id=f"thread-{unique_id}",
-            subject='Need beef',
-            sender_email='buyer@example.com',
+            subject="Need beef",
+            sender_email="buyer@example.com",
             received_at=timezone.now(),
-            body_text='Please quote brisket.',
+            body_text="Please quote brisket.",
         )
 
         other_user = User.objects.create_user(
@@ -331,14 +330,14 @@ class InquiryTradingContractSerializerTest(TestCase):
         TenantUser.objects.create(tenant=cls.other_tenant, user=other_user, role="owner")
         cls.other_master_product = MasterProduct.objects.create(
             tenant=cls.other_tenant,
-            protein='pork',
-            item_name='Belly',
-            type='flat',
-            trim='trimmed',
+            protein="pork",
+            item_name="Belly",
+            type="flat",
+            trim="trimmed",
         )
         other_provider = ExternalAuthProvider.objects.create(
             tenant=cls.other_tenant,
-            provider_type='microsoft',
+            provider_type="microsoft",
             connected_email=f"other-inbox-{unique_id}@example.com",
             is_active=True,
             token_expiry=timezone.now() + timedelta(days=1),
@@ -348,23 +347,23 @@ class InquiryTradingContractSerializerTest(TestCase):
             provider=other_provider,
             message_id=f"other-message-{unique_id}",
             thread_id=f"other-thread-{unique_id}",
-            subject='Wrong tenant',
-            sender_email='other@example.com',
+            subject="Wrong tenant",
+            sender_email="other@example.com",
             received_at=timezone.now(),
-            body_text='Do not link me.',
+            body_text="Do not link me.",
         )
 
     def test_create_serializer_snapshots_email_lineage_and_protein_anchor(self):
         serializer = InquiryCreateSerializer(
             data={
-                'entity_type': InquiryEntityTypeChoices.CUSTOMER,
-                'customer': self.customer.id,
-                'source_type': InquirySourceChoices.EMAIL,
-                'source_email': self.email_log.id,
-                'requested_master_product': self.master_product.id,
-                'route_decision': InquiryRouteDecisionChoices.BROKER,
+                "entity_type": InquiryEntityTypeChoices.CUSTOMER,
+                "customer": self.customer.id,
+                "source_type": InquirySourceChoices.EMAIL,
+                "source_email": self.email_log.id,
+                "requested_master_product": self.master_product.id,
+                "route_decision": InquiryRouteDecisionChoices.BROKER,
             },
-            context={'request': SimpleNamespace(tenant=self.tenant, user=self.user)},
+            context={"request": SimpleNamespace(tenant=self.tenant, user=self.user)},
         )
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
@@ -386,20 +385,20 @@ class InquiryTradingContractSerializerTest(TestCase):
     def test_create_serializer_routes_broker_when_master_product_is_unmapped(self):
         unmapped_master_product = MasterProduct.objects.create(
             tenant=self.tenant,
-            protein='beef',
-            item_name='Chuck',
-            type='whole',
-            trim='trimmed',
+            protein="beef",
+            item_name="Chuck",
+            type="whole",
+            trim="trimmed",
         )
         serializer = InquiryCreateSerializer(
             data={
-                'entity_type': InquiryEntityTypeChoices.CUSTOMER,
-                'customer': self.customer.id,
-                'source_type': InquirySourceChoices.EMAIL,
-                'source_email': self.email_log.id,
-                'requested_master_product': unmapped_master_product.id,
+                "entity_type": InquiryEntityTypeChoices.CUSTOMER,
+                "customer": self.customer.id,
+                "source_type": InquirySourceChoices.EMAIL,
+                "source_email": self.email_log.id,
+                "requested_master_product": unmapped_master_product.id,
             },
-            context={'request': SimpleNamespace(tenant=self.tenant, user=self.user)},
+            context={"request": SimpleNamespace(tenant=self.tenant, user=self.user)},
         )
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
@@ -409,32 +408,32 @@ class InquiryTradingContractSerializerTest(TestCase):
     def test_create_serializer_rejects_cross_tenant_contract_references(self):
         serializer = InquiryCreateSerializer(
             data={
-                'entity_type': InquiryEntityTypeChoices.CUSTOMER,
-                'customer': self.customer.id,
-                'source_type': InquirySourceChoices.EMAIL,
-                'source_email': self.other_email_log.id,
-                'requested_master_product': self.other_master_product.id,
+                "entity_type": InquiryEntityTypeChoices.CUSTOMER,
+                "customer": self.customer.id,
+                "source_type": InquirySourceChoices.EMAIL,
+                "source_email": self.other_email_log.id,
+                "requested_master_product": self.other_master_product.id,
             },
-            context={'request': SimpleNamespace(tenant=self.tenant, user=self.user)},
+            context={"request": SimpleNamespace(tenant=self.tenant, user=self.user)},
         )
 
         self.assertFalse(serializer.is_valid())
-        self.assertIn('source_email', serializer.errors)
+        self.assertIn("source_email", serializer.errors)
 
     def test_detail_serializer_exposes_trading_contract_fields(self):
         serializer = InquiryDetailSerializer()
         field_names = serializer.get_fields().keys()
 
         for field_name in (
-            'route_decision',
-            'source_email',
-            'source_email_message_id',
-            'source_email_thread_id',
-            'requested_master_product',
-            'requested_protein',
-            'supplier_purchase_order',
-            'sales_order',
-            'carrier_purchase_order',
+            "route_decision",
+            "source_email",
+            "source_email_message_id",
+            "source_email_thread_id",
+            "requested_master_product",
+            "requested_protein",
+            "supplier_purchase_order",
+            "sales_order",
+            "carrier_purchase_order",
         ):
             self.assertIn(field_name, field_names)
 
@@ -443,33 +442,33 @@ class InquiryAlertingSignalTests(TestCase):
     def setUp(self):
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f'inquiry-alert-{unique_id}',
-            email=f'inquiry-alert-{unique_id}@example.com',
-            password='testpass123',
+            username=f"inquiry-alert-{unique_id}",
+            email=f"inquiry-alert-{unique_id}@example.com",
+            password="testpass123",
             is_staff=True,
         )
         self.tenant = Tenant.objects.create(
-            name=f'Inquiry Alert Tenant {unique_id}',
-            slug=f'inquiry-alert-tenant-{unique_id}',
-            contact_email=f'inquiry-alert-{unique_id}@example.com',
+            name=f"Inquiry Alert Tenant {unique_id}",
+            slug=f"inquiry-alert-tenant-{unique_id}",
+            contact_email=f"inquiry-alert-{unique_id}@example.com",
             created_by=self.user,
         )
-        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
-        self.customer = Customer.objects.create(name=f'Alert Customer {unique_id}', tenant=self.tenant)
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="admin", is_active=True)
+        self.customer = Customer.objects.create(name=f"Alert Customer {unique_id}", tenant=self.tenant)
 
         other_user = User.objects.create_user(
-            username=f'inquiry-alert-other-{unique_id}',
-            email=f'inquiry-alert-other-{unique_id}@example.com',
-            password='testpass123',
+            username=f"inquiry-alert-other-{unique_id}",
+            email=f"inquiry-alert-other-{unique_id}@example.com",
+            password="testpass123",
             is_staff=True,
         )
         other_tenant = Tenant.objects.create(
-            name=f'Inquiry Alert Other {unique_id}',
-            slug=f'inquiry-alert-other-{unique_id}',
-            contact_email=f'inquiry-alert-other-{unique_id}@example.com',
+            name=f"Inquiry Alert Other {unique_id}",
+            slug=f"inquiry-alert-other-{unique_id}",
+            contact_email=f"inquiry-alert-other-{unique_id}@example.com",
             created_by=other_user,
         )
-        TenantUser.objects.create(tenant=other_tenant, user=other_user, role='admin', is_active=True)
+        TenantUser.objects.create(tenant=other_tenant, user=other_user, role="admin", is_active=True)
 
     def test_create_inquiry_emits_notification_and_review_queue(self):
         with self.captureOnCommitCallbacks(execute=True):
@@ -483,16 +482,16 @@ class InquiryAlertingSignalTests(TestCase):
             )
 
         notification = UserNotification.objects.get(tenant=self.tenant, user=self.user)
-        feedback = AIFeedbackLog.objects.get(tenant=self.tenant, document_type='inquiry')
+        feedback = AIFeedbackLog.objects.get(tenant=self.tenant, document_type="inquiry")
 
-        self.assertEqual(notification.entity_type, 'inquiry')
+        self.assertEqual(notification.entity_type, "inquiry")
         self.assertIsNone(notification.entity_id)
-        self.assertEqual(notification.metadata['inquiry_id'], inquiry.id)
+        self.assertEqual(notification.metadata["inquiry_id"], inquiry.id)
         self.assertEqual(
             notification.action_url,
-            f'/inquiries?review=inquiry&inquiry={inquiry.id}',
+            f"/inquiries?review=inquiry&inquiry={inquiry.id}",
         )
-        self.assertEqual(feedback.original_extracted_data['review_target_url'], notification.action_url)
+        self.assertEqual(feedback.original_extracted_data["review_target_url"], notification.action_url)
         self.assertEqual(UserNotification.objects.count(), 1)
 
     def test_route_change_reopens_review_queue_without_spam_on_unrelated_save(self):
@@ -506,13 +505,13 @@ class InquiryAlertingSignalTests(TestCase):
                 created_by=self.user,
             )
 
-        feedback = AIFeedbackLog.objects.get(tenant=self.tenant, document_type='inquiry')
+        feedback = AIFeedbackLog.objects.get(tenant=self.tenant, document_type="inquiry")
         feedback.resolved_by = self.user
-        feedback.save(update_fields=['resolved_by'])
+        feedback.save(update_fields=["resolved_by"])
 
         with self.captureOnCommitCallbacks(execute=True):
-            inquiry.contact_name = 'Updated Reviewer'
-            inquiry.save(update_fields=['contact_name'])
+            inquiry.contact_name = "Updated Reviewer"
+            inquiry.save(update_fields=["contact_name"])
 
         self.assertEqual(UserNotification.objects.count(), 1)
         feedback.refresh_from_db()
@@ -520,12 +519,12 @@ class InquiryAlertingSignalTests(TestCase):
 
         with self.captureOnCommitCallbacks(execute=True):
             inquiry.route_decision = InquiryRouteDecisionChoices.FULFILL
-            inquiry.save(update_fields=['route_decision'])
+            inquiry.save(update_fields=["route_decision"])
 
         self.assertEqual(UserNotification.objects.count(), 2)
         feedback.refresh_from_db()
         self.assertIsNone(feedback.resolved_by)
-        self.assertEqual(feedback.original_extracted_data['route_decision'], InquiryRouteDecisionChoices.FULFILL)
+        self.assertEqual(feedback.original_extracted_data["route_decision"], InquiryRouteDecisionChoices.FULFILL)
 
 
 class InquiryTemplateModelTest(TestCase):
@@ -536,9 +535,7 @@ class InquiryTemplateModelTest(TestCase):
         """Set up test data shared across all tests in this class."""
         unique_id = uuid.uuid4().hex[:8]
         cls.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         cls.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -557,7 +554,7 @@ class InquiryTemplateModelTest(TestCase):
             default_valid_days=7,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(template.name, "Weekly Beef Order")
         self.assertEqual(template.entity_type, "supplier")
         self.assertEqual(template.default_valid_days, 7)
@@ -571,26 +568,24 @@ class InquiryTemplateModelTest(TestCase):
             entity_type=InquiryEntityTypeChoices.CUSTOMER,
             tenant=self.tenant,
         )
-        
+
         self.assertIn("Customer Pork Inquiry", str(template))
         self.assertIn("customer", str(template))
 
     def test_template_tenant_isolation(self):
         """Test that templates are properly isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create template for first tenant
         t1 = InquiryTemplate.objects.create(
             name="Template 1",
             entity_type=InquiryEntityTypeChoices.SUPPLIER,
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -598,18 +593,18 @@ class InquiryTemplateModelTest(TestCase):
             contact_email=f"admin-{unique_id}@othercompany.com",
             created_by=other_user,
         )
-        
+
         # Create template for second tenant
         t2 = InquiryTemplate.objects.create(
             name="Template 2",
             entity_type=InquiryEntityTypeChoices.SUPPLIER,
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_templates = InquiryTemplate.objects.for_tenant(self.tenant)
         tenant2_templates = InquiryTemplate.objects.for_tenant(other_tenant)
-        
+
         self.assertEqual(tenant1_templates.count(), 1)
         self.assertEqual(tenant2_templates.count(), 1)
         self.assertIn(t1, tenant1_templates)
@@ -621,10 +616,11 @@ class InquiryRLSMigrationTest(TestCase):
 
     def _get_migration_content(self):
         import os
+
         migration_path = os.path.join(
             os.path.dirname(__file__),
-            'migrations',
-            '0004_add_rls_policies_batch.py',
+            "migrations",
+            "0004_add_rls_policies_batch.py",
         )
         with open(migration_path) as f:
             return f.read()
@@ -632,10 +628,11 @@ class InquiryRLSMigrationTest(TestCase):
     def test_rls_migration_exists(self):
         """Verify the RLS migration file exists for inquiries."""
         import os
+
         migration_path = os.path.join(
             os.path.dirname(__file__),
-            'migrations',
-            '0004_add_rls_policies_batch.py',
+            "migrations",
+            "0004_add_rls_policies_batch.py",
         )
         self.assertTrue(
             os.path.exists(migration_path),
@@ -645,45 +642,47 @@ class InquiryRLSMigrationTest(TestCase):
     def test_rls_migration_enables_rls_on_inquiry(self):
         """Verify the RLS migration enables row-level security on inquiries_inquiry."""
         content = self._get_migration_content()
-        self.assertIn('ENABLE ROW LEVEL SECURITY', content)
-        self.assertIn('inquiries_inquiry', content)
+        self.assertIn("ENABLE ROW LEVEL SECURITY", content)
+        self.assertIn("inquiries_inquiry", content)
 
     def test_rls_migration_enables_rls_on_inquirytemplate(self):
         """Verify the RLS migration enables row-level security on inquiries_inquirytemplate."""
         content = self._get_migration_content()
-        self.assertIn('inquiries_inquirytemplate', content)
-        self.assertIn('inquirytemplate_tenant_isolation', content)
+        self.assertIn("inquiries_inquirytemplate", content)
+        self.assertIn("inquirytemplate_tenant_isolation", content)
 
     def test_rls_migration_uses_app_current_tenant(self):
         """Verify the RLS migration uses the app.current_tenant session variable."""
         content = self._get_migration_content()
         self.assertIn("app.current_tenant", content)
-        self.assertIn('tenant_id', content)
+        self.assertIn("tenant_id", content)
 
     def test_rls_migration_has_insert_policies(self):
         """Verify the RLS migration creates INSERT policies for both models."""
         content = self._get_migration_content()
-        self.assertIn('inquiry_tenant_insert', content)
-        self.assertIn('inquirytemplate_tenant_insert', content)
-        self.assertIn('FOR INSERT', content)
-        self.assertIn('WITH CHECK', content)
+        self.assertIn("inquiry_tenant_insert", content)
+        self.assertIn("inquirytemplate_tenant_insert", content)
+        self.assertIn("FOR INSERT", content)
+        self.assertIn("WITH CHECK", content)
 
     def test_rls_migration_has_reverse_sql(self):
         """Verify the RLS migration includes reverse SQL for rollback."""
         content = self._get_migration_content()
-        self.assertIn('DISABLE ROW LEVEL SECURITY', content)
-        self.assertIn('DROP POLICY IF EXISTS', content)
+        self.assertIn("DISABLE ROW LEVEL SECURITY", content)
+        self.assertIn("DROP POLICY IF EXISTS", content)
 
     def test_inquiry_model_has_tenant_fk(self):
         """Verify Inquiry model has a tenant ForeignKey."""
         from django.db import models
-        tenant_field = Inquiry._meta.get_field('tenant')
+
+        tenant_field = Inquiry._meta.get_field("tenant")
         self.assertIsInstance(tenant_field, models.ForeignKey)
-        self.assertEqual(tenant_field.related_model.__name__, 'Tenant')
+        self.assertEqual(tenant_field.related_model.__name__, "Tenant")
 
     def test_inquirytemplate_model_has_tenant_fk(self):
         """Verify InquiryTemplate model has a tenant ForeignKey."""
         from django.db import models
-        tenant_field = InquiryTemplate._meta.get_field('tenant')
+
+        tenant_field = InquiryTemplate._meta.get_field("tenant")
         self.assertIsInstance(tenant_field, models.ForeignKey)
-        self.assertEqual(tenant_field.related_model.__name__, 'Tenant')
+        self.assertEqual(tenant_field.related_model.__name__, "Tenant")

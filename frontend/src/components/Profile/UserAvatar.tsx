@@ -1,6 +1,6 @@
 /**
  * UserAvatar Component
- * 
+ *
  * Displays user avatar with optional upload functionality in edit mode.
  * Features:
  * - Circular avatar display

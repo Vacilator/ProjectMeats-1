@@ -1,17 +1,17 @@
 /**
  * FavoritesWidget Component
- * 
+ *
  * Displays user's favorite entities for quick access.
  * Integrates with SmartSearch favorites system.
- * 
+ *
  * Features:
  * - Quick access to saved favorites
  * - Drag to reorder
  * - Remove favorites
  * - Jump to entity details
- * 
+ *
  * Created: 2026-02-21 - Cockpit Phase 1: Smart Search Foundation
- * 
+ *
  * @module FavoritesWidget
  */
 

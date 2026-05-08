@@ -88,9 +88,7 @@ ENTITY_CONTRACTS = {
         ),
         dependencies=("suppliers",),
         relationship_fields=("supplier_source_key",),
-        notes=(
-            "Plants remain a tenant-aware model even though transactional headers usually FK locations.",
-        ),
+        notes=("Plants remain a tenant-aware model even though transactional headers usually FK locations.",),
     ),
     "locations": EntityContract(
         entity="locations",
@@ -116,9 +114,7 @@ ENTITY_CONTRACTS = {
             FieldMapping("is_active", "is_active"),
         ),
         relationship_fields=("supplier_source_key", "customer_source_key"),
-        notes=(
-            "Transactional headers use locations for plant, pickup, and delivery anchors.",
-        ),
+        notes=("Transactional headers use locations for plant, pickup, and delivery anchors.",),
     ),
     "suppliers": EntityContract(
         entity="suppliers",
@@ -290,8 +286,12 @@ ENTITY_CONTRACTS = {
             FieldMapping("carrier_source_key", "carrier", notes="Resolve within tenant."),
             FieldMapping("product_code", "product", notes="Resolve global system.Product by product_code."),
             FieldMapping("plant_location_source_key", "plant", notes="Resolve locations.Location within tenant."),
-            FieldMapping("pickup_location_source_key", "pick_up_location", notes="Resolve locations.Location within tenant."),
-            FieldMapping("delivery_location_source_key", "delivery_location", notes="Resolve locations.Location within tenant."),
+            FieldMapping(
+                "pickup_location_source_key", "pick_up_location", notes="Resolve locations.Location within tenant."
+            ),
+            FieldMapping(
+                "delivery_location_source_key", "delivery_location", notes="Resolve locations.Location within tenant."
+            ),
             FieldMapping("contact_source_key", "contact", notes="Resolve within tenant."),
             FieldMapping("delivery_po_number", "delivery_po_number"),
             FieldMapping("carrier_release_number", "carrier_release_number"),
@@ -379,8 +379,12 @@ ENTITY_CONTRACTS = {
             FieldMapping("carrier_source_key", "carrier", required=True, notes="Resolve within tenant."),
             FieldMapping("supplier_source_key", "supplier", required=True, notes="Resolve within tenant."),
             FieldMapping("plant_location_source_key", "plant", notes="Resolve locations.Location within tenant."),
-            FieldMapping("pickup_location_source_key", "pick_up_location", notes="Resolve locations.Location within tenant."),
-            FieldMapping("delivery_location_source_key", "delivery_location", notes="Resolve locations.Location within tenant."),
+            FieldMapping(
+                "pickup_location_source_key", "pick_up_location", notes="Resolve locations.Location within tenant."
+            ),
+            FieldMapping(
+                "delivery_location_source_key", "delivery_location", notes="Resolve locations.Location within tenant."
+            ),
             FieldMapping("product_code", "product", notes="Resolve global system.Product by product_code."),
             FieldMapping("purchase_order_source_key", "linked_order", notes="Resolve purchase order within tenant."),
             FieldMapping("sales_order_source_key", "sales_order", notes="Resolve sales order within tenant."),
@@ -420,9 +424,19 @@ ENTITY_CONTRACTS = {
         target_kind="transaction_line_item",
         match_key_priority=(("document_number", "line_number"),),
         field_mappings=(
-            FieldMapping("document_number", "purchase_order", required=True, notes="Resolve purchase_orders.order_number within tenant."),
+            FieldMapping(
+                "document_number",
+                "purchase_order",
+                required=True,
+                notes="Resolve purchase_orders.order_number within tenant.",
+            ),
             FieldMapping("line_number", "line_number", required=True),
-            FieldMapping("product_code", "product_description", required=True, notes="Resolve global system.Product by product_code."),
+            FieldMapping(
+                "product_code",
+                "product_description",
+                required=True,
+                notes="Resolve global system.Product by product_code.",
+            ),
             FieldMapping("protein_type", "protein_type"),
             FieldMapping("fresh_or_frozen", "fresh_or_frozen"),
             FieldMapping("package_type", "package_type"),
@@ -444,9 +458,19 @@ ENTITY_CONTRACTS = {
         target_kind="transaction_line_item",
         match_key_priority=(("document_number", "line_number"),),
         field_mappings=(
-            FieldMapping("document_number", "sales_order", required=True, notes="Resolve sales_orders.our_sales_order_num within tenant."),
+            FieldMapping(
+                "document_number",
+                "sales_order",
+                required=True,
+                notes="Resolve sales_orders.our_sales_order_num within tenant.",
+            ),
             FieldMapping("line_number", "line_number", required=True),
-            FieldMapping("product_code", "product_description", required=True, notes="Resolve global system.Product by product_code."),
+            FieldMapping(
+                "product_code",
+                "product_description",
+                required=True,
+                notes="Resolve global system.Product by product_code.",
+            ),
             FieldMapping("protein_type", "protein_type"),
             FieldMapping("fresh_or_frozen", "fresh_or_frozen"),
             FieldMapping("package_type", "package_type"),
@@ -468,9 +492,16 @@ ENTITY_CONTRACTS = {
         target_kind="transaction_line_item",
         match_key_priority=(("document_number", "line_number"),),
         field_mappings=(
-            FieldMapping("document_number", "invoice", required=True, notes="Resolve invoices.invoice_number within tenant."),
+            FieldMapping(
+                "document_number", "invoice", required=True, notes="Resolve invoices.invoice_number within tenant."
+            ),
             FieldMapping("line_number", "line_number", required=True),
-            FieldMapping("product_code", "product_description", required=True, notes="Resolve global system.Product by product_code."),
+            FieldMapping(
+                "product_code",
+                "product_description",
+                required=True,
+                notes="Resolve global system.Product by product_code.",
+            ),
             FieldMapping("protein_type", "protein_type"),
             FieldMapping("fresh_or_frozen", "fresh_or_frozen"),
             FieldMapping("package_type", "package_type"),
@@ -493,9 +524,19 @@ ENTITY_CONTRACTS = {
         target_kind="transaction_line_item",
         match_key_priority=(("document_number", "line_number"),),
         field_mappings=(
-            FieldMapping("document_number", "carrier_purchase_order", required=True, notes="Resolve carrier_pos.our_carrier_po_num within tenant."),
+            FieldMapping(
+                "document_number",
+                "carrier_purchase_order",
+                required=True,
+                notes="Resolve carrier_pos.our_carrier_po_num within tenant.",
+            ),
             FieldMapping("line_number", "line_number", required=True),
-            FieldMapping("product_code", "product_description", required=True, notes="Resolve global system.Product by product_code."),
+            FieldMapping(
+                "product_code",
+                "product_description",
+                required=True,
+                notes="Resolve global system.Product by product_code.",
+            ),
             FieldMapping("protein_type", "protein_type"),
             FieldMapping("fresh_or_frozen", "fresh_or_frozen"),
             FieldMapping("package_type", "package_type"),

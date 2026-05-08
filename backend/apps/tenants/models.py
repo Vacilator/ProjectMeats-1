@@ -41,9 +41,7 @@ class Tenant(models.Model):
     # Basic tenant information
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, help_text="Tenant organization name")
-    slug = models.SlugField(
-        max_length=100, unique=True, help_text="URL-friendly identifier"
-    )
+    slug = models.SlugField(max_length=100, unique=True, help_text="URL-friendly identifier")
     schema_name = models.CharField(
         max_length=63,
         unique=True,
@@ -52,11 +50,7 @@ class Tenant(models.Model):
         help_text="Database schema name (for future django-tenants compatibility)",
         db_index=True,
     )
-    description = models.TextField(
-        blank=True,
-        default="",
-        help_text="Tenant organization description"
-    )
+    description = models.TextField(blank=True, default="", help_text="Tenant organization description")
 
     # Contact information
     domain = models.CharField(
@@ -95,11 +89,7 @@ class Tenant(models.Model):
 
     # Configuration (JSON field for settings)
     # Made blank=True to make it optional in forms
-    settings = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Tenant-specific configuration settings"
-    )
+    settings = models.JSONField(default=dict, blank=True, help_text="Tenant-specific configuration settings")
 
     # Tenant branding
     logo = models.ImageField(
@@ -137,20 +127,18 @@ class Tenant(models.Model):
             # Auto-generate schema_name from slug if not provided
             if not self.schema_name:
                 self.schema_name = self.slug.replace("-", "_")
-        
+
         # Auto-generate default settings if logo is present but settings are empty
         if not self.settings and self.logo:
             self.settings = {
                 "theme": {
                     "primary_color": "#4F46E5",  # Default Indigo
                     "logo_url": "",  # Empty string - get_theme_settings() handles URL dynamically
-                    "layout": "sidebar-light"
+                    "layout": "sidebar-light",
                 },
-                "features": {
-                    "beta_access": False
-                }
+                "features": {"beta_access": False},
             }
-        
+
         super().save(*args, **kwargs)
 
     def get_theme_settings(self):
@@ -162,7 +150,7 @@ class Tenant(models.Model):
         - primary_color_light: Primary color for light theme
         - primary_color_dark: Primary color for dark theme
         - name: Tenant display name
-        
+
         Priority: Settings JSON theme colors (user-defined) > Defaults
         """
         theme = self.settings.get("theme", {}) if self.settings else {}
@@ -181,7 +169,7 @@ class Tenant(models.Model):
         primary_color_light = theme.get("primary_color_light")
         if not primary_color_light:
             primary_color_light = theme.get("primary_color", "#3498db")
-        
+
         primary_color_dark = theme.get("primary_color_dark")
         if not primary_color_dark:
             primary_color_dark = theme.get("primary_color", "#5dade2")
@@ -214,22 +202,18 @@ class Tenant(models.Model):
         # Initialize settings if needed
         if not self.settings:
             self.settings = {}
-        
+
         if "theme" not in self.settings:
             self.settings["theme"] = {}
 
         if light_color:
             if not hex_pattern.match(light_color):
-                raise ValueError(
-                    f"Invalid hex color format for light_color: {light_color}"
-                )
+                raise ValueError(f"Invalid hex color format for light_color: {light_color}")
             self.settings["theme"]["primary_color_light"] = light_color
 
         if dark_color:
             if not hex_pattern.match(dark_color):
-                raise ValueError(
-                    f"Invalid hex color format for dark_color: {dark_color}"
-                )
+                raise ValueError(f"Invalid hex color format for dark_color: {dark_color}")
             self.settings["theme"]["primary_color_dark"] = dark_color
 
         # Mark the field as modified for JSON field updates
@@ -259,16 +243,16 @@ class TenantUser(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="user")
 
     restricted_plants = models.ManyToManyField(
-        'plants.Plant',
+        "plants.Plant",
         blank=True,
-        related_name='restricted_to_memberships',
-        help_text='Optional plant-level access restriction for this membership',
+        related_name="restricted_to_memberships",
+        help_text="Optional plant-level access restriction for this membership",
     )
     restricted_locations = models.ManyToManyField(
-        'locations.Location',
+        "locations.Location",
         blank=True,
-        related_name='restricted_to_memberships',
-        help_text='Optional location-level access restriction for this membership',
+        related_name="restricted_to_memberships",
+        help_text="Optional location-level access restriction for this membership",
     )
 
     is_active = models.BooleanField(default=True)
@@ -315,9 +299,7 @@ class TenantInvitation(models.Model):
 
     # Identification
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    token = models.CharField(
-        max_length=64, unique=True, help_text="Unique invitation token sent to invitee"
-    )
+    token = models.CharField(max_length=64, unique=True, help_text="Unique invitation token sent to invitee")
 
     # Invitation details
     tenant = models.ForeignKey(
@@ -326,11 +308,7 @@ class TenantInvitation(models.Model):
         related_name="invitations",
         help_text="Tenant extending the invitation",
     )
-    email = models.EmailField(
-        blank=True,
-        null=True,
-        help_text="Email address (optional for reusable links)"
-    )
+    email = models.EmailField(blank=True, null=True, help_text="Email address (optional for reusable links)")
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
@@ -369,18 +347,9 @@ class TenantInvitation(models.Model):
     message = models.TextField(blank=True, help_text="Optional message from inviter")
 
     # NEW FIELDS for Reusability ("Golden Tickets")
-    is_reusable = models.BooleanField(
-        default=False,
-        help_text="If true, this token can be used by multiple people"
-    )
-    max_uses = models.PositiveIntegerField(
-        default=1,
-        help_text="Maximum number of times this token can be used"
-    )
-    usage_count = models.PositiveIntegerField(
-        default=0,
-        help_text="Current number of times used"
-    )
+    is_reusable = models.BooleanField(default=False, help_text="If true, this token can be used by multiple people")
+    max_uses = models.PositiveIntegerField(default=1, help_text="Maximum number of times this token can be used")
+    usage_count = models.PositiveIntegerField(default=0, help_text="Current number of times used")
 
     class Meta:
         db_table = "tenants_invitation"
@@ -424,17 +393,17 @@ class TenantInvitation(models.Model):
     def is_valid(self):
         """Check if invitation is valid (pending and not expired)."""
         is_active = self.status == "pending" and not self.is_expired
-        
+
         if self.is_reusable:
             # Reusable invitations are valid until max_uses is reached
             return is_active and (self.usage_count < self.max_uses)
-        
+
         return is_active
 
     def accept(self, user):
         """
         Mark invitation as accepted by a user.
-        
+
         For reusable invitations, increments use count.
         For single-use invitations, marks as accepted.
 
@@ -447,11 +416,11 @@ class TenantInvitation(models.Model):
         if self.is_reusable:
             # Increment use count for reusable invitations
             self.usage_count += 1
-            
+
             # If we've reached max uses, mark as accepted (effectively closed)
             if self.usage_count >= self.max_uses:
                 self.status = "accepted"
-            
+
             # Don't set accepted_by/accepted_at for reusable links
             # as multiple people use them
             self.save()
@@ -506,9 +475,7 @@ class TenantDomain(models.Model):
         related_name="tenant_domains",
         help_text="Tenant associated with this domain",
     )
-    is_primary = models.BooleanField(
-        default=True, help_text="Whether this is the primary domain for the tenant"
-    )
+    is_primary = models.BooleanField(default=True, help_text="Whether this is the primary domain for the tenant")
 
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
@@ -536,16 +503,16 @@ class TenantDomain(models.Model):
 class TenantConfiguration(models.Model):
     """
     Configuration model for tenant-specific settings.
-    
+
     Allows flexible configuration management with categories, data types,
     and descriptions. Supports both system-defined and user-defined configs.
-    
+
     Examples:
     - Category: "security", Key: "session_timeout", Value: "3600", Type: "integer"
     - Category: "notifications", Key: "email_enabled", Value: "true", Type: "boolean"
     - Category: "general", Key: "timezone", Value: "America/New_York", Type: "string"
     """
-    
+
     CATEGORY_CHOICES = [
         ("general", "General"),
         ("security", "Security"),
@@ -554,7 +521,7 @@ class TenantConfiguration(models.Model):
         ("appearance", "Appearance"),
         ("advanced", "Advanced"),
     ]
-    
+
     DATA_TYPE_CHOICES = [
         ("string", "String"),
         ("integer", "Integer"),
@@ -562,60 +529,37 @@ class TenantConfiguration(models.Model):
         ("boolean", "Boolean"),
         ("json", "JSON"),
     ]
-    
+
     # Identification
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
         related_name="tenant_configurations",
-        help_text="Tenant this configuration belongs to"
+        help_text="Tenant this configuration belongs to",
     )
-    
+
     # Configuration metadata
     category = models.CharField(
-        max_length=50,
-        choices=CATEGORY_CHOICES,
-        default="general",
-        help_text="Configuration category for organization"
+        max_length=50, choices=CATEGORY_CHOICES, default="general", help_text="Configuration category for organization"
     )
-    key = models.CharField(
-        max_length=100,
-        help_text="Configuration key (e.g., 'session_timeout')"
-    )
-    display_name = models.CharField(
-        max_length=200,
-        help_text="Human-readable name for display in UI"
-    )
-    description = models.TextField(
-        blank=True,
-        help_text="Detailed description of what this configuration controls"
-    )
-    
+    key = models.CharField(max_length=100, help_text="Configuration key (e.g., 'session_timeout')")
+    display_name = models.CharField(max_length=200, help_text="Human-readable name for display in UI")
+    description = models.TextField(blank=True, help_text="Detailed description of what this configuration controls")
+
     # Configuration value
-    value = models.TextField(
-        help_text="Configuration value (stored as text, interpreted by data_type)"
-    )
+    value = models.TextField(help_text="Configuration value (stored as text, interpreted by data_type)")
     data_type = models.CharField(
         max_length=20,
         choices=DATA_TYPE_CHOICES,
         default="string",
-        help_text="Data type for value interpretation and validation"
+        help_text="Data type for value interpretation and validation",
     )
-    default_value = models.TextField(
-        blank=True,
-        help_text="Default value for reset functionality"
-    )
-    
+    default_value = models.TextField(blank=True, help_text="Default value for reset functionality")
+
     # Metadata
-    is_system = models.BooleanField(
-        default=False,
-        help_text="System-defined config (cannot be deleted, only modified)"
-    )
-    is_required = models.BooleanField(
-        default=False,
-        help_text="Required configuration (must have a value)"
-    )
+    is_system = models.BooleanField(default=False, help_text="System-defined config (cannot be deleted, only modified)")
+    is_required = models.BooleanField(default=False, help_text="Required configuration (must have a value)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
@@ -624,9 +568,9 @@ class TenantConfiguration(models.Model):
         null=True,
         blank=True,
         related_name="updated_configurations",
-        help_text="User who last updated this configuration"
+        help_text="User who last updated this configuration",
     )
-    
+
     class Meta:
         db_table = "tenants_configuration"
         ordering = ["category", "key"]
@@ -635,10 +579,10 @@ class TenantConfiguration(models.Model):
             models.Index(fields=["tenant", "category"]),
             models.Index(fields=["tenant", "key"]),
         ]
-    
+
     def __str__(self):
         return f"{self.tenant.slug} - {self.category}.{self.key}"
-    
+
     def get_typed_value(self):
         """Return the value converted to its proper data type."""
         if self.data_type == "boolean":
@@ -649,20 +593,22 @@ class TenantConfiguration(models.Model):
             return float(self.value)
         elif self.data_type == "json":
             import json
+
             return json.loads(self.value)
         else:
             return self.value
-    
+
     def set_typed_value(self, value):
         """Set the value from a Python type, converting to string storage."""
         if self.data_type == "boolean":
             self.value = "true" if value else "false"
         elif self.data_type == "json":
             import json
+
             self.value = json.dumps(value)
         else:
             self.value = str(value)
-    
+
     def reset_to_default(self):
         """Reset this configuration to its default value."""
         if self.default_value:

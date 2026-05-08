@@ -5,9 +5,13 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django.contrib.auth.models import User
+
+from tenant_apps.contacts.models import Contact
+
+from apps.core.model_mixins import FinancialTermsMixin
 from apps.core.models import (
     AccountingPaymentTermsChoices,
     AppointmentMethodChoices,
@@ -17,18 +21,14 @@ from apps.core.models import (
     PhoneTypeChoices,
     TenantAwareModel,
 )
-from apps.core.model_mixins import FinancialTermsMixin
-from tenant_apps.contacts.models import Contact
 
 
 class Carrier(FinancialTermsMixin, TenantAwareModel):
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50)
-    carrier_type = models.CharField(
-        max_length=20, choices=CarrierTypeChoices.choices, default=CarrierTypeChoices.TRUCK
-    )
-    contact_person = models.CharField(max_length=100, blank=True, default='')
-    phone = models.CharField(max_length=20, blank=True, default='')
+    carrier_type = models.CharField(max_length=20, choices=CarrierTypeChoices.choices, default=CarrierTypeChoices.TRUCK)
+    contact_person = models.CharField(max_length=100, blank=True, default="")
+    phone = models.CharField(max_length=20, blank=True, default="")
     phone_type = models.CharField(
         max_length=10,
         choices=PhoneTypeChoices.choices,
@@ -36,83 +36,81 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         default=PhoneTypeChoices.OFFICE,
         help_text="Carrier phone type (mobile or office)",
     )
-    email = models.EmailField(blank=True, default='')
-    address = models.TextField(blank=True, default='')
-    city = models.CharField(max_length=100, blank=True, default='')
-    state = models.CharField(max_length=100, blank=True, default='')
-    zip_code = models.CharField(max_length=20, blank=True, default='')
+    email = models.EmailField(blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    state = models.CharField(max_length=100, blank=True, default="")
+    zip_code = models.CharField(max_length=20, blank=True, default="")
     country = models.CharField(max_length=100, default="USA")
-    mc_number = models.CharField(
-        max_length=50, blank=True, default='', help_text="Motor Carrier Number"
-    )
+    mc_number = models.CharField(max_length=50, blank=True, default="", help_text="Motor Carrier Number")
     dot_number = models.CharField(
-        max_length=50, blank=True, default='', help_text="Department of Transportation Number"
+        max_length=50, blank=True, default="", help_text="Department of Transportation Number"
     )
-    insurance_provider = models.CharField(max_length=200, blank=True, default='')
-    insurance_policy_number = models.CharField(max_length=100, blank=True, default='')
+    insurance_provider = models.CharField(max_length=200, blank=True, default="")
+    insurance_policy_number = models.CharField(max_length=100, blank=True, default="")
     insurance_expiry = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    notes = models.TextField(blank=True, default='')
-    
+    notes = models.TextField(blank=True, default="")
+
     # Enhanced fields from Excel requirements
     my_customer_num_from_carrier = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Our customer number with this carrier",
     )
     accounting_payable_contact_name = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Accounting payable contact name",
     )
     accounting_payable_contact_phone = models.CharField(
         max_length=20,
         blank=True,
-        default='',
+        default="",
         help_text="Accounting payable contact phone",
     )
     accounting_payable_contact_email = models.EmailField(
         blank=True,
-        default='',
+        default="",
         help_text="Accounting payable contact email",
     )
     sales_contact_name = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact name",
     )
     sales_contact_phone = models.CharField(
         max_length=20,
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact phone",
     )
     sales_contact_email = models.EmailField(
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact email",
     )
     accounting_payment_terms = models.CharField(
         max_length=50,
         choices=AccountingPaymentTermsChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Payment terms (e.g., Wire, ACH, Check)",
     )
     credit_limits = models.CharField(
         max_length=50,
         choices=CreditLimitChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Credit limits/terms (e.g., Net 30, Wire 1 day prior)",
     )
     departments = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Departments (comma-separated: BOL, COA, POD, etc.)",
     )
     departments_array = ArrayField(
@@ -125,7 +123,7 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         max_length=50,
         choices=AppointmentMethodChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="How carrier makes appointments (e.g., Email, Phone)",
     )
     contacts = models.ManyToManyField(
@@ -134,21 +132,19 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         blank=True,
         help_text="Multiple contacts associated with this carrier",
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         ordering = ["name"]
         verbose_name = "Carrier"
         verbose_name_plural = "Carriers"
         indexes = [
-            models.Index(fields=['tenant', 'name']),
-            models.Index(fields=['mc_number']),
-            models.Index(fields=['dot_number']),
+            models.Index(fields=["tenant", "name"]),
+            models.Index(fields=["mc_number"]),
+            models.Index(fields=["dot_number"]),
         ]
 
     def __str__(self):

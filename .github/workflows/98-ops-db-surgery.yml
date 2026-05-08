@@ -49,7 +49,7 @@ jobs:
     needs: [check_infrastructure]
     environment: ${{ inputs.environment == 'prod' && 'production-backend' || format('{0}-backend', inputs.environment) }}
     timeout-minutes: 10
-    
+
     steps:
       - name: Setup SSH
         run: |
@@ -57,7 +57,7 @@ jobs:
           sudo apt-get install -y sshpass
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-      
+
       - name: Set Environment Context
         id: context
         run: |
@@ -69,7 +69,7 @@ jobs:
             # Prefer password auth if SSH_KEY is not provided.
             echo "PASS=${{ secrets.SSH_PASSWORD }}"
           } >> "$GITHUB_OUTPUT"
-      
+
       - name: Execute SQL Surgery
         if: inputs.type == 'sql'
         env:
@@ -113,7 +113,7 @@ jobs:
           # Execute SQL using psql with credentials from .env
           $SSH_CMD $USER@$HOST << 'ENDSSH'
           set -euo pipefail
-          
+
           # Load database credentials from backend .env (Robust parser)
           # Handles quoted values, comments, and malformed lines
           while IFS='=' read -r key value; do
@@ -126,21 +126,21 @@ jobs:
             value="${value#\'}"
             export "$key=$value"
           done < <(grep -v '^#' /root/projectmeats/backend/.env | grep '=' || true)
-          
+
           # Execute SQL with PGPASSWORD
           export PGPASSWORD="$DB_PASSWORD"
-          
+
           echo "🔍 Executing SQL..."
           psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /tmp/surgery.sql
-          
+
           echo "✅ SQL executed successfully"
-          
+
           # Cleanup
           rm -f /tmp/surgery.sql
           ENDSSH
-          
+
           echo "🎉 Surgery complete"
-      
+
       - name: Execute Shell Command
         if: inputs.type == 'shell'
         env:
@@ -176,13 +176,13 @@ jobs:
           # Execute shell command
           $SSH_CMD $USER@$HOST << ENDSSH
           set -euo pipefail
-          
+
           cd /root/projectmeats
-          
+
           echo "🔍 Executing command..."
           $SHELL_SCRIPT
-          
+
           echo "✅ Command executed successfully"
           ENDSSH
-          
+
           echo "🎉 Operation complete"

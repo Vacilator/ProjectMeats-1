@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from enum import Enum
 from typing import Any
 
@@ -161,9 +161,9 @@ def calculate_trade_financials(
     # Margin calculation (only meaningful when both SO and PO have amounts)
     if sell_price > ZERO and buy_price > ZERO:
         result.margin_amount = sell_price - buy_price
-        result.margin_percent = (
-            (result.margin_amount / sell_price) * HUNDRED
-        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        result.margin_percent = ((result.margin_amount / sell_price) * HUNDRED).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
     # Net exposure (what we owe suppliers minus what customers owe us)
     result.net_exposure = po_outstanding - so_outstanding
@@ -222,8 +222,7 @@ def calculate_order_financials(
         "outstanding_amount": str(outstanding),
         "paid_amount": str(paid),
         "payment_percent": str(
-            ((paid / total) * HUNDRED).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            if total > ZERO else ZERO
+            ((paid / total) * HUNDRED).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if total > ZERO else ZERO
         ),
         "payment_status": payment_status.value,
         "order_type": order_type,

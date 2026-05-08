@@ -32,7 +32,7 @@ class GoldenSchemaETLJournalTests(TestCase):
             "tenant_slug": self.tenant.slug,
             "sources": [{"entity": "suppliers", "format": "json", "path": "supplier_rows.json"}],
         }
-        self.command_options = build_command_options(output_format='json')
+        self.command_options = build_command_options(output_format="json")
 
     def test_run_key_is_deterministic_for_same_manifest_and_options(self) -> None:
         checksum = checksum_manifest_payload(self.manifest_payload)
@@ -84,51 +84,51 @@ class GoldenSchemaETLJournalTests(TestCase):
             batch=batch,
             tenant=self.tenant,
             row_result={
-                'entity': 'suppliers',
-                'source_path': 'supplier_rows.json',
-                'source_sheet': '',
-                'source_row_number': 1,
-                'source_identifier': 'name=Existing Supplier|email=existing-supplier@example.com',
-                'normalized_lookup_key': 'name=Existing Supplier|email=existing-supplier@example.com',
-                'row_fingerprint': 'fingerprint-1',
-                'planned_action': ETLImportRowJournal.PlannedAction.WOULD_CREATE,
-                'target_model': 'tenant_apps.suppliers.models.Supplier',
-                'target_identifier': '',
-                'status': ETLImportRowJournal.Status.PLANNED,
-                'error_code': '',
-                'error_message': '',
-                'side_effects_suppressed': ['outbound_email'],
-                'raw_payload': {'name': 'Existing Supplier'},
-                'normalized_payload': {'name': 'Existing Supplier'},
-                'warnings': [],
+                "entity": "suppliers",
+                "source_path": "supplier_rows.json",
+                "source_sheet": "",
+                "source_row_number": 1,
+                "source_identifier": "name=Existing Supplier|email=existing-supplier@example.com",
+                "normalized_lookup_key": "name=Existing Supplier|email=existing-supplier@example.com",
+                "row_fingerprint": "fingerprint-1",
+                "planned_action": ETLImportRowJournal.PlannedAction.WOULD_CREATE,
+                "target_model": "tenant_apps.suppliers.models.Supplier",
+                "target_identifier": "",
+                "status": ETLImportRowJournal.Status.PLANNED,
+                "error_code": "",
+                "error_message": "",
+                "side_effects_suppressed": ["outbound_email"],
+                "raw_payload": {"name": "Existing Supplier"},
+                "normalized_payload": {"name": "Existing Supplier"},
+                "warnings": [],
             },
         )
         upsert_row_journal(
             batch=batch,
             tenant=self.tenant,
             row_result={
-                'entity': 'suppliers',
-                'source_path': 'supplier_rows.json',
-                'source_sheet': '',
-                'source_row_number': 1,
-                'source_identifier': 'name=Existing Supplier|email=existing-supplier@example.com',
-                'normalized_lookup_key': 'name=Existing Supplier|email=existing-supplier@example.com',
-                'row_fingerprint': 'fingerprint-1',
-                'planned_action': ETLImportRowJournal.PlannedAction.WOULD_SKIP,
-                'target_model': 'tenant_apps.suppliers.models.Supplier',
-                'target_identifier': '123',
-                'status': ETLImportRowJournal.Status.PLANNED,
-                'error_code': '',
-                'error_message': '',
-                'side_effects_suppressed': ['outbound_email'],
-                'raw_payload': {'name': 'Existing Supplier'},
-                'normalized_payload': {'name': 'Existing Supplier'},
-                'warnings': ['matching_strategy_pending'],
+                "entity": "suppliers",
+                "source_path": "supplier_rows.json",
+                "source_sheet": "",
+                "source_row_number": 1,
+                "source_identifier": "name=Existing Supplier|email=existing-supplier@example.com",
+                "normalized_lookup_key": "name=Existing Supplier|email=existing-supplier@example.com",
+                "row_fingerprint": "fingerprint-1",
+                "planned_action": ETLImportRowJournal.PlannedAction.WOULD_SKIP,
+                "target_model": "tenant_apps.suppliers.models.Supplier",
+                "target_identifier": "123",
+                "status": ETLImportRowJournal.Status.PLANNED,
+                "error_code": "",
+                "error_message": "",
+                "side_effects_suppressed": ["outbound_email"],
+                "raw_payload": {"name": "Existing Supplier"},
+                "normalized_payload": {"name": "Existing Supplier"},
+                "warnings": ["matching_strategy_pending"],
             },
         )
 
         self.assertEqual(ETLImportRowJournal.objects.count(), 1)
         journal = ETLImportRowJournal.objects.get()
         self.assertEqual(journal.planned_action, ETLImportRowJournal.PlannedAction.WOULD_SKIP)
-        self.assertEqual(journal.target_identifier, '123')
-        self.assertEqual(journal.warnings, ['matching_strategy_pending'])
+        self.assertEqual(journal.target_identifier, "123")
+        self.assertEqual(journal.warnings, ["matching_strategy_pending"])

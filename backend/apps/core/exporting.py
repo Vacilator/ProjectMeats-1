@@ -22,7 +22,6 @@ from django.utils import timezone
 
 from apps.core.conversions import normalize_temporal_for_export
 
-
 CsvAccessor = Union[str, Callable[[Any], Any]]
 CsvColumn = Tuple[str, CsvAccessor]
 

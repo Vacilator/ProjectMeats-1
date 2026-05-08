@@ -115,7 +115,7 @@ log_info "Check 5/6: Network Latency"
 if command -v ping &>/dev/null; then
   # Try to extract latency, handling different ping output formats
   PING_OUTPUT=$(ping -c 3 -W 2 "$HOST" 2>/dev/null | tail -1)
-  
+
   # Try different parsing methods for different ping versions
   LATENCY=""
   if echo "$PING_OUTPUT" | grep -q "min/avg/max"; then
@@ -125,7 +125,7 @@ if command -v ping &>/dev/null; then
     # macOS format: round-trip min/avg/max/stddev = 1.234/2.345/3.456/0.789 ms
     LATENCY=$(echo "$PING_OUTPUT" | awk -F'/' '{print $2}' | cut -d. -f1 2>/dev/null)
   fi
-  
+
   # Validate latency is a positive integer
   if [[ -n "$LATENCY" ]] && [[ "$LATENCY" =~ ^[0-9]+$ ]] && [[ "$LATENCY" -gt 0 ]]; then
     if [[ "$LATENCY" -lt 100 ]]; then

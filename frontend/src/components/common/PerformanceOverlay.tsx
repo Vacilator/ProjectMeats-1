@@ -1,6 +1,6 @@
 /**
  * Performance Monitoring Overlay (Development Only)
- * 
+ *
  * Displays real-time performance metrics in dev mode:
  * - Core Web Vitals (LCP, FID)
  * - Memory usage
@@ -18,7 +18,7 @@ const { Text } = Typography;
 export const PerformanceOverlay: React.FC = () => {
   const [visible, setVisible] = useState(false);
   const { lcp, fid, memoryUsage, networkMetrics } = usePerformanceDashboard();
-  
+
   // Only show in development
   const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development';
   if (!isDev) return null;

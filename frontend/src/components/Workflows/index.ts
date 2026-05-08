@@ -5,15 +5,15 @@ export { default as WorkflowProgressCard } from './WorkflowProgressCard';
 export { default as WorkflowStatusTimeline } from './WorkflowStatusTimeline';
 export { default as StepRoutingLogic } from './StepRoutingLogic';
 export { default as useStepRouting } from './useStepRouting';
-export type { 
-  WorkflowStep, 
-  WorkflowStepStatus, 
-  WorkflowProgressCardProps 
+export type {
+  WorkflowStep,
+  WorkflowStepStatus,
+  WorkflowProgressCardProps
 } from './WorkflowProgressCard';
-export type { 
-  TimelineStep, 
-  TimelineStepStatus, 
-  WorkflowStatusTimelineProps 
+export type {
+  TimelineStep,
+  TimelineStepStatus,
+  WorkflowStatusTimelineProps
 } from './WorkflowStatusTimeline';
 export type {
   ConditionOperator as RoutingConditionOperator,

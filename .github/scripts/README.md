@@ -158,7 +158,7 @@ gunzip -c /path/to/db_backup_20251103_182000.sql.gz | \
 test-backend:
   steps:
     # ... install dependencies ...
-    
+
     - name: Validate migrations
       env:
         DATABASE_URL: postgresql://...
@@ -166,7 +166,7 @@ test-backend:
       run: |
         chmod +x .github/scripts/validate-migrations.sh
         .github/scripts/validate-migrations.sh
-    
+
     - name: Run tests
       run: python manage.py test apps/
 ```
@@ -177,12 +177,12 @@ test-backend:
 deploy-backend:
   steps:
     # ... SSH to server ...
-    
+
     - name: Create database backup
       run: |
         DATABASE_URL=${{ secrets.DATABASE_URL }} \
         .github/scripts/backup-database.sh
-    
+
     - name: Run migrations
       run: |
         docker run --rm --env-file .env <image> \
@@ -267,5 +267,5 @@ These scripts should be reviewed and updated when:
 
 ---
 
-**Last Updated:** 2025-11-03  
+**Last Updated:** 2025-11-03
 **Maintained By:** DevOps Team

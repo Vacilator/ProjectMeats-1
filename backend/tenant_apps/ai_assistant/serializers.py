@@ -3,36 +3,26 @@ Serializers for AI Assistant functionality.
 """
 from rest_framework import serializers
 
-from .models import (
-    AIApproval,
-    AIDocument,
-    AIFeedbackLog,
-    AIConfiguration,
-    AIRun,
-    AITask,
-    ChatMessage,
-    ChatSession,
-)
-from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
+from .models import AIApproval, AIConfiguration, AIDocument, AIFeedbackLog, AIRun, AITask, ChatMessage, ChatSession
 from .services.document_parser import validate_ai_document_upload
 from .services.extract_to_schema import EXTRACT_TO_SCHEMA_CHOICES
 from .services.lineage import get_document_lineage_summary
-
+from .session_utils import bind_context_to_tenant, get_request_tenant_id, session_matches_tenant
 
 
 def _validate_request_session(value, request):
     if not value or not request:
         return value
 
-    if getattr(value, 'owner_id', None) != getattr(request.user, 'id', None):
-        raise serializers.ValidationError('Session not found')
+    if getattr(value, "owner_id", None) != getattr(request.user, "id", None):
+        raise serializers.ValidationError("Session not found")
 
     tenant_id = get_request_tenant_id(request)
     if not tenant_id:
-        raise serializers.ValidationError('Tenant context required')
+        raise serializers.ValidationError("Tenant context required")
 
-    if not session_matches_tenant(value, getattr(request, 'tenant', None)):
-        raise serializers.ValidationError('Session not found')
+    if not session_matches_tenant(value, getattr(request, "tenant", None)):
+        raise serializers.ValidationError("Session not found")
 
     return value
 
@@ -44,7 +34,7 @@ class PendingReviewResolveRequestSerializer(serializers.Serializer):
         if value is None:
             return value
         if not isinstance(value, dict):
-            raise serializers.ValidationError('user_corrected_data must be an object')
+            raise serializers.ValidationError("user_corrected_data must be an object")
         return value
 
 
@@ -55,7 +45,7 @@ class ContextualSuggestionsRequestSerializer(serializers.Serializer):
 
     def validate_current_state(self, value):
         if not isinstance(value, dict):
-            raise serializers.ValidationError('current_state must be an object')
+            raise serializers.ValidationError("current_state must be an object")
         return value
 
 
@@ -79,7 +69,7 @@ class AIFeedbackSubmitSerializer(serializers.Serializer):
     """
 
     document_id = serializers.UUIDField()
-    document_type = serializers.CharField(required=False, allow_blank=True, default='unknown', max_length=64)
+    document_type = serializers.CharField(required=False, allow_blank=True, default="unknown", max_length=64)
 
     original_extracted_data = serializers.JSONField(required=False, default=dict)
     user_corrected_data = serializers.JSONField(required=False, default=dict)
@@ -91,27 +81,27 @@ class AIFeedbackSubmitSerializer(serializers.Serializer):
         allow_null=True,
         default=None,
     )
-    feedback_comment = serializers.CharField(required=False, allow_blank=True, default='', max_length=4000)
-    feedback_source = serializers.CharField(required=False, allow_blank=True, default='', max_length=64)
+    feedback_comment = serializers.CharField(required=False, allow_blank=True, default="", max_length=4000)
+    feedback_source = serializers.CharField(required=False, allow_blank=True, default="", max_length=64)
 
     def validate_original_extracted_data(self, value):
         if not isinstance(value, dict):
-            raise serializers.ValidationError('original_extracted_data must be an object')
+            raise serializers.ValidationError("original_extracted_data must be an object")
         return value
 
     def validate_user_corrected_data(self, value):
         if not isinstance(value, dict):
-            raise serializers.ValidationError('user_corrected_data must be an object')
+            raise serializers.ValidationError("user_corrected_data must be an object")
         return value
 
     def validate(self, attrs):
-        signal = attrs.get('feedback_signal')
-        comment = (attrs.get('feedback_comment') or '').strip()
+        signal = attrs.get("feedback_signal")
+        comment = (attrs.get("feedback_comment") or "").strip()
         if signal == AIFeedbackLog.FeedbackSignal.THUMBS_DOWN and not comment:
-            raise serializers.ValidationError({'feedback_comment': 'A reason is required for thumbs-down feedback.'})
+            raise serializers.ValidationError({"feedback_comment": "A reason is required for thumbs-down feedback."})
 
-        attrs['feedback_comment'] = comment
-        attrs['feedback_source'] = (attrs.get('feedback_source') or '').strip()
+        attrs["feedback_comment"] = comment
+        attrs["feedback_source"] = (attrs.get("feedback_source") or "").strip()
         return attrs
 
 
@@ -148,15 +138,15 @@ class ChatSessionDetailSerializer(serializers.ModelSerializer):
         if value is None:
             value = {}
         if not isinstance(value, dict):
-            raise serializers.ValidationError('context_data must be an object')
+            raise serializers.ValidationError("context_data must be an object")
 
-        request = self.context.get('request')
+        request = self.context.get("request")
         tenant_id = get_request_tenant_id(request)
-        if request and request.method in {'POST', 'PUT', 'PATCH'} and not tenant_id:
-            raise serializers.ValidationError('Tenant context required')
+        if request and request.method in {"POST", "PUT", "PATCH"} and not tenant_id:
+            raise serializers.ValidationError("Tenant context required")
 
         if tenant_id:
-            return bind_context_to_tenant(value, getattr(request, 'tenant', None))
+            return bind_context_to_tenant(value, getattr(request, "tenant", None))
         return value
 
     class Meta:
@@ -195,7 +185,7 @@ class ChatMessageCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating chat messages."""
 
     def validate_session(self, value):
-        return _validate_request_session(value, self.context.get('request'))
+        return _validate_request_session(value, self.context.get("request"))
 
     class Meta:
         model = ChatMessage
@@ -254,78 +244,74 @@ class AIDocumentSerializer(serializers.ModelSerializer):
     document classification may not be available at upload time.
     """
 
-    file_type = serializers.CharField(source='content_type', read_only=True)
+    file_type = serializers.CharField(source="content_type", read_only=True)
     document_type = serializers.SerializerMethodField(read_only=True)
     source_metadata = serializers.SerializerMethodField(read_only=True)
     processing_metadata = serializers.SerializerMethodField(read_only=True)
     lineage_summary = serializers.SerializerMethodField(read_only=True, required=False)
 
     def validate_session(self, value):
-        return _validate_request_session(value, self.context.get('request'))
+        return _validate_request_session(value, self.context.get("request"))
 
     def get_document_type(self, obj) -> str:
         # Classification may happen asynchronously; keep this additive and deterministic.
-        return 'unknown'
+        return "unknown"
 
     def get_source_metadata(self, obj) -> dict:
-        metadata = getattr(obj, 'custom_data', None)
+        metadata = getattr(obj, "custom_data", None)
         if not isinstance(metadata, dict):
             return {}
 
         allowed_keys = (
-            'source',
-            'message_id',
-            'attachment_id',
-            'ingested_at',
-            'uploaded_at',
-            'session_id',
-            'graph_name',
-            'graph_content_type',
-            'graph_size',
-            'graph_attachment_type',
+            "source",
+            "message_id",
+            "attachment_id",
+            "ingested_at",
+            "uploaded_at",
+            "session_id",
+            "graph_name",
+            "graph_content_type",
+            "graph_size",
+            "graph_attachment_type",
         )
-        return {
-            key: metadata[key]
-            for key in allowed_keys
-            if metadata.get(key) not in (None, '')
-        }
+        return {key: metadata[key] for key in allowed_keys if metadata.get(key) not in (None, "")}
 
     def get_processing_metadata(self, obj) -> dict:
-        metadata = getattr(obj, 'custom_data', None)
+        metadata = getattr(obj, "custom_data", None)
         if not isinstance(metadata, dict):
             return {}
 
         allowed_keys = (
-            'parser',
-            'processing_started_at',
-            'parsed_at',
-            'failed_at',
-            'parse_error_code',
-            'parse_error_message',
-            'truncated',
-            'warnings',
-            'semantic_indexing',
+            "parser",
+            "processing_started_at",
+            "parsed_at",
+            "failed_at",
+            "parse_error_code",
+            "parse_error_message",
+            "truncated",
+            "warnings",
+            "semantic_indexing",
         )
         result = {}
         for key in allowed_keys:
             value = metadata.get(key)
-            if value in (None, '', []):
+            if value in (None, "", []):
                 continue
             result[key] = value
         return result
 
     def get_lineage_summary(self, obj):
-        view = self.context.get('view')
-        action = getattr(view, 'action', '')
-        if action == 'list':
+        view = self.context.get("view")
+        action = getattr(view, "action", "")
+        if action == "list":
             return None
         return get_document_lineage_summary(obj)
 
     def validate_file(self, value):
         try:
             validate_ai_document_upload(
-                filename=getattr(value, 'name', ''),
-                content_type=getattr(value, 'content_type', ''),
+                filename=getattr(value, "name", ""),
+                content_type=getattr(value, "content_type", ""),
             )
         except ValueError as exc:
             raise serializers.ValidationError(str(exc)) from exc
@@ -334,23 +320,32 @@ class AIDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIDocument
         fields = [
-            'id',
-            'tenant',
-            'owner',
-            'session',
-            'file',
-            'original_filename',
-            'content_type',
-            'file_type',
-            'file_size',
-            'processing_status',
-            'document_type',
-            'source_metadata',
-            'processing_metadata',
-            'lineage_summary',
-            'created_on',
+            "id",
+            "tenant",
+            "owner",
+            "session",
+            "file",
+            "original_filename",
+            "content_type",
+            "file_type",
+            "file_size",
+            "processing_status",
+            "document_type",
+            "source_metadata",
+            "processing_metadata",
+            "lineage_summary",
+            "created_on",
         ]
-        read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_type', 'file_size', 'document_type', 'created_on']
+        read_only_fields = [
+            "id",
+            "tenant",
+            "owner",
+            "content_type",
+            "file_type",
+            "file_size",
+            "document_type",
+            "created_on",
+        ]
 
 
 class ExtractToSchemaRequestSerializer(serializers.Serializer):
@@ -380,15 +375,14 @@ class AIConfigurationSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "provider", "model_name", "is_default"]
 
 
-
 class SwarmInvokeRequestSerializer(serializers.Serializer):
-    event_type = serializers.ChoiceField(choices=['email', 'user_chat', 'webhook'])
+    event_type = serializers.ChoiceField(choices=["email", "user_chat", "webhook"])
     payload = serializers.JSONField()
     correlation_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate_payload(self, value):
         if not isinstance(value, dict):
-            raise serializers.ValidationError('payload must be an object')
+            raise serializers.ValidationError("payload must be an object")
         return value
 
 
@@ -407,24 +401,24 @@ class AIRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIRun
         fields = [
-            'id',
-            'tenant',
-            'session',
-            'requested_by',
-            'source',
-            'event_type',
-            'status',
-            'correlation_id',
-            'intent',
-            'user_message',
-            'response_text',
-            'request_payload',
-            'response_payload',
-            'error_message',
-            'approval_required_at',
-            'completed_at',
-            'created_on',
-            'modified_on',
+            "id",
+            "tenant",
+            "session",
+            "requested_by",
+            "source",
+            "event_type",
+            "status",
+            "correlation_id",
+            "intent",
+            "user_message",
+            "response_text",
+            "request_payload",
+            "response_payload",
+            "error_message",
+            "approval_required_at",
+            "completed_at",
+            "created_on",
+            "modified_on",
         ]
         read_only_fields = fields
 
@@ -433,24 +427,24 @@ class AITaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = AITask
         fields = [
-            'id',
-            'tenant',
-            'run',
-            'requested_by',
-            'tool_name',
-            'sequence',
-            'status',
-            'requires_approval',
-            'approval_requested_at',
-            'executed_at',
-            'resolved_at',
-            'input_payload',
-            'output_payload',
-            'error_message',
-            'target_entity_type',
-            'target_entity_id',
-            'created_on',
-            'modified_on',
+            "id",
+            "tenant",
+            "run",
+            "requested_by",
+            "tool_name",
+            "sequence",
+            "status",
+            "requires_approval",
+            "approval_requested_at",
+            "executed_at",
+            "resolved_at",
+            "input_payload",
+            "output_payload",
+            "error_message",
+            "target_entity_type",
+            "target_entity_id",
+            "created_on",
+            "modified_on",
         ]
         read_only_fields = fields
 
@@ -459,21 +453,21 @@ class AIApprovalSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIApproval
         fields = [
-            'id',
-            'tenant',
-            'run',
-            'task',
-            'requested_by',
-            'resolved_by',
-            'tool_name',
-            'status',
-            'request_payload',
-            'response_payload',
-            'resolution_note',
-            'expires_at',
-            'resolved_at',
-            'created_on',
-            'modified_on',
+            "id",
+            "tenant",
+            "run",
+            "task",
+            "requested_by",
+            "resolved_by",
+            "tool_name",
+            "status",
+            "request_payload",
+            "response_payload",
+            "resolution_note",
+            "expires_at",
+            "resolved_at",
+            "created_on",
+            "modified_on",
         ]
         read_only_fields = fields
 
@@ -509,7 +503,9 @@ class PendingReviewItemSerializer(serializers.Serializer):
     retraining_queued_at = serializers.DateTimeField(required=False, allow_null=True)
     attachment_count = serializers.IntegerField(required=False, default=0)
     attachment_filenames = serializers.ListField(
-        child=serializers.CharField(), required=False, default=list,
+        child=serializers.CharField(),
+        required=False,
+        default=list,
     )
 
 
@@ -530,25 +526,25 @@ class AIFeedbackLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIFeedbackLog
         fields = [
-            'id',
-            'tenant',
-            'document_id',
-            'document_type',
-            'original_extracted_data',
-            'user_corrected_data',
-            'confidence_score',
-            'precision_delta',
-            'feedback_signal',
-            'feedback_comment',
-            'feedback_source',
-            'submitted_by',
-            'retraining_status',
-            'retraining_queued_at',
-            'resolved_by',
-            'created_on',
-            'modified_on',
+            "id",
+            "tenant",
+            "document_id",
+            "document_type",
+            "original_extracted_data",
+            "user_corrected_data",
+            "confidence_score",
+            "precision_delta",
+            "feedback_signal",
+            "feedback_comment",
+            "feedback_source",
+            "submitted_by",
+            "retraining_status",
+            "retraining_queued_at",
+            "resolved_by",
+            "created_on",
+            "modified_on",
         ]
-        read_only_fields = ['id', 'tenant', 'precision_delta', 'created_on', 'modified_on']
+        read_only_fields = ["id", "tenant", "precision_delta", "created_on", "modified_on"]
 
 
 # ---------------------------------------------------------------------------
@@ -564,31 +560,31 @@ class CockpitDraftFormSerializer(serializers.ModelSerializer):
 
         model = CockpitDraftForm
         fields = [
-            'id',
-            'tenant',
-            'source_feedback_id',
-            'source_document_id',
-            'form_type',
-            'form_data',
-            'parsed_payload',
-            'status',
-            'assigned_to',
-            'submitted_entity_type',
-            'submitted_entity_id',
-            'submitted_at',
-            'submitted_by',
-            'notes',
-            'created_on',
-            'modified_on',
+            "id",
+            "tenant",
+            "source_feedback_id",
+            "source_document_id",
+            "form_type",
+            "form_data",
+            "parsed_payload",
+            "status",
+            "assigned_to",
+            "submitted_entity_type",
+            "submitted_entity_id",
+            "submitted_at",
+            "submitted_by",
+            "notes",
+            "created_on",
+            "modified_on",
         ]
-        read_only_fields = ['id', 'tenant', 'created_on', 'modified_on']
+        read_only_fields = ["id", "tenant", "created_on", "modified_on"]
 
 
 class CockpitDraftCreateSerializer(serializers.Serializer):
     """Create a draft from an existing feedback item (route to cockpit)."""
 
     feedback_id = serializers.IntegerField(help_text="AIFeedbackLog PK to route")
-    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class CockpitDraftUpdateSerializer(serializers.Serializer):
@@ -596,10 +592,9 @@ class CockpitDraftUpdateSerializer(serializers.Serializer):
 
     form_data = serializers.JSONField(required=False)
     status = serializers.ChoiceField(
-        choices=[('in_progress', 'In Progress'), ('submitted', 'Submitted'), ('discarded', 'Discarded')],
+        choices=[("in_progress", "In Progress"), ("submitted", "Submitted"), ("discarded", "Discarded")],
         required=False,
     )
-    submitted_entity_type = serializers.CharField(required=False, allow_blank=True, default='')
-    submitted_entity_id = serializers.CharField(required=False, allow_blank=True, default='')
-    notes = serializers.CharField(required=False, allow_blank=True, default='')
-
+    submitted_entity_type = serializers.CharField(required=False, allow_blank=True, default="")
+    submitted_entity_id = serializers.CharField(required=False, allow_blank=True, default="")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")

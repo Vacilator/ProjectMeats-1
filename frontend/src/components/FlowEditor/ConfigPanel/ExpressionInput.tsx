@@ -1,10 +1,10 @@
 /**
  * Expression Input Component
- * 
+ *
  * Phase 4: Expression Input with Visual Variable Chips
  * Text input that renders {{variables}} as styled chips.
  * Integrates with VariablePicker for easy variable insertion.
- * 
+ *
  * Features:
  * - Text input with variable chip rendering
  * - Opens VariablePicker when user types {{
@@ -13,7 +13,7 @@
  * - Copy/paste friendly (preserves raw text)
  * - Keyboard navigation between chips
  * - Delete chips with backspace
- * 
+ *
  * Usage:
  * ```typescript
  * <ExpressionInput
@@ -23,7 +23,7 @@
  *   placeholder="Enter value or use {{variables}}"
  * />
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Expression Input Implementation
  */
 
@@ -40,22 +40,22 @@ import { WorkflowContext, extractTemplates } from '../../FormSubmission/hooks/us
 export interface ExpressionInputProps {
   /** Current value with {{templates}} */
   value: string;
-  
+
   /** Called when value changes */
   onChange: (value: string) => void;
-  
+
   /** Workflow context for variable resolution */
   context: WorkflowContext;
-  
+
   /** Placeholder text */
   placeholder?: string;
-  
+
   /** Disabled state */
   disabled?: boolean;
-  
+
   /** Multiline support */
   multiline?: boolean;
-  
+
   /** Auto-focus on mount */
   autoFocus?: boolean;
 }
@@ -78,13 +78,13 @@ function parseExpression(value: string): Array<{ type: 'text' | 'variable'; cont
   if (templates.length === 0) {
     return [{ type: 'text', content: value, index: 0 }];
   }
-  
+
   const segments: Array<{ type: 'text' | 'variable'; content: string; index: number }> = [];
   let currentIndex = 0;
-  
+
   templates.forEach(template => {
     const templateIndex = value.indexOf(template, currentIndex);
-    
+
     // Add text before template
     if (templateIndex > currentIndex) {
       segments.push({
@@ -93,17 +93,17 @@ function parseExpression(value: string): Array<{ type: 'text' | 'variable'; cont
         index: currentIndex,
       });
     }
-    
+
     // Add template
     segments.push({
       type: 'variable',
       content: template,
       index: templateIndex,
     });
-    
+
     currentIndex = templateIndex + template.length;
   });
-  
+
   // Add remaining text
   if (currentIndex < value.length) {
     segments.push({
@@ -112,7 +112,7 @@ function parseExpression(value: string): Array<{ type: 'text' | 'variable'; cont
       index: currentIndex,
     });
   }
-  
+
   return segments;
 }
 
@@ -145,17 +145,17 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
   const [pickerPosition, setPickerPosition] = useState({ top: 0, left: 0 });
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   // Parse expression into segments
   const segments = useMemo(() => parseExpression(value), [value]);
-  
+
   // Update edit value when external value changes (if not editing)
   useEffect(() => {
     if (!isEditing) {
       setEditValue(value);
     }
   }, [value, isEditing]);
-  
+
   // Auto-focus if requested
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -163,7 +163,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       setIsEditing(true);
     }
   }, [autoFocus]);
-  
+
   // Handle click on chip display to enter edit mode
   const handleChipClick = () => {
     if (disabled) return;
@@ -172,16 +172,16 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       inputRef.current?.focus();
     }, 0);
   };
-  
+
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setEditValue(newValue);
-    
+
     // Check if user typed {{ to trigger variable picker
     const cursorPos = e.target.selectionStart || 0;
     const textBeforeCursor = newValue.substring(0, cursorPos);
-    
+
     if (textBeforeCursor.endsWith('{{')) {
       // Show variable picker at cursor position
       if (containerRef.current) {
@@ -193,10 +193,10 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
         setShowPicker(true);
       }
     }
-    
+
     setCursorPosition(cursorPos);
   };
-  
+
   // Handle blur - commit changes
   const handleBlur = () => {
     setIsEditing(false);
@@ -204,19 +204,19 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       onChange(editValue);
     }
   };
-  
+
   // Handle variable selection from picker
   const handleVariableSelect = (template: string) => {
     const cursorPos = cursorPosition;
-    
+
     // Remove the {{ that triggered the picker
     const beforeCursor = editValue.substring(0, cursorPos - 2);
     const afterCursor = editValue.substring(cursorPos);
-    
+
     const newValue = beforeCursor + template + afterCursor;
     setEditValue(newValue);
     onChange(newValue);
-    
+
     // Set focus back to input
     setTimeout(() => {
       inputRef.current?.focus();
@@ -224,19 +224,19 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       inputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
   };
-  
+
   // Handle chip removal
   const handleRemoveChip = (template: string) => {
     const newValue = value.replace(template, '');
     onChange(newValue);
   };
-  
+
   // Render chip display (when not editing)
   const renderChipDisplay = () => {
     if (segments.length === 0 || (segments.length === 1 && segments[0].type === 'text' && !segments[0].content)) {
       return <Placeholder>{placeholder}</Placeholder>;
     }
-    
+
     return (
       <ChipDisplay onClick={handleChipClick}>
         {segments.map((segment, index) => {
@@ -262,7 +262,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       </ChipDisplay>
     );
   };
-  
+
   // Render input (when editing)
   const renderInput = () => {
     const commonProps = {
@@ -283,20 +283,20 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
         }
       },
     };
-    
+
     if (multiline) {
       return <TextAreaInput {...commonProps} rows={3} />;
     } else {
       return <TextInput {...commonProps} />;
     }
   };
-  
+
   return (
     <>
       <InputContainer ref={containerRef} $disabled={disabled}>
         {isEditing ? renderInput() : renderChipDisplay()}
       </InputContainer>
-      
+
       {/* Variable Picker */}
       <VariablePicker
         context={context}
@@ -323,11 +323,11 @@ const InputContainer = styled.div<{ $disabled: boolean }>`
   padding: 8px 12px;
   cursor: ${props => props.$disabled ? 'not-allowed' : 'text'};
   transition: all 0.15s;
-  
+
   &:hover {
     border-color: ${props => props.$disabled ? 'rgb(var(--color-border))' : 'rgb(var(--color-primary))'};
   }
-  
+
   &:focus-within {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
@@ -362,7 +362,7 @@ const VariableChipStyled = styled.div`
   font-family: 'Monaco', 'Menlo', monospace;
   color: rgb(var(--color-primary));
   transition: all 0.15s;
-  
+
   &:hover {
     background: rgb(var(--color-primary) / 0.15);
   }
@@ -384,7 +384,7 @@ const ChipRemove = styled.button`
   margin: 0;
   opacity: 0.6;
   transition: opacity 0.15s;
-  
+
   &:hover {
     opacity: 1;
   }
@@ -404,12 +404,12 @@ const TextInput = styled.input`
   font-size: 14px;
   outline: none;
   padding: 0;
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
     opacity: 0.6;
   }
-  
+
   &:disabled {
     cursor: not-allowed;
   }
@@ -425,12 +425,12 @@ const TextAreaInput = styled.textarea`
   padding: 0;
   resize: vertical;
   font-family: inherit;
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
     opacity: 0.6;
   }
-  
+
   &:disabled {
     cursor: not-allowed;
   }

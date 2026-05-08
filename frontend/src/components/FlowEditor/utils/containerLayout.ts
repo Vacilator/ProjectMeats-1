@@ -1,8 +1,8 @@
 /**
  * Container Layout Utilities
- * 
+ *
  * Phase 3: Auto-Layout Algorithm for Multi-Step Containers
- * 
+ *
  * This module handles automatic positioning of nodes within containers:
  * - Form steps arrange horizontally (left-to-right)
  * - Non-form nodes are NOT repositioned by container layout (prevents forcing actions inside the book)
@@ -65,7 +65,7 @@ export interface NodePosition {
 
 /**
  * Calculate optimal layout for nodes within a container
- * 
+ *
  * @param containerId - ID of the container node
  * @param allNodes - All nodes in the editor
  * @param allEdges - All edges in the editor
@@ -88,7 +88,7 @@ export function calculateContainerLayout(
 
   // Filter child nodes (using parentId - React Flow v11+)
   const childNodes = allNodes.filter(node => node.parentId === containerId);
-  
+
   if (childNodes.length === 0) {
     logger.debug(`[Layout] No child nodes found for container ${containerId}`);
     return {
@@ -97,7 +97,7 @@ export function calculateContainerLayout(
       containerHeight: 300,
     };
   }
-  
+
   // Separate nodes by type
   // Pages (form nodes) should be laid out in a horizontal row; other child nodes remain free-positioned.
   const isPageNodeType = (type?: string) =>
@@ -107,9 +107,9 @@ export function calculateContainerLayout(
   const otherNodes = childNodes.filter(
     (node) => !isPageNodeType(node.type) && node.type !== 'formMultiStepContainer' // Don't layout nested containers
   );
-  
+
   logger.debug(`[Layout] Found \${formSteps.length} form steps, \${otherNodes.length} non-form child nodes`);
-  
+
   const layoutDirection: 'vertical' | 'horizontal' = enforceStrictPages ? 'vertical' : 'horizontal';
 
   // Preserve rough order based on the axis that matters for the container
@@ -152,10 +152,10 @@ export function calculateContainerLayout(
       },
     };
   });
-  
+
   // Book+Pages: only reposition form steps; leave other child nodes unchanged
   const updatedChildNodes = [...updatedFormSteps, ...otherNodes];
-  
+
   const getNodeSize = (n: Node) => {
     const styleAny = (n.style || {}) as any;
     const width = styleAny.width ?? (n as any).width ?? LAYOUT_CONSTANTS.DEFAULT_NODE_WIDTH;
@@ -176,15 +176,15 @@ export function calculateContainerLayout(
   const containerWidth = maxX + LAYOUT_CONSTANTS.CONTAINER_PADDING_X;
   const extraBottom = enforceStrictPages ? LAYOUT_CONSTANTS.ADD_BUTTON_D + LAYOUT_CONSTANTS.ADD_BUTTON_MARGIN_Y : 0;
   const containerHeight = maxY + LAYOUT_CONSTANTS.CONTAINER_PADDING_Y + extraBottom;
-  
+
   logger.debug(`[Layout] Calculated container dimensions: \${containerWidth}x\${containerHeight}`);
-  
+
   // Merge updated child nodes back into all nodes
   const updatedAllNodes = allNodes.map(node => {
     const updatedChild = updatedChildNodes.find(child => child.id === node.id);
     return updatedChild || node;
   });
-  
+
   return {
     nodes: updatedAllNodes,
     containerWidth,
@@ -211,10 +211,10 @@ export interface ConnectionResult {
 
 /**
  * Auto-connect sequential form steps horizontally
- * 
+ *
  * Creates edges: step1 → step2 → step3 (left-to-right)
  * Marks auto-created edges with data.auto = true
- * 
+ *
  * @param containerId - ID of the container node
  * @param allNodes - All nodes in the editor
  * @param allEdges - All edges in the editor
@@ -226,7 +226,7 @@ export function autoConnectSequentialSteps(
   allEdges: Edge[]
 ): ConnectionResult {
   logger.debug(`[AutoConnect] Creating sequential connections for container ${containerId}`);
-  
+
   const containerNode = allNodes.find((n) => n.id === containerId);
   const containerType = ((containerNode?.data as any)?.nodeType as string | undefined) || containerNode?.type;
   const enforceStrictPages = !!containerType &&
@@ -251,63 +251,63 @@ export function autoConnectSequentialSteps(
         ? (a.position?.y || 0) - (b.position?.y || 0)
         : (a.position?.x || 0) - (b.position?.x || 0)
     );
-  
+
   logger.debug(`[AutoConnect] Found ${formSteps.length} form steps to connect`);
-  
+
   if (formSteps.length < 2) {
     logger.debug(`[AutoConnect] Not enough form steps to create connections`);
     return { edges: allEdges };
   }
-  
+
   // Remove old auto-created edges for this container
   const nonAutoEdges = allEdges.filter(edge => {
     // Keep edge if it's NOT auto-created OR if it's not in this container
     if (!edge.data?.auto) return true;
-    
+
     const sourceNode = allNodes.find(n => n.id === edge.source);
     const targetNode = allNodes.find(n => n.id === edge.target);
-    
+
     // Keep if either node is not in this container (using parentId - React Flow v11+)
     return sourceNode?.parentId !== containerId || targetNode?.parentId !== containerId;
   });
-  
+
   logger.debug(`[AutoConnect] Removed ${allEdges.length - nonAutoEdges.length} old auto-edges`);
-  
+
   // Create sequential edges between form steps
   const newAutoEdges: Edge[] = [];
-  
+
   for (let i = 0; i < formSteps.length - 1; i++) {
     const sourceStep = formSteps[i];
     const targetStep = formSteps[i + 1];
-    
+
     const edgeId = `auto-${sourceStep.id}-${targetStep.id}`;
-    
+
     // Check if manual edge already exists
     const manualEdgeExists = nonAutoEdges.some(
       edge => edge.source === sourceStep.id && edge.target === targetStep.id
     );
-    
+
     if (manualEdgeExists) {
       logger.debug(`[AutoConnect] Skipping ${edgeId} - manual edge exists`);
       continue;
     }
-    
+
     newAutoEdges.push({
       id: edgeId,
       source: sourceStep.id,
       target: targetStep.id,
       type: 'custom',
-      data: { 
+      data: {
         auto: true,  // Mark as auto-created for future removal
         label: `Step ${i + 1} → ${i + 2}`,
       },
     });
-    
+
     logger.debug(`[AutoConnect] Created edge: ${sourceStep.id} → ${targetStep.id}`);
   }
-  
+
   logger.debug(`[AutoConnect] Created ${newAutoEdges.length} sequential edges`);
-  
+
   return {
     edges: [...nonAutoEdges, ...newAutoEdges],
   };

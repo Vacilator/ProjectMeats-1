@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("suppliers", "0019_alter_supplier_account_line_of_credit_and_more"),
     ]

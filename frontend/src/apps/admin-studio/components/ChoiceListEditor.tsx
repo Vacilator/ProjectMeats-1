@@ -83,7 +83,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       setLoading(true);
       const list = await configService.getChoiceList(slug);
       setSelectedList(list);
-      
+
       const editingItems: EditingItem[] = (list.items || []).map((item) => ({
         id: item.id,
         value: item.value,
@@ -91,7 +91,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         is_active: item.is_active,
         sort_order: item.sort_order,
       }));
-      
+
       setItems(editingItems.sort((a, b) => a.sort_order - b.sort_order));
       setHasChanges(false);
       setError(null);
@@ -192,12 +192,12 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   const handleItemChange = (index: number, field: keyof EditingItem, value: string | boolean | number) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
-    
+
     // Auto-populate label from value if label is empty
     if (field === 'value' && !newItems[index].label) {
       newItems[index].label = String(value);
     }
-    
+
     setItems(newItems);
     setHasChanges(true);
   };

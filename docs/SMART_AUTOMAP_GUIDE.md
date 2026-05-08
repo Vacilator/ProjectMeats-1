@@ -1,7 +1,7 @@
 # Smart Auto-Map Implementation Guide
 
-**Feature**: Automatic field inheritance between workflow nodes  
-**Status**: Architecture designed, partial implementation  
+**Feature**: Automatic field inheritance between workflow nodes
+**Status**: Architecture designed, partial implementation
 **Created**: 2026-03-04 - Delegation II: Editor Revolution
 
 ---
@@ -51,7 +51,7 @@ interface FieldMatch {
 class FieldMatchingEngine {
   /**
    * Find compatible fields between two nodes.
-   * 
+   *
    * Matching strategies:
    * 1. Exact name match (score: 1.0)
    * 2. Type-compatible with similar name (score: 0.8)
@@ -70,7 +70,7 @@ class FieldMatchingEngine {
 class AutoMappingService {
   /**
    * Auto-map fields when a node is added to the workflow.
-   * 
+   *
    * @param workflowNodes - All nodes in the workflow
    * @param targetNodeId - The node being configured
    * @returns Suggested field mappings
@@ -81,13 +81,13 @@ class AutoMappingService {
   ): FieldMapping[] {
     // 1. Get all upstream nodes (connected via edges)
     const upstreamNodes = this.getUpstreamNodes(workflowNodes, targetNodeId);
-    
+
     // 2. Extract output schemas from upstream nodes
     const schemas = upstreamNodes.map(n => this.extractOutputSchema(n));
-    
+
     // 3. Match fields with target node
     const matches = this.findBestMatches(schemas, targetNode.data.fields);
-    
+
     // 4. Return as field mappings
     return matches.map(m => ({
       id: uuid(),
@@ -188,15 +188,15 @@ class NameMatcher {
   match(sourceName: string, targetName: string): number {
     // Exact
     if (sourceName === targetName) return 1.0;
-    
+
     // Normalized (remove prefixes/suffixes)
     const normalized = this.normalize([sourceName, targetName]);
     if (normalized[0] === normalized[1]) return 0.9;
-    
+
     // Levenshtein distance
     const distance = this.levenshtein(sourceName, targetName);
     if (distance < 3) return 0.8;
-    
+
     // Semantic (future: use embeddings)
     return 0.0;
   }
@@ -271,24 +271,24 @@ class WorkflowExecutor {
     const autoFields = node.data.fieldMappings?.filter(
       m => m.autoPopulate !== undefined
     );
-    
+
     // 2. For each auto-populated field, fetch value from source node
     for (const mapping of autoFields) {
       const sourceValue = context.getNodeOutput(
         mapping.autoPopulate.sourceStep,
         mapping.autoPopulate.sourceField
       );
-      
+
       // 3. Apply transformation if needed
       const transformedValue = this.applyTransformation(
         sourceValue,
         mapping.transformation
       );
-      
+
       // 4. Pre-fill target field
       context.setFieldValue(node.id, mapping.formFieldId, transformedValue);
     }
-    
+
     // 5. Continue with node execution
     await this.runNodeLogic(node, context);
   }
@@ -349,22 +349,22 @@ describe('FieldMatchingEngine', () => {
       outputFields: { sku: { type: 'text', label: 'SKU' } }
     };
     const targetFields = [{ id: 'sku', type: 'text', label: 'Product SKU' }];
-    
+
     const matches = engine.findMatches(sourceSchema, targetFields);
-    
+
     expect(matches[0].matchScore).toBe(1.0);
     expect(matches[0].sourceField).toBe('sku');
     expect(matches[0].targetField).toBe('sku');
   });
-  
+
   it('should match type-compatible fields with lower score', () => {
     const sourceSchema = {
       outputFields: { price: { type: 'number', label: 'Price' } }
     };
     const targetFields = [{ id: 'unit_cost', type: 'text', label: 'Unit Cost' }];
-    
+
     const matches = engine.findMatches(sourceSchema, targetFields);
-    
+
     expect(matches[0].matchScore).toBeLessThan(1.0);
     expect(matches[0].matchReason).toBe('type_compatible');
   });
@@ -381,22 +381,22 @@ describe('Auto-Mapping E2E', () => {
       { id: 'customer', type: 'text' },
       { id: 'total', type: 'number' }
     ]});
-    
+
     // 2. Add Product node after Order
     const productNode = createNode({ type: 'form', fields: [
       { id: 'customer_name', type: 'text' },
       { id: 'quantity', type: 'number' }
     ]});
-    
+
     // 3. Connect Order → Product
     const edge = createEdge(orderNode.id, productNode.id);
-    
+
     // 4. Trigger auto-mapping
     const suggestions = await autoMappingService.suggestMappings(
       [orderNode, productNode],
       productNode.id
     );
-    
+
     // 5. Verify suggestion
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0].sourceField).toBe('customer');
@@ -420,12 +420,12 @@ describe('Auto-Mapping E2E', () => {
 
 1. **AI-Powered Semantic Matching**: Use OpenAI embeddings to match fields by meaning
    - Example: "client_name" matches "customer" with 0.85 confidence
-   
+
 2. **Learning from User Corrections**: Track when users modify auto-mappings and improve algorithm
-   
+
 3. **Multi-Source Mapping**: Allow target field to inherit from multiple source fields
    - Example: `full_address = ${street} ${city} ${zip}`
-   
+
 4. **Conditional Mapping**: Map fields based on runtime conditions
    - Example: If `order_type == "wholesale"`, use `wholesale_price` else `retail_price`
 
@@ -447,6 +447,6 @@ describe('Auto-Mapping E2E', () => {
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-03-04  
+**Document Version**: 1.0
+**Last Updated**: 2026-03-04
 **Author**: Delegation II Implementation

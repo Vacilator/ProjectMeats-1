@@ -98,9 +98,9 @@ export default function TenantsScreen({ navigation, user, onTenantSelect, onLogo
   };
 
   const renderTenant = ({ item }: { item: UserTenant }) => (
-    <TenantItem 
-      tenant={item} 
-      onPress={() => handleTenantPress(item)} 
+    <TenantItem
+      tenant={item}
+      onPress={() => handleTenantPress(item)}
     />
   );
 

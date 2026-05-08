@@ -6,4 +6,4 @@ Provides centralized configuration management with 3-tier resolution:
 2. System Admin (system-wide overrides)
 3. Tenant Admin (tenant-specific customizations)
 """
-default_app_config = 'apps.system.apps.SystemConfig'
+default_app_config = "apps.system.apps.SystemConfig"

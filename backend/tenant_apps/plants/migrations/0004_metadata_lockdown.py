@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     """
     Idempotent index creation for tenant-related fields.
-    
+
     Uses SeparateDatabaseAndState with IF NOT EXISTS to safely handle
     environments where indexes may already exist from earlier migrations.
     """
@@ -23,28 +23,24 @@ class Migration(migrations.Migration):
             state_operations=[
                 migrations.AddIndex(
                     model_name="plant",
-                    index=models.Index(
-                        fields=["tenant", "code"], name="plants_plan_tenant__9efb37_idx"
-                    ),
+                    index=models.Index(fields=["tenant", "code"], name="plants_plan_tenant__9efb37_idx"),
                 ),
                 migrations.AddIndex(
                     model_name="plant",
-                    index=models.Index(
-                        fields=["tenant", "name"], name="plants_plan_tenant__00c5a7_idx"
-                    ),
+                    index=models.Index(fields=["tenant", "name"], name="plants_plan_tenant__00c5a7_idx"),
                 ),
             ],
             database_operations=[
                 migrations.RunSQL(
                     sql="""
-                        CREATE INDEX IF NOT EXISTS plants_plan_tenant__9efb37_idx 
+                        CREATE INDEX IF NOT EXISTS plants_plan_tenant__9efb37_idx
                         ON plants_plant (tenant_id, code);
                     """,
                     reverse_sql="DROP INDEX IF EXISTS plants_plan_tenant__9efb37_idx;",
                 ),
                 migrations.RunSQL(
                     sql="""
-                        CREATE INDEX IF NOT EXISTS plants_plan_tenant__00c5a7_idx 
+                        CREATE INDEX IF NOT EXISTS plants_plan_tenant__00c5a7_idx
                         ON plants_plant (tenant_id, name);
                     """,
                     reverse_sql="DROP INDEX IF EXISTS plants_plan_tenant__00c5a7_idx;",

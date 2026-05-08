@@ -1,7 +1,7 @@
 # Contributing to ProjectMeats
 
-**Status**: ✅ CURRENT  
-**Category**: Getting Started  
+**Status**: ✅ CURRENT
+**Category**: Getting Started
 **Last Updated**: 2026-03-18
 
 ---
@@ -253,13 +253,13 @@ make format && make lint
 # ✅ Good: Type hints and docstrings
 def get_customer(customer_id: int) -> Customer:
     """Retrieve a customer by ID.
-    
+
     Args:
         customer_id: The unique identifier of the customer.
-        
+
     Returns:
         The Customer object.
-        
+
     Raises:
         Customer.DoesNotExist: If customer is not found.
     """
@@ -345,11 +345,11 @@ class CustomerModelTests(TestCase):
             name="Test Customer",
             email="test@example.com"
         )
-    
+
     def test_customer_creation(self):
         """Test that a customer can be created with valid data."""
         self.assertEqual(self.customer.name, "Test Customer")
-    
+
     def test_customer_str_representation(self):
         """Test the string representation of a customer."""
         self.assertEqual(str(self.customer), "Test Customer")
@@ -435,7 +435,7 @@ When creating issues for Copilot to handle, use these templates:
 ## Bug Fix Request
 
 **Issue**: [Description of the bug]
-**Steps to Reproduce**: 
+**Steps to Reproduce**:
 1. [Step one]
 2. [Step two]
 3. [Expected vs actual behavior]
@@ -716,7 +716,7 @@ When contributing:
 1. **Keep it current**: Update docs in the same PR as code changes
 2. **Use consistent formatting**: Follow existing markdown style and structure
 3. **Include code examples**: Real, working code snippets are more valuable than explanations alone
-4. **Add visual aids**: Diagrams, flowcharts, and screenshots enhance understanding  
+4. **Add visual aids**: Diagrams, flowcharts, and screenshots enhance understanding
 5. **Write for your audience**: Technical docs for developers, user guides for end-users
 6. **Test your links**: Verify all cross-references work before committing
 7. **Date your updates**: Always include "Last Updated" dates

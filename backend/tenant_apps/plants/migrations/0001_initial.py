@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -61,9 +60,7 @@ class Migration(migrations.Migration):
                 ("manager", models.CharField(blank=True, default="", max_length=100)),
                 (
                     "capacity",
-                    models.PositiveIntegerField(
-                        blank=True, help_text="Capacity in units", null=True
-                    ),
+                    models.PositiveIntegerField(blank=True, help_text="Capacity in units", null=True),
                 ),
                 ("is_active", models.BooleanField(default=True)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),

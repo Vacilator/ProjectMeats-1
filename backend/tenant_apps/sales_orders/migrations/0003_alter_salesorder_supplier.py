@@ -5,16 +5,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('sales_orders', '0002_salesorder_tenant'),
-        ('suppliers', '0002_supplier_tenant'),
+        ("sales_orders", "0002_salesorder_tenant"),
+        ("suppliers", "0002_supplier_tenant"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='salesorder',
-            name='supplier',
-            field=models.ForeignKey(help_text='Supplier for this sales order (required to complete sourcing chain)', on_delete=django.db.models.deletion.CASCADE, to='suppliers.supplier'),
+            model_name="salesorder",
+            name="supplier",
+            field=models.ForeignKey(
+                help_text="Supplier for this sales order (required to complete sourcing chain)",
+                on_delete=django.db.models.deletion.CASCADE,
+                to="suppliers.supplier",
+            ),
         ),
     ]

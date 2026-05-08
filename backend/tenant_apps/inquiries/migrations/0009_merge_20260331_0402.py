@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0005_inquiryproduct_plant_inquiryproduct_supplier"),
         ("inquiries", "0008_merge_20260330_2056"),

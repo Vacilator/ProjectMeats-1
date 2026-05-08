@@ -20,10 +20,10 @@ FAILED_TESTS=0
 run_test() {
     local test_name=$1
     local command=$2
-    
+
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     echo -e "\n${YELLOW}Test $TOTAL_TESTS: $test_name${NC}"
-    
+
     if eval "$command" > /dev/null 2>&1; then
         echo -e "${GREEN}✓ PASSED${NC}"
         PASSED_TESTS=$((PASSED_TESTS + 1))

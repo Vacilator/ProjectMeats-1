@@ -75,7 +75,7 @@ patterns:
     class MyViewSet(viewsets.ModelViewSet):
         def get_queryset(self):
             return super().get_queryset().filter(tenant=self.request.tenant)
-        
+
         def perform_create(self, serializer):
             serializer.save(tenant=self.request.tenant)
 

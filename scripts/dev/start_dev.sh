@@ -47,13 +47,13 @@ port_in_use() {
 kill_port() {
     local port=$1
     echo -e "${YELLOW}⚠️  Port $port is already in use. Attempting to free it...${NC}"
-    
+
     if command_exists lsof; then
         lsof -ti ":$port" | xargs kill -9 2>/dev/null || true
     else
         fuser -k "$port/tcp" 2>/dev/null || true
     fi
-    
+
     sleep 2
 }
 
@@ -68,12 +68,12 @@ if command_exists psql; then
         sleep 2
         echo -e "${GREEN}✓${NC} PostgreSQL started"
     fi
-    
+
     # Check/create database and user
     DB_NAME="${DB_NAME:-projectmeats_dev}"
     DB_USER="${DB_USER:-projectmeats_dev}"
     DB_PASSWORD="${DB_PASSWORD:-devpassword}"
-    
+
     if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
         echo -e "${GREEN}✓${NC} Database '$DB_NAME' exists"
     else

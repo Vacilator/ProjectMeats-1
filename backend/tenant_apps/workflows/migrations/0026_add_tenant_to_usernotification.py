@@ -21,7 +21,8 @@ def backfill_tenant_for_usernotification(apps, schema_editor):
     user has no tenant membership is deleted — it cannot be assigned to any
     tenant and would otherwise block the NOT NULL constraint.
     """
-    schema_editor.execute("""
+    schema_editor.execute(
+        """
         UPDATE workflows_usernotification un
         SET tenant_id = (
             SELECT tu.tenant_id
@@ -31,16 +32,18 @@ def backfill_tenant_for_usernotification(apps, schema_editor):
             LIMIT 1
         )
         WHERE un.tenant_id IS NULL;
-    """)
+    """
+    )
 
-    schema_editor.execute("""
+    schema_editor.execute(
+        """
         DELETE FROM workflows_usernotification
         WHERE tenant_id IS NULL;
-    """)
+    """
+    )
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("workflows", "0025_add_rls_tenantformversion"),
         ("tenants", "0001_initial"),
@@ -65,7 +68,6 @@ class Migration(migrations.Migration):
             """,
             reverse_sql=migrations.RunSQL.noop,
         ),
-
         # Step 2: Add FK constraint (idempotent, DB-only)
         migrations.RunSQL(
             sql="""
@@ -91,13 +93,11 @@ class Migration(migrations.Migration):
                 DROP CONSTRAINT IF EXISTS workflows_usernotification_tenant_id_fkey;
             """,
         ),
-
         # Step 3: Backfill tenant from user's tenant membership; delete orphans
         migrations.RunPython(
             backfill_tenant_for_usernotification,
             reverse_code=migrations.RunPython.noop,
         ),
-
         # Step 4: Make tenant_id NOT NULL after backfill (DB-only)
         migrations.RunSQL(
             sql="""
@@ -109,7 +109,6 @@ class Migration(migrations.Migration):
                 ALTER COLUMN tenant_id DROP NOT NULL;
             """,
         ),
-
         # Step 5: Add index on (tenant_id, created_at DESC) — idempotent, DB-only
         # State already reflects this index from retroactively-updated 0008.
         migrations.RunSQL(
@@ -121,7 +120,6 @@ class Migration(migrations.Migration):
             DROP INDEX IF EXISTS workflows_u_tenant__b2d0bd_idx;
             """,
         ),
-
         # Step 6: Enable RLS and (re)create tenant isolation policy
         migrations.RunSQL(
             sql="""

@@ -4,18 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('carriers', '0002_carrier_tenant_and_more'),
+        ("carriers", "0002_carrier_tenant_and_more"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='carrier',
-            index=models.Index(fields=['mc_number'], name='carriers_ca_mc_numb_5a4588_idx'),
+            model_name="carrier",
+            index=models.Index(fields=["mc_number"], name="carriers_ca_mc_numb_5a4588_idx"),
         ),
         migrations.AddIndex(
-            model_name='carrier',
-            index=models.Index(fields=['dot_number'], name='carriers_ca_dot_num_37a65f_idx'),
+            model_name="carrier",
+            index=models.Index(fields=["dot_number"], name="carriers_ca_dot_num_37a65f_idx"),
         ),
     ]

@@ -1,7 +1,7 @@
 # ProjectMeats Frontend UI/UX Standards
 
 > ⚠️ **DEPRECATED**: This file has been superseded by `/docs/DESIGN_SYSTEM.md`
-> 
+>
 > Please refer to the consolidated **[Design System Documentation](/docs/DESIGN_SYSTEM.md)** for the complete, up-to-date UI/UX standards.
 >
 > This file is kept for backwards compatibility and will be removed in a future release.
@@ -78,11 +78,11 @@ const Container = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
-  
+
   @media (min-width: 768px) {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   @media (min-width: 1024px) {
     grid-template-columns: 1fr 2fr 1fr;
   }
@@ -94,7 +94,7 @@ const Container = styled.div`
 // ✅ CORRECT - No horizontal scroll on desktop
 const TableWrapper = styled.div`
   overflow-y: auto;
-  
+
   /* Only enable horizontal scroll on mobile when needed */
   @media (max-width: 768px) {
     overflow-x: auto;
@@ -108,10 +108,10 @@ const TableWrapper = styled.div`
 const ButtonGroup = styled.div`
   display: flex;
   gap: 0.75rem;
-  
+
   @media (max-width: 640px) {
     flex-direction: column;
-    
+
     button {
       width: 100%;
     }
@@ -137,9 +137,9 @@ const ButtonGroup = styled.div`
 ```tsx
 import Modal from '@/components/Modal/Modal';
 
-<Modal 
-  isOpen={showModal} 
-  onClose={() => setShowModal(false)} 
+<Modal
+  isOpen={showModal}
+  onClose={() => setShowModal(false)}
   title="My Modal"
   maxWidth="700px"
   footer={
@@ -192,7 +192,7 @@ const MyForm = () => {
     e.preventDefault();
     setSubmitting(true);
     setErrors({});
-    
+
     try {
       await apiClient.post('/endpoint', formData);
       onSuccess();
@@ -215,7 +215,7 @@ const MyForm = () => {
         />
         {errors.name && <ErrorMessage>{errors.name}</ErrorMessage>}
       </FormGroup>
-      
+
       <SubmitButton type="submit" disabled={submitting}>
         {submitting ? 'Submitting...' : 'Submit'}
       </SubmitButton>
@@ -234,7 +234,7 @@ const StatusBadge = styled.span<{ status: string }>`
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
-  
+
   ${props => {
     switch (props.status) {
       case 'success':
@@ -357,8 +357,8 @@ items.map((item, index) => <Item key={index} data={item} />)
 
 ---
 
-**Maintained By**: Frontend Team  
-**Last Updated**: 2026-01-10  
+**Maintained By**: Frontend Team
+**Last Updated**: 2026-01-10
 **Status**: ✅ Active
 
 ## 🛡️ Code Quality & Linting
@@ -411,9 +411,9 @@ const StatusBadge = styled.span`
 `;
 
 // ✅ Theme variables in inline style
-<div style={{ 
-  color: 'rgb(var(--color-text-primary))', 
-  background: 'rgb(var(--color-surface))' 
+<div style={{
+  color: 'rgb(var(--color-text-primary))',
+  background: 'rgb(var(--color-surface))'
 }} />
 ```
 
@@ -522,4 +522,3 @@ const SpecialCase = styled.div`
 - ❌ "It's faster to hardcode it"
 - ❌ "I don't know which theme variable to use" (ask!)
 - ❌ "The linter is annoying"
-

@@ -15,11 +15,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.tenants.models import Tenant, TenantDomain, TenantInvitation, TenantUser
-from apps.tenants.utils.invitation_utils import (
-    generate_invitation_link,
-    get_invitation_by_token,
-    validate_invitation,
-)
+from apps.tenants.utils.invitation_utils import generate_invitation_link, get_invitation_by_token, validate_invitation
 
 # Test constants
 TIMESTAMP_TOLERANCE_SECONDS = 60  # Tolerance for timestamp comparisons in tests
@@ -211,17 +207,13 @@ class GenerateInvitationLinkTests(TestCase):
     def test_generate_invitation_link_with_message(self):
         """Test invitation link generation with custom message."""
         custom_message = "Welcome to our team!"
-        invitation, url = generate_invitation_link(
-            self.tenant, message=custom_message
-        )
+        invitation, url = generate_invitation_link(self.tenant, message=custom_message)
 
         self.assertEqual(invitation.message, custom_message)
 
     def test_generate_invitation_link_with_invited_by(self):
         """Test invitation link generation with invited_by user."""
-        invitation, url = generate_invitation_link(
-            self.tenant, invited_by=self.user
-        )
+        invitation, url = generate_invitation_link(self.tenant, invited_by=self.user)
 
         self.assertEqual(invitation.invited_by, self.user)
 
@@ -441,16 +433,12 @@ class TenantQueryTests(TestCase):
 
     def test_list_all_tenants(self):
         """Test listing all tenants (excluding System Root which may have slug 'system' or 'system-root')."""
-        tenants = Tenant.objects.filter(slug__startswith='company-')
+        tenants = Tenant.objects.filter(slug__startswith="company-")
         self.assertEqual(tenants.count(), 2)
 
     def test_find_active_tenants_on_trial(self):
         """Test finding active tenants on trial."""
-        tenants = Tenant.objects.filter(
-            is_active=True,
-            is_trial=True,
-            slug__startswith='company-'
-        )
+        tenants = Tenant.objects.filter(is_active=True, is_trial=True, slug__startswith="company-")
         self.assertEqual(tenants.count(), 1)
         self.assertEqual(tenants.first().slug, "company-one")
 

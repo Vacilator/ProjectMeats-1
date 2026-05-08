@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("invoices", "0010_alter_invoice_product"),
         ("tenants", "0010_add_tenant_configuration"),
@@ -64,39 +63,39 @@ class Migration(migrations.Migration):
             sql="""
             -- Enable Row-Level Security for invoices.Invoice
             ALTER TABLE invoices_invoice ENABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS invoice_tenant_isolation ON invoices_invoice;
             DROP POLICY IF EXISTS invoice_tenant_insert ON invoices_invoice;
-            
+
             CREATE POLICY invoice_tenant_isolation ON invoices_invoice
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             CREATE POLICY invoice_tenant_insert ON invoices_invoice
             FOR INSERT
             WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- Enable Row-Level Security for invoices.Claim
             ALTER TABLE invoices_claim ENABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS claim_tenant_isolation ON invoices_claim;
             DROP POLICY IF EXISTS claim_tenant_insert ON invoices_claim;
-            
+
             CREATE POLICY claim_tenant_isolation ON invoices_claim
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             CREATE POLICY claim_tenant_insert ON invoices_claim
             FOR INSERT
             WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- Enable Row-Level Security for invoices.PaymentTransaction
             ALTER TABLE invoices_paymenttransaction ENABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS payment_tenant_isolation ON invoices_paymenttransaction;
             DROP POLICY IF EXISTS payment_tenant_insert ON invoices_paymenttransaction;
-            
+
             CREATE POLICY payment_tenant_isolation ON invoices_paymenttransaction
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             CREATE POLICY payment_tenant_insert ON invoices_paymenttransaction
             FOR INSERT
             WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
@@ -106,14 +105,14 @@ class Migration(migrations.Migration):
             DROP POLICY IF EXISTS payment_tenant_insert ON invoices_paymenttransaction;
             DROP POLICY IF EXISTS payment_tenant_isolation ON invoices_paymenttransaction;
             ALTER TABLE invoices_paymenttransaction DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS claim_tenant_insert ON invoices_claim;
             DROP POLICY IF EXISTS claim_tenant_isolation ON invoices_claim;
             ALTER TABLE invoices_claim DISABLE ROW LEVEL SECURITY;
-            
+
             DROP POLICY IF EXISTS invoice_tenant_insert ON invoices_invoice;
             DROP POLICY IF EXISTS invoice_tenant_isolation ON invoices_invoice;
             ALTER TABLE invoices_invoice DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

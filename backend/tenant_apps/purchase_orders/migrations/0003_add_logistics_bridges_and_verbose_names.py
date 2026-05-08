@@ -5,57 +5,101 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('purchase_orders', '0002_carrierpurchaseorder_tenant_coldstorageentry_tenant_and_more'),
-        ('products', '0003_alter_product_description'),
-        ('sales_orders', '0002_salesorder_tenant'),
+        ("purchase_orders", "0002_carrierpurchaseorder_tenant_coldstorageentry_tenant_and_more"),
+        ("products", "0003_alter_product_description"),
+        ("sales_orders", "0002_salesorder_tenant"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='carrierpurchaseorder',
-            name='sales_order',
-            field=models.ForeignKey(blank=True, help_text='Link to the associated Sales Order for logistics tracking via Sales Order Number (spreadsheet #7).', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='carrier_logistics', to='sales_orders.salesorder'),
+            model_name="carrierpurchaseorder",
+            name="sales_order",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Link to the associated Sales Order for logistics tracking via Sales Order Number (spreadsheet #7).",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="carrier_logistics",
+                to="sales_orders.salesorder",
+            ),
         ),
         migrations.AddField(
-            model_name='purchaseorder',
-            name='product',
-            field=models.ForeignKey(blank=True, help_text='Product being purchased', null=True, on_delete=django.db.models.deletion.PROTECT, to='products.product'),
+            model_name="purchaseorder",
+            name="product",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Product being purchased",
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                to="products.product",
+            ),
         ),
         migrations.AlterField(
-            model_name='carrierpurchaseorder',
-            name='quantity',
-            field=models.IntegerField(blank=True, help_text='Quantity of items', null=True, verbose_name='Quantity'),
+            model_name="carrierpurchaseorder",
+            name="quantity",
+            field=models.IntegerField(blank=True, help_text="Quantity of items", null=True, verbose_name="Quantity"),
         ),
         migrations.AlterField(
-            model_name='carrierpurchaseorder',
-            name='total_weight',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Total weight', max_digits=10, null=True, verbose_name='Total Weight (LBS)'),
+            model_name="carrierpurchaseorder",
+            name="total_weight",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Total weight",
+                max_digits=10,
+                null=True,
+                verbose_name="Total Weight (LBS)",
+            ),
         ),
         migrations.AlterField(
-            model_name='carrierpurchaseorder',
-            name='weight_unit',
-            field=models.CharField(choices=[('LBS', 'LBS'), ('KG', 'KG')], default='LBS', help_text='Unit of weight (LBS or KG)', max_length=10, verbose_name='Weight Unit'),
+            model_name="carrierpurchaseorder",
+            name="weight_unit",
+            field=models.CharField(
+                choices=[("LBS", "LBS"), ("KG", "KG")],
+                default="LBS",
+                help_text="Unit of weight (LBS or KG)",
+                max_length=10,
+                verbose_name="Weight Unit",
+            ),
         ),
         migrations.AlterField(
-            model_name='purchaseorder',
-            name='quantity',
-            field=models.IntegerField(blank=True, help_text='Quantity of items', null=True, verbose_name='Quantity'),
+            model_name="purchaseorder",
+            name="quantity",
+            field=models.IntegerField(blank=True, help_text="Quantity of items", null=True, verbose_name="Quantity"),
         ),
         migrations.AlterField(
-            model_name='purchaseorder',
-            name='total_amount',
-            field=models.DecimalField(decimal_places=2, default=0, help_text='Total order amount', max_digits=10, verbose_name='Total Amount ($)'),
+            model_name="purchaseorder",
+            name="total_amount",
+            field=models.DecimalField(
+                decimal_places=2,
+                default=0,
+                help_text="Total order amount",
+                max_digits=10,
+                verbose_name="Total Amount ($)",
+            ),
         ),
         migrations.AlterField(
-            model_name='purchaseorder',
-            name='total_weight',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Total weight', max_digits=10, null=True, verbose_name='Total Weight (LBS)'),
+            model_name="purchaseorder",
+            name="total_weight",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Total weight",
+                max_digits=10,
+                null=True,
+                verbose_name="Total Weight (LBS)",
+            ),
         ),
         migrations.AlterField(
-            model_name='purchaseorder',
-            name='weight_unit',
-            field=models.CharField(choices=[('LBS', 'LBS'), ('KG', 'KG')], default='LBS', help_text='Unit of weight (LBS or KG)', max_length=10, verbose_name='Weight Unit'),
+            model_name="purchaseorder",
+            name="weight_unit",
+            field=models.CharField(
+                choices=[("LBS", "LBS"), ("KG", "KG")],
+                default="LBS",
+                help_text="Unit of weight (LBS or KG)",
+                max_length=10,
+                verbose_name="Weight Unit",
+            ),
         ),
     ]

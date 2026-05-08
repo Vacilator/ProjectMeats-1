@@ -8,20 +8,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('integrations', '0006_alter_emaillog_status'),
+        ("integrations", "0006_alter_emaillog_status"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='emaillog',
-            name='attachment_data',
+            model_name="emaillog",
+            name="attachment_data",
             field=models.JSONField(
                 blank=True,
                 null=True,
                 default=None,
-                help_text='Attachment metadata and extracted text from AI processing',
+                help_text="Attachment metadata and extracted text from AI processing",
             ),
         ),
     ]

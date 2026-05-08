@@ -1,6 +1,6 @@
 # B2B Extranet Portal Contract
 
-**Status:** B2B-01.1 contract and document-source inventory only  
+**Status:** B2B-01.1 contract and document-source inventory only
 **Contract version:** `b2b-01.1.v1`
 
 This runbook defines the canonical contract for the future ProjectMeats B2B extranet portal. It is a planning/contract artifact only. It does **not** add public endpoints, guest routes, or counterpart-facing UI in this ticket.

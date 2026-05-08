@@ -1,6 +1,6 @@
 /**
  * ThemeContext Tests
- * 
+ *
  * Tests for theme context provider including:
  * - Theme initialization from localStorage
  * - Theme toggle and set functions
@@ -56,7 +56,7 @@ vi.mock('../config/runtime', async (importOriginal) => {
 // Test component to access context
 const TestConsumer: React.FC = () => {
   const { theme, themeName, toggleTheme, setTheme, tenantBranding } = useTheme();
-  
+
   return (
     <div>
       <div data-testid="theme-name">{themeName}</div>
@@ -92,7 +92,7 @@ describe('ThemeContext', () => {
       removeEventListener: vi.fn(),
       dispatchEvent: vi.fn(),
     })) as any;
-    
+
     // Mock localStorage
     localStorageMock = {};
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => localStorageMock[key] || null);
@@ -102,7 +102,7 @@ describe('ThemeContext', () => {
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation((key) => {
       delete localStorageMock[key];
     });
-    
+
     // Mock API responses (no auth token by default)
     mockedApiClient.get.mockRejectedValue(new Error('No token'));
     mockedApiClient.patch.mockRejectedValue(new Error('No token'));
@@ -123,15 +123,15 @@ describe('ThemeContext', () => {
           <div>Child Content</div>
         </ThemeProvider>
       );
-      
+
       expect(screen.getByText('Child Content')).toBeInTheDocument();
     });
 
     it('should throw error when useTheme is used outside provider', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       expect(() => render(<TestConsumer />)).toThrow('useTheme must be used within a ThemeProvider');
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -143,43 +143,43 @@ describe('ThemeContext', () => {
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('dark');
     });
 
     it('should initialize from localStorage when set to light', () => {
       localStorageMock['theme'] = 'light';
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('light');
     });
 
     it('should initialize from localStorage when set to dark', () => {
       localStorageMock['theme'] = 'dark';
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('dark');
     });
 
     it('should default to dark for invalid localStorage value', () => {
       localStorageMock['theme'] = 'invalid';
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('dark');
     });
 
@@ -189,7 +189,7 @@ describe('ThemeContext', () => {
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await waitFor(() => {
         expect(document.body.getAttribute('data-theme')).toBe('dark');
       });
@@ -199,66 +199,66 @@ describe('ThemeContext', () => {
   describe('Theme Toggle', () => {
     it('should toggle from dark to light', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('dark');
-      
+
       await user.click(screen.getByText('Toggle'));
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('light');
     });
 
     it('should toggle from light to dark', async () => {
       const user = userEvent.setup();
       localStorageMock['theme'] = 'light';
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('light');
-      
+
       await user.click(screen.getByText('Toggle'));
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('dark');
     });
 
     it('should persist theme to localStorage on toggle', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await user.click(screen.getByText('Toggle'));
-      
+
       expect(localStorageMock['theme']).toBe('light');
     });
 
     it('should update data-theme attribute on toggle', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await waitFor(() => {
         expect(document.body.getAttribute('data-theme')).toBe('dark');
       });
-      
+
       await user.click(screen.getByText('Toggle'));
-      
+
       await waitFor(() => {
         expect(document.body.getAttribute('data-theme')).toBe('light');
       });
@@ -268,15 +268,15 @@ describe('ThemeContext', () => {
   describe('Set Theme', () => {
     it('should set theme to light', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await user.click(screen.getByText('Set Light'));
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('light');
       expect(localStorageMock['theme']).toBe('light');
     });
@@ -284,15 +284,15 @@ describe('ThemeContext', () => {
     it('should set theme to dark', async () => {
       const user = userEvent.setup();
       localStorageMock['theme'] = 'light';
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await user.click(screen.getByText('Set Dark'));
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('dark');
       expect(localStorageMock['theme']).toBe('dark');
     });
@@ -301,7 +301,7 @@ describe('ThemeContext', () => {
   describe('Backend Theme Sync', () => {
     it('should load theme from backend when authenticated', async () => {
       localStorageMock['authToken'] = 'test-token';
-      
+
       mockedApiClient.get.mockImplementation((url: string) => {
         if (url.includes('/preferences/me/')) {
           return Promise.resolve({ data: { theme: 'light' } });
@@ -319,13 +319,13 @@ describe('ThemeContext', () => {
         }
         return Promise.reject(new Error('Unknown endpoint'));
       });
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('theme-name')).toHaveTextContent('light');
       });
@@ -334,18 +334,18 @@ describe('ThemeContext', () => {
     it('should sync theme to backend on change', async () => {
       const user = userEvent.setup();
       localStorageMock['authToken'] = 'test-token';
-      
+
       mockedApiClient.patch.mockResolvedValue({ data: { theme: 'light' } });
       mockedApiClient.get.mockRejectedValue(new Error('Not found'));
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await user.click(screen.getByText('Toggle'));
-      
+
       await waitFor(() => {
         expect(mockedApiClient.patch).toHaveBeenCalledWith(
           expect.stringContaining('/preferences/me/'),
@@ -357,23 +357,23 @@ describe('ThemeContext', () => {
     it('should handle backend sync failure gracefully', async () => {
       const user = userEvent.setup();
       localStorageMock['authToken'] = 'test-token';
-      
+
       mockedApiClient.patch.mockRejectedValue(new Error('Network error'));
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
-      
+
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       // Toggle should still work locally
       await user.click(screen.getByText('Toggle'));
-      
+
       expect(screen.getByTestId('theme-name')).toHaveTextContent('light');
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -381,7 +381,7 @@ describe('ThemeContext', () => {
   describe('Tenant Branding', () => {
     it('should load tenant branding when authenticated', async () => {
       localStorageMock['authToken'] = 'test-token';
-      
+
       mockedApiClient.get.mockImplementation((url: string) => {
         if (url.includes('/tenants/current_theme/')) {
           return Promise.resolve({
@@ -399,13 +399,13 @@ describe('ThemeContext', () => {
         }
         return Promise.reject(new Error('Unknown endpoint'));
       });
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('branding')).toHaveTextContent('Acme Corp');
       });
@@ -413,7 +413,7 @@ describe('ThemeContext', () => {
 
     it('should fix relative logo URLs', async () => {
       localStorageMock['authToken'] = 'test-token';
-      
+
       mockedApiClient.get.mockImplementation((url: string) => {
         if (url.includes('/tenants/current_theme/')) {
           return Promise.resolve({
@@ -431,13 +431,13 @@ describe('ThemeContext', () => {
         }
         return Promise.reject(new Error('Unknown endpoint'));
       });
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('logo')).toHaveTextContent('http://localhost:8000/media/logo.png?v=2026-03-23T00%3A00%3A00Z');
       });
@@ -449,34 +449,34 @@ describe('ThemeContext', () => {
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       expect(screen.getByTestId('branding')).toHaveTextContent('none');
     });
 
     it('should handle branding load failure gracefully', async () => {
       localStorageMock['authToken'] = 'test-token';
-      
+
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
-      
+
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       // Should still render without crashing
       await waitFor(() => {
         expect(screen.getByTestId('branding')).toHaveTextContent('none');
       });
-      
+
       consoleSpy.mockRestore();
     });
 
     it('should listen for tenant-branding-updated events', async () => {
       localStorageMock['authToken'] = 'test-token';
-      
+
       let callCount = 0;
       mockedApiClient.get.mockImplementation((url: string) => {
         if (url.includes('/tenants/current_theme/')) {
@@ -496,22 +496,22 @@ describe('ThemeContext', () => {
         }
         return Promise.reject(new Error('Unknown endpoint'));
       });
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('branding')).toHaveTextContent('Initial');
       });
-      
+
       // Dispatch branding update event
       await act(async () => {
         window.dispatchEvent(new Event('tenant-branding-updated'));
       });
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('branding')).toHaveTextContent('Updated');
       });
@@ -525,22 +525,22 @@ describe('ThemeContext', () => {
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       const themeObject = JSON.parse(screen.getByTestId('theme-object').textContent || '{}');
       expect(themeObject).toHaveProperty('name', 'dark');
     });
 
     it('should update theme object when theme changes', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <ThemeProvider>
           <TestConsumer />
         </ThemeProvider>
       );
-      
+
       await user.click(screen.getByText('Toggle'));
-      
+
       const themeObject = JSON.parse(screen.getByTestId('theme-object').textContent || '{}');
       expect(themeObject).toHaveProperty('name', 'light');
     });

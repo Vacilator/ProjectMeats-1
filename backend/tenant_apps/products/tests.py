@@ -4,14 +4,16 @@ Tests for Products app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from django.test import TestCase
-from django.contrib.auth.models import User
 
-from apps.system.models import Product
+from django.contrib.auth.models import User
+from django.test import TestCase
+
 from tenant_apps.products.models import MasterProduct
 from tenant_apps.products.serializers import ProductSerializer
-from apps.tenants.models import Tenant, TenantUser
+
 from apps.core.models import ProteinTypeChoices
+from apps.system.models import Product
+from apps.tenants.models import Tenant, TenantUser
 
 
 class MasterProductModelTest(TestCase):
@@ -36,12 +38,12 @@ class MasterProductModelTest(TestCase):
         mp = MasterProduct.objects.create(
             tenant=self.tenant,
             protein=ProteinTypeChoices.BEEF,
-            item_name='Brisket',
-            type='flat',
-            trim='trimmed',
+            item_name="Brisket",
+            type="flat",
+            trim="trimmed",
         )
 
-        self.assertIn('Brisket', mp.display_name)
+        self.assertIn("Brisket", mp.display_name)
         self.assertTrue(mp.display_name)
         self.assertEqual(str(mp), mp.display_name)
 
@@ -49,46 +51,46 @@ class MasterProductModelTest(TestCase):
         MasterProduct.objects.create(
             tenant=self.tenant,
             protein=ProteinTypeChoices.BEEF,
-            item_name='Brisket',
-            type='flat',
-            trim='trimmed',
+            item_name="Brisket",
+            type="flat",
+            trim="trimmed",
         )
 
         with self.assertRaises(Exception):
             MasterProduct.objects.create(
                 tenant=self.tenant,
                 protein=ProteinTypeChoices.BEEF,
-                item_name='Brisket',
-                type='flat',
-                trim='trimmed',
+                item_name="Brisket",
+                type="flat",
+                trim="trimmed",
             )
 
     def test_tenant_isolation_manager(self):
         mp1 = MasterProduct.objects.create(
             tenant=self.tenant,
             protein=ProteinTypeChoices.BEEF,
-            item_name='Brisket',
-            type='flat',
-            trim='trimmed',
+            item_name="Brisket",
+            type="flat",
+            trim="trimmed",
         )
 
         other_user = User.objects.create_user(
-            username='otheruser',
-            email='other@example.com',
-            password='testpass123',
+            username="otheruser",
+            email="other@example.com",
+            password="testpass123",
         )
         other_tenant = Tenant.objects.create(
-            name='Other Company',
-            slug='other-company',
-            contact_email='admin@othercompany.com',
+            name="Other Company",
+            slug="other-company",
+            contact_email="admin@othercompany.com",
             created_by=other_user,
         )
         MasterProduct.objects.create(
             tenant=other_tenant,
             protein=ProteinTypeChoices.BEEF,
-            item_name='Brisket',
-            type='flat',
-            trim='trimmed',
+            item_name="Brisket",
+            type="flat",
+            trim="trimmed",
         )
 
         self.assertEqual(MasterProduct.objects.for_tenant(self.tenant).count(), 1)
@@ -97,18 +99,18 @@ class MasterProductModelTest(TestCase):
 
     def test_product_serializer_accepts_matching_system_product_bridge(self):
         system_product = Product.objects.create(
-            product_code='BEEF-BRISKET-SERIALIZER',
-            name='Brisket',
-            protein_type='beef',
-            category='BEEF',
+            product_code="BEEF-BRISKET-SERIALIZER",
+            name="Brisket",
+            protein_type="beef",
+            category="BEEF",
         )
         serializer = ProductSerializer(
             data={
-                'protein': ProteinTypeChoices.BEEF,
-                'item_name': 'Brisket',
-                'type': 'flat',
-                'trim': 'trimmed',
-                'system_product': str(system_product.id),
+                "protein": ProteinTypeChoices.BEEF,
+                "item_name": "Brisket",
+                "type": "flat",
+                "trim": "trimmed",
+                "system_product": str(system_product.id),
             }
         )
 
@@ -116,21 +118,20 @@ class MasterProductModelTest(TestCase):
 
     def test_product_serializer_rejects_mismatched_system_product_bridge(self):
         system_product = Product.objects.create(
-            product_code='PORK-BELLY-SERIALIZER',
-            name='Pork Belly',
-            protein_type='pork',
-            category='PORK',
+            product_code="PORK-BELLY-SERIALIZER",
+            name="Pork Belly",
+            protein_type="pork",
+            category="PORK",
         )
         serializer = ProductSerializer(
             data={
-                'protein': ProteinTypeChoices.BEEF,
-                'item_name': 'Brisket',
-                'type': 'flat',
-                'trim': 'trimmed',
-                'system_product': str(system_product.id),
+                "protein": ProteinTypeChoices.BEEF,
+                "item_name": "Brisket",
+                "type": "flat",
+                "trim": "trimmed",
+                "system_product": str(system_product.id),
             }
         )
 
         self.assertFalse(serializer.is_valid())
-        self.assertIn('system_product', serializer.errors)
-
+        self.assertIn("system_product", serializer.errors)

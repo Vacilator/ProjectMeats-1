@@ -1,6 +1,6 @@
 /**
  * Accessibility Utilities for ProjectMeats
- * 
+ *
  * Provides utilities for ensuring WCAG 2.1 AA compliance across the application.
  * Use these utilities to verify accessibility in components and pages.
  */
@@ -266,7 +266,7 @@ export function useA11yAudit(containerRef: React.RefObject<HTMLElement>): A11yAu
     if (process.env.NODE_ENV === 'development' && containerRef.current) {
       const auditIssues = quickA11yAudit(containerRef.current);
       setIssues(auditIssues);
-      
+
       if (auditIssues.length > 0) {
         logger.group('🔍 Accessibility Issues', () => {
           auditIssues.forEach((issue) => {

@@ -4,129 +4,124 @@ Tests for Cockpit aggregated search functionality.
 Verifies multi-tenant search across Customer, Supplier, and PurchaseOrder models.
 """
 import uuid
-from django.test import TestCase
-from django.contrib.auth.models import User
-from rest_framework.test import APIClient
-from rest_framework import status
 
-from apps.tenants.models import Tenant, TenantUser
-from apps.core.models import TradeExceptionQueue, TradeEventLog
-from apps.core.tests.factories import TradeSessionFactory
-from tenant_apps.customers.models import Customer
-from tenant_apps.suppliers.models import Supplier
-from tenant_apps.purchase_orders.models import PurchaseOrder
-from tenant_apps.plants.models import Plant
-from tenant_apps.locations.models import Location
+from django.contrib.auth.models import User
+from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APIClient
+
 from tenant_apps.contacts.models import Contact
+from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import TradeSessionStatus
+from tenant_apps.locations.models import Location
+from tenant_apps.plants.models import Plant
+from tenant_apps.purchase_orders.models import PurchaseOrder
+from tenant_apps.suppliers.models import Supplier
+
+from apps.core.models import TradeEventLog, TradeExceptionQueue
+from apps.core.tests.factories import TradeSessionFactory
+from apps.tenants.models import Tenant, TenantUser
 
 
 class CockpitSearchTestCase(TestCase):
     """Test cockpit search API with multi-tenancy."""
-    
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         # Create test tenant with unique identifiers
         unique_id = uuid.uuid4().hex[:8]
         cls.tenant = Tenant.objects.create(
-            name=f'Test Cockpit Tenant {unique_id}',
-            slug=f'test-cockpit-{unique_id}',
-            contact_email=f'test-{unique_id}@example.com',
+            name=f"Test Cockpit Tenant {unique_id}",
+            slug=f"test-cockpit-{unique_id}",
+            contact_email=f"test-{unique_id}@example.com",
             is_active=True,
         )
-    
+
     def setUp(self):
         self.client = APIClient()
-        
+
         # Generate unique identifier for this test run
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create test user with unique identifiers
         self.user = User.objects.create_user(
-            username=f'testuser-{unique_id}',
-            password='testpass123',
-            email=f'test-{unique_id}@example.com'
+            username=f"testuser-{unique_id}", password="testpass123", email=f"test-{unique_id}@example.com"
         )
-        
+
         # Associate user with tenant
-        TenantUser.objects.create(
-            user=self.user,
-            tenant=self.tenant,
-            role='admin',
-            is_active=True
-        )
-        
+        TenantUser.objects.create(user=self.user, tenant=self.tenant, role="admin", is_active=True)
+
         # Authenticate (session auth) so TenantMiddleware can resolve X-Tenant-ID.
         self.client.force_login(self.user)
 
         # Tenant context (shared-schema): API tenant isolation is scoped by X-Tenant-ID.
-        self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant.id)}
+        self.tenant_header = {"HTTP_X_TENANT_ID": str(self.tenant.id)}
 
         # Create test data with unique identifiers
         self.customer = Customer.objects.create(
             tenant=self.tenant,
-            name=f'Acme Corporation {unique_id}',
-            contact_person=f'John Doe {unique_id}',
-            email=f'john-{unique_id}@acme.com',
-            phone='555-1234'
+            name=f"Acme Corporation {unique_id}",
+            contact_person=f"John Doe {unique_id}",
+            email=f"john-{unique_id}@acme.com",
+            phone="555-1234",
         )
-        
+
         self.supplier = Supplier.objects.create(
             tenant=self.tenant,
-            name=f'Global Supplies {unique_id}',
-            contact_person=f'Jane Smith {unique_id}',
-            email=f'jane-{unique_id}@global.com',
-            phone='555-5678'
+            name=f"Global Supplies {unique_id}",
+            contact_person=f"Jane Smith {unique_id}",
+            email=f"jane-{unique_id}@global.com",
+            phone="555-5678",
         )
-        
+
         self.purchase_order = PurchaseOrder.objects.create(
             tenant=self.tenant,
-            order_number=f'PO-2024-{unique_id}',
-            our_purchase_order_num=f'INT-{unique_id}',
+            order_number=f"PO-2024-{unique_id}",
+            our_purchase_order_num=f"INT-{unique_id}",
             supplier=self.supplier,
-            status='pending',
-            order_date='2024-01-01',
-            total_amount='1500.00'
+            status="pending",
+            order_date="2024-01-01",
+            total_amount="1500.00",
         )
-    
+
     def test_search_returns_all_types(self):
         """Test that search returns results from all model types."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'o'}, **self.tenant_header)
-        
+        response = self.client.get("/api/v1/cockpit/slots/", {"q": "o"}, **self.tenant_header)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Should find results containing 'o'
-        types = [item['type'] for item in response.data]
-        self.assertIn('customer', types)  # Acme Corporatio[n]
-        self.assertIn('supplier', types)  # Global Supplies
-        self.assertIn('order', types)  # PO-2024-001
-    
+        types = [item["type"] for item in response.data]
+        self.assertIn("customer", types)  # Acme Corporatio[n]
+        self.assertIn("supplier", types)  # Global Supplies
+        self.assertIn("order", types)  # PO-2024-001
+
     def test_search_by_customer_name(self):
         """Test searching for customers by name."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'Acme'}, **self.tenant_header)
-        
+        response = self.client.get("/api/v1/cockpit/slots/", {"q": "Acme"}, **self.tenant_header)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        customers = [item for item in response.data if item['type'] == 'customer']
+
+        customers = [item for item in response.data if item["type"] == "customer"]
         self.assertEqual(len(customers), 1)
-        self.assertIn('Acme Corporation', customers[0]['name'])
-        self.assertIn('John Doe', customers[0]['contact_name'])
-    
+        self.assertIn("Acme Corporation", customers[0]["name"])
+        self.assertIn("John Doe", customers[0]["contact_name"])
+
     def test_search_by_order_number(self):
         """Test searching for orders by order number."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'PO-2024'}, **self.tenant_header)
-        
+        response = self.client.get("/api/v1/cockpit/slots/", {"q": "PO-2024"}, **self.tenant_header)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        orders = [item for item in response.data if item['type'] == 'order']
+
+        orders = [item for item in response.data if item["type"] == "order"]
         self.assertEqual(len(orders), 1)
-        self.assertIn('PO-2024', orders[0]['order_number'])
-        self.assertIn('Global Supplies', orders[0]['supplier_name'])
-    
+        self.assertIn("PO-2024", orders[0]["order_number"])
+        self.assertIn("Global Supplies", orders[0]["supplier_name"])
+
     def test_empty_search_returns_empty(self):
         """Test that empty query returns empty results."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': ''}, **self.tenant_header)
+        response = self.client.get("/api/v1/cockpit/slots/", {"q": ""}, **self.tenant_header)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
@@ -135,54 +130,54 @@ class CockpitSearchTestCase(TestCase):
         """Regression guard: matching records in other tenants must not appear."""
         unique_id = uuid.uuid4().hex[:8]
         other_tenant = Tenant.objects.create(
-            name=f'Other Cockpit Tenant {unique_id}',
-            slug=f'other-cockpit-{unique_id}',
-            contact_email=f'other-{unique_id}@example.com',
+            name=f"Other Cockpit Tenant {unique_id}",
+            slug=f"other-cockpit-{unique_id}",
+            contact_email=f"other-{unique_id}@example.com",
             is_active=True,
         )
 
         # Create matching data in other tenant
         other_supplier = Supplier.objects.create(
             tenant=other_tenant,
-            name=f'Global Supplies OTHER {unique_id}',
-            contact_person=f'Jane Smith OTHER {unique_id}',
-            email=f'jane-other-{unique_id}@global.com',
-            phone='555-9999',
+            name=f"Global Supplies OTHER {unique_id}",
+            contact_person=f"Jane Smith OTHER {unique_id}",
+            email=f"jane-other-{unique_id}@global.com",
+            phone="555-9999",
         )
         PurchaseOrder.objects.create(
             tenant=other_tenant,
-            order_number=f'PO-OTHER-{unique_id}',
-            our_purchase_order_num=f'INT-OTHER-{unique_id}',
+            order_number=f"PO-OTHER-{unique_id}",
+            our_purchase_order_num=f"INT-OTHER-{unique_id}",
             supplier=other_supplier,
-            status='pending',
-            order_date='2024-01-01',
-            total_amount='1500.00',
+            status="pending",
+            order_date="2024-01-01",
+            total_amount="1500.00",
         )
         Customer.objects.create(
             tenant=other_tenant,
-            name=f'Acme Corporation OTHER {unique_id}',
-            contact_person=f'John Doe OTHER {unique_id}',
-            email=f'john-other-{unique_id}@acme.com',
-            phone='555-0000',
+            name=f"Acme Corporation OTHER {unique_id}",
+            contact_person=f"John Doe OTHER {unique_id}",
+            email=f"john-other-{unique_id}@acme.com",
+            phone="555-0000",
         )
 
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'OTHER'}, **self.tenant_header)
+        response = self.client.get("/api/v1/cockpit/slots/", {"q": "OTHER"}, **self.tenant_header)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
-    
+
     def test_no_results_for_nonexistent_query(self):
         """Test that search with no matches returns empty."""
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'ZZZZZZZZZ'}, **self.tenant_header)
-        
+        response = self.client.get("/api/v1/cockpit/slots/", {"q": "ZZZZZZZZZ"}, **self.tenant_header)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
-    
+
     def test_requires_authentication(self):
         """Test that endpoint requires authentication."""
         self.client.logout()
-        response = self.client.get('/api/v1/cockpit/slots/', {'q': 'test'}, **self.tenant_header)
-        
+        response = self.client.get("/api/v1/cockpit/slots/", {"q": "test"}, **self.tenant_header)
+
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
@@ -192,31 +187,31 @@ class CockpitEntityAIOverviewTestCase(TestCase):
 
         unique_id = uuid.uuid4().hex[:8]
         self.tenant = Tenant.objects.create(
-            name=f'Test AI Tenant {unique_id}',
-            slug=f'test-ai-{unique_id}',
-            contact_email=f'ai-{unique_id}@example.com',
+            name=f"Test AI Tenant {unique_id}",
+            slug=f"test-ai-{unique_id}",
+            contact_email=f"ai-{unique_id}@example.com",
             is_active=True,
         )
 
         self.user = User.objects.create_user(
-            username=f'aiuser-{unique_id}',
-            password='testpass123',
-            email=f'aiuser-{unique_id}@example.com',
+            username=f"aiuser-{unique_id}",
+            password="testpass123",
+            email=f"aiuser-{unique_id}@example.com",
         )
 
-        TenantUser.objects.create(user=self.user, tenant=self.tenant, role='admin', is_active=True)
+        TenantUser.objects.create(user=self.user, tenant=self.tenant, role="admin", is_active=True)
 
         self.client.force_login(self.user)
-        self.tenant_header = {'HTTP_X_TENANT_ID': str(self.tenant.id)}
+        self.tenant_header = {"HTTP_X_TENANT_ID": str(self.tenant.id)}
 
-        self.supplier = Supplier.objects.create(tenant=self.tenant, name=f'Supplier {unique_id}')
-        self.customer = Customer.objects.create(tenant=self.tenant, name=f'Customer {unique_id}')
-        self.plant = Plant.objects.create(tenant=self.tenant, name=f'Plant {unique_id}')
-        self.location = Location.objects.create(tenant=self.tenant, name=f'Location {unique_id}')
+        self.supplier = Supplier.objects.create(tenant=self.tenant, name=f"Supplier {unique_id}")
+        self.customer = Customer.objects.create(tenant=self.tenant, name=f"Customer {unique_id}")
+        self.plant = Plant.objects.create(tenant=self.tenant, name=f"Plant {unique_id}")
+        self.location = Location.objects.create(tenant=self.tenant, name=f"Location {unique_id}")
         self.contact = Contact.objects.create(
             tenant=self.tenant,
-            first_name='HQ',
-            last_name=f'Contact {unique_id}',
+            first_name="HQ",
+            last_name=f"Contact {unique_id}",
             supplier=self.supplier,
         )
 
@@ -224,21 +219,21 @@ class CockpitEntityAIOverviewTestCase(TestCase):
         # We only assert that the endpoint is stable and tenant-scoped; actual AI generation
         # may be unavailable in CI when OPENAI_API_KEY is not configured.
         for entity_type, entity_id in [
-            ('supplier', self.supplier.id),
-            ('customer', self.customer.id),
-            ('plant', self.plant.id),
-            ('location', self.location.id),
-            ('contact', self.contact.id),
+            ("supplier", self.supplier.id),
+            ("customer", self.customer.id),
+            ("plant", self.plant.id),
+            ("location", self.location.id),
+            ("contact", self.contact.id),
         ]:
             resp = self.client.get(
-                f'/api/v1/cockpit/entities/{entity_type}/{entity_id}/ai-overview/',
+                f"/api/v1/cockpit/entities/{entity_type}/{entity_id}/ai-overview/",
                 **self.tenant_header,
             )
 
             self.assertEqual(resp.status_code, status.HTTP_200_OK)
             payload = resp.json()
-            self.assertIn('status', payload)
-            self.assertIn('summary', payload)
+            self.assertIn("status", payload)
+            self.assertIn("summary", payload)
 
 
 class CockpitTradeExceptionQueueTestCase(TestCase):

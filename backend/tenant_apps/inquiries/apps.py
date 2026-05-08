@@ -4,10 +4,10 @@ from django.apps import AppConfig
 
 class InquiriesConfig(AppConfig):
     """Configuration for the inquiries app."""
-    
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'tenant_apps.inquiries'
-    verbose_name = '❓ Inquiries'
+
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "tenant_apps.inquiries"
+    verbose_name = "❓ Inquiries"
 
     def ready(self):
         """Import signals when app is ready."""

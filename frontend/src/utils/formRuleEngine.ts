@@ -1,6 +1,6 @@
 /**
  * Form Rule Engine
- * 
+ *
  * Evaluates conditional rules for dynamic form behavior.
  * Rules control visibility of fields and steps based on field values.
  */
@@ -36,13 +36,13 @@ export interface ConditionalRule {
   actions: RuleAction[];
 }
 
-export type OperatorType = 
-  | 'eq' | 'neq' 
+export type OperatorType =
+  | 'eq' | 'neq'
   | 'gt' | 'lt' | 'gte' | 'lte'
   | 'contains' | 'not_contains'
   | 'is_empty' | 'is_not_empty';
 
-export type ActionType = 
+export type ActionType =
   | 'display_fields' | 'hide_fields'
   | 'display_steps' | 'hide_steps'
   | 'filter_options' | 'set_value'
@@ -70,8 +70,8 @@ export interface VisibilityState {
  * - "step_id.field_key" (specific step)
  */
 function getFieldValue(
-  fieldRef: string, 
-  formData: FormData, 
+  fieldRef: string,
+  formData: FormData,
   currentStepId?: string
 ): unknown {
   // Check if field ref includes step ID
@@ -79,19 +79,19 @@ function getFieldValue(
     const [stepId, fieldKey] = fieldRef.split('.', 2);
     return formData[stepId]?.[fieldKey];
   }
-  
+
   // If current step is provided, check there first
   if (currentStepId && formData[currentStepId]?.[fieldRef] !== undefined) {
     return formData[currentStepId][fieldRef];
   }
-  
+
   // Search all steps for the field
   for (const stepId of Object.keys(formData)) {
     if (formData[stepId]?.[fieldRef] !== undefined) {
       return formData[stepId][fieldRef];
     }
   }
-  
+
   return undefined;
 }
 
@@ -99,51 +99,51 @@ function getFieldValue(
  * Evaluate a single condition against form data.
  */
 function evaluateCondition(
-  condition: RuleCondition, 
+  condition: RuleCondition,
   formData: FormData
 ): boolean {
-  const fieldRef = condition.step_id 
-    ? `${condition.step_id}.${condition.field}` 
+  const fieldRef = condition.step_id
+    ? `${condition.step_id}.${condition.field}`
     : condition.field;
-  
+
   const fieldValue = getFieldValue(fieldRef, formData);
   const conditionValue = condition.value;
-  
+
   switch (condition.operator) {
     case 'eq':
       return isEqual(fieldValue, conditionValue);
-    
+
     case 'neq':
       return !isEqual(fieldValue, conditionValue);
-    
+
     case 'gt':
       return compareNumbers(fieldValue, conditionValue, (a, b) => a > b);
-    
+
     case 'lt':
       return compareNumbers(fieldValue, conditionValue, (a, b) => a < b);
-    
+
     case 'gte':
       return compareNumbers(fieldValue, conditionValue, (a, b) => a >= b);
-    
+
     case 'lte':
       return compareNumbers(fieldValue, conditionValue, (a, b) => a <= b);
-    
+
     case 'contains':
       return toString(fieldValue).toLowerCase().includes(
         toString(conditionValue).toLowerCase()
       );
-    
+
     case 'not_contains':
       return !toString(fieldValue).toLowerCase().includes(
         toString(conditionValue).toLowerCase()
       );
-    
+
     case 'is_empty':
       return isEmpty(fieldValue);
-    
+
     case 'is_not_empty':
       return !isEmpty(fieldValue);
-    
+
     default:
       logger.warn(`Unknown operator: ${condition.operator}`, { component: 'formRuleEngine' });
       return false;
@@ -154,19 +154,19 @@ function evaluateCondition(
  * Evaluate all conditions for a rule using the specified logic.
  */
 function evaluateRuleConditions(
-  rule: ConditionalRule, 
+  rule: ConditionalRule,
   formData: FormData
 ): boolean {
   if (!rule.conditions || rule.conditions.length === 0) {
     return true; // No conditions = always true
   }
-  
+
   const results = rule.conditions.map(c => evaluateCondition(c, formData));
-  
+
   if (rule.condition_logic === 'or') {
     return results.some(r => r);
   }
-  
+
   // Default to AND logic
   return results.every(r => r);
 }
@@ -175,7 +175,7 @@ function evaluateRuleConditions(
  * Apply actions from a rule to the visibility state.
  */
 function applyRuleActions(
-  rule: ConditionalRule, 
+  rule: ConditionalRule,
   visibilityState: VisibilityState,
   ruleMatched: boolean
 ): void {
@@ -189,7 +189,7 @@ function applyRuleActions(
           }
         }
         break;
-      
+
       case 'hide_fields':
         // Hide fields when rule matches
         if (ruleMatched && action.params.fields) {
@@ -198,7 +198,7 @@ function applyRuleActions(
           }
         }
         break;
-      
+
       case 'display_steps':
       case 'display_entities':
         // Display steps = remove from hidden set when rule matches
@@ -211,7 +211,7 @@ function applyRuleActions(
           visibilityState.hiddenSteps.delete(action.params.step_id);
         }
         break;
-      
+
       case 'hide_steps':
         // Hide steps when rule matches
         if (ruleMatched && action.params.steps) {
@@ -223,17 +223,17 @@ function applyRuleActions(
           visibilityState.hiddenSteps.add(action.params.step_id);
         }
         break;
-      
+
       case 'filter_options':
         // Filter dropdown options when rule matches
         if (ruleMatched && action.params.field && action.params.options) {
           visibilityState.filteredOptions.set(
-            action.params.field, 
+            action.params.field,
             action.params.options
           );
         }
         break;
-      
+
       case 'set_value':
         // Set field value when rule matches
         if (ruleMatched && action.params.field !== undefined) {
@@ -261,15 +261,15 @@ export function evaluateRules(
     filteredOptions: new Map(),
     setValues: new Map(),
   };
-  
+
   // Sort rules by order
   const sortedRules = [...rules].sort((a, b) => a.order - b.order);
-  
+
   for (const rule of sortedRules) {
     const ruleMatched = evaluateRuleConditions(rule, formData);
     applyRuleActions(rule, visibilityState, ruleMatched);
   }
-  
+
   return visibilityState;
 }
 
@@ -282,7 +282,7 @@ export function isFieldVisible(
   visibilityState: VisibilityState
 ): boolean {
   const fullRef = `${stepId}.${fieldKey}`;
-  return !visibilityState.hiddenFields.has(fullRef) && 
+  return !visibilityState.hiddenFields.has(fullRef) &&
          !visibilityState.hiddenFields.has(fieldKey);
 }
 
@@ -306,13 +306,13 @@ export function getFilteredOptions(
   visibilityState: VisibilityState
 ): { value: string; label: string }[] {
   const fullRef = `${stepId}.${fieldKey}`;
-  const allowedValues = visibilityState.filteredOptions.get(fullRef) || 
+  const allowedValues = visibilityState.filteredOptions.get(fullRef) ||
                         visibilityState.filteredOptions.get(fieldKey);
-  
+
   if (!allowedValues) {
     return originalOptions;
   }
-  
+
   return originalOptions.filter(opt => allowedValues.includes(opt.value));
 }
 
@@ -325,7 +325,7 @@ export function getAutoSetValue(
   visibilityState: VisibilityState
 ): unknown | undefined {
   const fullRef = `${stepId}.${fieldKey}`;
-  return visibilityState.setValues.get(fullRef) ?? 
+  return visibilityState.setValues.get(fullRef) ??
          visibilityState.setValues.get(fieldKey);
 }
 
@@ -391,12 +391,12 @@ export function flatDataToFormData(
   steps: { id: string }[]
 ): FormData {
   const formData: FormData = {};
-  
+
   // Initialize all steps
   for (const step of steps) {
     formData[step.id] = {};
   }
-  
+
   // Populate with values
   for (const [key, value] of Object.entries(flatData)) {
     if (key.includes('.')) {
@@ -413,7 +413,7 @@ export function flatDataToFormData(
       }
     }
   }
-  
+
   return formData;
 }
 

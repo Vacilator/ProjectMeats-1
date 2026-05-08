@@ -205,7 +205,7 @@ locust -f locustfile.py \
 
 #### 1. Response Time Distribution
 ```
-Name                    # reqs   50%    95%    99%   avg    min    max   
+Name                    # reqs   50%    95%    99%   avg    min    max
 /api/auth/login/        1000     45ms   120ms  180ms  55ms   30ms   250ms
 /api/workflows/         5000     80ms   200ms  350ms  95ms   40ms   500ms
 /api/forms/123/submit/  2000     120ms  300ms  450ms  140ms  60ms   600ms
@@ -349,17 +349,17 @@ on:
 jobs:
   load-test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      
+
       - name: Install Locust
         run: pip install locust
-      
+
       - name: Run Load Test
         run: |
           locust -f backend/locustfile.py \
@@ -370,7 +370,7 @@ jobs:
             --host=https://dev.meatscentral.com \
             --html=load_test_report.html \
             --csv=load_test_results
-      
+
       - name: Upload Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -379,7 +379,7 @@ jobs:
           path: |
             load_test_report.html
             load_test_results*.csv
-      
+
       - name: Check Performance Threshold
         run: |
           # Parse CSV and fail if p95 > 500ms
@@ -421,7 +421,7 @@ jobs:
 
 ### Issue: Connection Refused
 ```
-ConnectionError: HTTPConnectionPool(host='localhost', port=8000): 
+ConnectionError: HTTPConnectionPool(host='localhost', port=8000):
 Max retries exceeded with url: /api/auth/login/
 ```
 
@@ -467,6 +467,6 @@ Backend container using 4GB+ RAM during load test
 
 ---
 
-**Documentation Status**: ✅ Complete  
-**Last Updated**: February 26, 2026  
+**Documentation Status**: ✅ Complete
+**Last Updated**: February 26, 2026
 **Part of**: Gap Analysis Phase 6.6 - Load Testing

@@ -1,9 +1,9 @@
 /**
  * useAutoMapping Hook
- * 
+ *
  * React hook for Smart Auto-Map functionality in the workflow editor.
  * Provides field mapping suggestions and application logic.
- * 
+ *
  * Created: 2026-03-04 - Smart Auto-Map Phase 3
  */
 
@@ -40,28 +40,28 @@ export function useAutoMapping(): UseAutoMappingReturn {
   const [suggestions, setSuggestions] = useState<AutoMappingSuggestions | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   /**
    * Generate field mapping suggestions for a node
    */
   const generateSuggestions = useCallback((nodeId: string) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const nodes = getNodes();
       const edges = getEdges();
-      
+
       // Ensure all nodes have output schemas
       const nodesWithSchemas = nodes.map(attachOutputSchemaToNode);
-      
+
       // Generate suggestions
       const mappingSuggestions = AutoMappingService.suggestMappings(
         nodesWithSchemas,
         edges,
         nodeId
       );
-      
+
       setSuggestions(mappingSuggestions);
 
       logger.debug('Generated suggestions', { component: 'AutoMapping', metadata: { mappingSuggestions } });
@@ -72,7 +72,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
       setLoading(false);
     }
   }, [getNodes, getEdges]);
-  
+
   /**
    * Apply a single suggestion
    */
@@ -97,7 +97,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
       };
     });
   }, [setNodes]);
-  
+
   /**
    * Apply all high-confidence suggestions
    */
@@ -105,7 +105,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
     if (!suggestions) {
       return;
     }
-    
+
     setNodes((nodes) => {
       return nodes.map(node => {
         if (node.id === nodeId) {
@@ -116,11 +116,11 @@ export function useAutoMapping(): UseAutoMappingReturn {
         return node;
       });
     });
-    
+
     // Clear suggestions after applying
     setSuggestions(null);
   }, [suggestions, setNodes]);
-  
+
   /**
    * Clear suggestions
    */
@@ -138,7 +138,7 @@ export function useAutoMapping(): UseAutoMappingReturn {
     setSuggestions(null);
     setError(null);
   }, []);
-  
+
   return {
     suggestions,
     loading,

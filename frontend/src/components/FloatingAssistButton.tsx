@@ -1,11 +1,11 @@
 /**
  * Floating Assistance Button (FAB)
- * 
+ *
  * Fixed-position action button in bottom-right corner providing quick access to:
  * - Support: FAQ
  * - Support: Create Ticket
  * - User Profile
- * 
+ *
  * Features:
  * - Responsive design
  * - Theme-aware styling

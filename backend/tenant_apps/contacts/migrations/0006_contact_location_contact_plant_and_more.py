@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("contacts", "0005_add_rls_policies_batch"),
         ("customers", "0010_add_rls_policies_batch"),

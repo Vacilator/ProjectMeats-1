@@ -1,9 +1,9 @@
 /**
  * Snap Preview Overlay Component
- * 
+ *
  * Displays visual indicators for magnetic snapping during drag operations.
  * Shows where a node will land before you drop it.
- * 
+ *
  * Phase 7.2: Enhanced Container Management (Part 3/3)
  */
 
@@ -39,7 +39,7 @@ const OverlayContainer = styled.div`
   z-index: 1000;
 `;
 
-const SnapPreviewBox = styled.div<{ 
+const SnapPreviewBox = styled.div<{
   left: number;
   top: number;
   width: number;
@@ -50,17 +50,17 @@ const SnapPreviewBox = styled.div<{
   top: ${props => props.top}px;
   width: ${props => props.width}px;
   height: ${props => props.height}px;
-  
+
   border: 2px dashed rgb(var(--color-primary));
   border-radius: var(--radius-md);
   background: rgba(var(--color-primary), 0.1);
-  
+
   animation: ${pulse} 1.5s ease-in-out infinite;
-  
-  box-shadow: 
+
+  box-shadow:
     0 0 0 4px rgba(var(--color-primary), 0.1),
     inset 0 0 20px rgba(var(--color-primary), 0.2);
-    
+
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 `;
 
@@ -68,7 +68,7 @@ const SnapLabel = styled.div<{ left: number; top: number }>`
   position: absolute;
   left: ${props => props.left}px;
   top: ${props => props.top - 30}px;
-  
+
   padding: 4px 12px;
   background: rgba(var(--color-primary), 0.95);
   color: rgb(var(--color-text-inverse));
@@ -78,10 +78,10 @@ const SnapLabel = styled.div<{ left: number; top: number }>`
   letter-spacing: 0.5px;
   border-radius: var(--radius-sm);
   white-space: nowrap;
-  
+
   box-shadow: 0 2px 8px rgba(var(--color-primary), 0.4);
   animation: ${fadeIn} 0.2s ease-out;
-  
+
   &::after {
     content: '';
     position: absolute;
@@ -105,7 +105,7 @@ const SnapLine = styled.div<{
 }>`
   position: absolute;
   background: rgba(var(--color-primary), 0.4);
-  
+
   ${props => props.orientation === 'horizontal' ? `
     left: ${Math.min(props.x1, props.x2)}px;
     top: ${props.y1}px;
@@ -117,7 +117,7 @@ const SnapLine = styled.div<{
     width: 2px;
     height: ${Math.abs(props.y2 - props.y1)}px;
   `}
-  
+
   animation: ${fadeIn} 0.2s ease-out;
 `;
 
@@ -127,15 +127,15 @@ const SnapPoint = styled.div<{ left: number; top: number }>`
   top: ${props => props.top - 4}px;
   width: 8px;
   height: 8px;
-  
+
   background: rgb(var(--color-primary));
   border: 2px solid white;
   border-radius: 50%;
-  
-  box-shadow: 
+
+  box-shadow:
     0 0 0 2px rgba(var(--color-primary), 0.3),
     0 2px 4px rgba(var(--color-overlay), 0.2);
-    
+
   animation: ${pulse} 1s ease-in-out infinite;
 `;
 
@@ -164,14 +164,14 @@ export interface SnapPreviewOverlayProps {
 
 /**
  * Displays visual preview of where a node will snap when dropped
- * 
+ *
  * Features:
  * - Dashed outline box showing final position
  * - Optional label above the preview
  * - Snap lines showing alignment
  * - Snap points for magnetic targets
  * - Smooth animations
- * 
+ *
  * Usage:
  * ```tsx
  * <SnapPreviewOverlay
@@ -239,7 +239,7 @@ export const SnapPreviewOverlay: React.FC<SnapPreviewOverlayProps> = ({
 
 /**
  * Hook for calculating snap preview data from drag state
- * 
+ *
  * @param dragState - Current drag state from useContainerDragAndDrop
  * @param containerPosition - Position of target container
  * @param containerSize - Size of target container

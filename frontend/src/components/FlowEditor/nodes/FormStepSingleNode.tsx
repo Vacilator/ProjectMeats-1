@@ -1,9 +1,9 @@
 /**
  * Form Step Single Node Component (formerly Form Step Node)
- * 
+ *
  * Container for multiple form fields in a multi-step form.
  * Displays field summary and validation status.
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  * Renamed: 2026-02-14 - Phase 2: FormStep → FormStepSingle
@@ -18,7 +18,7 @@ import { getNodeTypeDefinition } from '../nodeTypes';
 // TypeScript Interfaces (Updated for Phase 5)
 // ============================================================================
 
-export type FormFieldType = 
+export type FormFieldType =
   | 'text'
   | 'textarea'
   | 'number'
@@ -200,7 +200,7 @@ const FIELD_TYPE_ICONS: Record<FormFieldType, string> = {
 export const FormStepSingleNode = React.memo<NodeProps<Node<FormStepNodeData>>>((props) => {
   const { data, selected, id } = props;
   const nodeTypeDef = getNodeTypeDefinition('formStepSingle');
-  
+
   // Safety check: provide fallback if nodeType is undefined
   // Note: This fallback matches the registry definition (Form (Legacy))
   const nodeType = nodeTypeDef || {
@@ -213,7 +213,7 @@ export const FormStepSingleNode = React.memo<NodeProps<Node<FormStepNodeData>>>(
     maxInputs: 1,
     maxOutputs: 1,
   };
-  
+
   const { stepTitle, fields = [] } = data;
   const fieldCount = fields.length;
   const requiredCount = fields.filter(f => f.required).length;
@@ -227,15 +227,15 @@ export const FormStepSingleNode = React.memo<NodeProps<Node<FormStepNodeData>>>(
     >
       <div>
         {stepTitle && (
-          <div style={{ 
-            fontWeight: 600, 
+          <div style={{
+            fontWeight: 600,
             marginBottom: 8,
             color: 'rgb(var(--color-text-primary))',
           }}>
             {stepTitle}
           </div>
         )}
-        
+
         {fields.length === 0 ? (
           <EmptyState>
             Click to add fields
@@ -253,13 +253,13 @@ export const FormStepSingleNode = React.memo<NodeProps<Node<FormStepNodeData>>>(
                 </FieldItem>
               ))}
             </FieldList>
-            
+
             {fields.length > 3 && (
               <FieldCount>
                 +{fields.length - 3} more field{fields.length - 3 > 1 ? 's' : ''}
               </FieldCount>
             )}
-            
+
             <FieldCount>
               {fieldCount} field{fieldCount !== 1 ? 's' : ''}
               {requiredCount > 0 && ` • ${requiredCount} required`}

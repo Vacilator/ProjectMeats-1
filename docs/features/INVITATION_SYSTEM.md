@@ -1,14 +1,14 @@
 # Invitation System
 
-**Status**: ✅ CURRENT  
-**Category**: Features  
+**Status**: ✅ CURRENT
+**Category**: Features
 **Last Updated**: 2026-02-01
 
 ---
 
 > **Consolidated**: This is the authoritative guide for the invitation system.
-> 
-> **Archived docs**: 
+>
+> **Archived docs**:
 > - `INVITATION_SYSTEM_VERIFICATION.md` (testing checklist)
 > - `INVITATION_TOKEN_FIX.md` (bug fix history)
 > - `INVITATION_TROUBLESHOOTING.md` (debugging - integrated below)
@@ -506,13 +506,13 @@ def create(self, request, *args, **kwargs):
     # Rate limit: max 10 invitations per hour per user
     cache_key = f'invite_limit:{request.user.id}'
     count = cache.get(cache_key, 0)
-    
+
     if count >= 10:
         return Response(
             {'error': 'Invitation limit reached. Try again later.'},
             status=status.HTTP_429_TOO_MANY_REQUESTS
         )
-    
+
     cache.set(cache_key, count + 1, 3600)  # 1 hour
     return super().create(request, *args, **kwargs)
 ```
@@ -610,10 +610,10 @@ unique_together = ["tenant", "user"]
 
 1. **Open Signup + Manual Approval**: Users sign up, admin approves
    - ❌ Creates orphan users waiting for approval
-   
+
 2. **Domain-Based Auto-Join**: Anyone with @company.com joins automatically
    - ❌ Less control, potential security risk
-   
+
 3. **Invitation Codes** (Simple): One reusable code per tenant
    - ❌ Code can be shared/leaked
 
@@ -651,6 +651,6 @@ This guarantees proper multi-tenant isolation and prevents orphan users in the s
 
 ---
 
-**Implementation Status**: 🟡 Code Ready (Migration Needed)  
-**Documentation**: 📚 Complete  
-**Testing**: 🧪 Required  
+**Implementation Status**: 🟡 Code Ready (Migration Needed)
+**Documentation**: 📚 Complete
+**Testing**: 🧪 Required

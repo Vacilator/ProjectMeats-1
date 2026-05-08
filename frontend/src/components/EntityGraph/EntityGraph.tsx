@@ -1,8 +1,8 @@
 /**
  * Entity Graph Component (Wave 2: Cockpit Command Center)
- * 
+ *
  * Visualizes entity relationships using React Flow.
- * 
+ *
  * Features:
  * - Interactive graph visualization
  * - Zoom and pan controls
@@ -10,7 +10,7 @@
  * - Double-click to expand nodes (fetch deeper relationships)
  * - Inline edit panel for quick editing
  * - Relationship labels on edges
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  * - Entity colors from backend configuration
@@ -217,7 +217,7 @@ const CloseButton = styled.button`
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: rgb(var(--color-text-secondary));
-  
+
   &:hover {
     background: rgb(var(--color-background));
     color: rgb(var(--color-text-primary));
@@ -241,14 +241,14 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  border: 1px solid ${props => props.$variant === 'primary' 
-    ? 'rgb(var(--color-primary))' 
+  border: 1px solid ${props => props.$variant === 'primary'
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
-  background: ${props => props.$variant === 'primary' 
-    ? 'rgb(var(--color-primary))' 
+  background: ${props => props.$variant === 'primary'
+    ? 'rgb(var(--color-primary))'
     : 'transparent'};
-  color: ${props => props.$variant === 'primary' 
-    ? 'white' 
+  color: ${props => props.$variant === 'primary'
+    ? 'white'
     : 'rgb(var(--color-text-primary))'};
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -257,8 +257,8 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   transition: all 0.15s ease;
 
   &:hover {
-    background: ${props => props.$variant === 'primary' 
-      ? 'rgb(var(--color-primary-hover))' 
+    background: ${props => props.$variant === 'primary'
+      ? 'rgb(var(--color-primary-hover))'
       : 'rgb(var(--color-background))'};
   }
 `;
@@ -361,18 +361,18 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
-  
+
   // Node expansion state
   const [expandingNode, setExpandingNode] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  
+
   // Inline edit panel state
   const [selectedNode, setSelectedNode] = useState<SelectedNodeInfo | null>(null);
 
   // Fetch graph data
   const fetchGraph = useCallback(async (
-    fetchEntityType: string, 
-    fetchEntityId: number, 
+    fetchEntityType: string,
+    fetchEntityId: number,
     fetchDepth: number,
     mergeWithExisting: boolean = false
   ) => {
@@ -397,7 +397,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
           const uniqueNewNodes = newFlowNodes.filter(n => !existingIds.has(n.id));
           return [...currentNodes, ...uniqueNewNodes];
         });
-        
+
         setEdges(currentEdges => {
           const existingIds = new Set(currentEdges.map(e => e.id));
           const newFlowEdges = createEdges(graphEdges);
@@ -411,7 +411,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
         setNodes(flowNodes);
         setEdges(flowEdges);
       }
-      
+
       setTruncated(isTruncated);
     } catch (err: any) {
       logger.error('Failed to fetch entity graph:', err);
@@ -436,7 +436,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
         label: node.data.label,
         color: node.data.color,
       });
-      
+
       if (onNodeClick) {
         onNodeClick(node.data.entityType, node.data.entityId);
       }
@@ -448,16 +448,16 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
   const handleNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node<EntityNodeData>) => {
       const nodeKey = `${node.data.entityType}-${node.data.entityId}`;
-      
+
       // Don't expand if already expanded
       if (expandedNodes.has(nodeKey)) {
         return;
       }
-      
+
       // Mark as expanding and expanded
       setExpandingNode(nodeKey);
       setExpandedNodes(prev => new Set([...prev, nodeKey]));
-      
+
       // Fetch deeper relationships for this node
       fetchGraph(node.data.entityType, node.data.entityId, 1, true);
     },
@@ -555,7 +555,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
           <Background color="rgb(var(--color-border))" gap={16} />
         </ReactFlow>
       </GraphContainer>
-      
+
       {/* Inline Edit Panel */}
       <InlineEditPanel $isOpen={panelOpen} $color={selectedNode?.color || 'rgb(var(--color-primary))'}>
         {selectedNode && (
@@ -574,20 +574,20 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
                 <X size={16} />
               </CloseButton>
             </PanelHeader>
-            
+
             <PanelBody>
               <PanelActions>
                 <ActionButton $variant="primary" onClick={handleEditEntity}>
                   <Edit2 size={16} />
                   Edit {selectedNode.entityType.replace('_', ' ')}
                 </ActionButton>
-                
+
                 <ActionButton onClick={handleViewDetails}>
                   <ExternalLink size={16} />
                   View Details
                 </ActionButton>
-                
-                <ActionButton 
+
+                <ActionButton
                   onClick={() => {
                     const nodeKey = `${selectedNode.entityType}-${selectedNode.entityId}`;
                     if (!expandedNodes.has(nodeKey)) {
@@ -599,13 +599,13 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
                   disabled={expandedNodes.has(`${selectedNode.entityType}-${selectedNode.entityId}`)}
                 >
                   <ChevronRight size={16} />
-                  {expandedNodes.has(`${selectedNode.entityType}-${selectedNode.entityId}`) 
-                    ? 'Already Expanded' 
+                  {expandedNodes.has(`${selectedNode.entityType}-${selectedNode.entityId}`)
+                    ? 'Already Expanded'
                     : 'Expand Relationships'}
                 </ActionButton>
               </PanelActions>
             </PanelBody>
-            
+
             <PanelHint>
               💡 Double-click any node to expand its relationships
             </PanelHint>

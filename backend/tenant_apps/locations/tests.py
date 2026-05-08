@@ -4,11 +4,14 @@ Tests for Locations app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from django.test import TestCase
+
 from django.contrib.auth.models import User
+from django.test import TestCase
+
+from tenant_apps.customers.models import Customer
 from tenant_apps.locations.models import Location
 from tenant_apps.suppliers.models import Supplier
-from tenant_apps.customers.models import Customer
+
 from apps.tenants.models import Tenant, TenantUser
 
 
@@ -19,9 +22,7 @@ class LocationModelTest(TestCase):
         """Set up test data with tenant context."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -30,7 +31,7 @@ class LocationModelTest(TestCase):
             created_by=self.user,
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
-        
+
         self.supplier = Supplier.objects.create(
             name=f"Test Supplier {unique_id}",
             tenant=self.tenant,
@@ -54,7 +55,7 @@ class LocationModelTest(TestCase):
             country="USA",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(location.name, f"Warehouse {unique_id}")
         self.assertEqual(location.code, f"WH-{unique_id}")
         self.assertEqual(location.location_type, "warehouse")
@@ -69,7 +70,7 @@ class LocationModelTest(TestCase):
             city="Dallas",
             tenant=self.tenant,
         )
-        
+
         self.assertIn("Distribution Center", str(location))
         self.assertIn("Dallas", str(location))
 
@@ -82,7 +83,7 @@ class LocationModelTest(TestCase):
             city="Houston",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(location.supplier, self.supplier)
         self.assertIn(location, self.supplier.supplier_locations.all())
 
@@ -95,26 +96,24 @@ class LocationModelTest(TestCase):
             city="Austin",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(location.customer, self.customer)
         self.assertIn(location, self.customer.customer_locations.all())
 
     def test_location_tenant_isolation(self):
         """Test that locations are properly isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create location for first tenant
         loc1 = Location.objects.create(
             name=f"Location 1 {unique_id}",
             city="Phoenix",
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -122,18 +121,18 @@ class LocationModelTest(TestCase):
             contact_email=f"admin-{unique_id}@othercompany.com",
             created_by=other_user,
         )
-        
+
         # Create location for second tenant
         loc2 = Location.objects.create(
             name=f"Location 2 {unique_id}",
             city="Denver",
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_locations = Location.objects.for_tenant(self.tenant)
         tenant2_locations = Location.objects.for_tenant(other_tenant)
-        
+
         self.assertEqual(tenant1_locations.count(), 1)
         self.assertEqual(tenant2_locations.count(), 1)
         self.assertIn(loc1, tenant1_locations)
@@ -149,7 +148,7 @@ class LocationModelTest(TestCase):
             contact_name="John Smith",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(location.phone, "555-123-4567")
         self.assertEqual(location.contact_name, "John Smith")
         self.assertTrue(location.is_active)

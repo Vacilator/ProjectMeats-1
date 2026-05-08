@@ -5,7 +5,7 @@
 
 **Location:** AdminTable.tsx line 257-258
 
-**Cause:** 
+**Cause:**
 1. Optional chaining `actions?.filter()` doesn't protect against non-array objects
 2. If `actions` is an object or other non-array value, calling `.filter()` throws an error
 
@@ -19,7 +19,7 @@
     <ActionsGroup>
       {actions?.filter(...)
 
-// AFTER  
+// AFTER
 {actions && Array.isArray(actions) && (
   <TableCell>
     <ActionsGroup>

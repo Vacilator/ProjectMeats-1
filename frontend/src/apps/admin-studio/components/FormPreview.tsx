@@ -1,6 +1,6 @@
 /**
  * FormPreview Component
- * 
+ *
  * Shows a live preview of what the form will look like based on schema_config.
  * Helps users visualize their field configurations before saving.
  */

@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("suppliers", "0008_add_preferred_protein_types"),
         ("tenants", "0006_metadata_lockdown"),

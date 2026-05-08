@@ -4,11 +4,12 @@ from datetime import date
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.contacts.models import Contact, ContactDepartmentChoices
 from tenant_apps.plants.models import Plant
 from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus
 from tenant_apps.suppliers.models import Supplier
+
+from apps.tenants.models import Tenant, TenantUser
 
 
 class PurchaseOrderContactRoutingTests(TestCase):

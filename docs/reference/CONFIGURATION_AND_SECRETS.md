@@ -1,14 +1,14 @@
 # Configuration and Secrets Management
 
-**Status**: ✅ CURRENT  
-**Category**: Reference  
+**Status**: ✅ CURRENT
+**Category**: Reference
 **Last Updated**: 2026-02-27
 
 ---
 
 **Single Source of Truth for ProjectMeats Environments**
 
-> **Authority**: This document describes the authoritative configuration system for ProjectMeats.  
+> **Authority**: This document describes the authoritative configuration system for ProjectMeats.
 > **Version**: Manifest v5.x (current) - Environment-Scoped Secrets
 
 ---
@@ -82,7 +82,7 @@ This file defines:
 #### 1. Infrastructure Secrets
 Used by **all environments** for SSH access:
 - `BASTION_HOST` / `DEV_HOST` / `PRODUCTION_HOST` / `STAGING_HOST` - Server IP addresses
-- `BASTION_USER` / `DEV_USER` / `PRODUCTION_USER` / `STAGING_USER` - SSH usernames  
+- `BASTION_USER` / `DEV_USER` / `PRODUCTION_USER` / `STAGING_USER` - SSH usernames
 - `SSH_PASSWORD` - **ENVIRONMENT-SCOPED** secret (same name, different values per environment)
 
 **CRITICAL: SSH Password Pattern**
@@ -98,7 +98,7 @@ jobs:
     environment: dev-backend  # GitHub injects dev's SSH_PASSWORD
     steps:
       - run: sshpass -e ssh ${{ secrets.SSH_PASSWORD }} ...
-  
+
   deploy-prod:
     environment: production-backend  # GitHub injects prod's SSH_PASSWORD
     steps:
@@ -223,7 +223,7 @@ Most secrets follow a pattern defined in the manifest:
 }
 ```
 
-For `dev-backend` (prefix=DEV): → `DEV_DB_HOST`  
+For `dev-backend` (prefix=DEV): → `DEV_DB_HOST`
 For `uat-backend` (prefix=UAT): → `UAT_DB_HOST`
 
 #### Explicit Mapping
@@ -392,7 +392,7 @@ If you encounter older docs or workflows referencing legacy names, treat them as
    ```bash
    # Check environment secrets
    gh secret list --env dev-backend
-   
+
    # Check global secrets
    gh secret list
    ```
@@ -490,6 +490,6 @@ jq '.version' manifests/env.manifest.json
 
 ---
 
-**Last Updated**: December 10, 2025  
-**Manifest Version**: 3.3  
+**Last Updated**: December 10, 2025
+**Manifest Version**: 3.3
 **Maintainer**: DevOps Team

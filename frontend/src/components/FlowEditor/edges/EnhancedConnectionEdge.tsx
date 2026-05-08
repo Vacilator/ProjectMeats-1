@@ -1,14 +1,14 @@
 /**
  * Enhanced Connection Edge Component
  * Phase 7.2: Visual Connection Indicators
- * 
+ *
  * Advanced edge component with visual feedback:
  * - Animated flow indicators (moving particles)
  * - Connection validation states (valid/invalid/warning)
  * - Hover interactions with labels
  * - Theme-compliant colors
  * - Smooth transitions
- * 
+ *
  * Created: 2026-02-27
  */
 
@@ -296,7 +296,7 @@ function getStatusIcon(status: ConnectionStatus): React.ReactNode {
 /**
  * Enhanced edge component with visual feedback and validation.
  * Supports animated flow, status indicators, and hover labels.
- * 
+ *
  * @example
  * ```typescript
  * const edge: Edge = {

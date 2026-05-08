@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("suppliers", "0014_supplieravailableitem_use_system_product"),
     ]

@@ -1,6 +1,6 @@
 /**
  * Workflow Monitor - Real-time Execution Tracking
- * 
+ *
  * Displays active and historical workflow runs with live status updates,
  * progress tracking, and filtering capabilities.
  */
@@ -67,18 +67,18 @@ const FilterButton = styled.button<{ active?: boolean }>`
   font-weight: 500;
   border-radius: var(--radius-md);
   border: 1px solid rgb(var(--color-border));
-  background-color: ${props => props.active 
-    ? 'rgb(var(--color-primary))' 
+  background-color: ${props => props.active
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-surface))'};
-  color: ${props => props.active 
-    ? 'rgb(var(--color-primary-foreground))' 
+  color: ${props => props.active
+    ? 'rgb(var(--color-primary-foreground))'
     : 'rgb(var(--color-text-primary))'};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background-color: ${props => props.active 
-      ? 'rgb(var(--color-primary-hover))' 
+    background-color: ${props => props.active
+      ? 'rgb(var(--color-primary-hover))'
       : 'rgb(var(--color-surface-hover))'};
     box-shadow: var(--shadow-sm);
   }
@@ -103,18 +103,18 @@ const RefreshButton = styled.button<{ active?: boolean }>`
   font-weight: 500;
   border-radius: var(--radius-md);
   border: 1px solid rgb(var(--color-border));
-  background-color: ${props => props.active 
-    ? 'rgba(var(--color-success), 0.1)' 
+  background-color: ${props => props.active
+    ? 'rgba(var(--color-success), 0.1)'
     : 'rgb(var(--color-surface))'};
-  color: ${props => props.active 
-    ? 'rgb(var(--color-success))' 
+  color: ${props => props.active
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-text-primary))'};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background-color: ${props => props.active 
-      ? 'rgba(var(--color-success), 0.15)' 
+    background-color: ${props => props.active
+      ? 'rgba(var(--color-success), 0.15)'
       : 'rgb(var(--color-surface-hover))'};
   }
 
@@ -316,7 +316,7 @@ const EmptyIcon = styled.div`
   background-color: rgb(var(--color-surface-hover));
   border-radius: 50%;
   margin-bottom: 1.5rem;
-  
+
   svg {
     color: rgb(var(--color-text-secondary));
     opacity: 0.5;
@@ -370,7 +370,7 @@ export const WorkflowMonitor: React.FC = () => {
 
   useEffect(() => {
     fetchWorkflows();
-    
+
     if (autoRefresh) {
       const interval = setInterval(fetchWorkflows, 5000);
       return () => clearInterval(interval);

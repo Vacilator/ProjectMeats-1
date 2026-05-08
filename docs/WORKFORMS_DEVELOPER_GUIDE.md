@@ -1,7 +1,7 @@
 # WorkForms Developer Guide
 
-**Version**: 2.0  
-**Last Updated**: 2026-02-05  
+**Version**: 2.0
+**Last Updated**: 2026-02-05
 **Audience**: Developers extending or maintaining WorkForms
 
 ---
@@ -99,22 +99,22 @@ const [selectedFormField, setSelectedFormField] = useState<Node | null>(null);
 ```typescript
 const handleSelectionChange = useCallback(({ nodes }: OnSelectionChangeParams) => {
   if (nodes.length !== 1) return;
-  
+
   const selected = nodes[0];
-  
+
   switch (selected.type) {
     case 'formStep':
       setSelectedFormStep(selected);
       setFormStepModalOpen(true);
       break;
-    
+
     case 'formField':
       setSelectedFormField(selected);
       setFormFieldModalOpen(true);
       break;
-    
+
     // ... cases for each node type
-    
+
     default:
       // Fallback to generic panel
       setSelectedNode(selected);
@@ -239,16 +239,16 @@ export const YourNode: React.FC<{ data: YourNodeData }> = ({ data }) => {
   return (
     <Container>
       <Handle type="target" position={Position.Top} />
-      
+
       <Header>
         <Icon>🎯</Icon>
         <Title>{data.label || 'Your Node'}</Title>
       </Header>
-      
+
       <Content>
         {/* Your node content */}
       </Content>
-      
+
       <Handle type="source" position={Position.Bottom} />
     </Container>
   );
@@ -270,7 +270,7 @@ const Container = styled.div`
 ```typescript
 export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDef> = {
   // ... existing types
-  
+
   'yourNodeType': {
     id: 'yourNodeType',
     label: 'Your Node Type',
@@ -310,7 +310,7 @@ If your node needs specialized configuration, create a config panel (see next se
 ```typescript
 const handleSelectionChange = useCallback(({ nodes }: OnSelectionChangeParams) => {
   // ... existing cases
-  
+
   case 'yourNodeType':
     setSelectedYourNode(selected);
     setYourNodeModalOpen(true);
@@ -329,7 +329,7 @@ Config panels follow this standard structure:
 ```typescript
 /**
  * Configuration Panel for YourNode
- * 
+ *
  * Description of what this panel configures.
  */
 import React, { useState } from 'react';
@@ -465,11 +465,11 @@ const [errors, setErrors] = useState<Record<string, string>>({});
 
 const validate = () => {
   const newErrors: Record<string, string> = {};
-  
+
   if (!formData.label) {
     newErrors.label = 'Label is required';
   }
-  
+
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
 };
@@ -589,15 +589,15 @@ Test node selection and configuration flow:
 describe('Node Configuration Flow', () => {
   it('opens config panel when node is clicked', async () => {
     const { getByText } = render(<UnifiedFlowEditor />);
-    
+
     // Add node
     const trigger = getByText('Form Submission');
     fireEvent.drag(trigger, { clientX: 200, clientY: 200 });
-    
+
     // Click node
     const node = getByText('Form Submission');
     fireEvent.click(node);
-    
+
     // Config panel should open
     await waitFor(() => {
       expect(getByText('Configure Trigger')).toBeInTheDocument();
@@ -669,7 +669,7 @@ Show/hide sections based on conditions:
   <ConditionBuilder
     conditions={formData.visibility.conditions || []}
     logic={formData.visibility.logic || 'and'}
-    onChange={(conditions, logic) => 
+    onChange={(conditions, logic) =>
       handleUpdate({
         visibility: { mode: 'conditional', conditions, logic }
       })
@@ -823,15 +823,15 @@ const FormBuilder = lazy(() => import('./FormBuilder/FormBuilder'));
 
 ---
 
-**Last Updated**: 2026-05-07  
-**Version**: 3.0  
+**Last Updated**: 2026-05-07
+**Version**: 3.0
 **Maintained By**: ProjectMeats Development Team
 
 ---
 
 ## Phase 18 — RT-09: Analytics Telemetry Event Standards
 
-> **Canonical reference:** `MASTER_PLAN.md` → Phase 18 / Epic RT-09  
+> **Canonical reference:** `MASTER_PLAN.md` → Phase 18 / Epic RT-09
 > All Workform nodes and process services MUST emit telemetry events conforming to these standards for the analytics dashboard to aggregate correctly.
 
 ### Event Schema (Required Fields)

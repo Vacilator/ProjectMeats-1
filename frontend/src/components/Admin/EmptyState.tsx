@@ -1,9 +1,9 @@
 /**
  * Empty State Component
- * 
+ *
  * Displays an empty state with icon, message, and optional call-to-action.
  * Used across admin pages when no data is available.
- * 
+ *
  * Usage:
  * ```tsx
  * <EmptyState

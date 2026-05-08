@@ -33,16 +33,18 @@ class ApprovalGateEvaluationTest(SimpleTestCase):
 
     def test_margin_threshold_pass(self):
         """Margin above threshold triggers auto-approve."""
-        config = ApprovalGateConfig(rules=[
-            ApprovalRule(
-                rule_type=ApprovalRuleType.MARGIN_THRESHOLD,
-                threshold=Decimal("15"),
-                operator="gte",
-                context_field="margin_percent",
-                auto_approve_on_pass=True,
-                description="Margin >= 15%",
-            ),
-        ])
+        config = ApprovalGateConfig(
+            rules=[
+                ApprovalRule(
+                    rule_type=ApprovalRuleType.MARGIN_THRESHOLD,
+                    threshold=Decimal("15"),
+                    operator="gte",
+                    context_field="margin_percent",
+                    auto_approve_on_pass=True,
+                    description="Margin >= 15%",
+                ),
+            ]
+        )
         result = evaluate_approval_gate(
             gate_id="gate-002",
             config=config,
@@ -54,16 +56,18 @@ class ApprovalGateEvaluationTest(SimpleTestCase):
 
     def test_margin_threshold_fail(self):
         """Margin below threshold requires manual approval."""
-        config = ApprovalGateConfig(rules=[
-            ApprovalRule(
-                rule_type=ApprovalRuleType.MARGIN_THRESHOLD,
-                threshold=Decimal("15"),
-                operator="gte",
-                context_field="margin_percent",
-                auto_approve_on_pass=True,
-                description="Margin >= 15%",
-            ),
-        ])
+        config = ApprovalGateConfig(
+            rules=[
+                ApprovalRule(
+                    rule_type=ApprovalRuleType.MARGIN_THRESHOLD,
+                    threshold=Decimal("15"),
+                    operator="gte",
+                    context_field="margin_percent",
+                    auto_approve_on_pass=True,
+                    description="Margin >= 15%",
+                ),
+            ]
+        )
         result = evaluate_approval_gate(
             gate_id="gate-003",
             config=config,
@@ -75,16 +79,18 @@ class ApprovalGateEvaluationTest(SimpleTestCase):
 
     def test_credit_limit_check(self):
         """Order above credit limit requires approval."""
-        config = ApprovalGateConfig(rules=[
-            ApprovalRule(
-                rule_type=ApprovalRuleType.CREDIT_LIMIT,
-                threshold=Decimal("50000"),
-                operator="lt",
-                context_field="order_total",
-                auto_approve_on_pass=True,
-                description="Order < $50k credit limit",
-            ),
-        ])
+        config = ApprovalGateConfig(
+            rules=[
+                ApprovalRule(
+                    rule_type=ApprovalRuleType.CREDIT_LIMIT,
+                    threshold=Decimal("50000"),
+                    operator="lt",
+                    context_field="order_total",
+                    auto_approve_on_pass=True,
+                    description="Order < $50k credit limit",
+                ),
+            ]
+        )
         # Under limit - auto-approve
         result = evaluate_approval_gate(
             gate_id="gate-004",
@@ -103,15 +109,17 @@ class ApprovalGateEvaluationTest(SimpleTestCase):
 
     def test_missing_context_field_fails_safe(self):
         """If context field is missing, rule fails (requires approval)."""
-        config = ApprovalGateConfig(rules=[
-            ApprovalRule(
-                rule_type=ApprovalRuleType.ORDER_AMOUNT,
-                threshold=Decimal("100000"),
-                operator="lt",
-                context_field="order_total",
-                auto_approve_on_pass=True,
-            ),
-        ])
+        config = ApprovalGateConfig(
+            rules=[
+                ApprovalRule(
+                    rule_type=ApprovalRuleType.ORDER_AMOUNT,
+                    threshold=Decimal("100000"),
+                    operator="lt",
+                    context_field="order_total",
+                    auto_approve_on_pass=True,
+                ),
+            ]
+        )
         result = evaluate_approval_gate(
             gate_id="gate-006",
             config=config,
@@ -121,22 +129,24 @@ class ApprovalGateEvaluationTest(SimpleTestCase):
 
     def test_multiple_rules_all_must_pass(self):
         """All auto-approve rules must pass for auto-approval."""
-        config = ApprovalGateConfig(rules=[
-            ApprovalRule(
-                rule_type=ApprovalRuleType.MARGIN_THRESHOLD,
-                threshold=Decimal("10"),
-                operator="gte",
-                context_field="margin_percent",
-                auto_approve_on_pass=True,
-            ),
-            ApprovalRule(
-                rule_type=ApprovalRuleType.ORDER_AMOUNT,
-                threshold=Decimal("100000"),
-                operator="lt",
-                context_field="order_total",
-                auto_approve_on_pass=True,
-            ),
-        ])
+        config = ApprovalGateConfig(
+            rules=[
+                ApprovalRule(
+                    rule_type=ApprovalRuleType.MARGIN_THRESHOLD,
+                    threshold=Decimal("10"),
+                    operator="gte",
+                    context_field="margin_percent",
+                    auto_approve_on_pass=True,
+                ),
+                ApprovalRule(
+                    rule_type=ApprovalRuleType.ORDER_AMOUNT,
+                    threshold=Decimal("100000"),
+                    operator="lt",
+                    context_field="order_total",
+                    auto_approve_on_pass=True,
+                ),
+            ]
+        )
         # Both pass
         result = evaluate_approval_gate(
             gate_id="gate-007",
@@ -156,13 +166,15 @@ class ApprovalGateEvaluationTest(SimpleTestCase):
 
     def test_custom_rule_always_requires_manual(self):
         """Custom rules always require manual approval."""
-        config = ApprovalGateConfig(rules=[
-            ApprovalRule(
-                rule_type=ApprovalRuleType.CUSTOM,
-                auto_approve_on_pass=True,
-                description="Management sign-off required",
-            ),
-        ])
+        config = ApprovalGateConfig(
+            rules=[
+                ApprovalRule(
+                    rule_type=ApprovalRuleType.CUSTOM,
+                    auto_approve_on_pass=True,
+                    description="Management sign-off required",
+                ),
+            ]
+        )
         result = evaluate_approval_gate(
             gate_id="gate-009",
             config=config,

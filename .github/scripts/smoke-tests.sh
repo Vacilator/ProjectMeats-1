@@ -34,20 +34,20 @@ http_check() {
     local url=$1
     local expected_status=${2:-200}
     local retries=0
-    
+
     while [ $retries -lt $MAX_RETRIES ]; do
         local status=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
-        
+
         if [ "$status" = "$expected_status" ]; then
             return 0
         fi
-        
+
         retries=$((retries + 1))
         if [ $retries -lt $MAX_RETRIES ]; then
             sleep $RETRY_DELAY
         fi
     done
-    
+
     return 1
 }
 
@@ -57,11 +57,11 @@ run_test() {
     local url=$2
     local expected_status=${3:-200}
     local timeout=${4:-10}
-    
+
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     echo -e "\n${BLUE}Test $TOTAL_TESTS: $test_name${NC}"
     echo "URL: $url"
-    
+
     if http_check "$url" "$expected_status"; then
         echo -e "${GREEN}✓ PASSED${NC}"
         PASSED_TESTS=$((PASSED_TESTS + 1))
@@ -120,7 +120,7 @@ fi
 if [[ "$BASE_URL" == https://* ]]; then
     echo -e "\n${BLUE}Test $((TOTAL_TESTS + 1)): SSL/TLS Certificate${NC}"
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    
+
     if curl -s --max-time 5 "$BASE_URL" >/dev/null 2>&1; then
         echo -e "${GREEN}✓ PASSED (valid SSL certificate)${NC}"
         PASSED_TESTS=$((PASSED_TESTS + 1))
@@ -152,7 +152,7 @@ fi
 # if command -v docker &> /dev/null && docker ps &>/dev/null 2>&1; then
 #     echo -e "\n${BLUE}Test $((TOTAL_TESTS + 1)): Container Health${NC}"
 #     TOTAL_TESTS=$((TOTAL_TESTS + 1))
-#     
+#
 #     unhealthy=0
 #     for container in pm-frontend pm-backend; do
 #         if docker ps --filter "name=$container" --format "{{.Status}}" | grep -q "Up"; then
@@ -162,7 +162,7 @@ fi
 #             unhealthy=$((unhealthy + 1))
 #         fi
 #     done
-#     
+#
 #     if [ $unhealthy -eq 0 ]; then
 #         PASSED_TESTS=$((PASSED_TESTS + 1))
 #     else

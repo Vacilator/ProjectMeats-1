@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cockpit", "0002_alter_activitylog_content_type_and_more"),
     ]

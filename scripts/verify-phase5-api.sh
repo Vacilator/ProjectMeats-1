@@ -178,8 +178,8 @@ else:
 from django.db import connection
 with connection.cursor() as cursor:
     cursor.execute("""
-        SELECT table_name 
-        FROM information_schema.tables 
+        SELECT table_name
+        FROM information_schema.tables
         WHERE table_name = 'workflows_workflowexecution'
     """)
     if cursor.fetchone():

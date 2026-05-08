@@ -1,14 +1,14 @@
 /**
  * Quick Actions Widget
- * 
+ *
  * Provides one-click shortcuts to common actions.
  * Configurable based on user role and preferences.
- * 
+ *
  * Features:
  * - Frequently used actions
  * - Keyboard shortcut hints
  * - Role-based action visibility
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */
@@ -169,7 +169,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
   customActions,
 }) => {
   const navigate = useNavigate();
-  
+
   const actions = customActions || defaultActions;
 
   const handleAction = (action: QuickAction) => {
@@ -195,7 +195,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
     >
       <ActionsGrid>
         {actions.map(action => (
-          <ActionButton 
+          <ActionButton
             key={action.id}
             $colorVar={action.colorVar}
             onClick={() => handleAction(action)}

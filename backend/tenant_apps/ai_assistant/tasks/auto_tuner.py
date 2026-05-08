@@ -12,17 +12,18 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from celery import shared_task
 from django.conf import settings
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='ai_assistant.orchestrate_rlhf_finetuning')
+@shared_task(name="ai_assistant.orchestrate_rlhf_finetuning")
 def orchestrate_rlhf_finetuning(
     *,
     jsonl_path: str,
-    suffix: str = 'pm-rlhf',
+    suffix: str = "pm-rlhf",
 ) -> Dict[str, Any]:
     """Orchestrate RLHF fine-tuning and pivot the active model.
 
@@ -34,9 +35,9 @@ def orchestrate_rlhf_finetuning(
         Dict with status and (when successful) the new fine-tuned model id.
     """
 
-    openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
+    openai_api_key = getattr(settings, "OPENAI_API_KEY", None)
     if not openai_api_key:
-        return {'status': 'skipped', 'error': 'OPENAI_API_KEY not configured'}
+        return {"status": "skipped", "error": "OPENAI_API_KEY not configured"}
 
     new_fine_tuned_model_id: Optional[str] = None
 
@@ -45,7 +46,7 @@ def orchestrate_rlhf_finetuning(
 
         OpenAI(
             api_key=openai_api_key,
-            organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
+            organization=getattr(settings, "OPENAI_ORG_ID", None) or None,
         )
 
         # NOTE: The exact fine-tuning API wiring is environment-dependent and
@@ -58,23 +59,21 @@ def orchestrate_rlhf_finetuning(
         # 3) poll until job.status == 'succeeded'
         # 4) new_fine_tuned_model_id = job.fine_tuned_model
 
-        raise NotImplementedError('Fine-tuning orchestration not yet wired')
+        raise NotImplementedError("Fine-tuning orchestration not yet wired")
 
     except NotImplementedError as e:
-        logger.info('[AutoTuner] %s', str(e))
-        return {'status': 'scaffold', 'detail': str(e)}
+        logger.info("[AutoTuner] %s", str(e))
+        return {"status": "scaffold", "detail": str(e)}
 
     except Exception as e:
-        logger.warning('[AutoTuner] Fine-tune orchestration failed: %s', str(e), exc_info=True)
-        return {'status': 'error', 'error': str(e)}
+        logger.warning("[AutoTuner] Fine-tune orchestration failed: %s", str(e), exc_info=True)
+        return {"status": "error", "error": str(e)}
 
     if not new_fine_tuned_model_id:
-        return {'status': 'error', 'error': 'Fine-tune completed but no model id returned'}
+        return {"status": "error", "error": "Fine-tune completed but no model id returned"}
 
     from apps.system.models import SystemConfiguration
 
-    SystemConfiguration.objects.update_or_create(
-        defaults={"active_openai_model_id": new_fine_tuned_model_id}
-    )
+    SystemConfiguration.objects.update_or_create(defaults={"active_openai_model_id": new_fine_tuned_model_id})
 
-    return {'status': 'ok', 'active_openai_model_id': new_fine_tuned_model_id}
+    return {"status": "ok", "active_openai_model_id": new_fine_tuned_model_id}

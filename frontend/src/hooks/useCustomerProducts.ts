@@ -1,10 +1,10 @@
 /**
  * useCustomerProducts Hook
- * 
+ *
  * Fetches and manages products based on customer preferences.
  * Auto-populates products filtered by customer's preferred_protein_types.
  * Supports manual selection as fallback.
- * 
+ *
  * Usage:
  *   const {
  *     products,

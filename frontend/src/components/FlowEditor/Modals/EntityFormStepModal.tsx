@@ -1,9 +1,9 @@
 /**
  * EntityFormStepModal Component
- * 
+ *
  * Full-screen wizard modal for creating/editing entity-driven form steps.
  * Integrates FormSelectionPanel, EntityFieldPicker, and FieldConfigurationPanel.
- * 
+ *
  * Phase 3 - WorkForms Enhancement Project (WF-ENH-2026-Q1)
  */
 

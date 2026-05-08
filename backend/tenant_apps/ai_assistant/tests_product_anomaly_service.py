@@ -6,6 +6,14 @@ from decimal import Decimal
 from django.test import TestCase
 from django.utils import timezone
 
+from tenant_apps.ai_assistant.services.product_anomaly_baseline import (
+    build_product_baseline,
+    evaluate_product_submission,
+)
+from tenant_apps.invoices.models import Invoice, InvoiceStatus
+from tenant_apps.purchase_orders.models import PurchaseOrderStatus
+from tenant_apps.sales_orders.models import SalesOrderStatus
+
 from apps.core.models import WeightUnitChoices
 from apps.core.tests.factories import (
     CustomerFactory,
@@ -15,13 +23,6 @@ from apps.core.tests.factories import (
     TenantFactory,
 )
 from apps.system.models.product import Product
-from tenant_apps.ai_assistant.services.product_anomaly_baseline import (
-    build_product_baseline,
-    evaluate_product_submission,
-)
-from tenant_apps.invoices.models import Invoice, InvoiceStatus
-from tenant_apps.purchase_orders.models import PurchaseOrderStatus
-from tenant_apps.sales_orders.models import SalesOrderStatus
 
 
 class ProductAnomalyBaselineServiceTests(TestCase):

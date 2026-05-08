@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("system", "0006_add_tenant_form_and_workform_models"),
         ("tenants", "0010_add_tenant_configuration"),

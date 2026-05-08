@@ -1,9 +1,9 @@
 /**
  * Field Transformation Functions
- * 
+ *
  * Provides data transformation utilities for field mappings.
  * Supports common transformations: case conversion, trimming, formatting, calculations.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 4 - Smart Algorithms
  */

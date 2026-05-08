@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("locations", "0006_update_order_plant_references"),
         ("tenants", "0010_add_tenant_configuration"),
@@ -36,7 +35,7 @@ class Migration(migrations.Migration):
             DROP POLICY IF EXISTS location_tenant_isolation ON locations_location;
             CREATE POLICY location_tenant_isolation ON locations_location
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             DROP POLICY IF EXISTS location_tenant_insert ON locations_location;
             CREATE POLICY location_tenant_insert ON locations_location
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
@@ -46,6 +45,6 @@ class Migration(migrations.Migration):
             DROP POLICY IF EXISTS location_tenant_isolation ON locations_location;
             DROP POLICY IF EXISTS location_tenant_insert ON locations_location;
             ALTER TABLE locations_location DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

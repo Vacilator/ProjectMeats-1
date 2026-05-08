@@ -1,14 +1,14 @@
 /**
  * Form Process Node Component (formerly Form Multi-Step Container)
- * 
+ *
  * REFACTORED: Single ReactFlow Architecture (Option A)
  * - No nested MiniReactFlow (removed)
  * - Acts as a React Flow 'group' node
  * - Children render in main ReactFlow with parentId
  * - Expand/collapse controls child visibility via hidden property
- * 
+ *
  * Based on: https://reactflow.dev/examples/grouping/sub-flows
- * 
+ *
  * Created: 2026-02-06
  * Refactored: 2026-02-12 - Single ReactFlow architecture
  * Renamed: 2026-02-14 - Phase 2: FormMultiStepContainer → FormProcess
@@ -36,20 +36,20 @@ export interface ContainerNodeData extends BaseNodeData {
   allowSkipSteps?: boolean;
   tenantFormId?: string;
   tenantWorkFormId?: string;
-  
+
   // Callbacks for parent communication
   onEnterContainer?: (containerId: string) => void;
-  
+
   // Statistics
   nodeCount?: number;
   nodeTypeBreakdown?: Record<string, number>;
   formReferences?: string[];
-  
+
   // Phase 1.2: Drop target indicator
   isDropTarget?: boolean;
 }
 
-export interface FormProcessNodeProps extends NodeProps<Node<ContainerNodeData>> {  
+export interface FormProcessNodeProps extends NodeProps<Node<ContainerNodeData>> {
   // REFACTORED: No longer need drop handlers (handled by main ReactFlow)
   // No longer need allNodes/allEdges props (use hooks directly)
 }
@@ -63,35 +63,35 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   min-width: ${props => props.isExpanded ? '800px' : '320px'};
   min-height: ${props => props.isExpanded ? '500px' : 'auto'};
   max-width: ${props => props.isExpanded ? 'none' : '400px'};
-  
+
   /* Phase B: Visual containment for sub-flows pattern */
   /* Keep background opaque so the container is not transparent on the canvas */
   background: rgb(var(--color-surface));
-  
+
   /* FIX: Ensure border always renders, even when collapsed */
   border-width: 2px;
   border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
-  border-color: ${props => props.isExpanded 
-    ? 'rgba(var(--color-primary), 0.4)' 
+  border-color: ${props => props.isExpanded
+    ? 'rgba(var(--color-primary), 0.4)'
     : 'rgba(var(--color-primary), 0.6)'};
-  
+
   border-radius: 12px;
-  box-shadow: 
+  box-shadow:
     0 4px 12px rgba(var(--color-overlay), 0.12),
     0 0 0 4px rgba(var(--color-primary), 0.15);
-  
+
   /* FIX: Smooth transition but preserve border */
-  transition: 
+  transition:
     min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     min-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     border-style 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   position: relative;
   overflow: visible; /* Allow child nodes to render inside visually */
   padding: ${props => props.isExpanded ? '0' : '0'}; /* Padding handled by body */
-  
+
   /* Phase B: Group indicator when expanded */
   ${props => props.isExpanded && `
     &::after {
@@ -107,26 +107,26 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
       pointer-events: none;
     }
   `}
-  
+
   &:hover {
-    box-shadow: 
+    box-shadow:
       0 6px 16px rgba(var(--color-overlay), 0.18),
       0 0 0 4px rgba(var(--color-primary), 0.25);
   }
-  
+
   &.selected {
-    border-color: ${props => props.isExpanded 
-      ? 'rgba(var(--color-primary), 0.6)' 
+    border-color: ${props => props.isExpanded
+      ? 'rgba(var(--color-primary), 0.6)'
       : 'rgb(var(--color-primary))'};
-    box-shadow: 
+    box-shadow:
       0 8px 20px rgba(var(--color-overlay), 0.25),
       0 0 0 4px rgba(var(--color-primary), 0.4);
   }
-  
+
   &.drag-over {
     border-color: rgb(var(--color-success));
     border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
-    box-shadow: 
+    box-shadow:
       0 8px 20px rgba(var(--color-success), 0.3),
       0 0 0 4px rgba(var(--color-success), 0.4);
     background: rgba(var(--color-success), 0.08);
@@ -146,7 +146,7 @@ const ContainerHeader = styled.div`
   user-select: none;
   color: rgb(var(--color-text-inverse));
   overflow: hidden; /* Contain header styling within rounded corners */
-  
+
   &:hover {
     background: rgb(var(--color-primary-hover));
   }
@@ -180,7 +180,7 @@ const ContainerIcon = styled.div`
 
 const ContainerTitle = styled.div`
   flex: 1;
-  
+
   h3 {
     margin: 0;
     font-size: 15px;
@@ -188,7 +188,7 @@ const ContainerTitle = styled.div`
     color: rgba(var(--color-header-background), 0.98);
     line-height: 1.3;
   }
-  
+
   p {
     margin: 4px 0 0;
     font-size: 12px;
@@ -204,8 +204,8 @@ const StatusBadge = styled.div<{ type: 'configured' | 'draft' }>`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background: ${props => props.type === 'configured' 
-    ? 'rgba(var(--color-header-background), 0.3)' 
+  background: ${props => props.type === 'configured'
+    ? 'rgba(var(--color-header-background), 0.3)'
     : 'rgba(var(--color-header-background), 0.2)'};
   color: rgb(var(--color-text-inverse));
 `;
@@ -217,7 +217,7 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
   min-width: 300px;
   position: relative;
   overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
-  
+
 `;
 
 /* Phase B: Visual area for child nodes */
@@ -232,7 +232,7 @@ const ChildNodesArea = styled.div`
   justify-content: center;
   margin-top: 16px;
   padding: 24px;
-  
+
   &:empty::before {
     content: 'Drag nodes here to add steps to this form process';
     color: rgba(var(--color-primary), 0.4);
@@ -254,12 +254,12 @@ const SummaryRow = styled.div`
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
-  
+
   .label {
     color: rgb(var(--color-text-secondary));
     font-weight: 500;
   }
-  
+
   .value {
     color: rgb(var(--color-text-primary));
     font-weight: 600;
@@ -278,14 +278,14 @@ const NodeTypeCard = styled.div`
   background: rgba(var(--color-background-tertiary), 0.5);
   border-radius: 6px;
   border: 1px solid rgba(var(--color-border), 0.3);
-  
+
   .type-name {
     font-size: 11px;
     color: rgb(var(--color-text-secondary));
     text-transform: capitalize;
     margin-bottom: 4px;
   }
-  
+
   .type-count {
     font-size: 18px;
     font-weight: 700;
@@ -298,18 +298,18 @@ const EmptyState = styled.div`
   padding: 24px 16px;
   color: rgb(var(--color-text-secondary));
   pointer-events: auto;
-  
+
   .icon {
     font-size: 32px;
     margin-bottom: 8px;
     opacity: 0.5;
   }
-  
+
   .message {
     font-size: 13px;
     line-height: 1.5;
   }
-  
+
   .drop-hint {
     margin-top: 12px;
     padding: 8px 12px;
@@ -335,13 +335,13 @@ const ConfigButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  z-index: 20; 
-  
+  z-index: 20;
+
   &:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
   }
-  
+
   &:active {
     transform: translateY(0);
   }
@@ -392,7 +392,7 @@ const StepItem = styled.div`
   border: 1px solid rgba(var(--color-primary), 0.2);
   font-size: 12px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.08);
     border-color: rgba(var(--color-primary), 0.3);
@@ -417,12 +417,12 @@ const StepNodeInfo = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
-  
+
   .node-label {
     font-weight: 500;
     color: rgb(var(--color-text-primary));
   }
-  
+
   .node-type {
     font-size: 10px;
     color: rgb(var(--color-text-secondary));
@@ -447,18 +447,18 @@ const EnterButton = styled.button`
   gap: 8px;
   transition: all 0.2s ease;
   position: relative;
-  z-index: 20; 
-  
+  z-index: 20;
+
   &:hover {
     background: rgba(var(--color-info), 0.25);
     border-color: rgba(var(--color-info), 0.5);
     transform: translateY(-1px);
   }
-  
+
   &:active {
     transform: translateY(0);
   }
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -471,7 +471,7 @@ const EnterButton = styled.button`
 
 /**
  * Form Process Node Component
- * 
+ *
  * REFACTORED: Single ReactFlow Architecture (Option A)
  * - Acts as a React Flow 'group' node (no nested ReactFlow)
  * - Children render in main ReactFlow with parentId set to this node's id
@@ -487,12 +487,12 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
-  
+
   // Use hooks to access all nodes/edges
   const allNodes = useNodes();
   const allEdges = useEdges();
   const { setNodes } = useReactFlow();
-  
+
   const nodeDef =
     getNodeTypeDefinition('formProcess') ??
     ({
@@ -505,22 +505,22 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
       maxInputs: 1,
       maxOutputs: 1,
     } as any);
-  
+
   // Calculate statistics from child nodes
   const stats = useMemo(() => {
     // Query child nodes via parentId property (React Flow v12 pattern)
     const childNodes = allNodes.filter(node => node.parentId === id);
-    
+
     // Query edges between child nodes
     const childNodeIds = new Set(childNodes.map(n => n.id));
-    const childEdges = allEdges.filter(edge => 
+    const childEdges = allEdges.filter(edge =>
       childNodeIds.has(edge.source) && childNodeIds.has(edge.target)
     );
-    
+
     const nodeCount = childNodes.length;
     const nodeTypes: Record<string, number> = {};
     const formRefs = new Set<string>();
-    
+
     childNodes.forEach(node => {
       const nodeType = node.type || 'unknown';
       nodeTypes[nodeType] = (nodeTypes[nodeType] || 0) + 1;
@@ -531,10 +531,10 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
         formRefs.add(tenantFormId);
       }
     });
-    
+
     // Phase B.1: Calculate step ordering
     const stepOrder = calculateStepOrder(id, allNodes, allEdges);
-    
+
     return {
       nodeCount,
       nodeTypes,
@@ -545,30 +545,30 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
       stepOrder, // Phase B.1: Map of node ID to step number
     };
   }, [id, allNodes, allEdges]);
-  
+
   const isConfigured = data.configured || stats.hasNodes;
-  
+
   // Handle collapsing/expanding - toggle child node visibility
   const handleHeaderClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
-    
+
     // Toggle visibility of child nodes using React Flow's hidden property
-    setNodes(currentNodes => 
-      currentNodes.map(node => 
+    setNodes(currentNodes =>
+      currentNodes.map(node =>
         node.parentId === id
           ? { ...node, hidden: !newExpandedState } // Hide if collapsed, show if expanded
           : node
       )
     );
   };
-  
+
   const handleConfigClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     // This will be handled by UnifiedFlowEditor's onNodeClick handler
   };
-  
+
   const handleEnterContainer = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -583,10 +583,10 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   const handleTitleChange =
     ((data as any).onTitleChange as ((newTitle: string) => void) | undefined) ??
     ((newTitle: string) => nodeActions.changeNodeTitle(id, newTitle));
-  
+
   // Get node type statistics for display
   const nodeTypeEntries = Object.entries(stats.nodeTypes).sort((a, b) => b[1] - a[1]);
-  
+
   return (
     <>
       <NodeToolbar isVisible={!!selected} position={Position.Top}>
@@ -642,7 +642,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
       </NodeToolbar>
 
       {/* Container custom UI */}
-      <ContainerWrapper 
+      <ContainerWrapper
           isExpanded={isExpanded}
           className={`pm-node ${selected ? 'selected is-selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
         >
@@ -662,11 +662,11 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
             >
               {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
             </ExpandIcon>
-            
+
             <ContainerIcon>
               {nodeDef.icon}
             </ContainerIcon>
-            
+
             <ContainerTitle>
               {isEditingTitle ? (
                 <input
@@ -715,12 +715,12 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                 <p>{data.containerDescription}</p>
               )}
             </ContainerTitle>
-            
+
             <StatusBadge type={isConfigured ? 'configured' : 'draft'}>
               {isConfigured ? 'Active' : 'Draft'}
             </StatusBadge>
           </ContainerHeader>
-          
+
           {/* Container Body - Show statistics and controls */}
           <ContainerBody isExpanded={isExpanded}>
             {isExpanded ? (
@@ -730,20 +730,20 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                     <span className="label">Total Nodes:</span>
                     <span className="value">{stats.nodeCount}</span>
                   </SummaryRow>
-                  
+
                   {stats.formRefs > 0 && (
                     <SummaryRow>
                       <span className="label">Form References:</span>
                       <span className="value">{stats.formRefs}</span>
                     </SummaryRow>
                   )}
-                  
+
                   {nodeTypeEntries.length > 0 && (
                     <div style={{ marginTop: '12px' }}>
                       <span style={{ fontSize: '11px', opacity: 0.7 }}>Node Types:</span>
                       {nodeTypeEntries.slice(0, 3).map(([type, count]) => (
-                        <div key={type} style={{ 
-                          fontSize: '11px', 
+                        <div key={type} style={{
+                          fontSize: '11px',
                           marginTop: '4px',
                           display: 'flex',
                           justifyContent: 'space-between',
@@ -754,12 +754,12 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                       ))}
                     </div>
                   )}
-                  
+
                   {/* Phase B.1: Step Order List */}
                   {stats.hasNodes && stats.stepOrder.size > 0 && (
                     <StepList>
-                      <div style={{ 
-                        fontSize: '11px', 
+                      <div style={{
+                        fontSize: '11px',
                         opacity: 0.7,
                         marginBottom: '4px',
                         fontWeight: 600,
@@ -772,7 +772,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                         .map(([nodeId, stepNum]) => {
                           const childNode = stats.childNodes.find(n => n.id === nodeId);
                           if (!childNode) return null;
-                          
+
                           return (
                             <StepItem key={nodeId}>
                               <StepNumber>{stepNum}</StepNumber>
@@ -788,8 +788,8 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                           );
                         })}
                       {stats.stepOrder.size > 5 && (
-                        <div style={{ 
-                          fontSize: '11px', 
+                        <div style={{
+                          fontSize: '11px',
                           color: 'rgba(var(--color-primary), 0.6)',
                           textAlign: 'center',
                           marginTop: '4px',
@@ -799,7 +799,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                       )}
                     </StepList>
                   )}
-                  
+
                   {stats.hasNodes ? (
                     <div style={{
                       marginTop: '12px',
@@ -823,7 +823,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                       </div>
                     </EmptyState>
                   )}
-                  
+
                   <ConfigButton onClick={handleConfigClick} style={{ marginTop: '12px' }}>
                     Configure Container
                   </ConfigButton>

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import uuid
 
-from asgiref.sync import async_to_sync
-from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase, override_settings
+
+from asgiref.sync import async_to_sync
+from channels.testing import WebsocketCommunicator
 from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.system.models import TenantWorkForm
@@ -24,21 +25,21 @@ class CollaborationWebsocketSecurityTests(TransactionTestCase):
         unique = uuid.uuid4().hex[:8]
         User = get_user_model()
 
-        self.user = User.objects.create_user(username=f'u-{unique}', password='pw')
+        self.user = User.objects.create_user(username=f"u-{unique}", password="pw")
         self.tenant = Tenant.objects.create(
-            name=f'Tenant {unique}',
-            slug=f'tenant-{unique}',
-            contact_email=f'{unique}@example.com',
+            name=f"Tenant {unique}",
+            slug=f"tenant-{unique}",
+            contact_email=f"{unique}@example.com",
             is_active=True,
         )
-        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='admin', is_active=True)
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="admin", is_active=True)
 
         self.workform = TenantWorkForm.objects.create(
             tenant=self.tenant,
-            name='WF',
-            description='',
-            status='draft',
-            workflow_definition={'nodes': [], 'edges': []},
+            name="WF",
+            description="",
+            status="draft",
+            workflow_definition={"nodes": [], "edges": []},
             created_by=self.user,
             updated_by=self.user,
         )
@@ -46,16 +47,16 @@ class CollaborationWebsocketSecurityTests(TransactionTestCase):
     def _communicator(self, *, access_token: str | None, tenant_id: str | None, workflow_id: str):
         params = []
         if tenant_id is not None:
-            params.append(f'tenant_id={tenant_id}')
+            params.append(f"tenant_id={tenant_id}")
         if access_token is not None:
-            params.append(f'access_token={access_token}')
-        qs = ('?' + '&'.join(params)) if params else ''
+            params.append(f"access_token={access_token}")
+        qs = ("?" + "&".join(params)) if params else ""
 
-        path = f'/ws/workflows/{workflow_id}/collab/{qs}'
+        path = f"/ws/workflows/{workflow_id}/collab/{qs}"
         return WebsocketCommunicator(
             application,
             path,
-            headers=[(b'host', b'testserver'), (b'origin', b'http://testserver')],
+            headers=[(b"host", b"testserver"), (b"origin", b"http://testserver")],
         )
 
     def test_rejects_anonymous(self):
@@ -81,9 +82,9 @@ class CollaborationWebsocketSecurityTests(TransactionTestCase):
 
     def test_rejects_authenticated_non_member_tenant(self):
         other = Tenant.objects.create(
-            name='Other',
-            slug=f'other-{uuid.uuid4().hex[:6]}',
-            contact_email='other@example.com',
+            name="Other",
+            slug=f"other-{uuid.uuid4().hex[:6]}",
+            contact_email="other@example.com",
             is_active=True,
         )
 
@@ -98,19 +99,19 @@ class CollaborationWebsocketSecurityTests(TransactionTestCase):
 
     def test_rejects_workflow_not_in_tenant(self):
         other = Tenant.objects.create(
-            name='Other',
-            slug=f'other-{uuid.uuid4().hex[:6]}',
-            contact_email='other@example.com',
+            name="Other",
+            slug=f"other-{uuid.uuid4().hex[:6]}",
+            contact_email="other@example.com",
             is_active=True,
         )
-        TenantUser.objects.create(tenant=other, user=self.user, role='admin', is_active=True)
+        TenantUser.objects.create(tenant=other, user=self.user, role="admin", is_active=True)
 
         other_workform = TenantWorkForm.objects.create(
             tenant=other,
-            name='Other WF',
-            description='',
-            status='draft',
-            workflow_definition={'nodes': [], 'edges': []},
+            name="Other WF",
+            description="",
+            status="draft",
+            workflow_definition={"nodes": [], "edges": []},
             created_by=self.user,
             updated_by=self.user,
         )
@@ -136,9 +137,9 @@ class CollaborationWebsocketSecurityTests(TransactionTestCase):
             self.assertTrue(connected)
 
             joined = await comm.receive_json_from(timeout=1)
-            self.assertEqual(joined.get('type'), 'presence.joined')
-            self.assertEqual(joined.get('tenant_id'), str(self.tenant.id))
-            self.assertEqual(joined.get('workflow_id'), str(self.workform.id))
+            self.assertEqual(joined.get("type"), "presence.joined")
+            self.assertEqual(joined.get("tenant_id"), str(self.tenant.id))
+            self.assertEqual(joined.get("workflow_id"), str(self.workform.id))
 
             await comm.disconnect()
 
@@ -146,18 +147,18 @@ class CollaborationWebsocketSecurityTests(TransactionTestCase):
 
     def test_broadcasts_only_within_same_tenant_and_workflow_group(self):
         other_tenant = Tenant.objects.create(
-            name='Other',
-            slug=f'other-{uuid.uuid4().hex[:6]}',
-            contact_email='other@example.com',
+            name="Other",
+            slug=f"other-{uuid.uuid4().hex[:6]}",
+            contact_email="other@example.com",
             is_active=True,
         )
-        TenantUser.objects.create(tenant=other_tenant, user=self.user, role='admin', is_active=True)
+        TenantUser.objects.create(tenant=other_tenant, user=self.user, role="admin", is_active=True)
         other_workform = TenantWorkForm.objects.create(
             tenant=other_tenant,
-            name='Other WF',
-            description='',
-            status='draft',
-            workflow_definition={'nodes': [], 'edges': []},
+            name="Other WF",
+            description="",
+            status="draft",
+            workflow_definition={"nodes": [], "edges": []},
             created_by=self.user,
             updated_by=self.user,
         )
@@ -191,14 +192,14 @@ class CollaborationWebsocketSecurityTests(TransactionTestCase):
             await primary_listener.receive_json_from(timeout=1)
             await isolated_listener.receive_json_from(timeout=1)
 
-            payload = {'type': 'cursor.move', 'node_id': 'node-1'}
+            payload = {"type": "cursor.move", "node_id": "node-1"}
             await primary_sender.send_json_to(payload)
 
             sender_echo = await primary_sender.receive_json_from(timeout=1)
             listener_message = await primary_listener.receive_json_from(timeout=1)
-            self.assertEqual(sender_echo.get('type'), 'collab.message')
-            self.assertEqual(listener_message.get('type'), 'collab.message')
-            self.assertEqual(listener_message.get('payload'), payload)
+            self.assertEqual(sender_echo.get("type"), "collab.message")
+            self.assertEqual(listener_message.get("type"), "collab.message")
+            self.assertEqual(listener_message.get("payload"), payload)
             self.assertTrue(await isolated_listener.receive_nothing(timeout=0.2))
 
             await primary_sender.disconnect()

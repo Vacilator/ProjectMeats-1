@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("sales_orders", "0008_alter_salesorder_our_sales_order_num_and_more"),
         ("tenants", "0006_metadata_lockdown"),

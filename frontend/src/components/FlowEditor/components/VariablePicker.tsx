@@ -1,9 +1,9 @@
 /**
  * Variable Picker Component
- * 
+ *
  * Reusable component for selecting variables from upstream nodes.
  * Features: Grouped display, search, type filtering, visual chips.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 5 - Smart Features
  */
@@ -71,12 +71,12 @@ const SearchInput = styled.input`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
@@ -90,7 +90,7 @@ const VariableList = styled.div`
 
 const NodeGroup = styled.div`
   margin-bottom: 16px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -107,7 +107,7 @@ const NodeHeader = styled.div`
   font-size: 13px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
-  
+
   svg {
     color: rgb(var(--color-text-secondary));
   }
@@ -116,23 +116,23 @@ const NodeHeader = styled.div`
 const VariableItem = styled.button<{ selected?: boolean }>`
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid ${props => props.selected 
-    ? 'rgb(var(--color-primary))' 
+  border: 1px solid ${props => props.selected
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: 6px;
-  background: ${props => props.selected 
-    ? 'rgba(var(--color-primary), 0.1)' 
+  background: ${props => props.selected
+    ? 'rgba(var(--color-primary), 0.1)'
     : 'rgb(var(--color-surface))'};
   margin-bottom: 6px;
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.05);
   }
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -230,16 +230,16 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
   maxHeight
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Filter variables
   const filteredVariables = useMemo(() => {
     let filtered = variables;
-    
+
     // Type filter
     if (typeFilter && typeFilter.length > 0) {
       filtered = filtered.filter(v => typeFilter.includes(v.type));
     }
-    
+
     // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -250,34 +250,34 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
         v.path.toLowerCase().includes(term)
       );
     }
-    
+
     return filtered;
   }, [variables, typeFilter, searchTerm]);
-  
+
   // Group by node
   const groupedVariables = useMemo(() => {
     const groups: Record<string, Variable[]> = {};
-    
+
     filteredVariables.forEach(variable => {
       if (!groups[variable.nodeId]) {
         groups[variable.nodeId] = [];
       }
       groups[variable.nodeId].push(variable);
     });
-    
+
     return groups;
   }, [filteredVariables]);
-  
+
   // Check if variable is selected
   const isSelected = (variable: Variable) => {
     return selectedVariables.some(v => v.id === variable.id);
   };
-  
+
   // Handle select
   const handleSelect = (variable: Variable) => {
     onSelect(variable);
   };
-  
+
   return (
     <Container maxHeight={maxHeight}>
       {showSearch && (
@@ -305,7 +305,7 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
           )}
         </SearchBox>
       )}
-      
+
       <VariableList>
         {Object.keys(groupedVariables).length === 0 ? (
           <EmptyState>
@@ -315,14 +315,14 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
           Object.entries(groupedVariables).map(([nodeId, vars]) => {
             const firstVar = vars[0];
             const Icon = getNodeIcon(firstVar.nodeType);
-            
+
             return (
               <NodeGroup key={nodeId}>
                 <NodeHeader>
                   <Icon size={14} />
                   {firstVar.nodeName}
                 </NodeHeader>
-                
+
                 {vars.map(variable => (
                   <VariableItem
                     key={variable.id}
@@ -333,13 +333,13 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
                       <VariableName>{variable.displayName}</VariableName>
                       <TypeBadge>{variable.type}</TypeBadge>
                     </VariableHeader>
-                    
+
                     <VariablePath>{variable.path}</VariablePath>
-                    
+
                     {variable.description && (
                       <VariableDescription>{variable.description}</VariableDescription>
                     )}
-                    
+
                     {variable.sampleValue !== undefined && (
                       <SampleValue>
                         Sample: {JSON.stringify(variable.sampleValue)}

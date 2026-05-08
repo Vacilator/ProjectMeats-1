@@ -49,7 +49,7 @@
     .action-submitted { background: #e8f5e9; color: #2e7d32; }
     .action-published { background: #f3e5f5; color: #7b1fa2; }
     .action-reverted_to_draft { background: #fce4ec; color: #c2185b; }
-    
+
     .version-meta {
         color: #666;
         font-size: 13px;
@@ -117,10 +117,10 @@
 <div id="content-main">
     <h1>📜 Version History: {{ schema.name }}</h1>
     <p style="color: #666; margin-bottom: 30px;">
-        Current version: <strong>v{{ schema.version }}</strong> | 
+        Current version: <strong>v{{ schema.version }}</strong> |
         Status: <strong>{{ schema.get_status_display }}</strong>
     </p>
-    
+
     {% if versions %}
         {% for version in versions %}
         <div class="version-card">
@@ -135,7 +135,7 @@
                     {{ version.created_at|date:"M d, Y H:i" }}
                 </div>
             </div>
-            
+
             <div class="version-meta">
                 {% if version.created_by %}
                     <strong>By:</strong> {{ version.created_by.username }}
@@ -143,26 +143,26 @@
                     <strong>By:</strong> System
                 {% endif %}
             </div>
-            
+
             {% if version.notes %}
             <div class="notes-box">
                 <strong>📝 Notes:</strong> {{ version.notes }}
             </div>
             {% endif %}
-            
+
             {% if version.snapshot_data.fields %}
             <div class="version-fields">
                 <h4>Fields ({{ version.snapshot_data.fields|length }})</h4>
                 {% for field in version.snapshot_data.fields %}
                 <span class="field-chip {% if field.is_visible %}visible{% else %}hidden{% endif %}">
                     {% if field.is_visible %}👁{% else %}🚫{% endif %}
-                    {{ field.label }} 
+                    {{ field.label }}
                     <small style="color: #999;">({{ field.field_type }})</small>
                 </span>
                 {% endfor %}
             </div>
             {% endif %}
-            
+
             <div style="margin-top: 15px;">
                 <span class="snapshot-toggle" onclick="toggleSnapshot('snapshot-{{ version.pk }}')">
                     📄 View Raw Snapshot Data
@@ -179,7 +179,7 @@
             <p>Versions are created when schemas are submitted or published.</p>
         </div>
     {% endif %}
-    
+
     <p style="margin-top: 30px;">
         <a href="{% url 'admin:schema_builder_dataschema_change' schema.pk %}" class="button">
             ← Back to {{ schema.name }}

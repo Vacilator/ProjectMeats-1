@@ -1,7 +1,7 @@
 # Blueprint Studio User Guide
 
-**Version**: 1.0  
-**Last Updated**: January 23, 2026  
+**Version**: 1.0
+**Last Updated**: January 23, 2026
 **Status**: Production Ready
 
 ---
@@ -740,25 +740,25 @@ See exactly what users will experience when filling out your workflow form.
 
 ## FAQ
 
-**Q: Can I delete a published workflow?**  
+**Q: Can I delete a published workflow?**
 A: No, but you can unpublish it (removes from catalog). Existing workflow runs continue.
 
-**Q: What happens to running workflows when I publish changes?**  
+**Q: What happens to running workflows when I publish changes?**
 A: Running workflows continue with their original version. Only new runs use the new version.
 
-**Q: Can I have multiple draft versions?**  
+**Q: Can I have multiple draft versions?**
 A: No, only one draft per blueprint. Publishing makes it active and creates space for new draft.
 
-**Q: How many fields can I add?**  
+**Q: How many fields can I add?**
 A: Technically unlimited, but recommend <20 for usability. Break complex forms into steps.
 
-**Q: Can I import/export workflows?**  
+**Q: Can I import/export workflows?**
 A: Not yet, but planned for future release. Currently manual recreation needed.
 
-**Q: Does rollback delete my current version?**  
+**Q: Does rollback delete my current version?**
 A: No! Rollback is non-destructive. It creates a new draft copy of the old version.
 
-**Q: Can users see draft workflows?**  
+**Q: Can users see draft workflows?**
 A: No, only published workflows appear in the catalog. Drafts are admin-only.
 
 ---
@@ -844,6 +844,6 @@ Step 6: Notification - Account activated email
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: January 23, 2026  
+**Document Version**: 1.0
+**Last Updated**: January 23, 2026
 **Feedback**: Submit via support@meatscentral.com

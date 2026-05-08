@@ -12,21 +12,10 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.serializers_documents import (
-    DocumentEmailRequestSerializer,
-    DocumentStatusTransitionSerializer,
-)
+from apps.core.serializers_documents import DocumentEmailRequestSerializer, DocumentStatusTransitionSerializer
 from apps.core.services.document_workflows import get_status_workflow_payload
-from apps.core.services.pdf_generator import (
-    email_document_pdf,
-    generate_document_pdf_for_instance,
-)
-from apps.core.utils.audit_context import (
-    AuditRequestContext,
-    clear_audit_context,
-    get_audit_context,
-    set_audit_context,
-)
+from apps.core.services.pdf_generator import email_document_pdf, generate_document_pdf_for_instance
+from apps.core.utils.audit_context import AuditRequestContext, clear_audit_context, get_audit_context, set_audit_context
 from apps.tenants.email_utils import classify_email_send_exception
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone as dt_timezone
+from datetime import date, datetime
+from datetime import timezone as dt_timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -8,17 +9,17 @@ from django.test import SimpleTestCase
 
 from apps.core.conversions import (
     CANONICAL_WEIGHT_BASE_UNIT,
-    DEFAULT_WEIGHT_QUANTUM,
     DEFAULT_RENDER_TIMEZONE,
+    DEFAULT_WEIGHT_QUANTUM,
     KG_TO_LBS_FACTOR,
     SUPPORTED_WEIGHT_UNITS,
     TRADE_ENGINE_SERVICE_VERSION,
     TRADE_INVARIANTS_CONTRACT_VERSION,
+    convert_weight,
+    ensure_utc,
     format_trade_date,
     format_trade_datetime,
     format_trade_weight,
-    convert_weight,
-    ensure_utc,
     normalize_temporal_for_export,
     normalize_weight_unit,
     render_in_timezone,
@@ -76,7 +77,10 @@ class TradeInvariantContractTests(SimpleTestCase):
         self.assertEqual(format_trade_datetime(instant), "2026-01-08 14:00 UTC")
 
     def test_format_trade_date_keeps_calendar_day_for_date_objects(self):
-        self.assertEqual(format_trade_date(datetime(2026, 1, 9, 1, 0, tzinfo=dt_timezone.utc), timezone_name="America/New_York"), "2026-01-08")
+        self.assertEqual(
+            format_trade_date(datetime(2026, 1, 9, 1, 0, tzinfo=dt_timezone.utc), timezone_name="America/New_York"),
+            "2026-01-08",
+        )
         self.assertEqual(format_trade_date(date(2026, 1, 9), timezone_name="America/New_York"), "2026-01-09")
 
     def test_normalize_temporal_for_export_uses_explicit_timezone(self):

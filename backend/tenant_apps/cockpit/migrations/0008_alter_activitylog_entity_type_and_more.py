@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cockpit", "0007_fix_cockpit_rls_policies_safe_current_setting"),
     ]

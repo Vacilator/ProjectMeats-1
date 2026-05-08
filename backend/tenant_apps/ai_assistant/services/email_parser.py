@@ -81,18 +81,15 @@ PRICE_PATTERNS = [
 # Date patterns: "deliver by Jan 15", "delivery date: 01/15/2026"
 DATE_PATTERNS = [
     re.compile(
-        r"(?:deliver(?:y)?\s+(?:by|date|on)[:\s]*)"
-        r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w+\s+\d{1,2}(?:,?\s*\d{4})?)",
+        r"(?:deliver(?:y)?\s+(?:by|date|on)[:\s]*)" r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w+\s+\d{1,2}(?:,?\s*\d{4})?)",
         re.IGNORECASE,
     ),
     re.compile(
-        r"(?:ship\s+(?:by|date|on)[:\s]*)"
-        r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w+\s+\d{1,2}(?:,?\s*\d{4})?)",
+        r"(?:ship\s+(?:by|date|on)[:\s]*)" r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w+\s+\d{1,2}(?:,?\s*\d{4})?)",
         re.IGNORECASE,
     ),
     re.compile(
-        r"(?:ETA|arrival|due\s+date)[:\s]*"
-        r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w+\s+\d{1,2}(?:,?\s*\d{4})?)",
+        r"(?:ETA|arrival|due\s+date)[:\s]*" r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w+\s+\d{1,2}(?:,?\s*\d{4})?)",
         re.IGNORECASE,
     ),
 ]
@@ -100,8 +97,7 @@ DATE_PATTERNS = [
 # Total amount patterns: "$250,000.00", "Total: $250,000", "Amount: USD 250000"
 TOTAL_AMOUNT_PATTERNS = [
     re.compile(
-        r"(?:total|amount|value|order\s+(?:total|value))[:\s]*\$?\s*"
-        r"(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:USD)?",
+        r"(?:total|amount|value|order\s+(?:total|value))[:\s]*\$?\s*" r"(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:USD)?",
         re.IGNORECASE,
     ),
     re.compile(
@@ -123,7 +119,10 @@ CUSTOMER_PATTERNS = [
 # Logistics/shipping patterns
 LOGISTICS_PATTERNS = [
     re.compile(r"(?:FOB|CIF|CFR|FCA|EXW|DDP|DAP)\s+([A-Za-z\s,]+?)(?:\n|$|\.)", re.IGNORECASE),
-    re.compile(r"(?:ship\s+(?:from|to)|port\s+of\s+(?:origin|destination)|pickup)[:\s]+([A-Za-z\s,]+?)(?:\n|$|\.)", re.IGNORECASE),
+    re.compile(
+        r"(?:ship\s+(?:from|to)|port\s+of\s+(?:origin|destination)|pickup)[:\s]+([A-Za-z\s,]+?)(?:\n|$|\.)",
+        re.IGNORECASE,
+    ),
     re.compile(r"(?:warehouse|dock|facility)[:\s]+([A-Za-z0-9\s,]+?)(?:\n|$|\.)", re.IGNORECASE),
 ]
 
@@ -283,7 +282,11 @@ def parse_trade_email(
         match = pattern.search(combined_text)
         if match:
             date_str = match.group(1).strip()
-            if "deliver" in pattern.pattern.lower() or "due" in pattern.pattern.lower() or "eta" in pattern.pattern.lower():
+            if (
+                "deliver" in pattern.pattern.lower()
+                or "due" in pattern.pattern.lower()
+                or "eta" in pattern.pattern.lower()
+            ):
                 result.delivery_date = date_str
             else:
                 result.ship_date = date_str
@@ -518,8 +521,14 @@ def _extract_company_from_email(email: str) -> str:
 
     # Skip common providers
     common_domains = {
-        "gmail.com", "yahoo.com", "hotmail.com", "outlook.com",
-        "aol.com", "icloud.com", "mail.com", "protonmail.com",
+        "gmail.com",
+        "yahoo.com",
+        "hotmail.com",
+        "outlook.com",
+        "aol.com",
+        "icloud.com",
+        "mail.com",
+        "protonmail.com",
     }
     if domain in common_domains:
         return ""
@@ -552,15 +561,17 @@ def _extract_line_items(text: str) -> list[ParsedLineItem]:
             # Try to get surrounding context for product description
             start = max(0, match.start() - 80)
             end = min(len(text), match.end() + 20)
-            context = text[start:match.start()].strip()
+            context = text[start : match.start()].strip()
             # Take last meaningful words as product hint
             product_hint = " ".join(context.split()[-4:]) if context else ""
 
-            items.append(ParsedLineItem(
-                product_description=product_hint,
-                quantity=qty_clean,
-                unit_of_measure=_normalize_uom(uom),
-            ))
+            items.append(
+                ParsedLineItem(
+                    product_description=product_hint,
+                    quantity=qty_clean,
+                    unit_of_measure=_normalize_uom(uom),
+                )
+            )
 
     return items
 
@@ -582,13 +593,25 @@ def _enrich_prices(text: str, items: list[ParsedLineItem]) -> None:
 def _normalize_uom(raw: str) -> str:
     """Normalize unit of measure strings."""
     mapping = {
-        "lb": "LBS", "lbs": "LBS", "pound": "LBS", "pounds": "LBS",
-        "kg": "KG", "kilo": "KG", "kilos": "KG",
-        "ton": "TONS", "tons": "TONS",
-        "case": "CASES", "cases": "CASES",
-        "box": "BOXES", "boxes": "BOXES",
-        "pallet": "PALLETS", "pallets": "PALLETS",
-        "unit": "UNITS", "units": "UNITS", "each": "UNITS", "ea": "UNITS",
+        "lb": "LBS",
+        "lbs": "LBS",
+        "pound": "LBS",
+        "pounds": "LBS",
+        "kg": "KG",
+        "kilo": "KG",
+        "kilos": "KG",
+        "ton": "TONS",
+        "tons": "TONS",
+        "case": "CASES",
+        "cases": "CASES",
+        "box": "BOXES",
+        "boxes": "BOXES",
+        "pallet": "PALLETS",
+        "pallets": "PALLETS",
+        "unit": "UNITS",
+        "units": "UNITS",
+        "each": "UNITS",
+        "ea": "UNITS",
     }
     return mapping.get(raw.lower(), raw.upper())
 

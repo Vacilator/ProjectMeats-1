@@ -18,28 +18,23 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "projectmeats.settings")
 
 django_asgi_app = get_asgi_application()
 
+import tenant_apps.ai_assistant.routing
+import tenant_apps.workflows.routing
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 
-import tenant_apps.ai_assistant.routing
-import tenant_apps.workflows.routing
 from apps.tenants.channels_middleware import JwtAuthMiddleware, TenantContextMiddleware
 
 websocket_urlpatterns = (
-    tenant_apps.workflows.routing.websocket_urlpatterns
-    + tenant_apps.ai_assistant.routing.websocket_urlpatterns
+    tenant_apps.workflows.routing.websocket_urlpatterns + tenant_apps.ai_assistant.routing.websocket_urlpatterns
 )
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
         "websocket": AllowedHostsOriginValidator(
-            AuthMiddlewareStack(
-                JwtAuthMiddleware(
-                    TenantContextMiddleware(URLRouter(websocket_urlpatterns))
-                )
-            )
+            AuthMiddlewareStack(JwtAuthMiddleware(TenantContextMiddleware(URLRouter(websocket_urlpatterns))))
         ),
     }
 )

@@ -3,10 +3,6 @@ import uuid
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-from apps.core.models import Protein, ProteinTypeChoices, ShippingOfferedChoices
-from apps.core.services.supplier_matching import SupplierMatchFilters, match_suppliers_for_inquiry
-from apps.system.models import Product
-from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
     Inquiry,
@@ -19,6 +15,11 @@ from tenant_apps.locations.models import Location, LocationAssociatedMasterProdu
 from tenant_apps.plants.models import Plant, PlantAssociatedMasterProduct
 from tenant_apps.products.models import MasterProduct
 from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem, SupplierPlant
+
+from apps.core.models import Protein, ProteinTypeChoices, ShippingOfferedChoices
+from apps.core.services.supplier_matching import SupplierMatchFilters, match_suppliers_for_inquiry
+from apps.system.models import Product
+from apps.tenants.models import Tenant, TenantUser
 
 
 class SupplierMatchingServiceTests(TestCase):

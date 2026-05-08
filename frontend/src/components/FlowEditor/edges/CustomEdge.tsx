@@ -1,14 +1,14 @@
 /**
  * Custom Edge Component
- * 
+ *
  * Enhanced edge with visual feedback for the flow editor.
- * 
+ *
  * Features:
  * - Animated dots during execution
  * - Hover effects
  * - Click-to-insert node
  * - Type-specific styling
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';

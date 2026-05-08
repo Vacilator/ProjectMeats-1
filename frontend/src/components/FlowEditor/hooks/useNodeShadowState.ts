@@ -1,21 +1,21 @@
 /**
  * useNodeShadowState Hook
- * 
+ *
  * Phase 2: Shadow State Sidebar
  * Provides non-destructive editing for node configuration.
- * 
+ *
  * Purpose:
  * - Captures uncommitted sidebar edits in `shadowConfig`
  * - Prevents history bloat from every keystroke
  * - Allows Apply/Discard workflow
  * - Improves UX with dirty indicators
- * 
+ *
  * Usage:
  * ```typescript
- * const { shadowConfig, updateShadow, commitShadow, discardShadow, isDirty } 
+ * const { shadowConfig, updateShadow, commitShadow, discardShadow, isDirty }
  *   = useNodeShadowState(nodeId, nodes, setNodes);
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 2 Shadow State Implementation
  */
 
@@ -37,19 +37,19 @@ export interface NodeDataWithShadow {
 export interface UseNodeShadowStateReturn {
   /** Current shadow config (falls back to committed config if no shadow) */
   shadowConfig: Record<string, any>;
-  
+
   /** Current editing status */
   configStatus: 'pristine' | 'editing' | 'dirty';
-  
+
   /** Whether uncommitted changes exist */
   isDirty: boolean;
-  
+
   /** Update shadow config (doesn't affect committed config) */
   updateShadow: (changes: Partial<Record<string, any>>) => void;
-  
+
   /** Commit shadow config to main config (creates history entry) */
   commitShadow: () => void;
-  
+
   /** Discard shadow config (revert to last committed) */
   discardShadow: () => void;
 }
@@ -68,7 +68,7 @@ function configsDiffer(left: Record<string, any>, right: Record<string, any>): b
 
 /**
  * Hook for managing node shadow state
- * 
+ *
  * @param nodeId - ID of the node to manage
  * @param nodes - Current nodes array from React Flow
  * @param setNodes - React Flow setNodes function
@@ -79,7 +79,7 @@ export function useNodeShadowState(
   nodes: Node[],
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>
 ): UseNodeShadowStateReturn {
-  
+
   // Find the current node
   const node = useMemo(() => {
     if (!nodeId) return null;

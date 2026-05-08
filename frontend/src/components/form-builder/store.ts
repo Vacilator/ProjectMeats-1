@@ -1,9 +1,9 @@
 /**
  * Form Builder Store
- * 
+ *
  * Zustand store for managing FormBuilder state.
  * Handles steps, fields, rules, mappings, and UI state.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 4 - FormBuilder Suite
  */
@@ -44,39 +44,39 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
   activeStepId: null,
   activeTab: 'steps',
   isDirty: false,
-  
+
   isFieldModalOpen: false,
   isRuleModalOpen: false,
   isMappingModalOpen: false,
   isPreviewModalOpen: false,
-  
+
   editingField: null,
   editingRule: null,
-  
+
   // Form metadata actions
   setFormName: (name: string) => {
     set({ formName: name, isDirty: true });
   },
-  
+
   setFormDescription: (description: string) => {
     set({ formDescription: description, isDirty: true });
   },
-  
+
   setActiveTab: (tab: 'steps' | 'settings' | 'preview') => {
     set({ activeTab: tab });
   },
-  
+
   // Step actions
   addStep: () => {
     const { steps } = get();
     const newStep = createDefaultStep(steps.length);
-    set({ 
+    set({
       steps: [...steps, newStep],
       activeStepId: newStep.id,
-      isDirty: true 
+      isDirty: true
     });
   },
-  
+
   removeStep: (stepId: string) => {
     const { steps, activeStepId } = get();
     const filteredSteps = steps.filter(s => s.id !== stepId);
@@ -84,59 +84,59 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
       ...step,
       order: index
     }));
-    
-    set({ 
+
+    set({
       steps: reorderedSteps,
       activeStepId: activeStepId === stepId ? (reorderedSteps[0]?.id || null) : activeStepId,
-      isDirty: true 
+      isDirty: true
     });
   },
-  
+
   updateStep: (stepId: string, updates: Partial<FormStep>) => {
     const { steps } = get();
     set({
-      steps: steps.map(step => 
+      steps: steps.map(step =>
         step.id === stepId ? { ...step, ...updates } : step
       ),
       isDirty: true
     });
   },
-  
+
   reorderSteps: (startIndex: number, endIndex: number) => {
     const { steps } = get();
     const result = Array.from(steps);
     const [removed] = result.splice(startIndex, 1);
     result.splice(endIndex, 0, removed);
-    
+
     // Update order property
     const reorderedSteps = result.map((step, index) => ({
       ...step,
       order: index
     }));
-    
+
     set({ steps: reorderedSteps, isDirty: true });
   },
-  
+
   setActiveStep: (stepId: string | null) => {
     set({ activeStepId: stepId });
   },
-  
+
   // Field actions
   openFieldModal: (stepId: string, field?: FormField) => {
-    set({ 
+    set({
       isFieldModalOpen: true,
       activeStepId: stepId,
       editingField: field || null
     });
   },
-  
+
   closeFieldModal: () => {
-    set({ 
+    set({
       isFieldModalOpen: false,
       editingField: null
     });
   },
-  
+
   saveField: (stepId: string, field: FormField) => {
     const { steps } = get();
     const updatedSteps = steps.map(step => {
@@ -146,20 +146,20 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
         const updatedFields = existingIndex >= 0
           ? step.fields.map(f => f.id === field.id ? field : f)
           : [...step.fields, field];
-        
+
         return { ...step, fields: updatedFields };
       }
       return step;
     });
-    
-    set({ 
+
+    set({
       steps: updatedSteps,
       isFieldModalOpen: false,
       editingField: null,
       isDirty: true
     });
   },
-  
+
   removeField: (stepId: string, fieldId: string) => {
     const { steps } = get();
     set({
@@ -171,23 +171,23 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
       isDirty: true
     });
   },
-  
+
   // Rule actions
   openRuleModal: (stepId: string, rule?: FormRule) => {
-    set({ 
+    set({
       isRuleModalOpen: true,
       activeStepId: stepId,
       editingRule: rule || null
     });
   },
-  
+
   closeRuleModal: () => {
-    set({ 
+    set({
       isRuleModalOpen: false,
       editingRule: null
     });
   },
-  
+
   saveRule: (stepId: string, rule: FormRule) => {
     const { steps } = get();
     const updatedSteps = steps.map(step => {
@@ -196,20 +196,20 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
         const updatedRules = existingIndex >= 0
           ? step.rules.map(r => r.id === rule.id ? rule : r)
           : [...step.rules, rule];
-        
+
         return { ...step, rules: updatedRules };
       }
       return step;
     });
-    
-    set({ 
+
+    set({
       steps: updatedSteps,
       isRuleModalOpen: false,
       editingRule: null,
       isDirty: true
     });
   },
-  
+
   removeRule: (stepId: string, ruleId: string) => {
     const { steps } = get();
     set({
@@ -221,19 +221,19 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
       isDirty: true
     });
   },
-  
+
   // Mapping actions
   openMappingModal: (stepId: string) => {
-    set({ 
+    set({
       isMappingModalOpen: true,
       activeStepId: stepId
     });
   },
-  
+
   closeMappingModal: () => {
     set({ isMappingModalOpen: false });
   },
-  
+
   saveMapping: (stepId: string, mapping: FieldMapping) => {
     const { steps } = get();
     const updatedSteps = steps.map(step => {
@@ -242,18 +242,18 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
         const updatedMappings = existingIndex >= 0
           ? step.mappings.map(m => m.id === mapping.id ? mapping : m)
           : [...step.mappings, mapping];
-        
+
         return { ...step, mappings: updatedMappings };
       }
       return step;
     });
-    
-    set({ 
+
+    set({
       steps: updatedSteps,
       isDirty: true
     });
   },
-  
+
   removeMapping: (stepId: string, mappingId: string) => {
     const { steps } = get();
     set({
@@ -265,21 +265,21 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
       isDirty: true
     });
   },
-  
+
   autoMapFields: (stepId: string) => {
     // TODO: Implement Auto-Map algorithm in Phase 5
     logger.debug('Auto-Map not yet implemented - Phase 5', { component: 'FormBuilderStore' });
   },
-  
+
   // Preview actions
   openPreviewModal: () => {
     set({ isPreviewModalOpen: true });
   },
-  
+
   closePreviewModal: () => {
     set({ isPreviewModalOpen: false });
   },
-  
+
   // Persistence
   loadForm: (formData: any) => {
     set({
@@ -291,7 +291,7 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
       isDirty: false
     });
   },
-  
+
   resetForm: () => {
     set({
       formId: undefined,
@@ -309,7 +309,7 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
       editingRule: null
     });
   },
-  
+
   getFormData: () => {
     const state = get();
     return {

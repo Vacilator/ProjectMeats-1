@@ -103,7 +103,7 @@ describe('useVirtualizedNodes', () => {
       // Assuming window size 1920x1080
       global.window.innerWidth = 1920;
       global.window.innerHeight = 1080;
-      
+
       const viewport = createViewport(0, 0, 1);
 
       const { result } = renderHook(() =>
@@ -128,7 +128,7 @@ describe('useVirtualizedNodes', () => {
 
       global.window.innerWidth = 1920;
       global.window.innerHeight = 1080;
-      
+
       const viewport = createViewport(0, 0, 1);
 
       // Without buffer
@@ -182,7 +182,7 @@ describe('useVirtualizedNodes', () => {
 
       // Both nodes visible when zoomed out
       expect(zoomedOut.current.visibleNodes).toHaveLength(2);
-      
+
       // Fewer nodes visible when zoomed in (node-2 is far away)
       expect(zoomedIn.current.visibleNodes.length).toBeLessThanOrEqual(1);
     });
@@ -218,7 +218,7 @@ describe('useVirtualizedNodes', () => {
       );
 
       const { renderRatio } = result.current.metrics;
-      
+
       expect(renderRatio).toBeGreaterThan(0);
       expect(renderRatio).toBeLessThanOrEqual(1);
       expect(renderRatio).toBe(result.current.renderedNodes / result.current.totalNodes);
@@ -551,7 +551,7 @@ describe('useOptimisticUpdate', () => {
     const saveFunction = vi.fn(() => new Promise((resolve) => {
       resolveSave = resolve;
     }));
-    
+
     const initialData = { value: 'initial' };
 
     const { result } = renderHook(() =>

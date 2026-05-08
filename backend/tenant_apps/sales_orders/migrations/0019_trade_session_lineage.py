@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0012_trade_session_lineage"),
         ("sales_orders", "0018_salesorderapprovaldispatch"),

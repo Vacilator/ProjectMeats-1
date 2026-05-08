@@ -1,14 +1,14 @@
 /**
  * @fileoverview Keyboard navigation utilities for workflow editor
  * @module FlowEditor/utils/keyboardNavigation
- * 
+ *
  * Implements WCAG 2.1 AAA-compliant keyboard navigation:
  * - Arrow keys for node traversal
  * - Tab/Shift+Tab for focus management
  * - Enter/Space for activation
  * - Escape for dismissal
  * - Home/End for first/last node
- * 
+ *
  * @see Phase 7.6: Accessibility & i18n
  */
 
@@ -65,10 +65,10 @@ export interface KeyboardNavigationConfig {
 
 /**
  * Find the closest node in a given direction
- * 
+ *
  * Uses spatial proximity when followEdges is false.
  * Prioritizes nodes that are roughly in the direction indicated.
- * 
+ *
  * @param currentNode - Currently focused node
  * @param direction - Direction to search
  * @param allNodes - All nodes in workflow
@@ -108,7 +108,7 @@ function findClosestNodeInDirection(
   const distances = candidates.map((node) => {
     const dx = node.position.x - currentX;
     const dy = node.position.y - currentY;
-    
+
     // Weight distance more heavily in the primary axis
     let weight;
     switch (direction) {
@@ -121,7 +121,7 @@ function findClosestNodeInDirection(
         weight = Math.abs(dx) + Math.abs(dy) * 0.3;
         break;
     }
-    
+
     return { node, distance: weight };
   });
 
@@ -131,11 +131,11 @@ function findClosestNodeInDirection(
 
 /**
  * Find connected node via edges
- * 
+ *
  * Follows actual workflow connections when navigating.
  * For right/down: follows outgoing edges (targets)
  * For left/up: follows incoming edges (sources)
- * 
+ *
  * @param currentNode - Currently focused node
  * @param direction - Direction to search
  * @param allNodes - All nodes in workflow
@@ -152,7 +152,7 @@ function findConnectedNode(
 
   // Determine if we should follow outgoing or incoming edges
   const isForward = direction === 'right' || direction === 'down';
-  
+
   const connectedEdges = edges.filter((edge) =>
     isForward
       ? edge.source === currentNode.id
@@ -187,10 +187,10 @@ function findConnectedNode(
 
 /**
  * Handle keyboard navigation event
- * 
+ *
  * Implements comprehensive keyboard navigation for workflow editor.
  * Supports arrow keys, Home/End, Enter/Space, Escape, and optional vim bindings.
- * 
+ *
  * @example
  * ```typescript
  * const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -201,23 +201,23 @@ function findConnectedNode(
  *     edges,
  *     { followEdges: true, vimBindings: false }
  *   );
- *   
+ *
  *   if (result.handled) {
  *     event.preventDefault();
- *     
+ *
  *     if (result.focusNodeId) {
  *       setSelectedNodeId(result.focusNodeId);
  *       // Focus DOM element for screen readers
  *       document.getElementById(result.focusNodeId)?.focus();
  *     }
- *     
+ *
  *     if (result.action === 'activate') {
  *       openNodeConfig(selectedNodeId);
  *     }
  *   }
  * };
  * ```
- * 
+ *
  * @param event - Keyboard event
  * @param currentNodeId - ID of currently focused node
  * @param nodes - All nodes in workflow
@@ -396,13 +396,13 @@ export function handleKeyboardNavigation(
 
 /**
  * Generate accessible label for node
- * 
+ *
  * Creates descriptive text for screen readers including:
  * - Node type
  * - Node label/name
  * - Position in workflow (incoming/outgoing connections)
  * - Current state (selected, executing, error)
- * 
+ *
  * @example
  * ```typescript
  * const ariaLabel = getNodeAriaLabel(node, nodes, edges, {
@@ -427,7 +427,7 @@ export function getNodeAriaLabel(
   // Node type and label
   const nodeType = (node.type || 'default').replace(/([A-Z])/g, ' $1').trim();
   const nodeLabel = (node.data as any)?.label || node.id;
-  
+
   parts.push(`${nodeType} node: ${nodeLabel}`);
 
   // Current state
@@ -462,9 +462,9 @@ export function getNodeAriaLabel(
 
 /**
  * Get keyboard shortcut hint for node action
- * 
+ *
  * Returns human-readable keyboard shortcut string for display in tooltips.
- * 
+ *
  * @param action - Action type
  * @param platform - OS platform (for Cmd vs Ctrl)
  * @returns Formatted shortcut string

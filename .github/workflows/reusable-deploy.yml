@@ -203,7 +203,7 @@ jobs:
   # ==========================================
   # BACKEND SWIMLANE
   # ==========================================
-  
+
   build-backend:
     name: "Build & Push Backend Image"
     if: ${{ inputs.run_backend_lane }}
@@ -428,9 +428,9 @@ jobs:
           python manage.py test --verbosity=2
 
   # ==========================================
-  # FRONTEND SWIMLANE  
+  # FRONTEND SWIMLANE
   # ==========================================
-  
+
   build-frontend:
     name: "Build & Push Frontend Image"
     if: ${{ inputs.run_frontend_lane }}
@@ -674,7 +674,7 @@ jobs:
   # ==========================================
   # Pre-Deployment: Migration Sanity Check
   # ==========================================
-  
+
   check-migrations:
     name: "Check Migration State"
     if: ${{ inputs.run_backend_lane }}
@@ -686,20 +686,20 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ inputs.ref }}
-      
+
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: 'backend/requirements.txt'
-      
+
       - name: Install dependencies
         working-directory: ./backend
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-      
+
       - name: Check for unapplied migrations
         working-directory: ./backend
         env:
@@ -722,21 +722,21 @@ jobs:
             echo "This prevents 'Split State' deployments where models and migrations are out of sync."
             exit 1
           }
-          
+
           echo "✅ No unapplied model changes detected"
-          
+
           # Show migration plan for audit trail
           echo ""
           echo "📋 Current migration plan:"
           python manage.py showmigrations --plan || echo "⚠️ Could not generate plan (database required)"
-          
+
           echo ""
           echo "✅ Migration sanity check passed"
 
   # ==========================================
   # Backend Deployment: Migrations
   # ==========================================
-  
+
   migrate:
     name: "Run Database Migrations"
     # Gate schema changes on tests + security scans to avoid "DB advanced but deploy blocked" failures.
@@ -819,7 +819,7 @@ jobs:
         uses: ./.github/actions/disk-cleanup
         with:
           aggressive: "true"
-      
+
       - name: Login to GHCR
         if: ${{ inputs.run_backend_lane }}
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
@@ -827,7 +827,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Setup SSH tunnel to database
         if: ${{ inputs.run_backend_lane }}
         uses: ./.github/actions/ssh-tunnel
@@ -837,7 +837,7 @@ jobs:
           ssh_password: ${{ secrets.SSH_PASSWORD }}
           db_host: ${{ secrets.DB_HOST }}
           db_port: ${{ secrets.DB_PORT || '5432' }}
-      
+
       - name: Test tunnel connectivity
         if: ${{ inputs.run_backend_lane }}
         env:
@@ -848,13 +848,13 @@ jobs:
           echo "================================"
           echo "Testing Tunnel Connectivity"
           echo "================================"
-          
+
           MAX_ATTEMPTS=3
           ATTEMPT=1
-          
+
           while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
             echo "Connection attempt $ATTEMPT/$MAX_ATTEMPTS..."
-            
+
             if timeout 10 bash -c "PGPASSWORD='$DB_PASSWORD' psql \
               -h 127.0.0.1 \
               -p 5433 \
@@ -865,12 +865,12 @@ jobs:
               echo "✓ Database accessible through tunnel"
               exit 0
             fi
-            
+
             echo "Connection failed, waiting before retry..."
             sleep 3
             ATTEMPT=$((ATTEMPT + 1))
           done
-          
+
           echo ""
           echo "✗ Failed to connect to database after $MAX_ATTEMPTS attempts"
           exit 1
@@ -995,7 +995,7 @@ jobs:
           echo "================================"
           echo "Running Django Migrations"
           echo "================================"
-          
+
           DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5433/$DB_NAME"
           echo "BACKEND_RUN_REF=$BACKEND_RUN_REF" >> "$GITHUB_ENV"
 
@@ -1003,7 +1003,7 @@ jobs:
           if [ "$REQUIRE_REDIS_READINESS" = "true" ]; then
             REDIS_GATE_ARGS="--require-redis-readiness"
           fi
-          
+
           echo ""
           echo "Checking backend infrastructure prerequisites..."
           docker run --rm \
@@ -1017,10 +1017,10 @@ jobs:
             -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py check_infrastructure $REDIS_GATE_ARGS
-          
+
           echo ""
           echo "Running migrations..."
-          
+
           docker run --rm \
             --network host \
             -e DATABASE_URL="$DATABASE_URL" \
@@ -1032,7 +1032,7 @@ jobs:
             -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py migrate --fake-initial --noinput
-          
+
           echo ""
           echo "✓ Migrations completed successfully"
 
@@ -1052,7 +1052,7 @@ jobs:
             -e REQUIRE_REDIS_READINESS="$REQUIRE_REDIS_READINESS" \
             "$BACKEND_RUN_REF" \
             python manage.py collectstatic --noinput --clear
-          
+
       - name: Cleanup SSH tunnel
         if: always()
         run: |
@@ -1312,16 +1312,16 @@ jobs:
           EOF
 
           chmod 600 backend.env
-          
+
           # Verify EMAIL_HOST_PASSWORD is set (show length only for security)
           if [ -n "${{ secrets.EMAIL_HOST_PASSWORD }}" ]; then
             echo "✓ EMAIL_HOST_PASSWORD is set"
           else
             echo "⚠️  WARNING: EMAIL_HOST_PASSWORD is NOT set in environment secrets"
           fi
-          
+
           echo "✓ backend.env file created locally"
-      
+
       - name: Transfer .env to Server
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
@@ -1335,7 +1335,7 @@ jobs:
         run: |
           # Ensure no secret material is left on disk if a prior step fails.
           rm -f backend.env || true
-      
+
       - name: Deploy backend container
         env:
           BACKEND_TAG_REF: ${{ needs.build-backend.outputs.image_tag_ref }}
@@ -1355,11 +1355,11 @@ jobs:
              REQUIRE_REDIS_READINESS='${REQUIRE_REDIS_READINESS}' \
              bash -s" << 'SSH'
           set -euo pipefail
-          
+
           REG="${{ env.GHCR_REGISTRY }}"
           IMG="${{ env.BACKEND_IMAGE }}"
           TAG="${{ inputs.environment }}-${{ github.sha }}"
-          
+
           # Navigate to project directory
           cd /root/projectmeats || {
             echo "✗ Project directory not found at /root/projectmeats"
@@ -1367,7 +1367,7 @@ jobs:
           }
           echo "✓ In directory: $(pwd)"
           echo "✓ backend/.env file already transferred"
-          
+
           # Preemptively create and fix permissions for staticfiles and media directories on host
           echo "Creating and fixing permissions for staticfiles directory..."
           mkdir -p /root/projectmeats/staticfiles
@@ -1380,16 +1380,16 @@ jobs:
           chown -R 1000:1000 /root/projectmeats/media
           chmod -R 775 /root/projectmeats/media
           echo "✓ media permissions fixed"
-          
+
           # Login to registry using the workflow token so env-scoped DOCR overrides cannot break deploys.
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          
+
           # Check disk space and cleanup if needed
           echo "Checking disk space..."
           df -h /
           USAGE=$(df / | awk 'NR==2{print $5}' | tr -d '%')
           echo "Current disk usage: ${USAGE}%"
-          
+
           if [ "$USAGE" -gt 70 ]; then
             echo "⚠️  Disk usage above 70%, running quick Docker cleanup..."
             # Quick cleanup: only remove stopped containers and dangling images
@@ -1399,7 +1399,7 @@ jobs:
             echo "✓ Quick cleanup complete"
             df -h /
           fi
-          
+
           # Pull new image (retry for transient DOCR auth timeouts)
           pull_with_retry() {
             local image="$1"
@@ -1615,7 +1615,7 @@ jobs:
           echo "=== Integration diagnostics (non-secret) ==="
           docker exec pm-backend python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=10)); summary=data.get('integration_summary',{}); warnings=data.get('integration_warnings',[]); print('integration_summary:'); print(json.dumps(summary, indent=2, sort_keys=True)); print(''); print('integration_warnings:' if warnings else 'No integration warnings.'); [print(f\"- {(w or {}).get('code')}: {(w or {}).get('message')}\") for w in warnings]"
           echo "=== End integration diagnostics ==="
-          
+
           # Verify EMAIL_HOST_PASSWORD in container
           echo "Verifying EMAIL_HOST_PASSWORD in container..."
           if docker exec pm-backend printenv EMAIL_HOST_PASSWORD > /dev/null 2>&1; then
@@ -1631,7 +1631,7 @@ jobs:
   # ==========================================
   # Frontend Deployment Track
   # ==========================================
-  
+
   deploy-frontend:
     name: "Deploy Frontend Container"
     # Frontend deploy must wait for migrations (but must NOT depend on deploy-backend).
@@ -1762,12 +1762,12 @@ jobs:
           echo "Environment: $ENVIRONMENT"
           echo "Backend Host: $BACKEND_HOST"
           echo "==================================="
-          
+
           echo "==================================="
           echo "Remote Deployment Started"
           echo "==================================="
           echo "Image: $REG/$IMG:$IMAGE_TAG"
-          
+
           # Create runtime config
           mkdir -p /opt/pm/frontend/env
           cat > /opt/pm/frontend/env/env-config.js << ENVJS
@@ -1778,19 +1778,19 @@ jobs:
             SENTRY_ENABLED: "${SENTRY_ENABLED:-false}"
           };
           ENVJS
-          
+
           echo "✓ Runtime config created"
-          
+
           # Login to registry using the workflow token so env-scoped DOCR overrides cannot break deploys.
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           echo "✓ Docker login successful"
-          
+
           # Check disk space and cleanup if needed
           echo "Checking disk space..."
           df -h /
           USAGE=$(df / | awk 'NR==2{print $5}' | tr -d '%')
           echo "Current disk usage: ${USAGE}%"
-          
+
           if [ "$USAGE" -gt 70 ]; then
             echo "⚠️  Disk usage above 70%, running Docker cleanup..."
             # Remove old/unused images (keep current deployment images)
@@ -1803,7 +1803,7 @@ jobs:
             echo "Disk after cleanup:"
             df -h /
           fi
-          
+
           # Pull new image (retry for transient DOCR auth timeouts)
           pull_with_retry() {
             local image="$1"
@@ -2051,7 +2051,7 @@ jobs:
 
           echo "Cleaning up frontend canary container..."
           docker rm -f "$CAND_NAME" 2>/dev/null || true
-          
+
           echo ""
           echo "==================================="
           echo "✓ Frontend Deployment Complete"

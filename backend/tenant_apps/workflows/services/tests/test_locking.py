@@ -75,9 +75,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
                 user_name=user_name,
             )
 
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis), patch(
-            "tenant_apps.workflows.services.locking.time.time", return_value=100.0
-        ):
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis
+        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=100.0):
             with ThreadPoolExecutor(max_workers=2) as executor:
                 first_future = executor.submit(contender, "user-a", "User A")
                 second_future = executor.submit(contender, "user-b", "User B")
@@ -94,9 +94,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
     def test_same_user_reacquire_refreshes_ttl_without_changing_owner(self):
         fake_redis = _AtomicRedisFake()
 
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis), patch(
-            "tenant_apps.workflows.services.locking.time.time", return_value=100.0
-        ):
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis
+        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=100.0):
             WorkflowLockManager.acquire_node_lock(
                 tenant_id=self.tenant_id,
                 workflow_id=self.workflow_id,
@@ -105,9 +105,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
                 user_name="User A",
             )
 
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis), patch(
-            "tenant_apps.workflows.services.locking.time.time", return_value=150.0
-        ):
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis
+        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=150.0):
             renewed = WorkflowLockManager.acquire_node_lock(
                 tenant_id=self.tenant_id,
                 workflow_id=self.workflow_id,
@@ -127,7 +127,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
         ), patch(
             "tenant_apps.workflows.services.locking.WorkflowLockManager._read_lock_data",
             return_value=None,
-        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=100.0):
+        ), patch(
+            "tenant_apps.workflows.services.locking.time.time", return_value=100.0
+        ):
             acquired = WorkflowLockManager.acquire_node_lock(
                 tenant_id=self.tenant_id,
                 workflow_id=self.workflow_id,
@@ -140,7 +142,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
         self.assertEqual(acquired["owner"], "user-a")
 
     def test_lock_backend_unavailable_returns_retryable_response(self):
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._try_acquire_atomic", return_value=None), patch(
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._try_acquire_atomic", return_value=None
+        ), patch(
             "tenant_apps.workflows.services.locking.WorkflowLockManager._read_lock_data",
             return_value={"user_id": "user-a", "user_name": "User A", "expires_at": 160.0},
         ):
@@ -159,9 +163,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
     def test_tenant_scoping_prevents_collisions_for_same_workflow_and_node_ids(self):
         fake_redis = _AtomicRedisFake()
 
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis), patch(
-            "tenant_apps.workflows.services.locking.time.time", return_value=100.0
-        ):
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis
+        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=100.0):
             tenant_a_result = WorkflowLockManager.acquire_node_lock(
                 tenant_id="tenant-a",
                 workflow_id=self.workflow_id,
@@ -184,9 +188,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
     def test_non_owner_cannot_release_or_renew_lock(self):
         fake_redis = _AtomicRedisFake()
 
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis), patch(
-            "tenant_apps.workflows.services.locking.time.time", return_value=100.0
-        ):
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis
+        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=100.0):
             WorkflowLockManager.acquire_node_lock(
                 tenant_id=self.tenant_id,
                 workflow_id=self.workflow_id,
@@ -195,9 +199,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
                 user_name="User A",
             )
 
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis), patch(
-            "tenant_apps.workflows.services.locking.time.time", return_value=120.0
-        ):
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=fake_redis
+        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=120.0):
             self.assertFalse(
                 WorkflowLockManager.release_node_lock(
                     tenant_id=self.tenant_id,
@@ -216,9 +220,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
             )
 
     def test_owner_can_release_and_renew_lock(self):
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=None), patch(
-            "tenant_apps.workflows.services.locking.time.time", return_value=100.0
-        ):
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=None
+        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=100.0):
             WorkflowLockManager.acquire_node_lock(
                 tenant_id=self.tenant_id,
                 workflow_id=self.workflow_id,
@@ -227,9 +231,9 @@ class WorkflowLockManagerTests(SimpleTestCase):
                 user_name="User A",
             )
 
-        with patch("tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=None), patch(
-            "tenant_apps.workflows.services.locking.time.time", return_value=120.0
-        ):
+        with patch(
+            "tenant_apps.workflows.services.locking.WorkflowLockManager._get_redis_client", return_value=None
+        ), patch("tenant_apps.workflows.services.locking.time.time", return_value=120.0):
             self.assertTrue(
                 WorkflowLockManager.renew_lock(
                     tenant_id=self.tenant_id,

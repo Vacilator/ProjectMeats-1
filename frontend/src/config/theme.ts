@@ -1,9 +1,9 @@
 /**
  * Theme configuration for ProjectMeats
- * 
+ *
  * NEW: Semantic Design System using CSS Variables
  * This allows tenant-specific branding without component changes.
- * 
+ *
  * Components should use semantic names (primary, surface) not specific colors.
  * The ThemeContext injects tenant colors into CSS variables at runtime.
  */
@@ -16,46 +16,46 @@ export interface Theme {
     primaryHover: string;
     primaryActive: string;
     primaryForeground: string;
-    
+
     // Secondary colors
     secondary: string;
     secondaryHover: string;
     secondaryForeground: string;
-    
+
     // Background colors
     background: string;
     surface: string;
     surfaceHover: string;
     surfaceForeground: string;
-    
+
     // Text colors
     textPrimary: string;
     textSecondary: string;
     textDisabled: string;
-    
+
     // Sidebar colors
     sidebarBackground: string;
     sidebarText: string;
     sidebarTextHover: string;
     sidebarActive: string;
     sidebarBorder: string;
-    
+
     // Header colors
     headerBackground: string;
     headerText: string;
     headerBorder: string;
-    
+
     // Border colors
     border: string;
     borderLight: string;
-    
+
     // Status colors
     success: string;
     warning: string;
     error: string;
     info: string;
     danger: string;
-    
+
     // Shadow
     shadow: string;
     shadowMedium: string;
@@ -75,45 +75,45 @@ const createThemeFromCSSVars = (name: 'light' | 'dark'): Theme => ({
     primaryHover: 'rgb(var(--color-primary-hover))',
     primaryActive: 'rgb(var(--color-primary-active))',
     primaryForeground: 'rgb(var(--color-primary-foreground))',
-    
+
     secondary: 'rgb(var(--color-secondary))',
     secondaryHover: 'rgb(var(--color-secondary-hover))',
     secondaryForeground: 'rgb(var(--color-secondary-foreground))',
-    
+
     // UI colors
     background: 'rgb(var(--color-background))',
     surface: 'rgb(var(--color-surface))',
     surfaceHover: 'rgb(var(--color-surface-hover))',
     surfaceForeground: 'rgb(var(--color-surface-foreground))',
-    
+
     // Text colors
     textPrimary: 'rgb(var(--color-text-primary))',
     textSecondary: 'rgb(var(--color-text-secondary))',
     textDisabled: 'rgb(var(--color-text-disabled))',
-    
+
     // Sidebar colors
     sidebarBackground: 'rgb(var(--color-sidebar-background))',
     sidebarText: 'rgb(var(--color-sidebar-text))',
     sidebarTextHover: 'rgb(var(--color-sidebar-text-hover))',
     sidebarActive: 'rgb(var(--color-sidebar-active))',
     sidebarBorder: 'rgb(var(--color-sidebar-border))',
-    
+
     // Header colors
     headerBackground: 'rgb(var(--color-header-background))',
     headerText: 'rgb(var(--color-header-text))',
     headerBorder: 'rgb(var(--color-header-border))',
-    
+
     // Border colors
     border: 'rgb(var(--color-border))',
     borderLight: 'rgb(var(--color-border-light))',
-    
+
     // Status colors (standardized across themes)
     success: 'rgb(var(--color-success))',
     warning: 'rgb(var(--color-warning))',
     error: 'rgb(var(--color-error))',
     info: 'rgb(var(--color-info))',
     danger: 'rgb(var(--color-danger))',
-    
+
     // Shadows
     shadow: 'var(--shadow-sm)',
     shadowMedium: 'var(--shadow-md)',
@@ -154,7 +154,7 @@ export const injectTenantColors = (
   themeName: 'light' | 'dark'
 ) => {
   const root = document.documentElement;
-  
+
   if (themeName === 'light') {
     root.style.setProperty('--color-primary', hexToRgb(primaryColorLight));
     root.style.setProperty('--color-primary-hover', hexToRgb(adjustColor(primaryColorLight, -10)));

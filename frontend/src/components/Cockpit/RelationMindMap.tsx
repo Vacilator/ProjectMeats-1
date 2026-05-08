@@ -1,9 +1,9 @@
 /**
  * RelationMindMap Component
- * 
+ *
  * Visual mind-map style explorer for entity relationships.
  * Shows branching connections between entities with expandable nodes.
- * 
+ *
  * Features:
  * - Visual graph layout using react-flow
  * - Expandable nodes for continuous exploration
@@ -11,7 +11,7 @@
  * @module RelationMindMap
  * - Smooth animations
  * - Hover previews
- * 
+ *
  * Created: 2026-02-24 - Cockpit Search Enhancement
  */
 
@@ -32,10 +32,10 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Building2, Users, ShoppingCart, Receipt, Package, 
-  Truck, User, FileText, Phone, Loader, ChevronRight, 
-  Plus, X 
+import {
+  Building2, Users, ShoppingCart, Receipt, Package,
+  Truck, User, FileText, Phone, Loader, ChevronRight,
+  Plus, X
 } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
@@ -93,18 +93,18 @@ const getEntityIcon = (type: string) => {
 
 const CustomNodeContainer = styled(motion.div)<{ $depth: number; $expanded: boolean }>`
   padding: 12px 16px;
-  background: ${props => props.$depth === 0 
-    ? 'rgb(var(--color-primary))' 
+  background: ${props => props.$depth === 0
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-surface))'};
-  border: 2px solid ${props => props.$expanded 
-    ? 'rgb(var(--color-primary))' 
+  border: 2px solid ${props => props.$expanded
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-width: 180px;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.2);
@@ -117,16 +117,16 @@ const NodeHeader = styled.div<{ $isRoot: boolean }>`
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
-  color: ${props => props.$isRoot 
-    ? 'white' 
+  color: ${props => props.$isRoot
+    ? 'white'
     : 'rgb(var(--color-text-primary))'};
 `;
 
 const NodeTitle = styled.div<{ $isRoot: boolean }>`
   font-size: 14px;
   font-weight: 600;
-  color: ${props => props.$isRoot 
-    ? 'white' 
+  color: ${props => props.$isRoot
+    ? 'white'
     : 'rgb(var(--color-text-primary))'};
   overflow: hidden;
   text-overflow: ellipsis;
@@ -135,8 +135,8 @@ const NodeTitle = styled.div<{ $isRoot: boolean }>`
 
 const NodeSubtitle = styled.div<{ $isRoot: boolean }>`
   font-size: 12px;
-  color: ${props => props.$isRoot 
-    ? 'rgba(255, 255, 255, 0.8)' 
+  color: ${props => props.$isRoot
+    ? 'rgba(255, 255, 255, 0.8)'
     : 'rgb(var(--color-text-secondary))'};
 `;
 
@@ -161,7 +161,7 @@ const ExpandButton = styled.button`
   color: white;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     transform: scale(1.1);
     box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.4);
@@ -176,7 +176,7 @@ const CustomNode: React.FC<{
 }> = ({ data }) => {
   const Icon = getEntityIcon(data.entityType);
   const isRoot = data.depth === 0;
-  
+
   return (
     <CustomNodeContainer
       $depth={data.depth}
@@ -189,15 +189,15 @@ const CustomNode: React.FC<{
         <Icon size={18} />
         <NodeTitle $isRoot={isRoot}>{data.name}</NodeTitle>
       </NodeHeader>
-      
+
       <NodeSubtitle $isRoot={isRoot}>
         {data.entityType.replace('_', ' ')}
       </NodeSubtitle>
-      
+
       {data.count !== undefined && data.count > 0 && (
         <NodeCount>{data.count} items</NodeCount>
       )}
-      
+
       {data.count !== undefined && data.count > 0 && (
         <ExpandButton
           onClick={(e) => {
@@ -259,7 +259,7 @@ const calculateTreeLayout = (
 ): Record<string, { x: number; y: number }> => {
   const positions: Record<string, { x: number; y: number }> = {};
   const levelNodes: Record<number, MindMapNode[]> = {};
-  
+
   // Group nodes by depth
   nodes.forEach(node => {
     if (!levelNodes[node.depth]) {
@@ -267,14 +267,14 @@ const calculateTreeLayout = (
     }
     levelNodes[node.depth].push(node);
   });
-  
+
   // Position nodes level by level
   Object.keys(levelNodes).forEach(depthStr => {
     const depth = parseInt(depthStr);
     const nodesAtLevel = levelNodes[depth];
     const totalWidth = (nodesAtLevel.length - 1) * (nodeWidth + siblingGap);
     const startX = -totalWidth / 2;
-    
+
     nodesAtLevel.forEach((node, index) => {
       positions[node.id] = {
         x: startX + index * (nodeWidth + siblingGap),
@@ -282,7 +282,7 @@ const calculateTreeLayout = (
       };
     });
   });
-  
+
   return positions;
 };
 
@@ -302,7 +302,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(false);
   const { addStep } = useCockpitNavigation();
-  
+
   // Initialize with root node
   useEffect(() => {
     const rootNode: MindMapNode = {
@@ -313,14 +313,14 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
       depth: 0,
       expanded: false,
     };
-    
+
     setMindMapNodes([rootNode]);
   }, [entityType, entityId, entityName]);
-  
+
   // Convert mindMapNodes to React Flow nodes/edges
   useEffect(() => {
     const positions = calculateTreeLayout(mindMapNodes);
-    
+
     const flowNodes: Node[] = mindMapNodes.map(node => ({
       id: node.id,
       type: 'custom',
@@ -333,7 +333,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
     }));
-    
+
     const flowEdges: Edge[] = [];
     mindMapNodes.forEach(node => {
       if (node.depth > 0) {
@@ -342,7 +342,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
         const parentNode = mindMapNodes.find(
           n => n.depth === parentDepth && n.expanded
         );
-        
+
         if (parentNode) {
           flowEdges.push({
             id: `${parentNode.id}-${node.id}`,
@@ -359,18 +359,18 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
         }
       }
     });
-    
+
     setNodes(flowNodes);
     setEdges(flowEdges);
   }, [mindMapNodes, setNodes, setEdges]);
-  
+
   const handleExpand = useCallback(async (node: MindMapNode) => {
     if (node.depth >= maxDepth) {
       return;
     }
-    
+
     if (node.expanded) return;
-    
+
     setLoading(true);
     try {
       // Fetch relationships (system entity graph supports UUID products)
@@ -395,47 +395,47 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
             count: undefined,
           }))
         );
-      
+
       // Mark node as expanded and add children
       setMindMapNodes(prev => [
         ...prev.map(n => n.id === node.id ? { ...n, expanded: true } : n),
         ...childNodes,
       ]);
-      
+
       // Add to breadcrumb
       addStep({
         id: node.entityId,
         type: node.entityType,
         label: node.name,
       });
-      
+
     } catch (err) {
       logger.error('Failed to expand node', { component: 'RelationMindMap' }, err);
     } finally {
       setLoading(false);
     }
   }, [maxDepth, addStep]);
-  
+
   const handleCollapse = useCallback((node: MindMapNode) => {
     // Remove all descendant nodes
-    setMindMapNodes(prev => 
+    setMindMapNodes(prev =>
       prev
         .map(n => n.id === node.id ? { ...n, expanded: false } : n)
         .filter(n => {
           // Keep nodes that are not descendants of this node
           if (n.depth <= node.depth) return true;
-          
+
           // Check if this node is a descendant
           let parent = prev.find(p => p.id === n.id.split('-from-')[1]);
           while (parent && parent.depth > node.depth) {
             parent = prev.find(p => p.id === parent!.id.split('-from-')[1]);
           }
-          
+
           return parent?.id !== node.id;
         })
     );
   }, []);
-  
+
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       const data = node.data as unknown as MindMapNode;
@@ -445,7 +445,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
     },
     [onEntityClick]
   );
-  
+
   return (
     <Container>
       <ReactFlow
@@ -463,7 +463,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
         <Background variant={BackgroundVariant.Dots} />
         <Controls />
       </ReactFlow>
-      
+
       {loading && (
         <LoadingOverlay>
           <Loader size={40} style={{ animation: 'spin 1s linear infinite' }} />

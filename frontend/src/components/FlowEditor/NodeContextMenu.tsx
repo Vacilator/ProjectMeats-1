@@ -1,21 +1,21 @@
 /**
  * Node Context Menu Component
- * 
+ *
  * Right-click context menu for flow editor nodes.
  * Provides quick actions for containers and nodes.
- * 
+ *
  * Advanced Features:
  * - React Portal rendering to document.body
  * - Smart viewport flipping (never off-screen)
  * - Zoom-aware positioning
  * - 120ms entrance animation
- * 
+ *
  * Based on React Flow context menu example:
  * https://reactflow.dev/examples/interaction/context-menu
- * 
+ *
  * Created: 2026-02-19 - Phase E.3
  * Enhanced: 2026-02-21 - Advanced positioning
- * 
+ *
  * @module NodeContextMenu
  */
 
@@ -175,88 +175,88 @@ const MenuHeader = styled.div`
 
 /**
  * Node Context Menu
- * 
+ *
  * Displays context-sensitive actions based on node type.
  * Container nodes get "Add Step", "Duplicate Container", etc.
  * Regular nodes get "Edit", "Copy", "Delete", etc.
- * 
+ *
  * Advanced positioning features:
  * - Smart viewport flipping (left/right, top/bottom)
  * - Zoom-aware positioning with transform compensation
  * - React Portal rendering to document.body
  * - 12px viewport padding for safety
- * 
+ *
  * @param props - Context menu properties
  */
 export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit, onDuplicate, onDelete }) => {
   const { setNodes, getNode, getNodes, getEdges, getViewport } = useReactFlow();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y, flipX: false, flipY: false });
-  
+
   // Advanced positioning with viewport flipping and zoom compensation
   useLayoutEffect(() => {
     if (!menuRef.current) return;
-    
+
     const menuRect = menuRef.current.getBoundingClientRect();
     const viewport = getViewport();
     const PADDING = 12; // Minimum distance from viewport edges
-    
+
     let finalX = x;
     let finalY = y;
     let flipX = false;
     let flipY = false;
-    
+
     // Apply subtle zoom compensation
     const zoomFactor = viewport.zoom;
     const zoomOffset = (1 - zoomFactor) * 8; // Subtle offset based on zoom
-    
+
     // Check horizontal overflow and flip if needed
     if (x + menuRect.width + PADDING > window.innerWidth) {
       finalX = x - menuRect.width; // Flip to left
       flipX = true;
     }
-    
+
     // Check vertical overflow and flip if needed
     if (y + menuRect.height + PADDING > window.innerHeight) {
       finalY = y - menuRect.height; // Flip to top
       flipY = true;
     }
-    
+
     // Clamp to viewport with padding
     finalX = Math.max(PADDING, Math.min(finalX, window.innerWidth - menuRect.width - PADDING));
     finalY = Math.max(PADDING, Math.min(finalY, window.innerHeight - menuRect.height - PADDING));
-    
+
     // Apply zoom offset
     finalX += zoomOffset;
     finalY += zoomOffset;
-    
+
     setPosition({ x: finalX, y: finalY, flipX, flipY });
   }, [x, y, getViewport]);
-  
+
   // Recalculate on window resize or zoom change
   useEffect(() => {
     const handleResize = () => {
       if (!menuRef.current) return;
-      
+
       const menuRect = menuRef.current.getBoundingClientRect();
       const PADDING = 12;
-      
+
       let finalX = position.x;
       let finalY = position.y;
-      
+
       // Re-clamp on resize
       finalX = Math.max(PADDING, Math.min(finalX, window.innerWidth - menuRect.width - PADDING));
       finalY = Math.max(PADDING, Math.min(finalY, window.innerHeight - menuRect.height - PADDING));
-      
+
       if (finalX !== position.x || finalY !== position.y) {
         setPosition({ x: finalX, y: finalY, flipX: position.flipX, flipY: position.flipY });
       }
     };
-    
+
     window.addEventListener('resize', handleResize, { passive: true });
     return () => window.removeEventListener('resize', handleResize);
   }, [position]);
-  
+
   // Close on outside click (passive listener for performance)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -265,36 +265,36 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
         onClose();
       }
     };
-    
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside, { passive: true });
     document.addEventListener('keydown', handleEscape, { passive: true } as AddEventListenerOptions);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
   }, [onClose]);
-  
+
   // ============================================================================
   // Action Handlers
   // ============================================================================
-  
+
   /**
    * Edit node configuration
    */
   const handleEdit = useCallback(() => {
     if (!node || !onEdit) return;
-    
+
     onEdit(node.id);
     onClose();
   }, [node, onEdit, onClose]);
-  
+
   /**
    * Add a new step to container
    */
@@ -324,7 +324,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
     setNodes((nodes) => [...nodes, newStep]);
     onClose();
   }, [node, getNodes, setNodes, onClose]);
-  
+
   /**
    * Duplicate container with all children
    */
@@ -367,7 +367,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
     setNodes((nodes) => [...nodes, duplicatedContainer, ...duplicatedChildren]);
     onClose();
   }, [node, getNodes, setNodes, onClose, onDuplicate]);
-  
+
 
   /**
    * Save a Form Process Group as a reusable Sub-Flow Template (Phase 9.2)
@@ -418,7 +418,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       onClose();
     }
   }, [node, getNodes, getEdges, onClose]);
-  
+
   /**
    * Toggle breakpoint (Phase 9.4)
    */
@@ -475,7 +475,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
 
     onClose();
   }, [node, getNodes, setNodes, onClose, onDelete]);
-  
+
   /**
    * Copy node
    */
@@ -506,22 +506,22 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
     setNodes((nodes) => [...nodes, copiedNode]);
     onClose();
   }, [node, setNodes, onClose, onDuplicate]);
-  
+
   /**
    * Extract from container
    */
   const handleExtract = useCallback(() => {
     if (!node || !node.parentId) return;
-    
+
     const parentNode = getNode(node.parentId);
     if (!parentNode) return;
-    
+
     // Calculate absolute position
     const absolutePosition = {
       x: parentNode.position.x + node.position.x,
       y: parentNode.position.y + node.position.y + 100, // Place below container
     };
-    
+
     setNodes((nodes) =>
       nodes.map((n) => {
         if (n.id === node.id) {
@@ -534,20 +534,20 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
         return n;
       })
     );
-    
+
     onClose();
   }, [node, getNode, setNodes, onClose]);
-  
-  
+
+
   /**
    * Expand/Collapse All children (Phase 3)
    */
   const handleExpandCollapseAll = useCallback(() => {
     if (!node) return;
-    
+
     const childNodes = getNodes().filter(n => n.parentId === node.id);
     const allExpanded = childNodes.every(n => n.data.isExpanded);
-    
+
     setNodes((nodes) =>
       nodes.map((n) => {
         if (n.parentId === node.id) {
@@ -562,39 +562,39 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
         return n;
       })
     );
-    
+
     onClose();
   }, [node, getNodes, setNodes, onClose]);
-  
+
   // ============================================================================
   // Render
   // ============================================================================
-  
+
   if (!node) return null;
-  
+
   const isContainer = node.type === 'formBook' ||
                      node.type === 'formProcessGroup' ||
                      node.type === 'formProcess' ||
                      node.type === 'formMultiStepContainer';
-  
+
   const isChildNode = !!node.parentId;
-  
+
   // Render menu via React Portal to document.body
   return createPortal(
-    <MenuContainer 
-      ref={menuRef} 
-      x={position.x} 
-      y={position.y} 
+    <MenuContainer
+      ref={menuRef}
+      x={position.x}
+      y={position.y}
       flipX={position.flipX}
       flipY={position.flipY}
-      onClick={(e) => e.stopPropagation()} 
-      role="menu" 
+      onClick={(e) => e.stopPropagation()}
+      role="menu"
       aria-label="Node context menu"
     >
       <MenuHeader>
         {isContainer ? 'Container Actions' : isChildNode ? 'Step Actions' : 'Node Actions'}
       </MenuHeader>
-      
+
       {/* Edit option for ALL nodes */}
       {onEdit && (
         <>
@@ -617,7 +617,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
         <span>{node.data?.hasBreakpoint ? 'Clear Breakpoint' : 'Set Breakpoint'}</span>
       </MenuItem>
       <MenuSeparator />
-      
+
       {isContainer && (
         <>
           <MenuItem
@@ -663,7 +663,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
           <MenuSeparator />
         </>
       )}
-      
+
       {isChildNode && (
         <>
           <MenuItem onClick={handleExtract} role="menuitem" aria-label="Extract from container">
@@ -673,7 +673,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
           <MenuSeparator />
         </>
       )}
-      
+
       {!isContainer && (
         <>
           <MenuItem onClick={handleCopy} role="menuitem" aria-label="Duplicate node">
@@ -683,7 +683,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
           <MenuSeparator />
         </>
       )}
-      
+
       <MenuItem onClick={handleDelete} danger role="menuitem" aria-label={`Delete ${isContainer ? 'container' : 'node'}`}>
         <Trash2 size={16} aria-hidden="true" />
         <span>Delete {isContainer ? 'Container' : 'Node'}</span>
@@ -695,7 +695,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
 
 /**
  * Hook to manage context menu state
- * 
+ *
  * @returns Context menu state and handlers
  */
 export function useContextMenu() {
@@ -704,7 +704,7 @@ export function useContextMenu() {
     x: number;
     y: number;
   } | null>(null);
-  
+
   const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
     setMenu({
@@ -713,11 +713,11 @@ export function useContextMenu() {
       y: event.clientY,
     });
   }, []);
-  
+
   const handleCloseMenu = useCallback(() => {
     setMenu(null);
   }, []);
-  
+
   return {
     menu,
     handleNodeContextMenu,

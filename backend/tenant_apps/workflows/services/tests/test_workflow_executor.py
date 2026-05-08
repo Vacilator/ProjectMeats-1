@@ -8,7 +8,7 @@ import os
 import unittest
 from unittest.mock import Mock, patch
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'projectmeats.settings.test')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "projectmeats.settings.test")
 
 import django  # noqa: E402
 
@@ -21,22 +21,22 @@ from tenant_apps.workflows.services.workflow_executor import WorkflowExecutor  #
 class WorkflowExecutorTestCase(unittest.TestCase):
     def setUp(self):
         self.tenant = Mock()
-        self.tenant.id = 'tenant-123'
+        self.tenant.id = "tenant-123"
 
         self.workflow = Mock(spec=TenantWorkflow)
-        self.workflow.id = 'workflow-123'
-        self.workflow.name = 'Test Workflow'
+        self.workflow.id = "workflow-123"
+        self.workflow.name = "Test Workflow"
         self.workflow.tenant = self.tenant
         self.workflow.tenant_id = self.tenant.id
-        self.workflow.trigger_type = 'manual'
+        self.workflow.trigger_type = "manual"
         self.workflow.trigger_config = {}
         self.workflow.run_count = 0
         self.workflow.save = Mock()
 
         self.trigger_data = {
-            'customer': {'email': 'test@example.com', 'name': 'Test Customer'},
-            'order_id': '12345',
-            'items': [{'sku': 'A'}, {'sku': 'B'}],
+            "customer": {"email": "test@example.com", "name": "Test Customer"},
+            "order_id": "12345",
+            "items": [{"sku": "A"}, {"sku": "B"}],
         }
 
         # Default: no conditions
@@ -44,22 +44,22 @@ class WorkflowExecutorTestCase(unittest.TestCase):
 
     def test_context_building(self):
         executor = WorkflowExecutor(self.workflow, self.trigger_data)
-        self.assertEqual(executor.context['trigger'], self.trigger_data)
-        self.assertEqual(executor.context['workflow']['name'], 'Test Workflow')
+        self.assertEqual(executor.context["trigger"], self.trigger_data)
+        self.assertEqual(executor.context["workflow"]["name"], "Test Workflow")
 
     def test_resolve_field_value(self):
         executor = WorkflowExecutor(self.workflow, self.trigger_data)
-        self.assertEqual(executor._resolve_field_value('trigger.customer.email'), 'test@example.com')
-        self.assertEqual(executor._resolve_field_value('customer.email'), 'test@example.com')
-        self.assertIsNone(executor._resolve_field_value('trigger.missing.field'))
+        self.assertEqual(executor._resolve_field_value("trigger.customer.email"), "test@example.com")
+        self.assertEqual(executor._resolve_field_value("customer.email"), "test@example.com")
+        self.assertIsNone(executor._resolve_field_value("trigger.missing.field"))
 
     def test_evaluate_condition_equals(self):
         executor = WorkflowExecutor(self.workflow, self.trigger_data)
 
         condition = Mock()
-        condition.field = 'trigger.order_id'
-        condition.operator = 'equals'
-        condition.value = '12345'
+        condition.field = "trigger.order_id"
+        condition.operator = "equals"
+        condition.value = "12345"
 
         self.assertTrue(executor._evaluate_single_condition(condition))
 
@@ -67,13 +67,13 @@ class WorkflowExecutorTestCase(unittest.TestCase):
         executor = WorkflowExecutor(self.workflow, self.trigger_data)
 
         action = Mock()
-        action.action_type = 'set_variable'
-        action.config = {'name': 'total_amount', 'value': 1500}
+        action.action_type = "set_variable"
+        action.config = {"name": "total_amount", "value": 1500}
 
         executor._execute_set_variable(action)
-        self.assertEqual(executor.context['variables']['total_amount'], 1500)
+        self.assertEqual(executor.context["variables"]["total_amount"], 1500)
 
-    @patch('tenant_apps.workflows.services.workflow_executor.WorkflowExecutionLog')
+    @patch("tenant_apps.workflows.services.workflow_executor.WorkflowExecutionLog")
     def test_execute_workflow_success_with_no_actions(self, mock_log_class):
         mock_log = Mock()
         mock_log.execution_log = []
@@ -89,9 +89,9 @@ class WorkflowExecutorTestCase(unittest.TestCase):
 
         mock_log_class.objects.create.assert_called_once()
         self.assertIs(result, mock_log)
-        self.assertEqual(mock_log.status, 'success')
+        self.assertEqual(mock_log.status, "success")
 
-    @patch('tenant_apps.workflows.services.workflow_executor.WorkflowExecutionLog')
+    @patch("tenant_apps.workflows.services.workflow_executor.WorkflowExecutionLog")
     def test_foreach_wrapper_executes_action_multiple_times(self, mock_log_class):
         mock_log = Mock()
         mock_log.execution_log = []
@@ -101,19 +101,19 @@ class WorkflowExecutorTestCase(unittest.TestCase):
         mock_log_class.objects.create.return_value = mock_log
 
         action = Mock()
-        action.id = 'action-1'
+        action.id = "action-1"
         action.order = 0
-        action.action_type = 'send_email'
+        action.action_type = "send_email"
         action.continue_on_error = False
         action.config = {
-            'foreach': {
-                'array': 'trigger.items',
-                'item_var': 'item',
-                'index_var': 'index',
-                'max_iterations': 10,
-                'break_on_error': True,
+            "foreach": {
+                "array": "trigger.items",
+                "item_var": "item",
+                "index_var": "index",
+                "max_iterations": 10,
+                "break_on_error": True,
             },
-            'to': 'test@example.com',
+            "to": "test@example.com",
         }
 
         self.workflow.actions.all().order_by.return_value = [action]

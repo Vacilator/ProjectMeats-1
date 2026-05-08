@@ -1,9 +1,9 @@
 /**
  * Flow Utilities - Upstream Data Traversal
- * 
+ *
  * Utilities for traversing React Flow graphs to enable smart data inheritance.
  * Allows nodes to reference outputs from upstream nodes using {{nodeId.fieldName}} syntax.
- * 
+ *
  * Created: 2026-02-24 - Phase 2: Smart Data Inheritance
  */
 import { Node, Edge } from '@xyflow/react';
@@ -21,13 +21,13 @@ export interface UpstreamOutput {
 /**
  * Traverse flow backwards from currentNodeId to collect all upstream outputs.
  * Prevents infinite loops by tracking visited nodes.
- * 
+ *
  * @param nodes - All nodes in the flow
  * @param edges - All edges in the flow
  * @param currentNodeId - The node requesting upstream data
  * @param expectedType - Optional filter by field type (e.g., 'email', 'text')
  * @returns Array of upstream outputs available for inheritance
- * 
+ *
  * @example
  * ```typescript
  * const outputs = getUpstreamOutputs(nodes, edges, 'emailNode', 'email');
@@ -52,34 +52,34 @@ export function getUpstreamOutputs(
 ): UpstreamOutput[] {
   const outputs: UpstreamOutput[] = [];
   const visited = new Set<string>();
-  
+
   // Recursive traversal with cycle detection
   function traverse(nodeId: string) {
     if (visited.has(nodeId)) return; // Prevent infinite loops
     visited.add(nodeId);
-    
+
     // Find incoming edges to this node
     const incomingEdges = edges.filter(e => e.target === nodeId);
-    
+
     for (const edge of incomingEdges) {
       const sourceNode = nodes.find(n => n.id === edge.source);
       if (!sourceNode) continue;
-      
+
       // Extract outputs from source node data
       const nodeOutputs = extractNodeOutputs(sourceNode);
-      
+
       // Filter by type if specified
       const filteredOutputs = expectedType
         ? nodeOutputs.filter(o => o.fieldType === expectedType)
         : nodeOutputs;
-      
+
       outputs.push(...filteredOutputs);
-      
+
       // Recursively traverse upstream
       traverse(sourceNode.id);
     }
   }
-  
+
   traverse(currentNodeId);
   return outputs;
 }
@@ -112,7 +112,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       });
     }
   }
-  
+
   // Handle entity nodes (createRecord with entity)
   if (data.entityType && Array.isArray(data.outputFields)) {
     for (const field of data.outputFields as any[]) {
@@ -127,7 +127,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       });
     }
   }
-  
+
   // Handle lookup/query nodes (database query results)
   if (data.lookupResult && typeof data.lookupResult === 'object') {
     for (const [key, value] of Object.entries(data.lookupResult)) {
@@ -142,7 +142,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       });
     }
   }
-  
+
   // Handle API/webhook response nodes
   if (data.responseData && typeof data.responseData === 'object') {
     for (const [key, value] of Object.entries(data.responseData)) {
@@ -157,7 +157,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       });
     }
   }
-  
+
   // Handle variable nodes (explicit key-value storage)
   if (Array.isArray(data.variables)) {
     for (const variable of data.variables as any[]) {
@@ -172,7 +172,7 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
       });
     }
   }
-  
+
   return outputs;
 }
 
@@ -228,7 +228,7 @@ function inferType(value: any): string {
 
 /**
  * Format Handlebars syntax for upstream field reference.
- * 
+ *
  * @example
  * ```typescript
  * formatInheritanceSyntax('customerForm', 'email')
@@ -241,7 +241,7 @@ export function formatInheritanceSyntax(nodeId: string, fieldName: string): stri
 
 /**
  * Parse Handlebars syntax to extract node and field references.
- * 
+ *
  * @example
  * ```typescript
  * parseInheritanceSyntax('{{customerForm.email}}')
@@ -275,13 +275,13 @@ export function getUpstreamNodes(
 ): Node[] {
   const upstreamNodes: Node[] = [];
   const visited = new Set<string>();
-  
+
   function traverse(nodeId: string) {
     if (visited.has(nodeId)) return;
     visited.add(nodeId);
-    
+
     const incomingEdges = edges.filter(e => e.target === nodeId);
-    
+
     for (const edge of incomingEdges) {
       const sourceNode = nodes.find(n => n.id === edge.source);
       if (sourceNode && sourceNode.id !== currentNodeId) {
@@ -290,7 +290,7 @@ export function getUpstreamNodes(
       }
     }
   }
-  
+
   traverse(currentNodeId);
   return upstreamNodes;
 }

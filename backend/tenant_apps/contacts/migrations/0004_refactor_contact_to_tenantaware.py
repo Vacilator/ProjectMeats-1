@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("contacts", "0003_add_parent_entity_fields"),
         ("tenants", "0010_add_tenant_configuration"),
@@ -32,14 +31,14 @@ class Migration(migrations.Migration):
             sql="""
             -- Enable Row-Level Security for contacts.Contact
             ALTER TABLE contacts_contact ENABLE ROW LEVEL SECURITY;
-            
+
             -- Drop existing policy if it exists (idempotent)
             DROP POLICY IF EXISTS contact_tenant_isolation ON contacts_contact;
-            
+
             -- Create RLS policy for tenant isolation
             CREATE POLICY contact_tenant_isolation ON contacts_contact
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- Create policy for INSERT operations
             CREATE POLICY contact_tenant_insert ON contacts_contact
             FOR INSERT
@@ -50,6 +49,6 @@ class Migration(migrations.Migration):
             DROP POLICY IF EXISTS contact_tenant_insert ON contacts_contact;
             DROP POLICY IF EXISTS contact_tenant_isolation ON contacts_contact;
             ALTER TABLE contacts_contact DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

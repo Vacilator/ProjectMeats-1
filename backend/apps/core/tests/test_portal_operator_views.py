@@ -1,8 +1,8 @@
 """API coverage for authenticated operator portal grant controls."""
 
+import uuid
 from datetime import timedelta
 from decimal import Decimal
-import uuid
 
 from django.contrib.auth.models import User
 from django.test import override_settings
@@ -10,18 +10,14 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.core.models import (
-    PortalDocumentReference,
-    PortalGrant,
-    PortalGrantDocumentAccess,
-    TenantAuditEvent,
-)
-from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
 from tenant_apps.invoices.models import Invoice, InvoiceStatus
 from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder
 from tenant_apps.suppliers.models import Supplier
+
+from apps.core.models import PortalDocumentReference, PortalGrant, PortalGrantDocumentAccess, TenantAuditEvent
+from apps.tenants.models import Tenant, TenantUser
 
 
 @override_settings(ROOT_URLCONF="projectmeats.urls")

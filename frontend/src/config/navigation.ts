@@ -1,9 +1,9 @@
 /**
  * Navigation configuration for ProjectMeats frontend
- * 
+ *
  * Defines the main navigation structure for the application.
  * This is the central location for managing navigation items.
- * 
+ *
  * Updated: 2026-02-04 - Phase 1 Cockpit & WorkForms Enhancement
  * - Changed Cockpit path from /workspace to /cockpit
  * - Renamed "Forms & Flows" to "WorkForms"

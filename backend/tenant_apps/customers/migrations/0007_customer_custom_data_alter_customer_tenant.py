@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("customers", "0006_add_products_m2m"),
         ("tenants", "0006_metadata_lockdown"),

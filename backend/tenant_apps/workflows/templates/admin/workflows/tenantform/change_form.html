@@ -13,7 +13,7 @@
 
 {% block content %}
 <div id="content-main" x-data="formBuilder()" x-init="init()">
-    
+
     {% block object-tools %}
     {% if change and not is_popup %}
     <ul class="object-tools">
@@ -32,12 +32,12 @@
     <form {% if has_file_field %}enctype="multipart/form-data" {% endif %}{% if form_url %}action="{{ form_url }}" {% endif %}method="post" id="{{ opts.model_name }}_form" novalidate>
         {% csrf_token %}
         {% block form_top %}{% endblock %}
-        
+
         <div>
             {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
             {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
             {% if save_on_top %}{% block submit_buttons_top %}{% submit_row %}{% endblock %}{% endif %}
-            
+
             {% if errors %}
             <p class="errornote">
                 {% blocktranslate count counter=errors|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
@@ -57,7 +57,7 @@
             <!-- Custom Visual Form Builder Section -->
             {% if change %}
             <fieldset class="module form-builder-section">
-                <h2>📊 Form Steps 
+                <h2>📊 Form Steps
                     <span class="help-tooltip" title="Each step represents an entity (like Supplier, Customer, etc.) that users will fill out. Steps are completed in order from left to right.">ℹ️</span>
                 </h2>
                 <div class="form-builder-description">
@@ -69,7 +69,7 @@
                     </ul>
                     <p class="keyboard-hint">💡 <strong>Tip:</strong> Press <kbd>Esc</kbd> to close modals, <kbd>Ctrl+P</kbd> for preview</p>
                 </div>
-                
+
                 <!-- Step Cards Container -->
                 <div class="step-cards-container" id="step-cards" x-ref="stepCards">
                     {% for inline in inline_admin_formsets %}
@@ -77,7 +77,7 @@
                             <!-- Render step cards from entities inline -->
                             {% for form in inline.formset %}
                                 {% if form.instance.pk and form.instance.entity_type %}
-                                <div class="step-card" 
+                                <div class="step-card"
                                      data-step-id="{{ form.instance.pk }}"
                                      data-order="{{ form.instance.order }}"
                                      data-entity-type="{{ form.instance.entity_type }}"
@@ -104,19 +104,19 @@
                                             </span>
                                         </div>
                                         <div class="step-actions">
-                                            <button type="button" 
+                                            <button type="button"
                                                     class="step-action-btn"
                                                     @click="openFieldEditor('{{ form.instance.pk }}')"
                                                     title="Edit Fields">
                                                 ✏️ Edit Fields
                                             </button>
-                                            <button type="button" 
+                                            <button type="button"
                                                     class="step-action-btn"
                                                     @click="openRuleEditor('{{ form.instance.pk }}')"
                                                     title="Configure Rules">
                                                 📜 Rules
                                             </button>
-                                            <a href="{% url 'admin:workflows_tenantformentity_change' form.instance.pk %}" 
+                                            <a href="{% url 'admin:workflows_tenantformentity_change' form.instance.pk %}"
                                                class="step-action-btn"
                                                title="Advanced Settings">
                                                 ⚙️ Settings
@@ -130,7 +130,7 @@
                             {% endfor %}
                         {% endif %}
                     {% endfor %}
-                    
+
                     <!-- Add Step Card (Ghost) -->
                     <div class="step-card step-card-add" @click="openAddStepModal()">
                         <div class="add-step-content">
@@ -139,16 +139,16 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Connection Lines (visual flow) -->
                 <div class="step-flow-indicator" x-show="stepCount > 1">
                     <span class="flow-text">Form flows from left to right →</span>
                 </div>
             </fieldset>
-            
+
             <!-- Form-Wide Rules Section -->
             <fieldset class="module form-rules-section">
-                <h2>📜 Conditional Rules 
+                <h2>📜 Conditional Rules
                     <span class="rules-count-badge" x-show="formRules.length > 0">(<span class="rules-count" x-text="formRules.length"></span>)</span>
                     <span class="help-tooltip" title="Rules control when fields are shown or hidden based on values entered in other fields.">ℹ️</span>
                 </h2>
@@ -160,12 +160,12 @@
                         <li>Rules are evaluated in real-time as users fill out the form</li>
                     </ul>
                 </div>
-                
+
                 <!-- Loading indicator -->
                 <div x-show="rulesLoading" class="rules-loading">
                     Loading rules...
                 </div>
-                
+
                 <div class="rules-list" id="form-rules" x-show="!rulesLoading">
                     <!-- Dynamic rules from Alpine.js state -->
                     <template x-for="rule in formRules" :key="rule.id">
@@ -183,23 +183,23 @@
                             </div>
                         </div>
                     </template>
-                    
+
                     <!-- No rules message -->
                     <p class="no-rules-message" x-show="formRules.length === 0 && !rulesLoading">
                         No rules configured. Add a rule to create conditional field visibility.
                     </p>
                 </div>
-                
+
                 <div class="rules-toolbar">
                     <button type="button" class="add-rule-btn" @click="showAddRuleModal()">
                         ➕ Add Rule
                     </button>
                 </div>
             </fieldset>
-            
+
             <!-- Field Mappings Section -->
             <fieldset class="module form-mappings-section">
-                <h2>🔗 Field Mappings 
+                <h2>🔗 Field Mappings
                     <span class="mappings-count-badge" x-show="fieldMappings.length > 0">(<span class="mappings-count" x-text="fieldMappings.length"></span>)</span>
                     <span class="help-tooltip" title="Field mappings auto-populate fields with values from previous steps. Use Auto-Map to automatically detect and configure mappings.">ℹ️</span>
                 </h2>
@@ -211,29 +211,29 @@
                         <li>Mappings copy values when users move between steps</li>
                     </ul>
                 </div>
-                
+
                 <!-- Loading indicator -->
                 <div x-show="mappingsLoading" class="mappings-loading">
                     Loading mappings...
                 </div>
-                
+
                 <!-- Auto-Map Toolbar -->
                 <div class="mappings-toolbar" x-show="formSteps.length > 1 && !mappingsLoading">
-                    <button type="button" 
-                            class="auto-map-btn" 
+                    <button type="button"
+                            class="auto-map-btn"
                             @click="computeAutoMappings()"
                             :disabled="autoMapLoading">
                         <span x-show="!autoMapLoading">✨ Auto-Map Fields</span>
                         <span x-show="autoMapLoading">⏳ Analyzing...</span>
                     </button>
-                    <button type="button" 
-                            class="manual-map-btn" 
+                    <button type="button"
+                            class="manual-map-btn"
                             @click="openManualMappingModal()">
                         ➕ Add Manual Mapping
                     </button>
                     <span class="auto-map-hint">Auto-Map: Fuzzy matching | Manual: Custom configuration</span>
                 </div>
-                
+
                 <!-- Auto-Map Suggestions (shown when computed) -->
                 <div class="auto-map-suggestions" x-show="autoMapSuggestions.length > 0 && !mappingsLoading">
                     <div class="suggestions-header">
@@ -275,7 +275,7 @@
                         </template>
                     </div>
                 </div>
-                
+
                 <!-- Current Mappings List -->
                 <div class="mappings-list" id="field-mappings" x-show="!mappingsLoading">
                     <template x-for="mapping in fieldMappings" :key="mapping.target_field_id">
@@ -303,18 +303,18 @@
                             </div>
                         </div>
                     </template>
-                    
+
                     <!-- No mappings message -->
                     <p class="no-mappings-message" x-show="fieldMappings.length === 0 && autoMapSuggestions.length === 0 && !mappingsLoading && formSteps.length > 1">
                         No field mappings configured. Click "Auto-Map Fields" or "Add Manual Mapping" to configure.
                     </p>
-                    
+
                     <!-- Single step message -->
                     <p class="no-mappings-message" x-show="formSteps.length <= 1 && !mappingsLoading">
                         ℹ️ Field mappings require at least 2 steps. Add another step to enable data flow between steps.
                     </p>
                 </div>
-                
+
                 <!-- Data Flow Visualization -->
                 <div class="data-flow-viz" x-show="fieldMappings.length > 0 && !mappingsLoading">
                     <h4>📊 Data Flow</h4>
@@ -365,7 +365,7 @@
             {% prepopulated_fields_js %}
         </div>
     </form>
-    
+
     <!-- Field Editor Modal -->
     <div class="modal-overlay" x-show="showFieldModal" x-cloak @click.self="closeFieldModal()">
         <div class="modal-content modal-lg">
@@ -400,12 +400,12 @@
                             </p>
                         </div>
                     </div>
-                    
+
                     <!-- Available Fields -->
                     <div class="field-list-section">
                         <h4>Available Fields</h4>
-                        <input type="text" 
-                               class="field-search" 
+                        <input type="text"
+                               class="field-search"
                                placeholder="Search fields..."
                                x-model="fieldSearch"
                                @input="filterFields()">
@@ -423,8 +423,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="closeFieldModal()" :disabled="fieldsSaving">Cancel</button>
-                <button type="button" 
-                        class="btn btn-primary" 
+                <button type="button"
+                        class="btn btn-primary"
                         @click="saveFieldSelection()"
                         :disabled="fieldsSaving">
                     <span x-show="!fieldsSaving">💾 Save Selection</span>
@@ -433,7 +433,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Field Configuration Modal (Phase 3) -->
     <div class="modal-overlay" x-show="showFieldConfigModal" x-cloak @click.self="closeFieldConfigModal()">
         <div class="modal-content modal-md">
@@ -445,26 +445,26 @@
                 <div x-show="fieldConfig.loading" class="loading-spinner">
                     Loading configuration...
                 </div>
-                
+
                 <div x-show="!fieldConfig.loading" class="field-config-form">
                     <!-- Basic Settings -->
                     <div class="config-section">
                         <h4>Display Settings</h4>
-                        
+
                         <div class="form-group">
                             <label for="customLabel">Custom Label</label>
-                            <input type="text" id="customLabel" 
+                            <input type="text" id="customLabel"
                                    x-model="fieldConfig.customLabel"
                                    placeholder="Leave blank to use default label">
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="customHelpText">Help Text</label>
-                            <input type="text" id="customHelpText" 
+                            <input type="text" id="customHelpText"
                                    x-model="fieldConfig.customHelpText"
                                    placeholder="Appears below the field">
                         </div>
-                        
+
                         <div class="form-group checkbox-group">
                             <label>
                                 <input type="checkbox" x-model="fieldConfig.isRequired">
@@ -472,14 +472,14 @@
                             </label>
                         </div>
                     </div>
-                    
+
                     <!-- Auto-Population Settings -->
                     <div class="config-section">
                         <h4>🔄 Auto-Population</h4>
                         <p class="section-description">
                             Automatically fill this field with a value from a previous step.
                         </p>
-                        
+
                         <template x-if="fieldConfig.availableSourceSteps.length > 0">
                             <div>
                                 <!-- Smart Suggestions -->
@@ -498,7 +498,7 @@
                                         </template>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Manual Configuration -->
                                 <div class="form-group">
                                     <label>Source Step</label>
@@ -509,7 +509,7 @@
                                         </template>
                                     </select>
                                 </div>
-                                
+
                                 <div class="form-group" x-show="fieldConfig.autoPopulate.sourceStep">
                                     <label>Source Field</label>
                                     <select x-model="fieldConfig.autoPopulate.sourceField">
@@ -519,7 +519,7 @@
                                         </template>
                                     </select>
                                 </div>
-                                
+
                                 <div class="form-group" x-show="fieldConfig.autoPopulate.sourceStep && fieldConfig.autoPopulate.sourceField">
                                     <label>Auto-Population Mode</label>
                                     <select x-model="fieldConfig.autoPopulate.mode">
@@ -535,7 +535,7 @@
                                 </div>
                             </div>
                         </template>
-                        
+
                         <div x-show="fieldConfig.availableSourceSteps.length === 0" class="no-sources-message">
                             <p>ℹ️ This field is in the first step. Auto-population requires prior steps to pull from.</p>
                         </div>
@@ -544,8 +544,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="closeFieldConfigModal()">Cancel</button>
-                <button type="button" 
-                        class="btn btn-primary" 
+                <button type="button"
+                        class="btn btn-primary"
                         @click="saveFieldConfig()"
                         :disabled="fieldConfig.saving">
                     <span x-show="!fieldConfig.saving">💾 Save Configuration</span>
@@ -554,7 +554,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Field Templates Modal -->
     <div class="modal-overlay" x-show="showTemplatesModal" x-cloak @click.self="closeTemplatesModal()">
         <div class="modal-content modal-md">
@@ -566,12 +566,12 @@
                 <div x-show="templatesLoading" class="loading-spinner">
                     Loading templates...
                 </div>
-                
+
                 <div x-show="!templatesLoading">
                     <!-- Template Selection -->
                     <div class="templates-grid">
                         <template x-for="template in fieldTemplates" :key="template.id">
-                            <div class="template-card" 
+                            <div class="template-card"
                                  :class="{ 'selected': selectedTemplate === template.id }"
                                  @click="selectTemplate(template.id)">
                                 <div class="template-icon" x-text="template.icon"></div>
@@ -583,7 +583,7 @@
                             </div>
                         </template>
                     </div>
-                    
+
                     <!-- Template Preview -->
                     <div x-show="templateFields.length > 0" class="template-preview">
                         <h4>Fields to be added:</h4>
@@ -601,8 +601,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="closeTemplatesModal()">Cancel</button>
-                <button type="button" 
-                        class="btn btn-primary" 
+                <button type="button"
+                        class="btn btn-primary"
                         @click="addTemplateFields()"
                         :disabled="!templateFields.length">
                     ➕ Add Fields
@@ -610,7 +610,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Rule Builder Modal -->
     <div class="modal-overlay" x-show="showRuleModal" x-cloak @click.self="closeRuleModal()">
         <div class="modal-content modal-lg">
@@ -624,7 +624,7 @@
                         <label>Rule Name (optional)</label>
                         <input type="text" x-model="ruleForm.name" placeholder="e.g., Show shipping fields when delivery selected">
                     </div>
-                    
+
                     <div class="rule-section">
                         <h4>WHEN (Conditions)</h4>
                         <div class="condition-builder">
@@ -651,14 +651,14 @@
                                 <option value="is_empty">is empty</option>
                                 <option value="is_not_empty">is not empty</option>
                             </select>
-                            <input type="text" 
-                                   x-model="ruleForm.conditionValue" 
+                            <input type="text"
+                                   x-model="ruleForm.conditionValue"
                                    class="condition-value"
                                    placeholder="value"
                                    x-show="!['is_empty', 'is_not_empty'].includes(ruleForm.conditionOperator)">
                         </div>
                     </div>
-                    
+
                     <div class="rule-section">
                         <h4>THEN (Action)</h4>
                         <div class="action-builder">
@@ -674,7 +674,7 @@
                                 </optgroup>
                             </select>
                             <span class="action-arrow">→</span>
-                            
+
                             <!-- Step selection (for field actions) -->
                             <template x-if="isFieldAction()">
                                 <select x-model="ruleForm.actionStep" @change="loadActionFields()" class="action-step">
@@ -684,19 +684,19 @@
                                     </template>
                                 </select>
                             </template>
-                            
+
                             <!-- Field checkboxes (for show/hide field actions) -->
                             <div class="action-fields-select" x-show="isFieldAction() && ruleForm.actionType !== 'set_value' && actionFields.length > 0">
                                 <template x-for="field in actionFields" :key="field.key">
                                     <label class="field-checkbox">
-                                        <input type="checkbox" 
-                                               :value="field.key" 
+                                        <input type="checkbox"
+                                               :value="field.key"
                                                x-model="ruleForm.actionTargetFields">
                                         <span x-text="field.label"></span>
                                     </label>
                                 </template>
                             </div>
-                            
+
                             <!-- Field-Value pairs (for set_value action) -->
                             <div class="action-set-value-container" x-show="ruleForm.actionType === 'set_value' && ruleForm.actionStep && actionFields.length > 0">
                                 <p class="select-hint">Select fields and set their values:</p>
@@ -704,13 +704,13 @@
                                     <template x-for="field in actionFields" :key="field.key">
                                         <div class="field-value-row">
                                             <label class="field-checkbox">
-                                                <input type="checkbox" 
-                                                       :value="field.key" 
+                                                <input type="checkbox"
+                                                       :value="field.key"
                                                        x-model="ruleForm.actionTargetFields"
                                                        @change="initFieldValue(field.key)">
                                                 <span x-text="field.label"></span>
                                             </label>
-                                            <input type="text" 
+                                            <input type="text"
                                                    class="field-value-input"
                                                    x-show="ruleForm.actionTargetFields.includes(field.key)"
                                                    :placeholder="'Value for ' + field.label"
@@ -719,19 +719,19 @@
                                     </template>
                                 </div>
                             </div>
-                            
+
                             <p x-show="isFieldAction() && actionFields.length === 0 && ruleForm.actionStep" class="no-fields-message">
                                 Select a step to see available fields...
                             </p>
-                            
+
                             <!-- Step checkboxes (for step actions) -->
                             <div class="action-steps-select" x-show="isStepAction()">
                                 <p class="select-hint">Select step(s) to show/hide:</p>
                                 <div class="step-checkbox-list">
                                     <template x-for="step in formSteps" :key="step.id">
                                         <label class="step-checkbox">
-                                            <input type="checkbox" 
-                                                   :value="step.id" 
+                                            <input type="checkbox"
+                                                   :value="step.id"
                                                    x-model="ruleForm.actionTargetSteps">
                                             <span class="step-badge" x-text="'Step ' + (step.order + 1)"></span>
                                             <span x-text="step.name"></span>
@@ -742,7 +742,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="rule-preview">
                         <h4>Preview</h4>
                         <p class="preview-text" x-text="rulePreviewText"></p>
@@ -751,8 +751,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="closeRuleModal()">Cancel</button>
-                <button type="button" 
-                        class="btn btn-primary" 
+                <button type="button"
+                        class="btn btn-primary"
                         @click="saveRule()"
                         :disabled="ruleSaving">
                     <span x-show="!ruleSaving">💾 Save Rule</span>
@@ -761,7 +761,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Add Step Modal -->
     <div class="modal-overlay" x-show="showAddStepModal" x-cloak @click.self="closeAddStepModal()">
         <div class="modal-content">
@@ -803,7 +803,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Manual Mapping Modal -->
     <div class="modal-overlay" x-show="showManualMappingModal" x-cloak @click.self="closeManualMappingModal()">
         <div class="modal-content">
@@ -818,8 +818,8 @@
                         <h4>🎯 Target (field to auto-populate)</h4>
                         <div class="form-group">
                             <label>Target Step</label>
-                            <select x-model="manualMapping.targetStep" 
-                                    class="step-select" 
+                            <select x-model="manualMapping.targetStep"
+                                    class="step-select"
                                     @change="loadTargetFieldsForStep(manualMapping.targetStep); manualMapping.targetField = '';"
                                     :disabled="manualMapping.saving || editingMapping">
                                 <option value="">-- Select Step --</option>
@@ -830,7 +830,7 @@
                         </div>
                         <div class="form-group" x-show="manualMapping.targetStep">
                             <label>Target Field</label>
-                            <select x-model="manualMapping.targetField" 
+                            <select x-model="manualMapping.targetField"
                                     class="field-select"
                                     :disabled="manualMapping.saving || editingMapping">
                                 <option value="">-- Select Field --</option>
@@ -840,13 +840,13 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <!-- Source Step & Field Selection -->
                     <div class="mapping-section">
                         <h4>📤 Source (field to copy from)</h4>
                         <div class="form-group">
                             <label>Source Step</label>
-                            <select x-model="manualMapping.sourceStep" 
+                            <select x-model="manualMapping.sourceStep"
                                     class="step-select"
                                     @change="loadSourceFieldsForStep(manualMapping.sourceStep); manualMapping.sourceField = '';"
                                     :disabled="manualMapping.saving || !manualMapping.targetStep">
@@ -859,7 +859,7 @@
                         </div>
                         <div class="form-group" x-show="manualMapping.sourceStep">
                             <label>Source Field</label>
-                            <select x-model="manualMapping.sourceField" 
+                            <select x-model="manualMapping.sourceField"
                                     class="field-select"
                                     :disabled="manualMapping.saving">
                                 <option value="">-- Select Field --</option>
@@ -869,7 +869,7 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <!-- Mapping Mode -->
                     <div class="mapping-section" x-show="manualMapping.sourceField">
                         <h4>⚙️ Mapping Mode</h4>
@@ -888,7 +888,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Mapping Preview -->
                     <div class="mapping-preview" x-show="manualMapping.targetField && manualMapping.sourceField">
                         <h4>📄 Preview</h4>
@@ -902,9 +902,9 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="closeManualMappingModal()" :disabled="manualMapping.saving">Cancel</button>
-                <button type="button" 
-                        class="btn btn-primary" 
-                        @click="saveManualMapping()" 
+                <button type="button"
+                        class="btn btn-primary"
+                        @click="saveManualMapping()"
                         :disabled="manualMapping.saving || !manualMapping.targetField || !manualMapping.sourceField">
                     <span x-show="!manualMapping.saving" x-text="editingMapping ? '💾 Update Mapping' : '💾 Save Mapping'"></span>
                     <span x-show="manualMapping.saving">⏳ Saving...</span>
@@ -912,21 +912,21 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Form Preview Modal -->
     <div class="modal-overlay" x-show="showPreviewModal" x-cloak @click.self="closePreview()">
         <div class="modal-content modal-xl">
             <div class="modal-header">
                 <h3>👁️ Form Preview</h3>
                 <div class="modal-header-actions">
-                    <button type="button" 
-                            class="btn btn-sm btn-test-data" 
+                    <button type="button"
+                            class="btn btn-sm btn-test-data"
                             @click="fillWithTestData()"
                             title="Fill all fields with realistic test data">
                         🎲 Fill with Test Data
                     </button>
-                    <button type="button" 
-                            class="btn btn-sm btn-clear" 
+                    <button type="button"
+                            class="btn btn-sm btn-clear"
                             @click="clearPreviewData()"
                             title="Clear all field values">
                         🗑️ Clear
@@ -940,18 +940,18 @@
                     <div class="loading-spinner"></div>
                     <p>Loading form preview...</p>
                 </div>
-                
+
                 <!-- Preview content -->
                 <div class="form-preview-container" x-show="!previewData.loading">
                     <!-- Empty state -->
                     <div x-show="previewData.steps.length === 0" class="preview-empty">
                         <p>📋 No steps configured yet. Add steps and fields to see a preview.</p>
                     </div>
-                    
+
                     <!-- Step progress indicator -->
                     <div class="preview-progress" x-show="previewData.steps.length > 0">
                         <template x-for="(step, idx) in previewData.steps" :key="step.id">
-                            <div class="progress-step" 
+                            <div class="progress-step"
                                  :class="{ 'active': idx === previewData.currentStep, 'completed': idx < previewData.currentStep }"
                                  @click="previewData.currentStep = idx">
                                 <span class="progress-number" x-text="idx + 1"></span>
@@ -959,14 +959,14 @@
                             </div>
                         </template>
                     </div>
-                    
+
                     <!-- Current step preview -->
                     <div class="preview-step-content" x-show="currentPreviewStep">
                         <div class="preview-step-header">
                             <h4 x-text="currentPreviewStep?.name"></h4>
                             <span class="preview-entity-badge" x-text="currentPreviewStep?.entityType?.replace('_', ' ')"></span>
                         </div>
-                        
+
                         <!-- Fields list -->
                         <div class="preview-fields">
                             <template x-for="field in (currentPreviewStep?.fields || [])" :key="field.key">
@@ -979,7 +979,7 @@
                                         </label>
                                         <span class="field-type-badge" x-text="field.type"></span>
                                     </div>
-                                    
+
                                     <!-- Field input placeholder -->
                                     <div class="preview-field-input">
                                         <template x-if="field.type === 'boolean'">
@@ -997,19 +997,19 @@
                                             </select>
                                         </template>
                                         <template x-if="!['boolean', 'textarea', 'select', 'foreignkey'].includes(field.type)">
-                                            <input type="text" class="preview-input" disabled 
+                                            <input type="text" class="preview-input" disabled
                                                    :placeholder="field.config?.custom_help_text || 'Enter ' + field.label.toLowerCase() + '...'">
                                         </template>
                                     </div>
-                                    
+
                                     <!-- Field indicators -->
                                     <div class="preview-field-indicators">
-                                        <span class="indicator auto-populate" 
+                                        <span class="indicator auto-populate"
                                               x-show="field.config?.auto_populate?.source_step"
                                               title="Auto-populated from previous step">
                                             🔗 Auto-fill
                                         </span>
-                                        <span class="indicator conditional" 
+                                        <span class="indicator conditional"
                                               x-show="getRulesForField(currentPreviewStep?.id, field.key).length > 0"
                                               title="Has conditional visibility rule">
                                             👁️ Conditional
@@ -1017,18 +1017,18 @@
                                     </div>
                                 </div>
                             </template>
-                            
+
                             <!-- No fields message -->
                             <div class="preview-no-fields" x-show="(currentPreviewStep?.fields || []).length === 0">
                                 <p>No fields selected for this step. Click "Edit Fields" on the step card to add fields.</p>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Navigation -->
                     <div class="preview-navigation">
-                        <button type="button" 
-                                class="btn btn-secondary" 
+                        <button type="button"
+                                class="btn btn-secondary"
                                 @click="prevPreviewStep()"
                                 :disabled="previewData.currentStep === 0"
                                 x-show="previewData.steps.length > 1">
@@ -1038,15 +1038,15 @@
                             Step <span x-text="previewData.currentStep + 1"></span> of <span x-text="previewData.steps.length"></span>
                         </span>
                         <!-- Next button (not on last step) -->
-                        <button type="button" 
-                                class="btn btn-primary" 
+                        <button type="button"
+                                class="btn btn-primary"
                                 @click="nextPreviewStep()"
                                 x-show="previewData.steps.length > 1 && previewData.currentStep < previewData.steps.length - 1">
                             Next →
                         </button>
                         <!-- Submit button (on last step or single-step form) -->
-                        <button type="button" 
-                                class="btn btn-success preview-submit-btn" 
+                        <button type="button"
+                                class="btn btn-success preview-submit-btn"
                                 x-show="previewData.steps.length === 1 || previewData.currentStep >= previewData.steps.length - 1"
                                 @click="showPreviewSubmitMessage()">
                             ✓ Submit Form

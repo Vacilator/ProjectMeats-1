@@ -26,31 +26,33 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = MasterProduct
         fields = [
-            'id',
-            'tenant',
-            'protein',
-            'item_name',
-            'type',
-            'trim',
-            'system_product',
-            'display_name',
-            'is_active',
-            'created_on',
-            'modified_on',
+            "id",
+            "tenant",
+            "protein",
+            "item_name",
+            "type",
+            "trim",
+            "system_product",
+            "display_name",
+            "is_active",
+            "created_on",
+            "modified_on",
         ]
-        read_only_fields = ['id', 'tenant', 'display_name', 'created_on', 'modified_on']
+        read_only_fields = ["id", "tenant", "display_name", "created_on", "modified_on"]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        system_product = attrs.get('system_product', getattr(self.instance, 'system_product', None))
-        protein = attrs.get('protein', getattr(self.instance, 'protein', ''))
-        system_protein = str(getattr(system_product, 'protein_type', '') or '').strip().lower()
-        requested_protein = str(protein or '').strip().lower()
+        system_product = attrs.get("system_product", getattr(self.instance, "system_product", None))
+        protein = attrs.get("protein", getattr(self.instance, "protein", ""))
+        system_protein = str(getattr(system_product, "protein_type", "") or "").strip().lower()
+        requested_protein = str(protein or "").strip().lower()
 
         if system_product and system_protein and requested_protein and system_protein != requested_protein:
-            raise serializers.ValidationError({
-                'system_product': 'System product protein_type must match the master product protein.',
-            })
+            raise serializers.ValidationError(
+                {
+                    "system_product": "System product protein_type must match the master product protein.",
+                }
+            )
 
         return attrs
 

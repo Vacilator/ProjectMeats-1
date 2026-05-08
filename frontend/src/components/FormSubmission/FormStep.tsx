@@ -1,6 +1,6 @@
 /**
  * FormStep Component
- * 
+ *
  * Renders a single step within a form submission with fields and notes.
  */
 import React, { useCallback, useState, useMemo } from 'react';
@@ -75,7 +75,7 @@ const StepNumber = styled.span<{ status: string }>`
   border-radius: 50%;
   font-size: 0.875rem;
   font-weight: 600;
-  
+
   ${({ status }) => {
     switch (status) {
       case 'completed':
@@ -267,7 +267,7 @@ const FormStep: React.FC<FormStepProps> = ({
 
   const handleComplete = useCallback(async () => {
     if (!canComplete || hasErrors || isCompleting) return;
-    
+
     setIsCompleting(true);
     try {
       await onCompleteStep();

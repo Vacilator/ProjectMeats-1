@@ -3,49 +3,49 @@ Cockpit views for aggregated search across tenant models.
 
 Provides polymorphic search API respecting tenant schema isolation.
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
-from rest_framework.views import APIView
-from rest_framework.exceptions import PermissionDenied
-
-from drf_spectacular.utils import OpenApiTypes, PolymorphicProxySerializer, extend_schema
-
-from django.conf import settings
-from django.db.models import Q
-from django.db import IntegrityError
-from django.utils import timezone
 import logging
 
-from .serializers import (
-    CustomerSlotSerializer,
-    SupplierSlotSerializer,
-    OrderSlotSerializer,
-    ActivityLogSerializer,
-    ActivityLogCreateSerializer,
-    ActivityLogUpdateSerializer,
-    ScheduledCallSerializer,
-    UserWorkspaceLayoutSerializer,
-    WorkspaceLayoutPayloadSerializer,
-    EntityAIOverviewResponseSerializer,
-    TradeExceptionQueueListSerializer,
-    TradeExceptionQueueDetailSerializer,
-    TradeExceptionResolveRequestSerializer,
-)
-from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
+from django.conf import settings
+from django.db import IntegrityError
+from django.db.models import Q
+from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from drf_spectacular.utils import OpenApiTypes, PolymorphicProxySerializer, extend_schema
+from tenant_apps.contacts.models import Contact
+from tenant_apps.customers.models import Customer
+from tenant_apps.inquiries.models import Inquiry
+from tenant_apps.invoices.models import Invoice
+from tenant_apps.locations.models import Location
+from tenant_apps.plants.models import Plant
+from tenant_apps.purchase_orders.models import PurchaseOrder
+from tenant_apps.sales_orders.models import SalesOrder
+from tenant_apps.suppliers.models import Supplier
+
 from apps.core.models import TradeExceptionQueue
 from apps.core.services.exception_queue import resolve_exception, retry_exception
-from tenant_apps.customers.models import Customer
-from tenant_apps.suppliers.models import Supplier
-from tenant_apps.purchase_orders.models import PurchaseOrder
-from tenant_apps.plants.models import Plant
-from tenant_apps.locations.models import Location
-from tenant_apps.contacts.models import Contact
-from tenant_apps.sales_orders.models import SalesOrder
-from tenant_apps.invoices.models import Invoice
-from tenant_apps.inquiries.models import Inquiry
+
+from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
+from .serializers import (
+    ActivityLogCreateSerializer,
+    ActivityLogSerializer,
+    ActivityLogUpdateSerializer,
+    CustomerSlotSerializer,
+    EntityAIOverviewResponseSerializer,
+    OrderSlotSerializer,
+    ScheduledCallSerializer,
+    SupplierSlotSerializer,
+    TradeExceptionQueueDetailSerializer,
+    TradeExceptionQueueListSerializer,
+    TradeExceptionResolveRequestSerializer,
+    UserWorkspaceLayoutSerializer,
+    WorkspaceLayoutPayloadSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,89 +62,85 @@ class EntityAIOverviewView(APIView):
 
     @extend_schema(responses={200: EntityAIOverviewResponseSerializer})
     def get(self, request, entity_type: str, entity_id: str):
-        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'current_tenant', None)
+        tenant = getattr(request, "tenant", None) or getattr(request.user, "current_tenant", None)
         if not tenant:
             return Response(
                 {
-                    'status': 'error',
-                    'summary': 'Tenant context required to generate AI overview.',
+                    "status": "error",
+                    "summary": "Tenant context required to generate AI overview.",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        normalized_type = (entity_type or '').strip().lower()
-        safe_entity_type = normalized_type[:64] or 'entity'
+        normalized_type = (entity_type or "").strip().lower()
+        safe_entity_type = normalized_type[:64] or "entity"
 
         try:
             entity_id_int = int(entity_id)
         except (TypeError, ValueError):
             return Response(
-                {'status': 'error', 'summary': 'Invalid entity id.'},
+                {"status": "error", "summary": "Invalid entity id."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         model_map = {
-            'customer': Customer,
-            'customers': Customer,
-            'supplier': Supplier,
-            'suppliers': Supplier,
-            'plant': Plant,
-            'plants': Plant,
-            'location': Location,
-            'locations': Location,
-            'contact': Contact,
-            'contacts': Contact,
-            'purchase_order': PurchaseOrder,
-            'purchase_orders': PurchaseOrder,
-            'purchase-orders': PurchaseOrder,
-            'order': PurchaseOrder,
-            'orders': PurchaseOrder,
-            'po': PurchaseOrder,
-            'sales_order': SalesOrder,
-            'sales_orders': SalesOrder,
-            'sales-orders': SalesOrder,
-            'invoice': Invoice,
-            'invoices': Invoice,
-            'inquiry': Inquiry,
-            'inquiries': Inquiry,
+            "customer": Customer,
+            "customers": Customer,
+            "supplier": Supplier,
+            "suppliers": Supplier,
+            "plant": Plant,
+            "plants": Plant,
+            "location": Location,
+            "locations": Location,
+            "contact": Contact,
+            "contacts": Contact,
+            "purchase_order": PurchaseOrder,
+            "purchase_orders": PurchaseOrder,
+            "purchase-orders": PurchaseOrder,
+            "order": PurchaseOrder,
+            "orders": PurchaseOrder,
+            "po": PurchaseOrder,
+            "sales_order": SalesOrder,
+            "sales_orders": SalesOrder,
+            "sales-orders": SalesOrder,
+            "invoice": Invoice,
+            "invoices": Invoice,
+            "inquiry": Inquiry,
+            "inquiries": Inquiry,
         }
 
         Model = model_map.get(normalized_type)
         if not Model:
             return Response(
-                {'status': 'error', 'summary': f'Unsupported entity type: {safe_entity_type}.'},
+                {"status": "error", "summary": f"Unsupported entity type: {safe_entity_type}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        entity = (
-            Model.objects.filter(tenant=tenant, id=entity_id_int).first()
-            if hasattr(Model, 'objects')
-            else None
-        )
+        entity = Model.objects.filter(tenant=tenant, id=entity_id_int).first() if hasattr(Model, "objects") else None
         if not entity:
             return Response(
-                {'status': 'error', 'summary': 'Entity not found for this tenant.'},
+                {"status": "error", "summary": "Entity not found for this tenant."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         # Build a brief entity representation (name/status/created date)
         display_name = (
-            getattr(entity, 'name', None)
-            or getattr(entity, 'order_number', None)
+            getattr(entity, "name", None)
+            or getattr(entity, "order_number", None)
             or f"{safe_entity_type} #{entity_id_int}"
         )
-        status_value = getattr(entity, 'status', None)
+        status_value = getattr(entity, "status", None)
         created_value = (
-            getattr(entity, 'created_on', None)
-            or getattr(entity, 'created_at', None)
-            or getattr(entity, 'order_date', None)
+            getattr(entity, "created_on", None)
+            or getattr(entity, "created_at", None)
+            or getattr(entity, "order_date", None)
         )
-        created_str = ''
+        created_str = ""
         try:
             if created_value:
-                created_str = str(getattr(created_value, 'date', lambda: created_value)())
+                created_str = str(getattr(created_value, "date", lambda: created_value)())
         except Exception:
-            created_str = str(created_value) if created_value else ''
+            created_str = str(created_value) if created_value else ""
 
         entity_text = f"Name: {display_name}."
         if status_value is not None:
@@ -154,20 +150,20 @@ class EntityAIOverviewView(APIView):
 
         # Most recent 3 activity logs
         canonical_type = {
-            'customers': 'customer',
-            'suppliers': 'supplier',
-            'plants': 'plant',
-            'locations': 'location',
-            'contacts': 'contact',
-            'purchase_orders': 'purchase_order',
-            'purchase-orders': 'purchase_order',
-            'orders': 'purchase_order',
-            'order': 'purchase_order',
-            'po': 'purchase_order',
-            'sales_orders': 'sales_order',
-            'sales-orders': 'sales_order',
-            'invoices': 'invoice',
-            'inquiries': 'inquiry',
+            "customers": "customer",
+            "suppliers": "supplier",
+            "plants": "plant",
+            "locations": "location",
+            "contacts": "contact",
+            "purchase_orders": "purchase_order",
+            "purchase-orders": "purchase_order",
+            "orders": "purchase_order",
+            "order": "purchase_order",
+            "po": "purchase_order",
+            "sales_orders": "sales_order",
+            "sales-orders": "sales_order",
+            "invoices": "invoice",
+            "inquiries": "inquiry",
         }.get(normalized_type, normalized_type)
 
         activity_entity_type = canonical_type or safe_entity_type
@@ -178,26 +174,26 @@ class EntityAIOverviewView(APIView):
                 entity_type=activity_entity_type,
                 entity_id=entity_id_int,
             )
-            .select_related('created_by')
-            .order_by('-created_on')
+            .select_related("created_by")
+            .order_by("-created_on")
         )
         recent_logs = []
         for row in logs_qs[:3]:
             recent_logs.append(
                 {
-                    'created_on': getattr(row, 'created_on', None),
-                    'title': row.title,
-                    'content': row.content,
-                    'created_by': getattr(getattr(row, 'created_by', None), 'username', None),
+                    "created_on": getattr(row, "created_on", None),
+                    "title": row.title,
+                    "content": row.content,
+                    "created_by": getattr(getattr(row, "created_by", None), "username", None),
                 }
             )
 
-        openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
+        openai_api_key = getattr(settings, "OPENAI_API_KEY", None)
         if not openai_api_key:
             return Response(
                 {
-                    'status': 'error',
-                    'summary': 'AI overview unavailable (OpenAI not configured).',
+                    "status": "error",
+                    "summary": "AI overview unavailable (OpenAI not configured).",
                 },
                 status=status.HTTP_200_OK,
             )
@@ -213,21 +209,21 @@ class EntityAIOverviewView(APIView):
 
             from apps.system.services.ai_model_resolver import get_active_openai_model_id
 
-            model_id = get_active_openai_model_id(fallback='gpt-4o-mini')
+            model_id = get_active_openai_model_id(fallback="gpt-4o-mini")
             client = OpenAI(api_key=openai_api_key)
             completion = client.chat.completions.create(
                 model=model_id,
-                messages=[{'role': 'user', 'content': prompt}],
+                messages=[{"role": "user", "content": prompt}],
             )
-            ai_response_text = ((completion.choices[0].message.content or '') if completion.choices else '').strip()
+            ai_response_text = ((completion.choices[0].message.content or "") if completion.choices else "").strip()
         except Exception:
-            logger.error('[EntityAIOverviewView] Overview generation failed', exc_info=True)
+            logger.error("[EntityAIOverviewView] Overview generation failed", exc_info=True)
             return Response(
-                {'status': 'error', 'summary': 'Failed to generate AI overview.'},
+                {"status": "error", "summary": "Failed to generate AI overview."},
                 status=status.HTTP_200_OK,
             )
 
-        return Response({'summary': ai_response_text, 'status': 'success'})
+        return Response({"summary": ai_response_text, "status": "success"})
 
 
 @extend_schema(
@@ -244,26 +240,27 @@ class EntityAIOverviewView(APIView):
 class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Aggregated search across tenant models (Customer, Supplier, PurchaseOrder).
-    
+
     Returns polymorphic results with type fields for frontend icon rendering.
     Respects shared-schema tenant isolation via tenant_id filtering in querysets.
     """
+
     permission_classes = [IsAuthenticated]
     serializer_class = CustomerSlotSerializer  # Default serializer for schema generation
-    
+
     def list(self, request):
         """
         Search across Customers, Suppliers, and PurchaseOrders.
-        
+
         Query Parameters:
         - q: Search query string (filters by name/order_number)
-        
+
         Returns:
         - Polymorphic list with 'type' field: 'customer', 'supplier', or 'order'
         """
-        q = request.query_params.get('q', '').strip()
+        q = request.query_params.get("q", "").strip()
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
             # Fail closed: shared-schema search must never return cross-tenant results.
             return Response([])
@@ -284,9 +281,11 @@ class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
             results.extend(SupplierSlotSerializer(suppliers, many=True).data)
 
             # Search orders by order numbers
-            orders = PurchaseOrder.objects.filter(tenant=tenant).filter(
-                Q(order_number__icontains=q) | Q(our_purchase_order_num__icontains=q)
-            ).select_related('supplier')[:10]
+            orders = (
+                PurchaseOrder.objects.filter(tenant=tenant)
+                .filter(Q(order_number__icontains=q) | Q(our_purchase_order_num__icontains=q))
+                .select_related("supplier")[:10]
+            )
             results.extend(OrderSlotSerializer(orders, many=True).data)
 
         return Response(results)
@@ -296,38 +295,39 @@ class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):
 class ActivityLogViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Activity Logs with strict tenant isolation.
-    
+
     Supports filtering by entity_type and entity_id for entity-specific note feeds.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
-        if self.action == 'create':
+        if self.action == "create":
             return ActivityLogCreateSerializer
-        if self.action in ('update', 'partial_update'):
+        if self.action in ("update", "partial_update"):
             return ActivityLogUpdateSerializer
         return ActivityLogSerializer
 
     def get_queryset(self):
         """Filter activity logs by tenant and optional entity filters."""
-        if not hasattr(self.request, 'tenant') or not self.request.tenant:
+        if not hasattr(self.request, "tenant") or not self.request.tenant:
             return ActivityLog.objects.none()
 
         queryset = ActivityLog.objects.filter(
             tenant=self.request.tenant,
-        ).select_related('created_by')
+        ).select_related("created_by")
 
         # Filter by entity if provided
-        entity_type = self.request.query_params.get('entity_type')
-        entity_id = self.request.query_params.get('entity_id')
+        entity_type = self.request.query_params.get("entity_type")
+        entity_id = self.request.query_params.get("entity_id")
 
         if entity_type and entity_id:
             queryset = queryset.filter(entity_type=entity_type, entity_id=entity_id)
 
-        queryset = queryset.order_by('-is_pinned', '-created_on')
+        queryset = queryset.order_by("-is_pinned", "-created_on")
 
-        if self.action == 'list':
-            limit_raw = self.request.query_params.get('limit')
+        if self.action == "list":
+            limit_raw = self.request.query_params.get("limit")
             if limit_raw:
                 try:
                     limit = max(1, min(50, int(limit_raw)))
@@ -338,11 +338,11 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
         return queryset
 
     def _can_edit_log(self, log: ActivityLog) -> bool:
-        user = getattr(self.request, 'user', None)
+        user = getattr(self.request, "user", None)
         if not user or not user.is_authenticated:
             return False
 
-        if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
             return True
 
         # For user-created notes, allow the author to edit.
@@ -359,12 +359,12 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         log = serializer.instance
         if not self._can_edit_log(log):
-            raise PermissionDenied('You do not have permission to edit this note')
+            raise PermissionDenied("You do not have permission to edit this note")
         serializer.save()
 
     def perform_destroy(self, instance):
         if not self._can_edit_log(instance):
-            raise PermissionDenied('You do not have permission to delete this note')
+            raise PermissionDenied("You do not have permission to delete this note")
         instance.delete()
 
 
@@ -372,37 +372,38 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
 class ScheduledCallViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Scheduled Calls with strict tenant isolation.
-    
+
     Supports filtering by date range and completion status.
     Automatically creates activity log entries for related entities.
     """
+
     serializer_class = ScheduledCallSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         """Filter scheduled calls by tenant and optional filters."""
-        if not hasattr(self.request, 'tenant') or not self.request.tenant:
+        if not hasattr(self.request, "tenant") or not self.request.tenant:
             return ScheduledCall.objects.none()
-        
+
         queryset = ScheduledCall.objects.filter(
             tenant=self.request.tenant,
-        ).select_related('assigned_to', 'created_by')
-        
+        ).select_related("assigned_to", "created_by")
+
         # Filter by entity if provided
-        entity_type = self.request.query_params.get('entity_type')
-        entity_id = self.request.query_params.get('entity_id')
+        entity_type = self.request.query_params.get("entity_type")
+        entity_id = self.request.query_params.get("entity_id")
         if entity_type and entity_id:
             queryset = queryset.filter(entity_type=entity_type, entity_id=entity_id)
 
         # Filter by completion status
-        is_completed = self.request.query_params.get('is_completed')
+        is_completed = self.request.query_params.get("is_completed")
         if is_completed is not None:
-            queryset = queryset.filter(is_completed=is_completed.lower() == 'true')
+            queryset = queryset.filter(is_completed=is_completed.lower() == "true")
 
-        queryset = queryset.order_by('-scheduled_for')
+        queryset = queryset.order_by("-scheduled_for")
 
-        if self.action == 'list':
-            limit_raw = self.request.query_params.get('limit')
+        if self.action == "list":
+            limit_raw = self.request.query_params.get("limit")
             if limit_raw:
                 try:
                     limit = max(1, min(50, int(limit_raw)))
@@ -411,7 +412,7 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
                     pass
 
         return queryset
-    
+
     def perform_create(self, serializer):
         """
         Auto-assign tenant and created_by on create, and log activity.
@@ -419,49 +420,35 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         """
         try:
             # Validate tenant context exists
-            if not hasattr(self.request, 'tenant') or not self.request.tenant:
+            if not hasattr(self.request, "tenant") or not self.request.tenant:
                 logger.error(
-                    'Attempted to create scheduled call without tenant context',
+                    "Attempted to create scheduled call without tenant context",
                     extra={
-                        'user': self.request.user.username if self.request.user.is_authenticated else 'Anonymous',
-                        'has_tenant_attr': hasattr(self.request, 'tenant'),
-                    }
+                        "user": self.request.user.username if self.request.user.is_authenticated else "Anonymous",
+                        "has_tenant_attr": hasattr(self.request, "tenant"),
+                    },
                 )
-                raise ValidationError({
-                    'error': 'Tenant context required',
-                    'detail': 'Please refresh and try again.'
-                })
-            
-            scheduled_call = serializer.save(
-                tenant=self.request.tenant,
-                created_by=self.request.user
-            )
-            
+                raise ValidationError({"error": "Tenant context required", "detail": "Please refresh and try again."})
+
+            scheduled_call = serializer.save(tenant=self.request.tenant, created_by=self.request.user)
+
             # Auto-create activity log entry for the related entity
-            self._create_activity_log(
-                scheduled_call=scheduled_call,
-                action='scheduled',
-                user=self.request.user
-            )
-            
+            self._create_activity_log(scheduled_call=scheduled_call, action="scheduled", user=self.request.user)
+
         except IntegrityError as e:
-            logger.error(f'Integrity error creating call: {str(e)}', exc_info=True)
-            raise ValidationError({
-                'error': 'Database error',
-                'detail': 'Invalid data or duplicate entry.'
-            })
+            logger.error(f"Integrity error creating call: {str(e)}", exc_info=True)
+            raise ValidationError({"error": "Database error", "detail": "Invalid data or duplicate entry."})
         except ValidationError:
             raise
         except Exception as e:
             from apps.core.utils.logging import capture_exception
 
-            capture_exception(e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "create"})
-            logger.error(f'Error creating call: {str(e)}', exc_info=True)
-            raise ValidationError({
-                'error': 'Failed to schedule call',
-                'detail': str(e)
-            })
-    
+            capture_exception(
+                e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "create"}
+            )
+            logger.error(f"Error creating call: {str(e)}", exc_info=True)
+            raise ValidationError({"error": "Failed to schedule call", "detail": str(e)})
+
     def perform_update(self, serializer):
         """
         Log activity when call is updated or completed.
@@ -469,52 +456,41 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         """
         try:
             # Validate tenant context exists
-            if not hasattr(self.request, 'tenant') or not self.request.tenant:
-                logger.error('Attempted to update scheduled call without tenant context')
-                raise ValidationError({
-                    'error': 'Tenant context required',
-                    'detail': 'Please refresh and try again.'
-                })
-            
+            if not hasattr(self.request, "tenant") or not self.request.tenant:
+                logger.error("Attempted to update scheduled call without tenant context")
+                raise ValidationError({"error": "Tenant context required", "detail": "Please refresh and try again."})
+
             old_instance = self.get_object()
             was_completed = old_instance.is_completed
-            
+
             scheduled_call = serializer.save()
-            
+
             # If call was just marked as completed, log it
             if scheduled_call.is_completed and not was_completed:
-                self._create_activity_log(
-                    scheduled_call=scheduled_call,
-                    action='completed',
-                    user=self.request.user
-                )
-                
+                self._create_activity_log(scheduled_call=scheduled_call, action="completed", user=self.request.user)
+
         except IntegrityError as e:
-            logger.error(f'Integrity error updating call: {str(e)}', exc_info=True)
-            raise ValidationError({
-                'error': 'Database error',
-                'detail': 'Invalid data or duplicate entry.'
-            })
+            logger.error(f"Integrity error updating call: {str(e)}", exc_info=True)
+            raise ValidationError({"error": "Database error", "detail": "Invalid data or duplicate entry."})
         except ValidationError:
             raise
         except Exception as e:
             from apps.core.utils.logging import capture_exception
 
-            capture_exception(e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "update"})
-            logger.error(f'Error updating call: {str(e)}', exc_info=True)
-            raise ValidationError({
-                'error': 'Failed to update call',
-                'detail': str(e)
-            })
-    
+            capture_exception(
+                e, request=self.request, extra={"endpoint": "cockpit/scheduled-calls", "action": "update"}
+            )
+            logger.error(f"Error updating call: {str(e)}", exc_info=True)
+            raise ValidationError({"error": "Failed to update call", "detail": str(e)})
+
     def _create_activity_log(self, scheduled_call, action, user):
         """
         Helper method to create activity log entries for scheduled calls.
-        
+
         This ensures the activity appears in the entity's activity feed automatically.
         """
         # Determine the content based on action
-        if action == 'scheduled':
+        if action == "scheduled":
             title = f"Call Scheduled: {scheduled_call.title}"
             content = (
                 f"Scheduled call for {scheduled_call.scheduled_for.strftime('%Y-%m-%d %H:%M')}.\n"
@@ -522,7 +498,7 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
             )
             if scheduled_call.description:
                 content += f"\n\nNotes: {scheduled_call.description}"
-        elif action == 'completed':
+        elif action == "completed":
             title = f"Call Completed: {scheduled_call.title}"
             content = f"Call was completed on {scheduled_call.completed_at.strftime('%Y-%m-%d %H:%M') if scheduled_call.completed_at else 'N/A'}."
             if scheduled_call.description:
@@ -530,7 +506,7 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         else:
             title = f"Call Updated: {scheduled_call.title}"
             content = "Call details were updated."
-        
+
         # Create activity log tied to the entity
         ActivityLog.objects.create(
             tenant=scheduled_call.tenant,
@@ -539,7 +515,7 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
             title=title,
             content=content,
             created_by=user,
-            tags='call,scheduled-call,auto-generated'
+            tags="call,scheduled-call,auto-generated",
         )
 
 
@@ -554,9 +530,13 @@ class TradeExceptionQueueViewSet(viewsets.ReadOnlyModelViewSet):
         if not tenant:
             return TradeExceptionQueue.objects.none()
 
-        queryset = TradeExceptionQueue.objects.filter(
-            tenant=tenant,
-        ).select_related('tenant').order_by("-created_on")
+        queryset = (
+            TradeExceptionQueue.objects.filter(
+                tenant=tenant,
+            )
+            .select_related("tenant")
+            .order_by("-created_on")
+        )
 
         if self.action == "list":
             status_param = self.request.query_params.get("status", "").strip()
@@ -636,11 +616,7 @@ class TradeExceptionQueueViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = TradeExceptionQueueDetailSerializer(updated, context={"request": request})
         payload = dict(serializer.data)
         trade_session = payload.get("trade_session")
-        trade_resumed = bool(
-            trade_session
-            and trade_session.get("status") != "halted"
-            and updated.trade_session_id
-        )
+        trade_resumed = bool(trade_session and trade_session.get("status") != "halted" and updated.trade_session_id)
         payload["trade_resumed"] = trade_resumed
         if updated.trade_session_id and not trade_resumed and payload.get("active_sibling_count", 0) > 0:
             payload["resume_blocked_reason"] = "Other active exceptions still block this trade session."
@@ -651,18 +627,19 @@ class TradeExceptionQueueViewSet(viewsets.ReadOnlyModelViewSet):
 class WorkspaceLayoutView(APIView):
     """
     API view for managing user workspace layouts.
-    
+
     GET: Retrieve the current user's workspace layout
     PUT: Save/update the current user's workspace layout
     DELETE: Reset to default layout (deletes saved layout)
     """
+
     permission_classes = [IsAuthenticated]
 
     @extend_schema(responses={200: WorkspaceLayoutPayloadSerializer})
     def get(self, request):
         """
         Get the current user's workspace layout.
-        
+
         Returns saved layout if exists, otherwise returns a sensible default
         layout that matches frontend expectations. This prevents 404 errors
         and provides a better first-time user experience.
@@ -692,7 +669,7 @@ class WorkspaceLayoutView(APIView):
                 ],
             }
             return Response(default_response, status=status.HTTP_200_OK)
-    
+
     @extend_schema(
         request=WorkspaceLayoutPayloadSerializer,
         responses={200: WorkspaceLayoutPayloadSerializer},
@@ -703,179 +680,160 @@ class WorkspaceLayoutView(APIView):
             layout, created = UserWorkspaceLayout.objects.get_or_create(
                 user=request.user,
                 defaults={
-                    'layout': request.data.get('layout', []),
-                    'widgets': request.data.get('widgets', []),
-                    'version': request.data.get('version', 1),
-                }
+                    "layout": request.data.get("layout", []),
+                    "widgets": request.data.get("widgets", []),
+                    "version": request.data.get("version", 1),
+                },
             )
-            
+
             if not created:
                 # Update existing layout
-                serializer = UserWorkspaceLayoutSerializer(
-                    layout, 
-                    data=request.data, 
-                    partial=True
-                )
+                serializer = UserWorkspaceLayoutSerializer(layout, data=request.data, partial=True)
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
                 return Response(serializer.data)
-            
+
             serializer = UserWorkspaceLayoutSerializer(layout)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-            
+
         except Exception as e:
             from apps.core.utils.logging import capture_exception
 
             capture_exception(e, request=request, extra={"endpoint": "cockpit/workspace-layout", "action": "put"})
             logger.error(f"Error saving workspace layout: {str(e)}", exc_info=True)
-            return Response(
-                {"error": "Failed to save layout", "detail": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-    
+            return Response({"error": "Failed to save layout", "detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     def delete(self, request):
         """Delete the user's saved layout (reset to default)."""
         try:
             layout = UserWorkspaceLayout.objects.get(user=request.user)
             layout.delete()
-            return Response(
-                {"detail": "Layout reset to default"},
-                status=status.HTTP_204_NO_CONTENT
-            )
+            return Response({"detail": "Layout reset to default"}, status=status.HTTP_204_NO_CONTENT)
         except UserWorkspaceLayout.DoesNotExist:
-            return Response(
-                {"detail": "No saved layout to delete"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "No saved layout to delete"}, status=status.HTTP_404_NOT_FOUND)
 
 
 @extend_schema(tags=["Cockpit"])
 class WorkspaceStatsView(APIView):
     """
     API view for Cockpit dashboard statistics.
-    
+
     Returns aggregated stats for widgets:
     - Quick stats (orders, revenue, shipments, customers)
     - Today's numbers (detailed KPIs)
     - Recent activity (last 10 activities)
     - Upcoming calls (next 5 scheduled calls)
-    
+
     Created: 2026-02-04 - Phase 1.3 Widget Real Data
     """
+
     permission_classes = [IsAuthenticated]
-    
+
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         """Get workspace statistics for the current user's tenant."""
-        if not hasattr(request, 'tenant') or not request.tenant:
-            return Response(
-                {"error": "Tenant context required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+        if not hasattr(request, "tenant") or not request.tenant:
+            return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
+
         tenant = request.tenant
         today = timezone.now().date()
-        
+
         try:
             # Import models (local to avoid circular imports)
+            from decimal import Decimal
+
+            from django.db.models import Sum
+
+            from tenant_apps.customers.models import Customer
             from tenant_apps.purchase_orders.models import PurchaseOrder
             from tenant_apps.sales_orders.models import SalesOrder
-            from tenant_apps.customers.models import Customer
             from tenant_apps.suppliers.models import Supplier
-            from django.db.models import Sum
-            from decimal import Decimal
-            
+
             # Quick Stats
             total_orders = PurchaseOrder.objects.filter(tenant=tenant).count()
             total_customers = Customer.objects.filter(tenant=tenant).count()
             total_suppliers = Supplier.objects.filter(tenant=tenant).count()
-            
+
             # Revenue calculation (sum of completed sales orders)
             total_revenue = SalesOrder.objects.filter(
-                tenant=tenant,
-                status__in=['shipped', 'delivered', 'completed']
-            ).aggregate(
-                total=Sum('total_amount')
-            )['total'] or Decimal('0.00')
-            
+                tenant=tenant, status__in=["shipped", "delivered", "completed"]
+            ).aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
+
             # Today's Numbers
-            orders_today = PurchaseOrder.objects.filter(
-                tenant=tenant,
-                created_on__date=today
-            ).count()
-            
-            pending_orders = PurchaseOrder.objects.filter(
-                tenant=tenant,
-                status__in=['pending', 'processing']
-            ).count()
-            
+            orders_today = PurchaseOrder.objects.filter(tenant=tenant, created_on__date=today).count()
+
+            pending_orders = PurchaseOrder.objects.filter(tenant=tenant, status__in=["pending", "processing"]).count()
+
             completed_today = PurchaseOrder.objects.filter(
-                tenant=tenant,
-                status='completed',
-                modified_on__date=today
+                tenant=tenant, status="completed", modified_on__date=today
             ).count()
-            
+
             # Recent Activity (last 10)
-            recent_activities = ActivityLog.objects.filter(
-                tenant=tenant
-            ).select_related('created_by').order_by('-created_on')[:10]
-            
-            activity_list = [{
-                'id': act.id,
-                'entity_type': act.entity_type,
-                'entity_id': act.entity_id,
-                'title': act.title or 'Activity',
-                'content': act.content[:100] + '...' if len(act.content) > 100 else act.content,
-                'created_by': act.created_by.get_full_name() if act.created_by else 'System',
-                'created_on': act.created_on.isoformat(),
-                'is_pinned': act.is_pinned,
-                'tags': act.tags,
-            } for act in recent_activities]
-            
+            recent_activities = (
+                ActivityLog.objects.filter(tenant=tenant).select_related("created_by").order_by("-created_on")[:10]
+            )
+
+            activity_list = [
+                {
+                    "id": act.id,
+                    "entity_type": act.entity_type,
+                    "entity_id": act.entity_id,
+                    "title": act.title or "Activity",
+                    "content": act.content[:100] + "..." if len(act.content) > 100 else act.content,
+                    "created_by": act.created_by.get_full_name() if act.created_by else "System",
+                    "created_on": act.created_on.isoformat(),
+                    "is_pinned": act.is_pinned,
+                    "tags": act.tags,
+                }
+                for act in recent_activities
+            ]
+
             # Upcoming Calls (next 5)
-            upcoming_calls = ScheduledCall.objects.filter(
-                tenant=tenant,
-                is_completed=False,
-                scheduled_for__gte=timezone.now()
-            ).select_related('assigned_to').order_by('scheduled_for')[:5]
-            
-            calls_list = [{
-                'id': call.id,
-                'entity_type': call.entity_type,
-                'entity_id': call.entity_id,
-                'title': call.title,
-                'description': call.description,
-                'scheduled_for': call.scheduled_for.isoformat(),
-                'duration_minutes': call.duration_minutes,
-                'assigned_to': call.assigned_to.get_full_name() if call.assigned_to else 'Unassigned',
-            } for call in upcoming_calls]
-            
+            upcoming_calls = (
+                ScheduledCall.objects.filter(tenant=tenant, is_completed=False, scheduled_for__gte=timezone.now())
+                .select_related("assigned_to")
+                .order_by("scheduled_for")[:5]
+            )
+
+            calls_list = [
+                {
+                    "id": call.id,
+                    "entity_type": call.entity_type,
+                    "entity_id": call.entity_id,
+                    "title": call.title,
+                    "description": call.description,
+                    "scheduled_for": call.scheduled_for.isoformat(),
+                    "duration_minutes": call.duration_minutes,
+                    "assigned_to": call.assigned_to.get_full_name() if call.assigned_to else "Unassigned",
+                }
+                for call in upcoming_calls
+            ]
+
             # Compile response
             stats = {
-                'quick_stats': {
-                    'total_orders': total_orders,
-                    'total_revenue': float(total_revenue),
-                    'total_customers': total_customers,
-                    'total_suppliers': total_suppliers,
+                "quick_stats": {
+                    "total_orders": total_orders,
+                    "total_revenue": float(total_revenue),
+                    "total_customers": total_customers,
+                    "total_suppliers": total_suppliers,
                 },
-                'todays_numbers': {
-                    'orders_today': orders_today,
-                    'pending_orders': pending_orders,
-                    'completed_today': completed_today,
-                    'active_customers': total_customers,  # Can refine this later
+                "todays_numbers": {
+                    "orders_today": orders_today,
+                    "pending_orders": pending_orders,
+                    "completed_today": completed_today,
+                    "active_customers": total_customers,  # Can refine this later
                 },
-                'recent_activity': activity_list,
-                'upcoming_calls': calls_list,
+                "recent_activity": activity_list,
+                "upcoming_calls": calls_list,
             }
-            
+
             return Response(stats)
-            
+
         except Exception as e:
             from apps.core.utils.logging import capture_exception
 
             capture_exception(e, request=request, extra={"endpoint": "cockpit/workspace-stats"})
             logger.error(f"Error fetching workspace stats: {str(e)}", exc_info=True)
             return Response(
-                {"error": "Failed to fetch stats", "detail": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Failed to fetch stats", "detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

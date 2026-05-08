@@ -1,6 +1,6 @@
 /**
  * Supplier Available Products Management Page
- * 
+ *
  * Manages the list of system products that a supplier has available.
  * Uses SupplierAvailableItem model (supplier + system.Product).
  */
@@ -78,7 +78,7 @@ const ContextBanner = styled.div`
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -104,14 +104,14 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 3rem 1rem;
   color: rgb(var(--color-text-secondary));
-  
+
   h3 {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: rgb(var(--color-text-primary));
   }
-  
+
   p {
     margin-bottom: 1.5rem;
   }

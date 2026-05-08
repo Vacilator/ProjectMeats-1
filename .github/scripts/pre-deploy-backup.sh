@@ -32,11 +32,11 @@ export PGPASSWORD="$DB_PASSWORD"
 if pg_dump -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" | gzip > "$BACKUP_FILE"; then
     BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
     echo "✓ Backup created successfully: $BACKUP_SIZE"
-    
+
     # Keep only last 10 backups
     ls -t "${BACKUP_DIR}"/pm_${ENVIRONMENT}_*.sql.gz | tail -n +11 | xargs rm -f 2>/dev/null || true
     echo "✓ Old backups cleaned up"
-    
+
     echo "$BACKUP_FILE"
     exit 0
 else

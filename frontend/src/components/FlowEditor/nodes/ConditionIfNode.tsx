@@ -1,9 +1,9 @@
 /**
  * Condition If/Else Node Component
- * 
+ *
  * Branches workflow based on a condition.
  * Has two output handles: true branch and false branch.
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  */
 import React from 'react';
@@ -91,18 +91,18 @@ const BranchHandles = styled.div`
 const BranchHandle = styled(Handle)<{ $type: 'true' | 'false' }>`
   width: 12px;
   height: 12px;
-  background: ${props => props.$type === 'true' 
-    ? 'rgb(var(--color-success))' 
+  background: ${props => props.$type === 'true'
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-error))'};
   border: 2px solid rgb(var(--color-surface));
   position: relative !important;
   transform: none !important;
-  
+
   &:hover {
     width: 16px;
     height: 16px;
   }
-  
+
   &::before {
     content: '${props => props.$type === 'true' ? '✓' : '✗'}';
     position: absolute;
@@ -111,8 +111,8 @@ const BranchHandle = styled(Handle)<{ $type: 'true' | 'false' }>`
     transform: translateX(-50%);
     font-size: 10px;
     font-weight: 700;
-    color: ${props => props.$type === 'true' 
-      ? 'rgb(var(--color-success))' 
+    color: ${props => props.$type === 'true'
+      ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-error))'};
     white-space: nowrap;
   }
@@ -147,7 +147,7 @@ const OPERATOR_LABELS: Record<string, string> = {
 export const ConditionIfNode = React.memo<NodeProps<Node<ConditionIfNodeData>>>((props) => {
   const { data, selected, id } = props;
   const nodeTypeDef = getNodeTypeDefinition('conditionIf');
-  
+
   const { rules = [], logicalOperator = 'AND' } = data;
 
   return (
@@ -176,10 +176,10 @@ export const ConditionIfNode = React.memo<NodeProps<Node<ConditionIfNodeData>>>(
                   </RuleItem>
                 ))}
               </RuleList>
-              
+
               {rules.length > 2 && (
-                <div style={{ 
-                  textAlign: 'center', 
+                <div style={{
+                  textAlign: 'center',
                   marginTop: 6,
                   fontSize: 11,
                   color: 'rgb(var(--color-text-secondary))',
@@ -187,7 +187,7 @@ export const ConditionIfNode = React.memo<NodeProps<Node<ConditionIfNodeData>>>(
                   +{rules.length - 2} more rule{rules.length - 2 > 1 ? 's' : ''}
                 </div>
               )}
-              
+
               {rules.length > 1 && (
                 <LogicalOperatorBadge>
                   {logicalOperator}
@@ -197,7 +197,7 @@ export const ConditionIfNode = React.memo<NodeProps<Node<ConditionIfNodeData>>>(
           )}
         </div>
       </BaseNode>
-      
+
       {/* True and False branch handles */}
       <BranchHandles>
         <BranchHandle

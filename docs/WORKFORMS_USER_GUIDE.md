@@ -1,7 +1,7 @@
 # WorkForms User Guide
 
-**Version**: 2.0  
-**Last Updated**: 2026-02-05  
+**Version**: 2.0
+**Last Updated**: 2026-02-05
 **Status**: Production Ready
 
 ---
@@ -399,27 +399,27 @@ Click any form to see a preview:
 
 ### Nodes Not Appearing
 
-**Problem**: Dragged node doesn't appear on canvas  
+**Problem**: Dragged node doesn't appear on canvas
 **Solution**: Make sure you're dropping inside the canvas area, not on the palette
 
 ### Config Panel Not Opening
 
-**Problem**: Clicking node doesn't open configuration  
+**Problem**: Clicking node doesn't open configuration
 **Solution**: This was fixed in PR #2586. Update to latest version.
 
 ### Connection Won't Snap
 
-**Problem**: Can't connect two nodes  
+**Problem**: Can't connect two nodes
 **Solution**: Check that output → input connection is valid (some node types have restrictions)
 
 ### Form Not Submitting
 
-**Problem**: Submit button disabled or form won't submit  
+**Problem**: Submit button disabled or form won't submit
 **Solution**: Check required field validation. All required fields must be filled.
 
 ### Workflow Not Running
 
-**Problem**: Workflow doesn't execute  
+**Problem**: Workflow doesn't execute
 **Solution**:
 1. Check trigger is properly configured
 2. Verify all nodes are connected
@@ -428,7 +428,7 @@ Click any form to see a preview:
 
 ### Data Not Mapping
 
-**Problem**: Form fields not showing in action configuration  
+**Problem**: Form fields not showing in action configuration
 **Solution**: Make sure form step is connected before action node. Data flows top-to-bottom.
 
 ---
@@ -450,6 +450,6 @@ Click any form to see a preview:
 
 ---
 
-**Last Updated**: 2026-02-05  
-**Version**: 2.0 (Post-Navigation Fix)  
+**Last Updated**: 2026-02-05
+**Version**: 2.0 (Post-Navigation Fix)
 **Maintained By**: ProjectMeats Development Team

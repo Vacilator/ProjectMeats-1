@@ -8,7 +8,7 @@ from django.core.cache import cache
 
 
 def get_tenant_cache_version(prefix: str, tenant_id: str) -> int:
-    version_key = f'pm:cachever:{prefix}:tenant:{tenant_id}'
+    version_key = f"pm:cachever:{prefix}:tenant:{tenant_id}"
     version = cache.get(version_key)
     if isinstance(version, int) and version > 0:
         return version
@@ -24,7 +24,7 @@ def bump_tenant_cache_version(prefix: str, tenant_id: str) -> int:
     letting us invalidate tenant-scoped cached responses.
     """
 
-    version_key = f'pm:cachever:{prefix}:tenant:{tenant_id}'
+    version_key = f"pm:cachever:{prefix}:tenant:{tenant_id}"
     try:
         cache.add(version_key, 1, None)
         return cache.incr(version_key)
@@ -36,5 +36,5 @@ def bump_tenant_cache_version(prefix: str, tenant_id: str) -> int:
 
 
 def stable_query_hash(items: Iterable[tuple[str, str]]) -> str:
-    raw = '&'.join(f'{k}={v}' for k, v in items)
-    return hashlib.sha256(raw.encode('utf-8')).hexdigest()[:16]
+    raw = "&".join(f"{k}={v}" for k, v in items)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]

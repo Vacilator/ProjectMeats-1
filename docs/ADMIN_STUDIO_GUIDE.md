@@ -1,7 +1,7 @@
 # Admin Studio User Guide
 
-**Version**: 1.0  
-**Last Updated**: 2026-02-03  
+**Version**: 1.0
+**Last Updated**: 2026-02-03
 **Audience**: System Administrators, Tenant Admins
 
 ---
@@ -286,7 +286,7 @@ Tenants can add items to extensible lists:
 
 **Cause**: The list is marked as non-extensible (system-only).
 
-**Solution**: 
+**Solution**:
 - Contact a superuser to make changes
 - Or mark the list as extensible (superuser only)
 

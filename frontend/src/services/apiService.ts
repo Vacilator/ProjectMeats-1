@@ -2,7 +2,7 @@
  * General API Service for ProjectMeats Business Management
  *
  * Handles communication with all Django REST API endpoints.
- * 
+ *
  * Wave S1: JWT Authentication Support
  * - Uses Bearer tokens for JWT authentication
  * - Falls back to Token auth for legacy compatibility
@@ -186,7 +186,7 @@ apiClient.interceptors.request.use(
         }
       }
       // Note: Missing auth header is expected during login/public endpoints
-      
+
       // Add tenant ID header if available (and valid).
       // Backend expects a UUID; never send literal "undefined"/"null".
       const tenantId = getValidTenantId();
@@ -203,7 +203,7 @@ apiClient.interceptors.request.use(
           delete headersAny['x-tenant-id'];
         }
       }
-      
+
       return config;
     } catch (error) {
       logger.error('[API] Request interceptor error:', error);
@@ -250,7 +250,7 @@ adminClient.interceptors.request.use(
           }
         }
       }
-      
+
       // Add tenant ID header if available (and valid).
       // Backend expects a UUID; never send literal "undefined"/"null".
       const tenantId = getValidTenantId();
@@ -266,7 +266,7 @@ adminClient.interceptors.request.use(
           delete headersAny['x-tenant-id'];
         }
       }
-      
+
       return config;
     } catch (error) {
       logger.error('[Admin API] Request interceptor error:', error);
@@ -344,7 +344,7 @@ apiClient.interceptors.response.use(
         })
       );
     }
-    
+
     // Log the error for debugging
     if (status === 401) {
       logger.warn('[API] 401 Unauthorized:', {
@@ -356,7 +356,7 @@ apiClient.interceptors.response.use(
         retryCount: originalRequest?._retryCount || 0
       });
     }
-    
+
     // Handle 401 Unauthorized
     // Never auto-logout/redirect for auth endpoints themselves (login failures should be handled by the caller).
     if (status === 401 && originalRequest && isAuthEndpointRequest(originalRequest.url)) {
@@ -456,7 +456,7 @@ adminClient.interceptors.response.use(
         })
       );
     }
-    
+
     // Log the error for debugging
     if (status === 401) {
       logger.warn('[Admin API] 401 Unauthorized:', {
@@ -468,7 +468,7 @@ adminClient.interceptors.response.use(
         retryCount: originalRequest?._retryCount || 0
       });
     }
-    
+
     // Never auto-logout/redirect for auth endpoints themselves (login failures should be handled by the caller).
     if (status === 401 && originalRequest && isAuthEndpointRequest(originalRequest.url)) {
       return Promise.reject(error);
@@ -539,10 +539,10 @@ function getErrorMessage(error: unknown): string {
     }
     return error.message;
   }
-  
+
   if (error && typeof error === 'object') {
     const axiosError = error as AxiosError;
-    
+
     // If we have a response from the server, extract the error message
     if (axiosError.response?.data) {
       const data = axiosError.response.data;
@@ -555,12 +555,12 @@ function getErrorMessage(error: unknown): string {
         return JSON.stringify(data);
       }
     }
-    
+
     // Network errors (no response from server)
     if (axiosError.request && !axiosError.response) {
       const url = axiosError.config?.url || 'unknown endpoint';
       const baseURL = axiosError.config?.baseURL || '';
-      
+
       // Properly construct full URL
       let fullURL = url;
       if (baseURL) {
@@ -572,7 +572,7 @@ function getErrorMessage(error: unknown): string {
           fullURL = baseURL.replace(/\/$/, '') + '/' + url.replace(/^\//, '');
         }
       }
-      
+
       // Provide more specific error messages based on error code
       if (axiosError.code === 'ERR_NETWORK') {
         return `Unable to connect to the server at ${fullURL}. Please check your internet connection or contact support.`;
@@ -583,16 +583,16 @@ function getErrorMessage(error: unknown): string {
       if (axiosError.code === 'ERR_BAD_REQUEST') {
         return `Invalid request to ${fullURL}. Please contact support.`;
       }
-      
+
       // Generic network error with URL
       return `Network error while connecting to ${fullURL}. ${axiosError.message || 'Please check your connection and try again.'}`;
     }
-    
+
     // HTTP error responses with status codes
     if (axiosError.response?.status) {
       const status = axiosError.response.status;
       const statusText = axiosError.response.statusText || '';
-      
+
       if (status === 401) return 'Authentication required. Please log in again.';
       if (status === 403) return 'You do not have permission to perform this action.';
       if (status === 404) return 'The requested resource was not found.';
@@ -600,13 +600,13 @@ function getErrorMessage(error: unknown): string {
       if (status >= 400 && status < 500) return `Request error: ${statusText}`;
       if (status >= 500) return `Server error: ${statusText}`;
     }
-    
+
     // Fallback to error message if available
     if (axiosError.message) return axiosError.message;
   }
-  
+
   if (error instanceof Error) return error.message;
-  
+
   return 'An unknown error occurred. Please try again.';
 }
 
@@ -800,7 +800,7 @@ export class ApiService {
           baseURL: API_BASE_URL,
         },
       });
-      
+
       const response = await apiClient.post('/suppliers/', supplier);
       logger.debug('[API] Supplier created successfully', {
         component: 'ApiService',
@@ -823,7 +823,7 @@ export class ApiService {
           hasRequest: !!axiosError.request,
         },
       });
-      
+
       // Re-throw with enhanced error message
       throw new Error(getErrorMessage(error));
     }
@@ -839,7 +839,7 @@ export class ApiService {
           baseURL: API_BASE_URL,
         },
       });
-      
+
       const response = await apiClient.patch(`/suppliers/${id}/`, supplier);
       logger.debug('[API] Supplier updated successfully', {
         component: 'ApiService',
@@ -856,7 +856,7 @@ export class ApiService {
           errorCode: axiosError.code,
         },
       });
-      
+
       throw new Error(getErrorMessage(error));
     }
   }

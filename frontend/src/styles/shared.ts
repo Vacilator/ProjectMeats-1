@@ -1,12 +1,12 @@
 /**
  * Shared Styled Components Library
- * 
+ *
  * Provides semantic, reusable styled components with consistent naming.
  * Replaces auto-generated classnames (sc-XXXXX) with descriptive display names.
- * 
+ *
  * Usage:
  *   import { FlexContainer, Button, Card } from '@/styles/shared';
- * 
+ *
  * Created: 2026-02-26 - Shared Components Cleanup
  */
 
@@ -72,7 +72,7 @@ export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghos
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
-  
+
   ${props => {
     switch (props.$size) {
       case 'sm':
@@ -83,7 +83,7 @@ export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghos
         return css`padding: 8px 16px; font-size: 14px;`;
     }
   }}
-  
+
   ${props => {
     switch (props.$variant) {
       case 'primary':
@@ -96,7 +96,7 @@ export const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghos
         return css`background: rgb(var(--color-surface)); color: rgb(var(--color-text-primary)); border: 1px solid rgb(var(--color-border)); &:hover { background: rgb(var(--color-background-hover)); }`;
     }
   }}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -110,13 +110,13 @@ export const Input = styled.input<{ $error?: boolean }>`
   border-radius: 6px;
   font-size: 14px;
   transition: all 0.2s ease;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &:disabled {
     background: rgb(var(--color-background-disabled));
     cursor: not-allowed;
@@ -130,7 +130,7 @@ export const Badge = styled.span<{ $variant?: 'success' | 'warning' | 'error' | 
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
-  
+
   ${props => {
     switch (props.$variant) {
       case 'success':

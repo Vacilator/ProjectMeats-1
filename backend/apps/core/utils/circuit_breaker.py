@@ -36,13 +36,13 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-_CB_PREFIX = 'pm:cb:'
+_CB_PREFIX = "pm:cb:"
 
 
 class CircuitState(str, Enum):
-    CLOSED = 'closed'
-    OPEN = 'open'
-    HALF_OPEN = 'half_open'
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
 
 
 class CircuitOpenError(Exception):
@@ -51,11 +51,11 @@ class CircuitOpenError(Exception):
     def __init__(self, service_name: str, recovery_at: float | None = None):
         self.service_name = service_name
         self.recovery_at = recovery_at
-        remaining = ''
+        remaining = ""
         if recovery_at:
             secs = max(0, recovery_at - time.time())
-            remaining = f' (recovery in {secs:.0f}s)'
-        super().__init__(f'Circuit breaker OPEN for {service_name}{remaining}')
+            remaining = f" (recovery in {secs:.0f}s)"
+        super().__init__(f"Circuit breaker OPEN for {service_name}{remaining}")
 
 
 class CircuitBreaker:
@@ -84,10 +84,10 @@ class CircuitBreaker:
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.success_threshold = success_threshold
-        self._state_key = f'{_CB_PREFIX}{service_name}:state'
-        self._failures_key = f'{_CB_PREFIX}{service_name}:failures'
-        self._opened_at_key = f'{_CB_PREFIX}{service_name}:opened_at'
-        self._half_open_successes_key = f'{_CB_PREFIX}{service_name}:ho_successes'
+        self._state_key = f"{_CB_PREFIX}{service_name}:state"
+        self._failures_key = f"{_CB_PREFIX}{service_name}:failures"
+        self._opened_at_key = f"{_CB_PREFIX}{service_name}:opened_at"
+        self._half_open_successes_key = f"{_CB_PREFIX}{service_name}:ho_successes"
 
     @property
     def state(self) -> CircuitState:
@@ -126,7 +126,7 @@ class CircuitBreaker:
             cache.set(self._half_open_successes_key, successes, self.recovery_timeout * 2)
             if successes >= self.success_threshold:
                 self._transition(CircuitState.CLOSED)
-                logger.info('[CircuitBreaker:%s] CLOSED (recovered)', self.service_name)
+                logger.info("[CircuitBreaker:%s] CLOSED (recovered)", self.service_name)
         elif current == CircuitState.CLOSED:
             # Reset failure count on success
             cache.set(self._failures_key, 0, self.recovery_timeout * 10)
@@ -137,14 +137,14 @@ class CircuitBreaker:
         if current == CircuitState.HALF_OPEN:
             # Probe failed — reopen
             self._transition(CircuitState.OPEN)
-            logger.warning('[CircuitBreaker:%s] OPEN (half-open probe failed)', self.service_name)
+            logger.warning("[CircuitBreaker:%s] OPEN (half-open probe failed)", self.service_name)
         elif current == CircuitState.CLOSED:
             failures = (cache.get(self._failures_key) or 0) + 1
             cache.set(self._failures_key, failures, self.recovery_timeout * 10)
             if failures >= self.failure_threshold:
                 self._transition(CircuitState.OPEN)
                 logger.warning(
-                    '[CircuitBreaker:%s] OPEN (threshold %d reached)',
+                    "[CircuitBreaker:%s] OPEN (threshold %d reached)",
                     self.service_name,
                     self.failure_threshold,
                 )
@@ -156,12 +156,12 @@ class CircuitBreaker:
     def get_status(self) -> dict[str, Any]:
         """Get circuit breaker status for monitoring."""
         return {
-            'service': self.service_name,
-            'state': self.state.value,
-            'failures': cache.get(self._failures_key) or 0,
-            'failure_threshold': self.failure_threshold,
-            'recovery_timeout': self.recovery_timeout,
-            'opened_at': cache.get(self._opened_at_key),
+            "service": self.service_name,
+            "state": self.state.value,
+            "failures": cache.get(self._failures_key) or 0,
+            "failure_threshold": self.failure_threshold,
+            "recovery_timeout": self.recovery_timeout,
+            "opened_at": cache.get(self._opened_at_key),
         }
 
     def _transition(self, new_state: CircuitState) -> None:
@@ -202,7 +202,7 @@ def circuit_breaker(
             if not breaker.is_available():
                 if fallback:
                     logger.info(
-                        '[CircuitBreaker:%s] using fallback for %s',
+                        "[CircuitBreaker:%s] using fallback for %s",
                         service_name,
                         func.__qualname__,
                     )

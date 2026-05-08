@@ -4,15 +4,18 @@ Tests for Fulfillments app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from django.test import TestCase
-from django.contrib.auth.models import User
 from datetime import date
+
+from django.contrib.auth.models import User
+from django.test import TestCase
+
+from tenant_apps.carriers.models import Carrier
+from tenant_apps.customers.models import Customer
 from tenant_apps.fulfillments.models import Fulfillment, FulfillmentStatusChoices
 from tenant_apps.fulfillments.serializers import FulfillmentDetailSerializer, FulfillmentListSerializer
+from tenant_apps.inquiries.models import Inquiry, InquiryEntityTypeChoices, InquiryStatusChoices
 from tenant_apps.suppliers.models import Supplier
-from tenant_apps.customers.models import Customer
-from tenant_apps.carriers.models import Carrier
-from tenant_apps.inquiries.models import Inquiry, InquiryStatusChoices, InquiryEntityTypeChoices
+
 from apps.tenants.models import Tenant, TenantUser
 
 
@@ -24,9 +27,7 @@ class FulfillmentModelTest(TestCase):
         """Set up test data shared across all tests in this class."""
         unique_id = uuid.uuid4().hex[:8]
         cls.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         cls.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -35,7 +36,7 @@ class FulfillmentModelTest(TestCase):
             created_by=cls.user,
         )
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="owner")
-        
+
         cls.supplier = Supplier.objects.create(
             name=f"Test Supplier {unique_id}",
             tenant=cls.tenant,
@@ -49,7 +50,7 @@ class FulfillmentModelTest(TestCase):
             code=f"TC-{unique_id[:4]}",
             tenant=cls.tenant,
         )
-        
+
         # Create inquiry for fulfillment tests
         cls.inquiry = Inquiry.objects.create(
             entity_type=InquiryEntityTypeChoices.CUSTOMER,
@@ -68,7 +69,7 @@ class FulfillmentModelTest(TestCase):
             status=FulfillmentStatusChoices.PENDING,
             tenant=self.tenant,
         )
-        
+
         self.assertIsNotNone(fulfillment.fulfillment_number)
         self.assertTrue(fulfillment.fulfillment_number.startswith("FUL-"))
         self.assertEqual(fulfillment.status, "pending")
@@ -84,7 +85,7 @@ class FulfillmentModelTest(TestCase):
             inquiry=self.inquiry,
             tenant=self.tenant,
         )
-        
+
         # Both should have unique fulfillment numbers
         self.assertNotEqual(f1.fulfillment_number, f2.fulfillment_number)
         # Both should follow the pattern
@@ -109,7 +110,7 @@ class FulfillmentModelTest(TestCase):
             expected_delivery=date(2026, 2, 10),
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(fulfillment.ship_date, date.today())
         self.assertEqual(fulfillment.expected_delivery, date(2026, 2, 10))
 
@@ -121,25 +122,23 @@ class FulfillmentModelTest(TestCase):
             tracking_numbers=tracking,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(fulfillment.tracking_numbers, tracking)
         self.assertEqual(len(fulfillment.tracking_numbers), 3)
 
     def test_fulfillment_tenant_isolation(self):
         """Test that fulfillments are properly isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create fulfillment for first tenant
         f1 = Fulfillment.objects.create(
             inquiry=self.inquiry,
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -156,17 +155,17 @@ class FulfillmentModelTest(TestCase):
             customer=other_customer,
             tenant=other_tenant,
         )
-        
+
         # Create fulfillment for second tenant
         f2 = Fulfillment.objects.create(
             inquiry=other_inquiry,
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_fulfillments = Fulfillment.objects.for_tenant(self.tenant)
         tenant2_fulfillments = Fulfillment.objects.for_tenant(other_tenant)
-        
+
         self.assertEqual(tenant1_fulfillments.count(), 1)
         self.assertEqual(tenant2_fulfillments.count(), 1)
         self.assertIn(f1, tenant1_fulfillments)
@@ -178,7 +177,7 @@ class FulfillmentModelTest(TestCase):
             inquiry=self.inquiry,
             tenant=self.tenant,
         )
-        
+
         self.assertIn(fulfillment.fulfillment_number, str(fulfillment))
         self.assertIn(self.inquiry.inquiry_number, str(fulfillment))
 
@@ -189,7 +188,7 @@ class FulfillmentModelTest(TestCase):
             carrier=self.carrier,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(fulfillment.carrier, self.carrier)
         self.assertIn(fulfillment, self.carrier.fulfillments.all())
 
@@ -215,10 +214,11 @@ class FulfillmentRLSMigrationTest(TestCase):
     def test_rls_migration_exists(self):
         """Verify the RLS migration file exists for fulfillments."""
         import os
+
         migration_path = os.path.join(
             os.path.dirname(__file__),
-            'migrations',
-            '0003_add_rls_policies_batch.py',
+            "migrations",
+            "0003_add_rls_policies_batch.py",
         )
         self.assertTrue(
             os.path.exists(migration_path),
@@ -228,60 +228,65 @@ class FulfillmentRLSMigrationTest(TestCase):
     def test_rls_migration_contains_enable_rls(self):
         """Verify the RLS migration SQL enables row-level security."""
         import os
+
         migration_path = os.path.join(
             os.path.dirname(__file__),
-            'migrations',
-            '0003_add_rls_policies_batch.py',
+            "migrations",
+            "0003_add_rls_policies_batch.py",
         )
         with open(migration_path) as f:
             content = f.read()
-        self.assertIn('ENABLE ROW LEVEL SECURITY', content)
-        self.assertIn('fulfillments_fulfillment', content)
+        self.assertIn("ENABLE ROW LEVEL SECURITY", content)
+        self.assertIn("fulfillments_fulfillment", content)
 
     def test_rls_migration_contains_isolation_policy(self):
         """Verify the RLS migration SQL creates tenant isolation policy."""
         import os
+
         migration_path = os.path.join(
             os.path.dirname(__file__),
-            'migrations',
-            '0003_add_rls_policies_batch.py',
+            "migrations",
+            "0003_add_rls_policies_batch.py",
         )
         with open(migration_path) as f:
             content = f.read()
-        self.assertIn('fulfillment_tenant_isolation', content)
+        self.assertIn("fulfillment_tenant_isolation", content)
         self.assertIn("app.current_tenant", content)
-        self.assertIn('tenant_id', content)
+        self.assertIn("tenant_id", content)
 
     def test_rls_migration_has_insert_policy(self):
         """Verify the RLS migration SQL creates an INSERT policy."""
         import os
+
         migration_path = os.path.join(
             os.path.dirname(__file__),
-            'migrations',
-            '0003_add_rls_policies_batch.py',
+            "migrations",
+            "0003_add_rls_policies_batch.py",
         )
         with open(migration_path) as f:
             content = f.read()
-        self.assertIn('fulfillment_tenant_insert', content)
-        self.assertIn('FOR INSERT', content)
-        self.assertIn('WITH CHECK', content)
+        self.assertIn("fulfillment_tenant_insert", content)
+        self.assertIn("FOR INSERT", content)
+        self.assertIn("WITH CHECK", content)
 
     def test_rls_migration_has_reverse_sql(self):
         """Verify the RLS migration includes reverse SQL for rollback."""
         import os
+
         migration_path = os.path.join(
             os.path.dirname(__file__),
-            'migrations',
-            '0003_add_rls_policies_batch.py',
+            "migrations",
+            "0003_add_rls_policies_batch.py",
         )
         with open(migration_path) as f:
             content = f.read()
-        self.assertIn('DISABLE ROW LEVEL SECURITY', content)
-        self.assertIn('DROP POLICY IF EXISTS', content)
+        self.assertIn("DISABLE ROW LEVEL SECURITY", content)
+        self.assertIn("DROP POLICY IF EXISTS", content)
 
     def test_fulfillment_model_has_tenant_fk(self):
         """Verify Fulfillment model has a tenant ForeignKey."""
         from django.db import models
-        tenant_field = Fulfillment._meta.get_field('tenant')
+
+        tenant_field = Fulfillment._meta.get_field("tenant")
         self.assertIsInstance(tenant_field, models.ForeignKey)
-        self.assertEqual(tenant_field.related_model.__name__, 'Tenant')
+        self.assertEqual(tenant_field.related_model.__name__, "Tenant")

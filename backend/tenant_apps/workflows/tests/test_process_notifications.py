@@ -150,9 +150,9 @@ class ProcessNotificationServiceTests(TestCase):
         """Should fallback to tenant staff if no contacts resolved."""
         mock_notification_model.objects.filter.return_value.exists.return_value = False
         mock_notification_model.objects.create.return_value = MagicMock()
-        mock_user_model.objects.filter.return_value.distinct.return_value.__getitem__ = (
-            lambda self, s: [MagicMock(email="staff@test.com")]
-        )
+        mock_user_model.objects.filter.return_value.distinct.return_value.__getitem__ = lambda self, s: [
+            MagicMock(email="staff@test.com")
+        ]
 
         # Patch _resolve_target_users to return empty
         with patch(

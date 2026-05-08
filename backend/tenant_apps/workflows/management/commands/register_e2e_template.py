@@ -9,12 +9,13 @@ Usage:
 
 from django.core.management.base import BaseCommand
 
-from apps.tenants.models import Tenant
 from tenant_apps.workflows.services.template_registry import (
     get_e2e_template_data,
     register_e2e_template,
     validate_template_schema,
 )
+
+from apps.tenants.models import Tenant
 
 
 class Command(BaseCommand):
@@ -64,9 +65,7 @@ class Command(BaseCommand):
             try:
                 tenants = [Tenant.objects.get(slug=options["tenant"])]
             except Tenant.DoesNotExist:
-                self.stdout.write(
-                    self.style.ERROR(f"Tenant '{options['tenant']}' not found")
-                )
+                self.stdout.write(self.style.ERROR(f"Tenant '{options['tenant']}' not found"))
                 return
         else:
             tenants = list(Tenant.objects.filter(is_active=True))
@@ -81,8 +80,6 @@ class Command(BaseCommand):
                 form = register_e2e_template(tenant, force=options["force"])
                 self.stdout.write(f"  ✓ {tenant.slug}: {form.pk}")
             except Exception as exc:
-                self.stdout.write(
-                    self.style.ERROR(f"  ✗ {tenant.slug}: {exc}")
-                )
+                self.stdout.write(self.style.ERROR(f"  ✗ {tenant.slug}: {exc}"))
 
         self.stdout.write(self.style.SUCCESS("\n✅ Registration complete"))

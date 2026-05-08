@@ -36,12 +36,12 @@ def main():
     parser.add_argument('environment', choices=['uat', 'production', 'dev'],
                        help='Environment to query')
     args = parser.parse_args()
-    
+
     if args.environment == 'dev':
         # Query local development database
         print("Querying local development database...")
         print("="*70)
-        
+
         # Use manage.py shell
         import subprocess
         result = subprocess.run(
@@ -53,7 +53,7 @@ def main():
         print(result.stdout)
         if result.stderr:
             print("Errors:", result.stderr, file=sys.stderr)
-        
+
     else:
         print(f"To query {args.environment}, you need to:")
         print(f"1. SSH into the {args.environment} server")

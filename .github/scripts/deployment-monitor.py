@@ -36,7 +36,7 @@ def check_docker_containers() -> Dict:
         'pm-frontend': {'expected': True, 'running': False, 'health': 'unknown'},
         'pm-backend': {'expected': True, 'running': False, 'health': 'unknown'}
     }
-    
+
     output = run_command(['docker', 'ps', '--format', '{{.Names}}|{{.Status}}'])
     if output:
         for line in output.split('\n'):
@@ -50,7 +50,7 @@ def check_docker_containers() -> Dict:
                         containers[name]['health'] = 'healthy'
                     elif 'Up' in status:
                         containers[name]['health'] = 'running'
-    
+
     return containers
 
 def check_disk_space() -> Dict:
@@ -123,10 +123,10 @@ def print_section(text: str):
 def display_dashboard(environment: str = "production"):
     """Display deployment monitoring dashboard"""
     print_header(f"ProjectMeats Deployment Monitor - {environment.upper()}")
-    
+
     # System time
     print(f"{Colors.WHITE}Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{Colors.END}")
-    
+
     # Container Status
     print_section("Container Status")
     containers = check_docker_containers()
@@ -134,7 +134,7 @@ def display_dashboard(environment: str = "production"):
         status_color = Colors.GREEN if info['running'] else Colors.RED
         health_icon = "✓" if info['health'] in ['healthy', 'running'] else "✗"
         print(f"  {status_color}{health_icon} {name:20} {info['health']:15}{Colors.END}")
-    
+
     # Disk Space
     print_section("Disk Space")
     disk = check_disk_space()
@@ -145,7 +145,7 @@ def display_dashboard(environment: str = "production"):
         print(f"  Used:      {disk['used']}")
         print(f"  Available: {disk['available']}")
         print(f"  {color}Usage:     {disk['use_percent']}{Colors.END}")
-    
+
     # Recent Images
     print_section("Recent Docker Images")
     images = check_docker_images()
@@ -153,7 +153,7 @@ def display_dashboard(environment: str = "production"):
         env_tag = "PROD" if "prod" in img['tag'] else "UAT" if "uat" in img['tag'] else "DEV"
         tag_color = Colors.RED if env_tag == "PROD" else Colors.YELLOW if env_tag == "UAT" else Colors.GREEN
         print(f"  {tag_color}[{env_tag}]{Colors.END} {img['repository']:50} {img['tag']:20} {img['size']:>10}")
-    
+
     # Deployment Locks
     print_section("Deployment Locks")
     locks = check_deployment_locks()
@@ -164,7 +164,7 @@ def display_dashboard(environment: str = "production"):
             print(f"  {status_color}{lock['status'].upper()}: {lock['file']} ({age_str}){Colors.END}")
     else:
         print(f"  {Colors.GREEN}✓ No active deployment locks{Colors.END}")
-    
+
     # Recent Logs
     print_section("Recent Backend Logs (Last 5 lines)")
     backend_logs = check_recent_logs('pm-backend', 5)
@@ -177,13 +177,13 @@ def display_dashboard(environment: str = "production"):
                 print(f"  {Colors.YELLOW}{log[:120]}{Colors.END}")
             else:
                 print(f"  {Colors.WHITE}{log[:120]}{Colors.END}")
-    
+
     # Health Status Summary
     print_section("Deployment Health Summary")
-    
+
     all_running = all(c['running'] for c in containers.values())
     all_healthy = all(c['health'] in ['healthy', 'running'] for c in containers.values())
-    
+
     if all_running and all_healthy:
         print(f"  {Colors.GREEN}✓ System Status: HEALTHY{Colors.END}")
         print(f"  {Colors.GREEN}✓ All containers running and healthy{Colors.END}")
@@ -193,7 +193,7 @@ def display_dashboard(environment: str = "production"):
     else:
         print(f"  {Colors.RED}✗ System Status: UNHEALTHY{Colors.END}")
         print(f"  {Colors.RED}✗ One or more containers not running{Colors.END}")
-    
+
     print(f"\n{Colors.CYAN}{'=' * 80}{Colors.END}\n")
 
 def main():
@@ -205,9 +205,9 @@ def main():
                       help='Continuous monitoring mode (refreshes every 10s)')
     parser.add_argument('--json', action='store_true',
                       help='Output in JSON format')
-    
+
     args = parser.parse_args()
-    
+
     if args.json:
         # JSON output mode
         data = {

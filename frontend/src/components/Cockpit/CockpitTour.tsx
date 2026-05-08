@@ -1,13 +1,13 @@
 /**
  * CockpitTour - Guided tour for first-time Cockpit users
- * 
+ *
  * Features:
  * - Step-by-step walkthrough of Cockpit features
  * - Auto-starts on first visit using the shared onboarding contract
  * - Skip/dismiss functionality
  * - Responsive tooltips
  * - ARIA-compliant for accessibility
- * 
+ *
  * @module components/Cockpit/CockpitTour
  */
 
@@ -34,7 +34,7 @@ interface CockpitTourProps {
   enabled?: boolean;
   isCockpitLoaded?: boolean;
   availableSelectors?: string[];
-  
+
   /**
    * Callback when tour completes or is skipped
    */
@@ -117,8 +117,8 @@ const cockpitTourSteps: CockpitTourStep[] = [
           Search for customers, suppliers, products, or orders.
           Results show related records automatically.
         </p>
-        <div style={{ 
-          padding: '0.75rem', 
+        <div style={{
+          padding: '0.75rem',
           background: 'rgb(var(--color-info) / 0.1)',
           borderRadius: '4px',
           margin: '0.5rem 0'
@@ -185,8 +185,8 @@ const cockpitTourSteps: CockpitTourStep[] = [
           <li><strong>Customize button</strong> - Rearrange your widgets</li>
           <li><strong>Quick Actions</strong> - One-click record creation</li>
         </ul>
-        <div style={{ 
-          padding: '0.75rem', 
+        <div style={{
+          padding: '0.75rem',
           background: 'rgb(var(--color-success) / 0.1)',
           borderRadius: '4px',
           margin: '1rem 0'

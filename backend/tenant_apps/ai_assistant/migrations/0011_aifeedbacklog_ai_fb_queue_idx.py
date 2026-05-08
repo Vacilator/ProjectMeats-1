@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ai_assistant", "0010_tenantknowledgefact"),
         ("tenants", "0011_bootstrap_rls_session_vars"),

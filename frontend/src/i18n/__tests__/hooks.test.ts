@@ -20,7 +20,7 @@ describe('useTranslation', () => {
 
   it('should change language', () => {
     const { result } = renderHook(() => useTranslation());
-    
+
     act(() => {
       result.current.changeLanguage('es');
     });
@@ -36,7 +36,7 @@ describe('useTranslation', () => {
 
   it('should fallback to English for missing translations', () => {
     const { result } = renderHook(() => useTranslation());
-    
+
     act(() => {
       result.current.changeLanguage('es');
     });
@@ -74,7 +74,7 @@ describe('useWorkflowTranslation', () => {
 
   it('should change language and update translations', () => {
     const { result } = renderHook(() => useWorkflowTranslation());
-    
+
     act(() => {
       result.current.changeLanguage('es');
     });
@@ -119,16 +119,16 @@ describe('useLocalizedDate', () => {
   it('should change format based on language', () => {
     const { result, rerender } = renderHook(() => useLocalizedDate());
     const date = new Date('2024-01-15T12:00:00Z');
-    
+
     const enFormatted = result.current.formatDate(date);
-    
+
     act(() => {
       i18n.changeLanguage('fr');
     });
     rerender();
-    
+
     const frFormatted = result.current.formatDate(date);
-    
+
     // Different locales may format differently
     expect(enFormatted).toBeDefined();
     expect(frFormatted).toBeDefined();
@@ -163,16 +163,16 @@ describe('useLocalizedNumber', () => {
 
   it('should change format based on language', () => {
     const { result, rerender } = renderHook(() => useLocalizedNumber());
-    
+
     const enFormatted = result.current.formatNumber(1234.56);
-    
+
     act(() => {
       i18n.changeLanguage('fr');
     });
     rerender();
-    
+
     const frFormatted = result.current.formatNumber(1234.56);
-    
+
     // Different locales use different separators
     expect(enFormatted).toBeDefined();
     expect(frFormatted).toBeDefined();

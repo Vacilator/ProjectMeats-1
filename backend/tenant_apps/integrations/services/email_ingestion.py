@@ -8,13 +8,11 @@ import time
 from datetime import timedelta
 from typing import Any, Dict, List
 
-import requests
 from django.core.exceptions import SuspiciousFileOperation, ValidationError
 from django.db import DatabaseError, transaction
 from django.utils import timezone
 
-from apps.integrations.models import ExternalAuthProvider, EmailLog
-from apps.tenants.models import Tenant
+import requests
 from tenant_apps.ai_assistant.session_utils import (
     bind_attachment_allowlist,
     get_staged_attachment_status,
@@ -33,6 +31,9 @@ from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     validate_graph_attachment_metadata,
 )
 
+from apps.integrations.models import EmailLog, ExternalAuthProvider
+from apps.tenants.models import Tenant
+
 logger = logging.getLogger(__name__)
 
 MAX_AI_ATTACHMENT_BYTES = 25 * 1024 * 1024
@@ -41,36 +42,36 @@ MAX_AI_ATTACHMENT_BYTES = 25 * 1024 * 1024
 class EmailIngestionService:
     """
     Service for ingesting emails from external providers.
-    
+
     Multi-tenant aware - iterates through all active tenants with valid tokens.
     """
-    
+
     # Keywords to identify order-related emails.
     # NOTE: Keep these fairly specific to avoid false positives.
     ORDER_KEYWORDS = [
-        'purchase order',
-        'sales order',
-        'order confirmation',
-        'order #',
-        'invoice',
-        'quote',
-        'requisition',
-        'req ',
-        'po ',
-        'po#',
-        'p.o.',
-        'p/o',
-        'delivery',
-        'shipment',
-        'bol',
-        'bill of lading',
-        'packing list',
-        'meat',
-        'beef',
-        'pork',
-        'chicken',
+        "purchase order",
+        "sales order",
+        "order confirmation",
+        "order #",
+        "invoice",
+        "quote",
+        "requisition",
+        "req ",
+        "po ",
+        "po#",
+        "p.o.",
+        "p/o",
+        "delivery",
+        "shipment",
+        "bol",
+        "bill of lading",
+        "packing list",
+        "meat",
+        "beef",
+        "pork",
+        "chicken",
     ]
-    
+
     def __init__(
         self,
         tenant: Tenant | None = None,
@@ -91,18 +92,18 @@ class EmailIngestionService:
         self.max_messages = max_messages
 
         self.stats = {
-            'tenants_processed': 0,
+            "tenants_processed": 0,
             # Count of Graph messages scanned (before keyword/attachment filtering)
-            'emails_scanned': 0,
+            "emails_scanned": 0,
             # Count of messages that matched our order heuristics
-            'emails_matched': 0,
+            "emails_matched": 0,
             # Count of messages returned from fetch stage (matched set)
-            'emails_fetched': 0,
-            'emails_saved': 0,
-            'emails_skipped': 0,
-            'errors': 0,
-            'errors_detail': [],
-            'last_cutoff': None,
+            "emails_fetched": 0,
+            "emails_saved": 0,
+            "emails_skipped": 0,
+            "errors": 0,
+            "errors_detail": [],
+            "last_cutoff": None,
         }
 
     @staticmethod
@@ -114,22 +115,22 @@ class EmailIngestionService:
         session: Any = None,
     ) -> Dict[str, Any]:
         metadata = {
-            'source': 'microsoft_graph_attachment',
-            'message_id': message_id,
-            'attachment_id': attachment_id,
-            'ingested_at': timezone.now().isoformat(),
+            "source": "microsoft_graph_attachment",
+            "message_id": message_id,
+            "attachment_id": attachment_id,
+            "ingested_at": timezone.now().isoformat(),
         }
         if session is not None:
-            metadata['session_id'] = str(getattr(session, 'id', '') or '')
-        if attachment_metadata.get('name'):
-            metadata['graph_name'] = str(attachment_metadata.get('name') or '').strip()
-        if attachment_metadata.get('contentType'):
-            metadata['graph_content_type'] = str(attachment_metadata.get('contentType') or '').strip()
-        if attachment_metadata.get('size') is not None:
-            metadata['graph_size'] = attachment_metadata.get('size')
-        attachment_type = str(attachment_metadata.get('@odata.type') or '').strip()
+            metadata["session_id"] = str(getattr(session, "id", "") or "")
+        if attachment_metadata.get("name"):
+            metadata["graph_name"] = str(attachment_metadata.get("name") or "").strip()
+        if attachment_metadata.get("contentType"):
+            metadata["graph_content_type"] = str(attachment_metadata.get("contentType") or "").strip()
+        if attachment_metadata.get("size") is not None:
+            metadata["graph_size"] = attachment_metadata.get("size")
+        attachment_type = str(attachment_metadata.get("@odata.type") or "").strip()
         if attachment_type:
-            metadata['graph_attachment_type'] = attachment_type
+            metadata["graph_attachment_type"] = attachment_type
         return metadata
 
     @staticmethod
@@ -158,7 +159,7 @@ class EmailIngestionService:
             try:
                 response = requests.get(url, headers=headers, params=params, timeout=timeout, stream=stream)
                 if response.status_code in {429, 500, 502, 503, 504} and attempt < max_attempts - 1:
-                    delay = self._parse_retry_after_seconds(response.headers.get('Retry-After')) or float(2 ** attempt)
+                    delay = self._parse_retry_after_seconds(response.headers.get("Retry-After")) or float(2**attempt)
                     time.sleep(delay)
                     continue
                 response.raise_for_status()
@@ -167,23 +168,23 @@ class EmailIngestionService:
                 last_exc = exc
                 if attempt >= max_attempts - 1:
                     raise
-                time.sleep(float(2 ** attempt))
+                time.sleep(float(2**attempt))
             except requests.HTTPError as exc:
                 last_exc = exc
                 status_code = exc.response.status_code if exc.response is not None else None
                 if status_code not in {429, 500, 502, 503, 504} or attempt >= max_attempts - 1:
                     raise
-                delay = self._parse_retry_after_seconds(exc.response.headers.get('Retry-After')) or float(2 ** attempt)
+                delay = self._parse_retry_after_seconds(exc.response.headers.get("Retry-After")) or float(2**attempt)
                 time.sleep(delay)
             except requests.RequestException as exc:
                 last_exc = exc
                 if attempt >= max_attempts - 1:
                     raise
-                time.sleep(float(2 ** attempt))
+                time.sleep(float(2**attempt))
 
         if last_exc is not None:
             raise last_exc
-        raise requests.RequestException('Graph request failed without an exception payload')
+        raise requests.RequestException("Graph request failed without an exception payload")
 
     def _get_existing_attachment_document(
         self,
@@ -196,60 +197,56 @@ class EmailIngestionService:
         from tenant_apps.ai_assistant.models import AIDocument
 
         filters = {
-            'tenant': self.tenant,
-            'owner': user,
-            'custom_data__source': 'microsoft_graph_attachment',
-            'custom_data__message_id': message_id,
-            'custom_data__attachment_id': attachment_id,
+            "tenant": self.tenant,
+            "owner": user,
+            "custom_data__source": "microsoft_graph_attachment",
+            "custom_data__message_id": message_id,
+            "custom_data__attachment_id": attachment_id,
         }
         if session is None:
-            filters['session__isnull'] = True
+            filters["session__isnull"] = True
         else:
-            filters['session'] = session
+            filters["session"] = session
 
-        return AIDocument.objects.filter(**filters).order_by('-created_on').first()
-    
+        return AIDocument.objects.filter(**filters).order_by("-created_on").first()
+
     def poll_all_tenants(self) -> Dict[str, int]:
         """
         Poll inbox for all active tenants with Microsoft connections.
-        
+
         Returns:
             Dict with statistics (tenants_processed, emails_fetched, etc.)
         """
         logger.info("Starting email ingestion for all tenants")
-        
+
         # Get all active tenants with valid Microsoft auth
         active_providers = ExternalAuthProvider.objects.filter(
-            provider_type='microsoft',
-            is_active=True
-        ).select_related('tenant')
-        
+            provider_type="microsoft", is_active=True
+        ).select_related("tenant")
+
         for provider in active_providers:
             try:
                 self._poll_tenant_inbox(provider)
-                self.stats['tenants_processed'] += 1
+                self.stats["tenants_processed"] += 1
             except Exception as e:
-                logger.error(
-                    f"Failed to poll inbox for tenant {provider.tenant.name}: {str(e)}",
-                    exc_info=True
-                )
-                self.stats['errors'] += 1
-        
+                logger.error(f"Failed to poll inbox for tenant {provider.tenant.name}: {str(e)}", exc_info=True)
+                self.stats["errors"] += 1
+
         logger.info(f"Email ingestion complete: {self.stats}")
         return self.stats
-    
+
     def _poll_tenant_inbox(self, provider: ExternalAuthProvider):
         """
         Poll inbox for a single tenant.
-        
+
         Args:
             provider: ExternalAuthProvider for this tenant
         """
         from apps.integrations.providers import MicrosoftGraphProvider
-        
+
         tenant = provider.tenant
         logger.info(f"Polling inbox for tenant: {tenant.name}")
-        
+
         # Refresh token if needed (never crash sync if refresh fails)
         if provider.is_token_expired():
             logger.info(f"Refreshing expired token for tenant {tenant.name}")
@@ -257,115 +254,111 @@ class EmailIngestionService:
                 provider.refresh_if_needed()
             except Exception as e:
                 logger.warning(
-                    'Token refresh failed tenant=%s provider_id=%s: %s',
+                    "Token refresh failed tenant=%s provider_id=%s: %s",
                     tenant.id,
                     provider.id,
                     str(e),
                     exc_info=True,
                 )
-                self.stats['errors'] += 1
-                self.stats.setdefault('errors_detail', []).append('Token refresh failed; reconnect Outlook if this persists.')
+                self.stats["errors"] += 1
+                self.stats.setdefault("errors_detail", []).append(
+                    "Token refresh failed; reconnect Outlook if this persists."
+                )
 
         # Get access token (decrypt errors must not bubble to API)
         try:
-            access_token = provider.get_decrypted_token('access')
+            access_token = provider.get_decrypted_token("access")
         except Exception as e:
             # Treat ANY decrypt failure as requiring a reconnect.
             # In practice we see InvalidToken (key mismatch) but other exceptions can occur
             # depending on config/state; the user action is the same.
             logger.error(
-                'Failed to decrypt access token tenant=%s provider_id=%s: %s',
+                "Failed to decrypt access token tenant=%s provider_id=%s: %s",
                 tenant.id,
                 provider.id,
                 str(e),
                 exc_info=True,
             )
-            self.stats['errors'] += 1
-            self.stats['error_code'] = 'decryption_failed'
-            self.stats.setdefault('errors_detail', []).append(
-                'DECRYPTION_FAILED: Your Outlook connection needs to be refreshed for security reasons.'
+            self.stats["errors"] += 1
+            self.stats["error_code"] = "decryption_failed"
+            self.stats.setdefault("errors_detail", []).append(
+                "DECRYPTION_FAILED: Your Outlook connection needs to be refreshed for security reasons."
             )
             return
 
         if not access_token:
             logger.error(f"No access token for tenant {tenant.name}")
-            self.stats['errors'] += 1
-            self.stats.setdefault('errors_detail', []).append('No Microsoft access token available. Reconnect Outlook.')
+            self.stats["errors"] += 1
+            self.stats.setdefault("errors_detail", []).append("No Microsoft access token available. Reconnect Outlook.")
             return
-        
+
         # Initialize Microsoft Graph provider
         graph_provider = MicrosoftGraphProvider(tenant.id)
 
         # Validate token before claiming "no emails".
         try:
             if not graph_provider.validate_token(access_token):
-                self.stats['errors'] += 1
-                self.stats.setdefault('errors_detail', []).append('Microsoft token is invalid/expired. Reconnect Outlook to re-authorize Mail.ReadWrite.')
+                self.stats["errors"] += 1
+                self.stats.setdefault("errors_detail", []).append(
+                    "Microsoft token is invalid/expired. Reconnect Outlook to re-authorize Mail.ReadWrite."
+                )
                 return
         except Exception:
             # Don't fail the request, but ensure we don't silently report "no emails".
-            self.stats['errors'] += 1
-            self.stats.setdefault('errors_detail', []).append('Token validation failed. Outlook connection may be unhealthy.')
+            self.stats["errors"] += 1
+            self.stats.setdefault("errors_detail", []).append(
+                "Token validation failed. Outlook connection may be unhealthy."
+            )
             return
-        
+
         # Fetch recent emails (last 14 days)
         cutoff_date = timezone.now() - timedelta(days=14)
-        self.stats['last_cutoff'] = cutoff_date.isoformat()
+        self.stats["last_cutoff"] = cutoff_date.isoformat()
 
-        emails = self._fetch_inbox_messages(
-            graph_provider,
-            access_token,
-            cutoff_date
-        )
-        
-        self.stats['emails_fetched'] += len(emails)
-        
+        emails = self._fetch_inbox_messages(graph_provider, access_token, cutoff_date)
+
+        self.stats["emails_fetched"] += len(emails)
+
         # Save emails to database (with attachment processing)
         for email_data in emails:
             try:
                 # Download attachments if the email has them
                 attachments: list[dict] = []
-                if email_data.get('hasAttachments'):
+                if email_data.get("hasAttachments"):
                     try:
                         attachments = self._download_attachments(
-                            graph_provider, access_token, message_id=email_data.get('id'),
+                            graph_provider,
+                            access_token,
+                            message_id=email_data.get("id"),
                         )
                     except Exception:
                         logger.warning(
-                            'Attachment download failed for message %s; continuing without attachments',
-                            email_data.get('id'),
+                            "Attachment download failed for message %s; continuing without attachments",
+                            email_data.get("id"),
                             exc_info=True,
                         )
                 self._save_email_log(tenant, provider, email_data, attachments=attachments)
             except Exception as e:
-                logger.error(
-                    f"Failed to save email {email_data.get('id')}: {str(e)}",
-                    exc_info=True
-                )
-                self.stats['errors'] += 1
-    
-    def _fetch_inbox_messages(
-        self,
-        provider,
-        access_token: str,
-        since: timezone.datetime
-    ) -> List[Dict[str, Any]]:
+                logger.error(f"Failed to save email {email_data.get('id')}: {str(e)}", exc_info=True)
+                self.stats["errors"] += 1
+
+    def _fetch_inbox_messages(self, provider, access_token: str, since: timezone.datetime) -> List[Dict[str, Any]]:
         """
         Fetch messages from inbox using Microsoft Graph API.
-        
+
         Args:
             provider: MicrosoftGraphProvider instance
             access_token: Valid OAuth access token
             since: Only fetch emails received after this date
-            
+
         Returns:
             List of email message dicts
         """
         import requests
-        
+
         # Format date for OData filter
-        since_str = since.strftime('%Y-%m-%dT%H:%M:%SZ')
-        
+        since_str = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+
         # IMPORTANT: Microsoft Graph does not support complex contains() filters reliably across tenants.
         # We prefer simple, reliable server-side filters, then do keyword filtering locally in Python.
         #
@@ -386,20 +379,18 @@ class EmailIngestionService:
 
         def _build_params(filter_query: str) -> Dict[str, Any]:
             return {
-                '$filter': filter_query,
-                '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId',
-                '$top': 100,
-                '$orderby': 'receivedDateTime desc',
+                "$filter": filter_query,
+                "$select": "id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId",
+                "$top": 100,
+                "$orderby": "receivedDateTime desc",
             }
 
         params = _build_params(filter_query_attachments)
-        
-        headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Content-Type': 'application/json'
-        }
-        
+
+        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+
         try:
+
             def _fetch_pages(initial_params: Dict[str, Any], max_pages: int) -> List[Dict[str, Any]]:
                 all_messages: List[Dict[str, Any]] = []
                 next_url = url
@@ -410,10 +401,10 @@ class EmailIngestionService:
                     response = self._graph_get_with_retry(next_url, headers=headers, params=next_params, timeout=30)
                     data = response.json() or {}
 
-                    batch = data.get('value', []) or []
+                    batch = data.get("value", []) or []
                     all_messages.extend(batch)
 
-                    next_url = data.get('@odata.nextLink')
+                    next_url = data.get("@odata.nextLink")
                     next_params = None  # nextLink already contains query string
                     page += 1
 
@@ -424,22 +415,22 @@ class EmailIngestionService:
 
             # Pass 2: date-only fallback if we didn't scan much (helps mailboxes with few attachments)
             if len(scanned) < 100:
-                scanned_ids = {m.get('id') for m in scanned if m.get('id')}
+                scanned_ids = {m.get("id") for m in scanned if m.get("id")}
                 scanned_all = _fetch_pages(_build_params(filter_query_all), max_pages=self.max_pages_all)
                 for m in scanned_all:
-                    mid = m.get('id')
+                    mid = m.get("id")
                     if mid and mid in scanned_ids:
                         continue
                     scanned.append(m)
 
-            self.stats['emails_scanned'] += len(scanned)
+            self.stats["emails_scanned"] += len(scanned)
 
             # Local Python filtering (defensive against Graph filtering quirks)
             filtered_messages: List[Dict[str, Any]] = []
             for msg in scanned:
-                subject = (msg.get('subject') or '').lower()
-                body_preview = (msg.get('bodyPreview') or '').lower()
-                has_attachments = bool(msg.get('hasAttachments', False))
+                subject = (msg.get("subject") or "").lower()
+                body_preview = (msg.get("bodyPreview") or "").lower()
+                has_attachments = bool(msg.get("hasAttachments", False))
 
                 haystack = f"{subject}\n{body_preview}"
 
@@ -448,22 +439,22 @@ class EmailIngestionService:
                 if is_order_related or has_attachments:
                     filtered_messages.append(msg)
 
-            self.stats['emails_matched'] += len(filtered_messages)
+            self.stats["emails_matched"] += len(filtered_messages)
 
             logger.info(
-                'Graph scan complete: scanned=%s matched=%s (since=%s)',
+                "Graph scan complete: scanned=%s matched=%s (since=%s)",
                 len(scanned),
                 len(filtered_messages),
                 since_str,
             )
             return filtered_messages
-            
+
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch inbox messages: {str(e)}", exc_info=True)
-            self.stats['errors'] += 1
-            self.stats.setdefault('errors_detail', []).append(f'Graph fetch failed: {type(e).__name__}')
+            self.stats["errors"] += 1
+            self.stats.setdefault("errors_detail", []).append(f"Graph fetch failed: {type(e).__name__}")
             return []
-    
+
     def _save_email_log(
         self,
         tenant: Tenant,
@@ -473,35 +464,36 @@ class EmailIngestionService:
     ):
         """
         Save email to EmailLog (if not already saved).
-        
+
         Args:
             tenant: Tenant this email belongs to
             provider: ExternalAuthProvider used to fetch email
             email_data: Email data from Microsoft Graph API
             attachments: Downloaded attachment data from Graph API (optional)
         """
-        message_id = email_data['id']
-        
+        message_id = email_data["id"]
+
         # Check if already processed (prevent duplicates)
         if EmailLog.objects.filter(tenant=tenant, message_id=message_id).exists():
             logger.debug(f"Email {message_id} already logged, skipping")
-            self.stats['emails_skipped'] += 1
+            self.stats["emails_skipped"] += 1
             return
-        
+
         # Parse sender info
-        from_data = email_data.get('from', {}).get('emailAddress', {})
-        sender_email = from_data.get('address', '')
-        sender_name = from_data.get('name', '')
-        
+        from_data = email_data.get("from", {}).get("emailAddress", {})
+        sender_email = from_data.get("address", "")
+        sender_name = from_data.get("name", "")
+
         # Parse email body
-        body = email_data.get('body', {})
-        body_html = body.get('content', '') if body.get('contentType') == 'html' else ''
-        body_text = email_data.get('bodyPreview', '')
-        
+        body = email_data.get("body", {})
+        body_html = body.get("content", "") if body.get("contentType") == "html" else ""
+        body_text = email_data.get("bodyPreview", "")
+
         # Parse received date
-        received_str = email_data.get('receivedDateTime')
+        received_str = email_data.get("receivedDateTime")
         try:
             from dateutil import parser
+
             received_at = parser.parse(received_str)
         except (ValueError, TypeError, OverflowError):
             received_at = timezone.now()
@@ -510,69 +502,68 @@ class EmailIngestionService:
         attachment_data_payload = None
         if attachments:
             try:
-                from tenant_apps.ai_assistant.services.attachment_extractor import (
-                    extract_text_from_attachments,
-                )
+                from tenant_apps.ai_assistant.services.attachment_extractor import extract_text_from_attachments
+
                 extracted = extract_text_from_attachments(attachments)
                 # Build serializable metadata (strip raw bytes for DB storage)
                 attachment_data_payload = {
-                    'count': len(extracted),
-                    'files': [
+                    "count": len(extracted),
+                    "files": [
                         {
-                            'name': att.get('name', ''),
-                            'content_type': att.get('content_type', ''),
-                            'size': att.get('size'),
-                            'extraction_status': att.get('extraction_status', 'skipped'),
-                            'extracted_text': att.get('extracted_text', ''),
+                            "name": att.get("name", ""),
+                            "content_type": att.get("content_type", ""),
+                            "size": att.get("size"),
+                            "extraction_status": att.get("extraction_status", "skipped"),
+                            "extracted_text": att.get("extracted_text", ""),
                         }
                         for att in extracted
                     ],
                 }
             except Exception:
                 logger.warning(
-                    'Attachment text extraction failed for message %s; storing metadata only',
+                    "Attachment text extraction failed for message %s; storing metadata only",
                     message_id,
                     exc_info=True,
                 )
                 attachment_data_payload = {
-                    'count': len(attachments),
-                    'files': [
+                    "count": len(attachments),
+                    "files": [
                         {
-                            'name': att.get('name', ''),
-                            'content_type': att.get('content_type', ''),
-                            'size': att.get('size'),
-                            'extraction_status': 'error',
-                            'extracted_text': '',
+                            "name": att.get("name", ""),
+                            "content_type": att.get("content_type", ""),
+                            "size": att.get("size"),
+                            "extraction_status": "error",
+                            "extracted_text": "",
                         }
                         for att in attachments
                     ],
                 }
-        
+
         # Create EmailLog entry
         with transaction.atomic():
             email_log = EmailLog.objects.create(
                 tenant=tenant,
                 provider=provider,
                 message_id=message_id,
-                thread_id=email_data.get('conversationId'),
-                subject=email_data.get('subject', '(No Subject)'),
+                thread_id=email_data.get("conversationId"),
+                subject=email_data.get("subject", "(No Subject)"),
                 sender_email=sender_email,
                 sender_name=sender_name,
                 received_at=received_at,
                 body_text=body_text,
                 body_html=body_html,
-                has_attachments=email_data.get('hasAttachments', False),
+                has_attachments=email_data.get("hasAttachments", False),
                 attachment_count=len(attachments) if attachments else 0,
                 attachment_data=attachment_data_payload,
-                status='logged'
+                status="logged",
             )
-        
+
         logger.info(
             f"Saved email log: {email_log.id} - {email_log.subject} "
             f"from {sender_email} (attachments={len(attachments or [])})"
         )
-        self.stats['emails_saved'] += 1
-    
+        self.stats["emails_saved"] += 1
+
     def poll_provider_by_id(self, provider_id: int, *, tenant_id: str | None = None) -> Dict[str, int]:
         """Poll inbox for a specific ExternalAuthProvider.
 
@@ -581,60 +572,56 @@ class EmailIngestionService:
         Note: Callers in Celery worker contexts must set tenant RLS session vars.
         Passing tenant_id provides additional defense-in-depth filtering.
         """
-        qs = ExternalAuthProvider.objects.select_related('tenant').filter(id=provider_id, is_active=True)
+        qs = ExternalAuthProvider.objects.select_related("tenant").filter(id=provider_id, is_active=True)
         if tenant_id:
             qs = qs.filter(tenant_id=tenant_id)
 
         provider = qs.first()
         if not provider:
-            logger.error('No active provider found for id=%s', provider_id)
-            return {'error': 'Provider not found or inactive'}
+            logger.error("No active provider found for id=%s", provider_id)
+            return {"error": "Provider not found or inactive"}
 
         try:
             self._poll_tenant_inbox(provider)
-            self.stats['tenants_processed'] = 1
+            self.stats["tenants_processed"] = 1
 
             # Backward compatible aliases
             return {
                 **self.stats,
-                'tenant_id': str(provider.tenant_id),
-                'provider_id': provider_id,
-                'total_emails_fetched': self.stats.get('emails_fetched', 0),
-                'total_emails_saved': self.stats.get('emails_saved', 0),
-                'total_errors': self.stats.get('errors', 0),
+                "tenant_id": str(provider.tenant_id),
+                "provider_id": provider_id,
+                "total_emails_fetched": self.stats.get("emails_fetched", 0),
+                "total_emails_saved": self.stats.get("emails_saved", 0),
+                "total_errors": self.stats.get("errors", 0),
             }
         except Exception as e:
-            logger.error('Provider polling failed provider_id=%s: %s', provider_id, str(e), exc_info=True)
-            self.stats['errors'] += 1
+            logger.error("Provider polling failed provider_id=%s: %s", provider_id, str(e), exc_info=True)
+            self.stats["errors"] += 1
             return {
                 **self.stats,
-                'tenant_id': str(provider.tenant_id),
-                'provider_id': provider_id,
-                'error': str(e),
+                "tenant_id": str(provider.tenant_id),
+                "provider_id": provider_id,
+                "error": str(e),
             }
 
     def poll_tenant_by_id(self, tenant_id: str) -> Dict[str, int]:
         """
         Poll inbox for a specific tenant (manual sync).
-        
+
         Args:
             tenant_id: Tenant UUID to poll
-            
+
         Returns:
             Dict with statistics
         """
         try:
-            provider = ExternalAuthProvider.objects.get(
-                tenant_id=tenant_id,
-                provider_type='microsoft',
-                is_active=True
-            )
+            provider = ExternalAuthProvider.objects.get(tenant_id=tenant_id, provider_type="microsoft", is_active=True)
             self._poll_tenant_inbox(provider)
-            self.stats['tenants_processed'] = 1
+            self.stats["tenants_processed"] = 1
             return self.stats
         except ExternalAuthProvider.DoesNotExist:
             logger.error(f"No active Microsoft provider for tenant {tenant_id}")
-            return {'error': 'No active Microsoft account connected'}
+            return {"error": "No active Microsoft account connected"}
 
     # -------------------------------------------------------------------------
     # Phase 6.5: AI Document Understanding + Smart Email Triggers (Scaffolding)
@@ -650,61 +637,66 @@ class EmailIngestionService:
             List of results: {"message": <graph message>, "attachments": [...], "analysis": {...}}
         """
         if not self.tenant:
-            raise ValueError('EmailIngestionService requires tenant for fetch_unread_actionable_emails')
+            raise ValueError("EmailIngestionService requires tenant for fetch_unread_actionable_emails")
+
+        import requests
 
         from apps.integrations.providers import MicrosoftGraphProvider
-        import requests
 
         provider = (
             ExternalAuthProvider.objects.filter(
                 tenant=self.tenant,
-                provider_type='microsoft',
+                provider_type="microsoft",
                 is_active=True,
             )
-            .select_related('tenant')
+            .select_related("tenant")
             .first()
         )
         if not provider:
-            logger.info('No active Microsoft provider for tenant=%s', self.tenant.id)
+            logger.info("No active Microsoft provider for tenant=%s", self.tenant.id)
             return []
 
         # Handle token expiration gracefully.
         try:
             provider.refresh_if_needed()
         except Exception:
-            logger.warning('Token refresh failed for tenant=%s provider_id=%s', self.tenant.id, provider.id, exc_info=True)
+            logger.warning(
+                "Token refresh failed for tenant=%s provider_id=%s", self.tenant.id, provider.id, exc_info=True
+            )
 
-        access_token = provider.get_decrypted_token('access')
+        access_token = provider.get_decrypted_token("access")
         if not access_token:
-            logger.warning('No access token available tenant=%s provider_id=%s', self.tenant.id, provider.id)
+            logger.warning("No access token available tenant=%s provider_id=%s", self.tenant.id, provider.id)
             return []
 
         graph_provider = MicrosoftGraphProvider(self.tenant.id)
 
         url = f"{graph_provider.GRAPH_API_BASE}/me/messages"
         params = {
-            '$filter': 'isRead eq false and hasAttachments eq true',
-            '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId,isRead',
-            '$top': 25,
-            '$orderby': 'receivedDateTime desc',
+            "$filter": "isRead eq false and hasAttachments eq true",
+            "$select": "id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId,isRead",
+            "$top": 25,
+            "$orderby": "receivedDateTime desc",
         }
         headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Accept': 'application/json',
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
         }
 
         try:
             resp = self._graph_get_with_retry(url, headers=headers, params=params, timeout=30)
-            messages = (resp.json() or {}).get('value', [])
+            messages = (resp.json() or {}).get("value", [])
         except Exception:
-            logger.error('Graph actionable unread fetch failed tenant=%s', self.tenant.id, exc_info=True)
+            logger.error("Graph actionable unread fetch failed tenant=%s", self.tenant.id, exc_info=True)
             return []
 
         results: List[Dict[str, Any]] = []
         for msg in messages:
-            attachments: List[Dict[str, Any]] = self._download_attachments(graph_provider, access_token, message_id=msg.get('id'))
+            attachments: List[Dict[str, Any]] = self._download_attachments(
+                graph_provider, access_token, message_id=msg.get("id")
+            )
             analysis = self.process_email_via_ai(msg, attachments)
-            results.append({'message': msg, 'attachments': attachments, 'analysis': analysis})
+            results.append({"message": msg, "attachments": attachments, "analysis": analysis})
 
         return results
 
@@ -722,26 +714,26 @@ class EmailIngestionService:
         """Fetch a bounded, LLM-safe mail slice for the active tenant."""
         if not self.tenant:
             raise ToolExecutionError(
-                error_code='TENANT_CONTEXT_MISSING',
-                message='Tenant context is required before searching Outlook email.',
-                hint='Retry from a tenant-scoped ProjectMeats session.',
+                error_code="TENANT_CONTEXT_MISSING",
+                message="Tenant context is required before searching Outlook email.",
+                hint="Retry from a tenant-scoped ProjectMeats session.",
                 retryable=False,
             )
 
         provider = (
             ExternalAuthProvider.objects.filter(
                 tenant=self.tenant,
-                provider_type='microsoft',
+                provider_type="microsoft",
                 is_active=True,
             )
-            .select_related('tenant')
+            .select_related("tenant")
             .first()
         )
         if not provider:
             raise ToolExecutionError(
-                error_code='OUTLOOK_NOT_CONNECTED',
-                message='Outlook is not connected for this tenant.',
-                hint='Connect Outlook in Settings → Email Integrations before searching email.',
+                error_code="OUTLOOK_NOT_CONNECTED",
+                message="Outlook is not connected for this tenant.",
+                hint="Connect Outlook in Settings → Email Integrations before searching email.",
                 retryable=False,
             )
 
@@ -749,7 +741,7 @@ class EmailIngestionService:
             provider.refresh_if_needed()
         except Exception:
             logger.warning(
-                'Token refresh failed for AI email search tenant=%s provider_id=%s',
+                "Token refresh failed for AI email search tenant=%s provider_id=%s",
                 self.tenant.id,
                 provider.id,
                 exc_info=True,
@@ -757,25 +749,25 @@ class EmailIngestionService:
 
         if provider.is_token_expired():
             raise ToolExecutionError(
-                error_code='OUTLOOK_CONNECTION_EXPIRED',
-                message='Your Outlook connection has expired.',
-                hint='Reconnect Outlook in Settings → Email Integrations.',
+                error_code="OUTLOOK_CONNECTION_EXPIRED",
+                message="Your Outlook connection has expired.",
+                hint="Reconnect Outlook in Settings → Email Integrations.",
                 retryable=False,
             )
 
-        access_token, err = decrypt_token_or_error(provider_row=provider, token_type='access')
+        access_token, err = decrypt_token_or_error(provider_row=provider, token_type="access")
         if err:
             raise ToolExecutionError(
-                error_code=err.get('error_code') or 'DECRYPTION_FAILED',
-                message=err.get('message') or decryption_failed_payload()['message'],
-                hint='Reconnect Outlook in Settings → Email Integrations.',
+                error_code=err.get("error_code") or "DECRYPTION_FAILED",
+                message=err.get("message") or decryption_failed_payload()["message"],
+                hint="Reconnect Outlook in Settings → Email Integrations.",
                 retryable=False,
             )
         if not access_token:
             raise ToolExecutionError(
-                error_code='OUTLOOK_ACCESS_TOKEN_MISSING',
-                message='No Outlook access token is available for this tenant.',
-                hint='Reconnect Outlook in Settings → Email Integrations.',
+                error_code="OUTLOOK_ACCESS_TOKEN_MISSING",
+                message="No Outlook access token is available for this tenant.",
+                hint="Reconnect Outlook in Settings → Email Integrations.",
                 retryable=False,
             )
 
@@ -801,48 +793,48 @@ class EmailIngestionService:
             session = self._get_valid_session(user=user, session_id=session_id)
             staged_refs: list[dict[str, Any]] = []
             for message in results:
-                message_id = str(message.get('id') or '').strip()
-                for attachment in message.get('attachments') or []:
+                message_id = str(message.get("id") or "").strip()
+                for attachment in message.get("attachments") or []:
                     if not isinstance(attachment, dict):
                         continue
                     staged_refs.append(
                         {
-                            'message_id': message_id,
-                            'attachment_id': attachment.get('attachment_id'),
-                            'name': attachment.get('name'),
-                            'content_type': attachment.get('content_type'),
-                            'size': attachment.get('size'),
-                            'attachment_type': attachment.get('attachment_type'),
+                            "message_id": message_id,
+                            "attachment_id": attachment.get("attachment_id"),
+                            "name": attachment.get("name"),
+                            "content_type": attachment.get("content_type"),
+                            "size": attachment.get("size"),
+                            "attachment_type": attachment.get("attachment_type"),
                         }
                     )
-            updated_context = bind_attachment_allowlist(getattr(session, 'context_data', {}) or {}, staged_refs)
-            if updated_context != (getattr(session, 'context_data', {}) or {}):
+            updated_context = bind_attachment_allowlist(getattr(session, "context_data", {}) or {}, staged_refs)
+            if updated_context != (getattr(session, "context_data", {}) or {}):
                 session.context_data = updated_context
-                session.save(update_fields=['context_data', 'modified_on'])
+                session.save(update_fields=["context_data", "modified_on"])
 
         return {
-            'folder': request_spec['folder'],
-            'limit': request_spec['limit'],
-            'count': len(results),
-            'filters': {
-                'is_read': is_read,
-                'has_attachments': has_attachments,
-                'search_query': (str(search_query or '').strip() or None),
+            "folder": request_spec["folder"],
+            "limit": request_spec["limit"],
+            "count": len(results),
+            "filters": {
+                "is_read": is_read,
+                "has_attachments": has_attachments,
+                "search_query": (str(search_query or "").strip() or None),
             },
-            'messages': results,
+            "messages": results,
         }
 
     def _get_valid_session(self, *, user: Any, session_id: str):
         if user is None:
-            raise ValueError('Authenticated user context is required for session-bound email tools')
+            raise ValueError("Authenticated user context is required for session-bound email tools")
 
         from tenant_apps.ai_assistant.models import ChatSession
 
         session = ChatSession.objects.filter(id=session_id, owner=user).first()
         if not session:
-            raise ValueError('Session not found')
+            raise ValueError("Session not found")
         if not session_matches_tenant(session, self.tenant):
-            raise ValueError('Session is not valid for this tenant')
+            raise ValueError("Session is not valid for this tenant")
         return session
 
     def ingest_email_attachment_for_ai(
@@ -857,41 +849,41 @@ class EmailIngestionService:
         """Download a Graph attachment and persist it as an AIDocument."""
         if not self.tenant:
             raise ToolExecutionError(
-                error_code='TENANT_CONTEXT_MISSING',
-                message='Tenant context is required before ingesting Outlook attachments.',
-                hint='Retry from a tenant-scoped ProjectMeats session.',
+                error_code="TENANT_CONTEXT_MISSING",
+                message="Tenant context is required before ingesting Outlook attachments.",
+                hint="Retry from a tenant-scoped ProjectMeats session.",
                 retryable=False,
             )
 
-        message_id = str(message_id or '').strip()
-        attachment_id = str(attachment_id or '').strip()
-        file_name = str(file_name or '').strip()
+        message_id = str(message_id or "").strip()
+        attachment_id = str(attachment_id or "").strip()
+        file_name = str(file_name or "").strip()
         if not message_id or not attachment_id:
-            raise ValueError('Missing required parameters: message_id, attachment_id')
+            raise ValueError("Missing required parameters: message_id, attachment_id")
         if user is None:
-            raise ValueError('Authenticated user context is required for attachment ingestion')
+            raise ValueError("Authenticated user context is required for attachment ingestion")
         if not session_id:
             raise ToolExecutionError(
-                error_code='SESSION_CONTEXT_REQUIRED',
-                message='Outlook attachment ingest requires an active chat session.',
-                hint='Use fetch_emails in the current AI chat first, then choose one of the returned attachments.',
+                error_code="SESSION_CONTEXT_REQUIRED",
+                message="Outlook attachment ingest requires an active chat session.",
+                hint="Use fetch_emails in the current AI chat first, then choose one of the returned attachments.",
                 retryable=False,
             )
 
         provider = (
             ExternalAuthProvider.objects.filter(
                 tenant=self.tenant,
-                provider_type='microsoft',
+                provider_type="microsoft",
                 is_active=True,
             )
-            .select_related('tenant')
+            .select_related("tenant")
             .first()
         )
         if not provider:
             raise ToolExecutionError(
-                error_code='OUTLOOK_NOT_CONNECTED',
-                message='Outlook is not connected for this tenant.',
-                hint='Connect Outlook in Settings → Email Integrations before ingesting attachments.',
+                error_code="OUTLOOK_NOT_CONNECTED",
+                message="Outlook is not connected for this tenant.",
+                hint="Connect Outlook in Settings → Email Integrations before ingesting attachments.",
                 retryable=False,
             )
 
@@ -899,7 +891,7 @@ class EmailIngestionService:
             provider.refresh_if_needed()
         except Exception:
             logger.warning(
-                'Token refresh failed for AI attachment ingest tenant=%s provider_id=%s',
+                "Token refresh failed for AI attachment ingest tenant=%s provider_id=%s",
                 self.tenant.id,
                 provider.id,
                 exc_info=True,
@@ -907,32 +899,34 @@ class EmailIngestionService:
 
         if provider.is_token_expired():
             raise ToolExecutionError(
-                error_code='OUTLOOK_CONNECTION_EXPIRED',
-                message='Your Outlook connection has expired.',
-                hint='Reconnect Outlook in Settings → Email Integrations.',
+                error_code="OUTLOOK_CONNECTION_EXPIRED",
+                message="Your Outlook connection has expired.",
+                hint="Reconnect Outlook in Settings → Email Integrations.",
                 retryable=False,
             )
 
-        access_token, err = decrypt_token_or_error(provider_row=provider, token_type='access')
+        access_token, err = decrypt_token_or_error(provider_row=provider, token_type="access")
         if err:
             raise ToolExecutionError(
-                error_code=err.get('error_code') or 'DECRYPTION_FAILED',
-                message=err.get('message') or decryption_failed_payload()['message'],
-                hint='Reconnect Outlook in Settings → Email Integrations.',
+                error_code=err.get("error_code") or "DECRYPTION_FAILED",
+                message=err.get("message") or decryption_failed_payload()["message"],
+                hint="Reconnect Outlook in Settings → Email Integrations.",
                 retryable=False,
             )
         if not access_token:
             raise ToolExecutionError(
-                error_code='OUTLOOK_ACCESS_TOKEN_MISSING',
-                message='No Outlook access token is available for this tenant.',
-                hint='Reconnect Outlook in Settings → Email Integrations.',
+                error_code="OUTLOOK_ACCESS_TOKEN_MISSING",
+                message="No Outlook access token is available for this tenant.",
+                hint="Reconnect Outlook in Settings → Email Integrations.",
                 retryable=False,
             )
 
-        from apps.integrations.providers import MicrosoftGraphProvider
         from django.core.files.uploadedfile import SimpleUploadedFile
+
         from tenant_apps.ai_assistant.models import AIDocument, ChatMessage, ChatSession, MessageTypeChoices
         from tenant_apps.ai_assistant.services.document_parser import validate_ai_document_upload
+
+        from apps.integrations.providers import MicrosoftGraphProvider
 
         session = self._get_valid_session(user=user, session_id=session_id)
         stage_status, staged_attachment = get_staged_attachment_status(
@@ -940,34 +934,34 @@ class EmailIngestionService:
             message_id=message_id,
             attachment_id=attachment_id,
         )
-        if stage_status == 'expired':
+        if stage_status == "expired":
             raise ToolExecutionError(
-                error_code='ATTACHMENT_STAGE_EXPIRED',
-                message='The selected Outlook attachment expired from the current AI session.',
-                hint='Run fetch_emails again in this chat, then choose the attachment from the refreshed results.',
+                error_code="ATTACHMENT_STAGE_EXPIRED",
+                message="The selected Outlook attachment expired from the current AI session.",
+                hint="Run fetch_emails again in this chat, then choose the attachment from the refreshed results.",
                 retryable=False,
             )
-        if stage_status != 'active' or staged_attachment is None:
+        if stage_status != "active" or staged_attachment is None:
             raise ToolExecutionError(
-                error_code='ATTACHMENT_NOT_STAGED',
-                message='That Outlook attachment is not staged for the current AI session.',
-                hint='Use fetch_emails in this chat first, then ingest one of the returned attachments.',
+                error_code="ATTACHMENT_NOT_STAGED",
+                message="That Outlook attachment is not staged for the current AI session.",
+                hint="Use fetch_emails in this chat first, then ingest one of the returned attachments.",
                 retryable=False,
             )
 
-        staged_name = str(staged_attachment.get('name') or file_name).strip()
+        staged_name = str(staged_attachment.get("name") or file_name).strip()
         staged_skip_reason = classify_attachment_for_ai_ingest(
             file_name=staged_name,
-            content_type=staged_attachment.get('content_type'),
-            is_inline=staged_attachment.get('is_inline'),
+            content_type=staged_attachment.get("content_type"),
+            is_inline=staged_attachment.get("is_inline"),
         )
         if staged_skip_reason:
             return {
-                'status': 'skipped',
-                'reason': staged_skip_reason,
-                'message_id': message_id,
-                'attachment_id': attachment_id,
-                'file_name': staged_name or file_name,
+                "status": "skipped",
+                "reason": staged_skip_reason,
+                "message_id": message_id,
+                "attachment_id": attachment_id,
+                "file_name": staged_name or file_name,
             }
 
         existing_document = self._get_existing_attachment_document(
@@ -978,33 +972,28 @@ class EmailIngestionService:
         )
         if existing_document is not None:
             return {
-                'status': 'already_ingested',
-                'document_id': str(existing_document.id),
-                'message_id': message_id,
-                'attachment_id': attachment_id,
-                'file_name': existing_document.original_filename,
-                'content_type': existing_document.content_type,
-                'file_size': existing_document.file_size,
-                'session_id': str(existing_document.session_id) if existing_document.session_id else None,
-                'cache_hit': True,
-                'source_metadata': dict(getattr(existing_document, 'custom_data', {}) or {}),
+                "status": "already_ingested",
+                "document_id": str(existing_document.id),
+                "message_id": message_id,
+                "attachment_id": attachment_id,
+                "file_name": existing_document.original_filename,
+                "content_type": existing_document.content_type,
+                "file_size": existing_document.file_size,
+                "session_id": str(existing_document.session_id) if existing_document.session_id else None,
+                "cache_hit": True,
+                "source_metadata": dict(getattr(existing_document, "custom_data", {}) or {}),
             }
 
         graph_provider = MicrosoftGraphProvider(self.tenant.id)
-        metadata_url = (
-            f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments/{attachment_id}"
-        )
-        url = (
-            f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments/"
-            f"{attachment_id}/$value"
-        )
+        metadata_url = f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments/{attachment_id}"
+        url = f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments/" f"{attachment_id}/$value"
         metadata_headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Accept': 'application/json',
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
         }
         headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Accept': '*/*',
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "*/*",
         }
 
         try:
@@ -1013,57 +1002,57 @@ class EmailIngestionService:
             try:
                 validate_graph_attachment_metadata(attachment_metadata)
             except ToolExecutionError as exc:
-                if exc.error_code == 'UNSUPPORTED_ATTACHMENT_TYPE':
+                if exc.error_code == "UNSUPPORTED_ATTACHMENT_TYPE":
                     return {
-                        'status': 'skipped',
-                        'reason': exc.message,
-                        'message_id': message_id,
-                        'attachment_id': attachment_id,
-                        'file_name': str(attachment_metadata.get('name') or staged_name or file_name).strip(),
+                        "status": "skipped",
+                        "reason": exc.message,
+                        "message_id": message_id,
+                        "attachment_id": attachment_id,
+                        "file_name": str(attachment_metadata.get("name") or staged_name or file_name).strip(),
                     }
                 raise
         except requests.RequestException as exc:
             raise self._map_graph_exception(exc) from exc
 
-        metadata_size = attachment_metadata.get('size')
+        metadata_size = attachment_metadata.get("size")
         try:
             if metadata_size is not None and int(metadata_size) > MAX_AI_ATTACHMENT_BYTES:
                 raise ToolExecutionError(
-                    error_code='ATTACHMENT_TOO_LARGE',
-                    message='The selected email attachment is too large to ingest safely.',
-                    hint='Choose a smaller attachment or download it manually and upload it through the document UI.',
+                    error_code="ATTACHMENT_TOO_LARGE",
+                    message="The selected email attachment is too large to ingest safely.",
+                    hint="Choose a smaller attachment or download it manually and upload it through the document UI.",
                     retryable=False,
                 )
         except (TypeError, ValueError):
             metadata_size = None
 
-        canonical_file_name = str(attachment_metadata.get('name') or staged_attachment.get('name') or file_name).strip()
+        canonical_file_name = str(attachment_metadata.get("name") or staged_attachment.get("name") or file_name).strip()
         content_type = infer_content_type(
             file_name=canonical_file_name,
-            fallback=attachment_metadata.get('contentType') or staged_attachment.get('content_type'),
+            fallback=attachment_metadata.get("contentType") or staged_attachment.get("content_type"),
         )
         metadata_skip_reason = classify_attachment_for_ai_ingest(
             file_name=canonical_file_name,
-            content_type=attachment_metadata.get('contentType') or content_type,
-            is_inline=attachment_metadata.get('isInline'),
+            content_type=attachment_metadata.get("contentType") or content_type,
+            is_inline=attachment_metadata.get("isInline"),
         )
         if metadata_skip_reason:
             return {
-                'status': 'skipped',
-                'reason': metadata_skip_reason,
-                'message_id': message_id,
-                'attachment_id': attachment_id,
-                'file_name': canonical_file_name,
+                "status": "skipped",
+                "reason": metadata_skip_reason,
+                "message_id": message_id,
+                "attachment_id": attachment_id,
+                "file_name": canonical_file_name,
             }
         try:
             validate_ai_document_upload(filename=canonical_file_name, content_type=content_type)
         except ValueError as exc:
             return {
-                'status': 'skipped',
-                'reason': str(exc),
-                'message_id': message_id,
-                'attachment_id': attachment_id,
-                'file_name': canonical_file_name,
+                "status": "skipped",
+                "reason": str(exc),
+                "message_id": message_id,
+                "attachment_id": attachment_id,
+                "file_name": canonical_file_name,
             }
 
         try:
@@ -1071,14 +1060,14 @@ class EmailIngestionService:
         except requests.RequestException as exc:
             raise self._map_graph_exception(exc) from exc
 
-        header_size = response.headers.get('Content-Length')
+        header_size = response.headers.get("Content-Length")
         if header_size:
             try:
                 if int(header_size) > MAX_AI_ATTACHMENT_BYTES:
                     raise ToolExecutionError(
-                        error_code='ATTACHMENT_TOO_LARGE',
-                        message='The selected email attachment is too large to ingest safely.',
-                        hint='Choose a smaller attachment or download it manually and upload it through the document UI.',
+                        error_code="ATTACHMENT_TOO_LARGE",
+                        message="The selected email attachment is too large to ingest safely.",
+                        hint="Choose a smaller attachment or download it manually and upload it through the document UI.",
                         retryable=False,
                     )
             except ValueError:
@@ -1091,9 +1080,9 @@ class EmailIngestionService:
             content.extend(chunk)
             if len(content) > MAX_AI_ATTACHMENT_BYTES:
                 raise ToolExecutionError(
-                    error_code='ATTACHMENT_TOO_LARGE',
-                    message='The selected email attachment is too large to ingest safely.',
-                    hint='Choose a smaller attachment or download it manually and upload it through the document UI.',
+                    error_code="ATTACHMENT_TOO_LARGE",
+                    message="The selected email attachment is too large to ingest safely.",
+                    hint="Choose a smaller attachment or download it manually and upload it through the document UI.",
                     retryable=False,
                 )
 
@@ -1108,10 +1097,10 @@ class EmailIngestionService:
             attachment_metadata=attachment_metadata,
             session=session,
         )
-        source_metadata['semantic_indexing'] = {
-            'status': 'pending',
-            'mode': 'awaiting_parse',
-            'detail': 'Attachment stored; semantic indexing will run after parse.',
+        source_metadata["semantic_indexing"] = {
+            "status": "pending",
+            "mode": "awaiting_parse",
+            "detail": "Attachment stored; semantic indexing will run after parse.",
         }
 
         try:
@@ -1128,7 +1117,7 @@ class EmailIngestionService:
                 )
         except (DatabaseError, OSError, SuspiciousFileOperation, ValidationError, ValueError) as exc:
             logger.warning(
-                'Graph attachment ingest: failed to persist attachment tenant=%s message=%s attachment=%s file=%s err=%s',
+                "Graph attachment ingest: failed to persist attachment tenant=%s message=%s attachment=%s file=%s err=%s",
                 self.tenant.id,
                 message_id,
                 attachment_id,
@@ -1137,11 +1126,11 @@ class EmailIngestionService:
                 exc_info=True,
             )
             return {
-                'status': 'failed',
-                'reason': str(exc),
-                'message_id': message_id,
-                'attachment_id': attachment_id,
-                'file_name': canonical_file_name,
+                "status": "failed",
+                "reason": str(exc),
+                "message_id": message_id,
+                "attachment_id": attachment_id,
+                "file_name": canonical_file_name,
             }
 
         try:
@@ -1150,21 +1139,21 @@ class EmailIngestionService:
             create_lineage_event(
                 tenant=self.tenant,
                 document=document,
-                event_type='attachment_ingested',
-                source_type='microsoft_graph_attachment',
-                source_id=f'{message_id}:{attachment_id}',
-                target_type='document',
+                event_type="attachment_ingested",
+                source_type="microsoft_graph_attachment",
+                source_id=f"{message_id}:{attachment_id}",
+                target_type="document",
                 target_id=str(document.id),
-                summary='Microsoft Graph attachment stored as an AI document.',
+                summary="Microsoft Graph attachment stored as an AI document.",
                 metadata={
-                    'message_id': message_id,
-                    'attachment_id': attachment_id,
-                    'file_name': canonical_file_name,
+                    "message_id": message_id,
+                    "attachment_id": attachment_id,
+                    "file_name": canonical_file_name,
                 },
             )
         except Exception:
             logger.warning(
-                'Graph attachment ingest: failed to record lineage document=%s message=%s attachment=%s',
+                "Graph attachment ingest: failed to record lineage document=%s message=%s attachment=%s",
                 document.id,
                 message_id,
                 attachment_id,
@@ -1175,19 +1164,19 @@ class EmailIngestionService:
             try:
                 ChatMessage.objects.create(
                     session=session,
-                    tenant=getattr(session, 'tenant', None) or document.tenant or self.tenant,
+                    tenant=getattr(session, "tenant", None) or document.tenant or self.tenant,
                     message_type=MessageTypeChoices.DOCUMENT,
-                    content=document.original_filename or 'Document uploaded',
+                    content=document.original_filename or "Document uploaded",
                     metadata={
-                        'document_id': str(document.id),
-                        'original_filename': document.original_filename,
-                        'file_url': getattr(document.file, 'url', ''),
-                        'content_type': document.content_type,
-                        'file_size': document.file_size,
-                        'source': 'microsoft_graph_attachment',
-                        'message_id': message_id,
-                        'attachment_id': attachment_id,
-                        'source_metadata': source_metadata,
+                        "document_id": str(document.id),
+                        "original_filename": document.original_filename,
+                        "file_url": getattr(document.file, "url", ""),
+                        "content_type": document.content_type,
+                        "file_size": document.file_size,
+                        "source": "microsoft_graph_attachment",
+                        "message_id": message_id,
+                        "attachment_id": attachment_id,
+                        "source_metadata": source_metadata,
                     },
                     owner=user,
                     created_by=user,
@@ -1195,23 +1184,23 @@ class EmailIngestionService:
                 )
             except Exception:
                 logger.warning(
-                    'Graph attachment ingest: failed to create session document message document=%s session=%s',
+                    "Graph attachment ingest: failed to create session document message document=%s session=%s",
                     document.id,
                     session.id,
                     exc_info=True,
                 )
 
         return {
-            'status': 'success',
-            'document_id': str(document.id),
-            'message_id': message_id,
-            'attachment_id': attachment_id,
-            'file_name': document.original_filename,
-            'content_type': document.content_type,
-            'file_size': document.file_size,
-            'session_id': str(document.session_id) if document.session_id else None,
-            'cache_hit': False,
-            'source_metadata': source_metadata,
+            "status": "success",
+            "document_id": str(document.id),
+            "message_id": message_id,
+            "attachment_id": attachment_id,
+            "file_name": document.original_filename,
+            "content_type": document.content_type,
+            "file_size": document.file_size,
+            "session_id": str(document.session_id) if document.session_id else None,
+            "cache_hit": False,
+            "source_metadata": source_metadata,
         }
 
     def fetch_unread_emails(self, tenant: Tenant) -> List[Dict[str, Any]]:
@@ -1225,60 +1214,61 @@ class EmailIngestionService:
         Returns:
             A list of dicts: {"message": <graph message>, "attachments": [ ... ]}
         """
-        from apps.integrations.providers import MicrosoftGraphProvider
         import requests
+
+        from apps.integrations.providers import MicrosoftGraphProvider
 
         provider = (
             ExternalAuthProvider.objects.filter(
                 tenant=tenant,
-                provider_type='microsoft',
+                provider_type="microsoft",
                 is_active=True,
             )
-            .select_related('tenant')
+            .select_related("tenant")
             .first()
         )
         if not provider:
-            logger.info('No active Microsoft provider for tenant=%s', tenant.id)
+            logger.info("No active Microsoft provider for tenant=%s", tenant.id)
             return []
 
         # Ensure a valid access token.
         try:
             provider.refresh_if_needed()
         except Exception:
-            logger.warning('Token refresh failed for tenant=%s provider_id=%s', tenant.id, provider.id, exc_info=True)
+            logger.warning("Token refresh failed for tenant=%s provider_id=%s", tenant.id, provider.id, exc_info=True)
 
-        access_token = provider.get_decrypted_token('access')
+        access_token = provider.get_decrypted_token("access")
         if not access_token:
-            logger.warning('No access token available tenant=%s provider_id=%s', tenant.id, provider.id)
+            logger.warning("No access token available tenant=%s provider_id=%s", tenant.id, provider.id)
             return []
 
         graph_provider = MicrosoftGraphProvider(tenant.id)
 
         url = f"{graph_provider.GRAPH_API_BASE}/me/mailFolders/inbox/messages"
         params = {
-            '$filter': 'isRead eq false',
-            '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId,isRead',
-            '$top': 25,
-            '$orderby': 'receivedDateTime desc',
+            "$filter": "isRead eq false",
+            "$select": "id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId,isRead",
+            "$top": 25,
+            "$orderby": "receivedDateTime desc",
         }
         headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Accept': 'application/json',
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
         }
 
         try:
             resp = self._graph_get_with_retry(url, headers=headers, params=params, timeout=30)
-            messages = (resp.json() or {}).get('value', [])
+            messages = (resp.json() or {}).get("value", [])
         except Exception:
-            logger.error('Graph unread fetch failed tenant=%s', tenant.id, exc_info=True)
+            logger.error("Graph unread fetch failed tenant=%s", tenant.id, exc_info=True)
             return []
 
         results: List[Dict[str, Any]] = []
         for msg in messages:
             attachments: List[Dict[str, Any]] = []
-            if msg.get('hasAttachments'):
-                attachments = self._download_attachments(graph_provider, access_token, message_id=msg.get('id'))
-            results.append({'message': msg, 'attachments': attachments})
+            if msg.get("hasAttachments"):
+                attachments = self._download_attachments(graph_provider, access_token, message_id=msg.get("id"))
+            results.append({"message": msg, "attachments": attachments})
 
         return results
 
@@ -1293,9 +1283,9 @@ class EmailIngestionService:
     ) -> List[Dict[str, Any]]:
         url = f"{graph_provider.GRAPH_API_BASE}{request_spec['url_path']}"
         headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Accept': 'application/json',
-            **request_spec.get('headers', {}),
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+            **request_spec.get("headers", {}),
         }
         max_pages = 1
 
@@ -1303,17 +1293,15 @@ class EmailIngestionService:
             messages = self._collect_graph_messages(
                 url=url,
                 headers=headers,
-                params=request_spec['params'],
-                limit=request_spec['limit'],
+                params=request_spec["params"],
+                limit=request_spec["limit"],
                 max_pages=max_pages,
             )
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else None
-            if status_code == 400 and request_spec.get('requires_filter_fallback'):
-                fallback_params = {
-                    key: value for key, value in request_spec['params'].items() if key != '$filter'
-                }
-                fallback_params['$top'] = 25
+            if status_code == 400 and request_spec.get("requires_filter_fallback"):
+                fallback_params = {key: value for key, value in request_spec["params"].items() if key != "$filter"}
+                fallback_params["$top"] = 25
                 messages = self._collect_graph_messages(
                     url=url,
                     headers=headers,
@@ -1333,13 +1321,13 @@ class EmailIngestionService:
 
         messages = sorted(
             messages,
-            key=lambda row: str(row.get('receivedDateTime') or ''),
+            key=lambda row: str(row.get("receivedDateTime") or ""),
             reverse=True,
         )
 
         return [
-            serialize_graph_message(message, folder=request_spec['folder'])
-            for message in messages[: request_spec['limit']]
+            serialize_graph_message(message, folder=request_spec["folder"])
+            for message in messages[: request_spec["limit"]]
         ]
 
     def _collect_graph_messages(
@@ -1360,10 +1348,10 @@ class EmailIngestionService:
             response = self._graph_get_with_retry(next_url, headers=headers, params=next_params, timeout=30)
             data = response.json() or {}
 
-            batch = data.get('value', []) or []
+            batch = data.get("value", []) or []
             all_messages.extend(batch)
 
-            next_url = data.get('@odata.nextLink')
+            next_url = data.get("@odata.nextLink")
             next_params = None
             page += 1
 
@@ -1372,56 +1360,56 @@ class EmailIngestionService:
     def _map_graph_exception(self, exc: requests.RequestException) -> ToolExecutionError:
         if isinstance(exc, requests.Timeout):
             return ToolExecutionError(
-                error_code='GRAPH_TIMEOUT',
-                message='Microsoft Graph timed out while searching email.',
-                hint='Try a smaller search query or a narrower folder.',
+                error_code="GRAPH_TIMEOUT",
+                message="Microsoft Graph timed out while searching email.",
+                hint="Try a smaller search query or a narrower folder.",
                 retryable=True,
             )
 
         if isinstance(exc, requests.HTTPError):
             response = exc.response
             status_code = response.status_code if response is not None else None
-            response_text = ''
+            response_text = ""
             if response is not None:
-                response_text = (response.text or '').strip()[:400]
+                response_text = (response.text or "").strip()[:400]
 
             if status_code == 400:
                 return ToolExecutionError(
-                    error_code='GRAPH_QUERY_REJECTED',
-                    message='Microsoft Graph rejected the email search query format.',
-                    hint='Try simplifying your search terms or reducing the number of filters.',
+                    error_code="GRAPH_QUERY_REJECTED",
+                    message="Microsoft Graph rejected the email search query format.",
+                    hint="Try simplifying your search terms or reducing the number of filters.",
                     retryable=False,
                     details=response_text or None,
                 )
             if status_code == 404:
                 return ToolExecutionError(
-                    error_code='GRAPH_ATTACHMENT_NOT_FOUND',
-                    message='The selected Outlook attachment could not be found.',
-                    hint='Refresh the email search results and choose the attachment again.',
+                    error_code="GRAPH_ATTACHMENT_NOT_FOUND",
+                    message="The selected Outlook attachment could not be found.",
+                    hint="Refresh the email search results and choose the attachment again.",
                     retryable=False,
                     details=response_text or None,
                 )
             if status_code in {401, 403}:
                 return ToolExecutionError(
-                    error_code='GRAPH_AUTH_FAILED',
-                    message='Microsoft Graph rejected the current Outlook credentials.',
-                    hint='Reconnect Outlook in Settings → Email Integrations.',
+                    error_code="GRAPH_AUTH_FAILED",
+                    message="Microsoft Graph rejected the current Outlook credentials.",
+                    hint="Reconnect Outlook in Settings → Email Integrations.",
                     retryable=False,
                     details=response_text or None,
                 )
 
             return ToolExecutionError(
-                error_code='GRAPH_HTTP_ERROR',
-                message='Microsoft Graph returned an unexpected email search error.',
-                hint='Try simplifying the email request or ask the user for clarification.',
+                error_code="GRAPH_HTTP_ERROR",
+                message="Microsoft Graph returned an unexpected email search error.",
+                hint="Try simplifying the email request or ask the user for clarification.",
                 retryable=False,
                 details=response_text or None,
             )
 
         return ToolExecutionError(
-            error_code='GRAPH_REQUEST_FAILED',
-            message='Microsoft Graph email search failed before returning results.',
-            hint='Try a simpler request or ask the user to reconnect Outlook if the problem persists.',
+            error_code="GRAPH_REQUEST_FAILED",
+            message="Microsoft Graph email search failed before returning results.",
+            hint="Try a simpler request or ask the user to reconnect Outlook if the problem persists.",
             retryable=False,
             details=str(exc),
         )
@@ -1440,27 +1428,27 @@ class EmailIngestionService:
 
         url = f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments"
         headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Accept': 'application/json',
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
         }
 
         try:
             resp = self._graph_get_with_retry(url, headers=headers, timeout=30)
-            items = (resp.json() or {}).get('value', [])
+            items = (resp.json() or {}).get("value", [])
         except Exception:
-            logger.warning('Graph attachments fetch failed message_id=%s', message_id, exc_info=True)
+            logger.warning("Graph attachments fetch failed message_id=%s", message_id, exc_info=True)
             return []
 
         downloaded: List[Dict[str, Any]] = []
         for att in items:
-            odata_type = att.get('@odata.type', '')
-            name = att.get('name')
-            content_type = att.get('contentType')
-            size = att.get('size')
+            odata_type = att.get("@odata.type", "")
+            name = att.get("name")
+            content_type = att.get("contentType")
+            size = att.get("size")
 
-            content_bytes_b64 = att.get('contentBytes')
+            content_bytes_b64 = att.get("contentBytes")
             content_bytes: bytes | None = None
-            if content_bytes_b64 and 'fileAttachment' in odata_type:
+            if content_bytes_b64 and "fileAttachment" in odata_type:
                 try:
                     content_bytes = base64.b64decode(content_bytes_b64)
                 except Exception:
@@ -1468,12 +1456,12 @@ class EmailIngestionService:
 
             downloaded.append(
                 {
-                    'id': att.get('id'),
-                    'name': name,
-                    'content_type': content_type,
-                    'size': size,
-                    'odata_type': odata_type,
-                    'content_bytes': content_bytes,  # bytes (may be None)
+                    "id": att.get("id"),
+                    "name": name,
+                    "content_type": content_type,
+                    "size": size,
+                    "odata_type": odata_type,
+                    "content_bytes": content_bytes,  # bytes (may be None)
                 }
             )
 
@@ -1490,33 +1478,30 @@ class EmailIngestionService:
         from tenant_apps.workflows.services.intent_engine import IntentEngine
 
         tenant = self.tenant
-        subject = email_data.get('subject')
-        sender = (email_data.get('from') or {}).get('emailAddress', {}).get('address')
+        subject = email_data.get("subject")
+        sender = (email_data.get("from") or {}).get("emailAddress", {}).get("address")
 
-        body = email_data.get('body') or {}
-        body_content = body.get('content') or email_data.get('bodyPreview') or ''
+        body = email_data.get("body") or {}
+        body_content = body.get("content") or email_data.get("bodyPreview") or ""
 
         engine = IntentEngine(tenant=tenant)
-        return engine.analyze_document(email_body=body_content, attachments=attachments, subject=subject, sender_email=sender)
+        return engine.analyze_document(
+            email_body=body_content, attachments=attachments, subject=subject, sender_email=sender
+        )
 
 
 def ai_extract_order_data(email_body: str) -> Dict[str, Any]:
     """
     Stub for AI extraction of order data from email body.
-    
+
     This will call PrompterService to identify order quantities and products.
-    
+
     Args:
         email_body: Email body text
-        
+
     Returns:
         Dict with extracted order data
     """
     # TODO: Implement AI extraction using PrompterService
     # For now, return empty dict
-    return {
-        'products': [],
-        'quantities': {},
-        'confidence': 0.0,
-        'extraction_method': 'not_implemented'
-    }
+    return {"products": [], "quantities": {}, "confidence": 0.0, "extraction_method": "not_implemented"}

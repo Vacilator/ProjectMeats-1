@@ -1,9 +1,9 @@
 """Regression coverage for Deal Desk backend flows."""
 from __future__ import annotations
 
+import uuid
 from datetime import date
 from decimal import Decimal
-import uuid
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -12,7 +12,6 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.tenants.models import Tenant, TenantDomain, TenantUser
 from tenant_apps.customers.models import Customer
 from tenant_apps.deals.models import Deal, DealActionItem, DealActionItemStatus
 from tenant_apps.fulfillments.models import Fulfillment, FulfillmentStatusChoices
@@ -21,6 +20,7 @@ from tenant_apps.purchase_orders.models import PurchaseOrder
 from tenant_apps.sales_orders.models import SalesOrder
 from tenant_apps.suppliers.models import Supplier
 
+from apps.tenants.models import Tenant, TenantDomain, TenantUser
 
 User = get_user_model()
 

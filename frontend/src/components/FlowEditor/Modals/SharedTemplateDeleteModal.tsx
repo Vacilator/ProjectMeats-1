@@ -1,9 +1,9 @@
 /**
  * SharedTemplateDeleteModal
- * 
+ *
  * Phase 6: Ghost Node Cleanup
  * Handles deletion of shared container templates with usage tracking.
- * 
+ *
  * Features:
  * - Shows usage count and list of workflows using template
  * - Two deletion modes:
@@ -11,7 +11,7 @@
  *   2. "Delete from library" - Deletes template (only if usage = 0)
  * - Prevents accidental deletion of shared templates
  * - RLS verification (tenant check)
- * 
+ *
  * Usage:
  * ```typescript
  * <SharedTemplateDeleteModal
@@ -22,7 +22,7 @@
  *   onDeleteFromLibrary={(formId) => deleteForm(formId)}
  * />
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 6 Ghost Node Cleanup Implementation
  */
 
@@ -44,13 +44,13 @@ import {
 export interface ContainerTemplate {
   /** Node ID in workflow */
   nodeId: string;
-  
+
   /** TenantForm ID */
   formId: string;
-  
+
   /** Template/container name */
   name: string;
-  
+
   /** Stored usage count (may be stale) */
   usageCount?: number;
 }
@@ -58,16 +58,16 @@ export interface ContainerTemplate {
 export interface SharedTemplateDeleteModalProps {
   /** Modal open state */
   isOpen: boolean;
-  
+
   /** Template to delete */
   template: ContainerTemplate | null;
-  
+
   /** Close handler */
   onClose: () => void;
-  
+
   /** Remove from workflow handler */
   onRemoveFromWorkflow: (nodeId: string) => void;
-  
+
   /** Delete from library handler */
   onDeleteFromLibrary: (formId: string) => Promise<void>;
 }
@@ -189,11 +189,11 @@ const UsageCount = styled.span<{ $count: number }>`
   border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 600;
-  background: ${props => props.$count > 0 
-    ? 'rgb(var(--color-warning) / 0.2)' 
+  background: ${props => props.$count > 0
+    ? 'rgb(var(--color-warning) / 0.2)'
     : 'rgb(var(--color-success) / 0.2)'};
-  color: ${props => props.$count > 0 
-    ? 'rgb(var(--color-warning))' 
+  color: ${props => props.$count > 0
+    ? 'rgb(var(--color-warning))'
     : 'rgb(var(--color-success))'};
 `;
 
@@ -382,7 +382,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
     try {
       // Decrement usage count on backend
       await decrementTenantFormUsage(template.formId);
-      
+
       // Remove node from workflow
       onRemoveFromWorkflow(template.nodeId);
       notify.success('Container removed from workflow');
@@ -455,7 +455,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
                   <WarningBox>
                     <AlertTriangle />
                     <p>
-                      This container is used in {usageInfo.usage_count} workflow{usageInfo.usage_count !== 1 ? 's' : ''}. 
+                      This container is used in {usageInfo.usage_count} workflow{usageInfo.usage_count !== 1 ? 's' : ''}.
                       You can remove it from this workflow, but cannot delete it from the library until all references are removed.
                     </p>
                   </WarningBox>
@@ -475,7 +475,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
                 <WarningBox>
                   <AlertTriangle />
                   <p>
-                    This template is not used by any workflows and can be safely deleted from the library. 
+                    This template is not used by any workflows and can be safely deleted from the library.
                     This action cannot be undone.
                   </p>
                 </WarningBox>
@@ -488,9 +488,9 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
           <Button $variant="ghost" onClick={onClose} disabled={isDeleting}>
             Cancel
           </Button>
-          
-          <Button 
-            $variant="primary" 
+
+          <Button
+            $variant="primary"
             onClick={handleRemoveFromWorkflow}
             disabled={isLoading || isDeleting}
           >
@@ -499,8 +499,8 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
           </Button>
 
           {usageInfo && usageInfo.usage_count === 0 && (
-            <Button 
-              $variant="danger" 
+            <Button
+              $variant="danger"
               onClick={handleDeleteFromLibrary}
               disabled={isLoading || isDeleting}
             >

@@ -10,17 +10,20 @@ from django.db import migrations
 
 def backfill_tenant_for_stepassignment(apps, schema_editor):
     """Backfill tenant for StepAssignment from form.tenant."""
-    schema_editor.execute("""
+    schema_editor.execute(
+        """
         UPDATE workflows_stepassignment sa
         SET tenant_id = f.tenant_id
         FROM workflows_tenantform f
         WHERE sa.form_id = f.id
         AND sa.tenant_id IS NULL;
-    """)
+    """
+    )
 
     # Raise if any rows could not be resolved (would cause NOT NULL to fail in the next step).
     # This protects against orphaned StepAssignment rows (form deleted or form's tenant NULL).
-    schema_editor.execute("""
+    schema_editor.execute(
+        """
         DO $$
         DECLARE
             orphan_count INTEGER;
@@ -38,14 +41,14 @@ def backfill_tenant_for_stepassignment(apps, schema_editor):
                 );
             END IF;
         END $$;
-    """)
+    """
+    )
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('workflows', '0025_add_rls_tenantformversion'),
-        ('tenants', '0001_initial'),
+        ("workflows", "0025_add_rls_tenantformversion"),
+        ("tenants", "0001_initial"),
     ]
 
     operations = [
@@ -96,13 +99,11 @@ class Migration(migrations.Migration):
             ],
             state_operations=[],
         ),
-
         # Step 2: Backfill tenant values from form.tenant
         migrations.RunPython(
             backfill_tenant_for_stepassignment,
             reverse_code=migrations.RunPython.noop,
         ),
-
         # Step 3: Make tenant_id NOT NULL (after backfill)
         migrations.SeparateDatabaseAndState(
             database_operations=[
@@ -119,7 +120,6 @@ class Migration(migrations.Migration):
             ],
             state_operations=[],
         ),
-
         # Step 4: Add performance index (idempotent).
         # Index workflows_s_tenant__3c0364_idx is defined in migration 0008's model options
         # but may not exist in the database. Use CREATE INDEX IF NOT EXISTS to be safe.
@@ -137,7 +137,6 @@ class Migration(migrations.Migration):
             ],
             state_operations=[],
         ),
-
         # Step 5: Fix the RLS policy for tenant isolation.
         # Migration 0015 attempted to create this policy but it would have failed
         # (silently or not) because tenant_id didn't exist. Drop and recreate idempotently.

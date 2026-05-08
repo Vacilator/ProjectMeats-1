@@ -1,8 +1,9 @@
 """
 Django admin configuration for Sales Orders app.
 """
-from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
+from apps.core.admin_site import admin_site
+
 from .models import SalesOrder
 
 
@@ -97,7 +98,6 @@ class SalesOrderAdmin(TenantFilteredAdmin):
             },
         ),
     )
-
 
 
 # Register models with custom admin site

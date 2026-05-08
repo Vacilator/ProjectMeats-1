@@ -31,21 +31,21 @@ def process_file(filepath: Path) -> int:
     """Replace console calls with logger in a file"""
     if not filepath.exists():
         return 0
-    
+
     content = filepath.read_text()
     original_content = content
-    
+
     # Count console calls before
     before_count = len(re.findall(r'console\.(log|warn|error)', content))
-    
+
     if before_count == 0:
         return 0
-    
+
     # Replace console calls
     content = re.sub(r'console\.log\(', 'logger.debug(', content)
     content = re.sub(r'console\.warn\(', 'logger.warn(', content)
     content = re.sub(r'console\.error\(', 'logger.error(', content)
-    
+
     # Add logger import if not present
     if 'from' in content and 'utils/logger' not in content:
         # Find first import line
@@ -53,27 +53,27 @@ def process_file(filepath: Path) -> int:
         if import_match:
             insert_pos = import_match.end()
             content = content[:insert_pos] + '\n' + LOGGER_IMPORT + content[insert_pos:]
-    
+
     # Count console calls after
     after_count = len(re.findall(r'console\.(log|warn|error)', content))
     replaced = before_count - after_count
-    
+
     if replaced > 0:
         filepath.write_text(content)
         print(f"✓ {filepath.relative_to(FRONTEND_DIR)}: {replaced} replaced")
-    
+
     return replaced
 
 def main():
     os.chdir(Path(__file__).parent.parent)
-    
+
     total_replaced = 0
-    
+
     for file_path in TARGET_FILES:
         full_path = FRONTEND_DIR / file_path
         replaced = process_file(full_path)
         total_replaced += replaced
-    
+
     print(f"\n✅ Total: {total_replaced} console statements replaced")
 
 if __name__ == "__main__":

@@ -324,11 +324,11 @@ const Dashboard: React.FC = () => {
       </DashboardHeader>
 
       <StatsGrid>
-        <StatCard 
-          $theme={theme} 
-          onClick={() => navigate('/suppliers')} 
+        <StatCard
+          $theme={theme}
+          onClick={() => navigate('/suppliers')}
           onKeyDown={(e) => handleCardKeyPress(e, '/suppliers')}
-          role="button" 
+          role="button"
           tabIndex={0}
           aria-label="View all suppliers"
         >
@@ -339,11 +339,11 @@ const Dashboard: React.FC = () => {
           </StatContent>
         </StatCard>
 
-        <StatCard 
-          $theme={theme} 
-          onClick={() => navigate('/customers')} 
+        <StatCard
+          $theme={theme}
+          onClick={() => navigate('/customers')}
           onKeyDown={(e) => handleCardKeyPress(e, '/customers')}
-          role="button" 
+          role="button"
           tabIndex={0}
           aria-label="View all customers"
         >
@@ -354,11 +354,11 @@ const Dashboard: React.FC = () => {
           </StatContent>
         </StatCard>
 
-        <StatCard 
-          $theme={theme} 
-          onClick={() => navigate('/purchase-orders')} 
+        <StatCard
+          $theme={theme}
+          onClick={() => navigate('/purchase-orders')}
           onKeyDown={(e) => handleCardKeyPress(e, '/purchase-orders')}
-          role="button" 
+          role="button"
           tabIndex={0}
           aria-label="View all purchase orders"
         >
@@ -369,11 +369,11 @@ const Dashboard: React.FC = () => {
           </StatContent>
         </StatCard>
 
-        <StatCard 
-          $theme={theme} 
-          onClick={() => navigate('/accounts-receivable')} 
+        <StatCard
+          $theme={theme}
+          onClick={() => navigate('/accounts-receivable')}
           onKeyDown={(e) => handleCardKeyPress(e, '/accounts-receivable')}
-          role="button" 
+          role="button"
           tabIndex={0}
           aria-label="View all accounts receivables"
         >

@@ -1,10 +1,10 @@
-from .base import EmailProvider, EmailParams, EmailProviderError, AuthenticationError
+from .base import AuthenticationError, EmailParams, EmailProvider, EmailProviderError
 from .microsoft import MicrosoftGraphProvider
 
 __all__ = [
-    'EmailProvider',
-    'EmailParams',
-    'EmailProviderError',
-    'AuthenticationError',
-    'MicrosoftGraphProvider',
+    "EmailProvider",
+    "EmailParams",
+    "EmailProviderError",
+    "AuthenticationError",
+    "MicrosoftGraphProvider",
 ]

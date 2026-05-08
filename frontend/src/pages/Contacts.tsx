@@ -269,9 +269,9 @@ const Contacts: React.FC = () => {
       } catch (error: unknown) {
         logger.error('[Contacts] Error deleting contact:', error);
         const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail 
-          || err?.response?.data?.message 
-          || err?.message 
+        const errorMessage = err?.response?.data?.detail
+          || err?.response?.data?.message
+          || err?.message
           || 'Failed to delete contact';
         alert(`Error: ${errorMessage}`);
       }

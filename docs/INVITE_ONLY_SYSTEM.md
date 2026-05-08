@@ -45,7 +45,7 @@ The invite-only system controls workspace onboarding for ProjectMeats. Workspace
 
 class TenantInvitation(TimestampModel):
     """One-time invitation token for workspace onboarding."""
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     tenant = models.ForeignKey('Tenant', on_delete=models.CASCADE, related_name='invitations')
     invited_by = models.ForeignKey(

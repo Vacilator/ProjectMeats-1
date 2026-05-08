@@ -35,37 +35,37 @@ class MeatSMEAgent:
 
     def analyze(self, query: str, tenant_id: str) -> str:
         if not tenant_id:
-            raise ValueError('tenant_id is required')
+            raise ValueError("tenant_id is required")
         if not query:
-            return ''
+            return ""
 
-        if not getattr(settings, 'OPENAI_API_KEY', None):
-            raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
+        if not getattr(settings, "OPENAI_API_KEY", None):
+            raise ValueError("OpenAI not configured (missing OPENAI_API_KEY)")
 
         try:
             from openai import OpenAI
         except Exception as e:
-            raise RuntimeError('OpenAI client not available on server') from e
+            raise RuntimeError("OpenAI client not available on server") from e
 
-        from apps.tenants.models import Tenant
         from apps.core.services.universal_search import UniversalSearchService
+        from apps.tenants.models import Tenant
 
         tenant = Tenant.objects.filter(id=tenant_id).first()
         if not tenant:
-            raise ValueError('Tenant not found')
+            raise ValueError("Tenant not found")
 
         # Retrieve lightweight context via UniversalSearchService.
         service = UniversalSearchService(tenant=tenant)
         search_payload = service.search(query, limit_per_type=3)
-        results = (search_payload or {}).get('results') or []
+        results = (search_payload or {}).get("results") or []
 
         context_blocks: List[str] = []
         for r in results[:12]:
-            title = str(r.get('title') or '')
-            subtitle = str(r.get('subtitle') or '') if r.get('subtitle') else ''
-            route = str(r.get('route') or '')
-            etype = str(r.get('type') or '')
-            rid = str(r.get('id') or '')
+            title = str(r.get("title") or "")
+            subtitle = str(r.get("subtitle") or "") if r.get("subtitle") else ""
+            route = str(r.get("route") or "")
+            etype = str(r.get("type") or "")
+            rid = str(r.get("id") or "")
             bits = [f"{etype}:{rid}", title]
             if subtitle:
                 bits.append(f"({subtitle})")
@@ -77,7 +77,7 @@ class MeatSMEAgent:
 
         openai = OpenAI(
             api_key=settings.OPENAI_API_KEY,
-            organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
+            organization=getattr(settings, "OPENAI_ORG_ID", None) or None,
         )
 
         user_payload = (
@@ -90,13 +90,13 @@ class MeatSMEAgent:
         )
 
         completion = openai.chat.completions.create(
-            model='gpt-4o',
+            model="gpt-4o",
             messages=[
-                {'role': 'system', 'content': SYSTEM_PROMPT},
-                {'role': 'user', 'content': user_payload},
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_payload},
             ],
             temperature=0.2,
             max_tokens=1200,
         )
 
-        return (completion.choices[0].message.content or '').strip()
+        return (completion.choices[0].message.content or "").strip()

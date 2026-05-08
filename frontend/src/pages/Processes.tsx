@@ -163,7 +163,7 @@ const TableContainer = styled.div<{ $theme: Theme }>`
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 10px ${(props) => props.$theme.colors.shadow};
-  
+
   /* Only enable horizontal scroll on small screens when truly needed */
   @media (max-width: 768px) {
     overflow-x: auto;
@@ -173,7 +173,7 @@ const TableContainer = styled.div<{ $theme: Theme }>`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Allow table to shrink on smaller screens */
   @media (max-width: 768px) {
     min-width: 600px;

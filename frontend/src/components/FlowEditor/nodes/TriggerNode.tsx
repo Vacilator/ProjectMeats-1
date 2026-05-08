@@ -1,13 +1,13 @@
 /**
  * Trigger Node Component
- * 
+ *
  * Entry point for workflows. Supports multiple trigger types:
  * - Manual (button click)
  * - Schedule (cron/time-based)
  * - Webhook (external API)
  * - Event (record changes)
  * - Form submit
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  */
 import React from 'react';
@@ -47,7 +47,7 @@ const ConfigRow = styled.div`
   gap: 6px;
   font-size: 11px;
   color: rgb(var(--color-text-secondary));
-  
+
   & + & {
     margin-top: 4px;
   }
@@ -116,7 +116,7 @@ export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) 
   const triggerType = rawTriggerType === 'formSubmit' ? 'form' : rawTriggerType;
 
   const scheduleSummary = (data as any)?.scheduleSummary as string | undefined;
-  
+
   // Get the appropriate node type definition
   const nodeTypeMap = {
     manual: 'triggerManual',
@@ -125,9 +125,9 @@ export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) 
     event: 'triggerEvent',
     form: 'triggerForm',
   };
-  
+
   const nodeTypeDef = getNodeTypeDefinition(nodeTypeMap[triggerType]);
-  
+
   // Safety check: provide fallback if nodeType is undefined
   const nodeType = nodeTypeDef || {
     id: 'triggerManual',
@@ -151,7 +151,7 @@ export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) 
         <TriggerBadge $type={triggerType}>
           {(triggerType || 'trigger').toUpperCase()}
         </TriggerBadge>
-        
+
         {(schedule || webhookUrl || eventEntity || formId) && (
           <TriggerConfig>
             {triggerType === 'schedule' && (scheduleSummary || schedule) && (
@@ -162,14 +162,14 @@ export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) 
                 </ConfigValue>
               </ConfigRow>
             )}
-            
+
             {triggerType === 'webhook' && webhookUrl && (
               <ConfigRow>
                 <ConfigLabel>URL:</ConfigLabel>
                 <ConfigValue>{webhookUrl}</ConfigValue>
               </ConfigRow>
             )}
-            
+
             {triggerType === 'event' && eventEntity && (
               <>
                 <ConfigRow>
@@ -184,7 +184,7 @@ export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) 
                 )}
               </>
             )}
-            
+
             {triggerType === 'form' && formId && (
               <ConfigRow>
                 <ConfigLabel>Form ID:</ConfigLabel>

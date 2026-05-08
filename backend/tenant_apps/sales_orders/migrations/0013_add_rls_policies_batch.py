@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("sales_orders", "0012_alter_salesorder_product"),
     ]

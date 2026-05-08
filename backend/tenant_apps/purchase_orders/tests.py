@@ -6,43 +6,40 @@ Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 import shutil
 import tempfile
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
-from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import TestCase
 from django.contrib.auth.models import User
+from django.test import TestCase
+from django.test.utils import override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
-from django.utils import timezone
-from django.test.utils import override_settings
 
-from apps.integrations.models import ExternalAuthProvider
-from tenant_apps.purchase_orders.models import (
-    CarrierPOItem,
-    PurchaseOrder,
-    PurchaseOrderApprovalDispatch,
-    PurchaseOrderApprovalDispatchStatus,
-    PurchaseOrderItem,
-    CarrierPurchaseOrder,
-    ColdStorageEntry,
-)
-from tenant_apps.purchase_orders.serializers import CarrierPurchaseOrderSerializer, PurchaseOrderSerializer
-from tenant_apps.suppliers.models import Supplier
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
-from apps.system.models import Product
-from tenant_apps.locations.models import Location
 from tenant_apps.inquiries.models import (
     Inquiry,
     InquiryEntityTypeChoices,
     InquiryRouteDecisionChoices,
     InquirySupplierRFQ,
 )
+from tenant_apps.locations.models import Location
+from tenant_apps.purchase_orders.models import (
+    CarrierPOItem,
+    CarrierPurchaseOrder,
+    ColdStorageEntry,
+    PurchaseOrder,
+    PurchaseOrderApprovalDispatch,
+    PurchaseOrderApprovalDispatchStatus,
+    PurchaseOrderItem,
+)
+from tenant_apps.purchase_orders.serializers import CarrierPurchaseOrderSerializer, PurchaseOrderSerializer
 from tenant_apps.sales_orders.models import SalesOrder
-from apps.tenants.models import Tenant, TenantUser
+from tenant_apps.suppliers.models import Supplier
+
 from apps.core.models import (
     AccountingPaymentTermsChoices,
     EdibleInedibleChoices,
@@ -50,6 +47,9 @@ from apps.core.models import (
     ProteinTypeChoices,
     WeightUnitChoices,
 )
+from apps.integrations.models import ExternalAuthProvider
+from apps.system.models import Product
+from apps.tenants.models import Tenant, TenantUser
 
 
 class CarrierPurchaseOrderModelTest(TestCase):
@@ -59,9 +59,7 @@ class CarrierPurchaseOrderModelTest(TestCase):
         """Set up test data with tenant context."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -70,7 +68,7 @@ class CarrierPurchaseOrderModelTest(TestCase):
             created_by=self.user,
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
-        
+
         self.carrier = Carrier.objects.create(
             name=f"Test Carrier {unique_id}",
             email=f"carrier-{unique_id}@test.com",
@@ -103,7 +101,7 @@ class CarrierPurchaseOrderModelTest(TestCase):
             pick_up_date=timezone.now().date(),
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(carrier_po.carrier, self.carrier)
         self.assertEqual(carrier_po.supplier, self.supplier)
         self.assertEqual(carrier_po.our_carrier_po_num, f"CPO-{unique_id}")
@@ -126,7 +124,7 @@ class CarrierPurchaseOrderModelTest(TestCase):
             quantity=100,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(carrier_po.type_of_protein, "Beef")
         self.assertEqual(carrier_po.fresh_or_frozen, "Fresh")
         self.assertEqual(carrier_po.total_weight, Decimal("1000.50"))
@@ -143,7 +141,7 @@ class CarrierPurchaseOrderModelTest(TestCase):
             our_carrier_po_num=f"CPO-{unique_id}",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(carrier_po.payment_terms, "Wire")
 
     def test_carrier_purchase_order_str_representation(self):
@@ -155,7 +153,7 @@ class CarrierPurchaseOrderModelTest(TestCase):
             our_carrier_po_num=f"CPO-{unique_id}",
             tenant=self.tenant,
         )
-        
+
         self.assertIn(f"CPO-{unique_id}", str(carrier_po))
 
     def test_carrier_purchase_order_item_inherits_tenant(self):
@@ -262,6 +260,7 @@ class CarrierPurchaseOrderAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(CarrierPurchaseOrder.objects.count(), 1)
         self.assertEqual(CarrierPOItem.objects.count(), 1)
+
 
 class DocumentOperationsAPITests(APITestCase):
     """Regression coverage for workflow, PDF, email, and audit endpoints."""
@@ -679,9 +678,7 @@ class DocumentOperationsAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data.get("results", response.data)
         self.assertGreaterEqual(len(results), 1)
-        self.assertTrue(
-            any(event.get("entity_type") == "CarrierPurchaseOrder" for event in results)
-        )
+        self.assertTrue(any(event.get("entity_type") == "CarrierPurchaseOrder" for event in results))
 
     def test_purchase_order_serializer_exposes_trade_invariants(self):
         self.purchase_order.total_weight = Decimal("1000.50")
@@ -708,6 +705,7 @@ class DocumentOperationsAPITests(APITestCase):
         self.assertEqual(data["trade_weight"]["normalized_kg"], "226.80")
         self.assertEqual(data["trade_timeline"]["date_fields"]["delivery_date"], "2026-01-09")
 
+
 class ColdStorageEntryModelTest(TestCase):
     """Test cases for ColdStorageEntry model."""
 
@@ -715,9 +713,7 @@ class ColdStorageEntryModelTest(TestCase):
         """Set up test data with tenant context."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -726,7 +722,7 @@ class ColdStorageEntryModelTest(TestCase):
             created_by=self.user,
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
-        
+
         self.supplier = Supplier.objects.create(
             name=f"Test Supplier {unique_id}",
             email=f"supplier-{unique_id}@test.com",
@@ -758,7 +754,7 @@ class ColdStorageEntryModelTest(TestCase):
             item_production_date=timezone.now().date(),
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(entry.supplier_po, self.supplier_po)
         self.assertEqual(entry.status_of_load, "Matched")
         self.assertEqual(entry.item_description, "50% Beef Trim fresh - Tested")
@@ -774,7 +770,7 @@ class ColdStorageEntryModelTest(TestCase):
             boxing_cost=Decimal("100.00"),
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(entry.finished_weight, Decimal("950.00"))
         self.assertEqual(entry.shrink, Decimal("50.00"))
         self.assertEqual(entry.boxing_cost, Decimal("100.00"))
@@ -789,7 +785,7 @@ class ColdStorageEntryModelTest(TestCase):
             total_cost=Decimal("150.00"),
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(entry.boxing_cost, Decimal("100.00"))
         self.assertEqual(entry.cold_storage_cost, Decimal("50.00"))
         self.assertEqual(entry.total_cost, Decimal("150.00"))
@@ -802,7 +798,7 @@ class ColdStorageEntryModelTest(TestCase):
             item_description="Unmatched product",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(entry.status_of_load, "TBD - Not Matched")
 
     def test_cold_storage_entry_str_representation(self):
@@ -812,7 +808,7 @@ class ColdStorageEntryModelTest(TestCase):
             status_of_load="Matched",
             tenant=self.tenant,
         )
-        
+
         self.assertIn("Cold Storage Entry", str(entry))
         self.assertIn("Matched", str(entry))
 
@@ -825,7 +821,7 @@ class ColdStorageEntryModelTest(TestCase):
             item_description="Test product in storage",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(entry.product, self.product)
 
 
@@ -836,9 +832,7 @@ class PurchaseOrderHistoryTests(TestCase):
         """Set up test data with tenant context."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}", 
-            email=f"test-{unique_id}@example.com", 
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
 
         self.tenant = Tenant.objects.create(
@@ -862,7 +856,9 @@ class PurchaseOrderHistoryTests(TestCase):
     def test_history_created_on_new_po(self):
         """Test that history entry is created when a new PO is created."""
         from datetime import date
+
         from tenant_apps.purchase_orders.models import PurchaseOrderHistory
+
         unique_id = uuid.uuid4().hex[:8]
         # Create a purchase order
         po = PurchaseOrder.objects.create(
@@ -880,7 +876,9 @@ class PurchaseOrderHistoryTests(TestCase):
     def test_history_created_on_update(self):
         """Test that history entry is created when a PO is updated."""
         from datetime import date
+
         from tenant_apps.purchase_orders.models import PurchaseOrderHistory
+
         unique_id = uuid.uuid4().hex[:8]
         # Create a purchase order
         po = PurchaseOrder.objects.create(
@@ -904,7 +902,9 @@ class PurchaseOrderHistoryTests(TestCase):
     def test_multiple_pos_separate_history(self):
         """Test that different POs have separate history entries."""
         from datetime import date
+
         from tenant_apps.purchase_orders.models import PurchaseOrderHistory
+
         po1_unique_id = uuid.uuid4().hex[:8]
         po2_unique_id = uuid.uuid4().hex[:8]
         # Create two purchase orders
@@ -930,8 +930,7 @@ class PurchaseOrderHistoryTests(TestCase):
 
         # Histories are separate
         self.assertEqual(
-            set(po1_history.values_list('id', flat=True)) & set(po2_history.values_list('id', flat=True)),
-            set()
+            set(po1_history.values_list("id", flat=True)) & set(po2_history.values_list("id", flat=True)), set()
         )
 
 
@@ -941,12 +940,10 @@ class PurchaseOrderTenantIsolationTests(TestCase):
     def setUp(self):
         """Set up test data with multiple tenants."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # First tenant
         self.user1 = User.objects.create_user(
-            username=f"user1-{unique_id}",
-            email=f"user1-{unique_id}@example.com",
-            password="testpass123"
+            username=f"user1-{unique_id}", email=f"user1-{unique_id}@example.com", password="testpass123"
         )
         self.tenant1 = Tenant.objects.create(
             name=f"Tenant 1 {unique_id}",
@@ -959,12 +956,10 @@ class PurchaseOrderTenantIsolationTests(TestCase):
             name=f"Supplier 1 {unique_id}",
             tenant=self.tenant1,
         )
-        
+
         # Second tenant
         self.user2 = User.objects.create_user(
-            username=f"user2-{unique_id}",
-            email=f"user2-{unique_id}@example.com",
-            password="testpass123"
+            username=f"user2-{unique_id}", email=f"user2-{unique_id}@example.com", password="testpass123"
         )
         self.tenant2 = Tenant.objects.create(
             name=f"Tenant 2 {unique_id}",
@@ -981,8 +976,9 @@ class PurchaseOrderTenantIsolationTests(TestCase):
     def test_purchase_orders_isolated_by_tenant(self):
         """Test that purchase orders are properly isolated by tenant."""
         from datetime import date
+
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create PO for tenant 1
         PurchaseOrder.objects.create(
             order_number=f"PO1-{unique_id}",
@@ -991,7 +987,7 @@ class PurchaseOrderTenantIsolationTests(TestCase):
             order_date=date.today(),
             tenant=self.tenant1,
         )
-        
+
         # Create PO for tenant 2
         PurchaseOrder.objects.create(
             order_number=f"PO2-{unique_id}",
@@ -1000,11 +996,11 @@ class PurchaseOrderTenantIsolationTests(TestCase):
             order_date=date.today(),
             tenant=self.tenant2,
         )
-        
+
         # Verify isolation using for_tenant manager
         tenant1_pos = PurchaseOrder.objects.for_tenant(self.tenant1)
         tenant2_pos = PurchaseOrder.objects.for_tenant(self.tenant2)
-        
+
         self.assertEqual(tenant1_pos.count(), 1)
         self.assertEqual(tenant2_pos.count(), 1)
         self.assertEqual(tenant1_pos.first().order_number, f"PO1-{unique_id}")
@@ -1013,8 +1009,9 @@ class PurchaseOrderTenantIsolationTests(TestCase):
     def test_cannot_access_other_tenant_po(self):
         """Test that tenant 1 cannot see tenant 2's purchase orders."""
         from datetime import date
+
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create PO only for tenant 2
         po2 = PurchaseOrder.objects.create(
             order_number=f"PO2-{unique_id}",
@@ -1023,7 +1020,7 @@ class PurchaseOrderTenantIsolationTests(TestCase):
             order_date=date.today(),
             tenant=self.tenant2,
         )
-        
+
         # Tenant 1 should not see tenant 2's PO
         tenant1_pos = PurchaseOrder.objects.for_tenant(self.tenant1)
         self.assertEqual(tenant1_pos.count(), 0)

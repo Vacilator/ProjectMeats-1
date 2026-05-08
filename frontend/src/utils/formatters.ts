@@ -1,9 +1,9 @@
 /**
  * Date and Time Formatters with Timezone Support
- * 
+ *
  * All formatters automatically convert UTC timestamps to the user's local timezone.
  * This fixes the "wrong time" issue where backend sends UTC but displays show incorrect times.
- * 
+ *
  * Usage:
  *   formatToLocal('2026-01-08T14:00:00Z') // → "Jan 8, 2026 9:00 AM" (EST)
  *   formatDateLocal('2026-01-08T14:00:00Z') // → "Jan 8, 2026"
@@ -38,16 +38,16 @@ export const formatCalendarDate = (dateString: string): string => {
  */
 export const formatToLocal = (dateString: string | null | undefined): string => {
   if (!dateString) return 'N/A';
-  
+
   try {
     const date = new Date(dateString);
-    
+
     // Check if date is valid
     if (isNaN(date.getTime())) {
       logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Date';
     }
-    
+
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
@@ -68,19 +68,19 @@ export const formatToLocal = (dateString: string | null | undefined): string => 
  */
 export const formatDateLocal = (dateString: string | null | undefined): string => {
   if (!dateString) return 'N/A';
-  
+
   try {
     if (isDateOnlyString(dateString)) {
       return formatCalendarDate(dateString);
     }
 
     const date = new Date(dateString);
-    
+
     if (isNaN(date.getTime())) {
       logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Date';
     }
-    
+
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
@@ -98,19 +98,19 @@ export const formatDateLocal = (dateString: string | null | undefined): string =
  */
 export const formatTimeLocal = (dateString: string | null | undefined): string => {
   if (!dateString) return 'N/A';
-  
+
   try {
     if (isDateOnlyString(dateString)) {
       return '12:00 AM';
     }
 
     const date = new Date(dateString);
-    
+
     if (isNaN(date.getTime())) {
       logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Time';
     }
-    
+
     return new Intl.DateTimeFormat('en-US', {
       hour: 'numeric',
       minute: '2-digit',
@@ -128,19 +128,19 @@ export const formatTimeLocal = (dateString: string | null | undefined): string =
  */
 export const formatToLocalWithSeconds = (dateString: string | null | undefined): string => {
   if (!dateString) return 'N/A';
-  
+
   try {
     if (isDateOnlyString(dateString)) {
       return formatCalendarDate(dateString);
     }
 
     const date = new Date(dateString);
-    
+
     if (isNaN(date.getTime())) {
       logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Date';
     }
-    
+
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
@@ -162,24 +162,24 @@ export const formatToLocalWithSeconds = (dateString: string | null | undefined):
  */
 export const formatRelativeTime = (dateString: string | null | undefined): string => {
   if (!dateString) return 'N/A';
-  
+
   try {
     const date = new Date(dateString);
     const now = new Date();
-    
+
     if (isNaN(date.getTime())) {
       logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Date';
     }
-    
+
     const diffMs = date.getTime() - now.getTime();
     const diffSec = Math.round(diffMs / 1000);
     const diffMin = Math.round(diffSec / 60);
     const diffHour = Math.round(diffMin / 60);
     const diffDay = Math.round(diffHour / 24);
-    
+
     const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-    
+
     if (Math.abs(diffSec) < 60) {
       return rtf.format(diffSec, 'second');
     } else if (Math.abs(diffMin) < 60) {
@@ -214,7 +214,7 @@ export const getTimezoneOffset = (): string => {
   const hours = Math.floor(Math.abs(offset) / 60);
   const minutes = Math.abs(offset) % 60;
   const sign = offset >= 0 ? '+' : '-';
-  
+
   return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 };
 
@@ -224,7 +224,7 @@ export const getTimezoneOffset = (): string => {
 export const isToday = (dateString: string): boolean => {
   const date = new Date(dateString);
   const today = new Date();
-  
+
   return (
     date.getDate() === today.getDate() &&
     date.getMonth() === today.getMonth() &&
@@ -238,7 +238,7 @@ export const isToday = (dateString: string): boolean => {
 export const isPast = (dateString: string): boolean => {
   const date = new Date(dateString);
   const now = new Date();
-  
+
   return date.getTime() < now.getTime();
 };
 
@@ -248,7 +248,7 @@ export const isPast = (dateString: string): boolean => {
 export const isFuture = (dateString: string): boolean => {
   const date = new Date(dateString);
   const now = new Date();
-  
+
   return date.getTime() > now.getTime();
 };
 
@@ -259,7 +259,7 @@ export { formatCurrency } from '../../../shared/utils';
 
 // Note: These maintain backward compatibility but DON'T convert timezones
 // Use formatToLocal() instead for new code
-export { 
+export {
   formatDate as formatDateUTC,
-  formatDateTime as formatDateTimeUTC 
+  formatDateTime as formatDateTimeUTC
 } from '../../../shared/utils';

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Golden Audit Script - SSH & Database Connectivity Verification
-# 
+#
 # Tests connectivity across all 6 environment lanes:
 # - dev-backend, uat-backend, prod-backend (database via SQL)
 # - dev-frontend, uat-frontend, prod-frontend (shell via uptime)
@@ -28,9 +28,9 @@ print_status() {
   local status=$1
   local env=$2
   local message=$3
-  
+
   TOTAL_TESTS=$((TOTAL_TESTS + 1))
-  
+
   if [ "$status" == "PASS" ]; then
     echo -e "${GREEN}✓${NC} $env: $message"
     PASSED_TESTS=$((PASSED_TESTS + 1))
@@ -48,38 +48,38 @@ trigger_audit() {
   local type=$2
   local script=$3
   local description=$4
-  
+
   echo -e "\n${BLUE}🔍 Auditing: $environment ($type)${NC}"
   echo "Command: $script"
-  
+
   # Trigger the workflow
   RUN_ID=$(gh workflow run 98-ops-db-surgery.yml \
     -f environment="$environment" \
     -f type="$type" \
     -f script="$script" \
     --json url,databaseId 2>&1 | tee /tmp/gh-output.txt | grep -oP 'https://github.com/[^/]+/[^/]+/actions/runs/\K[0-9]+' || echo "")
-  
+
   if [ -z "$RUN_ID" ]; then
     # Try to extract from JSON output
     RUN_ID=$(cat /tmp/gh-output.txt | jq -r '.databaseId' 2>/dev/null || echo "")
   fi
-  
+
   if [ -z "$RUN_ID" ]; then
     print_status "FAIL" "$environment" "Failed to trigger workflow (check secrets/permissions)"
     return 1
   fi
-  
+
   echo "Workflow triggered: Run ID $RUN_ID"
   echo "Waiting for completion (max 2 minutes)..."
-  
+
   # Wait for workflow to complete (max 2 minutes)
   MAX_WAIT=24 # 24 * 5 seconds = 2 minutes
   WAIT_COUNT=0
-  
+
   while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
     # Check workflow status
     STATUS=$(gh run view "$RUN_ID" --json status,conclusion --jq '.status + ":" + (.conclusion // "running")' 2>/dev/null || echo "unknown")
-    
+
     if [[ "$STATUS" == "completed:success" ]]; then
       print_status "PASS" "$environment" "$description - Connectivity verified"
       return 0
@@ -90,13 +90,13 @@ trigger_audit() {
       print_status "FAIL" "$environment" "$description - Workflow $STATUS"
       return 1
     fi
-    
+
     # Still running
     echo -n "."
     sleep 5
     WAIT_COUNT=$((WAIT_COUNT + 1))
   done
-  
+
   # Timeout
   print_status "WARN" "$environment" "$description - Timeout waiting for workflow (check: https://github.com/Meats-Central/ProjectMeats/actions/runs/$RUN_ID)"
   return 1

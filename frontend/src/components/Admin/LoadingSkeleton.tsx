@@ -1,9 +1,9 @@
 /**
  * Loading Skeleton Component
- * 
+ *
  * Displays a skeleton screen while data is loading.
  * Provides better perceived performance than spinners.
- * 
+ *
  * Usage:
  * ```tsx
  * {loading ? (
@@ -155,7 +155,7 @@ const TableRow = styled.div`
   gap: 16px;
   padding: 16px;
   border-bottom: 1px solid rgb(var(--color-border));
-  
+
   &:last-child {
     border-bottom: none;
   }

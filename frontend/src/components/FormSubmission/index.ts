@@ -1,6 +1,6 @@
 /**
  * FormSubmission Components
- * 
+ *
  * Export all form submission related components.
  */
 export { default as FormSubmissionModal } from './FormSubmissionModal';
@@ -23,7 +23,7 @@ export { default as ContextBubble } from './ContextBubble';
 export { DocumentUploadCard } from './cards/DocumentUploadCard';
 export { ApprovalDecisionCard } from './cards/ApprovalDecisionCard';
 export { AIVerificationCard } from './cards/AIVerificationCard';
-export { 
+export {
   INTERACTION_CARDS,
   getCardDefinition,
   getCardDefinitionByKey,

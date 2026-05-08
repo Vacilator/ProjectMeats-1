@@ -1,6 +1,6 @@
 /**
  * Unit Tests for SidePanel Component
- * 
+ *
  * Tests the portal-based side panel wrapper used for config modals.
  */
 import React from 'react';
@@ -23,7 +23,7 @@ describe('SidePanel', () => {
         {testContent}
       </SidePanel>
     );
-    
+
     expect(screen.queryByText('Test Content')).not.toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('SidePanel', () => {
         {testContent}
       </SidePanel>
     );
-    
+
     expect(screen.getByText('Test Content')).toBeInTheDocument();
   });
 
@@ -43,7 +43,7 @@ describe('SidePanel', () => {
         {testContent}
       </SidePanel>
     );
-    
+
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
@@ -54,7 +54,7 @@ describe('SidePanel', () => {
         {testContent}
       </SidePanel>
     );
-    
+
     fireEvent.keyDown(document, { key: 'Enter' });
     expect(mockOnClose).not.toHaveBeenCalled();
   });
@@ -65,7 +65,7 @@ describe('SidePanel', () => {
         <div data-testid="portal-content">Portal Content</div>
       </SidePanel>
     );
-    
+
     const portalContent = screen.getByTestId('portal-content');
     expect(portalContent).toBeInTheDocument();
   });

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 from .consumers import get_ai_inbox_group_name, get_ai_inbox_snapshot
 from .models import AIFeedbackLog

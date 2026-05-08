@@ -140,12 +140,12 @@ export const generateRandomColor = (seed: string): string => {
     '#3498db', '#e74c3c', '#f39c12', '#27ae60', '#9b59b6',
     '#1abc9c', '#34495e', '#e67e22', '#2ecc71', '#8e44ad'
   ];
-  
+
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = seed.charCodeAt(i) + ((hash << 5) - hash);
   }
-  
+
   return colors[Math.abs(hash) % colors.length];
 };
 
@@ -155,10 +155,10 @@ export const generateRandomColor = (seed: string): string => {
 export const formatFileSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   if (bytes === 0) return '0 Bytes';
-  
+
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const size = bytes / Math.pow(1024, i);
-  
+
   return `${size.toFixed(1)} ${sizes[i]}`;
 };
 
@@ -170,7 +170,7 @@ export const debounce = <T extends (...args: any[]) => void>(
   delay: number
 ): ((...args: Parameters<T>) => void) => {
   let timeoutId: NodeJS.Timeout;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
@@ -195,12 +195,12 @@ export const isTenantTrialExpired = (tenant: {
  */
 export const getTrialDaysRemaining = (trialEndsAt?: string): number => {
   if (!trialEndsAt) return 0;
-  
+
   const now = new Date();
   const endDate = new Date(trialEndsAt);
   const diffTime = endDate.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   return Math.max(0, diffDays);
 };
 
@@ -215,7 +215,7 @@ export const CONSTANTS = {
     USER: 'user',
     READONLY: 'readonly',
   } as const,
-  
+
   TENANT_ROLE_LABELS: {
     owner: 'Owner',
     admin: 'Administrator',
@@ -223,15 +223,15 @@ export const CONSTANTS = {
     user: 'User',
     readonly: 'Read Only',
   } as const,
-  
+
   API_PAGINATION_SIZE: 20,
-  
+
   TRIAL_DAYS: 30,
-  
+
   FILE_UPLOAD_MAX_SIZE: 10 * 1024 * 1024, // 10MB
-  
+
   SUPPORTED_IMAGE_FORMATS: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-  
+
   SUPPORTED_DOCUMENT_FORMATS: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv'],
 } as const;
 

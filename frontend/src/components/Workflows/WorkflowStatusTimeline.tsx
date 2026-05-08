@@ -1,6 +1,6 @@
 /**
  * WorkflowStatusTimeline Component
- * 
+ *
  * Vertical timeline showing the complete history and status of a workflow.
  * Shows each step's status, completion time, and assignee information.
  */
@@ -11,7 +11,7 @@ import styled, { css, keyframes } from 'styled-components';
 // TYPES
 // ============================================================================
 
-export type TimelineStepStatus = 
+export type TimelineStepStatus =
   | 'pending'
   | 'in_progress'
   | 'completed'
@@ -74,7 +74,7 @@ const StepWrapper = styled.div<{ $isLast: boolean }>`
   display: flex;
   position: relative;
   padding-bottom: ${props => props.$isLast ? '0' : '24px'};
-  
+
   /* Vertical connector line */
   &::before {
     content: '';
@@ -109,7 +109,7 @@ const StepIndicator = styled.div<{ $status: TimelineStepStatus; $isCurrent: bool
   z-index: 2;
   font-size: 14px;
   transition: all 0.3s ease;
-  
+
   ${props => {
     if (props.$isCurrent) {
       return css`
@@ -118,7 +118,7 @@ const StepIndicator = styled.div<{ $status: TimelineStepStatus; $isCurrent: bool
         animation: ${pulse} 2s infinite;
       `;
     }
-    
+
     switch (props.$status) {
       case 'completed':
         return css`
@@ -195,7 +195,7 @@ const StepBadge = styled.span<{ $status: TimelineStepStatus }>`
   padding: 2px 8px;
   border-radius: 4px;
   text-transform: uppercase;
-  
+
   ${props => {
     switch (props.$status) {
       case 'completed':
@@ -268,7 +268,7 @@ const AssigneeAvatar = styled.div<{ $hasImage: boolean }>`
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  
+
   img {
     width: 100%;
     height: 100%;
@@ -299,7 +299,7 @@ const ActionButton = styled.button<{ $variant: 'primary' | 'secondary' | 'danger
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   ${props => {
     switch (props.$variant) {
       case 'primary':
@@ -307,7 +307,7 @@ const ActionButton = styled.button<{ $variant: 'primary' | 'secondary' | 'danger
           background: rgb(var(--color-primary, 102 126 234));
           color: white;
           border: none;
-          
+
           &:hover { opacity: 0.9; }
         `;
       case 'danger':
@@ -315,7 +315,7 @@ const ActionButton = styled.button<{ $variant: 'primary' | 'secondary' | 'danger
           background: rgba(var(--color-error), 0.1);
           color: rgb(var(--color-error));
           border: 1px solid rgb(var(--color-error));
-          
+
           &:hover { background: rgba(var(--color-error), 0.2); }
         `;
       default:
@@ -323,7 +323,7 @@ const ActionButton = styled.button<{ $variant: 'primary' | 'secondary' | 'danger
           background: rgb(var(--color-background, 248 249 250));
           color: rgb(var(--color-text-primary, 44 62 80));
           border: 1px solid rgb(var(--color-border, 224 224 224));
-          
+
           &:hover { background: rgb(var(--color-border, 224 224 224)); }
         `;
     }
@@ -395,15 +395,15 @@ export const WorkflowStatusTimeline: React.FC<WorkflowStatusTimelineProps> = ({
         const isCurrent = index === currentStepIndex;
         const isLast = index === steps.length - 1;
         const isCompleted = step.status === 'completed' || step.status === 'approved';
-        
+
         return (
           <StepWrapper key={step.id} $isLast={isLast}>
             <StepConnectorLine $completed={isCompleted} $isLast={isLast} />
-            
+
             <StepIndicator $status={step.status} $isCurrent={isCurrent}>
               {getStepIcon(step.status, isCurrent) || index + 1}
             </StepIndicator>
-            
+
             <StepContent>
               <StepHeader>
                 <StepName $status={step.status} $isCurrent={isCurrent}>
@@ -413,7 +413,7 @@ export const WorkflowStatusTimeline: React.FC<WorkflowStatusTimelineProps> = ({
                   {getStatusLabel(step.status)}
                 </StepBadge>
               </StepHeader>
-              
+
               <StepMeta>
                 {showAssignees && step.assignee && (
                   <MetaItem>
@@ -427,21 +427,21 @@ export const WorkflowStatusTimeline: React.FC<WorkflowStatusTimelineProps> = ({
                     {step.assignee.name}
                   </MetaItem>
                 )}
-                
+
                 {step.completedAt && (
                   <MetaItem>
                     <MetaIcon>📅</MetaIcon>
                     {formatDate(step.completedAt)}
                   </MetaItem>
                 )}
-                
+
                 {showDurations && step.duration && (
                   <MetaItem>
                     <MetaIcon>⏱</MetaIcon>
                     {step.duration}
                   </MetaItem>
                 )}
-                
+
                 {step.completedBy && step.completedBy.id !== step.assignee?.id && (
                   <MetaItem>
                     <MetaIcon>👤</MetaIcon>
@@ -449,11 +449,11 @@ export const WorkflowStatusTimeline: React.FC<WorkflowStatusTimelineProps> = ({
                   </MetaItem>
                 )}
               </StepMeta>
-              
+
               {step.notes && (
                 <StepNotes>"{step.notes}"</StepNotes>
               )}
-              
+
               {isCurrent && step.status === 'in_progress' && (
                 <CurrentStepActions>
                   <ActionButton $variant="primary">Complete Step</ActionButton>

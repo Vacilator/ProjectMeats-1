@@ -36,7 +36,7 @@ ProjectMeats uses a **shared-schema multi-tenancy** approach exclusively:
 5. **Middleware Stack**
    The `TenantMiddleware` is positioned EARLY in the middleware chain to ensure
    `request.tenant` is available for all subsequent processing:
-   
+
    ```python
    MIDDLEWARE = [
        "corsheaders.middleware.CorsMiddleware",
@@ -56,7 +56,7 @@ ProjectMeats uses a **shared-schema multi-tenancy** approach exclusively:
    ALL migrations creating tenant-aware tables MUST include:
    ```python
    from django.contrib.postgres.operations import RunSQL
-   
+
    operations = [
        migrations.CreateModel(...),
        RunSQL(
@@ -141,7 +141,7 @@ _THIRD_PARTY_APPS = [
 _PROJECT_APPS = [
     "apps.core",
     "apps.tenants",  # Tenant management (shared-schema approach)
-    "apps.system",   # NEW: Centralized configuration system (v2.0 Wave 1)
+    "apps.system",  # NEW: Centralized configuration system (v2.0 Wave 1)
     "apps.email_integration",  # Email OAuth & webhooks (system-level)
     "apps.integrations",  # Workflow email providers + tenant OAuth token store (ExternalAuthProvider)
     "tenant_apps.integrations.apps.TenantIntegrationsConfig",  # Tenant webhooks + API keys (unique label: tenant_integrations)
@@ -170,12 +170,7 @@ _PROJECT_APPS = [
 ]
 
 # All apps in one shared schema
-INSTALLED_APPS = (
-    _DJANGO_CORE_APPS
-    + ["django.contrib.staticfiles"]
-    + _THIRD_PARTY_APPS
-    + _PROJECT_APPS
-)
+INSTALLED_APPS = _DJANGO_CORE_APPS + ["django.contrib.staticfiles"] + _THIRD_PARTY_APPS + _PROJECT_APPS
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",  # Must be first for CORS headers
@@ -286,10 +281,10 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "20/minute",      # Anonymous users: 20 requests/minute
-        "user": "100/minute",     # Authenticated users: 100 requests/minute
-        "auth": "5/minute",       # Auth endpoints (login/register): 5/minute
-        "burst": "60/minute",     # Burst-allowed endpoints: 60/minute
+        "anon": "20/minute",  # Anonymous users: 20 requests/minute
+        "user": "100/minute",  # Authenticated users: 100 requests/minute
+        "auth": "5/minute",  # Auth endpoints (login/register): 5/minute
+        "burst": "60/minute",  # Burst-allowed endpoints: 60/minute
         # AI endpoints (billing guardrails)
         "ai_chat": "20/minute",
         "ai_feedback": "30/minute",
@@ -314,27 +309,22 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     # Token lifetimes
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),  # Short-lived for security
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # Longer-lived, rotates on use
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # Longer-lived, rotates on use
     "SLIDING_TOKEN_LIFETIME": timedelta(minutes=15),
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
-    
     # Token rotation: issue new refresh token on each refresh
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,  # Blacklist old refresh tokens
-    
     # Algorithm (uses SECRET_KEY for signing by default)
     "ALGORITHM": "HS256",
-    
     # Auth header
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
-    
     # Token claims
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
     "TOKEN_TYPE_CLAIM": "token_type",
-    
     # Custom claims (add tenant info for multi-tenancy)
     "TOKEN_OBTAIN_SERIALIZER": "apps.core.jwt_serializers.TenantAwareTokenObtainPairSerializer",
 }
@@ -415,7 +405,6 @@ Paginated lists include `count`, `next`, `previous`, and `results` fields.
         "drf_spectacular.hooks.postprocess_schema_enums",
         "projectmeats.schema_hooks.add_openapi_compat_aliases",
     ],
-
     # Keep enum component names stable to avoid OpenAPI baseline churn.
     "ENUM_NAME_OVERRIDES": {
         # ActivityLog/ScheduledCall entity_type
@@ -554,9 +543,7 @@ REDIS_MEMORY_WARN_RATIO = 0.70
 REDIS_MEMORY_CRITICAL_RATIO = 0.85
 AI_SEMANTIC_CACHE_ENABLED = _env_flag("AI_SEMANTIC_CACHE_ENABLED", True)
 AI_SEMANTIC_CACHE_TTL_SECONDS = int(os.environ.get("AI_SEMANTIC_CACHE_TTL_SECONDS", "3600"))
-AI_SEMANTIC_CACHE_SIMILARITY_THRESHOLD = float(
-    os.environ.get("AI_SEMANTIC_CACHE_SIMILARITY_THRESHOLD", "0.95")
-)
+AI_SEMANTIC_CACHE_SIMILARITY_THRESHOLD = float(os.environ.get("AI_SEMANTIC_CACHE_SIMILARITY_THRESHOLD", "0.95"))
 AI_SEMANTIC_CACHE_MAX_ENTRIES = int(os.environ.get("AI_SEMANTIC_CACHE_MAX_ENTRIES", "50"))
 AI_CHAT_COMPACTION_ENABLED = _env_flag("AI_CHAT_COMPACTION_ENABLED", True)
 AI_CHAT_COMPACTION_MIN_MESSAGES = int(os.environ.get("AI_CHAT_COMPACTION_MIN_MESSAGES", "18"))
@@ -657,13 +644,10 @@ SENTRY_BASE_URL = os.environ.get("SENTRY_BASE_URL", "https://sentry.io")
 
 if SENTRY_ENABLED and SENTRY_DSN:
     import sentry_sdk
-    from apps.core.utils.redaction import (
-        sentry_before_breadcrumb,
-        sentry_before_send,
-        sentry_before_send_transaction,
-    )
     from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
+
+    from apps.core.utils.redaction import sentry_before_breadcrumb, sentry_before_send, sentry_before_send_transaction
 
     env_norm = (SENTRY_ENVIRONMENT or "development").strip().lower()
 
@@ -677,31 +661,27 @@ if SENTRY_ENABLED and SENTRY_DSN:
         integrations=[
             DjangoIntegration(
                 transaction_style="url",  # Group by URL pattern
-                middleware_spans=True,    # Track middleware performance
-                signals_spans=True,       # Track Django signals
+                middleware_spans=True,  # Track middleware performance
+                signals_spans=True,  # Track Django signals
             ),
             CeleryIntegration(),
         ],
         environment=SENTRY_ENVIRONMENT,
-
         # Performance Monitoring
         traces_sample_rate=traces_sample_rate,
         profiles_sample_rate=0.0,  # Disabled until needed (can enable later)
-
         # Error Filtering
         before_send=sentry_before_send,
         before_breadcrumb=sentry_before_breadcrumb,
         before_send_transaction=sentry_before_send_transaction,
-
         # Release Tracking
         release=os.environ.get("GIT_COMMIT_SHA", "unknown"),  # Set by CI/CD
-
         # Additional Options
         # Required for Seer (user-impact analysis) + richer debugging context.
         send_default_pii=SENTRY_SEND_DEFAULT_PII,
         in_app_include=["backend", "tenant_apps"],
-        attach_stacktrace=True,   # Always include stacktraces
-        max_breadcrumbs=50,       # Keep more breadcrumbs for context
+        attach_stacktrace=True,  # Always include stacktraces
+        max_breadcrumbs=50,  # Keep more breadcrumbs for context
     )
 
 # ==============================================================================
@@ -709,7 +689,7 @@ if SENTRY_ENABLED and SENTRY_DSN:
 # ==============================================================================
 # Required for Outlook/Microsoft 365 integration
 # - Calendar synchronization
-# - Email integration  
+# - Email integration
 # - Contact synchronization
 # - SSO (Single Sign-On)
 
@@ -717,15 +697,14 @@ MICROSOFT_CLIENT_ID = os.environ.get("MICROSOFT_CLIENT_ID")
 MICROSOFT_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET")
 MICROSOFT_TENANT_ID = os.environ.get("MICROSOFT_TENANT_ID", "common")
 MICROSOFT_REDIRECT_URI = os.environ.get(
-    "MICROSOFT_REDIRECT_URI",
-    "https://dev.meatscentral.com/integrations/microsoft/callback/"
+    "MICROSOFT_REDIRECT_URI", "https://dev.meatscentral.com/integrations/microsoft/callback/"
 )
 MICROSOFT_AUTHORITY = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}"
 MICROSOFT_SCOPES = [
-    "User.Read",           # Read user profile
-    "Calendars.ReadWrite", # Read/write calendars
-    "Mail.Read",           # Read email
-    "Mail.Send",           # Send email
+    "User.Read",  # Read user profile
+    "Calendars.ReadWrite",  # Read/write calendars
+    "Mail.Read",  # Read email
+    "Mail.Send",  # Send email
     "Contacts.ReadWrite",  # Read/write contacts
 ]
 
@@ -736,8 +715,8 @@ def env(key: str, default=None):
 
 
 MICROSOFT_OAUTH = {
-    'CLIENT_ID': env('MICROSOFT_CLIENT_ID'),
-    'REDIRECT_URI': env('MICROSOFT_REDIRECT_URI'),
+    "CLIENT_ID": env("MICROSOFT_CLIENT_ID"),
+    "REDIRECT_URI": env("MICROSOFT_REDIRECT_URI"),
 }
 
 # ==============================================================================
@@ -746,17 +725,17 @@ MICROSOFT_OAUTH = {
 # CRITICAL: This backend uses HTTP/HTTPS exclusively - SMTP is completely disabled
 # MANDATORY: Do NOT add EMAIL_HOST, EMAIL_PORT, EMAIL_USE_TLS, or EMAIL_HOST_USER
 #            These variables will trigger SMTP behavior and cause Errno 111
-# 
+#
 # Why Web API Only:
 #   - SMTP ports (25, 587, 465) are blocked by firewalls → Errno 111
 #   - SMTP handshakes are slow → 504 Gateway Timeout
 #   - Web API uses HTTP/HTTPS (ports 80/443) → Always accessible, instant delivery
 # ==============================================================================
-EMAIL_BACKEND = 'sendgrid_backend.SendgridBackend'
-SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY') or os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY") or os.environ.get("EMAIL_HOST_PASSWORD", "")
 SENDGRID_SANDBOX_MODE_IN_DEBUG = False
-DEFAULT_FROM_EMAIL = 'no-reply@meatscentral.com'
-SERVER_EMAIL = 'no-reply@meatscentral.com'
+DEFAULT_FROM_EMAIL = "no-reply@meatscentral.com"
+SERVER_EMAIL = "no-reply@meatscentral.com"
 # ==============================================================================
 # ⚠️  DO NOT ADD: EMAIL_HOST, EMAIL_PORT, EMAIL_USE_TLS, EMAIL_USE_SSL
 # ⚠️  These will cause Errno 111 (Connection Refused) and 504 timeouts
@@ -781,46 +760,43 @@ SERVER_EMAIL = 'no-reply@meatscentral.com'
 
 FLAGS = {
     # Wave 2: Cockpit Command Center
-    'COCKPIT_V2': [
-        {'condition': 'boolean', 'value': True},  # Enabled by default (already deployed)
+    "COCKPIT_V2": [
+        {"condition": "boolean", "value": True},  # Enabled by default (already deployed)
     ],
-    'ENTITY_GRAPH': [
-        {'condition': 'boolean', 'value': True},  # Enabled by default
+    "ENTITY_GRAPH": [
+        {"condition": "boolean", "value": True},  # Enabled by default
     ],
-    'COMMAND_PALETTE': [
-        {'condition': 'boolean', 'value': True},  # Enabled by default
+    "COMMAND_PALETTE": [
+        {"condition": "boolean", "value": True},  # Enabled by default
     ],
-    'WIDGET_SYSTEM': [
-        {'condition': 'boolean', 'value': True},  # Enabled by default
+    "WIDGET_SYSTEM": [
+        {"condition": "boolean", "value": True},  # Enabled by default
     ],
-    
     # Wave 3: Forms & Flows (ready for testing)
-    'FORMS_V2': [
-        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    "FORMS_V2": [
+        {"condition": "boolean", "value": False},  # Not yet enabled
     ],
-    'WORKFLOW_ENGINE': [
-        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    "WORKFLOW_ENGINE": [
+        {"condition": "boolean", "value": False},  # Not yet enabled
     ],
-    
     # Wave 4: Admin Studio
-    'ADMIN_STUDIO_V2': [
-        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    "ADMIN_STUDIO_V2": [
+        {"condition": "boolean", "value": False},  # Not yet enabled
     ],
-    
     # Wave F: New Features
-    'FILE_ATTACHMENTS': [
-        {'condition': 'boolean', 'value': False},  # Coming in Wave F1
+    "FILE_ATTACHMENTS": [
+        {"condition": "boolean", "value": False},  # Coming in Wave F1
     ],
-    'CARRIERS_MODULE': [
-        {'condition': 'boolean', 'value': False},  # Coming in Wave F2
+    "CARRIERS_MODULE": [
+        {"condition": "boolean", "value": False},  # Coming in Wave F2
     ],
-    'AI_ASSISTANT_V2': [
-        {'condition': 'boolean', 'value': False},  # Coming in Wave F4
+    "AI_ASSISTANT_V2": [
+        {"condition": "boolean", "value": False},  # Coming in Wave F4
     ],
 }
 
 # Only use settings-based flags (no database queries during startup/migrations)
-FLAG_SOURCES = ('flags.sources.SettingsFlagsSource',)
+FLAG_SOURCES = ("flags.sources.SettingsFlagsSource",)
 
 # ==============================================================================
 # Celery Configuration (Task Queue & Scheduled Jobs)
@@ -833,13 +809,13 @@ FLAG_SOURCES = ('flags.sources.SettingsFlagsSource',)
 # ==============================================================================
 
 # Broker and result backend (Redis)
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or REDIS_BACKEND_URL or 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or REDIS_BACKEND_URL or 'redis://localhost:6379/0'
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL") or REDIS_BACKEND_URL or "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND") or REDIS_BACKEND_URL or "redis://localhost:6379/0"
 
 # Task serialization
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
 
 # Task execution
 CELERY_TASK_TRACK_STARTED = True
@@ -850,66 +826,66 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
 CELERY_RESULT_EXPIRES = 3600  # 1 hour
 
 # Queue contract
-CELERY_TASK_DEFAULT_QUEUE = 'pm.ops'
-CELERY_TASK_DEFAULT_ROUTING_KEY = 'pm.ops'
+CELERY_TASK_DEFAULT_QUEUE = "pm.ops"
+CELERY_TASK_DEFAULT_ROUTING_KEY = "pm.ops"
 CELERY_TASK_CREATE_MISSING_QUEUES = False
 CELERY_TASK_QUEUES = (
-    Queue('pm.ops'),
-    Queue('pm.email'),
-    Queue('pm.workforms'),
-    Queue('pm.ai'),
-    Queue('pm.etl'),
+    Queue("pm.ops"),
+    Queue("pm.email"),
+    Queue("pm.workforms"),
+    Queue("pm.ai"),
+    Queue("pm.etl"),
 )
 CELERY_TASK_ROUTES = {
-    'integrations.sync_tenant_emails': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
-    'integrations.sync_email_provider_inbox': {'queue': 'pm.email', 'routing_key': 'pm.email'},
-    'integrations.sync_single_tenant': {'queue': 'pm.email', 'routing_key': 'pm.email'},
-    'tenants.send_invitation_email': {'queue': 'pm.email', 'routing_key': 'pm.email'},
-    'tenant_integrations.dispatch_webhook_payload': {'queue': 'pm.email', 'routing_key': 'pm.email'},
-    'system.execute_workform_*': {'queue': 'pm.workforms', 'routing_key': 'pm.workforms'},
-    'system.continue_workform_after_parallel': {'queue': 'pm.workforms', 'routing_key': 'pm.workforms'},
-    'workflows.execute_*': {'queue': 'pm.workforms', 'routing_key': 'pm.workforms'},
-    'workflows.generate_ai_template_suggestions': {'queue': 'pm.ai', 'routing_key': 'pm.ai'},
-    'ai_assistant.*': {'queue': 'pm.ai', 'routing_key': 'pm.ai'},
-    'system.cleanup_orphaned_forms': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
-    'system.audit_form_usage': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
-    'system.audit_data_governance_posture': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
-    'system.pin_workflow_versions': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
-    'workflows.cleanup_old_executions': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
-    'core.*': {'queue': 'pm.ops', 'routing_key': 'pm.ops'},
+    "integrations.sync_tenant_emails": {"queue": "pm.ops", "routing_key": "pm.ops"},
+    "integrations.sync_email_provider_inbox": {"queue": "pm.email", "routing_key": "pm.email"},
+    "integrations.sync_single_tenant": {"queue": "pm.email", "routing_key": "pm.email"},
+    "tenants.send_invitation_email": {"queue": "pm.email", "routing_key": "pm.email"},
+    "tenant_integrations.dispatch_webhook_payload": {"queue": "pm.email", "routing_key": "pm.email"},
+    "system.execute_workform_*": {"queue": "pm.workforms", "routing_key": "pm.workforms"},
+    "system.continue_workform_after_parallel": {"queue": "pm.workforms", "routing_key": "pm.workforms"},
+    "workflows.execute_*": {"queue": "pm.workforms", "routing_key": "pm.workforms"},
+    "workflows.generate_ai_template_suggestions": {"queue": "pm.ai", "routing_key": "pm.ai"},
+    "ai_assistant.*": {"queue": "pm.ai", "routing_key": "pm.ai"},
+    "system.cleanup_orphaned_forms": {"queue": "pm.ops", "routing_key": "pm.ops"},
+    "system.audit_form_usage": {"queue": "pm.ops", "routing_key": "pm.ops"},
+    "system.audit_data_governance_posture": {"queue": "pm.ops", "routing_key": "pm.ops"},
+    "system.pin_workflow_versions": {"queue": "pm.ops", "routing_key": "pm.ops"},
+    "workflows.cleanup_old_executions": {"queue": "pm.ops", "routing_key": "pm.ops"},
+    "core.*": {"queue": "pm.ops", "routing_key": "pm.ops"},
 }
 
 # Worker envelope contract
 CELERY_WORKER_ENVELOPES = {
-    'pm-worker-realtime': {
-        'queues': ('pm.email', 'pm.ops'),
-        'autoscale_min': 1,
-        'autoscale_max': 4,
-        'purpose': 'Email ingestion, outbound notifications/webhooks, and lightweight ops fan-out.',
+    "pm-worker-realtime": {
+        "queues": ("pm.email", "pm.ops"),
+        "autoscale_min": 1,
+        "autoscale_max": 4,
+        "purpose": "Email ingestion, outbound notifications/webhooks, and lightweight ops fan-out.",
     },
-    'pm-worker-workforms': {
-        'queues': ('pm.workforms',),
-        'autoscale_min': 2,
-        'autoscale_max': 4,
-        'purpose': 'Interactive WorkForms execution, workflow actions, and workflow-trigger fan-out.',
+    "pm-worker-workforms": {
+        "queues": ("pm.workforms",),
+        "autoscale_min": 2,
+        "autoscale_max": 4,
+        "purpose": "Interactive WorkForms execution, workflow actions, and workflow-trigger fan-out.",
     },
-    'pm-worker-ai': {
-        'queues': ('pm.ai',),
-        'autoscale_min': 1,
-        'autoscale_max': 2,
-        'purpose': 'AI suggestion, RLHF compilation, and watchdog workloads.',
+    "pm-worker-ai": {
+        "queues": ("pm.ai",),
+        "autoscale_min": 1,
+        "autoscale_max": 2,
+        "purpose": "AI suggestion, RLHF compilation, and watchdog workloads.",
     },
-    'pm-worker-etl': {
-        'queues': ('pm.etl',),
-        'concurrency': 1,
-        'purpose': 'Reserved for controlled GA import windows so bulk ETL cannot starve tenant traffic.',
+    "pm-worker-etl": {
+        "queues": ("pm.etl",),
+        "concurrency": 1,
+        "purpose": "Reserved for controlled GA import windows so bulk ETL cannot starve tenant traffic.",
     },
 }
 CELERY_QUEUE_SATURATION_THRESHOLDS = {
-    'pm.workforms': {'warn_backlog': 20, 'critical_backlog': 50, 'critical_oldest_seconds': 300},
-    'pm.email': {'warn_backlog': 50, 'critical_backlog': 100, 'critical_oldest_seconds': 600},
-    'pm.ai': {'warn_backlog': 5, 'critical_backlog': 10, 'critical_oldest_seconds': 900},
-    'pm.etl': {'warn_backlog': 1, 'critical_backlog': 1, 'critical_oldest_seconds': 60},
+    "pm.workforms": {"warn_backlog": 20, "critical_backlog": 50, "critical_oldest_seconds": 300},
+    "pm.email": {"warn_backlog": 50, "critical_backlog": 100, "critical_oldest_seconds": 600},
+    "pm.ai": {"warn_backlog": 5, "critical_backlog": 10, "critical_oldest_seconds": 900},
+    "pm.etl": {"warn_backlog": 1, "critical_backlog": 1, "critical_oldest_seconds": 60},
 }
 
 # Worker configuration
@@ -917,8 +893,8 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 
 # Beat scheduler (for periodic tasks)
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 # Timezone for scheduled tasks
-CELERY_TIMEZONE = 'UTC'
+CELERY_TIMEZONE = "UTC"
 CELERY_ENABLE_UTC = True

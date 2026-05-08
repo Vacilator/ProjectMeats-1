@@ -1,11 +1,11 @@
 # Smart Auto-Map Phase 3: Output Schema Inference
 
 > NOTE: This is a completion report. Any unchecked boxes are historical follow-ups, not a canonical backlog.
-> 
+>
 > Current priorities/status: `MASTER_PLAN.md` (canonical) and `.github/MASTER_PLAN.md` (PR log)
 
-**Status**: ✅ **IMPLEMENTED** (8 hours)  
-**Date**: 2026-03-04  
+**Status**: ✅ **IMPLEMENTED** (8 hours)
+**Date**: 2026-03-04
 **Feature**: Basic field inheritance between workflow nodes
 
 ---
@@ -130,12 +130,12 @@ function UnifiedFlowEditor() {
     applySuggestion,
     applyAllSuggestions,
   } = useAutoMapping();
-  
+
   // When node is selected
   const handleNodeSelect = (node) => {
     generateSuggestions(node.id);
   };
-  
+
   return (
     <>
       {suggestions && (

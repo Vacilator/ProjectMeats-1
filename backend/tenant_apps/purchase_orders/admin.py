@@ -2,9 +2,11 @@
 Django admin configuration for Purchase Orders app.
 """
 from django.contrib import admin
-from apps.core.admin_site import admin_site
+
 from apps.core.admin import TenantFilteredAdmin
-from .models import PurchaseOrder, CarrierPurchaseOrder, ColdStorageEntry, PurchaseOrderHistory
+from apps.core.admin_site import admin_site
+
+from .models import CarrierPurchaseOrder, ColdStorageEntry, PurchaseOrder, PurchaseOrderHistory
 
 
 class PurchaseOrderAdmin(TenantFilteredAdmin):
@@ -39,12 +41,13 @@ class PurchaseOrderAdmin(TenantFilteredAdmin):
     )
     readonly_fields = ("date_time_stamp", "created_on", "modified_on")
     raw_id_fields = ("supplier", "product", "carrier", "plant", "contact")
-    
+
     def formatted_total_amount(self, obj):
         """Format total_amount as currency."""
         if obj.total_amount:
             return f"${obj.total_amount:,.2f}"
         return "-"
+
     formatted_total_amount.short_description = "Total Amount"
     formatted_total_amount.admin_order_field = "total_amount"
 
@@ -108,7 +111,6 @@ class PurchaseOrderAdmin(TenantFilteredAdmin):
             },
         ),
     )
-
 
 
 class CarrierPurchaseOrderAdmin(TenantFilteredAdmin):
@@ -295,6 +297,7 @@ class ColdStorageEntryAdmin(TenantFilteredAdmin):
         ),
     )
 
+
 class PurchaseOrderHistoryAdmin(admin.ModelAdmin):
     """Admin interface for PurchaseOrderHistory model."""
 
@@ -346,7 +349,6 @@ class PurchaseOrderHistoryAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Prevent deletion of history entries."""
         return False
-
 
 
 # Register models with custom admin site

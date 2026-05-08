@@ -1,9 +1,9 @@
 /**
  * FormProcessModal Component (formerly FormMultiStepContainerModal)
- * 
+ *
  * Configuration modal for Form Process nodes.
  * Allows users to configure container properties, navigation settings, and link to workflows.
- * 
+ *
  * Phase 4.3 of WF-ENH-2026-Q1
  * Created: 2026-02-06
  * Renamed: 2026-02-14 - Phase 2: FormMultiStepContainer → FormProcess
@@ -147,7 +147,7 @@ const CloseButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(var(--color-danger), 0.1);
     color: rgb(var(--color-danger));
@@ -211,11 +211,11 @@ const SectionHeader = styled.div`
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
-  
+
   .icon {
     color: rgb(var(--color-primary));
   }
-  
+
   h3 {
     margin: 0;
     font-size: 16px;
@@ -226,7 +226,7 @@ const SectionHeader = styled.div`
 
 const FormGroup = styled.div`
   margin-bottom: 16px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -249,13 +249,13 @@ const Input = styled.input`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   transition: all 0.2s ease;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
@@ -273,13 +273,13 @@ const TextArea = styled.textarea`
   min-height: 80px;
   font-family: inherit;
   transition: all 0.2s ease;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
@@ -302,27 +302,27 @@ const CheckboxLabel = styled.label`
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.05);
   }
-  
+
   input[type="checkbox"] {
     margin-top: 2px;
     cursor: pointer;
   }
-  
+
   .label-text {
     flex: 1;
-    
+
     .title {
       font-size: 14px;
       font-weight: 500;
       color: rgb(var(--color-text-primary));
       margin-bottom: 4px;
     }
-    
+
     .description {
       font-size: 12px;
       color: rgb(var(--color-text-secondary));
@@ -368,13 +368,13 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
-  
+
   ${props => {
     if (props.$variant === 'primary') {
       return `
         background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary-active)));
         color: rgb(var(--color-text-inverse));
-        
+
         &:hover:not(:disabled) {
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
@@ -385,7 +385,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
         background: rgb(var(--color-bg-tertiary));
         color: rgb(var(--color-text-primary));
         border: 1px solid rgb(var(--color-border));
-        
+
         &:hover:not(:disabled) {
           background: rgb(var(--color-surface-hover));
         }
@@ -394,7 +394,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
       return `
         background: transparent;
         color: rgb(var(--color-text-secondary));
-        
+
         &:hover:not(:disabled) {
           background: rgb(var(--color-bg-tertiary));
           color: rgb(var(--color-text-primary));
@@ -402,12 +402,12 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
       `;
     }
   }}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &:active:not(:disabled) {
     transform: translateY(0);
   }
@@ -479,9 +479,9 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
   }, [isOpen]);
 
   // Handlers
-  const handleContainerSelection = useCallback((selection: { 
-    mode: 'new' | 'existing'; 
-    formName?: string; 
+  const handleContainerSelection = useCallback((selection: {
+    mode: 'new' | 'existing';
+    formName?: string;
     formId?: string;
     form?: any;
   }) => {
@@ -542,7 +542,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
     onClose();
   }, [state, onSave, onClose]);
 
-  const canProceedFromStep1 = 
+  const canProceedFromStep1 =
     (state.mode === 'new' && state.containerName.trim().length > 0) ||
     (state.mode === 'existing' && state.selectedWorkflowId !== null);
 
@@ -561,7 +561,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
             filterType="multi_step"
           />
         );
-      
+
       case 2:
         return (
           <>
@@ -570,7 +570,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
                 <Settings className="icon" size={20} />
                 <h3>Container Details</h3>
               </SectionHeader>
-              
+
               <FormGroup>
                 <Label htmlFor="containerName">Container Name *</Label>
                 <Input
@@ -582,7 +582,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
                   autoFocus
                 />
               </FormGroup>
-              
+
               <FormGroup>
                 <Label htmlFor="containerDescription">Description (Optional)</Label>
                 <TextArea
@@ -593,13 +593,13 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
                 />
               </FormGroup>
             </ConfigSection>
-            
+
             <ConfigSection>
               <SectionHeader>
                 <Navigation className="icon" size={20} />
                 <h3>Navigation & Behavior</h3>
               </SectionHeader>
-              
+
               <CheckboxGroup>
                 <CheckboxLabel>
                   <input
@@ -612,7 +612,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
                     <div className="description">Display step progress during execution</div>
                   </div>
                 </CheckboxLabel>
-                
+
                 <CheckboxLabel>
                   <input
                     type="checkbox"
@@ -624,7 +624,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
                     <div className="description">Users can return to previous steps</div>
                   </div>
                 </CheckboxLabel>
-                
+
                 <CheckboxLabel>
                   <input
                     type="checkbox"
@@ -636,7 +636,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
                     <div className="description">Users can skip optional steps</div>
                   </div>
                 </CheckboxLabel>
-                
+
                 <CheckboxLabel>
                   <input
                     type="checkbox"
@@ -648,7 +648,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
                     <div className="description">Automatically proceed to next step on completion</div>
                   </div>
                 </CheckboxLabel>
-                
+
                 <CheckboxLabel>
                   <input
                     type="checkbox"
@@ -664,7 +664,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
             </ConfigSection>
           </>
         );
-      
+
       default:
         return null;
     }
@@ -686,7 +686,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
             <X size={20} />
           </CloseButton>
         </ModalHeader>
-        
+
         <ModalBody>
           <StepIndicator>
             <StepBadge $active={state.currentStep === 1} $completed={state.currentStep > 1}>
@@ -696,17 +696,17 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
               Step 2: Configuration
             </StepBadge>
           </StepIndicator>
-          
+
           {state.error && (
             <ErrorMessage>
               <AlertCircle size={16} />
               {state.error}
             </ErrorMessage>
           )}
-          
+
           {renderStepContent()}
         </ModalBody>
-        
+
         <ModalFooter>
           <ButtonGroup>
             {state.currentStep > 1 && (
@@ -716,15 +716,15 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
               </Button>
             )}
           </ButtonGroup>
-          
+
           <ButtonGroup>
             <Button $variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            
+
             {state.currentStep === 1 ? (
-              <Button 
-                $variant="primary" 
+              <Button
+                $variant="primary"
                 onClick={handleProceedFromStep1}
                 disabled={!canProceedFromStep1}
               >
@@ -732,8 +732,8 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
                 <ArrowLeft size={16} style={{ transform: 'rotate(180deg)' }} />
               </Button>
             ) : (
-              <Button 
-                $variant="primary" 
+              <Button
+                $variant="primary"
                 onClick={handleSave}
                 disabled={!canSave}
               >

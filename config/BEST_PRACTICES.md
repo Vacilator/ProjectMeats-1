@@ -54,7 +54,7 @@ ProjectMeats3/
 python config/manage_env.py setup development
 make env-dev
 
-# Staging  
+# Staging
 python config/manage_env.py setup staging
 make env-staging
 

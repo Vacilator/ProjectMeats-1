@@ -6,10 +6,6 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.core.models import ProteinTypeChoices
-from apps.integrations.models import EmailLog, ExternalAuthProvider
-from apps.system.models import Product
-from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
     Inquiry,
@@ -23,6 +19,11 @@ from tenant_apps.inquiries.models import (
 from tenant_apps.inquiries.services import parse_supplier_quote_reply
 from tenant_apps.products.models import MasterProduct
 from tenant_apps.suppliers.models import Supplier
+
+from apps.core.models import ProteinTypeChoices
+from apps.integrations.models import EmailLog, ExternalAuthProvider
+from apps.system.models import Product
+from apps.tenants.models import Tenant, TenantUser
 
 
 class SupplierQuoteReplyParserTests(TestCase):

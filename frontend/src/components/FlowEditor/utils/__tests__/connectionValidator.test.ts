@@ -1,7 +1,7 @@
 /**
  * Connection Validator Tests
  * Phase 7.2: Visual Connection Indicators
- * 
+ *
  * Tests for connection validation logic.
  * Created: 2026-02-27
  */

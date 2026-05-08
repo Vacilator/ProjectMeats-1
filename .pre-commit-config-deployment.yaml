@@ -50,7 +50,7 @@ repos:
         language: system
         pass_filenames: false
         files: 'backend/.*\.py$'
-        
+
   # Workflow validation
   - repo: local
     hooks:
@@ -60,7 +60,7 @@ repos:
         language: system
         pass_filenames: false
         files: '\.github/workflows/.*\.yml$'
-        
+
   # Check for TODO/FIXME in workflows
   - repo: local
     hooks:
@@ -91,14 +91,14 @@ repos:
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: mixed-line-ending
-      
+
   # Security checks for Python dependencies
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.6
     hooks:
       - id: bandit
         args: ['-r', 'backend/', '-x', 'backend/*/tests/*,backend/*/migrations/*']
-        
+
   # Check for missing Dockerfile instructions
   - repo: local
     hooks:

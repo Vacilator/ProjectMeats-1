@@ -1,8 +1,8 @@
 /**
  * Node Components Index
- * 
+ *
  * Exports all node components for the Unified Flow Editor.
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-04 - Phase 2.1 Batch 2 (Added Wait, Document, Utility, Terminal nodes)
  * Updated: 2026-02-05 - Phase 3 Task 3.2 (Added FormReference node)

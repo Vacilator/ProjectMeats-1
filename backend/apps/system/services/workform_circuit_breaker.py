@@ -6,7 +6,6 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone
 
-
 FAILURE_THRESHOLD = 3
 COOLDOWN_SECONDS = 60
 FAILURE_COUNT_TTL_SECONDS = COOLDOWN_SECONDS + 30
@@ -22,15 +21,15 @@ class WorkformCircuitState:
 
 
 def _errors_key(*, tenant_id: str, workform_id: str) -> str:
-    return f'circuit_breaker:errors:{tenant_id}:{workform_id}'
+    return f"circuit_breaker:errors:{tenant_id}:{workform_id}"
 
 
 def _open_until_key(*, tenant_id: str, workform_id: str) -> str:
-    return f'circuit_breaker:open_until:{tenant_id}:{workform_id}'
+    return f"circuit_breaker:open_until:{tenant_id}:{workform_id}"
 
 
 def _half_open_trial_key(*, tenant_id: str, workform_id: str) -> str:
-    return f'circuit_breaker:half_open_trial:{tenant_id}:{workform_id}'
+    return f"circuit_breaker:half_open_trial:{tenant_id}:{workform_id}"
 
 
 def clear_workform_circuit_breaker(*, tenant_id: str, workform_id: str) -> None:
@@ -59,7 +58,7 @@ def get_workform_circuit_state(*, tenant_id: str, workform_id: str) -> WorkformC
             remaining = int(max((open_until - now).total_seconds(), 0))
             if remaining > 0:
                 return WorkformCircuitState(
-                    state='OPEN',
+                    state="OPEN",
                     failure_count=failure_count,
                     retry_after=remaining,
                 )
@@ -72,15 +71,15 @@ def get_workform_circuit_state(*, tenant_id: str, workform_id: str) -> WorkformC
             HALF_OPEN_TRIAL_TTL_SECONDS,
         )
         if acquired_half_open_trial:
-            return WorkformCircuitState(state='HALF_OPEN', failure_count=failure_count, retry_after=0)
+            return WorkformCircuitState(state="HALF_OPEN", failure_count=failure_count, retry_after=0)
 
         return WorkformCircuitState(
-            state='OPEN',
+            state="OPEN",
             failure_count=failure_count,
             retry_after=0,
         )
 
-    return WorkformCircuitState(state='CLOSED', failure_count=failure_count, retry_after=None)
+    return WorkformCircuitState(state="CLOSED", failure_count=failure_count, retry_after=None)
 
 
 def record_workform_execution_failure(*, tenant_id: str, workform_id: str) -> WorkformCircuitState:
@@ -97,12 +96,12 @@ def record_workform_execution_failure(*, tenant_id: str, workform_id: str) -> Wo
             COOLDOWN_SECONDS,
         )
         return WorkformCircuitState(
-            state='OPEN',
+            state="OPEN",
             failure_count=failure_count,
             retry_after=COOLDOWN_SECONDS,
         )
 
-    return WorkformCircuitState(state='CLOSED', failure_count=failure_count, retry_after=None)
+    return WorkformCircuitState(state="CLOSED", failure_count=failure_count, retry_after=None)
 
 
 def record_workform_execution_success(*, tenant_id: str, workform_id: str) -> None:

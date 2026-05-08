@@ -40,16 +40,16 @@ class MasterProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
 
     def get_queryset(self):
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             return MasterProduct.objects.none()
 
-        return MasterProduct.objects.filter(tenant=tenant).order_by('display_name')
+        return MasterProduct.objects.filter(tenant=tenant).order_by("display_name")
 
     def perform_create(self, serializer):
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
-            raise DRFValidationError('Tenant context is required to create a product.')
+            raise DRFValidationError("Tenant context is required to create a product.")
 
         serializer.save(tenant=tenant)
 

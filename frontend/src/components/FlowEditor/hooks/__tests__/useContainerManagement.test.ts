@@ -1,14 +1,14 @@
 /**
  * Container Management Hook Tests
  * Phase 7.2: Container Nesting Management
- * 
+ *
  * Tests for useContainerManagement hook:
  * - Creating containers from selection
  * - Adding/removing nodes from containers
  * - Ungrouping containers
  * - Fitting containers to children
  * - Nested container handling
- * 
+ *
  * Created: 2026-02-27
  */
 

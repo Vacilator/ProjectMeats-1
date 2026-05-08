@@ -11,6 +11,14 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from tenant_apps.carriers.models import Carrier
+from tenant_apps.customers.models import Customer
+from tenant_apps.locations.models import Location
+from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder
+from tenant_apps.purchase_orders.services.approval_dispatch import PurchaseOrderApprovalDispatchResult
+from tenant_apps.sales_orders.models import SalesOrder
+from tenant_apps.suppliers.models import Supplier
+
 from apps.core.models import TenantAuditEvent
 from apps.core.services.document_workflows import (
     CARRIER_PO_WORKFLOW,
@@ -22,13 +30,6 @@ from apps.core.services.document_workflows import (
 )
 from apps.system.models import Product
 from apps.tenants.models import Tenant, TenantUser
-from tenant_apps.carriers.models import Carrier
-from tenant_apps.customers.models import Customer
-from tenant_apps.locations.models import Location
-from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder
-from tenant_apps.purchase_orders.services.approval_dispatch import PurchaseOrderApprovalDispatchResult
-from tenant_apps.sales_orders.models import SalesOrder
-from tenant_apps.suppliers.models import Supplier
 
 
 class DocumentWorkflowServiceTests(SimpleTestCase):

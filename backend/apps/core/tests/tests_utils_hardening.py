@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from django.test import TestCase, override_settings
+
+import pytest
 
 from apps.core.utils.services import ServiceResult, TenantService
 from apps.core.utils.signals import safe_signal_handler
@@ -24,42 +25,42 @@ class ServiceResultTest(TestCase):
     """Test ServiceResult dataclass."""
 
     def test_ok_returns_success(self):
-        result = ServiceResult.ok(data={'id': '123'})
+        result = ServiceResult.ok(data={"id": "123"})
         self.assertTrue(result.success)
-        self.assertEqual(result.data, {'id': '123'})
+        self.assertEqual(result.data, {"id": "123"})
         self.assertIsNone(result.error)
 
     def test_ok_with_kwargs(self):
-        result = ServiceResult.ok(count=5, name='test')
+        result = ServiceResult.ok(count=5, name="test")
         self.assertTrue(result.success)
-        self.assertEqual(result.data, {'count': 5, 'name': 'test'})
+        self.assertEqual(result.data, {"count": 5, "name": "test"})
 
     def test_fail_returns_error(self):
-        result = ServiceResult.fail('Something broke', code='validation_error')
+        result = ServiceResult.fail("Something broke", code="validation_error")
         self.assertFalse(result.success)
-        self.assertEqual(result.error, 'Something broke')
-        self.assertEqual(result.code, 'validation_error')
+        self.assertEqual(result.error, "Something broke")
+        self.assertEqual(result.code, "validation_error")
 
     def test_to_dict_success(self):
-        result = ServiceResult.ok(data={'items': [1, 2]})
+        result = ServiceResult.ok(data={"items": [1, 2]})
         d = result.to_dict()
-        self.assertEqual(d, {'success': True, 'data': {'items': [1, 2]}})
+        self.assertEqual(d, {"success": True, "data": {"items": [1, 2]}})
 
     def test_to_dict_failure(self):
-        result = ServiceResult.fail('bad input', code='invalid')
+        result = ServiceResult.fail("bad input", code="invalid")
         d = result.to_dict()
-        self.assertEqual(d['success'], False)
-        self.assertEqual(d['error'], 'bad input')
-        self.assertEqual(d['code'], 'invalid')
+        self.assertEqual(d["success"], False)
+        self.assertEqual(d["error"], "bad input")
+        self.assertEqual(d["code"], "invalid")
 
 
 class TenantServiceTest(TestCase):
     """Test TenantService base class."""
 
     def test_init_stores_tenant(self):
-        tenant = MagicMock(id='abc-123')
+        tenant = MagicMock(id="abc-123")
         svc = TenantService(tenant=tenant)
-        self.assertEqual(svc.tenant_id, 'abc-123')
+        self.assertEqual(svc.tenant_id, "abc-123")
 
     def test_init_without_tenant(self):
         svc = TenantService()
@@ -67,16 +68,16 @@ class TenantServiceTest(TestCase):
 
     def test_timed_context_manager(self):
         svc = TenantService()
-        svc.service_name = 'test_svc'
+        svc.service_name = "test_svc"
         # Should not raise
-        with svc.timed('test_op'):
+        with svc.timed("test_op"):
             pass
 
     def test_log_methods_do_not_raise(self):
         svc = TenantService()
-        svc.log_info('msg %s', 'arg')
-        svc.log_warning('warn %s', 'arg')
-        svc.log_error('err %s', 'arg', exc_info=False)
+        svc.log_info("msg %s", "arg")
+        svc.log_warning("warn %s", "arg")
+        svc.log_error("err %s", "arg", exc_info=False)
 
 
 class SafeSignalHandlerTest(TestCase):
@@ -85,7 +86,7 @@ class SafeSignalHandlerTest(TestCase):
     def test_exception_is_swallowed(self):
         @safe_signal_handler
         def handler(sender, **kwargs):
-            raise RuntimeError('boom')
+            raise RuntimeError("boom")
 
         # Should not raise
         handler(sender=object)
@@ -95,12 +96,12 @@ class SafeSignalHandlerTest(TestCase):
 
         @safe_signal_handler
         def handler(sender, **kwargs):
-            calls.append(kwargs.get('instance'))
+            calls.append(kwargs.get("instance"))
 
-        handler(sender=object, instance='hello')
-        self.assertEqual(calls, ['hello'])
+        handler(sender=object, instance="hello")
+        self.assertEqual(calls, ["hello"])
 
-    @patch('apps.core.utils.signals.transaction')
+    @patch("apps.core.utils.signals.transaction")
     def test_defer_to_commit(self, mock_transaction):
         calls = []
 
@@ -126,12 +127,12 @@ class TenantTaskTest(TestCase):
         self.assertTrue(TenantTask.acks_late)
 
     def test_extract_tenant_id_from_kwargs(self):
-        tid = TenantTask._extract_tenant_id((), {'tenant_id': 'abc'})
-        self.assertEqual(tid, 'abc')
+        tid = TenantTask._extract_tenant_id((), {"tenant_id": "abc"})
+        self.assertEqual(tid, "abc")
 
     def test_extract_tenant_id_from_args(self):
-        tid = TenantTask._extract_tenant_id(('my-tenant',), {})
-        self.assertEqual(tid, 'my-tenant')
+        tid = TenantTask._extract_tenant_id(("my-tenant",), {})
+        self.assertEqual(tid, "my-tenant")
 
     def test_extract_tenant_id_empty(self):
         tid = TenantTask._extract_tenant_id((), {})
@@ -143,14 +144,14 @@ class StructuredErrorMixinTest(TestCase):
 
     def test_error_response(self):
         mixin = StructuredErrorMixin()
-        resp = mixin.error_response('Not found', code='not_found', status_code=404)
+        resp = mixin.error_response("Not found", code="not_found", status_code=404)
         self.assertEqual(resp.status_code, 404)
-        self.assertEqual(resp.data['code'], 'not_found')
-        self.assertEqual(resp.data['message'], 'Not found')
+        self.assertEqual(resp.data["code"], "not_found")
+        self.assertEqual(resp.data["message"], "Not found")
 
     def test_success_response(self):
         mixin = StructuredErrorMixin()
-        resp = mixin.success_response(data={'id': 1}, message='created')
+        resp = mixin.success_response(data={"id": 1}, message="created")
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['status'], 'success')
-        self.assertEqual(resp.data['data'], {'id': 1})
+        self.assertEqual(resp.data["status"], "success")
+        self.assertEqual(resp.data["data"], {"id": 1})

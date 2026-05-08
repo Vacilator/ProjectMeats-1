@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0003_alter_product_fks_to_system"),
     ]

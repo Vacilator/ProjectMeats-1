@@ -22,7 +22,7 @@ describe('Runtime Configuration', () => {
 
       const result = getRuntimeConfig('API_BASE_URL', 'http://default.com/api/v1');
       expect(result).toBe('https://runtime.example.com/api/v1');
-      
+
       vi.unstubAllEnvs();
     });
 
@@ -31,7 +31,7 @@ describe('Runtime Configuration', () => {
 
       const result = getRuntimeConfig('CUSTOM_KEY', 'http://default.com/api/v1');
       expect(result).toBe('https://buildtime.example.com/api/v1');
-      
+
       vi.unstubAllEnvs();
     });
 
@@ -119,27 +119,27 @@ describe('Runtime Configuration', () => {
 
   describe('tenant-aware API_BASE_URL', () => {
     const originalLocation = window.location;
-    
+
     beforeEach(() => {
       delete (window as any).ENV;
       delete (window as any).location;
       (window as any).location = { hostname: 'localhost' };
     });
-    
+
     afterAll(() => {
       window.location = originalLocation;
     });
 
     it('should use tenant context for API_BASE_URL on localhost', () => {
       window.location.hostname = 'localhost';
-      
+
       const result = getRuntimeConfig('API_BASE_URL', 'http://default.com/api/v1');
       expect(result).toBe('http://localhost:8000/api/v1');
     });
 
     it('should use tenant context for API_BASE_URL with tenant subdomain', () => {
       window.location.hostname = 'acme.meatscentral.com';
-      
+
       const result = getRuntimeConfig('API_BASE_URL', 'http://default.com/api/v1');
       expect(result).toBe('https://acme-api.meatscentral.com/api/v1');
     });
@@ -147,7 +147,7 @@ describe('Runtime Configuration', () => {
     it('should prioritize window.ENV over tenant context for API_BASE_URL', () => {
       window.location.hostname = 'acme.meatscentral.com';
       (window as any).ENV = { API_BASE_URL: 'https://override.example.com/api/v1' };
-      
+
       const result = getRuntimeConfig('API_BASE_URL', 'http://default.com/api/v1');
       expect(result).toBe('https://override.example.com/api/v1');
     });
@@ -155,25 +155,25 @@ describe('Runtime Configuration', () => {
 
   describe('getCurrentTenant', () => {
     const originalLocation = window.location;
-    
+
     beforeEach(() => {
       delete (window as any).location;
       (window as any).location = { hostname: 'localhost' };
     });
-    
+
     afterAll(() => {
       window.location = originalLocation;
     });
 
     it('should return null for localhost', () => {
       window.location.hostname = 'localhost';
-      
+
       expect(getCurrentTenant()).toBeNull();
     });
 
     it('should return tenant for tenant subdomain', () => {
       window.location.hostname = 'acme.meatscentral.com';
-      
+
       expect(getCurrentTenant()).toBe('acme');
     });
   });

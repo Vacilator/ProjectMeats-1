@@ -1,8 +1,8 @@
 /**
  * AuditLogViewer Component
- * 
+ *
  * Wave 4 Task 4.10: Audit log viewer for admin studio configuration changes.
- * 
+ *
  * Displays a filterable, searchable list of configuration changes with:
  * - Timeline view with change type badges
  * - Filter by entity type, change type, user, date range
@@ -61,7 +61,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   const [selectedLog, setSelectedLog] = useState<ConfigAuditLog | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Filters
   const [filters, setFilters] = useState<AuditLogFilters>({
     entity_type: initialEntityType,
@@ -70,29 +70,29 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [totalCount, setTotalCount] = useState(0);
-  
+
   // Date filters
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  
+
   // Load audit logs
   const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const appliedFilters: AuditLogFilters = {
         ...filters,
         search: searchQuery || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
       };
-      
+
       const [logsResponse, summaryResponse] = await Promise.all([
         configService.getAuditLogs(appliedFilters),
         configService.getAuditLogSummary(),
       ]);
-      
+
       setLogs(logsResponse.results);
       setTotalCount(logsResponse.count);
       setSummary(summaryResponse);
@@ -103,11 +103,11 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       setLoading(false);
     }
   }, [filters, searchQuery, dateFrom, dateTo]);
-  
+
   useEffect(() => {
     loadLogs();
   }, [loadLogs]);
-  
+
   // Load log details
   const loadLogDetail = async (id: string) => {
     try {
@@ -117,7 +117,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       logger.error('Failed to load log detail:', err);
     }
   };
-  
+
   // Filter handlers
   const handleFilterChange = (key: keyof AuditLogFilters, value: string | undefined) => {
     setFilters((prev) => ({
@@ -126,19 +126,19 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       page: 1, // Reset to first page on filter change
     }));
   };
-  
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     loadLogs();
   };
-  
+
   // Pagination
   const totalPages = Math.ceil(totalCount / (filters.page_size || initialPageSize));
-  
+
   const handlePageChange = (page: number) => {
     setFilters((prev) => ({ ...prev, page }));
   };
-  
+
   // Format timestamp
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -147,24 +147,24 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     });
   };
-  
+
   // Get entity icon
   const getEntityIcon = (entityType: string) => {
     return ENTITY_TYPE_ICONS[entityType] || ENTITY_TYPE_ICONS.default;
   };
-  
+
   // Get change type badge
   const getChangeTypeBadge = (changeType: string) => {
     const colors = CHANGE_TYPE_COLORS[changeType] || { bg: 'bg-gray-100', text: 'text-gray-800' };
@@ -174,7 +174,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       </span>
     );
   };
-  
+
   // Render JSON diff
   const renderValue = (value: unknown) => {
     if (value === null || value === undefined) return <span className="text-gray-400 italic">null</span>;
@@ -187,7 +187,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
     }
     return <span className="font-mono text-sm">{String(value)}</span>;
   };
-  
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
@@ -215,7 +215,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             </button>
           )}
         </div>
-        
+
         {/* Filters */}
         <div className="mt-4 flex flex-wrap gap-3">
           {/* Search */}
@@ -228,7 +228,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </form>
-          
+
           {/* Entity Type Filter */}
           <select
             value={filters.entity_type || ''}
@@ -241,7 +241,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             <option value="SystemChoiceItem">📝 SystemChoiceItem</option>
             <option value="SystemFieldSchema">🔧 SystemFieldSchema</option>
           </select>
-          
+
           {/* Change Type Filter */}
           <select
             value={filters.change_type || ''}
@@ -255,7 +255,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             <option value="IMPORT">📥 Imported</option>
             <option value="EXPORT">📤 Exported</option>
           </select>
-          
+
           {/* Date Range */}
           <input
             type="date"
@@ -271,7 +271,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
             placeholder="To"
           />
-          
+
           {/* Refresh Button */}
           <button
             onClick={loadLogs}
@@ -281,7 +281,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
           </button>
         </div>
       </div>
-      
+
       {/* Summary Stats (collapsible) */}
       {summary && !compact && (
         <div className="bg-white border-b p-4">
@@ -298,7 +298,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 ))}
               </div>
             </div>
-            
+
             {/* Entity Type Breakdown */}
             <div className="bg-gray-50 rounded-lg p-3">
               <h3 className="text-xs font-medium text-gray-500 mb-2">By Entity Type</h3>
@@ -311,7 +311,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 ))}
               </div>
             </div>
-            
+
             {/* Top Users */}
             <div className="bg-gray-50 rounded-lg p-3">
               <h3 className="text-xs font-medium text-gray-500 mb-2">Top Users</h3>
@@ -326,7 +326,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 ))}
               </div>
             </div>
-            
+
             {/* Total */}
             <div className="bg-blue-50 rounded-lg p-3 flex flex-col justify-center items-center">
               <span className="text-3xl font-bold text-blue-700">{summary.total_count}</span>
@@ -335,21 +335,21 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
           </div>
         </div>
       )}
-      
+
       {/* Error State */}
       {error && (
         <div className="p-4 bg-red-50 border-b border-red-100">
           <div className="text-red-700 text-sm">{error}</div>
         </div>
       )}
-      
+
       {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       )}
-      
+
       {/* Log List */}
       {!loading && (
         <div className="flex-1 overflow-y-auto">
@@ -370,7 +370,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                   <div className="flex items-start gap-4">
                     {/* Entity Icon */}
                     <div className="text-2xl">{getEntityIcon(log.entity_type)}</div>
-                    
+
                     {/* Main Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -391,7 +391,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                         <span>by {log.user_display}</span>
                       </div>
                     </div>
-                    
+
                     {/* Timestamp */}
                     <div className="text-sm text-gray-500 whitespace-nowrap">
                       {formatTimestamp(log.created_at)}
@@ -403,7 +403,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
           </div>
         </div>
       )}
-      
+
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="bg-white border-t p-4 flex justify-between items-center">
@@ -428,7 +428,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
           </div>
         </div>
       )}
-      
+
       {/* Detail Modal */}
       {selectedLog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -451,7 +451,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 ✕
               </button>
             </div>
-            
+
             {/* Modal Content */}
             <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
               <div className="space-y-4">
@@ -478,7 +478,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                     </div>
                   )}
                 </div>
-                
+
                 {/* Field Change (for UPDATE) */}
                 {selectedLog.field_name && (
                   <div className="border rounded-lg p-4">
@@ -497,7 +497,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                     </div>
                   </div>
                 )}
-                
+
                 {/* Snapshot Before (for DELETE/complex changes) */}
                 {selectedLog.snapshot_before && (
                   <div className="border rounded-lg p-4">
@@ -505,7 +505,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                     {renderValue(selectedLog.snapshot_before)}
                   </div>
                 )}
-                
+
                 {/* Snapshot After (for CREATE/complex changes) */}
                 {selectedLog.snapshot_after && (
                   <div className="border rounded-lg p-4">
@@ -513,7 +513,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                     {renderValue(selectedLog.snapshot_after)}
                   </div>
                 )}
-                
+
                 {/* Notes */}
                 {selectedLog.notes && (
                   <div className="border rounded-lg p-4 bg-gray-50">
@@ -523,7 +523,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 )}
               </div>
             </div>
-            
+
             {/* Modal Footer */}
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
               <button

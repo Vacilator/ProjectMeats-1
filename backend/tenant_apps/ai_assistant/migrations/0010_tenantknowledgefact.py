@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ai_assistant", "0009_aidocument"),
         ("tenants", "0011_bootstrap_rls_session_vars"),

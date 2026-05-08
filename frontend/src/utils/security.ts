@@ -1,6 +1,6 @@
 /**
  * Security utilities for frontend (OWASP Top 10 compliance)
- * 
+ *
  * Features:
  * - Token encryption (A02: Cryptographic Failures)
  * - XSS prevention (A07: Cross-Site Scripting)
@@ -18,7 +18,7 @@ export class SecurityUtils {
   /**
    * Sanitize HTML to prevent XSS attacks.
    * Uses DOMPurify for comprehensive XSS prevention.
-   * 
+   *
    * @param html - HTML string to sanitize
    * @param config - Optional DOMPurify configuration
    * @returns Sanitized HTML string
@@ -39,7 +39,7 @@ export class SecurityUtils {
   /**
    * Sanitize user input (text only, no HTML).
    * Removes all HTML tags and dangerous characters.
-   * 
+   *
    * @param input - User input to sanitize
    * @param maxLength - Maximum allowed length (default: 1000)
    * @returns Sanitized text string
@@ -64,7 +64,7 @@ export class SecurityUtils {
   /**
    * Encrypt token using Web Crypto API (async).
    * Uses AES-GCM for encryption.
-   * 
+   *
    * @param token - Plain text token
    * @param key - Encryption key (base64 encoded)
    * @returns Encrypted token (base64)
@@ -109,7 +109,7 @@ export class SecurityUtils {
 
   /**
    * Decrypt token using Web Crypto API (async).
-   * 
+   *
    * @param encryptedToken - Encrypted token (base64)
    * @param key - Decryption key (base64 encoded)
    * @returns Decrypted token string
@@ -151,7 +151,7 @@ export class SecurityUtils {
 
   /**
    * Generate a cryptographically secure random token.
-   * 
+   *
    * @param length - Token length in bytes (default: 32)
    * @returns Hex-encoded random token
    */
@@ -163,7 +163,7 @@ export class SecurityUtils {
 
   /**
    * Validate file upload to prevent path traversal and malicious files.
-   * 
+   *
    * @param filename - Uploaded filename
    * @param allowedExtensions - Array of allowed extensions (with dots)
    * @returns True if valid, false otherwise
@@ -178,17 +178,17 @@ export class SecurityUtils {
     }
 
     // Check file extension
-    const ext = filename.lastIndexOf('.') > -1 
+    const ext = filename.lastIndexOf('.') > -1
       ? filename.slice(filename.lastIndexOf('.')).toLowerCase()
       : '';
-    
+
     return allowedExtensions.includes(ext);
   }
 
   /**
    * Escape special characters for use in RegExp.
    * Prevents ReDoS (Regular Expression Denial of Service) attacks.
-   * 
+   *
    * @param str - String to escape
    * @returns Escaped string safe for RegExp
    */
@@ -198,7 +198,7 @@ export class SecurityUtils {
 
   /**
    * Validate URL to prevent open redirect vulnerabilities.
-   * 
+   *
    * @param url - URL to validate
    * @param allowedDomains - Array of allowed domain names
    * @returns True if URL is safe, false otherwise
@@ -206,7 +206,7 @@ export class SecurityUtils {
   static isValidURL(url: string, allowedDomains: string[] = []): boolean {
     try {
       const parsed = new URL(url);
-      
+
       // Only allow http and https protocols
       if (!['http:', 'https:'].includes(parsed.protocol)) {
         return false;
@@ -214,7 +214,7 @@ export class SecurityUtils {
 
       // If allowedDomains specified, check hostname
       if (allowedDomains.length > 0) {
-        return allowedDomains.some(domain => 
+        return allowedDomains.some(domain =>
           parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
         );
       }
@@ -241,7 +241,7 @@ export class SecureStorage {
   /**
    * Set encryption key for secure storage.
    * Key should be generated server-side and provided securely.
-   * 
+   *
    * @param key - Base64 encoded encryption key
    */
   setEncryptionKey(key: string): void {
@@ -250,13 +250,13 @@ export class SecureStorage {
 
   /**
    * Store item securely (encrypted if key is set).
-   * 
+   *
    * @param key - Storage key
    * @param value - Value to store
    */
   async setItem(key: string, value: any): Promise<void> {
     const serialized = JSON.stringify(value);
-    
+
     if (this.encryptionKey) {
       try {
         const encrypted = await SecurityUtils.encryptToken(serialized, this.encryptionKey);
@@ -272,7 +272,7 @@ export class SecureStorage {
 
   /**
    * Retrieve item from secure storage (decrypts if encrypted).
-   * 
+   *
    * @param key - Storage key
    * @returns Retrieved value or null if not found
    */
@@ -295,7 +295,7 @@ export class SecureStorage {
 
   /**
    * Remove item from storage.
-   * 
+   *
    * @param key - Storage key
    */
   removeItem(key: string): void {
@@ -324,7 +324,7 @@ export class PasswordValidator {
 
   /**
    * Validate password strength.
-   * 
+   *
    * @param password - Password to validate
    * @returns Object with isValid and error messages
    */
@@ -365,7 +365,7 @@ export class PasswordValidator {
 
   /**
    * Calculate password strength score (0-100).
-   * 
+   *
    * @param password - Password to evaluate
    * @returns Strength score
    */

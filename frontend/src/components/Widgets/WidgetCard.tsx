@@ -1,13 +1,13 @@
 /**
  * Widget Card Component
- * 
+ *
  * Base wrapper for all dashboard widgets with consistent styling.
- * 
+ *
  * Features:
  * - Consistent header with title and actions
  * - Loading and error states
  * - Refresh functionality
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  * - No hardcoded colors

@@ -1,6 +1,6 @@
 /**
  * Role Badge Component
- * 
+ *
  * Displays a user's role with appropriate styling.
  */
 import React from 'react';

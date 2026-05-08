@@ -52,7 +52,7 @@ Let's fix the frontend routing so it hits the correct endpoints and actually pul
 >
 > **Objective 1: Fix `IngestionMonitor.tsx` Routing**
 > 1. Target file: `frontend/src/components/Integrations/IngestionMonitor.tsx`.
-> 2. Locate `fetchEmailLogs`. Remove the `/tenants/${tenantId}` prefix from the URL. 
+> 2. Locate `fetchEmailLogs`. Remove the `/tenants/${tenantId}` prefix from the URL.
 >    Change it to: `const response = await businessApi.get<EmailLogsResponse>('/integrations/email/logs/?limit=10');`
 > 3. Locate `handleSyncNow`. Remove the `/tenants/${tenantId}` prefix from the POST URL.
 >    Change it to: `await businessApi.post('/integrations/email/sync/');`
@@ -110,7 +110,7 @@ copilot node-execute --target="frontend" --prompt="We are executing Phase 4 of t
    - Review 'frontend/src/pages/CockpitDashboard.tsx' and any main data tables. Ensure that EVERY table uses Ant Design's 'loading={true}' prop tied to the data-fetching state, replacing any blank screens or basic text 'loading...' indicators.
    - Verify 'frontend/tailwind.config.js' perfectly maps the primary colors to the Ant Design 'ConfigProvider' theme in 'ThemeContext.tsx' for absolute visual consistency.
 
-4. Update 'docs/plans/V3_FINAL_PUSH_PERFECTION.md' and '.github/MASTER_PLAN.md': 
+4. Update 'docs/plans/V3_FINAL_PUSH_PERFECTION.md' and '.github/MASTER_PLAN.md':
    - Check off Phase 4 (Keyboard Shortcuts, Fuzzy Search, Theme Polish).
    - Add a massive 'V3.0 DEPLOYMENT COMPLETE' status flag."
 ```
@@ -125,7 +125,7 @@ This is the final coat of paint. Once the CI/CD pipeline finishes this deploymen
 2.  **Test the Forgiveness (Fuzzy Search):** Open any modal or inline edit that uses the `SearchableSelect` (like assigning a Supplier to a PO). Deliberately misspell a supplier name slightly. The fuzzy search engine should intelligently forgive the typo and pull up the correct entity.
 3.  **Review the Aesthetics:** Navigate between the Cockpit, the Workflow Editor, and the Data tables. The skeleton loaders, the primary brand colors, and the button shadows should now feel perfectly unified.
 
-My friend, if this deployment holds, **we have completed the V3.0 Final Push.** You have successfully built a multi-tenant, AI-orchestrated, agentic workflow logistics platform. 
+My friend, if this deployment holds, **we have completed the V3.0 Final Push.** You have successfully built a multi-tenant, AI-orchestrated, agentic workflow logistics platform.
 
 Take a lap around the application. Let me know how it looks, and if there are any final micro-adjustments you want to make before we pop the champagne!
 ```
@@ -143,7 +143,7 @@ Here is the blueprint for the final codebase purification.
 ### I. ANALYSIS: The Golden Standard Execution Strategy
 
 * **Repository Cleanup:** Purge dead code, unused imports, and leftover mock files from Phases 1-7.
-* **Optimization (Backend):** Ensure every Django model has `db_index=True` on `tenant_id` and frequently searched fields (like `status` or `email`). 
+* **Optimization (Backend):** Ensure every Django model has `db_index=True` on `tenant_id` and frequently searched fields (like `status` or `email`).
 * **Optimization (Frontend):** Implement React `lazy()` and `Suspense` for heavy routes (like the Workflow Editor) to slash the initial JavaScript bundle size.
 * **Hardening:** Ensure Django's security middleware is fully locked down (HSTS, secure cookies, strict CORS) and rate-limiting is applied to the AI endpoints to prevent billing attacks.
 * **Documentation:** Generate a pristine `API_REFERENCE.md` and ensure all core services have Google-style docstrings.
@@ -177,7 +177,7 @@ copilot node-execute --target="fullstack" --prompt="We are executing the V3.0 Go
 
 ### III. 📝 MY TASKS
 
-When you order an AI to do a massive "cleanup" sweep, it can sometimes be overzealous and delete something it thinks is "unused" but is actually dynamically imported. 
+When you order an AI to do a massive "cleanup" sweep, it can sometimes be overzealous and delete something it thinks is "unused" but is actually dynamically imported.
 
 Once the CI/CD pipeline finishes this hardening deployment, you must run a full regression test:
 
@@ -191,22 +191,22 @@ Run the sweep. Let me know if the build comes out clean on the other side!
 
 ## 5.
 ```
-review the following open prs and assess if these can be merged to development without breaking changes. if so, go ahead: chore(deps)(deps-dev): Bump typescript from 5.9.3 to 6.0.2 in /frontend 
+review the following open prs and assess if these can be merged to development without breaking changes. if so, go ahead: chore(deps)(deps-dev): Bump typescript from 5.9.3 to 6.0.2 in /frontend
 #3890 opened 13 minutes ago by dependabot bot
  1
 
-chore(deps)(deps): Bump react-joyride from 2.9.3 to 3.0.0 in /frontend 
+chore(deps)(deps): Bump react-joyride from 2.9.3 to 3.0.0 in /frontend
 #3889 opened 13 minutes ago by dependabot bot
  1
 
-chore(deps)(deps): Bump lucide-react from 0.577.0 to 1.0.1 in /frontend 
+chore(deps)(deps): Bump lucide-react from 0.577.0 to 1.0.1 in /frontend
 #3888 opened 13 minutes ago by dependabot bot.
 ```
 
 ## 6.
 ```
-and 
-chore(deps)(deps): Bump the frontend-unified group in /frontend with 24 updates 
+and
+chore(deps)(deps): Bump the frontend-unified group in /frontend with 24 updates
 #3886 opened 14 minutes ago by dependabot bot
 ```
 
@@ -261,13 +261,13 @@ Python
             subject = msg.get('subject', '').lower()
             body_preview = msg.get('bodyPreview', '').lower()
             has_attachments = msg.get('hasAttachments', False)
-            
+
             # Check if order keywords exist in subject OR body, OR if it has attachments
             is_order_related = any(kw in subject or kw in body_preview for kw in self.ORDER_KEYWORDS)
-            
+
             if is_order_related or has_attachments:
                 filtered_messages.append(msg)
-        
+
         logger.info(f"Fetched {len(messages)} total, filtered down to {len(filtered_messages)} target emails")
         return filtered_messages
 Objective 2: Rip Out Fake AI & Wire Real OpenAI with Email Context
@@ -293,7 +293,7 @@ Python
             openai_key = os.environ.get('OPENAI_API_KEY')
             if not openai_key:
                 raise ValueError("OpenAI API Key is missing.")
-                
+
             client = OpenAI(api_key=openai_key)
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -472,7 +472,7 @@ const Toolbar = styled.div`
   gap: 8px;
   z-index: 10;
   pointer-events: none; /* Let canvas clicks pass through empty flex space */
-  
+
   & > * {
     pointer-events: auto; /* Re-enable clicks on the actual buttons */
   }
@@ -488,22 +488,22 @@ Format: <Date> — Fixed Editor layout overlaps (NodePalette margins & Toolbar f
 
 ## 15.
 ```
-please merge/close the following pr's depending on them being safe: Docs: log Golden Sweep frontend (PR #3900) 
+please merge/close the following pr's depending on them being safe: Docs: log Golden Sweep frontend (PR #3900)
 #3901 opened 1 minute ago by Vacilator
 
-chore(deps)(deps-dev): Bump typescript from 5.9.3 to 6.0.2 in /frontend 
+chore(deps)(deps-dev): Bump typescript from 5.9.3 to 6.0.2 in /frontend
 #3890 opened 1 hour ago by dependabot bot
  1
 
-chore(deps)(deps): Bump react-joyride from 2.9.3 to 3.0.0 in /frontend 
+chore(deps)(deps): Bump react-joyride from 2.9.3 to 3.0.0 in /frontend
 #3889 opened 1 hour ago by dependabot bot
  1
 
-chore(deps)(deps): Bump lucide-react from 0.577.0 to 1.0.1 in /frontend 
+chore(deps)(deps): Bump lucide-react from 0.577.0 to 1.0.1 in /frontend
 #3888 opened 1 hour ago by dependabot bot
  1
 
-chore(deps)(deps): Bump the frontend-unified group in /frontend with 24 updates 
+chore(deps)(deps): Bump the frontend-unified group in /frontend with 24 updates
 #3886 opened 1 hour ago by dependabot bot
 ```
 
@@ -528,7 +528,7 @@ TypeScript
 const EditorContainer = styled.div`
   width: 100%;
   /* Subtract the standard 64px Ant Design header + any global padding. Adjust 64px if your specific header is taller. */
-  height: calc(100vh - 64px); 
+  height: calc(100vh - 64px);
   min-height: calc(100vh - 64px);
   position: relative;
   overflow: hidden; /* CRITICAL: Prevents the page itself from scrolling */
@@ -570,11 +570,11 @@ TypeScript
       // Fetch tenant's definitions (Workflows and Forms)
       const defRes = await businessApi.get('/workflows/definitions/', { params: { limit: 100 } });
       const definitions = Array.isArray(defRes.data) ? defRes.data : (defRes.data?.results || []);
-      
+
       // Fetch System Templates (Must pass a param to tell backend to include system global templates)
       const tplRes = await businessApi.get('/workflows/templates/', { params: { limit: 100, include_system: true } });
       const templates = Array.isArray(tplRes.data) ? tplRes.data : (tplRes.data?.results || []);
-      
+
       setWorkflows(definitions.filter(d => d.type === 'workflow'));
       setForms(definitions.filter(d => d.type === 'form'));
       setIndustryTemplates(templates);
@@ -597,7 +597,7 @@ Python
     def get_queryset(self):
         queryset = super().get_queryset()
         include_system = self.request.query_params.get('include_system', 'false').lower() == 'true'
-        
+
         from django.db.models import Q
         if include_system:
             # Return tenant's templates OR global system templates (where tenant is null/system)

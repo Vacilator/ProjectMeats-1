@@ -12,7 +12,7 @@
         border-radius: 8px;
         background: #f8f9fa;
     }
-    
+
     .tier-header {
         font-size: 18px;
         font-weight: 600;
@@ -20,38 +20,38 @@
         padding-bottom: 10px;
         border-bottom: 2px solid #dee2e6;
     }
-    
+
     .tier-root {
         background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
         border-left: 5px solid #ff9800;
     }
-    
+
     .tier-system {
         background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
         border-left: 5px solid #4caf50;
     }
-    
+
     .tier-tenant {
         background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         border-left: 5px solid #2196f3;
     }
-    
+
     .tier-header .emoji {
         font-size: 24px;
         margin-right: 10px;
     }
-    
+
     .tier-description {
         font-size: 13px;
         color: #666;
         margin-bottom: 15px;
         font-style: italic;
     }
-    
+
     #content-main .module {
         margin-bottom: 15px;
     }
-    
+
     .app-label-link {
         display: inline-block;
         padding: 8px 12px;
@@ -60,7 +60,7 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         transition: all 0.2s;
     }
-    
+
     .app-label-link:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.12);
@@ -88,7 +88,7 @@
                         Tenant-specific business data. Isolated by tenant.
                     {% endif %}
                 </div>
-                
+
                 <div class="app-list">
                     {% for app in tier.list %}
                         <div class="app-{{ app.app_label }} module">

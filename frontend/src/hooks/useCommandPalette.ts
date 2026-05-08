@@ -1,8 +1,8 @@
 /**
  * useCommandPalette Hook
- * 
+ *
  * Provides global keyboard shortcut (⌘K / Ctrl+K) for CommandPalette.
- * 
+ *
  * Usage:
  *   const { isOpen, open, close, toggle } = useCommandPalette();
  */

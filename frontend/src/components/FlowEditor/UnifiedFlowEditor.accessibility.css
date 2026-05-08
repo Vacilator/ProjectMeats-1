@@ -133,9 +133,9 @@
     stroke-width: 3px !important;
   }
 
-  button, 
-  input, 
-  select, 
+  button,
+  input,
+  select,
   textarea {
     border: 2px solid currentColor !important;
   }

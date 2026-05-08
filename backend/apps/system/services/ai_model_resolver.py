@@ -14,7 +14,7 @@ from typing import Optional
 from django.conf import settings
 
 
-def get_active_openai_model_id(*, fallback: str = 'gpt-4o-mini') -> str:
+def get_active_openai_model_id(*, fallback: str = "gpt-4o-mini") -> str:
     """Return the active OpenAI model ID from the database.
 
     Never raises: if the DB isn't ready (migrations, startup), we fall back to
@@ -22,11 +22,11 @@ def get_active_openai_model_id(*, fallback: str = 'gpt-4o-mini') -> str:
     """
 
     # 1) Explicit settings override (legacy)
-    settings_model = getattr(settings, 'OPENAI_MODEL_ID', None)
+    settings_model = getattr(settings, "OPENAI_MODEL_ID", None)
     if settings_model:
         return str(settings_model)
 
-    env_model = getattr(settings, 'OPENAI_MODEL', None)
+    env_model = getattr(settings, "OPENAI_MODEL", None)
     if env_model:
         return str(env_model)
 
@@ -35,7 +35,7 @@ def get_active_openai_model_id(*, fallback: str = 'gpt-4o-mini') -> str:
         from apps.system.models import SystemConfiguration
 
         cfg = SystemConfiguration.objects.first()
-        if cfg and getattr(cfg, 'active_openai_model_id', None):
+        if cfg and getattr(cfg, "active_openai_model_id", None):
             return str(cfg.active_openai_model_id)
     except Exception:
         pass
@@ -46,5 +46,5 @@ def get_active_openai_model_id(*, fallback: str = 'gpt-4o-mini') -> str:
 def get_active_openai_model_id_optional() -> Optional[str]:
     """Optional variant: returns None if not resolvable."""
 
-    model_id = get_active_openai_model_id(fallback='')
+    model_id = get_active_openai_model_id(fallback="")
     return model_id or None

@@ -37,7 +37,7 @@ def _json_schema_for_type(tp: Any) -> Dict[str, Any]:
         return {"type": "object"}
 
     # Optional[T] / Union[T, None] / T | None
-    union_type = getattr(types, 'UnionType', None)
+    union_type = getattr(types, "UnionType", None)
     if origin in {Union, union_type}:
         non_null = [a for a in args if a is not type(None)]  # noqa: E721
         if non_null:
@@ -61,7 +61,9 @@ class ToolRegistry:
         self._tools: Dict[str, ToolSpec] = {}
         self._callables: Dict[str, Callable[..., Any]] = {}
 
-    def register(self, fn: Callable[..., Any], *, name: Optional[str] = None, description: str = "") -> Callable[..., Any]:
+    def register(
+        self, fn: Callable[..., Any], *, name: Optional[str] = None, description: str = ""
+    ) -> Callable[..., Any]:
         tool_name = name or fn.__name__
         sig = inspect.signature(fn)
 
@@ -161,7 +163,9 @@ def get_entity_details(type: str, id: str) -> Dict[str, Any]:
 
 
 @registry.register
-def create_task(title: str, message: str, entity_type: str | None = None, entity_id: str | None = None) -> Dict[str, Any]:
+def create_task(
+    title: str, message: str, entity_type: str | None = None, entity_id: str | None = None
+) -> Dict[str, Any]:
     """Create a user-visible task (implemented as an in-app notification).
 
     Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
@@ -215,7 +219,9 @@ def get_entity_schema(entity_type: str) -> Dict[str, Any]:
 
 
 @registry.register
-def save_memory(key: str, memory_text: str, memory_json: Dict[str, Any] | None = None, tags: Dict[str, Any] | None = None) -> Dict[str, Any]:
+def save_memory(
+    key: str, memory_text: str, memory_json: Dict[str, Any] | None = None, tags: Dict[str, Any] | None = None
+) -> Dict[str, Any]:
     """Upsert a durable tenant memory rule/preference (tenant-scoped)."""
 
     return {"status": "available_via_chat", "key": key}
@@ -295,7 +301,9 @@ def search_entities(query: str, entity_types: List[str] | None = None, limit: in
 
 
 @registry.register
-def get_entity_analytics(entity_type: str, metric: str, days: int | None = None, limit: int | None = None) -> Dict[str, Any]:
+def get_entity_analytics(
+    entity_type: str, metric: str, days: int | None = None, limit: int | None = None
+) -> Dict[str, Any]:
     """Run a tenant-scoped analytics aggregation (see get_entity_analytics tool in chat)."""
 
     return {"status": "available_via_chat", "entity_type": entity_type, "metric": metric, "days": days, "limit": limit}

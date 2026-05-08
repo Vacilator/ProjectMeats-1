@@ -1,6 +1,6 @@
 /**
  * Today's Numbers Widget Tests
- * 
+ *
  * Updated: 2026-02-04 - Phase 1.3: Tests now use useCockpitStats hook
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';

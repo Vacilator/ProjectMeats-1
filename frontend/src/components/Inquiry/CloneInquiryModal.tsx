@@ -1,6 +1,6 @@
 /**
  * CloneInquiryModal - Clone an existing inquiry
- * 
+ *
  * Allows users to quickly create a new inquiry based on an existing one,
  * optionally copying products and pricing to a different entity/contact.
  */
@@ -123,7 +123,7 @@ const Select = styled.select`
   font-size: 0.9rem;
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -180,16 +180,16 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   ${props => props.$variant === 'primary' ? `
     background: rgb(var(--color-primary));
     color: white;
     border: none;
-    
+
     &:hover {
       opacity: 0.9;
     }
-    
+
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -198,7 +198,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
     background: transparent;
     color: rgb(var(--color-text-primary));
     border: 1px solid rgb(var(--color-border));
-    
+
     &:hover {
       background: rgba(var(--color-primary), 0.05);
     }
@@ -241,7 +241,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
       const endpoint = inquiry.entity_type === 'supplier'
         ? '/suppliers/'
         : '/customers/';
-      
+
       businessApi.get<{ results?: Entity[] } | Entity[]>(endpoint, { params: { page_size: 500 } })
         .then((res) => {
           setEntities(unwrapResults<Entity>(res.data));
@@ -249,7 +249,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
         .catch((err) => logger.error('Failed to load entities', { component: 'CloneInquiryModal' }, err));
     }
   }, [isOpen, inquiry]);
-  
+
   // Load contacts when entity changes
   useEffect(() => {
     if (newEntityId) {
@@ -268,7 +268,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
       setContacts([]);
     }
   }, [newEntityId, inquiry?.entity_type]);
-  
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -303,11 +303,11 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
       });
     }
   };
-  
-  const entityName = inquiry.entity_type === 'supplier' 
-    ? inquiry.supplier_name 
+
+  const entityName = inquiry.entity_type === 'supplier'
+    ? inquiry.supplier_name
     : inquiry.customer_name;
-  
+
   return (
     <InquiryModalFrame isOpen={isOpen} onClose={onClose} title="📋 Clone Inquiry" maxWidth={500}>
       <form onSubmit={form.handleSubmit(onSubmit)}>

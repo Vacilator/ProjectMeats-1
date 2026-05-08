@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("carriers", "0005_carrier_created_on_carrier_custom_data_and_more"),
     ]
@@ -16,7 +15,7 @@ class Migration(migrations.Migration):
             sql="""
             -- Enable RLS on carriers_carrier
             ALTER TABLE carriers_carrier ENABLE ROW LEVEL SECURITY;
-            
+
             -- Create tenant isolation policy
             CREATE POLICY carriers_carrier_tenant_isolation ON carriers_carrier
                 USING (tenant_id = current_setting('app.current_tenant')::uuid);
@@ -24,6 +23,6 @@ class Migration(migrations.Migration):
             reverse_sql="""
             DROP POLICY IF EXISTS carriers_carrier_tenant_isolation ON carriers_carrier;
             ALTER TABLE carriers_carrier DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

@@ -1,6 +1,6 @@
 /**
  * Cockpit Components
- * 
+ *
  * Re-exports all Cockpit-related components.
  */
 export { CommandBar } from './CommandBar';

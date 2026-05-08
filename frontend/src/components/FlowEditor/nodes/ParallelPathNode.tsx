@@ -1,14 +1,14 @@
 /**
  * Parallel Path Node Component
- * 
+ *
  * Allows parallel execution branches in workflows.
  * Splits execution into multiple paths that run concurrently.
- * 
+ *
  * Use Cases:
  * - Send notifications to multiple channels simultaneously
  * - Process multiple records in parallel
  * - Execute independent tasks concurrently
- * 
+ *
  * Created: 2026-02-27 - Phase 7.4 Advanced Node Types (Task 6)
  */
 import React from 'react';
@@ -26,12 +26,12 @@ export interface ParallelPathNodeData extends BaseNodeData {
    * Number of parallel execution paths (2-10)
    */
   pathCount: number;
-  
+
   /**
    * Path labels for better organization
    */
   pathLabels?: string[];
-  
+
   /**
    * Wait strategy:
    * - 'all': Wait for all paths to complete before continuing
@@ -39,12 +39,12 @@ export interface ParallelPathNodeData extends BaseNodeData {
    * - 'none': Fire and forget (don't wait)
    */
   waitStrategy: 'all' | 'any' | 'none';
-  
+
   /**
    * Timeout in seconds (optional)
    */
   timeout?: number;
-  
+
   /**
    * Error handling:
    * - 'stop': Stop all paths if any fails
@@ -98,11 +98,11 @@ const StrategyBadge = styled.span<{ $type: 'wait' | 'error' }>`
   border-radius: var(--radius-sm);
   font-size: 10px;
   font-weight: 600;
-  background: ${props => props.$type === 'wait' 
-    ? 'rgba(var(--color-info), 0.15)' 
+  background: ${props => props.$type === 'wait'
+    ? 'rgba(var(--color-info), 0.15)'
     : 'rgba(var(--color-error), 0.15)'};
-  color: ${props => props.$type === 'wait' 
-    ? 'rgb(var(--color-info))' 
+  color: ${props => props.$type === 'wait'
+    ? 'rgb(var(--color-info))'
     : 'rgb(var(--color-error))'};
 `;
 
@@ -137,28 +137,28 @@ const EmptyState = styled.div`
 export const ParallelPathNode: React.FC<NodeProps<Node<ParallelPathNodeData>>> = (props) => {
   const { data } = props;
   const nodeTypeDef = getNodeTypeDefinition('parallelPath');
-  
+
   const pathCount = data.pathCount || 2;
   const pathLabels = data.pathLabels || [];
   const waitStrategy = data.waitStrategy || 'all';
   const errorStrategy = data.errorStrategy || 'stop';
-  
+
   // Generate default path labels if not provided
-  const displayLabels = Array.from({ length: pathCount }, (_, i) => 
+  const displayLabels = Array.from({ length: pathCount }, (_, i) =>
     pathLabels[i] || `Path ${i + 1}`
   );
-  
+
   const waitStrategyLabel = {
     all: 'Wait for All',
     any: 'Wait for Any',
     none: 'Fire & Forget'
   }[waitStrategy];
-  
+
   const errorStrategyLabel = {
     stop: 'Stop on Error',
     continue: 'Continue on Error'
   }[errorStrategy];
-  
+
   const renderContent = () => {
     if (!data.label && pathCount === 2) {
       return (
@@ -167,7 +167,7 @@ export const ParallelPathNode: React.FC<NodeProps<Node<ParallelPathNodeData>>> =
         </EmptyState>
       );
     }
-    
+
     return (
       <PathsContainer>
         <ConfigRow>
@@ -177,14 +177,14 @@ export const ParallelPathNode: React.FC<NodeProps<Node<ParallelPathNodeData>>> =
             <StrategyBadge $type="error">{errorStrategyLabel}</StrategyBadge>
           </div>
         </ConfigRow>
-        
+
         {displayLabels.map((label, index) => (
           <PathIndicator key={index} $index={index}>
             <PathNumber>#{index + 1}</PathNumber>
             <PathLabel>{label}</PathLabel>
           </PathIndicator>
         ))}
-        
+
         {data.timeout && (
           <ConfigRow style={{ marginTop: '4px' }}>
             <ConfigLabel>Timeout</ConfigLabel>
@@ -196,7 +196,7 @@ export const ParallelPathNode: React.FC<NodeProps<Node<ParallelPathNodeData>>> =
       </PathsContainer>
     );
   };
-  
+
   return (
     <BaseNode
       {...props}

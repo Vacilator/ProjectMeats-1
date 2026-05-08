@@ -1,7 +1,7 @@
 # 🚀 Quick Start Guide - Local Development
 
-**Status**: ✅ CURRENT  
-**Category**: Getting Started  
+**Status**: ✅ CURRENT
+**Category**: Getting Started
 **Last Updated**: 2026-02-01
 
 ---

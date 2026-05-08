@@ -1,13 +1,13 @@
 /**
  * Command Palette Component (Wave 2: Cockpit Command Center)
- * 
+ *
  * Features:
  * - Universal search across all entities (⌘K / Ctrl+K)
  * - Search operators (supplier:, customer:, po:, etc.)
  * - Recent items section
  * - Quick actions
  * - Keyboard navigation
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  * - No hardcoded colors
@@ -453,12 +453,12 @@ const searchCache = new Map<string, CacheEntry>();
 const getCachedResults = (query: string): SearchResult[] | null => {
   const entry = searchCache.get(query);
   if (!entry) return null;
-  
+
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
     searchCache.delete(query);
     return null;
   }
-  
+
   return entry.results;
 };
 
@@ -472,7 +472,7 @@ const setCachedResults = (query: string, results: SearchResult[]): void => {
       searchCache.clear();
     }
   }
-  
+
   searchCache.set(query, {
     results,
     timestamp: Date.now(),
@@ -491,10 +491,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const [isLoading, setIsLoading] = useState(false);
   const [dateRange, setDateRange] = useState('last_30_days');  // NEW: Date range filter
   const [totalCount, setTotalCount] = useState(0);  // NEW: Total results count
-  
+
   // Entity detail modal state
   const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: string | number } | null>(null);
-  
+
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const cockpitNavigation = useCockpitNavigation();
@@ -550,29 +550,29 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           url: 'system/search/ranked/',
           params: { q: query, date_range: dateRange, limit: 8 },
         });
-        
+
         const response = await searchRanked({
           query,
           dateRange,
           limit: 8,
         });
-        
+
         logger.debug('[CommandPalette] API Response:', {
           query: response.query,
           total: response.total,
           counts: response.counts,
           resultsCount: response.results.length,
         });
-        
+
         const fetchedResults = response.results;
-        
+
         // Cache the results
         setCachedResults(cacheKey, fetchedResults);
-        
+
         setResults(fetchedResults);
         setTotalCount(response.total || fetchedResults.length);
         setSelectedIndex(0);
-        
+
         logger.debug('[CommandPalette] Ranked search completed:', {
           query,
           dateRange,
@@ -596,10 +596,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     // Calculate total navigable items
     const searchItems = query.length >= 2 ? results : recentItems;
     const showQuickActions = query.length < 2;
-    const totalItems = showQuickActions 
+    const totalItems = showQuickActions
       ? searchItems.length + QUICK_ACTIONS.length
       : searchItems.length;
-    
+
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -695,8 +695,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         {/* Date Range Filter - Show only when searching */}
         {query.length >= 2 && (
           <SearchOptions>
-            <DateRangeSelect 
-              value={dateRange} 
+            <DateRangeSelect
+              value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
               aria-label="Filter by date range"
             >
@@ -833,7 +833,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           </FooterHint>
         </Footer>
       </PaletteContainer>
-      
+
       {/* Entity Detail Modal */}
       {selectedEntity && (
         <EntityDetailModal

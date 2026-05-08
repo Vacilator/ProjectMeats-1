@@ -1,11 +1,11 @@
 /**
  * Skeleton Loading Components
- * 
+ *
  * Reusable skeleton screens for loading states.
  * Provides better UX than plain "Loading..." text.
- * 
+ *
  * Created: 2026-02-21 - Loading States Enhancement
- * 
+ *
  * @module SkeletonLoaders
  */
 
@@ -145,7 +145,7 @@ const SectionContainer = styled.div`
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid rgb(var(--color-border));
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -168,16 +168,16 @@ export const RetryButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-primary-hover));
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &:active:not(:disabled) {
     transform: translateY(1px);
   }

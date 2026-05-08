@@ -18,7 +18,7 @@ def _normalize(value: Any) -> Any:
         return value.isoformat()
     try:
         # Django model instances
-        pk = getattr(value, 'pk', None)
+        pk = getattr(value, "pk", None)
         if pk is not None:
             return str(pk)
     except Exception:
@@ -41,7 +41,7 @@ def model_field_diff(*, before: Any, after: Any, ignore_fields: set[str]) -> dic
 
     diffs: dict[str, dict[str, Any]] = {}
     for f in after._meta.fields:
-        name = getattr(f, 'name', None)
+        name = getattr(f, "name", None)
         if not name or name in ignore_fields:
             continue
 
@@ -54,6 +54,6 @@ def model_field_diff(*, before: Any, after: Any, ignore_fields: set[str]) -> dic
         nb = _normalize(b)
         na = _normalize(a)
         if nb != na:
-            diffs[name] = {'from': nb, 'to': na}
+            diffs[name] = {"from": nb, "to": na}
 
     return diffs

@@ -7,7 +7,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ai_assistant", "0011_aifeedbacklog_ai_fb_queue_idx"),
         ("tenants", "0011_bootstrap_rls_session_vars"),

@@ -42,7 +42,7 @@ describe('EntityGraph Data Transformation', () => {
       isRoot: false,
       relationshipCount: 5,
     };
-    
+
     // Verify data structure is valid
     expect(nodeData.label).toBe('Test Entity');
     expect(nodeData.entityType).toBe('supplier');
@@ -59,7 +59,7 @@ describe('EntityGraph Data Transformation', () => {
       color: 'rgb(168, 85, 247)',
       isRoot: false,
     };
-    
+
     expect(minimalData.label).toBe('Minimal Entity');
     expect(minimalData.subtitle).toBeUndefined();
     expect(minimalData.relationshipCount).toBeUndefined();
@@ -74,7 +74,7 @@ describe('EntityGraph Data Transformation', () => {
       color: 'rgb(59, 130, 246)',
       isRoot: true,
     };
-    
+
     expect(rootNode.isRoot).toBe(true);
   });
 });
@@ -83,21 +83,21 @@ describe('EntityGraph Layout', () => {
   it('should calculate horizontal layout spacing', () => {
     const horizontalSpacing = 220;
     const verticalSpacing = 120;
-    
+
     // Test layout calculation logic
     const calculateNodePosition = (level: number, index: number) => ({
       x: level * horizontalSpacing,
       y: index * verticalSpacing,
     });
-    
+
     const pos1 = calculateNodePosition(0, 0);
     expect(pos1.x).toBe(0);
     expect(pos1.y).toBe(0);
-    
+
     const pos2 = calculateNodePosition(1, 0);
     expect(pos2.x).toBe(220);
     expect(pos2.y).toBe(0);
-    
+
     const pos3 = calculateNodePosition(1, 1);
     expect(pos3.x).toBe(220);
     expect(pos3.y).toBe(120);
@@ -110,7 +110,7 @@ describe('Entity Types', () => {
       'supplier', 'customer', 'purchase_order', 'sales_order',
       'product', 'contact', 'invoice', 'plant', 'carrier'
     ];
-    
+
     validTypes.forEach(type => {
       expect(typeof type).toBe('string');
       expect(type.length).toBeGreaterThan(0);
@@ -129,7 +129,7 @@ describe('Entity Types', () => {
       plant: '🏢',
       carrier: '🚚',
     };
-    
+
     expect(entityIcons.supplier).toBe('🏭');
     expect(entityIcons.customer).toBe('👥');
     expect(Object.keys(entityIcons)).toHaveLength(9);

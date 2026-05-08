@@ -1,9 +1,9 @@
 /**
  * Field Mapping Panel Component
- * 
+ *
  * Visual interface for mapping form fields to database entity fields.
  * Supports auto-population from previous steps and data transformations.
- * 
+ *
  * Features:
  * - Visual field mapper with drag-and-drop connections
  * - Map form fields to entity fields (Supplier, Customer, Product, etc.)
@@ -11,14 +11,14 @@
  * - Data transformation options (copy, lookup, format, calculated)
  * - Validation and type compatibility checking
  * - Mapping preview with sample data
- * 
+ *
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { showAlert } from '@/utils/uiDialogs';
-import { 
-  Link, Unlink, ArrowRight, AlertCircle, CheckCircle, 
+import {
+  Link, Unlink, ArrowRight, AlertCircle, CheckCircle,
   ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
 import {
@@ -186,15 +186,15 @@ const ColumnHeader = styled.div`
 const FieldCard = styled.div<{ $mapped?: boolean; $selected?: boolean }>`
   padding: 12px;
   background: rgb(var(--color-background));
-  border: 2px solid ${props => 
+  border: 2px solid ${props =>
     props.$selected ? 'rgb(var(--color-primary))' :
-    props.$mapped ? 'rgba(var(--color-success), 0.3)' : 
+    props.$mapped ? 'rgba(var(--color-success), 0.3)' :
     'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
@@ -223,7 +223,7 @@ const FieldBadge = styled.div<{ $type: 'required' | 'mapped' | 'auto' }>`
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  
+
   ${props => {
     if (props.$type === 'required') {
       return `
@@ -257,12 +257,12 @@ const ConnectionLine = styled.div<{ $active?: boolean }>`
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: ${props => props.$active 
-    ? 'rgba(var(--color-primary), 0.1)' 
+  background: ${props => props.$active
+    ? 'rgba(var(--color-primary), 0.1)'
     : 'transparent'};
   border-radius: var(--radius-md);
-  color: ${props => props.$active 
-    ? 'rgb(var(--color-primary))' 
+  color: ${props => props.$active
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-text-tertiary))'};
   transition: all 0.15s ease;
 `;
@@ -280,7 +280,7 @@ const MappingItem = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
@@ -325,7 +325,7 @@ const IconButton = styled.button`
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-border));
     color: rgb(var(--color-text-primary));
@@ -356,7 +356,7 @@ const ValidationAlert = styled.div<{ $type: 'error' | 'warning' | 'success' }>`
   border-radius: var(--radius-md);
   font-size: 12px;
   line-height: 1.5;
-  
+
   ${props => {
     if (props.$type === 'error') {
       return `
@@ -432,7 +432,7 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
   };
 
   const handleUpdateMapping = (mappingId: string, updates: Partial<FieldMapping>) => {
-    setLocalMappings(localMappings.map(m => 
+    setLocalMappings(localMappings.map(m =>
       m.id === mappingId ? { ...m, ...updates } : m
     ));
   };
@@ -470,14 +470,14 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
     if (!formField || !entityField) return { valid: false, message: 'Invalid field reference' };
 
     // Check type compatibility
-    const typeCompatible = formField.type === entityField.type || 
+    const typeCompatible = formField.type === entityField.type ||
                           (formField.type === 'text' && entityField.type === 'textarea') ||
                           (formField.type === 'textarea' && entityField.type === 'text');
 
     if (!typeCompatible && mapping.transformation.type === 'direct') {
-      return { 
-        valid: false, 
-        message: `Type mismatch: ${formField.type} → ${entityField.type}. Consider using a transformation.` 
+      return {
+        valid: false,
+        message: `Type mismatch: ${formField.type} → ${entityField.type}. Consider using a transformation.`
       };
     }
 
@@ -596,7 +596,7 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
       {/* Phase C.4: Auto-Suggest Button */}
       {formFields.length > 0 && entityFields.length > 0 && localMappings.length < formFields.length && (
         <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <PrimaryButton 
+          <PrimaryButton
             onClick={() => {
               const count = autoSuggestMappings();
               if (count === 0) {

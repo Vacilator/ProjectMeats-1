@@ -1,3 +1,3 @@
 from .outlook_email import OutlookEmailNode
 
-__all__ = ['OutlookEmailNode']
+__all__ = ["OutlookEmailNode"]

@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("plants", "0015_alter_plant_plant_type"),
         ("products", "0009_alter_masterproduct_protein"),

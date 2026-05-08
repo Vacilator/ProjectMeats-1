@@ -66,5 +66,5 @@ assignees: ''
 
 ---
 
-**Branch Naming**: When updating docs, use `docs/descriptive-name` format  
+**Branch Naming**: When updating docs, use `docs/descriptive-name` format
 **PR Title Format**: `docs: description` or `docs(scope): description` following [Conventional Commits](https://www.conventionalcommits.org/)

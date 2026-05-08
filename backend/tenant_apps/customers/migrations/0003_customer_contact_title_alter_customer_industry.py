@@ -4,20 +4,39 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('customers', '0002_customer_tenant_and_more'),
+        ("customers", "0002_customer_tenant_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='customer',
-            name='contact_title',
-            field=models.CharField(blank=True, default='', help_text='e.g., Vice President, Buyer', max_length=100, verbose_name='Contact Title'),
+            model_name="customer",
+            name="contact_title",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="e.g., Vice President, Buyer",
+                max_length=100,
+                verbose_name="Contact Title",
+            ),
         ),
         migrations.AlterField(
-            model_name='customer',
-            name='industry',
-            field=models.CharField(blank=True, choices=[('Pet Sector', 'Pet Sector'), ('Processor', 'Processor'), ('Retail', 'Retail'), ('Wholesaler', 'Wholesaler'), ('Food Service', 'Food Service'), ('Export', 'Export')], default='', help_text='Industry sector (e.g., Pet Sector, Retail)', max_length=100, verbose_name='Industry Sector'),
+            model_name="customer",
+            name="industry",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("Pet Sector", "Pet Sector"),
+                    ("Processor", "Processor"),
+                    ("Retail", "Retail"),
+                    ("Wholesaler", "Wholesaler"),
+                    ("Food Service", "Food Service"),
+                    ("Export", "Export"),
+                ],
+                default="",
+                help_text="Industry sector (e.g., Pet Sector, Retail)",
+                max_length=100,
+                verbose_name="Industry Sector",
+            ),
         ),
     ]

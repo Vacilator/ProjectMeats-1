@@ -14,7 +14,7 @@ const NodeContainer = styled.div`
   padding: 12px;
   min-width: 200px;
   box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
-  
+
   &.selected {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.2);
@@ -67,29 +67,29 @@ export interface OutlookEmailNodeData extends BaseNodeData {
   importance?: 'low' | 'normal' | 'high';
 }
 
-export const OutlookEmailNode = React.memo<NodeProps<Node<OutlookEmailNodeData>>>(({ 
-  data, 
+export const OutlookEmailNode = React.memo<NodeProps<Node<OutlookEmailNodeData>>>(({
+  data,
   selected,
   id
 }) => {
   const displayRecipients = data.to?.slice(0, 2).join(', ') || 'No recipients';
   const hasMoreRecipients = data.to?.length > 2;
-  
+
   return (
     <NodeContainer className={selected ? 'selected' : ''}>
-      <Handle 
-        type="target" 
+      <Handle
+        type="target"
         position={Position.Top}
         aria-label="Input connection"
       />
-      
+
       <NodeHeader>
         <NodeIcon>
           <Mail size={18} />
         </NodeIcon>
         <NodeTitle>{data.label || 'Send Email'}</NodeTitle>
       </NodeHeader>
-      
+
       <NodeBody>
         <div>
           <strong>Subject:</strong> {data.subject || 'No subject'}
@@ -104,9 +104,9 @@ export const OutlookEmailNode = React.memo<NodeProps<Node<OutlookEmailNodeData>>
           </div>
         )}
       </NodeBody>
-      
-      <Handle 
-        type="source" 
+
+      <Handle
+        type="source"
         position={Position.Bottom}
         aria-label="Output connection"
       />

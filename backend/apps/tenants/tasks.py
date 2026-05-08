@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import logging
 
-from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
+
+from celery import shared_task
 
 from apps.tenants.rls import tenant_rls
 
@@ -106,4 +107,4 @@ def send_invitation_email_task(self, invitation_id: str, tenant_id: str) -> dict
             self.max_retries + 1,
             exc,
         )
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))

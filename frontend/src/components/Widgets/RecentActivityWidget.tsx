@@ -1,16 +1,16 @@
 /**
  * Recent Activity Widget
- * 
+ *
  * Displays a feed of recent system activity.
  * Shows events like orders created, customers updated, etc.
- * 
+ *
  * Features:
  * - Chronological activity feed
  * - Entity links
  * - Activity type icons
- * 
+ *
  * Updated: 2026-02-04 - Phase 1.3 - Connected to real API
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */

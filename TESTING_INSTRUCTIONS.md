@@ -111,7 +111,7 @@ Also fixed the filter logic for hidden actions:
 - **Files Changed:** 2
   - `frontend/src/components/Admin/AdminTable.tsx` (fixed)
   - `frontend/src/components/Admin/AdminTable.test.tsx` (new)
-  
+
 - **Lines Changed:** ~4 lines modified, 200+ lines added (tests)
 
 - **Scope:** AdminTable component

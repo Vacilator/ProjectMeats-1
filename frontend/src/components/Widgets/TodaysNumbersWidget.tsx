@@ -1,24 +1,24 @@
 /**
  * Today's Numbers Widget
- * 
+ *
  * Enhanced KPI dashboard showing detailed business metrics for today.
  * Fetches real-time data from cockpit stats API.
- * 
+ *
  * Features:
  * - Real-time KPI updates
  * - Trend indicators
  * - Clickable metrics to drill down
- * 
+ *
  * Updated: 2026-02-04 - Phase 1.3 - Connected to real API
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */
 import React from 'react';
 import styled from 'styled-components';
-import { 
-  Activity, TrendingUp, TrendingDown, Package, 
-  CheckCircle, Clock, Users 
+import {
+  Activity, TrendingUp, TrendingDown, Package,
+  CheckCircle, Clock, Users
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';
@@ -169,8 +169,8 @@ export const TodaysNumbersWidget: React.FC<TodaysNumbersWidgetProps> = () => {
     >
       <MetricsGrid>
         {metrics.map(metric => (
-          <MetricCard 
-            key={metric.id} 
+          <MetricCard
+            key={metric.id}
             $color={metric.color}
             $clickable={!!metric.link}
             onClick={() => handleMetricClick(metric.link)}

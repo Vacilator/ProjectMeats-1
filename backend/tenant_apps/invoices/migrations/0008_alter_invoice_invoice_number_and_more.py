@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("customers", "0005_customer_industry_array_and_more"),
         ("invoices", "0007_paymenttransaction"),
@@ -17,9 +16,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="invoice",
             name="invoice_number",
-            field=models.CharField(
-                help_text="Invoice number (unique per tenant)", max_length=100
-            ),
+            field=models.CharField(help_text="Invoice number (unique per tenant)", max_length=100),
         ),
         migrations.AddConstraint(
             model_name="invoice",

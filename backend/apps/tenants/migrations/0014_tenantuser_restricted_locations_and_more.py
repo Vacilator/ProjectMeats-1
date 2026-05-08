@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("locations", "0012_locationassociatedmasterproduct_and_more"),
         ("plants", "0015_alter_plant_plant_type"),

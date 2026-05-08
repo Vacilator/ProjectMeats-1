@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0007_inquiryproduct_custom_data_inquiryproduct_tenant"),
         ("inquiries", "0007_inquirytemplateproduct_tenant_rls"),

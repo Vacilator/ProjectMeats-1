@@ -1,9 +1,9 @@
 /**
  * Conditional Edge Component
- * 
+ *
  * Specialized edge for conditional branching in workflows.
  * Features diamond markers, conditional logic display, and visual feedback.
- * 
+ *
  * Sprint 1: Visual Excellence - Task 1.1
  * Created: 2026-02-17
  */

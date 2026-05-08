@@ -63,7 +63,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
       setError(null);
       const data = await configService.getTenantConfigsByCategory();
       setConfigsByCategory(data);
-      
+
       // Load configs for selected category
       const categoryConfigs = data[selectedCategory] || [];
       setConfigs(
@@ -208,7 +208,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
         return;
       }
     }
-    
+
     const newConfigs = configs.filter((_, i) => i !== index);
     setConfigs(newConfigs);
     setHasChanges(newConfigs.some((c) => c.is_new || c.is_modified));
@@ -308,16 +308,16 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      
+
       try {
         const text = await file.text();
         const importData = JSON.parse(text);
-        
+
         if (!importData.configs || !Array.isArray(importData.configs)) {
           setError('Invalid import file format');
           return;
         }
-        
+
         const importedConfigs: EditingConfig[] = importData.configs.map((c: { key: string; value: unknown; description?: string }) => ({
           key: c.key,
           value: c.value,
@@ -325,7 +325,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
           description: c.description || '',
           is_new: true,
         }));
-        
+
         setConfigs([...importedConfigs, ...configs]);
         setHasChanges(true);
         setSuccessMessage(`Imported ${importedConfigs.length} configs`);

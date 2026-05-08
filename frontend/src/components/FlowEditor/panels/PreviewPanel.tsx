@@ -1,9 +1,9 @@
 /**
  * Preview Panel Component
- * 
+ *
  * Live preview of form as it's being built in the WorkForms editor.
  * Shows real-time rendering of form fields, validation, and user experience.
- * 
+ *
  * Phase 5 Batch 1-4 of WF-ENH-2026-Q1
  * Created: 2026-02-06
  * Enhanced: 2026-02-06 (Batch 2 - Advanced field types, auto-updates)
@@ -87,7 +87,7 @@ const CloseButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-background));
     color: rgb(var(--color-text-primary));
@@ -115,13 +115,13 @@ const ViewportButton = styled.button<{ $active: boolean }>`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-background))'};
     color: ${props => props.$active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-primary))'};
     border-color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   }
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -181,13 +181,13 @@ const FieldInput = styled.input<{ $hasError?: boolean }>`
   color: rgb(var(--color-text-primary));
   background: ${props => props.$hasError ? 'rgba(var(--color-error), 0.08)' : 'rgb(var(--color-surface))'};
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
@@ -204,13 +204,13 @@ const FieldTextarea = styled.textarea<{ $hasError?: boolean }>`
   resize: vertical;
   min-height: 80px;
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
@@ -225,7 +225,7 @@ const FieldSelect = styled.select<{ $hasError?: boolean }>`
   background: ${props => props.$hasError ? 'rgba(var(--color-error), 0.08)' : 'rgb(var(--color-surface))'};
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
@@ -271,7 +271,7 @@ const ValidationList = styled.ul`
   padding-left: 20px;
   color: rgb(var(--color-danger));
   font-size: 13px;
-  
+
   li {
     margin: 4px 0;
   }
@@ -308,13 +308,13 @@ const RefreshButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-background));
     color: rgb(var(--color-text-primary));
     border-color: rgb(var(--color-border));
   }
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -335,75 +335,75 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  
+
   /**
    * Generate test data for a field based on its type
    */
   const generateTestDataForField = useCallback((field: any): any => {
     switch (field.type) {
       case 'text':
-        return field.label?.includes('Name') ? 'John Doe' : 
+        return field.label?.includes('Name') ? 'John Doe' :
                field.label?.includes('Company') ? 'Acme Corporation' :
-               field.label?.includes('Title') ? 'Senior Manager' : 
+               field.label?.includes('Title') ? 'Senior Manager' :
                'Sample Text';
-      
+
       case 'email':
         return 'john.doe@example.com';
-      
+
       case 'number':
         const min = field.min || 1;
         const max = field.max || 100;
         return Math.floor(Math.random() * (max - min + 1)) + min;
-      
+
       case 'tel':
       case 'phone':
         return '(555)555-5555';
-      
+
       case 'url':
         return 'https://example.com';
-      
+
       case 'date':
         return new Date().toISOString().split('T')[0];
-      
+
       case 'time':
         return '14:30';
-      
+
       case 'datetime-local':
         return new Date().toISOString().slice(0, 16);
-      
+
       case 'textarea':
         return 'This is a sample multi-line text response. It demonstrates how longer content will appear in the preview.';
-      
+
       case 'select':
       case 'dropdown':
-        return field.options && field.options.length > 0 
-          ? field.options[0] 
+        return field.options && field.options.length > 0
+          ? field.options[0]
           : '';
-      
+
       case 'radio':
-        return field.options && field.options.length > 0 
-          ? field.options[0] 
+        return field.options && field.options.length > 0
+          ? field.options[0]
           : '';
-      
+
       case 'checkbox':
       case 'boolean':
         return true;
-      
+
       default:
         return 'Sample value';
     }
   }, []);
-  
+
   /**
    * Extract form fields from nodes
    * Filters for formField and formStep nodes and extracts their field definitions
    * Auto-updates when nodes change (real-time preview)
-   * 
+   *
    * CRITICAL: This MUST be defined BEFORE callbacks that depend on it!
    */
   const formFields = useMemo(() => {
     const fields: any[] = [];
-    
+
     // Find all form-related nodes
     nodes.forEach(node => {
       const nodeFields = getResolvedFormFields(node.data);
@@ -441,10 +441,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         });
       }
     });
-    
+
     return fields;
   }, [nodes, refreshKey]);
-  
+
   /**
    * Fill form with test data
    */
@@ -456,7 +456,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     setFormData(testData);
     logger.debug('Test data generated', { component: 'PreviewPanel', metadata: { testData } });
   }, [formFields, generateTestDataForField]);
-  
+
   /**
    * Clear all form data
    */
@@ -466,7 +466,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     setTouched({});
     logger.debug('Form data cleared', { component: 'PreviewPanel' });
   }, []);
-  
+
   /**
    * Validate a single field
    */
@@ -480,12 +480,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         return 'This field is required';
       }
     }
-    
+
     // Skip other validations if value is empty and not required
     if (!value && !field.required) {
       return null;
     }
-    
+
     // Type-specific validations
     switch (field.type) {
       case 'email':
@@ -494,7 +494,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           return 'Please enter a valid email address';
         }
         break;
-      
+
       case 'url':
         try {
           new URL(value);
@@ -502,7 +502,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           return 'Please enter a valid URL';
         }
         break;
-      
+
       case 'number':
         const num = Number(value);
         if (isNaN(num)) {
@@ -515,7 +515,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           return `Value must be at most ${field.max}`;
         }
         break;
-      
+
       case 'tel':
       case 'phone':
         const phoneRegex = /^[\d\s\-\+\(\)]+$/;
@@ -523,7 +523,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           return 'Please enter a valid phone number';
         }
         break;
-      
+
       case 'text':
       case 'textarea':
         if (field.pattern) {
@@ -540,10 +540,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         }
         break;
     }
-    
+
     return null;
   }, []);
-  
+
   /**
    * Log preview updates when nodes change
    */
@@ -558,13 +558,13 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       });
     }
   }, [nodes, isVisible]);
-  
+
   /**
    * Validate all fields in the form
    */
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
-    
+
     formFields.forEach(field => {
       const value = formData[field.id];
       const error = validateField(field, value);
@@ -572,22 +572,22 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         errors[field.id] = error;
       }
     });
-    
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   }, [formFields, formData, validateField]);
-  
+
   /**
    * Handle field value change with validation
    */
   const handleFieldChange = useCallback((fieldId: string, field: any, value: any) => {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
-    
+
     // Mark field as touched
     if (!touched[fieldId]) {
       setTouched(prev => ({ ...prev, [fieldId]: true }));
     }
-    
+
     // Validate field if it has been touched
     if (touched[fieldId] || value) {
       const error = validateField(field, value);
@@ -601,13 +601,13 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       });
     }
   }, [touched, validateField]);
-  
+
   /**
    * Handle field blur (mark as touched and validate)
    */
   const handleFieldBlur = useCallback((fieldId: string, field: any) => {
     setTouched(prev => ({ ...prev, [fieldId]: true }));
-    
+
     const value = formData[fieldId];
     const error = validateField(field, value);
     setValidationErrors(prev => {
@@ -619,13 +619,13 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       }
     });
   }, [formData, validateField]);
-  
+
   const handleRefresh = useCallback(() => {
     setRefreshKey(prev => prev + 1);
   }, []);
-  
+
   const hasFormFields = formFields.length > 0;
-  
+
   return (
     <PanelOverlay $isVisible={isVisible}>
       {/* Header */}
@@ -637,15 +637,15 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           </PanelTitle>
         </HeaderLeft>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <RefreshButton 
-            onClick={handleFillTestData} 
+          <RefreshButton
+            onClick={handleFillTestData}
             title="Fill with Test Data"
             disabled={!hasFormFields}
           >
             <TestTube2 size={14} />
           </RefreshButton>
-          <RefreshButton 
-            onClick={handleClearForm} 
+          <RefreshButton
+            onClick={handleClearForm}
             title="Clear Form"
             disabled={!hasFormFields}
           >
@@ -656,7 +656,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           </CloseButton>
         </div>
       </PanelHeader>
-      
+
       {/* Viewport Controls */}
       <ViewportControls>
         <ViewportButton
@@ -684,7 +684,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           Desktop
         </ViewportButton>
       </ViewportControls>
-      
+
       {/* Preview Content */}
       <PreviewContent>
         {hasFormFields ? (
@@ -709,18 +709,18 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                   </ValidationList>
                 </ValidationSummary>
               )}
-              
+
               {formFields.map((field) => {
                 const hasError = !!validationErrors[field.id];
                 const fieldValue = formData[field.id];
-                
+
                 return (
                   <FormField key={field.id}>
                     <FieldLabel>
                       {field.label}
                       {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
                     </FieldLabel>
-                    
+
                     {/* Textarea */}
                     {field.type === 'textarea' ? (
                       <FieldTextarea
@@ -733,7 +733,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                       />
                     ) : /* Select dropdown */
                     field.type === 'select' || field.type === 'dropdown' ? (
-                      <FieldSelect 
+                      <FieldSelect
                         required={field.required}
                         value={fieldValue || ''}
                         onChange={(e) => handleFieldChange(field.id, field, e.target.value)}
@@ -801,7 +801,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                         $hasError={hasError}
                       />
                     )}
-                    
+
                     {/* Validation Error */}
                     {hasError && (
                       <FieldError>
@@ -809,7 +809,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                         {validationErrors[field.id]}
                       </FieldError>
                     )}
-                    
+
                     {/* Help text (except for checkbox which shows it inline) */}
                     {field.helpText && field.type !== 'checkbox' && field.type !== 'boolean' && !hasError && (
                       <FieldHelpText>{field.helpText}</FieldHelpText>

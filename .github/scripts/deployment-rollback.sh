@@ -114,29 +114,29 @@ rollback_container() {
     local port_mapping=$3
     local volumes=$4
     local env_file=${5:-}
-    
+
     echo -e "\n${YELLOW}Rolling back $container_name...${NC}"
     echo "Rollback image ref: $image_ref"
-    
+
     # Stop current container
     echo "Stopping current container..."
     docker stop "$container_name" >/dev/null 2>&1 || true
     docker rm "$container_name" >/dev/null 2>&1 || true
-    
+
     # Start container with previous version
     echo "Starting container with previous version..."
     local docker_cmd="docker run -d --name $container_name --restart unless-stopped $port_mapping"
-    
+
     if [ -n "$env_file" ]; then
         docker_cmd="$docker_cmd --env-file $env_file"
     fi
-    
+
     if [ -n "$volumes" ]; then
         docker_cmd="$docker_cmd $volumes"
     fi
-    
+
     docker_cmd="$docker_cmd $image_ref"
-    
+
     if eval "$docker_cmd"; then
         echo -e "${GREEN}✓ Rollback successful${NC}"
         return 0
@@ -156,7 +156,7 @@ rollback_frontend() {
     image_ref="$(resolve_image_ref "$image" "${FRONTEND_IMAGE_REF:-}")" || return 1
     env_config="$(resolve_existing_path "frontend env-config.js" "/opt/pm/frontend/env/env-config.js")" || return 1
     local volumes="-v ${env_config}:/usr/share/nginx/html/env-config.js:ro"
-    
+
     rollback_container "pm-frontend" "$image_ref" "-p 127.0.0.1:8080:80" "$volumes"
 }
 
@@ -181,7 +181,7 @@ rollback_backend() {
         "/home/django/ProjectMeats/staticfiles")" || return 1
 
     local volumes="-v ${media_dir}:/app/media -v ${static_dir}:/app/staticfiles"
-    
+
     rollback_container "pm-backend" "$image_ref" "-p 8000:8000" "$volumes" "$env_file"
 }
 
@@ -227,7 +227,7 @@ verify_rollback() {
     if is_non_dev; then
         backend_health_url="http://127.0.0.1:8000/api/v1/ready/"
     fi
-    
+
     if [ "$COMPONENT" = "frontend" ] || [ "$COMPONENT" = "all" ]; then
         if ! docker ps | grep -q pm-frontend; then
             echo -e "${RED}✗ Frontend container not running${NC}"
@@ -238,7 +238,7 @@ verify_rollback() {
             echo -e "${GREEN}✓ Frontend container running${NC}"
         fi
     fi
-    
+
     if [ "$COMPONENT" = "backend" ] || [ "$COMPONENT" = "all" ]; then
         if ! docker ps | grep -q pm-backend; then
             echo -e "${RED}✗ Backend container not running${NC}"
@@ -249,7 +249,7 @@ verify_rollback() {
             echo -e "${GREEN}✓ Backend container running${NC}"
         fi
     fi
-    
+
     return $failed
 }
 
@@ -275,7 +275,7 @@ EOF
 main() {
     # Create snapshot before rollback
     create_snapshot
-    
+
     case "$COMPONENT" in
         frontend)
             rollback_frontend
@@ -292,7 +292,7 @@ main() {
             exit 1
             ;;
     esac
-    
+
     # Verify rollback
     if verify_rollback; then
         echo -e "\n${GREEN}=== Rollback completed successfully ===${NC}"

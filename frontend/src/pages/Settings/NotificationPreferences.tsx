@@ -1,6 +1,6 @@
 /**
  * NotificationPreferences Page Component
- * 
+ *
  * Full settings page for notification preferences with per-type configuration.
  * Integrates with the Wave 3 notification-preferences API endpoint.
  */
@@ -270,7 +270,7 @@ const LoadingSpinner = styled.div`
   justify-content: center;
   align-items: center;
   padding: 60px;
-  
+
   &::after {
     content: '';
     width: 40px;
@@ -327,7 +327,7 @@ const DELIVERY_LABELS: Record<DeliveryMethod, string> = {
 
 export const NotificationPreferences: React.FC = () => {
   const { preferences, updatePreferences, loading: contextLoading, error: contextError } = useNotifications();
-  
+
   // Local state for form
   const [localPrefs, setLocalPrefs] = useState({
     notifications_enabled: true,
@@ -341,7 +341,7 @@ export const NotificationPreferences: React.FC = () => {
     daily_digest_enabled: false,
     weekly_digest_enabled: false,
   });
-  
+
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -375,12 +375,12 @@ export const NotificationPreferences: React.FC = () => {
     const updated = current.includes(method)
       ? current.filter(m => m !== method)
       : [...current, method];
-    
+
     // Ensure at least in_app is always enabled
     if (updated.length === 0) {
       updated.push('in_app');
     }
-    
+
     setLocalPrefs(prev => ({
       ...prev,
       type_preferences: {
@@ -395,7 +395,7 @@ export const NotificationPreferences: React.FC = () => {
     setSaving(true);
     setSaveSuccess(false);
     setSaveError(null);
-    
+
     try {
       await updatePreferences(localPrefs);
       setSaveSuccess(true);
@@ -501,10 +501,10 @@ export const NotificationPreferences: React.FC = () => {
               <DeliveryOptions>
                 {DELIVERY_METHODS.map((method) => {
                   // Check if delivery method is enabled globally
-                  const isMethodEnabled = method === 'in_app' || 
+                  const isMethodEnabled = method === 'in_app' ||
                     (method === 'email' && localPrefs.email_enabled) ||
                     (method === 'push' && localPrefs.push_enabled);
-                  
+
                   return (
                     <DeliveryBadge
                       key={method}

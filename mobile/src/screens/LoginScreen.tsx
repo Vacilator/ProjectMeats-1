@@ -41,9 +41,9 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
         username: username.trim(),
         password: password
       });
-      
+
       await onLogin(response.token, response.user);
-      
+
     } catch (error) {
       Alert.alert(
         t.login.loginFailed,
@@ -55,15 +55,15 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
           <Text style={styles.title}>{t.login.title}</Text>
           <Text style={styles.subtitle}>{t.login.subtitle}</Text>
-          
+
           <View style={styles.form}>
             <TextInput
               style={styles.input}
@@ -74,7 +74,7 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
               autoCorrect={false}
               editable={!loading}
             />
-            
+
             <TextInput
               style={styles.input}
               placeholder={t.login.password}
@@ -83,7 +83,7 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
               secureTextEntry
               editable={!loading}
             />
-            
+
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.disabledButton]}
               onPress={handleLogin}
@@ -120,7 +120,7 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
               <Text style={styles.altButtonText}>✉️  Accept an Invite</Text>
             </TouchableOpacity>
           </View>
-          
+
           <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
       </ScrollView>

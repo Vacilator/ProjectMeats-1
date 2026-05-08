@@ -5,7 +5,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("integrations", "0003_fix_emaillog_rls_policy_safe_current_setting"),
     ]

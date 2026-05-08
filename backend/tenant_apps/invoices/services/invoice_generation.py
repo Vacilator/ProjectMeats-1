@@ -151,12 +151,14 @@ def build_invoice_from_sales_order(
         unit_price=unit_price,
     )
     line_item.calculate_total()
-    line_items.append({
-        "description": line_item.description,
-        "quantity": line_item.quantity,
-        "unit_price": str(line_item.unit_price.quantize(Decimal("0.01"))),
-        "total": str(line_item.total.quantize(Decimal("0.01"))),
-    })
+    line_items.append(
+        {
+            "description": line_item.description,
+            "quantity": line_item.quantity,
+            "unit_price": str(line_item.unit_price.quantize(Decimal("0.01"))),
+            "total": str(line_item.total.quantize(Decimal("0.01"))),
+        }
+    )
 
     # Resolve routing contact (prefer billing, fall back to shipping)
     routing = InvoiceRoutingInfo(

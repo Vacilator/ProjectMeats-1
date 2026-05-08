@@ -1,16 +1,16 @@
 /**
  * Side Panel Wrapper
- * 
+ *
  * Portal-based wrapper for slide-in configuration panels.
  * Renders panel content outside the editor DOM hierarchy to avoid z-index and overflow issues.
- * 
+ *
  * Features:
  * - Uses React Portal for proper rendering
  * - Fixed positioning relative to viewport
  * - Backdrop with click-to-close
  * - Escape key support
  * - Slide-in animation
- * 
+ *
  * Created: 2026-02-05 - Fix for form node modals not rendering
  */
 import React, { useEffect } from 'react';
@@ -90,11 +90,11 @@ const PanelContent = styled.div`
   &::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: rgb(var(--color-background));
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border));
     border-radius: 4px;

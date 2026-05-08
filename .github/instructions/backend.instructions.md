@@ -145,11 +145,11 @@ class MyViewSet(viewsets.ModelViewSet):
     queryset = MyModel.objects.all()
     serializer_class = MySerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         # ALWAYS filter by tenant
         return super().get_queryset().filter(tenant=self.request.tenant)
-    
+
     def perform_create(self, serializer):
         # ALWAYS set tenant on creation
         serializer.save(tenant=self.request.tenant)
@@ -172,7 +172,7 @@ class MyModel(models.Model):
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         indexes = [
             models.Index(fields=['tenant', 'name']),

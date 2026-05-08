@@ -435,13 +435,13 @@ export async function getChoiceLists(): Promise<SystemChoiceList[]> {
       const data = response.data.results || response.data;
       // Ensure we always have an array
       const lists = Array.isArray(data) ? data : [];
-      
+
       // Cache the full list
       memoryCache.allChoiceLists = {
         data: lists,
         timestamp: Date.now(),
       };
-      
+
       // Also populate individual choice list cache
       if (!memoryCache.choiceLists) {
         memoryCache.choiceLists = {
@@ -452,7 +452,7 @@ export async function getChoiceLists(): Promise<SystemChoiceList[]> {
       for (const list of lists) {
         memoryCache.choiceLists.data[list.slug] = list;
       }
-      
+
       return lists;
     } finally {
       delete pendingRequests[cacheKey];
@@ -495,7 +495,7 @@ export async function getChoiceList(slug: string): Promise<SystemChoiceList> {
         };
       }
       memoryCache.choiceLists.data[slug] = choiceList;
-      
+
       // Persist to localStorage for faster loads
       persistCacheToStorage();
 
@@ -713,7 +713,7 @@ export async function getChoiceListsBatch(
     const fetched = await Promise.all(
       uncachedSlugs.map((slug) => getChoiceList(slug).catch(() => null))
     );
-    
+
     uncachedSlugs.forEach((slug, index) => {
       const list = fetched[index];
       if (list) {
@@ -739,7 +739,7 @@ export function getCacheStats(): {
 } {
   const total = cacheHits + cacheMisses;
   const hitRate = total > 0 ? ((cacheHits / total) * 100).toFixed(1) + '%' : 'N/A';
-  
+
   return {
     choiceListsCached: memoryCache.choiceLists
       ? Object.keys(memoryCache.choiceLists.data).length
@@ -829,7 +829,7 @@ async function getAuditLogs(
   filters: AuditLogFilters = {}
 ): Promise<{ results: ConfigAuditLogSummary[]; count: number; next: string | null; previous: string | null }> {
   const params = new URLSearchParams();
-  
+
   if (filters.entity_type) params.append('entity_type', filters.entity_type);
   if (filters.change_type) params.append('change_type', filters.change_type);
   if (filters.user) params.append('user', filters.user);
@@ -838,7 +838,7 @@ async function getAuditLogs(
   if (filters.search) params.append('search', filters.search);
   if (filters.page) params.append('page', String(filters.page));
   if (filters.page_size) params.append('page_size', String(filters.page_size));
-  
+
   const response = await apiClient.get(`/system/audit-logs/?${params.toString()}`);
   return response.data;
 }
@@ -871,7 +871,7 @@ async function getEntityHistory(params: {
   if (params.entity_type) searchParams.append('entity_type', params.entity_type);
   if (params.entity_name) searchParams.append('entity_name', params.entity_name);
   if (params.object_id) searchParams.append('object_id', params.object_id);
-  
+
   const response = await apiClient.get(`/system/audit-logs/entity_history/?${searchParams.toString()}`);
   return response.data;
 }

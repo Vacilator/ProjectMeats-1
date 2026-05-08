@@ -1,22 +1,22 @@
 /**
  * VirtualizedNodePalette Component
- * 
+ *
  * High-performance node palette using react-window for virtualization.
  * Renders only visible items, enabling smooth scrolling with 100+ nodes.
- * 
+ *
  * Performance optimizations:
  * - Virtualized list rendering (only visible items in DOM)
  * - Memoized item components to prevent re-renders
  * - Efficient search filtering with debouncing
  * - Lazy loading of node icons
- * 
+ *
  * React Flow Best Practices:
  * - Virtualize large lists to maintain 60fps
  * - Memoize components and callbacks
  * - Use window.requestAnimationFrame for smooth animations
- * 
+ *
  * Created: 2026-02-21 - Phase 3 Performance & Stability
- * 
+ *
  * @module VirtualizedNodePalette
  */
 
@@ -119,9 +119,9 @@ const Row = (props: RowComponentProps<ListItemData>): React.ReactElement => {
 
 /**
  * VirtualizedNodePalette Component
- * 
+ *
  * High-performance node palette with virtualization.
- * 
+ *
  * @example
  * ```tsx
  * <VirtualizedNodePalette

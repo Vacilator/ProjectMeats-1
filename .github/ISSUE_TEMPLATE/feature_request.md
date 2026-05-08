@@ -70,5 +70,5 @@ assignees: ''
 
 ---
 
-**Branch Naming**: When implementing, use `feature/descriptive-name` format  
+**Branch Naming**: When implementing, use `feature/descriptive-name` format
 **PR Title Format**: `feat(scope): description` following [Conventional Commits](https://www.conventionalcommits.org/)

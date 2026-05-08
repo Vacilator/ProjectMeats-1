@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("invoices", "0016_operational_readiness"),
         ("purchase_orders", "0019_operational_readiness"),

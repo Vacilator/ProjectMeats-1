@@ -191,7 +191,7 @@ export const ConfigDashboard: React.FC = () => {
             onClick={() => setActiveTab('features')}
           />
         </div>
-        
+
         {/* Quick Actions Bar */}
         <div className="flex justify-end gap-3 mb-6">
           <Link
@@ -492,7 +492,7 @@ const ChoiceListsTab: React.FC<ChoiceListsTabProps> = ({ choiceLists }) => {
           )}
         </div>
       ))}
-      
+
       {/* Open Editor Button */}
       <div className="mt-6 text-center">
         <Link
@@ -561,7 +561,7 @@ const TenantConfigsTab: React.FC<TenantConfigsTabProps> = ({ configsByCategory }
           </div>
         </div>
       ))}
-      
+
       {/* Open Editor Button */}
       <div className="mt-6 text-center">
         <Link

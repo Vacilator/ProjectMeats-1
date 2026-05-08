@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     """
     Golden State Synchronization: Inform Django that tenant field exists.
-    
+
     The 0002 migration used RunPython with raw SQL to add the tenant column,
     but Django's autodetector can't see inside RunPython operations. This
     migration uses SeparateDatabaseAndState to update Django's internal state

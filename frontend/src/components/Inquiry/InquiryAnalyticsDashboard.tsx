@@ -1,6 +1,6 @@
 /**
  * InquiryAnalyticsDashboard
- * 
+ *
  * Win/Loss reporting dashboard for inquiry analytics.
  * Features:
  * - Win rate metrics
@@ -98,7 +98,7 @@ const PeriodButton = styled.button<{ $active: boolean }>`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
@@ -117,7 +117,7 @@ const MetricCard = styled.div<{ $variant?: 'success' | 'danger' | 'primary' | 'w
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
   padding: 1.25rem;
-  
+
   .label {
     font-size: 0.75rem;
     font-weight: 600;
@@ -126,7 +126,7 @@ const MetricCard = styled.div<{ $variant?: 'success' | 'danger' | 'primary' | 'w
     color: rgb(var(--color-text-secondary));
     margin-bottom: 0.5rem;
   }
-  
+
   .value {
     font-size: 1.75rem;
     font-weight: 700;
@@ -140,7 +140,7 @@ const MetricCard = styled.div<{ $variant?: 'success' | 'danger' | 'primary' | 'w
       }
     }};
   }
-  
+
   .subtext {
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
@@ -151,7 +151,7 @@ const MetricCard = styled.div<{ $variant?: 'success' | 'danger' | 'primary' | 'w
 const WinRateCard = styled(MetricCard)`
   position: relative;
   overflow: hidden;
-  
+
   .progress-bar {
     position: absolute;
     bottom: 0;
@@ -208,7 +208,7 @@ const TrendBar = styled.div<{ $height: number; $variant: 'total' | 'won' | 'lost
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   transition: height 0.3s ease;
   position: relative;
-  
+
   &:hover {
     opacity: 0.8;
   }
@@ -220,13 +220,13 @@ const TrendLegend = styled.div`
   margin-top: 0.75rem;
   font-size: 0.75rem;
   color: rgb(var(--color-text-secondary));
-  
+
   .item {
     display: flex;
     align-items: center;
     gap: 0.375rem;
   }
-  
+
   .dot {
     width: 8px;
     height: 8px;
@@ -244,7 +244,7 @@ const SourceItem = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  
+
   .icon {
     width: 32px;
     height: 32px;
@@ -255,22 +255,22 @@ const SourceItem = styled.div`
     border-radius: var(--radius-sm);
     font-size: 1rem;
   }
-  
+
   .info {
     flex: 1;
-    
+
     .name {
       font-size: 0.875rem;
       font-weight: 500;
       color: rgb(var(--color-text-primary));
     }
-    
+
     .stats {
       font-size: 0.75rem;
       color: rgb(var(--color-text-secondary));
     }
   }
-  
+
   .count {
     font-size: 1rem;
     font-weight: 600;
@@ -291,12 +291,12 @@ const CompetitorItem = styled.div`
   padding: 0.5rem 0.75rem;
   background: rgba(var(--color-primary), 0.05);
   border-radius: var(--radius-sm);
-  
+
   .name {
     font-size: 0.875rem;
     color: rgb(var(--color-text-primary));
   }
-  
+
   .count {
     font-size: 0.75rem;
     font-weight: 600;
@@ -317,11 +317,11 @@ const ReasonsList = styled.div`
 
 const ReasonItem = styled.div<{ $variant: 'win' | 'loss' }>`
   padding: 0.5rem 0.75rem;
-  background: ${props => props.$variant === 'win' 
-    ? 'rgba(var(--color-success), 0.05)' 
+  background: ${props => props.$variant === 'win'
+    ? 'rgba(var(--color-success), 0.05)'
     : 'rgba(var(--color-error), 0.05)'};
-  border-left: 3px solid ${props => props.$variant === 'win' 
-    ? 'rgb(var(--color-success))' 
+  border-left: 3px solid ${props => props.$variant === 'win'
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-error))'};
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-size: 0.8125rem;
@@ -365,7 +365,7 @@ const StatusBadge = styled.span<{ $status: string }>`
       default: return 'rgb(var(--color-neutral))';
     }
   }};
-  
+
   .count {
     margin-left: 0.5rem;
     font-weight: 700;
@@ -432,7 +432,7 @@ export const InquiryAnalyticsDashboard: React.FC<InquiryAnalyticsDashboardProps>
     try {
       const params: Record<string, string> = { period };
       if (entityType) params.entity_type = entityType;
-      
+
       const response = await apiClient.get('/inquiries/analytics/', { params });
       setData(response.data);
     } catch (error) {
@@ -491,7 +491,7 @@ export const InquiryAnalyticsDashboard: React.FC<InquiryAnalyticsDashboardProps>
           <div className="value">{data.summary.total_inquiries}</div>
           <div className="subtext">{data.summary.pending} pending</div>
         </MetricCard>
-        
+
         <WinRateCard $variant="success">
           <div className="label">Win Rate</div>
           <div className="value">{data.summary.win_rate}%</div>
@@ -500,18 +500,18 @@ export const InquiryAnalyticsDashboard: React.FC<InquiryAnalyticsDashboardProps>
           </div>
           <div className="progress-bar" style={{ width: `${data.summary.win_rate}%` }} />
         </WinRateCard>
-        
+
         <MetricCard $variant="success">
           <div className="label">Total Won Value</div>
           <div className="value">{formatCurrency(data.summary.total_won_value)}</div>
           <div className="subtext">Avg: {formatCurrency(data.summary.avg_deal_size)}</div>
         </MetricCard>
-        
+
         <MetricCard $variant="danger">
           <div className="label">Total Lost Value</div>
           <div className="value">{formatCurrency(data.summary.total_lost_value)}</div>
         </MetricCard>
-        
+
         {data.summary.avg_days_to_close && (
           <MetricCard>
             <div className="label">Avg. Days to Close</div>
@@ -530,13 +530,13 @@ export const InquiryAnalyticsDashboard: React.FC<InquiryAnalyticsDashboardProps>
               <TrendChart>
                 {data.trend.map((week, idx) => (
                   <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'stretch' }}>
-                    <TrendBar 
-                      $height={(week.accepted / maxTrendValue) * 100} 
+                    <TrendBar
+                      $height={(week.accepted / maxTrendValue) * 100}
                       $variant="won"
                       title={`Won: ${week.accepted}`}
                     />
-                    <TrendBar 
-                      $height={(week.rejected / maxTrendValue) * 100} 
+                    <TrendBar
+                      $height={(week.rejected / maxTrendValue) * 100}
                       $variant="lost"
                       title={`Lost: ${week.rejected}`}
                     />

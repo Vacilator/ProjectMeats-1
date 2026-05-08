@@ -1,6 +1,6 @@
 /**
  * SearchableSelect Component
- * 
+ *
  * A smart select component that:
  * - Shows normal dropdown for small option sets (<50)
  * - Switches to searchable API-backed dropdown for large sets
@@ -66,21 +66,21 @@ const SelectTrigger = styled.button<{ $hasError?: boolean; $isOpen?: boolean }>`
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;
-  
+
   ${props => props.$hasError && css`
     background: rgba(var(--color-error), 0.14);
   `}
-  
+
   &:hover:not(:disabled) {
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
   }
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   }
-  
+
   &:disabled {
     background: rgb(var(--color-surface-hover));
     cursor: not-allowed;
@@ -121,12 +121,12 @@ const SearchInput = styled.input`
   border: none;
   border-bottom: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
-  
+
   &:focus {
     outline: none;
     background: white;
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-muted));
   }
@@ -144,9 +144,9 @@ const OptionItem = styled.button<{ $isHighlighted?: boolean; $isSelected?: boole
   font-size: 14px;
   text-align: left;
   border: none;
-  background: ${props => 
-    props.$isHighlighted ? 'rgba(var(--color-primary), 0.10)' : 
-    props.$isSelected ? 'rgba(var(--color-success), 0.12)' : 
+  background: ${props =>
+    props.$isHighlighted ? 'rgba(var(--color-primary), 0.10)' :
+    props.$isSelected ? 'rgba(var(--color-success), 0.12)' :
     'white'
   };
   color: ${props => props.$isSelected ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-primary))'};
@@ -155,14 +155,14 @@ const OptionItem = styled.button<{ $isHighlighted?: boolean; $isSelected?: boole
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.10);
   }
-  
+
   ${props => props.$isSelected && css`
     font-weight: 500;
-    
+
     &::after {
       content: '✓';
       margin-left: auto;
@@ -237,7 +237,7 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isSearchMode, setIsSearchMode] = useState(forceSearch);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -319,7 +319,7 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
 
   const handleToggle = () => {
     if (disabled) return;
-    
+
     if (!isOpen) {
       setIsOpen(true);
       setSearchQuery('');
@@ -384,7 +384,7 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
     }
   };
 
-  const selectedOption = options.find(o => o.value === value) || 
+  const selectedOption = options.find(o => o.value === value) ||
     initialOptions.find(o => o.value === value);
 
   return (

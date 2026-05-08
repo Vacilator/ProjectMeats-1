@@ -10,9 +10,10 @@ to preserve behavior and response shape.
 
 from __future__ import annotations
 
-from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
+
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 
 from projectmeats.health import health_check, health_detailed, health_workforms, ready_check
 

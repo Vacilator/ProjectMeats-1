@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("locations", "0006_update_order_plant_references"),
         ("suppliers", "0010_alter_supplier_products_to_system"),

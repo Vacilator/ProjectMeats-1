@@ -169,11 +169,11 @@ describe('NotificationsContext', () => {
   describe('useNotifications hook', () => {
     it('should throw error when used outside provider', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       expect(() => {
         renderHook(() => useNotifications());
       }).toThrow('useNotifications must be used within a NotificationsProvider');
-      
+
       consoleSpy.mockRestore();
     });
 
@@ -185,7 +185,7 @@ describe('NotificationsContext', () => {
       // Initially, notifications array is empty
       expect(result.current.notifications).toEqual([]);
       expect(result.current.error).toBeNull();
-      
+
       // Loading may be true or false depending on timing (useEffect runs immediately)
       // Wait for loading to settle after initial fetch
       await waitFor(() => {

@@ -2,7 +2,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("workflows", "0028_usernotificationpreferences_tenant_and_more"),
     ]

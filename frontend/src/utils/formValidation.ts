@@ -1,6 +1,6 @@
 /**
  * Form Validation Utility
- * 
+ *
  * Validates form field values against validation_rules stored in field config.
  * Supports: min_length, max_length, min, max, pattern, email, url, phone, required
  */

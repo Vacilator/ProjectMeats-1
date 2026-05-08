@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, TestCase
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # InboxParser Tests
 # ═══════════════════════════════════════════════════════════════════════════
@@ -23,6 +22,7 @@ class ExtractPONumbersTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.ai_assistant.services.inbox_parser import extract_po_numbers
+
         self.extract = extract_po_numbers
 
     def test_standard_po_format(self):
@@ -65,6 +65,7 @@ class InboxParserTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.ai_assistant.services.inbox_parser import InboxParser
+
         self.parser = InboxParser()
 
     def test_parse_full_trade_email(self):
@@ -140,6 +141,7 @@ class BidSelectionExecutorTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+
         self.E2EProcessExecutors = E2EProcessExecutors
         self.tenant = MagicMock(pk="tenant-1")
         self.context = {
@@ -202,8 +204,15 @@ class BidSelectionExecutorTests(SimpleTestCase):
 
     def test_bid_selection_all_below_threshold_uses_all(self):
         self.context["received_bids"] = [
-            {"id": "bid-x", "supplier_name": "X", "price": 100, "margin_percent": 2.0,
-             "reliability": 80, "lead_time": 5, "quality_score": 70},
+            {
+                "id": "bid-x",
+                "supplier_name": "X",
+                "price": 100,
+                "margin_percent": 2.0,
+                "reliability": 80,
+                "lead_time": 5,
+                "quality_score": 70,
+            },
         ]
         executors = self.E2EProcessExecutors(self.tenant, self.context)
         config = {"selectionCriteria": {"minimumMarginPercent": 10.0}}
@@ -218,6 +227,7 @@ class CheckBidsExecutorTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+
         self.tenant = MagicMock(pk="tenant-1")
         self.context = {"trade_session_id": None, "inquiry_id": None, "known_bid_ids": []}
         self.executors = E2EProcessExecutors(self.tenant, self.context)
@@ -233,6 +243,7 @@ class ResolveContactsExecutorTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+
         self.tenant = MagicMock(pk="tenant-1")
         self.context = {}
         self.executors = E2EProcessExecutors(self.tenant, self.context)
@@ -248,6 +259,7 @@ class GenerateSalesOrderExecutorTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+
         self.tenant = MagicMock(pk="tenant-1")
         self.context = {}
         self.executors = E2EProcessExecutors(self.tenant, self.context)
@@ -263,6 +275,7 @@ class CreatePurchaseOrderExecutorTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+
         self.tenant = MagicMock(pk="tenant-1")
         self.context = {}
         self.executors = E2EProcessExecutors(self.tenant, self.context)
@@ -283,44 +296,49 @@ class ActionExecutorE2ERegistrationTests(SimpleTestCase):
 
     def test_e2e_action_types_registered(self):
         from tenant_apps.workflows.services.action_executor import ActionExecutor
+
         tenant = MagicMock()
         context = {}
         executor = ActionExecutor(tenant, context)
 
         # Execute with an unknown type to verify handler lookup
-        result = executor.execute('generate_sales_order', {})
+        result = executor.execute("generate_sales_order", {})
         # Should not return 'Unknown action type' error — it delegates to E2E
-        self.assertNotEqual(result.get('error'), 'Unknown action type: generate_sales_order')
+        self.assertNotEqual(result.get("error"), "Unknown action type: generate_sales_order")
 
     def test_bid_selection_registered(self):
         from tenant_apps.workflows.services.action_executor import ActionExecutor
+
         tenant = MagicMock()
         context = {"received_bids": []}
         executor = ActionExecutor(tenant, context)
-        result = executor.execute('bid_selection', {})
-        self.assertIn('error', result)
-        self.assertNotEqual(result['error'], 'Unknown action type: bid_selection')
+        result = executor.execute("bid_selection", {})
+        self.assertIn("error", result)
+        self.assertNotEqual(result["error"], "Unknown action type: bid_selection")
 
     def test_check_bids_registered(self):
         from tenant_apps.workflows.services.action_executor import ActionExecutor
+
         tenant = MagicMock()
         context = {}
         executor = ActionExecutor(tenant, context)
-        result = executor.execute('check_bids', {})
-        self.assertTrue(result.get('success', False))
+        result = executor.execute("check_bids", {})
+        self.assertTrue(result.get("success", False))
 
     def test_create_purchase_order_registered(self):
         from tenant_apps.workflows.services.action_executor import ActionExecutor
+
         tenant = MagicMock()
         context = {}
         executor = ActionExecutor(tenant, context)
-        result = executor.execute('create_purchase_order', {})
-        self.assertFalse(result.get('success'))
+        result = executor.execute("create_purchase_order", {})
+        self.assertFalse(result.get("success"))
 
     def test_resolve_contacts_registered(self):
         from tenant_apps.workflows.services.action_executor import ActionExecutor
+
         tenant = MagicMock()
         context = {}
         executor = ActionExecutor(tenant, context)
-        result = executor.execute('resolve_contacts', {})
-        self.assertFalse(result.get('success'))
+        result = executor.execute("resolve_contacts", {})
+        self.assertFalse(result.get("success"))

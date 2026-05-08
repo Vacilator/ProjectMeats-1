@@ -55,4 +55,3 @@ Field users (receiving, QA, dock, drivers) cannot operate dense desktop UIs. The
 ## Definition of Done
 - Receiving workflow completes on mobile with <= 3 taps per line item
 - Works on spotty connectivity (queue + retry)
-

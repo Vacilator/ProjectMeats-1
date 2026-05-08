@@ -1,14 +1,14 @@
 /**
  * ActionItemsContext
- * 
+ *
  * Provides action item counts throughout the application.
  * Used by NavigationMenu to display badges and by Forms & Flows pages.
- * 
+ *
  * Features:
  * - Circuit breaker pattern for resilient error handling
  * - Auto-stops polling on consecutive 500 errors or 401
  * - Graceful degradation with safe defaults
- * 
+ *
  * Created: 2026-02-03 - Phase 2 Forms & Flows Enhancement
  * Updated: 2026-03-03 - Added circuit breaker pattern
  */
@@ -47,26 +47,26 @@ interface ActionItemsProviderProps {
   pollingInterval?: number;
 }
 
-export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({ 
+export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
   children,
-  pollingInterval = POLL_INTERVAL_BACKGROUND 
+  pollingInterval = POLL_INTERVAL_BACKGROUND
 }) => {
   const { user, loading: authLoading } = useAuth();
-  
+
   // Circuit breaker state
   const circuitState = useRef<CircuitState>('closed');
   const consecutiveErrorCount = useRef(0);
   const circuitOpenUntil = useRef<number>(0);
   const lastErrorStatus = useRef<number | null>(null);
-  
+
   // Circuit breaker configuration
   const MAX_CONSECUTIVE_ERRORS = 5;
   const CIRCUIT_OPEN_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-  
+
   // Check if circuit breaker should open
   const checkCircuitBreaker = useCallback((errorStatus?: number) => {
     const now = Date.now();
-    
+
     // If circuit is open, check if timeout expired
     if (circuitState.current === 'open') {
       if (now >= circuitOpenUntil.current) {
@@ -77,11 +77,11 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
       }
       return true; // Still open, block requests
     }
-    
+
     // Handle errors
     if (errorStatus) {
       lastErrorStatus.current = errorStatus;
-      
+
       // Immediate circuit open on auth failure
       if (errorStatus === 401) {
         circuitState.current = 'open';
@@ -89,11 +89,11 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
         logger.error('[ActionItems] Circuit breaker OPEN: Authentication failed. Stopping all polling for 5 minutes.');
         return true;
       }
-      
+
       // Count consecutive 500 errors
       if (errorStatus >= 500) {
         consecutiveErrorCount.current += 1;
-        
+
         if (consecutiveErrorCount.current >= MAX_CONSECUTIVE_ERRORS) {
           circuitState.current = 'open';
           circuitOpenUntil.current = now + CIRCUIT_OPEN_DURATION_MS;
@@ -117,10 +117,10 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
       consecutiveErrorCount.current = 0;
       circuitState.current = 'closed';
     }
-    
+
     return false;
   }, []);
-  
+
   // Reset circuit breaker when user logs out
   useEffect(() => {
     if (!user) {
@@ -129,13 +129,13 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
       circuitOpenUntil.current = 0;
     }
   }, [user]);
-  
+
   // Only enable polling if user is authenticated AND circuit is not open
   const isCircuitOpen = circuitState.current === 'open';
   const enabled = !!user && !authLoading && !isCircuitOpen;
-  
+
   const { counts, loading, error, refetch } = useActionItemCounts(pollingInterval, enabled);
-  
+
   // Monitor errors and update circuit breaker
   useEffect(() => {
     if (error) {
@@ -150,10 +150,10 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
   }, [error, loading, counts, checkCircuitBreaker]);
 
   return (
-    <ActionItemsContext.Provider value={{ 
-      counts, 
-      loading, 
-      error, 
+    <ActionItemsContext.Provider value={{
+      counts,
+      loading,
+      error,
       refetch,
       isCircuitBreakerOpen: isCircuitOpen
     }}>
@@ -200,7 +200,7 @@ export function getBadgeValue(
   badgeKey: 'actionRequired' | 'waiting' | 'overdue' | 'total' | undefined
 ): number | undefined {
   if (!counts || !badgeKey) return undefined;
-  
+
   switch (badgeKey) {
     case 'actionRequired':
     case 'total':

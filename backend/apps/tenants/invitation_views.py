@@ -1,27 +1,29 @@
 """
 Views for tenant invitation system.
 """
-from rest_framework import viewsets, status
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
-from django.conf import settings
-from django.db import transaction, IntegrityError
-from typing import Any, Type
-from rest_framework.serializers import Serializer
-from django.db.models import QuerySet
 import logging
+from typing import Any, Type
 
-from apps.tenants.models import TenantUser, TenantInvitation
-from apps.tenants.invitation_email import send_invitation_email_now
+from django.conf import settings
+from django.db import IntegrityError, transaction
+from django.db.models import QuerySet
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.serializers import Serializer
+
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+
 from apps.tenants.email_utils import classify_email_send_exception
+from apps.tenants.invitation_email import send_invitation_email_now
 from apps.tenants.invitation_serializers import (
+    InvitationSignupSerializer,
     TenantInvitationCreateSerializer,
-    TenantInvitationListSerializer,
     TenantInvitationDetailSerializer,
-    InvitationSignupSerializer
+    TenantInvitationListSerializer,
 )
+from apps.tenants.models import TenantInvitation, TenantUser
 
 logger = logging.getLogger(__name__)
 
@@ -29,95 +31,95 @@ logger = logging.getLogger(__name__)
 class TenantInvitationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing tenant invitations.
-    
+
     Only tenant admins/owners can create and manage invitations.
     """
-    
+
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self) -> QuerySet[TenantInvitation]:
         """
         Return invitations for user's tenant(s).
-        
+
         Admins/Owners see all invitations for their tenants.
         Regular users see only their own invitations (if any).
         """
         user = self.request.user
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
 
         if user.is_superuser:
             if tenant:
                 return TenantInvitation.objects.filter(tenant=tenant)
             return TenantInvitation.objects.none()
-        
+
         # Get user's tenants where they are admin or owner
-        admin_tenants = TenantUser.objects.filter(
-            user=user,
-            role__in=['admin', 'owner'],
-            is_active=True
-        ).values_list('tenant_id', flat=True)
-        
+        admin_tenants = TenantUser.objects.filter(user=user, role__in=["admin", "owner"], is_active=True).values_list(
+            "tenant_id", flat=True
+        )
+
         if admin_tenants:
             # Admin/Owner: see all invitations for their tenants
             return TenantInvitation.objects.filter(tenant_id__in=admin_tenants)
-        
+
         # Regular user: see only invitations they sent (if they invited someone)
         return TenantInvitation.objects.filter(invited_by=user)
-    
+
     def get_serializer_class(self) -> Type[Serializer]:
         """Return appropriate serializer based on action."""
-        if self.action == 'create':
+        if self.action == "create":
             return TenantInvitationCreateSerializer
-        elif self.action == 'list':
+        elif self.action == "list":
             return TenantInvitationListSerializer
         return TenantInvitationDetailSerializer
-    
+
     def get_serializer_context(self) -> dict[str, Any]:
         """Add tenant to serializer context."""
         context = super().get_serializer_context()
 
         # Prefer the request tenant (TenantMiddleware + domain/header resolution).
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if tenant:
-            context['tenant'] = tenant
+            context["tenant"] = tenant
             return context
 
         # Fallback: first admin/owner tenant membership.
-        tenant_user = TenantUser.objects.filter(
-            user=self.request.user,
-            role__in=['admin', 'owner'],
-            is_active=True
-        ).select_related('tenant').first()
+        tenant_user = (
+            TenantUser.objects.filter(user=self.request.user, role__in=["admin", "owner"], is_active=True)
+            .select_related("tenant")
+            .first()
+        )
         if tenant_user:
-            context['tenant'] = tenant_user.tenant
+            context["tenant"] = tenant_user.tenant
 
         return context
-    
+
     def create(self, request, *args, **kwargs):
         """
         Create a new invitation.
-        
+
         Only admins/owners can create invitations.
         """
         # Prefer current request tenant.
-        tenant = getattr(request, 'tenant', None) or self.get_serializer_context().get('tenant')
+        tenant = getattr(request, "tenant", None) or self.get_serializer_context().get("tenant")
         if not tenant:
             return Response(
-                {'error': 'Tenant context is required to invite users (X-Tenant-ID header or tenant domain).'},
-                status=status.HTTP_403_FORBIDDEN
+                {"error": "Tenant context is required to invite users (X-Tenant-ID header or tenant domain)."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
-        if not request.user.is_superuser and not TenantUser.objects.filter(
-            tenant=tenant,
-            user=request.user,
-            role__in=['admin', 'owner'],
-            is_active=True,
-        ).exists():
+        if (
+            not request.user.is_superuser
+            and not TenantUser.objects.filter(
+                tenant=tenant,
+                user=request.user,
+                role__in=["admin", "owner"],
+                is_active=True,
+            ).exists()
+        ):
             return Response(
-                {'error': 'You do not have permission to invite users to this tenant'},
-                status=status.HTTP_403_FORBIDDEN
+                {"error": "You do not have permission to invite users to this tenant"}, status=status.HTTP_403_FORBIDDEN
             )
-        
+
         try:
             return super().create(request, *args, **kwargs)
         except IntegrityError as e:
@@ -128,7 +130,7 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
             )
             # Most common cause: duplicate pending invitation for same tenant/email.
             return Response(
-                {'error': 'Unable to create invitation. A pending invitation may already exist for this email.'},
+                {"error": "Unable to create invitation. A pending invitation may already exist for this email."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception:
@@ -138,21 +140,18 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
                 exc_info=True,
             )
             return Response(
-                {'error': 'Failed to create invitation'},
+                {"error": "Failed to create invitation"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-    
-    @action(detail=True, methods=['post'])
+
+    @action(detail=True, methods=["post"])
     def resend(self, request, pk=None):
         """Resend an invitation email (updates expiration)."""
         invitation = self.get_object()
-        
-        if invitation.status != 'pending':
-            return Response(
-                {'error': 'Can only resend pending invitations'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+
+        if invitation.status != "pending":
+            return Response({"error": "Can only resend pending invitations"}, status=status.HTTP_400_BAD_REQUEST)
+
         # Extend expiration by 7 days
         from django.utils import timezone
 
@@ -163,37 +162,34 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
         try:
             send_invitation_email_now(invitation)
         except Exception as e:
-            logger.exception('Failed to send invitation resend email invitation_id=%s', invitation.id)
+            logger.exception("Failed to send invitation resend email invitation_id=%s", invitation.id)
 
             classified = classify_email_send_exception(e)
             payload = {
-                'error': classified['message'],
-                'error_code': classified['error_code'],
-                'retryable': classified['retryable'],
+                "error": classified["message"],
+                "error_code": classified["error_code"],
+                "retryable": classified["retryable"],
             }
-            if getattr(settings, 'DEBUG', False):
-                payload['detail'] = str(e)
+            if getattr(settings, "DEBUG", False):
+                payload["detail"] = str(e)
 
-            return Response(payload, status=classified['http_status'])
+            return Response(payload, status=classified["http_status"])
 
         logger.info("Resent invitation %s to %s", invitation.id, invitation.email)
 
         serializer = self.get_serializer(invitation)
         return Response(serializer.data)
-    
-    @action(detail=True, methods=['post'])
+
+    @action(detail=True, methods=["post"])
     def revoke(self, request, pk=None):
         """Revoke an invitation."""
         invitation = self.get_object()
-        
+
         try:
             invitation.revoke()
-            return Response({'status': 'Invitation revoked'})
+            return Response({"status": "Invitation revoked"})
         except ValueError as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema(
@@ -201,70 +197,64 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
     request=InvitationSignupSerializer,
     responses={201: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 500: OpenApiTypes.OBJECT},
 )
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def signup_with_invitation(request):
     """
     User signup endpoint that requires an invitation token.
-    
+
     This replaces the open signup and ensures all users are tied to a tenant.
     """
     serializer = InvitationSignupSerializer(data=request.data)
-    
+
     if not serializer.is_valid():
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         with transaction.atomic():
             result = serializer.save()
-            
+
             # Extract values from result dictionary
-            user_obj = result.get('user')  # type: ignore
-            tenant_obj = result.get('tenant')  # type: ignore
-            token_obj = result.get('token')  # type: ignore
-            tenant_user_obj = result.get('tenant_user')  # type: ignore
-            
+            user_obj = result.get("user")  # type: ignore
+            tenant_obj = result.get("tenant")  # type: ignore
+            token_obj = result.get("token")  # type: ignore
+            tenant_user_obj = result.get("tenant_user")  # type: ignore
+
             logger.info(
                 f"User {user_obj.username} created via invitation "  # type: ignore
                 f"for tenant {tenant_obj.name}"  # type: ignore
             )
-            
+
             return Response(
                 {
-                    'token': token_obj,  # type: ignore
-                    'user': {
-                        'id': user_obj.id,  # type: ignore
-                        'username': user_obj.username,  # type: ignore
-                        'email': user_obj.email,  # type: ignore
-                        'first_name': user_obj.first_name,  # type: ignore
-                        'last_name': user_obj.last_name,  # type: ignore
+                    "token": token_obj,  # type: ignore
+                    "user": {
+                        "id": user_obj.id,  # type: ignore
+                        "username": user_obj.username,  # type: ignore
+                        "email": user_obj.email,  # type: ignore
+                        "first_name": user_obj.first_name,  # type: ignore
+                        "last_name": user_obj.last_name,  # type: ignore
                     },
-                    'tenant': {
-                        'id': str(tenant_obj.id),  # type: ignore
-                        'name': tenant_obj.name,  # type: ignore
-                        'slug': tenant_obj.slug,  # type: ignore
+                    "tenant": {
+                        "id": str(tenant_obj.id),  # type: ignore
+                        "name": tenant_obj.name,  # type: ignore
+                        "slug": tenant_obj.slug,  # type: ignore
                     },
-                    'role': tenant_user_obj.role,  # type: ignore
+                    "role": tenant_user_obj.role,  # type: ignore
                 },
-                status=status.HTTP_201_CREATED
+                status=status.HTTP_201_CREATED,
             )
-    
+
     except Exception as e:
         logger.error(f"Error in invitation signup: {str(e)}", exc_info=True)
-        return Response(
-            {'error': 'Failed to create user account'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({"error": "Failed to create user account"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @extend_schema(
     tags=["Invitations"],
     parameters=[
         OpenApiParameter(
-            name='token',
+            name="token",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
             required=True,
@@ -272,62 +262,49 @@ def signup_with_invitation(request):
     ],
     responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT},
 )
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def validate_invitation(request):
     """
     Validate an invitation token without accepting it.
-    
+
     Useful for frontend to show invitation details before signup.
     """
-    token = request.query_params.get('token')
-    
+    token = request.query_params.get("token")
+
     if not token:
-        return Response(
-            {'error': 'Token parameter is required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+        return Response({"error": "Token parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
-        invitation = TenantInvitation.objects.select_related('tenant').get(token=token)
+        invitation = TenantInvitation.objects.select_related("tenant").get(token=token)
     except TenantInvitation.DoesNotExist:
-        return Response(
-            {'error': 'Invalid invitation token'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
+        return Response({"error": "Invalid invitation token"}, status=status.HTTP_404_NOT_FOUND)
+
     # Check status
-    if invitation.status == 'accepted':
-        return Response(
-            {'error': 'This invitation has already been accepted'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+    if invitation.status == "accepted":
+        return Response({"error": "This invitation has already been accepted"}, status=status.HTTP_400_BAD_REQUEST)
+
     if invitation.is_expired:
-        invitation.status = 'expired'
+        invitation.status = "expired"
         invitation.save()
-        return Response(
-            {'error': 'This invitation has expired'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    if invitation.status == 'revoked':
-        return Response(
-            {'error': 'This invitation has been revoked'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+        return Response({"error": "This invitation has expired"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if invitation.status == "revoked":
+        return Response({"error": "This invitation has been revoked"}, status=status.HTTP_400_BAD_REQUEST)
+
     # Return invitation details
-    return Response({
-        'valid': True,
-        'email': invitation.email,
-        'role': invitation.role,
-        'is_reusable': invitation.is_reusable,
-        'uses_remaining': invitation.max_uses - invitation.usage_count if invitation.is_reusable else 1,
-        'tenant': {
-            'name': invitation.tenant.name,
-            'slug': invitation.tenant.slug,
-        },
-        'message': invitation.message,
-        'expires_at': invitation.expires_at,
-    })
+    return Response(
+        {
+            "valid": True,
+            "email": invitation.email,
+            "role": invitation.role,
+            "is_reusable": invitation.is_reusable,
+            "uses_remaining": invitation.max_uses - invitation.usage_count if invitation.is_reusable else 1,
+            "tenant": {
+                "name": invitation.tenant.name,
+                "slug": invitation.tenant.slug,
+            },
+            "message": invitation.message,
+            "expires_at": invitation.expires_at,
+        }
+    )

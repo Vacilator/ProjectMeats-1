@@ -2,16 +2,18 @@
 Tests for Core app validators.
 """
 from decimal import Decimal
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+
 from apps.core.validators import (
     email_validator,
     phone_validator,
-    zip_code_validator,
-    validate_product_code,
-    validate_positive_decimal,
     validate_non_negative_decimal,
     validate_percentage,
+    validate_positive_decimal,
+    validate_product_code,
+    zip_code_validator,
 )
 
 
@@ -26,7 +28,7 @@ class EmailValidatorTest(TestCase):
             "user+tag@example.co.uk",
             "test123@test-domain.com",
         ]
-        
+
         for email in valid_emails:
             try:
                 email_validator(email)
@@ -42,7 +44,7 @@ class EmailValidatorTest(TestCase):
             "test @example.com",
             "",
         ]
-        
+
         for email in invalid_emails:
             with self.assertRaises(ValidationError):
                 email_validator(email)
@@ -60,7 +62,7 @@ class PhoneValidatorTest(TestCase):
             "1234567890",
             "+11234567890",
         ]
-        
+
         for phone in valid_phones:
             try:
                 phone_validator(phone)
@@ -74,7 +76,7 @@ class PhoneValidatorTest(TestCase):
             "!@#$%",  # Special chars
             "",  # Empty
         ]
-        
+
         for phone in invalid_phones:
             with self.assertRaises(ValidationError):
                 phone_validator(phone)
@@ -89,9 +91,9 @@ class ZipCodeValidatorTest(TestCase):
             "12345",
             "12345-6789",
             "A1A 1A1",  # Canadian
-            "A1A1A1",   # Canadian without space
+            "A1A1A1",  # Canadian without space
         ]
-        
+
         for zip_code in valid_zips:
             try:
                 zip_code_validator(zip_code)
@@ -101,12 +103,12 @@ class ZipCodeValidatorTest(TestCase):
     def test_invalid_zip_codes(self):
         """Test that invalid ZIP codes fail validation."""
         invalid_zips = [
-            "1234",      # Too short
-            "123456",    # Too long for US
+            "1234",  # Too short
+            "123456",  # Too long for US
             "ABCDEF",
             "",
         ]
-        
+
         for zip_code in invalid_zips:
             with self.assertRaises(ValidationError):
                 zip_code_validator(zip_code)
@@ -123,7 +125,7 @@ class ProductCodeValidatorTest(TestCase):
             "PRODUCT_CODE_1",
             "123",
         ]
-        
+
         for code in valid_codes:
             try:
                 validate_product_code(code)
@@ -139,7 +141,7 @@ class ProductCodeValidatorTest(TestCase):
             "TEST CODE",  # Contains space
             "TEST@CODE",  # Contains invalid character
         ]
-        
+
         for code in invalid_codes:
             with self.assertRaises(ValidationError):
                 validate_product_code(code)
@@ -154,11 +156,11 @@ class DecimalValidatorTest(TestCase):
         validate_positive_decimal(Decimal("10.50"))
         validate_positive_decimal(Decimal("0.01"))
         validate_positive_decimal(None)  # None is allowed
-        
+
         # Invalid negative value
         with self.assertRaises(ValidationError):
             validate_positive_decimal(Decimal("-1.00"))
-        
+
         with self.assertRaises(ValidationError):
             validate_positive_decimal(Decimal("-0.01"))
 
@@ -168,7 +170,7 @@ class DecimalValidatorTest(TestCase):
         validate_non_negative_decimal(Decimal("10.50"))
         validate_non_negative_decimal(Decimal("0.00"))
         validate_non_negative_decimal(None)  # None is allowed
-        
+
         # Invalid negative value
         with self.assertRaises(ValidationError):
             validate_non_negative_decimal(Decimal("-1.00"))
@@ -180,10 +182,10 @@ class DecimalValidatorTest(TestCase):
         validate_percentage(Decimal("50.5"))
         validate_percentage(Decimal("100"))
         validate_percentage(None)  # None is allowed
-        
+
         # Invalid percentages
         with self.assertRaises(ValidationError):
             validate_percentage(Decimal("-1"))
-        
+
         with self.assertRaises(ValidationError):
             validate_percentage(Decimal("101"))

@@ -1,18 +1,18 @@
 /**
  * UtilityNode Component
- * 
+ *
  * Node for data operations and utilities:
  * - Transform (map/filter/reduce data)
  * - Lookup (query related records)
  * - Merge (combine data from multiple branches)
  * - Comment (visual annotation)
- * 
+ *
  * Features:
  * - Data transformation rules
  * - Query builders
  * - Merge strategies
  * - Visual documentation
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';
@@ -160,7 +160,7 @@ export const UtilityNode = React.memo<NodeProps<Node<UtilityNodeData>>>(({ data,
         <span>{transformRules.length} transformation{transformRules.length !== 1 ? 's' : ''}</span>
       </InfoRow>
     );
-    
+
     if (code) {
       configPreview.push(
         <CodeBlock key="code">{code.substring(0, 100)}{code.length > 100 ? '...' : ''}</CodeBlock>

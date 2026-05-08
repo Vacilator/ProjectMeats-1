@@ -1,15 +1,15 @@
 /**
  * Onboarding Tour Hook
- * 
+ *
  * Provides guided tours for first-time users using react-joyride.
  * Implements industry-standard onboarding (like Typeform, Shopify).
- * 
+ *
  * Features:
  * - Step-by-step workflow creation guide
  * - Persistent tour state via the shared onboarding preferences contract
  * - Skip/restart functionality
  * - Contextual hints
- * 
+ *
  * Created: 2026-02-26 - Gap Analysis Phase 1.1
  */
 import { useState, useEffect, useCallback } from 'react';

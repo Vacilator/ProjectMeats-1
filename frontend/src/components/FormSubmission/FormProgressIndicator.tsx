@@ -1,6 +1,6 @@
 /**
  * FormProgressIndicator Component
- * 
+ *
  * Visual progress indicator for multi-step form submissions.
  * Shows current step, completed steps, and overall progress.
  */
@@ -79,8 +79,8 @@ const HorizontalConnector = styled.div<{ $completed: boolean }>`
   left: calc(50% + 20px);
   right: calc(-50% + 20px);
   height: 2px;
-  background: ${props => props.$completed 
-    ? 'rgb(var(--color-success))' 
+  background: ${props => props.$completed
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-border, 224 224 224))'};
   z-index: 1;
   transition: background 0.3s ease;
@@ -119,8 +119,8 @@ const VerticalConnector = styled.div<{ $completed: boolean }>`
   left: 16px;
   width: 2px;
   bottom: 0;
-  background: ${props => props.$completed 
-    ? 'rgb(var(--color-success))' 
+  background: ${props => props.$completed
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-border, 224 224 224))'};
   z-index: 1;
   transition: background 0.3s ease;
@@ -172,8 +172,8 @@ const CompactText = styled.span`
 // STYLED COMPONENTS - SHARED
 // ============================================================================
 
-const StepCircle = styled.div<{ 
-  $status: FormStep['status']; 
+const StepCircle = styled.div<{
+  $status: FormStep['status'];
   $size?: 'small' | 'medium' | 'large';
 }>`
   width: ${props => props.$size === 'small' ? '24px' : props.$size === 'large' ? '40px' : '32px'};
@@ -188,7 +188,7 @@ const StepCircle = styled.div<{
   position: relative;
   transition: all 0.3s ease;
   flex-shrink: 0;
-  
+
   ${props => {
     switch (props.$status) {
       case 'completed':
@@ -283,7 +283,7 @@ const OptionalBadge = styled.span`
 const CheckmarkSvg = styled.svg`
   width: 14px;
   height: 14px;
-  
+
   path {
     fill: none;
     stroke: currentColor;
@@ -310,9 +310,9 @@ const Checkmark: React.FC = () => (
   </CheckmarkSvg>
 );
 
-const StepContent: React.FC<{ 
-  step: FormStep; 
-  index: number; 
+const StepContent: React.FC<{
+  step: FormStep;
+  index: number;
   showNumber: boolean;
   size?: 'small' | 'medium' | 'large';
 }> = ({ step, index, showNumber, size = 'medium' }) => {

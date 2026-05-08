@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("integrations", "0005_alter_emaillog_status_emailreviewdraft"),
     ]

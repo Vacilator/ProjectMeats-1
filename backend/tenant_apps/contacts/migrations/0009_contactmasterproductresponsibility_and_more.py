@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("contacts", "0008_contact_department_contact_items_responsible_and_more"),
         ("core", "0003_remove_userfavorite_unique_user_favorite_and_more"),

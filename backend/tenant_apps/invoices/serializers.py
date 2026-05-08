@@ -2,8 +2,10 @@
 Serializers for Invoices app.
 """
 from rest_framework import serializers
-from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
+
 from apps.core.serializers_documents import DocumentStatusValidationMixin
+from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
+
 from .models import Claim, Invoice, InvoiceItem, PaymentTransaction
 
 
@@ -51,7 +53,7 @@ class InvoiceSerializer(
     trade_weight_unit_field = "weight_unit"
     trade_datetime_fields = ("date_time_stamp", "created_on", "modified_on")
     trade_date_fields = ("pick_up_date", "delivery_date", "due_date")
-    
+
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     sales_order_num = serializers.CharField(source="sales_order.our_sales_order_num", read_only=True, allow_null=True)
     product_code = serializers.CharField(source="product.product_code", read_only=True, allow_null=True)
@@ -151,10 +153,10 @@ class InvoiceSerializer(
 
 class ClaimSerializer(serializers.ModelSerializer):
     """Serializer for Claim model."""
-    
+
     created_by_name = serializers.SerializerMethodField()
     assigned_to_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Claim
         fields = [
@@ -183,13 +185,13 @@ class ClaimSerializer(serializers.ModelSerializer):
             "modified_on",
         ]
         read_only_fields = ["id", "created_on", "modified_on", "assigned_to_name", "created_by_name"]
-    
+
     def get_created_by_name(self, obj):
         """Get the name of the user who created this claim."""
         if obj.created_by:
             return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip() or obj.created_by.username
         return "System"
-    
+
     def get_assigned_to_name(self, obj):
         """Get the name of the user this claim is assigned to."""
         if obj.assigned_to:
@@ -199,27 +201,47 @@ class ClaimSerializer(serializers.ModelSerializer):
 
 class PaymentTransactionSerializer(serializers.ModelSerializer):
     """Serializer for PaymentTransaction model."""
-    
+
     created_by_name = serializers.SerializerMethodField()
     entity_type = serializers.SerializerMethodField()
     entity_reference = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = PaymentTransaction
         fields = [
-            'id', 'tenant', 'purchase_order', 'sales_order', 'invoice',
-            'amount', 'payment_date', 'payment_method', 'reference_number',
-            'notes', 'created_by', 'created_by_name', 'created_on', 'modified_on',
-            'entity_type', 'entity_reference'
+            "id",
+            "tenant",
+            "purchase_order",
+            "sales_order",
+            "invoice",
+            "amount",
+            "payment_date",
+            "payment_method",
+            "reference_number",
+            "notes",
+            "created_by",
+            "created_by_name",
+            "created_on",
+            "modified_on",
+            "entity_type",
+            "entity_reference",
         ]
-        read_only_fields = ['id', 'tenant', 'created_on', 'modified_on', 'created_by_name', 'entity_type', 'entity_reference']
-    
+        read_only_fields = [
+            "id",
+            "tenant",
+            "created_on",
+            "modified_on",
+            "created_by_name",
+            "entity_type",
+            "entity_reference",
+        ]
+
     def get_created_by_name(self, obj):
         """Get the name of the user who created the payment."""
         if obj.created_by:
             return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip() or obj.created_by.username
         return "System"
-    
+
     def get_entity_type(self, obj):
         """Determine what type of entity this payment is for."""
         if obj.purchase_order:
@@ -229,7 +251,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         elif obj.invoice:
             return "invoice"
         return None
-    
+
     def get_entity_reference(self, obj):
         """Get a human-readable reference for the related entity."""
         if obj.purchase_order:

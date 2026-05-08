@@ -15,40 +15,40 @@ const chromiumOnly = process.env.PLAYWRIGHT_CHROMIUM_ONLY === '1';
 
 export default defineConfig({
   testDir: './e2e',
-  
+
   /* Maximum time one test can run */
   timeout: 30 * 1000,
-  
+
   /* Run tests in parallel */
   fullyParallel: true,
-  
+
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  
+
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  
+
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
-  
+
   /* Reporter to use */
   reporter: [
     ['html'],
     ['list'],
     ...(process.env.CI ? [['github']] : [])
   ],
-  
+
   /* Shared settings for all projects */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL,
-    
+
     /* Preserve trace artifacts whenever a test fails in CI or local repro. */
     trace: 'retain-on-failure',
-    
+
     /* Screenshot on failure */
     screenshot: 'only-on-failure',
-    
+
     /* Video on failure */
     video: 'retain-on-failure',
   },

@@ -51,16 +51,16 @@ class PartySummary:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            'party_type': self.party_type,
-            'id': self.id,
-            'name': self.name,
-            'contact_person': self.contact_person,
-            'email': self.email,
-            'phone': self.phone,
-            'city': self.city,
-            'state': self.state,
-            'country': self.country,
-            'is_active': self.is_active,
+            "party_type": self.party_type,
+            "id": self.id,
+            "name": self.name,
+            "contact_person": self.contact_person,
+            "email": self.email,
+            "phone": self.phone,
+            "city": self.city,
+            "state": self.state,
+            "country": self.country,
+            "is_active": self.is_active,
             **self.extra,
         }
 
@@ -72,7 +72,7 @@ class BusinessPartyService:
     "Business Party" concept with consistent interface.
     """
 
-    PARTY_TYPES = ('supplier', 'customer', 'carrier')
+    PARTY_TYPES = ("supplier", "customer", "carrier")
 
     def __init__(self, tenant):
         self.tenant = tenant
@@ -135,15 +135,15 @@ class BusinessPartyService:
         """
         model = self._get_model(party_type)
         if model is None:
-            raise ValueError(f'Unknown party type: {party_type}')
+            raise ValueError(f"Unknown party type: {party_type}")
 
         defaults = defaults or {}
-        defaults['tenant'] = self.tenant
+        defaults["tenant"] = self.tenant
 
         obj, created = model.objects.get_or_create(
             tenant=self.tenant,
             name__iexact=name,
-            defaults={'name': name, **defaults},
+            defaults={"name": name, **defaults},
         )
 
         if created:
@@ -161,17 +161,24 @@ class BusinessPartyService:
         try:
             from tenant_apps.contacts.models import Contact
 
-            filter_kwargs = {'tenant': self.tenant}
-            if party_type == 'supplier':
-                filter_kwargs['supplier_id'] = party_id
-            elif party_type == 'customer':
-                filter_kwargs['customer_id'] = party_id
+            filter_kwargs = {"tenant": self.tenant}
+            if party_type == "supplier":
+                filter_kwargs["supplier_id"] = party_id
+            elif party_type == "customer":
+                filter_kwargs["customer_id"] = party_id
             else:
                 return []
 
             contacts = Contact.objects.filter(**filter_kwargs).values(
-                'id', 'first_name', 'last_name', 'email', 'phone',
-                'title', 'department', 'contact_type', 'status',
+                "id",
+                "first_name",
+                "last_name",
+                "email",
+                "phone",
+                "title",
+                "department",
+                "contact_type",
+                "status",
             )
             return list(contacts[:50])
         except Exception:
@@ -187,14 +194,17 @@ class BusinessPartyService:
 
     def _get_model(self, party_type: str):
         """Get the Django model class for a party type."""
-        if party_type == 'supplier':
+        if party_type == "supplier":
             from tenant_apps.suppliers.models import Supplier
+
             return Supplier
-        elif party_type == 'customer':
+        elif party_type == "customer":
             from tenant_apps.customers.models import Customer
+
             return Customer
-        elif party_type == 'carrier':
+        elif party_type == "carrier":
             from tenant_apps.carriers.models import Carrier
+
             return Carrier
         return None
 
@@ -203,10 +213,11 @@ class BusinessPartyService:
         model = self._get_model(party_type)
         if model is None:
             from django.db.models import QuerySet as QS
+
             return QS().none()
 
         qs = model.objects.filter(tenant=self.tenant)
-        if active_only and hasattr(model, 'is_active'):
+        if active_only and hasattr(model, "is_active"):
             # Carrier uses is_active field
             qs = qs.filter(is_active=True)
         return qs
@@ -216,15 +227,15 @@ class BusinessPartyService:
         return PartySummary(
             party_type=party_type,
             id=str(obj.id),
-            name=getattr(obj, 'name', ''),
-            contact_person=getattr(obj, 'contact_person', ''),
-            email=getattr(obj, 'email', ''),
-            phone=getattr(obj, 'phone', ''),
-            city=getattr(obj, 'city', ''),
-            state=getattr(obj, 'state', ''),
-            country=getattr(obj, 'country', 'USA'),
-            is_active=getattr(obj, 'is_active', True),
+            name=getattr(obj, "name", ""),
+            contact_person=getattr(obj, "contact_person", ""),
+            email=getattr(obj, "email", ""),
+            phone=getattr(obj, "phone", ""),
+            city=getattr(obj, "city", ""),
+            state=getattr(obj, "state", ""),
+            country=getattr(obj, "country", "USA"),
+            is_active=getattr(obj, "is_active", True),
             extra={
-                'payment_terms': getattr(obj, 'payment_terms', '') or getattr(obj, 'accounting_payment_terms', ''),
+                "payment_terms": getattr(obj, "payment_terms", "") or getattr(obj, "accounting_payment_terms", ""),
             },
         )

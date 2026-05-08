@@ -11,10 +11,11 @@ from uuid import UUID
 from django.conf import settings
 from django.utils import timezone
 
+from tenant_apps.inquiries.models import InquirySupplierRFQ, InquirySupplierRFQStatusChoices
+
 from apps.integrations.models import EmailLog
 from apps.system.services.ai_model_resolver import get_active_openai_model_id
 from apps.tenants.rls import tenant_rls
-from tenant_apps.inquiries.models import InquirySupplierRFQ, InquirySupplierRFQStatusChoices
 
 SUPPLIER_QUOTE_REPLY_CATEGORY = "supplier_quote_reply"
 RFQ_REFERENCE_PATTERN = re.compile(
@@ -117,9 +118,7 @@ def _correlate_rfq(
     reference_matches = _dedupe_rfqs(base_qs.filter(correlation_key__in=references)) if references else {}
     thread_matches = _dedupe_rfqs(base_qs.filter(provider_thread_id=thread_id)) if thread_id else {}
 
-    candidate_rfqs = _sorted_rfqs(
-        {**reference_matches, **thread_matches}.values()
-    )
+    candidate_rfqs = _sorted_rfqs({**reference_matches, **thread_matches}.values())
     if not references and not thread_matches:
         return {
             "handled": False,
@@ -197,10 +196,7 @@ def _ambiguous_correlation(candidate_rfqs: list[InquirySupplierRFQ], *, method: 
 
 
 def _dedupe_rfqs(queryset) -> dict[int, InquirySupplierRFQ]:
-    return {
-        rfq.id: rfq
-        for rfq in queryset.order_by("-created_on", "-id")
-    }
+    return {rfq.id: rfq for rfq in queryset.order_by("-created_on", "-id")}
 
 
 def _sorted_rfqs(rfqs) -> list[InquirySupplierRFQ]:

@@ -1,6 +1,6 @@
 /**
  * Unit Tests for Theme Configuration
- * 
+ *
  * Tests theme modes, configuration generation, and canvas theme application.
  */
 
@@ -123,7 +123,7 @@ describe('Theme Configuration', () => {
 
     it('applies light theme CSS variables to document', () => {
       applyCanvasTheme('light');
-      
+
       expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('rgb(var(--color-surface))');
       expect(mockRoot.style.getPropertyValue('--canvas-grid')).toBe('rgb(var(--color-border))');
       expect(mockRoot.style.getPropertyValue('--canvas-connection')).toBe('rgb(var(--color-primary))');
@@ -131,7 +131,7 @@ describe('Theme Configuration', () => {
 
     it('applies dark theme CSS variables to document', () => {
       applyCanvasTheme('dark');
-      
+
       expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('rgb(var(--color-background))');
       expect(mockRoot.style.getPropertyValue('--canvas-grid')).toBe('rgb(var(--color-border))');
       expect(mockRoot.style.getPropertyValue('--canvas-connection')).toBe('rgb(var(--color-primary))');
@@ -139,7 +139,7 @@ describe('Theme Configuration', () => {
 
     it('applies high contrast theme CSS variables to document', () => {
       applyCanvasTheme('high-contrast');
-      
+
       expect(mockRoot.style.getPropertyValue('--canvas-bg')).toBe('rgb(var(--color-surface))');
       expect(mockRoot.style.getPropertyValue('--canvas-node-border')).toBe('rgb(var(--color-text-primary))');
       expect(mockRoot.style.getPropertyValue('--canvas-node-shadow')).toBe('none');
@@ -147,7 +147,7 @@ describe('Theme Configuration', () => {
 
     it('applies all required CSS variables', () => {
       applyCanvasTheme('light');
-      
+
       const requiredVars = [
         '--canvas-bg',
         '--canvas-grid',

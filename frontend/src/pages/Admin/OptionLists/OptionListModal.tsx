@@ -1,6 +1,6 @@
 /**
  * Option List Edit Modal
- * 
+ *
  * Modal for editing system choice list items with inline CRUD operations
  */
 import React, { useState, useEffect } from 'react';
@@ -79,12 +79,12 @@ const CloseButton = styled.button`
   cursor: pointer;
   color: rgb(var(--color-text-secondary));
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgba(var(--color-danger), 0.1);
     color: rgb(var(--color-danger));
   }
-  
+
   svg {
     width: 18px;
     height: 18px;
@@ -116,7 +116,7 @@ const ItemRow = styled.div<{ $isSystem: boolean }>`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: ${(props) => (props.$isSystem ? 'rgb(var(--color-border))' : 'rgba(var(--color-primary), 0.65)')};
   }
@@ -167,7 +167,7 @@ const ItemIcon = styled.div<{ $isSystem: boolean }>`
   flex-shrink: 0;
   background: ${(props) =>
     props.$isSystem ? 'rgba(var(--color-danger), 0.12)' : 'rgba(var(--color-success), 0.12)'};
-  
+
   svg {
     width: 12px;
     height: 12px;
@@ -187,16 +187,16 @@ const Input = styled.input<{ $readOnly?: boolean }>`
   border-radius: var(--radius-sm);
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  background: ${props => props.$readOnly 
-    ? 'rgba(var(--color-surface), 0.5)' 
+  background: ${props => props.$readOnly
+    ? 'rgba(var(--color-surface), 0.5)'
     : 'rgb(var(--color-surface))'};
   flex: 1;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -216,17 +216,17 @@ const DeleteButton = styled.button`
   color: rgb(var(--color-text-secondary));
   transition: all 0.15s ease;
   flex-shrink: 0;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-danger), 0.1);
     color: rgb(var(--color-danger));
   }
-  
+
   &:disabled {
     opacity: 0.3;
     cursor: not-allowed;
   }
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -248,17 +248,17 @@ const AddButton = styled.button`
   justify-content: center;
   gap: 8px;
   transition: all 0.15s ease;
-  
+
   &:hover:not(:disabled) {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.05);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -295,32 +295,32 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   align-items: center;
   gap: 8px;
   transition: all 0.15s ease;
-  
+
   ${props => props.$variant === 'primary' && `
     background: rgb(var(--color-primary));
     color: white;
-    
+
     &:hover:not(:disabled) {
       opacity: 0.9;
     }
   `}
-  
+
   ${props => props.$variant === 'secondary' && `
     background: transparent;
     color: rgb(var(--color-text-secondary));
     border: 1px solid rgb(var(--color-border));
-    
+
     &:hover:not(:disabled) {
       border-color: rgb(var(--color-text-secondary));
       color: rgb(var(--color-text-primary));
     }
   `}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -691,7 +691,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
 
         <Footer>
           <InfoText>
-            {isExtensible 
+            {isExtensible
               ? 'You can add custom items to this list. System items cannot be modified.'
               : 'This list is system-locked and cannot be modified.'}
           </InfoText>

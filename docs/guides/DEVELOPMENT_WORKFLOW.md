@@ -1,7 +1,7 @@
 # Development Workflow - Source of Truth
 
-**Status**: ✅ CURRENT  
-**Category**: Guides  
+**Status**: ✅ CURRENT
+**Category**: Guides
 **Last Updated**: 2026-02-01
 
 ---
@@ -436,7 +436,7 @@ LOG_LEVEL=INFO
    server {
        listen 80;
        server_name _;
-       
+
        # Route API, Admin, Static to Backend
        location ~ ^/(api|admin|static)/ {
            proxy_pass http://10.17.0.13:8000;
@@ -447,7 +447,7 @@ LOG_LEVEL=INFO
            proxy_connect_timeout 60s;
            proxy_read_timeout 60s;
        }
-       
+
        # Route Everything Else to Frontend
        location / {
            proxy_pass http://127.0.0.1:8080;

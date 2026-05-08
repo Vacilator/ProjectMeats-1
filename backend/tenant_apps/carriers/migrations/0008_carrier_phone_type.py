@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("carriers", "0007_fix_carrier_rls_policy_safe_current_setting"),
     ]

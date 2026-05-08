@@ -1,6 +1,6 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: April 28, 2026  
+**Last Updated**: April 28, 2026
 **Status**: ✅ ALL SYSTEMS COMPLIANT (pending next deployment audit)
 
 ---
@@ -9,11 +9,11 @@
 
 ### Latest Audit: March 18, 2026
 
-**Previous Audit**: February 27, 2026 16:50 UTC  
-**Previous Audit Run**: [#22495330666](https://github.com/Meats-Central/ProjectMeats/actions/runs/22495330666)  
+**Previous Audit**: February 27, 2026 16:50 UTC
+**Previous Audit Run**: [#22495330666](https://github.com/Meats-Central/ProjectMeats/actions/runs/22495330666)
 **Verification Method**: PostgreSQL system catalog query (`pg_class.relrowsecurity`)
 
-**Phase**: RLS Hardening (Issue #3) – Medium/Low Priority Tables  
+**Phase**: RLS Hardening (Issue #3) – Medium/Low Priority Tables
 **Change**: Added RLS policies for remaining 8 tables (fulfillments, inquiries, customers, sales_orders, suppliers, products, plants). Upgraded legacy `app.current_tenant_id` policies to modern `app.current_tenant` pattern.
 
 ---
@@ -259,8 +259,8 @@ psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c \
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
-        WHERE tablename = 'table_name' 
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'table_name'
         AND policyname = 'table_tenant_isolation'
     ) THEN
         ALTER TABLE app_table ENABLE ROW LEVEL SECURITY;
@@ -291,8 +291,8 @@ END $$;
 
 ## Next Audit Date
 
-**Scheduled**: May 27, 2026 (quarterly review)  
-**Trigger**: Any new tenant-aware model added to codebase  
+**Scheduled**: May 27, 2026 (quarterly review)
+**Trigger**: Any new tenant-aware model added to codebase
 **Automation**: ops-db-surgery workflow (#98)
 
 ---
@@ -306,7 +306,7 @@ END $$;
 
 ---
 
-**Audit Signature**: Automated CI/CD Pipeline  
+**Audit Signature**: Automated CI/CD Pipeline
 **Verification**:
 - `python manage.py audit_rls_compliance` = ✅ (38/38)
 - `pg_policies.policyname LIKE '%_tenant_isolation'` present on tenant-aware tables

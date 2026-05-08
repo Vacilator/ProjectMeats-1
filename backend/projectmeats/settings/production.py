@@ -4,8 +4,10 @@ Optimized for Droplet/App Platform/Traefik deployments with CI/CD.
 """
 
 import os
-import dj_database_url
+
 from django.core.exceptions import ImproperlyConfigured
+
+import dj_database_url
 from decouple import config
 
 from .base import *  # noqa
@@ -37,12 +39,8 @@ _COMMON_INTERNAL_HOSTS = [
 ]
 
 # External + internal hosts from env
-_ext_hosts = _split_list(
-    os.environ.get("ALLOWED_HOSTS", "")
-)  # e.g. "example.com,api.example.com"
-_int_hosts = _split_list(
-    os.environ.get("INTERNAL_ALLOWED_HOSTS", "")
-)  # e.g. "10.244.45.4,localhost"
+_ext_hosts = _split_list(os.environ.get("ALLOWED_HOSTS", ""))  # e.g. "example.com,api.example.com"
+_int_hosts = _split_list(os.environ.get("INTERNAL_ALLOWED_HOSTS", ""))  # e.g. "10.244.45.4,localhost"
 
 # Build ALLOWED_HOSTS: keep order, remove duplicates, ensure internal fallbacks always present
 _seen: set[str] = set()
@@ -85,9 +83,7 @@ else:
         "CONN_HEALTH_CHECKS": True,
     }
 
-DATABASES = {
-    "default": _db_config
-}
+DATABASES = {"default": _db_config}
 
 # -----------------------------------------------------------------------------
 # CORS & CSRF Trusted Origins
@@ -119,11 +115,7 @@ def _merge_origins(default_origins: list, env_var_name: str) -> list:
     while preserving order. Uses dict.fromkeys() which maintains insertion order
     in Python 3.7+ and removes duplicates since dict keys must be unique.
     """
-    env_origins = [
-        origin.strip()
-        for origin in config(env_var_name, default="").split(",")
-        if origin.strip()
-    ]
+    env_origins = [origin.strip() for origin in config(env_var_name, default="").split(",") if origin.strip()]
     return list(dict.fromkeys(default_origins + env_origins))
 
 
@@ -171,7 +163,7 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 SECURE_SSL_REDIRECT = True
 # Exempt health check endpoints from SSL redirect for internal monitoring
-SECURE_REDIRECT_EXEMPT = [r'^api/v1/health/$', r'^api/v1/ready/$']
+SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$", r"^api/v1/ready/$"]
 X_FRAME_OPTIONS = "DENY"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
@@ -198,9 +190,7 @@ _CSRF = "django.middleware.csrf.CsrfViewMiddleware"
 if _SESSION not in MIDDLEWARE:  # noqa: F405
     # place early (right after SecurityMiddleware if present)
     try:
-        sec_idx = MIDDLEWARE.index(
-            "django.middleware.security.SecurityMiddleware"
-        )  # noqa: F405
+        sec_idx = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")  # noqa: F405
         MIDDLEWARE.insert(sec_idx + 1, _SESSION)  # noqa: F405
     except ValueError:
         MIDDLEWARE.insert(0, _SESSION)  # noqa: F405
@@ -208,9 +198,7 @@ if _SESSION not in MIDDLEWARE:  # noqa: F405
 if _CSRF not in MIDDLEWARE:  # noqa: F405
     # after CommonMiddleware if present, but after SessionMiddleware for sure
     try:
-        common_idx = MIDDLEWARE.index(
-            "django.middleware.common.CommonMiddleware"
-        )  # noqa: F405
+        common_idx = MIDDLEWARE.index("django.middleware.common.CommonMiddleware")  # noqa: F405
         insert_at = common_idx + 1
     except ValueError:
         insert_at = len(MIDDLEWARE)  # noqa: F405
@@ -321,9 +309,7 @@ redis_url = config("REDIS_URL", default=None) or config("VALKEY_URL", default=No
 REDIS_BACKEND_URL = redis_url
 REQUIRE_REDIS_READINESS = config("REQUIRE_REDIS_READINESS", default=True, cast=bool)
 if REQUIRE_REDIS_READINESS and not redis_url:
-    raise ImproperlyConfigured(
-        "REDIS_URL or VALKEY_URL must be configured when REQUIRE_REDIS_READINESS is enabled."
-    )
+    raise ImproperlyConfigured("REDIS_URL or VALKEY_URL must be configured when REQUIRE_REDIS_READINESS is enabled.")
 if redis_url:
     CACHES = {
         "default": {

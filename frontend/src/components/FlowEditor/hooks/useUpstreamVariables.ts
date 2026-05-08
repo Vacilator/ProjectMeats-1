@@ -1,10 +1,10 @@
 /**
  * useUpstreamVariables Hook
- * 
+ *
  * Phase C.3: Upstream Variable Propagation
  * Analyzes workflow graph to find all upstream nodes and extract their output fields.
  * Makes variables available for downstream nodes to reference.
- * 
+ *
  * Features:
  * - Graph traversal from current node backwards
  * - Extracts fields from Form Step Single nodes
@@ -12,7 +12,7 @@
  * - Type-aware suggestions (string, number, date)
  * - Handles circular dependencies
  * - Caches results for performance
- * 
+ *
  * Usage:
  * ```typescript
  * const { variables, loading } = useUpstreamVariables({
@@ -20,13 +20,13 @@
  *   nodes,
  *   edges
  * });
- * 
+ *
  * // variables = [
  * //   { nodeId: 'step1', nodeName: 'Customer Info', fieldName: 'email', fieldType: 'string', template: '{{step1.email}}' },
  * //   { nodeId: 'step2', nodeName: 'Product Selection', fieldName: 'quantity', fieldType: 'number', template: '{{step2.quantity}}' }
  * // ]
  * ```
- * 
+ *
  * Created: 2026-02-17 - Phase C.3 Upstream Variable Propagation
  */
 
@@ -41,28 +41,28 @@ import { getResolvedFormFields } from '../utils/formFieldsDualModel';
 export interface UpstreamVariable {
   /** Source node ID */
   nodeId: string;
-  
+
   /** Human-readable node name */
   nodeName: string;
-  
+
   /** Field name/key */
   fieldName: string;
-  
+
   /** Human-readable field label */
   fieldLabel: string;
-  
+
   /** Field data type */
   fieldType: 'string' | 'number' | 'date' | 'boolean' | 'select' | 'file' | 'textarea' | 'email' | 'phone' | 'url' | 'json';
-  
+
   /** Template string for insertion: {{nodeId.fieldName}} */
   template: string;
-  
+
   /** Distance from current node (1 = direct parent, 2 = grandparent, etc.) */
   distance: number;
-  
+
   /** Node type (formStepSingle, formProcess, etc.) */
   nodeType: string;
-  
+
   /** Whether field is required in the source node */
   required?: boolean;
 }
@@ -72,13 +72,13 @@ export type FieldType = UpstreamVariable['fieldType'];
 export interface UseUpstreamVariablesParams {
   /** Current node ID to find upstream variables for */
   currentNodeId: string;
-  
+
   /** All nodes in the workflow */
   nodes: Node[];
-  
+
   /** All edges in the workflow */
   edges: Edge[];
-  
+
   /** Maximum distance to traverse (default: 10) */
   maxDistance?: number;
 }
@@ -86,13 +86,13 @@ export interface UseUpstreamVariablesParams {
 export interface UseUpstreamVariablesResult {
   /** Array of available upstream variables */
   variables: UpstreamVariable[];
-  
+
   /** Variables grouped by source node */
   variablesByNode: Record<string, UpstreamVariable[]>;
-  
+
   /** Whether calculation is in progress */
   loading: boolean;
-  
+
   /** Error if any */
   error: string | null;
 }
@@ -112,23 +112,23 @@ function findUpstreamNodes(
   const upstreamNodes = new Map<string, number>(); // nodeId -> distance
   const visited = new Set<string>();
   const queue: Array<{ nodeId: string; distance: number }> = [{ nodeId: currentNodeId, distance: 0 }];
-  
+
   while (queue.length > 0) {
     const { nodeId, distance } = queue.shift()!;
-    
+
     if (visited.has(nodeId) || distance > maxDistance) {
       continue;
     }
-    
+
     visited.add(nodeId);
-    
+
     // Find all edges that point TO this node (target = current)
     const incomingEdges = edges.filter(edge => edge.target === nodeId);
-    
+
     for (const edge of incomingEdges) {
       const sourceNodeId = edge.source;
       const sourceDistance = distance + 1;
-      
+
       // Only add if we haven't seen this node or found a shorter path
       if (!upstreamNodes.has(sourceNodeId) || upstreamNodes.get(sourceNodeId)! > sourceDistance) {
         upstreamNodes.set(sourceNodeId, sourceDistance);
@@ -136,10 +136,10 @@ function findUpstreamNodes(
       }
     }
   }
-  
+
   // Remove the current node itself
   upstreamNodes.delete(currentNodeId);
-  
+
   return upstreamNodes;
 }
 
@@ -181,16 +181,16 @@ function extractFieldsFromFormStep(node: Node): Array<{
     fieldType: string;
     required?: boolean;
   }> = [];
-  
+
   // Check if this is a Form node (renamed from Form Step Single in Phase E)
   if (node.type !== 'formStepSingle' && node.type !== 'formStep' && node.type !== 'form') {
     return fields;
   }
-  
+
   // Extract fields from node data
   const nodeData = node.data || {};
   const selectedFields = getResolvedFormFields(nodeData);
-  
+
   // Handle both array of objects and array of strings
   if (Array.isArray(selectedFields)) {
     for (const field of selectedFields) {
@@ -205,7 +205,7 @@ function extractFieldsFromFormStep(node: Node): Array<{
         }
     }
   }
-  
+
   // Also check for entity fields if entity is selected
   const entityType = nodeData.entityType || nodeData.entity;
   if (entityType && fields.length === 0) {
@@ -222,7 +222,7 @@ function extractFieldsFromFormStep(node: Node): Array<{
       }
     }
   }
-  
+
   return fields;
 }
 
@@ -247,12 +247,12 @@ function normalizeFieldType(type: string): UpstreamVariable['fieldType'] {
     'ForeignKey': 'select',
     'ManyToManyField': 'select',
   };
-  
+
   // Check direct match
   if (type in typeMap) {
     return typeMap[type];
   }
-  
+
   // Check lowercase match
   const lowerType = type.toLowerCase();
   if (lowerType.includes('email')) return 'email';
@@ -265,7 +265,7 @@ function normalizeFieldType(type: string): UpstreamVariable['fieldType'] {
   if (lowerType.includes('file') || lowerType.includes('image')) return 'file';
   if (lowerType.includes('json')) return 'json';
   if (lowerType.includes('select') || lowerType.includes('choice')) return 'select';
-  
+
   // Default to string
   return 'string';
 }
@@ -280,26 +280,26 @@ export function useUpstreamVariables({
   edges,
   maxDistance = 10,
 }: UseUpstreamVariablesParams): UseUpstreamVariablesResult {
-  
+
   const result = useMemo<UseUpstreamVariablesResult>(() => {
     try {
       // Find all upstream nodes
       const upstreamNodeMap = findUpstreamNodes(currentNodeId, edges, maxDistance);
-      
+
       // Extract variables from each upstream node
       const variables: UpstreamVariable[] = [];
-      
+
       for (const [nodeId, distance] of upstreamNodeMap.entries()) {
         // Find the node object
         const node = nodes.find(n => n.id === nodeId);
         if (!node) continue;
-        
+
         // Get node name (fallback to ID if no label)
         const nodeName = String((node.data as any)?.label ?? (node.data as any)?.name ?? nodeId);
-        
+
         // Extract fields from this node
         const fields = extractFieldsFromFormStep(node);
-        
+
         // Create variable entry for each field
         for (const field of fields) {
           variables.push({
@@ -315,7 +315,7 @@ export function useUpstreamVariables({
           });
         }
       }
-      
+
       // Sort by distance (closer nodes first), then by node name
       variables.sort((a, b) => {
         if (a.distance !== b.distance) {
@@ -323,7 +323,7 @@ export function useUpstreamVariables({
         }
         return a.nodeName.localeCompare(b.nodeName);
       });
-      
+
       // Group by node
       const variablesByNode: Record<string, UpstreamVariable[]> = {};
       for (const variable of variables) {
@@ -332,14 +332,14 @@ export function useUpstreamVariables({
         }
         variablesByNode[variable.nodeId].push(variable);
       }
-      
+
       return {
         variables,
         variablesByNode,
         loading: false,
         error: null,
       };
-      
+
     } catch (err) {
       return {
         variables: [],
@@ -349,7 +349,7 @@ export function useUpstreamVariables({
       };
     }
   }, [currentNodeId, nodes, edges, maxDistance]);
-  
+
   return result;
 }
 
@@ -361,16 +361,16 @@ export function useUpstreamVariablesFiltered(
   fieldTypes?: UpstreamVariable['fieldType'][]
 ): UseUpstreamVariablesResult {
   const allVariables = useUpstreamVariables(params);
-  
+
   const filtered = useMemo(() => {
     if (!fieldTypes || fieldTypes.length === 0) {
       return allVariables;
     }
-    
+
     const filteredVariables = allVariables.variables.filter(
       v => fieldTypes.includes(v.fieldType)
     );
-    
+
     const filteredByNode: Record<string, UpstreamVariable[]> = {};
     for (const variable of filteredVariables) {
       if (!filteredByNode[variable.nodeId]) {
@@ -378,7 +378,7 @@ export function useUpstreamVariablesFiltered(
       }
       filteredByNode[variable.nodeId].push(variable);
     }
-    
+
     return {
       variables: filteredVariables,
       variablesByNode: filteredByNode,
@@ -386,7 +386,7 @@ export function useUpstreamVariablesFiltered(
       error: allVariables.error,
     };
   }, [allVariables, fieldTypes]);
-  
+
   return filtered;
 }
 

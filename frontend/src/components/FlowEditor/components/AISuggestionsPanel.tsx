@@ -1,9 +1,9 @@
 /**
  * AI Suggestions Panel
- * 
+ *
  * Displays intelligent node suggestions with confidence indicators.
  * Integrates with UnifiedFlowEditor to suggest next workflow steps.
- * 
+ *
  * Created: 2026-02-26 - Advanced Features
  */
 
@@ -68,7 +68,7 @@ const HeaderTitle = styled.div`
   font-weight: 600;
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  
+
   svg {
     color: rgb(var(--color-primary));
   }
@@ -83,20 +83,20 @@ const HeaderSubtitle = styled.div`
 const SuggestionsList = styled.div`
   max-height: 300px;
   overflow-y: auto;
-  
+
   /* Custom scrollbar */
   &::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: rgb(var(--color-background));
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border));
     border-radius: 3px;
-    
+
     &:hover {
       background: rgb(var(--color-text-secondary));
     }
@@ -112,15 +112,15 @@ const SuggestionItem = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.05);
   }
-  
+
   &:active {
     background: rgba(var(--color-primary), 0.1);
   }
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -179,12 +179,12 @@ const EmptyState = styled.div`
   padding: 32px 16px;
   text-align: center;
   color: rgb(var(--color-text-secondary));
-  
+
   svg {
     margin-bottom: 12px;
     opacity: 0.5;
   }
-  
+
   .message {
     font-size: 13px;
     line-height: 1.5;
@@ -204,13 +204,13 @@ const ModeBadge = styled.span<{ $mode: 'ai' | 'static' }>`
   font-size: 10px;
   font-weight: 600;
   margin-left: 8px;
-  background: ${props => props.$mode === 'ai' 
-    ? 'rgba(var(--color-primary), 0.1)' 
+  background: ${props => props.$mode === 'ai'
+    ? 'rgba(var(--color-primary), 0.1)'
     : 'rgba(var(--color-info), 0.1)'};
-  color: ${props => props.$mode === 'ai' 
-    ? 'rgb(var(--color-primary))' 
+  color: ${props => props.$mode === 'ai'
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-info))'};
-  
+
   svg {
     color: inherit;
   }
@@ -219,24 +219,24 @@ const ModeBadge = styled.span<{ $mode: 'ai' | 'static' }>`
 const ErrorState = styled.div`
   padding: 24px 16px;
   text-align: center;
-  
+
   svg {
     color: rgb(var(--color-error));
     margin-bottom: 8px;
   }
-  
+
   .message {
     font-size: 12px;
     color: rgb(var(--color-text-secondary));
     margin-bottom: 8px;
   }
-  
+
   .retry {
     font-size: 12px;
     color: rgb(var(--color-primary));
     cursor: pointer;
     text-decoration: underline;
-    
+
     &:hover {
       color: rgb(var(--color-primary-hover));
     }
@@ -252,7 +252,7 @@ const AddIcon = styled.div`
   border-radius: 4px;
   background: rgba(var(--color-primary), 0.1);
   color: rgb(var(--color-primary));
-  
+
   ${SuggestionItem}:hover & {
     background: rgb(var(--color-primary));
     color: rgb(var(--color-text-inverse));
@@ -276,7 +276,7 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'ai' | 'static'>('ai');
   const [isCached, setIsCached] = useState(false);
-  
+
   // Fetch AI suggestions when workflow changes
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -287,10 +287,10 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         setMode('static');
         return;
       }
-      
+
       setIsLoading(true);
       setError(null);
-      
+
       try {
         // Call backend API for AI-powered suggestions
         const { suggestions: apiSuggestions, confidence, mode: responseMode, cached } = await workformsApi.suggestNodes({
@@ -305,7 +305,7 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
             has_selection: !!selectedNodeId
           }
         });
-        
+
         // Convert API suggestions to NodeSuggestion format
         const formattedSuggestions: NodeSuggestion[] = apiSuggestions.map((s: any) => ({
           nodeType: canonicalizeNodeTypeId(s.type || ''),
@@ -315,15 +315,15 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
           confidence: s.confidence || confidence || 0.7,
           position: s.position,
         }));
-        
+
         setSuggestions(formattedSuggestions);
         setMode(responseMode === 'ai' || responseMode === 'static' ? responseMode : 'static');
         setIsCached(cached || false);
         setError(null);
-        
+
       } catch (err: any) {
         logger.error('Failed to fetch AI suggestions:', err);
-        
+
         // Graceful degradation: Use local AI service
         const fallbackSuggestions = AINodeSuggestionService.getSuggestions(nodes, edges, selectedNodeId);
         setSuggestions(fallbackSuggestions);
@@ -333,27 +333,27 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         setIsLoading(false);
       }
     };
-    
+
     // Debounce API calls
     const timeoutId = setTimeout(fetchSuggestions, 500);
-    
+
     return () => clearTimeout(timeoutId);
   }, [nodes, edges, selectedNodeId]);
-  
+
   const handleAddNode = (suggestion: NodeSuggestion) => {
     onAddNode(canonicalizeNodeTypeId(suggestion.nodeType), suggestion.position);
   };
-  
+
   const handleRetry = () => {
     // Force re-fetch by clearing suggestions
     setSuggestions([]);
     setError(null);
   };
-  
+
   const formatConfidence = (confidence: number): string => {
     return `${Math.round(confidence * 100)}%`;
   };
-  
+
   return (
     <Panel $isVisible={isVisible}>
       <Header>
@@ -373,14 +373,14 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
           )}
         </HeaderTitle>
         <HeaderSubtitle>
-          {isLoading 
+          {isLoading
             ? t('aiPanel.analyzing')
-            : suggestions.length > 0 
+            : suggestions.length > 0
               ? t('aiPanel.suggestions')
               : t('aiPanel.buildWorkflow')}
         </HeaderSubtitle>
       </Header>
-      
+
       <SuggestionsList>
         {isLoading ? (
           <LoadingState>

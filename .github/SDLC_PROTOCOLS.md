@@ -1,8 +1,8 @@
 # SDLC_PROTOCOLS.md
 
-> **Status:** normative execution rules  
-> **Canonical priority source:** root `MASTER_PLAN.md`  
-> **Shipped evidence log:** `.github/MASTER_PLAN.md`  
+> **Status:** normative execution rules
+> **Canonical priority source:** root `MASTER_PLAN.md`
+> **Shipped evidence log:** `.github/MASTER_PLAN.md`
 > **Execution backlog:** `.github/EPIC_TICKETS.md`
 
 ## Source-of-truth hierarchy

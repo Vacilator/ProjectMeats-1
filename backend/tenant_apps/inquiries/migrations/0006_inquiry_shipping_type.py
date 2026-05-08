@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0005_inquiry_contact_phone_type"),
     ]

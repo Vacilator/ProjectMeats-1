@@ -1,16 +1,16 @@
 /**
  * Upcoming Calls Widget
- * 
+ *
  * Displays scheduled calls and callbacks.
  * Allows quick access to call details and actions.
- * 
+ *
  * Features:
  * - Upcoming calls list
  * - Time-based sorting
  * - Quick actions
- * 
+ *
  * Updated: 2026-02-04 - Phase 1.3 - Connected to real API
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */

@@ -5,15 +5,11 @@ individual handlers, and the sweep task.
 """
 
 import uuid
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.core.events.contracts import TradeEventType
-from apps.core.events.dispatcher import emit_trade_event
-from apps.core.models import TradeEventLog
-from apps.tenants.models import Tenant
 from tenant_apps.inquiries.tasks import (
     SAGA_HANDLERS,
     _dispatch_saga,
@@ -25,6 +21,11 @@ from tenant_apps.inquiries.tasks import (
     process_domain_event,
     process_unprocessed_events,
 )
+
+from apps.core.events.contracts import TradeEventType
+from apps.core.events.dispatcher import emit_trade_event
+from apps.core.models import TradeEventLog
+from apps.tenants.models import Tenant
 
 
 class ProcessDomainEventTests(TestCase):
@@ -132,9 +133,7 @@ class SagaDispatchTests(TestCase):
 
         for event_type, handler_name in SAGA_HANDLERS.items():
             fn = getattr(tasks, handler_name, None)
-            self.assertIsNotNone(
-                fn, f"Handler {handler_name} for {event_type} not found"
-            )
+            self.assertIsNotNone(fn, f"Handler {handler_name} for {event_type} not found")
 
 
 class IndividualSagaHandlerTests(TestCase):

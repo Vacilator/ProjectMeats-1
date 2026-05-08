@@ -1,8 +1,8 @@
 /**
  * Sidebar Component Tests
- * 
+ *
  * Tests for sidebar navigation with pin/hover behavior
- * 
+ *
  * Note: Tests involving isDesktop state require the window.innerWidth
  * to be set via a global setup before module import. The component
  * reads this value during initial useState() call.
@@ -135,7 +135,7 @@ describe('Sidebar', () => {
     it('loads pin state from localStorage on mount', () => {
       localStorage.setItem('sidebarKeepOpen', 'true');
       renderSidebar({ isOpen: true });
-      
+
       // When keepOpen is loaded from localStorage, pin button shows locked state
       const pinButton = screen.queryByRole('button', { name: /unpin sidebar/i });
       // If isDesktop is true, button will be visible
@@ -147,7 +147,7 @@ describe('Sidebar', () => {
     it('persists pin state to localStorage when toggled', async () => {
       localStorage.setItem('sidebarKeepOpen', 'true');
       renderSidebar({ isOpen: true });
-      
+
       const pinButton = screen.queryByRole('button', { name: /unpin sidebar/i });
       if (pinButton) {
         fireEvent.click(pinButton);
@@ -158,7 +158,7 @@ describe('Sidebar', () => {
     it('toggles from pinned to unpinned state', async () => {
       localStorage.setItem('sidebarKeepOpen', 'true');
       renderSidebar({ isOpen: true });
-      
+
       // Wait for possible state updates
       await waitFor(() => {
         const pinButton = screen.queryByRole('button', { name: /unpin sidebar/i });
@@ -198,7 +198,7 @@ describe('Sidebar', () => {
 
     it('does not trigger hover expansion when pinned', () => {
       localStorage.setItem('sidebarKeepOpen', 'true');
-      
+
       const onHoverChange = vi.fn();
       const { container } = renderSidebar({ isOpen: true, onHoverChange });
 
@@ -302,7 +302,7 @@ describe('Sidebar', () => {
     it('pin button has accessible label when visible', () => {
       localStorage.setItem('sidebarKeepOpen', 'true');
       renderSidebar({ isOpen: true });
-      
+
       const pinButton = screen.queryByRole('button', { name: /unpin sidebar/i });
       if (pinButton) {
         expect(pinButton).toHaveAttribute('aria-label');
@@ -315,7 +315,7 @@ describe('Sidebar', () => {
     it('shows SVG icon in pin button when visible', () => {
       localStorage.setItem('sidebarKeepOpen', 'true');
       renderSidebar({ isOpen: true });
-      
+
       const pinButton = screen.queryByRole('button', { name: /unpin sidebar/i });
       if (pinButton) {
         const svg = pinButton.querySelector('svg');
@@ -327,12 +327,12 @@ describe('Sidebar', () => {
   describe('Effect Cleanup', () => {
     it('removes resize listener on unmount', () => {
       const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
-      
+
       const { unmount } = renderSidebar();
       unmount();
 
       expect(removeEventListenerSpy).toHaveBeenCalledWith('resize', expect.any(Function));
-      
+
       removeEventListenerSpy.mockRestore();
     });
   });
@@ -341,7 +341,7 @@ describe('Sidebar', () => {
     it('receives onToggle prop', () => {
       const onToggle = vi.fn();
       renderSidebar({ onToggle });
-      
+
       // onToggle is passed and component renders (now has 2 nav menus: main + admin)
       expect(screen.getAllByTestId('navigation-menu')).toHaveLength(2);
     });
@@ -349,13 +349,12 @@ describe('Sidebar', () => {
     it('onToggle is called when keepOpen state syncs with isOpen', () => {
       const onToggle = vi.fn();
       localStorage.setItem('sidebarKeepOpen', 'true');
-      
+
       // When keepOpen is true but isOpen is false, onToggle should be called
       renderSidebar({ isOpen: false, onToggle });
-      
+
       // The effect runs to sync states
       expect(onToggle).toHaveBeenCalled();
     });
   });
 });
-

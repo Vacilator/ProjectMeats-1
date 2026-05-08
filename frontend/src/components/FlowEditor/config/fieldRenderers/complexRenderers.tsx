@@ -1,9 +1,9 @@
 /**
  * Complex Field Renderers for DynamicConfigPanel
- * 
+ *
  * Wraps existing specialized components (EntityFieldPicker, FieldMappingPanel,
  * VariablePicker, ValidationRuleBuilder) into the schema-driven renderer system.
- * 
+ *
  * Phase D.3 of WorkForm Editor Overhaul
  * Created: 2026-02-18
  * Updated: 2026-02-19 - Phase E.3: Added renderEntityFieldPicker for cascading fields
@@ -24,28 +24,28 @@ import ValidationRuleBuilder from '../../ConfigPanel/ValidationRuleBuilder';
 
 /**
  * Renders the EntityFieldPicker component for selecting fields from an entity
- * 
+ *
  * This is the CORRECT component for Form nodes - it shows a list of entity fields
  * and allows users to select which ones to include in the form.
- * 
+ *
  * Features:
  * - Dynamically fetches fields based on selected entityType
  * - Cascades field options when entity changes
  * - Multi-select with checkboxes
  * - Drag-and-drop field ordering
  * - Search and filter
- * 
+ *
  * Phase E.3: Cascade field options based on entityType
  */
 export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error, data } = props;
-  
+
   // EntityFieldPicker expects selectedFields and onFieldsChange
   const selectedFields = (value as SelectedField[]) || [];
-  
+
   // Extract entity type from data (set by entityType field)
   const entityType = data?.entityType as string | undefined;
-  
+
   if (!entityType) {
     return (
       <FieldContainer>
@@ -55,11 +55,11 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
       </FieldContainer>
     );
   }
-  
+
   const handleFieldsChange = (fields: SelectedField[]) => {
     onChange(fields);
   };
-  
+
   // Note: EntityFieldPicker handles entityType changes internally,
   // but we also provide it as initialEntityType for proper cascade behavior
   return (
@@ -87,24 +87,24 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
  */
 export function renderEntitySelector(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error } = props;
-  
+
   // EntityFieldPicker expects selectedFields and onFieldsChange
   const selectedFields = (value as SelectedField[]) || [];
-  
+
   // Extract entity type from data (should be set by entityType field)
   const entityType = props.data?.entityType as string | undefined;
-  
+
   const handleFieldsChange = (fields: SelectedField[]) => {
     onChange(fields);
   };
-  
+
   const handleEntityTypeChange = (newEntityType: string) => {
     // Update the entityType field in the parent data
     if (props.onFieldChange) {
       props.onFieldChange('entityType', newEntityType);
     }
   };
-  
+
   return (
     <FieldContainer>
       <EntityFieldPicker

@@ -1,15 +1,17 @@
-from django.test import TestCase
-from django.contrib.auth.models import User
-from django.urls import reverse
-from django.core.files.uploadedfile import SimpleUploadedFile
-from rest_framework.test import APITestCase
-from rest_framework import status
+import io
+import uuid
 from unittest.mock import patch
 
-from .models import Tenant, TenantUser, TenantDomain
-import uuid
-import io
+from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+
 from PIL import Image
+
+from .models import Tenant, TenantDomain, TenantUser
 
 
 class TenantModelTests(TestCase):
@@ -18,9 +20,7 @@ class TenantModelTests(TestCase):
     def setUp(self):
         unique_id = str(uuid.uuid4())[:8]
         self.user = User.objects.create_user(
-            username=f"testuser_{unique_id}",
-            email=f"test_{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser_{unique_id}", email=f"test_{unique_id}@example.com", password="testpass123"
         )
 
     def test_tenant_creation(self):
@@ -63,7 +63,7 @@ class TenantModelTests(TestCase):
         )
 
         self.assertEqual(str(tenant), f"Test Company {unique_id} (test-company-{unique_id})")
-    
+
     def test_tenant_isolation_in_shared_schema(self):
         """Test that multiple tenants can coexist in shared schema."""
         unique_id = str(uuid.uuid4())[:8]
@@ -79,13 +79,13 @@ class TenantModelTests(TestCase):
             contact_email=f"admin_{unique_id}@companyb.com",
             created_by=self.user,
         )
-        
+
         # Both tenants should exist in same schema (excluding System Root tenant)
-        test_tenants = Tenant.objects.filter(slug__startswith='company-')
+        test_tenants = Tenant.objects.filter(slug__startswith="company-")
         self.assertEqual(test_tenants.count(), 2)
         self.assertIsNotNone(Tenant.objects.filter(slug=f"company-a-{unique_id}").first())
         self.assertIsNotNone(Tenant.objects.filter(slug=f"company-b-{unique_id}").first())
-        
+
         # Tenants should have unique IDs
         self.assertNotEqual(tenant1.id, tenant2.id)
 
@@ -96,14 +96,10 @@ class TenantUserModelTests(TestCase):
     def setUp(self):
         unique_id = str(uuid.uuid4())[:8]
         self.user1 = User.objects.create_user(
-            username=f"user1_{unique_id}",
-            email=f"user1_{unique_id}@example.com",
-            password="testpass123"
+            username=f"user1_{unique_id}", email=f"user1_{unique_id}@example.com", password="testpass123"
         )
         self.user2 = User.objects.create_user(
-            username=f"user2_{unique_id}",
-            email=f"user2_{unique_id}@example.com",
-            password="testpass123"
+            username=f"user2_{unique_id}", email=f"user2_{unique_id}@example.com", password="testpass123"
         )
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -114,9 +110,7 @@ class TenantUserModelTests(TestCase):
 
     def test_tenant_user_creation(self):
         """Test creating tenant-user association in shared schema."""
-        tenant_user = TenantUser.objects.create(
-            tenant=self.tenant, user=self.user1, role="owner"
-        )
+        tenant_user = TenantUser.objects.create(tenant=self.tenant, user=self.user1, role="owner")
 
         self.assertEqual(tenant_user.tenant, self.tenant)
         self.assertEqual(tenant_user.user, self.user1)
@@ -133,9 +127,7 @@ class TenantUserModelTests(TestCase):
 
     def test_tenant_user_str_method(self):
         """Test string representation of tenant user."""
-        tenant_user = TenantUser.objects.create(
-            tenant=self.tenant, user=self.user1, role="owner"
-        )
+        tenant_user = TenantUser.objects.create(tenant=self.tenant, user=self.user1, role="owner")
 
         expected_str = f"{self.user1.username} @ {self.tenant.slug} (owner)"
         self.assertEqual(str(tenant_user), expected_str)
@@ -147,9 +139,7 @@ class TenantAPITests(APITestCase):
     def setUp(self):
         unique_id = str(uuid.uuid4())[:8]
         self.user = User.objects.create_user(
-            username=f"testuser_{unique_id}",
-            email=f"test_{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser_{unique_id}", email=f"test_{unique_id}@example.com", password="testpass123"
         )
         self.client.force_authenticate(user=self.user)
 
@@ -216,54 +206,54 @@ class TenantAPITests(APITestCase):
         """Test that tenant logo field can be set and retrieved."""
         # Create a simple test image
         image_content = (
-            b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
-            b'\x01\x0a\x00\x01\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02'
-            b'\x02\x4c\x01\x00\x3b'
+            b"\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04"
+            b"\x01\x0a\x00\x01\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02"
+            b"\x02\x4c\x01\x00\x3b"
         )
         image = SimpleUploadedFile("test_logo.gif", image_content, content_type="image/gif")
-        
+
         # Update tenant with logo
         self.tenant.logo = image
         self.tenant.save()
-        
+
         # Retrieve and verify
         tenant = Tenant.objects.get(id=self.tenant.id)
         self.assertIsNotNone(tenant.logo)
-        self.assertTrue(tenant.logo.name.endswith('.gif'))
-    
+        self.assertTrue(tenant.logo.name.endswith(".gif"))
+
     def test_tenant_logo_upload_via_api(self):
         """Test uploading tenant logo via API."""
         url = reverse("tenants:tenant-detail", kwargs={"pk": self.tenant.id})
-        
+
         # Create a valid PNG test image using PIL
-        img = Image.new('RGB', (100, 100), color='red')
+        img = Image.new("RGB", (100, 100), color="red")
         img_bytes = io.BytesIO()
-        img.save(img_bytes, format='PNG')
+        img.save(img_bytes, format="PNG")
         img_bytes.seek(0)
         image = SimpleUploadedFile("logo.png", img_bytes.read(), content_type="image/png")
-        
+
         # Upload logo
         response = self.client.patch(url, {"logo": image}, format="multipart")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("logo", response.data)
         self.assertIsNotNone(response.data["logo"])
-        
+
         # Verify logo was saved
         self.tenant.refresh_from_db()
         self.assertIsNotNone(self.tenant.logo)
-    
+
     def test_get_theme_settings(self):
         """Test getting tenant theme settings."""
         # Set theme colors
-        self.tenant.set_theme_colors('#FF5733', '#33FF57')
-        
+        self.tenant.set_theme_colors("#FF5733", "#33FF57")
+
         theme = self.tenant.get_theme_settings()
-        
-        self.assertEqual(theme['primary_color_light'], '#FF5733')
-        self.assertEqual(theme['primary_color_dark'], '#33FF57')
-        self.assertEqual(theme['name'], self.tenant.name)
-        self.assertIsNone(theme['logo_url'])  # No logo uploaded yet
+
+        self.assertEqual(theme["primary_color_light"], "#FF5733")
+        self.assertEqual(theme["primary_color_dark"], "#33FF57")
+        self.assertEqual(theme["name"], self.tenant.name)
+        self.assertIsNone(theme["logo_url"])  # No logo uploaded yet
 
 
 class InvitationEmailFailureDoesNot500(APITestCase):
@@ -284,8 +274,8 @@ class InvitationEmailFailureDoesNot500(APITestCase):
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
 
-    @patch('apps.tenants.invitation_email.send_mail', side_effect=Exception('SMTP down'))
-    @patch('apps.tenants.tasks.send_invitation_email_task.delay', side_effect=Exception('broker unavailable'))
+    @patch("apps.tenants.invitation_email.send_mail", side_effect=Exception("SMTP down"))
+    @patch("apps.tenants.tasks.send_invitation_email_task.delay", side_effect=Exception("broker unavailable"))
     def test_invitation_create_succeeds_when_email_send_fails(self, _task_delay, _send_mail):
         """Invitation creation must succeed even when email sending fails.
 
@@ -293,19 +283,19 @@ class InvitationEmailFailureDoesNot500(APITestCase):
         subsequent direct send_mail failure so that the full fallback path is
         exercised.  The API must still return 201.
         """
-        url = reverse('tenants:tenant-invitation-list')
+        url = reverse("tenants:tenant-invitation-list")
         payload = {
-            'email': 'newuser@example.com',
-            'role': 'user',
-            'message': 'Welcome!',
+            "email": "newuser@example.com",
+            "role": "user",
+            "message": "Welcome!",
         }
 
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(url, payload, format='json')
+            response = self.client.post(url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn('token', response.data)
-        self.assertTrue(response.data['token'])
+        self.assertIn("token", response.data)
+        self.assertTrue(response.data["token"])
         # Both the Celery dispatch and the direct send were attempted.
         self.assertTrue(_task_delay.called)
         self.assertTrue(_send_mail.called)
@@ -317,9 +307,7 @@ class DomainModelTests(TestCase):
     def setUp(self):
         unique_id = str(uuid.uuid4())[:8]
         self.user = User.objects.create_user(
-            username=f"testuser_{unique_id}",
-            email=f"test_{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser_{unique_id}", email=f"test_{unique_id}@example.com", password="testpass123"
         )
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -332,9 +320,7 @@ class DomainModelTests(TestCase):
         """Test basic domain creation."""
         unique_id = str(uuid.uuid4())[:8]
         domain = TenantDomain.objects.create(
-            domain=f"test-company-{unique_id}.example.com",
-            tenant=self.tenant,
-            is_primary=True
+            domain=f"test-company-{unique_id}.example.com", tenant=self.tenant, is_primary=True
         )
 
         self.assertEqual(domain.domain, f"test-company-{unique_id}.example.com")
@@ -345,9 +331,7 @@ class DomainModelTests(TestCase):
         """Test that domain is automatically converted to lowercase."""
         unique_id = str(uuid.uuid4())[:8]
         domain = TenantDomain.objects.create(
-            domain=f"TEST-COMPANY-{unique_id}.EXAMPLE.COM",
-            tenant=self.tenant,
-            is_primary=True
+            domain=f"TEST-COMPANY-{unique_id}.EXAMPLE.COM", tenant=self.tenant, is_primary=True
         )
 
         self.assertEqual(domain.domain, f"test-company-{unique_id}.example.com")
@@ -356,9 +340,7 @@ class DomainModelTests(TestCase):
         """Test string representation of domain."""
         unique_id = str(uuid.uuid4())[:8]
         domain = TenantDomain.objects.create(
-            domain=f"test-company-{unique_id}.example.com",
-            tenant=self.tenant,
-            is_primary=True
+            domain=f"test-company-{unique_id}.example.com", tenant=self.tenant, is_primary=True
         )
 
         expected_str = f"test-company-{unique_id}.example.com -> {self.tenant.slug} (primary)"
@@ -367,20 +349,14 @@ class DomainModelTests(TestCase):
     def test_domain_unique_constraint(self):
         """Test that domain must be unique."""
         from django.db import IntegrityError
-        
+
         unique_id = str(uuid.uuid4())[:8]
-        TenantDomain.objects.create(
-            domain=f"test-company-{unique_id}.example.com",
-            tenant=self.tenant,
-            is_primary=True
-        )
+        TenantDomain.objects.create(domain=f"test-company-{unique_id}.example.com", tenant=self.tenant, is_primary=True)
 
         # Attempting to create another domain with same name should fail
         with self.assertRaises(IntegrityError):
             TenantDomain.objects.create(
-                domain=f"test-company-{unique_id}.example.com",
-                tenant=self.tenant,
-                is_primary=False
+                domain=f"test-company-{unique_id}.example.com", tenant=self.tenant, is_primary=False
             )
 
 
@@ -390,9 +366,7 @@ class TenantSchemaNameTests(TestCase):
     def setUp(self):
         unique_id = str(uuid.uuid4())[:8]
         self.user = User.objects.create_user(
-            username=f"testuser_{unique_id}",
-            email=f"test_{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser_{unique_id}", email=f"test_{unique_id}@example.com", password="testpass123"
         )
 
     def test_schema_name_auto_generation(self):
@@ -426,7 +400,7 @@ class TenantSchemaNameTests(TestCase):
     def test_schema_name_unique(self):
         """Test that schema_name must be unique."""
         from django.db import IntegrityError
-        
+
         unique_id = str(uuid.uuid4())[:8]
         test_schema = f"test_schema_{unique_id}"
         Tenant.objects.create(
@@ -456,8 +430,8 @@ class SendGridQuotaDetectionTests(TestCase):
 
         exc = Exception(
             "HTTP Error 401: Unauthorized, response body: "
-            "b'{\"errors\":[{\"message\":\"Maximum credits exceeded\","
-            "\"field\":null,\"help\":null}]}'"
+            'b\'{"errors":[{"message":"Maximum credits exceeded",'
+            '"field":null,"help":null}]}\''
         )
         self.assertTrue(is_sendgrid_quota_exceeded(exc))
 

@@ -47,6 +47,4 @@ class AuditDataGovernancePostureTaskTests(TestCase):
                 for report in summary["tenant_reports"]
             )
         )
-        self.assertTrue(
-            any(report["tenant_slug"] == self.tenant_b.slug for report in summary["tenant_reports"])
-        )
+        self.assertTrue(any(report["tenant_slug"] == self.tenant_b.slug for report in summary["tenant_reports"]))

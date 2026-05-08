@@ -21,11 +21,11 @@ const Star = styled.button<{ $filled: boolean; $hovered: boolean }>`
   color: ${props => props.$filled || props.$hovered ? 'rgb(var(--color-warning))' : 'rgb(var(--color-border))'};
   transform: ${props => props.$hovered ? 'scale(1.15)' : 'scale(1)'};
   padding: 2px;
-  
+
   &:hover {
     transform: scale(1.15);
   }
-  
+
   &:focus {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
@@ -58,7 +58,7 @@ export const RatingField: React.FC<RatingFieldProps> = ({
   ariaProps = {},
 }) => {
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
-  
+
   const getRatingLabel = (rating: number) => {
     if (rating === 0) return 'No rating';
     if (rating === 1) return 'Poor';
@@ -70,8 +70,8 @@ export const RatingField: React.FC<RatingFieldProps> = ({
   };
 
   return (
-    <RatingContainer 
-      role="radiogroup" 
+    <RatingContainer
+      role="radiogroup"
       aria-label="Rating"
       {...ariaProps}
     >

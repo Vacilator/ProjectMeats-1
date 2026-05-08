@@ -12,7 +12,6 @@ already has the columns; dropping columns on reverse would be unsafe.
 
 from django.db import migrations
 
-
 _ADD_COLUMNS_SQL = """
 -- Step 1: Add columns as nullable (idempotent)
 ALTER TABLE workflows_tenantform ADD COLUMN IF NOT EXISTS created_on timestamp with time zone;

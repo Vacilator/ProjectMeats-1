@@ -1,9 +1,9 @@
 /**
  * Sentry Monitoring Dashboard
- * 
+ *
  * Admin dashboard for viewing Sentry error tracking and performance metrics.
  * Displays recent errors, performance trends, and system health.
- * 
+ *
  * Phase 6.4: Real-time error tracking and APM
  */
 
@@ -60,12 +60,12 @@ const StatsRow = styled(Row)`
 
 const StatCard = styled(Card)`
   text-align: center;
-  
+
   .ant-statistic-title {
     font-size: 13px;
     color: rgb(var(--color-text-secondary));
   }
-  
+
   .ant-statistic-content {
     font-size: 28px;
     font-weight: 600;
@@ -80,7 +80,7 @@ const StatusBadge = styled(Tag)<{ $status: 'healthy' | 'warning' | 'critical' }>
   font-weight: 600;
   padding: 4px 12px;
   border-radius: 4px;
-  
+
   background: ${props => {
     switch (props.$status) {
       case 'healthy': return 'rgba(var(--color-success), 0.1)';
@@ -88,7 +88,7 @@ const StatusBadge = styled(Tag)<{ $status: 'healthy' | 'warning' | 'critical' }>
       case 'critical': return 'rgba(var(--color-error), 0.1)';
     }
   }};
-  
+
   color: ${props => {
     switch (props.$status) {
       case 'healthy': return 'rgb(var(--color-success))';
@@ -96,7 +96,7 @@ const StatusBadge = styled(Tag)<{ $status: 'healthy' | 'warning' | 'critical' }>
       case 'critical': return 'rgb(var(--color-error))';
     }
   }};
-  
+
   border: none;
 `;
 
@@ -107,7 +107,7 @@ const SentryLink = styled.a`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  
+
   &:hover {
     color: rgb(var(--color-primary-hover));
   }
@@ -122,14 +122,14 @@ export const SentryDashboard: React.FC = () => {
   const [errors, setErrors] = useState<RecentError[]>([]);
   const [loading, setLoading] = useState(true);
   const [sentryConfigured, setSentryConfigured] = useState(false);
-  
+
   useEffect(() => {
     // Check if Sentry is configured
     const sentryDsn = (window as any).ENV?.SENTRY_DSN;
     const sentryEnabled = (window as any).ENV?.SENTRY_ENABLED === 'true';
-    
+
     setSentryConfigured(!!(sentryDsn && sentryEnabled));
-    
+
     // Simulate loading stats (in production, fetch from Sentry API)
     const timer = setTimeout(() => {
       if (sentryDsn && sentryEnabled) {
@@ -141,7 +141,7 @@ export const SentryDashboard: React.FC = () => {
           avgResponseTime: 245, // ms
           healthScore: 95, // 0-100
         });
-        
+
         setErrors([
           {
             id: '1',
@@ -172,35 +172,35 @@ export const SentryDashboard: React.FC = () => {
           },
         ]);
       }
-      
+
       setLoading(false);
     }, 1000);
-    
+
     return () => clearTimeout(timer);
   }, []);
-  
+
   const getHealthStatus = (score: number): 'healthy' | 'warning' | 'critical' => {
     if (score >= 90) return 'healthy';
     if (score >= 70) return 'warning';
     return 'critical';
   };
-  
+
   const formatTimestamp = (timestamp: string): string => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
-    
+
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours}h ago`;
-    
+
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays}d ago`;
   };
-  
+
   const errorColumns = [
     {
       title: 'Error',
@@ -254,7 +254,7 @@ export const SentryDashboard: React.FC = () => {
       ),
     },
   ];
-  
+
   if (!sentryConfigured) {
     return (
       <DashboardContainer>
@@ -280,7 +280,7 @@ export const SentryDashboard: React.FC = () => {
       </DashboardContainer>
     );
   }
-  
+
   if (loading) {
     return (
       <DashboardContainer>
@@ -293,7 +293,7 @@ export const SentryDashboard: React.FC = () => {
       </DashboardContainer>
     );
   }
-  
+
   return (
     <DashboardContainer>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -311,7 +311,7 @@ export const SentryDashboard: React.FC = () => {
             </SentryLink>
           </Paragraph>
         </div>
-        
+
         {stats && (
           <>
             <StatsRow gutter={16}>
@@ -336,7 +336,7 @@ export const SentryDashboard: React.FC = () => {
                   />
                 </StatCard>
               </Col>
-              
+
               <Col xs={24} sm={12} md={6}>
                 <StatCard>
                   <Statistic
@@ -348,7 +348,7 @@ export const SentryDashboard: React.FC = () => {
                   />
                 </StatCard>
               </Col>
-              
+
               <Col xs={24} sm={12} md={6}>
                 <StatCard>
                   <Statistic
@@ -358,7 +358,7 @@ export const SentryDashboard: React.FC = () => {
                   />
                 </StatCard>
               </Col>
-              
+
               <Col xs={24} sm={12} md={6}>
                 <StatCard>
                   <Statistic
@@ -369,7 +369,7 @@ export const SentryDashboard: React.FC = () => {
                 </StatCard>
               </Col>
             </StatsRow>
-            
+
             <StatsRow gutter={16}>
               <Col xs={24} sm={12}>
                 <StatCard>
@@ -382,7 +382,7 @@ export const SentryDashboard: React.FC = () => {
                   />
                 </StatCard>
               </Col>
-              
+
               <Col xs={24} sm={12}>
                 <StatCard>
                   <Statistic
@@ -396,7 +396,7 @@ export const SentryDashboard: React.FC = () => {
             </StatsRow>
           </>
         )}
-        
+
         <ErrorsCard title="Recent Errors" extra={<Text type="secondary">Last 24 hours</Text>}>
           <Table
             columns={errorColumns}

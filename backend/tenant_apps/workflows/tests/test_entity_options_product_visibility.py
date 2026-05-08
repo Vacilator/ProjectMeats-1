@@ -8,11 +8,11 @@ from django.db import connection
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from tenant_apps.workflows.views import EntityOptionsAPIView, QuickCreateEntityAPIView
+
 from apps.system.models import Product, TenantProductPreference
 from apps.tenants.models import Tenant, TenantUser
 from apps.tenants.rls import set_current_tenant
-from tenant_apps.workflows.views import EntityOptionsAPIView, QuickCreateEntityAPIView
-
 
 User = get_user_model()
 

@@ -1,14 +1,14 @@
 /**
  * ChoiceListEditor Component
- * 
+ *
  * Admin UI for viewing and editing system choice lists with tenant customization.
- * 
+ *
  * Features:
  * - View system-defined items (read-only)
  * - Add/edit/delete tenant-specific items
  * - Drag-to-reorder support
  * - Disable system items per tenant
- * 
+ *
  * Usage:
  *   <ChoiceListEditor choiceListSlug="protein_types" />
  */
@@ -215,7 +215,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         `/system/choice-lists/${choiceListSlug}/`
       );
       setChoiceList(response.data);
-      
+
       // Load items with tenant filtering
       const itemsResponse = await apiClient.get(
         `/system/choice-lists/${choiceListSlug}/items/`

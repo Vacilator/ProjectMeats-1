@@ -1,16 +1,16 @@
 /**
  * Workflow Version History Drawer
- * 
+ *
  * Displays a timeline of all changes made to a workflow form submission.
  * Shows who made changes, when, and what was changed.
- * 
+ *
  * Features:
  * - Visual timeline with AntD Timeline component
  * - Shows status transitions (from → to)
  * - Displays user comments/reasons for changes
  * - Restore to previous version (future enhancement)
  * - Real-time updates via polling or WebSocket (future)
- * 
+ *
  * Authority: Phase 2.4 - Form Process Groups Version Control
  */
 
@@ -100,7 +100,7 @@ function getStatusColor(status: string): string {
     cancelled: 'error',
     draft: 'default',
   };
-  
+
   return statusColors[status] || 'default';
 }
 
@@ -121,12 +121,12 @@ function formatTimestamp(timestamp: string): string {
   const date = new Date(timestamp);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
-  
+
   // If less than 24 hours ago, show relative time
   if (diff < 24 * 60 * 60 * 1000) {
     const hours = Math.floor(diff / (60 * 60 * 1000));
     const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
-    
+
     if (hours > 0) {
       return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     } else if (minutes > 0) {
@@ -135,7 +135,7 @@ function formatTimestamp(timestamp: string): string {
       return 'Just now';
     }
   }
-  
+
   // Otherwise show date
   return date.toLocaleDateString('en-US', {
     month: 'short',

@@ -5,14 +5,17 @@ Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
 from datetime import date
-from django.test import TestCase
+
 from django.contrib.auth.models import User
+from django.test import TestCase
+
+from tenant_apps.customers.models import Customer
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderItem, SalesOrderStatus
 from tenant_apps.sales_orders.serializers import SalesOrderSerializer
 from tenant_apps.suppliers.models import Supplier
-from tenant_apps.customers.models import Customer
-from apps.tenants.models import Tenant, TenantUser
+
 from apps.core.models import WeightUnitChoices
+from apps.tenants.models import Tenant, TenantUser
 
 
 class SalesOrderModelTest(TestCase):
@@ -22,9 +25,7 @@ class SalesOrderModelTest(TestCase):
         """Set up test data with tenant context."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -33,7 +34,7 @@ class SalesOrderModelTest(TestCase):
             created_by=self.user,
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
-        
+
         self.supplier = Supplier.objects.create(
             name=f"Test Supplier {unique_id}",
             email=f"supplier-{unique_id}@test.com",
@@ -58,7 +59,7 @@ class SalesOrderModelTest(TestCase):
             weight_unit=WeightUnitChoices.LBS,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(sales_order.our_sales_order_num, f"SO-{unique_id}")
         self.assertEqual(sales_order.supplier, self.supplier)
         self.assertEqual(sales_order.customer, self.customer)
@@ -74,13 +75,13 @@ class SalesOrderModelTest(TestCase):
             customer=self.customer,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(str(sales_order), f"SO-SO-{unique_id}")
 
     def test_sales_order_tenant_isolation(self):
         """Test that sales orders are isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create sales order for first tenant
         so1 = SalesOrder.objects.create(
             our_sales_order_num=f"SO1-{unique_id}",
@@ -88,12 +89,10 @@ class SalesOrderModelTest(TestCase):
             customer=self.customer,
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -109,7 +108,7 @@ class SalesOrderModelTest(TestCase):
             name=f"Other Customer {unique_id}",
             tenant=other_tenant,
         )
-        
+
         # Create sales order for second tenant
         so2 = SalesOrder.objects.create(
             our_sales_order_num=f"SO2-{unique_id}",
@@ -117,11 +116,11 @@ class SalesOrderModelTest(TestCase):
             customer=other_customer,
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_orders = SalesOrder.objects.for_tenant(self.tenant)
         tenant2_orders = SalesOrder.objects.for_tenant(other_tenant)
-        
+
         self.assertEqual(tenant1_orders.count(), 1)
         self.assertEqual(tenant2_orders.count(), 1)
         self.assertIn(so1, tenant1_orders)

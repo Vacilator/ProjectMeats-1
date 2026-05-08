@@ -172,9 +172,7 @@ def _store_event(event: TradeEvent) -> None:
                 tenant_id=event.tenant_id,
                 event_id=event.event_id,
                 event_type=(
-                    event.event_type.value
-                    if isinstance(event.event_type, TradeEventType)
-                    else event.event_type
+                    event.event_type.value if isinstance(event.event_type, TradeEventType) else event.event_type
                 ),
                 trade_session_id=event.trade_session_id or None,
                 trade_id=event.trade_id,
@@ -200,6 +198,4 @@ def _dispatch(event: TradeEvent) -> None:
         try:
             handler(event)
         except Exception as exc:
-            logger.exception(
-                f"Handler {handler.__name__} failed for event {event.event_id}: {exc}"
-            )
+            logger.exception(f"Handler {handler.__name__} failed for event {event.event_id}: {exc}")

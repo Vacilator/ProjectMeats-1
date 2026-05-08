@@ -7,11 +7,12 @@ from dataclasses import dataclass
 
 from django.db.models import Q
 
-from apps.core.models import ShippingOfferedChoices
 from tenant_apps.inquiries.models import InquiryRouteDecisionChoices, InquiryShippingTypeChoices
 from tenant_apps.locations.models import Location
 from tenant_apps.plants.models import Plant
 from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem, SupplierPlant
+
+from apps.core.models import ShippingOfferedChoices
 
 
 @dataclass(frozen=True)
@@ -149,7 +150,11 @@ def match_suppliers_for_inquiry(*, tenant, inquiry, filters: SupplierMatchFilter
     requested_protein = inquiry.requested_protein or requested_master_product.protein
     requested_protein_normalized = _normalize_text(requested_protein)
     system_protein_normalized = _normalize_text(system_product.protein_type)
-    if requested_protein_normalized and system_protein_normalized and requested_protein_normalized != system_protein_normalized:
+    if (
+        requested_protein_normalized
+        and system_protein_normalized
+        and requested_protein_normalized != system_protein_normalized
+    ):
         return SupplierMatchResult(
             inquiry_id=inquiry.id,
             route_decision=inquiry.route_decision,
@@ -321,7 +326,11 @@ def match_suppliers_for_inquiry(*, tenant, inquiry, filters: SupplierMatchFilter
         if applied_filters.require_contracts and not supplier.offer_contracts:
             continue
 
-        if applied_filters.require_supplier_delivery and supplier.shipping_offered in {"", ShippingOfferedChoices.NO, None}:
+        if applied_filters.require_supplier_delivery and supplier.shipping_offered in {
+            "",
+            ShippingOfferedChoices.NO,
+            None,
+        }:
             continue
 
         supplier_export_capable = supplier.offers_export_documents or bool(export_approved_plant_ids[supplier.id])

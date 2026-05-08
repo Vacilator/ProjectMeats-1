@@ -1,6 +1,6 @@
 /**
  * IconPicker Component
- * 
+ *
  * A visual icon picker for selecting icons from the available Lucide icon set.
  * Supports search, categories, and keyboard navigation.
  */
@@ -34,20 +34,20 @@ const IconPicker: React.FC<IconPickerProps> = ({
         setIsOpen(false);
       }
     };
-    
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       // Focus search input when opened
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
-    
+
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
   // Filter icons based on search and category
   const filteredIcons = useMemo(() => {
     return AVAILABLE_ICONS.filter(icon => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         icon.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         icon.label.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = !selectedCategory || icon.category === selectedCategory;
@@ -81,8 +81,8 @@ const IconPicker: React.FC<IconPickerProps> = ({
   return (
     <Container ref={containerRef}>
       {label && <Label>{label}</Label>}
-      
-      <Trigger 
+
+      <Trigger
         onClick={() => !disabled && setIsOpen(!isOpen)}
         $disabled={disabled}
         $isOpen={isOpen}
@@ -150,7 +150,7 @@ const IconPicker: React.FC<IconPickerProps> = ({
                 </IconList>
               </CategorySection>
             ))}
-            
+
             {filteredIcons.length === 0 && (
               <EmptyState>No icons found matching "{searchQuery}"</EmptyState>
             )}
@@ -186,11 +186,11 @@ const Trigger = styled.button<{ $disabled: boolean; $isOpen: boolean }>`
   border-radius: 8px;
   cursor: ${p => p.$disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: ${p => !p.$disabled && 'rgb(var(--color-primary))'};
   }
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -251,13 +251,13 @@ const SearchInput = styled.input`
   border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-muted));
   }
@@ -270,15 +270,15 @@ const CategoryTabs = styled.div`
   border-bottom: 1px solid rgb(var(--color-border));
   overflow-x: auto;
   flex-shrink: 0;
-  
+
   &::-webkit-scrollbar {
     height: 4px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: rgb(var(--color-surface-hover));
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border));
     border-radius: 2px;
@@ -296,7 +296,7 @@ const CategoryTab = styled.button<{ $active: boolean }>`
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s;
-  
+
   &:hover {
     background: ${p => p.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface-hover))'};
   }
@@ -310,7 +310,7 @@ const IconGrid = styled.div`
 
 const CategorySection = styled.div`
   margin-bottom: 16px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -344,7 +344,7 @@ const IconButton = styled.button<{ $selected: boolean }>`
   color: ${p => p.$selected ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   cursor: pointer;
   transition: all 0.15s;
-  
+
   &:hover {
     background: ${p => p.$selected ? 'rgba(var(--color-primary), 0.10)' : 'rgb(var(--color-surface-hover))'};
     border-color: ${p => p.$selected ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};

@@ -43,23 +43,23 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     --fail-early \
     "$HEALTH_URL" 2>/dev/null)
   CURL_EXIT=$?
-  
+
   # If curl failed (exit code != 0), set to failure code
   if [ $CURL_EXIT -ne 0 ]; then
     HTTP_CODE="$CURL_FAILURE_CODE"
   fi
-  
+
   # Success condition
   if [ "$HTTP_CODE" = "$EXPECTED_CODE" ]; then
     echo "✓ Health check PASSED (HTTP $HTTP_CODE) on attempt $ATTEMPT/$MAX_ATTEMPTS"
     exit 0
   fi
-  
+
   # Failure condition (max attempts reached)
   if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
     echo "✗ Health check FAILED after $MAX_ATTEMPTS attempts"
     echo "   Last HTTP code: $HTTP_CODE"
-    
+
     if [ "$HTTP_CODE" = "$CURL_FAILURE_CODE" ]; then
       echo "   Error: Network failure, DNS failure, or timeout"
       echo "   Possible causes:"
@@ -75,10 +75,10 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
       echo "     - Unauthorized (401/403)"
       echo "     - Redirect issue (301/302)"
     fi
-    
+
     exit 1
   fi
-  
+
   # Retry logic
   echo "   Attempt $ATTEMPT/$MAX_ATTEMPTS: HTTP $HTTP_CODE (retrying in ${DELAY}s...)"
   sleep $DELAY

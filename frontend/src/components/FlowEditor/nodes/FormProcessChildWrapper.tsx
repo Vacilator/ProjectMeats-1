@@ -1,17 +1,17 @@
 /**
  * Form Process Child Wrapper Component
- * 
+ *
  * Wrapper for child nodes inside FormProcessGroupNode that provides:
  * - Vertical auto-layout
  * - Consistent spacing
  * - Visual indicators for parent-child relationship
  * - Drag constraints (extent: 'parent')
- * 
+ *
  * This component is used by the FormProcessGroupNode to ensure all children
  * follow consistent layout rules without manual positioning.
- * 
+ *
  * Created: 2026-02-19 - Phase E.3
- * 
+ *
  * @module FormProcessChildWrapper
  */
 
@@ -61,7 +61,7 @@ const ChildContainer = styled.div<{ stepIndex: number; isFirst: boolean; isLast:
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(var(--color-overlay), 0.05);
   transition: all 0.2s ease;
-  
+
   /* Step indicator line */
   ${props => !props.isLast && `
     &::after {
@@ -76,12 +76,12 @@ const ChildContainer = styled.div<{ stepIndex: number; isFirst: boolean; isLast:
       pointer-events: none;
     }
   `}
-  
+
   &:hover {
     border-color: rgba(var(--color-primary), 0.4);
     box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.08);
   }
-  
+
   /* Drag handle indicator */
   &::before {
     content: '⋮⋮';
@@ -96,7 +96,7 @@ const ChildContainer = styled.div<{ stepIndex: number; isFirst: boolean; isLast:
     opacity: 0;
     transition: opacity 0.2s ease;
   }
-  
+
   &:hover::before {
     opacity: 1;
   }
@@ -135,7 +135,7 @@ const ContentArea = styled.div`
 
 /**
  * Calculate vertical position for a child node based on its index
- * 
+ *
  * (Kept for backward compatibility; the Book+Pages paradigm prefers horizontal sequencing.)
  */
 export function calculateChildYPosition(
@@ -148,7 +148,7 @@ export function calculateChildYPosition(
 
 /**
  * Calculate horizontal position for a child node based on its index
- * 
+ *
  * Book+Pages: steps flow left-to-right like pages on a track.
  */
 export function calculateChildXPosition(
@@ -191,20 +191,20 @@ export function autoLayoutChildren(
 
 /**
  * Form Process Child Wrapper
- * 
+ *
  * Wraps child nodes to provide consistent layout and visual indicators.
  * Used internally by FormProcessGroupNode for children rendering.
- * 
+ *
  * @param props - Node props with child-specific data
  */
 export const FormProcessChildWrapper: React.FC<FormProcessChildWrapperProps> = (props) => {
   const { data, children } = props;
-  
+
   const stepIndex = data.stepIndex ?? 0;
   const totalSteps = data.totalSteps ?? 1;
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === totalSteps - 1;
-  
+
   return (
     <ChildContainer
       stepIndex={stepIndex}
@@ -221,7 +221,7 @@ export const FormProcessChildWrapper: React.FC<FormProcessChildWrapperProps> = (
 
 /**
  * Higher-Order Component to wrap any node as a child within FormProcessGroup
- * 
+ *
  * @param WrappedComponent - The node component to wrap
  * @returns Wrapped component with child layout behavior
  */
@@ -233,7 +233,7 @@ export function withChildWrapper<P extends NodeProps<Node<any>>>(
     if (!props.data.parentId) {
       return <WrappedComponent {...props} />;
     }
-    
+
     return (
       <FormProcessChildWrapper {...props}>
         <WrappedComponent {...props} />

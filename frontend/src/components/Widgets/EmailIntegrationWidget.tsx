@@ -1,10 +1,10 @@
 /**
  * Email Integration Widget
- * 
+ *
  * Displays connected email accounts with status indicators.
  * Allows users to connect/disconnect Outlook and Gmail accounts.
  * Shows token expiration warnings and quick actions.
- * 
+ *
  * Created: 2026-02-26 - Email Cockpit Management
  */
 import React, { useState, useEffect } from 'react';
@@ -76,12 +76,12 @@ const RefreshButton = styled.button`
   gap: 6px;
   font-size: 12px;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-background));
     color: rgb(var(--color-primary));
   }
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -110,7 +110,7 @@ const AccountCard = styled.div<{ $status: string }>`
   }};
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
-  
+
   &:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
@@ -178,7 +178,7 @@ const StatusIndicator = styled.div<{ $status: string }>`
       default: return 'rgb(148, 163, 184)';
     }
   }};
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -223,17 +223,17 @@ const ActionButton = styled.button<{ $variant?: 'danger' | 'primary' }>`
   justify-content: center;
   gap: 6px;
   transition: all 0.15s ease;
-  
+
   &:hover {
     opacity: 0.8;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -284,12 +284,12 @@ const ConnectButton = styled.button`
   align-items: center;
   gap: 8px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     opacity: 0.9;
     box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
   }
-  
+
   svg {
     width: 16px;
     height: 16px;

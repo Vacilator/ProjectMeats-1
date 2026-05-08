@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("fulfillments", "0004_fulfillment_shipping_type"),
         ("tenants", "0013_alter_activitylog_action"),

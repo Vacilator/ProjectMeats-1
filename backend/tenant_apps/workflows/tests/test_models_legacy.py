@@ -771,6 +771,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         # Ensure RLS-protected queries can see this tenant's rows.
         # (TenantMiddleware normally sets these per-request.)
         from django.db import connection
+
         with connection.cursor() as cursor:
             cursor.execute("SET app.current_tenant_id = %s", [str(self.tenant.id)])
             cursor.execute("SET app.current_tenant = %s", [str(self.tenant.id)])
@@ -836,6 +837,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         viewset = FormSubmissionViewSet()
         from rest_framework.request import Request
+
         drf_request = Request(request)
         drf_request.user = request.user
         drf_request.tenant = request.tenant
@@ -866,6 +868,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         viewset = FormSubmissionViewSet()
         from rest_framework.request import Request
+
         drf_request = Request(request)
         drf_request.user = request.user
         drf_request.tenant = request.tenant
@@ -895,6 +898,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         viewset = FormSubmissionViewSet()
         from rest_framework.request import Request
+
         drf_request = Request(request)
         drf_request.user = request.user
         drf_request.tenant = request.tenant
@@ -921,6 +925,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         viewset = FormSubmissionViewSet()
         from rest_framework.request import Request
+
         drf_request = Request(request)
         drf_request.user = request.user
         drf_request.tenant = request.tenant
@@ -946,6 +951,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         viewset = FormSubmissionViewSet()
         from rest_framework.request import Request
+
         drf_request = Request(request)
         drf_request.user = request.user
         drf_request.tenant = request.tenant
@@ -971,6 +977,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         viewset = FormSubmissionViewSet()
         from rest_framework.request import Request
+
         drf_request = Request(request)
         drf_request.user = request.user
         drf_request.tenant = request.tenant
@@ -998,6 +1005,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         viewset = FormSubmissionViewSet()
         from rest_framework.request import Request
+
         drf_request = Request(request)
         drf_request.user = request.user
         drf_request.tenant = request.tenant
@@ -1023,6 +1031,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         viewset = FormSubmissionViewSet()
         from rest_framework.request import Request
+
         drf_request = Request(request)
         drf_request.user = request.user
         drf_request.tenant = request.tenant

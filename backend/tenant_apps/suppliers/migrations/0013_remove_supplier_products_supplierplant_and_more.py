@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("plants", "0010_alter_plant_associated_products_and_more"),
         ("products", "0008_masterproduct_delete_product_and_more"),

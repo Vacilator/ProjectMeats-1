@@ -1,13 +1,13 @@
 # Meats Central User Training Guide
 
-**Status**: ✅ CURRENT  
-**Category**: Guides  
+**Status**: ✅ CURRENT
+**Category**: Guides
 **Last Updated**: 2026-02-01
 
 ---
 
-**Target Audience:** Accounting Staff, Office Managers, and Financial Controllers  
-**Feature Set:** Payment Recording, Activity Logging, and Call Management  
+**Target Audience:** Accounting Staff, Office Managers, and Financial Controllers
+**Feature Set:** Payment Recording, Activity Logging, and Call Management
 **Version:** 1.0 - January 2026
 
 ---
@@ -296,7 +296,7 @@ Some activities are created automatically:
    - Reference: `CHK-78910`
    - Notes: `Partial payment - balance due 01/15`
 6. Click **Record Payment**
-7. **Result:** 
+7. **Result:**
    - Status changes from RED (Unpaid) to YELLOW (Partial)
    - Outstanding balance shows `$5,000.00`
    - Payment appears in Payment History
@@ -503,13 +503,13 @@ Use this checklist to verify your understanding:
 - [ ] I know who to contact for different types of issues
 - [ ] I understand the audit trail and why payments can't be edited
 
-**Training Complete?** ✅  
-**Date Completed:** _____________  
+**Training Complete?** ✅
+**Date Completed:** _____________
 **Trainer Signature:** _____________
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** January 8, 2026  
-**Next Review:** April 2026  
+**Document Version:** 1.0
+**Last Updated:** January 8, 2026
+**Next Review:** April 2026
 **Maintained By:** ProjectMeats Team

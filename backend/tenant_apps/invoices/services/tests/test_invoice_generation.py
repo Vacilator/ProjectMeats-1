@@ -168,28 +168,20 @@ class TestBuildInvoiceFromPOConfirmation(TestCase):
         }
 
     def test_po_amount_overrides_so(self):
-        result = build_invoice_from_po_confirmation(
-            self.po_data, self.so_data, "tenant-1"
-        )
+        result = build_invoice_from_po_confirmation(self.po_data, self.so_data, "tenant-1")
         self.assertTrue(result.success)
         self.assertEqual(result.invoice_data["total_amount"], "14500.00")
 
     def test_po_contact_overrides_so(self):
-        result = build_invoice_from_po_confirmation(
-            self.po_data, self.so_data, "tenant-1"
-        )
+        result = build_invoice_from_po_confirmation(self.po_data, self.so_data, "tenant-1")
         self.assertEqual(result.routing_contact["email"], "ap@acme.com")
 
     def test_lineage_includes_po_ref(self):
-        result = build_invoice_from_po_confirmation(
-            self.po_data, self.so_data, "tenant-1"
-        )
+        result = build_invoice_from_po_confirmation(self.po_data, self.so_data, "tenant-1")
         lineage = result.invoice_data["lineage"]
         self.assertEqual(lineage["source_type"], "po_confirmation")
         self.assertEqual(lineage["po_ref"], "PO-226052")
 
     def test_delivery_po_number_set(self):
-        result = build_invoice_from_po_confirmation(
-            self.po_data, self.so_data, "tenant-1"
-        )
+        result = build_invoice_from_po_confirmation(self.po_data, self.so_data, "tenant-1")
         self.assertEqual(result.invoice_data["delivery_po_number"], "PO-226052")

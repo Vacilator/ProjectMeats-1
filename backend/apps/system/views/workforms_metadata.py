@@ -16,6 +16,6 @@ class WorkFormsMetadataView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        version = str(request.query_params.get('version') or 'v1')
+        version = str(request.query_params.get("version") or "v1")
         payload = get_registry(version=version)
         return Response(payload)

@@ -1,11 +1,11 @@
 /**
  * FlowEditorContext
- * 
+ *
  * Phase E.1: Foundation - Step 3/4 (Centralized State Management)
- * 
+ *
  * Provides centralized state management for the FlowEditor to eliminate prop drilling
  * and create a single source of truth for editor state.
- * 
+ *
  * Features:
  * - Selected node/edge management
  * - Modal state management (8 modal types)
@@ -13,18 +13,18 @@
  * - UI settings (palette, preview, minimap, grid)
  * - History management
  * - Fullscreen state
- * 
+ *
  * Usage:
  * ```typescript
  * // In parent (UnifiedFlowEditor)
  * <FlowEditorProvider initialMode="visual">
  *   <YourComponents />
  * </FlowEditorProvider>
- * 
+ *
  * // In child components
  * const { selectedNode, selectNode, openModal, mode } = useFlowEditor();
  * ```
- * 
+ *
  * Created: 2026-02-17 - Phase E.1 FlowEditor Refactoring
  */
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
@@ -36,7 +36,7 @@ import { Node, Edge } from '@xyflow/react';
 
 export type EditorMode = 'wizard' | 'visual' | 'expert';
 
-export type ModalType = 
+export type ModalType =
   | 'formStep'
   | 'formField'
   | 'section'
@@ -190,32 +190,32 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
   // ---------------------------------------------------------------------------
   // SELECTION STATE
   // ---------------------------------------------------------------------------
-  
+
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
-  
+
   const selectNode = useCallback((node: Node | null) => {
     setSelectedNode(node);
     setSelectedEdge(null);
     onSelectionChange?.(node, null);
   }, [onSelectionChange]);
-  
+
   const selectEdge = useCallback((edge: Edge | null) => {
     setSelectedEdge(edge);
     setSelectedNode(null);
     onSelectionChange?.(null, edge);
   }, [onSelectionChange]);
-  
+
   const clearSelection = useCallback(() => {
     setSelectedNode(null);
     setSelectedEdge(null);
     onSelectionChange?.(null, null);
   }, [onSelectionChange]);
-  
+
   // ---------------------------------------------------------------------------
   // EDITOR MODE
   // ---------------------------------------------------------------------------
-  
+
   const [mode, setModeInternal] = useState<EditorMode>(() => {
     // Try to restore from localStorage
     const stored = localStorage.getItem('flow_editor_mode');
@@ -224,17 +224,17 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
     }
     return initialMode;
   });
-  
+
   const setMode = useCallback((newMode: EditorMode) => {
     setModeInternal(newMode);
     localStorage.setItem('flow_editor_mode', newMode);
     onModeChange?.(newMode);
   }, [onModeChange]);
-  
+
   // ---------------------------------------------------------------------------
   // MODAL STATE
   // ---------------------------------------------------------------------------
-  
+
   const [modals, setModals] = useState<Record<ModalType, ModalState>>({
     formStep: { type: 'formStep', isOpen: false, node: null },
     formField: { type: 'formField', isOpen: false, node: null },
@@ -245,21 +245,21 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
     container: { type: 'container', isOpen: false, node: null },
     settings: { type: 'settings', isOpen: false, node: null },
   });
-  
+
   const openModal = useCallback((type: ModalType, node?: Node) => {
     setModals(prev => ({
       ...prev,
       [type]: { type, isOpen: true, node: node || null },
     }));
   }, []);
-  
+
   const closeModal = useCallback((type: ModalType) => {
     setModals(prev => ({
       ...prev,
       [type]: { ...prev[type], isOpen: false },
     }));
   }, []);
-  
+
   const closeAllModals = useCallback(() => {
     setModals({
       formStep: { type: 'formStep', isOpen: false, node: null },
@@ -272,15 +272,15 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
       settings: { type: 'settings', isOpen: false, node: null },
     });
   }, []);
-  
+
   const isModalOpen = useCallback((type: ModalType) => {
     return modals[type].isOpen;
   }, [modals]);
-  
+
   // ---------------------------------------------------------------------------
   // UI SETTINGS
   // ---------------------------------------------------------------------------
-  
+
   const [ui, setUI] = useState<UISettings>(() => ({
     isPaletteVisible: true,
     isPreviewVisible: false,
@@ -292,19 +292,19 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
     snapToGrid: true,
     gridSize: 15,
   }));
-  
+
   const togglePalette = useCallback(() => {
     setUI(prev => ({ ...prev, isPaletteVisible: !prev.isPaletteVisible }));
   }, []);
-  
+
   const togglePreview = useCallback(() => {
     setUI(prev => ({ ...prev, isPreviewVisible: !prev.isPreviewVisible }));
   }, []);
-  
+
   const toggleMinimap = useCallback(() => {
     setUI(prev => ({ ...prev, isMinimapVisible: !prev.isMinimapVisible }));
   }, []);
-  
+
   const toggleFullscreen = useCallback(() => {
     setUI(prev => {
       const newFullscreen = !prev.isFullscreen;
@@ -312,15 +312,15 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
       return { ...prev, isFullscreen: newFullscreen };
     });
   }, []);
-  
+
   const setSnapToGrid = useCallback((snap: boolean) => {
     setUI(prev => ({ ...prev, snapToGrid: snap }));
   }, []);
-  
+
   const setGridSize = useCallback((size: number) => {
     setUI(prev => ({ ...prev, gridSize: size }));
   }, []);
-  
+
   // ---------------------------------------------------------------------------
   // PHASE 9.4: DEBUG SESSION STATE
   // ---------------------------------------------------------------------------
@@ -398,7 +398,7 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
   // ---------------------------------------------------------------------------
   // CONTEXT VALUE
   // ---------------------------------------------------------------------------
-  
+
   const value = useMemo<FlowEditorContextValue>(() => {
     return {
       // Selection
@@ -487,7 +487,7 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
     availableFields,
     currentNodeId,
   ]);
-  
+
   return (
     <FlowEditorContext.Provider value={value}>
       <FlowEditorNodeActionsContext.Provider value={nodeActions}>
@@ -503,30 +503,30 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
 
 /**
  * Hook to access FlowEditor context
- * 
+ *
  * @throws Error if used outside FlowEditorProvider
- * 
+ *
  * @example
  * ```typescript
  * const { selectedNode, selectNode, openModal } = useFlowEditor();
- * 
+ *
  * // Select a node
  * selectNode(node);
- * 
+ *
  * // Open a modal
  * openModal('formStep', node);
- * 
+ *
  * // Check if modal is open
  * if (isModalOpen('settings')) { ... }
  * ```
  */
 export function useFlowEditor(): FlowEditorContextValue {
   const context = useContext(FlowEditorContext);
-  
+
   if (!context) {
     throw new Error('useFlowEditor must be used within FlowEditorProvider');
   }
-  
+
   return context;
 }
 

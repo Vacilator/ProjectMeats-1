@@ -3,21 +3,15 @@
 import uuid
 from unittest.mock import MagicMock, patch
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from apps.tenants.models import Tenant, TenantUser
-from django.contrib.auth import get_user_model
-from tenant_apps.carriers.models import (
-    Carrier,
-    CarrierFreightInquiry,
-    CarrierFreightInquiryStatus,
-)
-from tenant_apps.carriers.services.freight_inquiry import (
-    CarrierFreightInquiryResult,
-    send_carrier_freight_inquiries,
-)
+from tenant_apps.carriers.models import Carrier, CarrierFreightInquiry, CarrierFreightInquiryStatus
+from tenant_apps.carriers.services.freight_inquiry import CarrierFreightInquiryResult, send_carrier_freight_inquiries
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
+
+from apps.tenants.models import Tenant, TenantUser
 
 User = get_user_model()
 
@@ -35,13 +29,11 @@ class CarrierFreightInquiryServiceTests(TestCase):
         cls.user = User.objects.create_user(username=f"tester_{_uid()}", password="password123")
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="admin")
 
-        from tenant_apps.suppliers.models import Supplier
         from tenant_apps.customers.models import Customer
+        from tenant_apps.suppliers.models import Supplier
 
         cls.supplier = Supplier.objects.create(tenant=cls.tenant, name=f"Supplier {_uid()}")
-        cls.customer = Customer.objects.create(
-            tenant=cls.tenant, name=f"Customer {_uid()}", email="cust@example.com"
-        )
+        cls.customer = Customer.objects.create(tenant=cls.tenant, name=f"Customer {_uid()}", email="cust@example.com")
         cls.carrier1 = Carrier.objects.create(
             tenant=cls.tenant,
             name=f"FastFreight {_uid()}",
@@ -73,17 +65,13 @@ class CarrierFreightInquiryServiceTests(TestCase):
         )
 
     def test_missing_tenant_returns_error(self):
-        result = send_carrier_freight_inquiries(
-            tenant=None, sales_order=self.sales_order, user=self.user
-        )
+        result = send_carrier_freight_inquiries(tenant=None, sales_order=self.sales_order, user=self.user)
         self.assertFalse(result.success)
         self.assertEqual(result.error_code, "missing_tenant")
 
     def test_wrong_tenant_returns_error(self):
         other_tenant = Tenant.objects.create(name=f"Other {_uid()}", slug=f"other-{_uid()}")
-        result = send_carrier_freight_inquiries(
-            tenant=other_tenant, sales_order=self.sales_order, user=self.user
-        )
+        result = send_carrier_freight_inquiries(tenant=other_tenant, sales_order=self.sales_order, user=self.user)
         self.assertFalse(result.success)
         self.assertEqual(result.error_code, "invalid_sales_order")
 
@@ -95,9 +83,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
             our_sales_order_num=f"SO-D-{_uid()}",
             status=SalesOrderStatus.DRAFT,
         )
-        result = send_carrier_freight_inquiries(
-            tenant=self.tenant, sales_order=so, user=self.user
-        )
+        result = send_carrier_freight_inquiries(tenant=self.tenant, sales_order=so, user=self.user)
         self.assertFalse(result.success)
         self.assertEqual(result.error_code, "invalid_status")
 
@@ -106,9 +92,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
     def test_no_provider_returns_error(self, mock_provider, mock_rls):
         mock_rls.return_value = MagicMock(ok=True)
         mock_provider.side_effect = ValueError("Outlook is not connected for this tenant.")
-        result = send_carrier_freight_inquiries(
-            tenant=self.tenant, sales_order=self.sales_order, user=self.user
-        )
+        result = send_carrier_freight_inquiries(tenant=self.tenant, sales_order=self.sales_order, user=self.user)
         self.assertFalse(result.success)
         self.assertEqual(result.error_code, "provider_error")
 
@@ -116,9 +100,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
     @patch("tenant_apps.carriers.services.freight_inquiry._get_sender_provider")
     @patch("tenant_apps.carriers.services.freight_inquiry._get_access_token")
     @patch("tenant_apps.carriers.services.freight_inquiry.MicrosoftGraphProvider")
-    def test_happy_path_sends_to_multiple_carriers(
-        self, mock_graph_cls, mock_token, mock_provider, mock_rls
-    ):
+    def test_happy_path_sends_to_multiple_carriers(self, mock_graph_cls, mock_token, mock_provider, mock_rls):
         mock_rls.return_value = MagicMock(ok=True)
         mock_provider.return_value = MagicMock(connected_email="logistics@co.com", pk=None)
         mock_token.return_value = "fake-token"
@@ -128,9 +110,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
         )
         mock_graph_cls.return_value = mock_graph_instance
 
-        result = send_carrier_freight_inquiries(
-            tenant=self.tenant, sales_order=self.sales_order, user=self.user
-        )
+        result = send_carrier_freight_inquiries(tenant=self.tenant, sales_order=self.sales_order, user=self.user)
 
         self.assertTrue(result.success)
         # Should have sent to carrier1 and carrier2 (carrier_no_email excluded)
@@ -139,9 +119,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
         self.assertEqual(mock_graph_instance.send_email.call_count, 2)
 
         # Verify inquiry rows created
-        inquiries = CarrierFreightInquiry.objects.filter(
-            tenant=self.tenant, sales_order=self.sales_order
-        )
+        inquiries = CarrierFreightInquiry.objects.filter(tenant=self.tenant, sales_order=self.sales_order)
         self.assertEqual(inquiries.count(), 2)
         self.assertTrue(all(i.status == CarrierFreightInquiryStatus.SENT for i in inquiries))
 
@@ -149,9 +127,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
     @patch("tenant_apps.carriers.services.freight_inquiry._get_sender_provider")
     @patch("tenant_apps.carriers.services.freight_inquiry._get_access_token")
     @patch("tenant_apps.carriers.services.freight_inquiry.MicrosoftGraphProvider")
-    def test_explicit_carrier_ids_filter(
-        self, mock_graph_cls, mock_token, mock_provider, mock_rls
-    ):
+    def test_explicit_carrier_ids_filter(self, mock_graph_cls, mock_token, mock_provider, mock_rls):
         mock_rls.return_value = MagicMock(ok=True)
         mock_provider.return_value = MagicMock(connected_email="logistics@co.com", pk=None)
         mock_token.return_value = "fake-token"
@@ -176,9 +152,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
     @patch("tenant_apps.carriers.services.freight_inquiry._get_sender_provider")
     @patch("tenant_apps.carriers.services.freight_inquiry._get_access_token")
     @patch("tenant_apps.carriers.services.freight_inquiry.MicrosoftGraphProvider")
-    def test_idempotent_skips_already_sent(
-        self, mock_graph_cls, mock_token, mock_provider, mock_rls
-    ):
+    def test_idempotent_skips_already_sent(self, mock_graph_cls, mock_token, mock_provider, mock_rls):
         mock_rls.return_value = MagicMock(ok=True)
         mock_provider.return_value = MagicMock(connected_email="logistics@co.com", pk=None)
         mock_token.return_value = "fake-token"
@@ -213,9 +187,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
     @patch("tenant_apps.carriers.services.freight_inquiry._get_sender_provider")
     @patch("tenant_apps.carriers.services.freight_inquiry._get_access_token")
     @patch("tenant_apps.carriers.services.freight_inquiry.MicrosoftGraphProvider")
-    def test_partial_failure_reports_mixed_results(
-        self, mock_graph_cls, mock_token, mock_provider, mock_rls
-    ):
+    def test_partial_failure_reports_mixed_results(self, mock_graph_cls, mock_token, mock_provider, mock_rls):
         from apps.integrations.providers.base import EmailProviderError
 
         mock_rls.return_value = MagicMock(ok=True)
@@ -229,9 +201,7 @@ class CarrierFreightInquiryServiceTests(TestCase):
         ]
         mock_graph_cls.return_value = mock_graph_instance
 
-        result = send_carrier_freight_inquiries(
-            tenant=self.tenant, sales_order=self.sales_order, user=self.user
-        )
+        result = send_carrier_freight_inquiries(tenant=self.tenant, sales_order=self.sales_order, user=self.user)
 
         # Partial success (at least one sent)
         self.assertTrue(result.success)
@@ -266,13 +236,11 @@ class CarrierFreightInquiryAPITests(TestCase):
         cls.user = User.objects.create_user(username=f"api_user_{_uid()}", password="password123")
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="admin")
 
-        from tenant_apps.suppliers.models import Supplier
         from tenant_apps.customers.models import Customer
+        from tenant_apps.suppliers.models import Supplier
 
         cls.supplier = Supplier.objects.create(tenant=cls.tenant, name=f"Supplier {_uid()}")
-        cls.customer = Customer.objects.create(
-            tenant=cls.tenant, name=f"Customer {_uid()}", email="cust@example.com"
-        )
+        cls.customer = Customer.objects.create(tenant=cls.tenant, name=f"Customer {_uid()}", email="cust@example.com")
         cls.sales_order = SalesOrder.objects.create(
             tenant=cls.tenant,
             supplier=cls.supplier,
@@ -283,9 +251,7 @@ class CarrierFreightInquiryAPITests(TestCase):
 
     @patch("tenant_apps.sales_orders.views.send_carrier_freight_inquiries")
     def test_endpoint_calls_service(self, mock_service):
-        mock_service.return_value = CarrierFreightInquiryResult(
-            success=True, inquiries_sent=3, details=[]
-        )
+        mock_service.return_value = CarrierFreightInquiryResult(success=True, inquiries_sent=3, details=[])
         client = APIClient()
         client.force_authenticate(user=self.user)
 
@@ -301,9 +267,7 @@ class CarrierFreightInquiryAPITests(TestCase):
 
     @patch("tenant_apps.sales_orders.views.send_carrier_freight_inquiries")
     def test_endpoint_passes_carrier_ids(self, mock_service):
-        mock_service.return_value = CarrierFreightInquiryResult(
-            success=True, inquiries_sent=1, details=[]
-        )
+        mock_service.return_value = CarrierFreightInquiryResult(success=True, inquiries_sent=1, details=[])
         client = APIClient()
         client.force_authenticate(user=self.user)
 

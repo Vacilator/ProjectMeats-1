@@ -20,7 +20,7 @@ export const useKeyboardNavigation = (
     (event: KeyboardEvent) => {
       // Only handle if focus is on canvas or a node
       const target = event.target as HTMLElement;
-      const isCanvasFocused = 
+      const isCanvasFocused =
         target.classList.contains('react-flow') ||
         target.classList.contains('react-flow__pane') ||
         target.closest('.react-flow__node');
@@ -28,7 +28,7 @@ export const useKeyboardNavigation = (
       if (!isCanvasFocused) return;
 
       const selectedNodes = nodes.filter(node => node.selected);
-      
+
       // If no nodes selected, select first node on Tab
       if (selectedNodes.length === 0 && event.key === 'Tab') {
         event.preventDefault();
@@ -63,11 +63,11 @@ export const useKeyboardNavigation = (
         case 'ArrowLeft':
         case 'ArrowRight':
           event.preventDefault();
-          
+
           // Find nearest node in the direction
           const direction = event.key.replace('Arrow', '').toLowerCase();
           nextNode = findNearestNode(currentNode, nodes, direction);
-          
+
           if (nextNode) {
             // Deselect current, select next
             onNodesChange([
@@ -82,7 +82,7 @@ export const useKeyboardNavigation = (
                 selected: true
               }
             ]);
-            
+
             // Focus and scroll into view
             const nextNodeId = nextNode.id;
             setTimeout(() => {
@@ -212,7 +212,7 @@ export const useAriaAnnouncements = () => {
     if (announcer) {
       announcer.setAttribute('aria-live', priority);
       announcer.textContent = message;
-      
+
       // Clear after 1 second
       setTimeout(() => {
         announcer.textContent = '';

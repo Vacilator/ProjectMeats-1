@@ -85,4 +85,3 @@ Reduce interaction cost (clicks, context switches) while preserving enterprise s
 - Users can reach any common entity/action with Cmd+K
 - Critical pages feel instant (optimistic) and never flash blank (skeleton)
 - Tables look/behave consistently across modules
-

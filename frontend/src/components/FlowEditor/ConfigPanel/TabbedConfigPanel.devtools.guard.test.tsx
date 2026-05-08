@@ -3,15 +3,15 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./DynamicConfigPanel', () => ({
-  DynamicConfigPanel: () => <div data-testid="dynamic-config" />, 
+  DynamicConfigPanel: () => <div data-testid="dynamic-config" />,
 }));
 
 vi.mock('./VisualFormBuilderPanel', () => ({
-  VisualFormBuilderPanel: () => <div data-testid="visual-form-builder" />, 
+  VisualFormBuilderPanel: () => <div data-testid="visual-form-builder" />,
 }));
 
 vi.mock('./LiveFormPreview', () => ({
-  LiveFormPreview: () => <div data-testid="live-form-preview" />, 
+  LiveFormPreview: () => <div data-testid="live-form-preview" />,
 }));
 
 vi.mock('./DeveloperJsonEditor', () => ({

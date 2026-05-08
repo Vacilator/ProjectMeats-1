@@ -1,6 +1,6 @@
 /**
  * Widget System Components (Wave 2: Cockpit Command Center)
- * 
+ *
  * Provides draggable, resizable dashboard widgets.
  */
 export { WidgetGrid } from './WidgetGrid';

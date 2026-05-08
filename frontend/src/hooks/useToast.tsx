@@ -1,13 +1,13 @@
 /**
  * Toast Notification Hook
- * 
+ *
  * Provides a simple toast notification system for user feedback.
  * Uses React Context to manage toast state globally.
- * 
+ *
  * Usage:
  * ```typescript
  * const toast = useToast();
- * 
+ *
  * toast.success('User invited successfully');
  * toast.error('Failed to save changes');
  * toast.info('Processing your request...');
@@ -50,7 +50,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const addToast = useCallback((type: ToastType, message: string, duration: number = 5000) => {
     const id = Math.random().toString(36).substring(7);
     const toast: Toast = { id, type, message, duration };
-    
+
     setToasts((prev) => [...prev, toast]);
 
     // Auto-dismiss after duration
@@ -170,7 +170,7 @@ const ToastContainer = styled.div`
   flex-direction: column;
   gap: 12px;
   pointer-events: none;
-  
+
   @media (max-width: 768px) {
     left: 16px;
     right: 16px;
@@ -193,7 +193,7 @@ const ToastItem = styled.div<{ type: ToastType }>`
   pointer-events: auto;
   cursor: pointer;
   animation: slideIn 0.3s ease-out;
-  
+
   @keyframes slideIn {
     from {
       transform: translateX(400px);
@@ -204,7 +204,7 @@ const ToastItem = styled.div<{ type: ToastType }>`
       opacity: 1;
     }
   }
-  
+
   @media (max-width: 768px) {
     min-width: unset;
     max-width: unset;
@@ -238,7 +238,7 @@ const CloseButton = styled.button`
   justify-content: center;
   flex-shrink: 0;
   transition: color 0.2s;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }

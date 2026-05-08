@@ -1,10 +1,10 @@
 /**
  * Shared Hooks Index
- * 
+ *
  * Phase E.1: Foundation - Step 2/4 (Shared Hooks)
- * 
+ *
  * Exports all shared hooks for FlowEditor components.
- * 
+ *
  * Created: 2026-02-17 - Phase E.1 FlowEditor Refactoring
  */
 
@@ -18,12 +18,12 @@ export type { UsePanelStateOptions, UsePanelStateReturn } from './usePanelState'
 
 // Field validation
 export { useFieldValidation } from './useFieldValidation';
-export type { 
-  ValidationRule, 
-  ValidationRules, 
+export type {
+  ValidationRule,
+  ValidationRules,
   ValidationErrors,
-  UseFieldValidationOptions, 
-  UseFieldValidationReturn 
+  UseFieldValidationOptions,
+  UseFieldValidationReturn
 } from './useFieldValidation';
 
 // Node configuration

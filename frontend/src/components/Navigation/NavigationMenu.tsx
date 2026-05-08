@@ -1,9 +1,9 @@
 /**
  * NavigationMenu Component
- * 
+ *
  * Handles nested navigation with expandable/collapsible accordion submenus
  * Supports multi-level hierarchies with proper indentation and smooth animations
- * 
+ *
  * Updated: 2026-02-03 - Phase 2 Forms & Flows Enhancement
  * - Added badge rendering support for action item counts
  */
@@ -49,7 +49,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const isDarkMode = themeName === 'dark';
   const lastPathnameRef = useRef(location.pathname);
-  
+
   // Filter items based on user roles
   const filterItemsByRole = useCallback((navItems: NavigationItem[]): NavigationItem[] => {
     return navItems.filter(item => {
@@ -57,21 +57,21 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       if (!item.roles || item.roles.length === 0) {
         return true;
       }
-      
+
       // Check if user has any of the required roles
       if (item.roles.includes('admin') && isAdmin) {
         return true;
       }
-      
+
       if (item.roles.includes('superuser') && user?.is_superuser) {
         return true;
       }
-      
+
       // Check against user's role if available
       if (user?.role && item.roles.includes(user.role)) {
         return true;
       }
-      
+
       return false;
     }).map(item => {
       // Recursively filter children
@@ -84,7 +84,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       return item;
     });
   }, [isAdmin, user]);
-  
+
   const filteredItems = useMemo(() => filterItemsByRole(items), [filterItemsByRole, items]);
   const filteredItemsRef = useRef<NavigationItem[]>(filteredItems);
 
@@ -227,7 +227,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             {renderAccordionContent(item)}
           </AccordionNavLinkInner>
           {sidebarExpanded && (
-            <ExpandButton 
+            <ExpandButton
               onClick={(e) => {
                 // Prevent navigation for chevron click, only toggle accordion
                 logger.debug('[NavigationMenu] ExpandButton clicked:', {
@@ -249,7 +249,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
         </AccordionHeaderContainer>
       );
     }
-    
+
     // If item has NO path, use button for accordion toggle
     return (
       <AccordionHeader
@@ -272,7 +272,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       >
         {renderAccordionContent(item)}
         {sidebarExpanded && (
-          <ExpandButton 
+          <ExpandButton
             onClick={(e) => {
               // Just for consistency, though the whole header is clickable
               e.preventDefault();
@@ -361,8 +361,8 @@ const baseItemStyles = css<{ $level: number; $active: boolean; $isDarkMode: bool
   gap: 12px;
   padding: 18px 12px;
   padding-left: ${(props) => 12 + props.$level * 16}px;
-  color: ${(props) => props.$isDarkMode 
-    ? `rgba(255, 255, 255, ${props.$active ? 1 : 0.7})` 
+  color: ${(props) => props.$isDarkMode
+    ? `rgba(255, 255, 255, ${props.$active ? 1 : 0.7})`
     : `rgba(30, 41, 59, ${props.$active ? 1 : 0.7})`};
   text-decoration: none;
   transition: all 0.15s ease;
@@ -371,21 +371,21 @@ const baseItemStyles = css<{ $level: number; $active: boolean; $isDarkMode: bool
   margin: 0 8px 4px 8px;
   height: 60px;
   box-sizing: border-box;
-  
+
   &:hover {
-    background-color: ${(props) => props.$isDarkMode 
-      ? 'rgba(255, 255, 255, 0.08)' 
+    background-color: ${(props) => props.$isDarkMode
+      ? 'rgba(255, 255, 255, 0.08)'
       : 'rgba(0, 0, 0, 0.04)'};
     color: ${(props) => props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
   }
 `;
 
 const activeStyles = css<{ $isDarkMode: boolean }>`
-  background-color: ${(props) => props.$isDarkMode 
-    ? 'rgba(var(--color-primary), 0.15)' 
+  background-color: ${(props) => props.$isDarkMode
+    ? 'rgba(var(--color-primary), 0.15)'
     : 'rgba(var(--color-primary), 0.1)'};
   color: ${(props) => props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
-  
+
   &::before {
     content: '';
     position: absolute;
@@ -399,8 +399,8 @@ const activeStyles = css<{ $isDarkMode: boolean }>`
   }
 
   &:hover {
-    background-color: ${(props) => props.$isDarkMode 
-      ? 'rgba(var(--color-primary), 0.2)' 
+    background-color: ${(props) => props.$isDarkMode
+      ? 'rgba(var(--color-primary), 0.2)'
       : 'rgba(var(--color-primary), 0.15)'};
   }
 `;
@@ -408,9 +408,9 @@ const activeStyles = css<{ $isDarkMode: boolean }>`
 const StyledNavLink = styled(NavLink)<{ $theme: Theme; $level: number; $active: boolean; $hasActiveChild?: boolean; $isDarkMode: boolean }>`
   ${baseItemStyles}
   position: relative;
-  
+
   ${(props) => props.$active && activeStyles}
-  
+
   ${(props) => props.$hasActiveChild && css<{ $isDarkMode: boolean }>`
     color: ${props.$isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgb(var(--color-text-primary))'};
   `}
@@ -424,13 +424,13 @@ const AccordionHeader = styled.div<{ $theme: Theme; $level: number; $active: boo
   ${baseItemStyles}
   position: relative;
   cursor: pointer;
-  
+
   ${(props) => props.$active && !props.$hasExactActiveChild && css<{ $isDarkMode: boolean }>`
-    background-color: ${props.$isDarkMode 
-      ? 'rgba(var(--color-primary), 0.15)' 
+    background-color: ${props.$isDarkMode
+      ? 'rgba(var(--color-primary), 0.15)'
       : 'rgba(var(--color-primary), 0.1)'};
     color: ${props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
-    
+
     &::before {
       content: '';
       position: absolute;
@@ -444,12 +444,12 @@ const AccordionHeader = styled.div<{ $theme: Theme; $level: number; $active: boo
     }
 
     &:hover {
-      background-color: ${props.$isDarkMode 
-        ? 'rgba(var(--color-primary), 0.2)' 
+      background-color: ${props.$isDarkMode
+        ? 'rgba(var(--color-primary), 0.2)'
         : 'rgba(var(--color-primary), 0.15)'};
     }
   `}
-  
+
   ${(props) => props.$active && props.$hasExactActiveChild && css<{ $isDarkMode: boolean }>`
     color: ${props.$isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 41, 59, 0.95)'};
   `}
@@ -466,9 +466,9 @@ const AccordionNavLink = styled(NavLink)<{ $level: number }>`
 `;
 
 // Container for accordion header with NavLink and ExpandButton as siblings
-const AccordionHeaderContainer = styled.div<{ 
-  $level: number; 
-  $active: boolean; 
+const AccordionHeaderContainer = styled.div<{
+  $level: number;
+  $active: boolean;
   $isDarkMode: boolean;
 }>`
   display: flex;
@@ -478,13 +478,13 @@ const AccordionHeaderContainer = styled.div<{
   margin: 0 8px 4px 8px;
   border-radius: 8px;
   position: relative;
-  
+
   /* Active state styling on container */
   ${(props) => props.$active && css<{ $isDarkMode: boolean }>`
-    background-color: ${props.$isDarkMode 
-      ? 'rgba(var(--color-primary), 0.15)' 
+    background-color: ${props.$isDarkMode
+      ? 'rgba(var(--color-primary), 0.15)'
       : 'rgba(var(--color-primary), 0.1)'};
-    
+
     &::before {
       content: '';
       position: absolute;
@@ -497,20 +497,20 @@ const AccordionHeaderContainer = styled.div<{
       border-radius: 0 3px 3px 0;
     }
   `}
-  
+
   &:hover {
-    background-color: ${(props) => props.$isDarkMode 
-      ? 'rgba(255, 255, 255, 0.08)' 
+    background-color: ${(props) => props.$isDarkMode
+      ? 'rgba(255, 255, 255, 0.08)'
       : 'rgba(0, 0, 0, 0.04)'};
   }
 `;
 
 // Clickable div for accordion item with path (sits inside AccordionHeaderContainer)
 // Changed from NavLink to div with onClick handler for better click handling
-const AccordionNavLinkInner = styled.div<{ 
-  $theme: Theme; 
-  $level: number; 
-  $active: boolean; 
+const AccordionNavLinkInner = styled.div<{
+  $theme: Theme;
+  $level: number;
+  $active: boolean;
   $isDarkMode: boolean;
   $hasExactActiveChild: boolean;
 }>`
@@ -519,8 +519,8 @@ const AccordionNavLinkInner = styled.div<{
   gap: 12px;
   padding: 18px 12px;
   padding-left: ${(props) => 12 + props.$level * 16}px;
-  color: ${(props) => props.$isDarkMode 
-    ? `rgba(255, 255, 255, ${props.$active ? 1 : 0.7})` 
+  color: ${(props) => props.$isDarkMode
+    ? `rgba(255, 255, 255, ${props.$active ? 1 : 0.7})`
     : `rgba(30, 41, 59, ${props.$active ? 1 : 0.7})`};
   text-decoration: none;
   font-size: ${(props) => props.$level === 0 ? 14 : 13}px;
@@ -532,10 +532,10 @@ const AccordionNavLinkInner = styled.div<{
   pointer-events: auto;
   z-index: 1;
   position: relative;
-  
+
   /* Ensure it doesn't inherit container background */
   background: transparent;
-  
+
   ${(props) => props.$hasExactActiveChild && css<{ $isDarkMode: boolean }>`
     color: ${props.$isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgb(var(--color-text-primary))'};
   `}
@@ -549,7 +549,7 @@ const MenuButton = styled.button<{ $theme: Theme; $level: number; $active: boole
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  
+
   ${(props) => props.$active && activeStyles}
 `;
 
@@ -563,8 +563,8 @@ const ExpandButton = styled.button<{ $isExpanded: boolean; $isDarkMode: boolean 
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  color: ${(props) => props.$isDarkMode 
-    ? 'rgba(255, 255, 255, 0.5)' 
+  color: ${(props) => props.$isDarkMode
+    ? 'rgba(255, 255, 255, 0.5)'
     : 'rgba(0, 0, 0, 0.4)'};
   transition: all 0.15s ease;
   margin-left: auto;
@@ -572,10 +572,10 @@ const ExpandButton = styled.button<{ $isExpanded: boolean; $isDarkMode: boolean 
   z-index: 2;
   position: relative;
   pointer-events: auto;
-  
+
   &:hover {
-    background: ${(props) => props.$isDarkMode 
-      ? 'rgba(255, 255, 255, 0.1)' 
+    background: ${(props) => props.$isDarkMode
+      ? 'rgba(255, 255, 255, 0.1)'
       : 'rgba(0, 0, 0, 0.05)'};
     color: ${(props) => props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
   }
@@ -604,19 +604,19 @@ const NavLabel = styled.span`
 
 const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean }>`
   overflow: hidden;
-  /* 
+  /*
    * max-height is set to a large value to enable CSS transitions.
    * CSS cannot animate to 'auto' height, so we use a value large enough
    * to accommodate deeply nested navigation (supports ~25 items at 40px each).
-   * 
+   *
    * CRITICAL: Set display:none when collapsed to prevent invisible overlay blocking clicks
    */
   display: ${(props) => (props.$isExpanded ? 'block' : 'none')};
   max-height: ${(props) => (props.$isExpanded ? '2000px' : '0')};
   opacity: ${(props) => (props.$isExpanded ? 1 : 0)};
   transition: max-height 0.25s ease-out, opacity 0.2s ease;
-  background: ${(props) => props.$isDarkMode 
-    ? 'rgba(0, 0, 0, 0.15)' 
+  background: ${(props) => props.$isDarkMode
+    ? 'rgba(0, 0, 0, 0.15)'
     : 'rgba(0, 0, 0, 0.02)'};
   margin: ${(props) => props.$isExpanded ? '2px 0' : '0'};
   border-radius: 4px;

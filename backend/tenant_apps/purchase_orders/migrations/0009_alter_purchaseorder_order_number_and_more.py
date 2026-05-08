@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("carriers", "0004_carrier_departments_array_and_more"),
         ("contacts", "0002_contact_tenant_and_more"),
@@ -20,9 +19,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="purchaseorder",
             name="order_number",
-            field=models.CharField(
-                help_text="Order number (unique per tenant)", max_length=50
-            ),
+            field=models.CharField(help_text="Order number (unique per tenant)", max_length=50),
         ),
         migrations.AddConstraint(
             model_name="purchaseorder",

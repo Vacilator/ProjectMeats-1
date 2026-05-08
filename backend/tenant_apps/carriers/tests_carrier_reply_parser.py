@@ -3,25 +3,22 @@
 import uuid
 from unittest.mock import MagicMock, patch
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.tenants.models import Tenant, TenantUser
-from django.contrib.auth import get_user_model
-from apps.integrations.models import EmailLog
-from tenant_apps.carriers.models import (
-    Carrier,
-    CarrierFreightInquiry,
-    CarrierFreightInquiryStatus,
-)
+from tenant_apps.carriers.models import Carrier, CarrierFreightInquiry, CarrierFreightInquiryStatus
 from tenant_apps.carriers.services.carrier_reply_parser import (
     CarrierReplyParseResult,
-    parse_carrier_reply,
     _correlate_inquiry,
     _extract_so_references,
+    parse_carrier_reply,
 )
 from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, CarrierPurchaseOrderStatus
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
+
+from apps.integrations.models import EmailLog
+from apps.tenants.models import Tenant, TenantUser
 
 User = get_user_model()
 
@@ -39,13 +36,11 @@ class CarrierReplyCorrelationTests(TestCase):
         cls.user = User.objects.create_user(username=f"tester_{_uid()}", password="password123")
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="admin")
 
-        from tenant_apps.suppliers.models import Supplier
         from tenant_apps.customers.models import Customer
+        from tenant_apps.suppliers.models import Supplier
 
         cls.supplier = Supplier.objects.create(tenant=cls.tenant, name=f"Supplier {_uid()}")
-        cls.customer = Customer.objects.create(
-            tenant=cls.tenant, name=f"Customer {_uid()}", email="cust@example.com"
-        )
+        cls.customer = Customer.objects.create(tenant=cls.tenant, name=f"Customer {_uid()}", email="cust@example.com")
         cls.carrier = Carrier.objects.create(
             tenant=cls.tenant,
             name=f"FastFreight {_uid()}",
@@ -123,13 +118,11 @@ class CarrierReplyParserServiceTests(TestCase):
         cls.user = User.objects.create_user(username=f"parser_{_uid()}", password="password123")
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="admin")
 
-        from tenant_apps.suppliers.models import Supplier
         from tenant_apps.customers.models import Customer
+        from tenant_apps.suppliers.models import Supplier
 
         cls.supplier = Supplier.objects.create(tenant=cls.tenant, name=f"Supplier {_uid()}")
-        cls.customer = Customer.objects.create(
-            tenant=cls.tenant, name=f"Customer {_uid()}", email="cust@example.com"
-        )
+        cls.customer = Customer.objects.create(tenant=cls.tenant, name=f"Customer {_uid()}", email="cust@example.com")
         cls.carrier = Carrier.objects.create(
             tenant=cls.tenant,
             name=f"ReliableHaul {_uid()}",

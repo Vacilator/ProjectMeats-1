@@ -213,7 +213,7 @@ describe('formValidation', () => {
     });
 
     describe('pattern rule', () => {
-      const rules: ValidationRule = { 
+      const rules: ValidationRule = {
         pattern: '^[A-Z]{2}\\d{4}$',
         patternMessage: 'Must be 2 letters followed by 4 digits'
       };
@@ -282,13 +282,13 @@ describe('formValidation', () => {
 
         // Fails required
         expect(validateField('', rules, 'Email').error).toBe('Email is required');
-        
+
         // Fails min_length
         expect(validateField('a@b', rules, 'Email').error).toBe('Email must be at least 5 characters');
-        
+
         // Fails email format
         expect(validateField('notanemail', rules, 'Email').error).toBe('Email must be a valid email address');
-        
+
         // Passes all
         expect(validateField('user@example.com', rules).isValid).toBe(true);
       });

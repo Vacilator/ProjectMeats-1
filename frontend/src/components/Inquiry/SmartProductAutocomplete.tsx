@@ -1,13 +1,13 @@
 /**
  * Smart Product Autocomplete with Rich Previews
- * 
+ *
  * Enhanced product selection with:
  * - Fuzzy search integration with Cockpit
  * - Rich preview cards with product details
  * - Suggested products based on customer preferences
  * - Quick actions (add to favorites, view details)
  * - Keyboard navigation (↑/↓/Enter/Esc)
- * 
+ *
  * Created: 2026-02-26 - Auto-Suggest Integration
  */
 
@@ -69,18 +69,18 @@ const SearchInput = styled.input<{ $error?: boolean; $hasValue?: boolean }>`
   font-size: 14px;
   transition: all 0.2s ease;
   background: white;
-  
+
   &:focus {
     outline: none;
     border-color: ${props => props.$error ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px ${props => props.$error ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
-  
+
   &:disabled {
     background: rgb(var(--color-background-disabled));
     cursor: not-allowed;
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -108,7 +108,7 @@ const ClearButton = styled.button`
   border-radius: 4px;
   display: flex;
   align-items: center;
-  
+
   &:hover {
     background: rgba(0, 0, 0, 0.05);
     color: rgb(var(--color-text-primary));
@@ -129,21 +129,21 @@ const Dropdown = styled.div<{ $isOpen: boolean }>`
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   /* Sit above modal/table stacking contexts */
   z-index: 2000;
-  
+
   /* Custom scrollbar */
   &::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: rgb(var(--color-background));
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border));
     border-radius: 4px;
-    
+
     &:hover {
       background: rgb(var(--color-text-secondary));
     }
@@ -170,11 +170,11 @@ const ResultItem = styled.div<{ $isSelected?: boolean; $isSuggested?: boolean }>
   transition: all 0.2s ease;
   border-bottom: 1px solid rgb(var(--color-border-light));
   background: ${props => props.$isSelected ? 'rgba(var(--color-primary), 0.08)' : 'white'};
-  
+
   &:hover {
     background: ${props => props.$isSelected ? 'rgba(var(--color-primary), 0.12)' : 'rgba(var(--color-primary), 0.05)'};
   }
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -231,7 +231,7 @@ const ProductMeta = styled.div`
   gap: 12px;
   font-size: 12px;
   color: rgb(var(--color-text-secondary));
-  
+
   span {
     display: flex;
     align-items: center;
@@ -243,13 +243,13 @@ const EmptyState = styled.div`
   padding: 32px 16px;
   text-align: center;
   color: rgb(var(--color-text-secondary));
-  
+
   .icon {
     font-size: 32px;
     margin-bottom: 8px;
     opacity: 0.5;
   }
-  
+
   .message {
     font-size: 14px;
     line-height: 1.5;
@@ -261,7 +261,7 @@ const LoadingState = styled.div`
   text-align: center;
   color: rgb(var(--color-text-secondary));
   font-size: 14px;
-  
+
   .spinner {
     display: inline-block;
     width: 20px;
@@ -272,7 +272,7 @@ const LoadingState = styled.div`
     animation: spin 0.8s linear infinite;
     margin-right: 8px;
   }
-  
+
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
@@ -298,10 +298,10 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  
+
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -314,18 +314,18 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
         setIsOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
+
   // Load selected product details if value changes externally
   useEffect(() => {
     if (value && !selectedProduct) {
       fetchProductById(value);
     }
   }, [value]);
-  
+
   const fetchProductById = async (productId: string) => {
     try {
       const response = await businessApi.get(`system/products/${productId}/`);
@@ -335,7 +335,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
       logger.error('Failed to fetch product:', err);
     }
   };
-  
+
   // Debounced search
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
@@ -344,10 +344,10 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
         setLoading(false);
         return;
       }
-      
+
       try {
         setLoading(true);
-        
+
         const normalizedProteinFilter = (() => {
           if (!proteinTypeFilter) return undefined;
           const raw = Array.isArray(proteinTypeFilter) ? proteinTypeFilter : [proteinTypeFilter];
@@ -386,7 +386,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
     }, 300),
     [suggestedProducts, proteinTypeFilter]
   );
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
@@ -395,7 +395,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
     setSelectedIndex(0);
     debouncedSearch(value);
   };
-  
+
   const handleSelectProduct = (product: SearchResult) => {
     setSelectedProduct(product as Product);
     setSearchTerm(product.product_code);
@@ -403,7 +403,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
     setSelectedIndex(0);
     onChange(product.id, product as Product);
   };
-  
+
   const handleClear = () => {
     setSearchTerm('');
     setSelectedProduct(null);
@@ -412,13 +412,13 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
     onChange('', null as any);
     inputRef.current?.focus();
   };
-  
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const allResults = suggestedProducts.length > 0 ? [
       ...suggestedProducts.map(p => ({ ...p, is_suggested: true })),
       ...results.filter(r => !suggestedProducts.some(sp => sp.id === r.id)),
     ] : results;
-    
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => Math.min(prev + 1, allResults.length - 1));
@@ -434,24 +434,24 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
       setIsOpen(false);
     }
   };
-  
+
   const handleFocus = () => {
     if (!selectedProduct && suggestedProducts.length > 0) {
       setIsOpen(true);
     }
   };
-  
+
   // Prepare display results
   const displaySuggested = searchTerm.length === 0 ? suggestedProducts : [];
   const displayResults = results.filter(r => !displaySuggested.some(s => s.id === r.id));
   const allResults = [...displaySuggested.map(p => ({ ...p, is_suggested: true })), ...displayResults];
-  
+
   return (
     <Container>
       <SearchIconWrapper>
         <SearchIcon size={16} />
       </SearchIconWrapper>
-      
+
       <SearchInput
         ref={inputRef}
         type="text"
@@ -465,13 +465,13 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
         $hasValue={!!selectedProduct}
         autoFocus={autoFocus}
       />
-      
+
       {searchTerm && !disabled && (
         <ClearButton onClick={handleClear} type="button">
           <X size={16} />
         </ClearButton>
       )}
-      
+
       <Dropdown ref={dropdownRef} $isOpen={isOpen}>
         {loading && (
           <LoadingState>
@@ -479,7 +479,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
             Searching products...
           </LoadingState>
         )}
-        
+
         {!loading && allResults.length === 0 && searchTerm.length > 0 && (
           <EmptyState>
             <div className="icon">📦</div>
@@ -490,7 +490,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
             </div>
           </EmptyState>
         )}
-        
+
         {!loading && displaySuggested.length > 0 && (
           <>
             <SectionHeader $variant="suggested">
@@ -532,7 +532,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
             ))}
           </>
         )}
-        
+
         {!loading && displayResults.length > 0 && (
           <>
             {displaySuggested.length > 0 && <SectionHeader $variant="results">All Results</SectionHeader>}

@@ -8,7 +8,7 @@
 
 # WORKDIR /app
 
-# # Install dependencies and clean up to reduce image 
+# # Install dependencies and clean up to reduce image
 # RUN apt-get update && apt-get install -y --no-install-recommends \
 #     curl \
 #     ca-certificates \

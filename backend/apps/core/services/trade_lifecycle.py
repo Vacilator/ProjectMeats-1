@@ -39,7 +39,7 @@ class TradeStageInfo:
     status: str  # 'not_started', 'in_progress', 'completed', 'failed', 'skipped'
     entity_type: str  # 'purchase_order', 'sales_order', etc.
     entity_id: str | None = None
-    entity_number: str = ''
+    entity_number: str = ""
     started_at: str | None = None
     completed_at: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -59,36 +59,36 @@ class TradeLifecycleState:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            'trade_session_id': self.trade_session_id,
-            'tenant_id': self.tenant_id,
-            'current_stage': self.current_stage,
-            'overall_status': self.overall_status,
-            'stages': [
+            "trade_session_id": self.trade_session_id,
+            "tenant_id": self.tenant_id,
+            "current_stage": self.current_stage,
+            "overall_status": self.overall_status,
+            "stages": [
                 {
-                    'stage': s.stage,
-                    'status': s.status,
-                    'entity_type': s.entity_type,
-                    'entity_id': s.entity_id,
-                    'entity_number': s.entity_number,
-                    'started_at': s.started_at,
-                    'completed_at': s.completed_at,
-                    'metadata': s.metadata,
+                    "stage": s.stage,
+                    "status": s.status,
+                    "entity_type": s.entity_type,
+                    "entity_id": s.entity_id,
+                    "entity_number": s.entity_number,
+                    "started_at": s.started_at,
+                    "completed_at": s.completed_at,
+                    "metadata": s.metadata,
                 }
                 for s in self.stages
             ],
-            'completion_percentage': self.completion_percentage,
-            'created_at': self.created_at,
+            "completion_percentage": self.completion_percentage,
+            "created_at": self.created_at,
         }
 
 
 # Canonical stage ordering for a full meat trade
 TRADE_STAGES = [
-    'inquiry',
-    'purchase_order',
-    'sales_order',
-    'carrier_booking',
-    'cold_storage',
-    'invoicing',
+    "inquiry",
+    "purchase_order",
+    "sales_order",
+    "carrier_booking",
+    "cold_storage",
+    "invoicing",
 ]
 
 
@@ -109,13 +109,9 @@ class TradeLifecycleService:
         """
         try:
             from tenant_apps.inquiries.models import Inquiry
-            from tenant_apps.purchase_orders.models import (
-                CarrierPurchaseOrder,
-                ColdStorageEntry,
-                PurchaseOrder,
-            )
-            from tenant_apps.sales_orders.models import SalesOrder
             from tenant_apps.invoices.models import Invoice
+            from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, ColdStorageEntry, PurchaseOrder
+            from tenant_apps.sales_orders.models import SalesOrder
 
             stages: list[TradeStageInfo] = []
 
@@ -125,16 +121,18 @@ class TradeLifecycleService:
                 trade_session_id=trade_session_id,
             ).first()
             if inquiry:
-                stages.append(TradeStageInfo(
-                    stage='inquiry',
-                    status='completed',
-                    entity_type='inquiry',
-                    entity_id=str(inquiry.id),
-                    entity_number=getattr(inquiry, 'inquiry_number', ''),
-                    started_at=str(inquiry.created_on) if hasattr(inquiry, 'created_on') else None,
-                ))
+                stages.append(
+                    TradeStageInfo(
+                        stage="inquiry",
+                        status="completed",
+                        entity_type="inquiry",
+                        entity_id=str(inquiry.id),
+                        entity_number=getattr(inquiry, "inquiry_number", ""),
+                        started_at=str(inquiry.created_on) if hasattr(inquiry, "created_on") else None,
+                    )
+                )
             else:
-                stages.append(TradeStageInfo(stage='inquiry', status='not_started', entity_type='inquiry'))
+                stages.append(TradeStageInfo(stage="inquiry", status="not_started", entity_type="inquiry"))
 
             # Purchase Order stage
             po = PurchaseOrder.objects.filter(
@@ -142,18 +140,22 @@ class TradeLifecycleService:
                 trade_session_id=trade_session_id,
             ).first()
             if po:
-                po_status = 'completed' if po.status in ('received', 'closed') else 'in_progress'
-                stages.append(TradeStageInfo(
-                    stage='purchase_order',
-                    status=po_status,
-                    entity_type='purchase_order',
-                    entity_id=str(po.id),
-                    entity_number=getattr(po, 'po_number', ''),
-                    started_at=str(po.created_on),
-                    metadata={'amount': str(po.total_amount) if po.total_amount else ''},
-                ))
+                po_status = "completed" if po.status in ("received", "closed") else "in_progress"
+                stages.append(
+                    TradeStageInfo(
+                        stage="purchase_order",
+                        status=po_status,
+                        entity_type="purchase_order",
+                        entity_id=str(po.id),
+                        entity_number=getattr(po, "po_number", ""),
+                        started_at=str(po.created_on),
+                        metadata={"amount": str(po.total_amount) if po.total_amount else ""},
+                    )
+                )
             else:
-                stages.append(TradeStageInfo(stage='purchase_order', status='not_started', entity_type='purchase_order'))
+                stages.append(
+                    TradeStageInfo(stage="purchase_order", status="not_started", entity_type="purchase_order")
+                )
 
             # Sales Order stage
             so = SalesOrder.objects.filter(
@@ -161,17 +163,19 @@ class TradeLifecycleService:
                 trade_session_id=trade_session_id,
             ).first()
             if so:
-                so_status = 'completed' if so.status in ('shipped', 'delivered', 'closed') else 'in_progress'
-                stages.append(TradeStageInfo(
-                    stage='sales_order',
-                    status=so_status,
-                    entity_type='sales_order',
-                    entity_id=str(so.id),
-                    entity_number=getattr(so, 'so_number', ''),
-                    started_at=str(so.created_on),
-                ))
+                so_status = "completed" if so.status in ("shipped", "delivered", "closed") else "in_progress"
+                stages.append(
+                    TradeStageInfo(
+                        stage="sales_order",
+                        status=so_status,
+                        entity_type="sales_order",
+                        entity_id=str(so.id),
+                        entity_number=getattr(so, "so_number", ""),
+                        started_at=str(so.created_on),
+                    )
+                )
             else:
-                stages.append(TradeStageInfo(stage='sales_order', status='not_started', entity_type='sales_order'))
+                stages.append(TradeStageInfo(stage="sales_order", status="not_started", entity_type="sales_order"))
 
             # Carrier Booking stage
             carrier_po = CarrierPurchaseOrder.objects.filter(
@@ -179,16 +183,20 @@ class TradeLifecycleService:
                 trade_session_id=trade_session_id,
             ).first()
             if carrier_po:
-                stages.append(TradeStageInfo(
-                    stage='carrier_booking',
-                    status='completed' if carrier_po.status == 'delivered' else 'in_progress',
-                    entity_type='carrier_purchase_order',
-                    entity_id=str(carrier_po.id),
-                    entity_number=getattr(carrier_po, 'carrier_po_number', ''),
-                    started_at=str(carrier_po.created_on),
-                ))
+                stages.append(
+                    TradeStageInfo(
+                        stage="carrier_booking",
+                        status="completed" if carrier_po.status == "delivered" else "in_progress",
+                        entity_type="carrier_purchase_order",
+                        entity_id=str(carrier_po.id),
+                        entity_number=getattr(carrier_po, "carrier_po_number", ""),
+                        started_at=str(carrier_po.created_on),
+                    )
+                )
             else:
-                stages.append(TradeStageInfo(stage='carrier_booking', status='not_started', entity_type='carrier_purchase_order'))
+                stages.append(
+                    TradeStageInfo(stage="carrier_booking", status="not_started", entity_type="carrier_purchase_order")
+                )
 
             # Cold Storage stage
             cold_storage = ColdStorageEntry.objects.filter(
@@ -196,15 +204,19 @@ class TradeLifecycleService:
                 purchase_order__trade_session_id=trade_session_id,
             ).first()
             if cold_storage:
-                stages.append(TradeStageInfo(
-                    stage='cold_storage',
-                    status='completed' if cold_storage.status == 'released' else 'in_progress',
-                    entity_type='cold_storage_entry',
-                    entity_id=str(cold_storage.id),
-                    started_at=str(cold_storage.created_on),
-                ))
+                stages.append(
+                    TradeStageInfo(
+                        stage="cold_storage",
+                        status="completed" if cold_storage.status == "released" else "in_progress",
+                        entity_type="cold_storage_entry",
+                        entity_id=str(cold_storage.id),
+                        started_at=str(cold_storage.created_on),
+                    )
+                )
             else:
-                stages.append(TradeStageInfo(stage='cold_storage', status='not_started', entity_type='cold_storage_entry'))
+                stages.append(
+                    TradeStageInfo(stage="cold_storage", status="not_started", entity_type="cold_storage_entry")
+                )
 
             # Invoicing stage
             invoice = Invoice.objects.filter(
@@ -212,28 +224,32 @@ class TradeLifecycleService:
                 sales_order__trade_session_id=trade_session_id,
             ).first()
             if invoice:
-                stages.append(TradeStageInfo(
-                    stage='invoicing',
-                    status='completed' if invoice.status in ('paid', 'closed') else 'in_progress',
-                    entity_type='invoice',
-                    entity_id=str(invoice.id),
-                    entity_number=getattr(invoice, 'invoice_number', ''),
-                    started_at=str(invoice.created_on),
-                ))
+                stages.append(
+                    TradeStageInfo(
+                        stage="invoicing",
+                        status="completed" if invoice.status in ("paid", "closed") else "in_progress",
+                        entity_type="invoice",
+                        entity_id=str(invoice.id),
+                        entity_number=getattr(invoice, "invoice_number", ""),
+                        started_at=str(invoice.created_on),
+                    )
+                )
             else:
-                stages.append(TradeStageInfo(stage='invoicing', status='not_started', entity_type='invoice'))
+                stages.append(TradeStageInfo(stage="invoicing", status="not_started", entity_type="invoice"))
 
             # Calculate current stage and completion
-            completed_count = sum(1 for s in stages if s.status == 'completed')
+            completed_count = sum(1 for s in stages if s.status == "completed")
             total_count = len(stages)
             current_stage = next(
-                (s.stage for s in stages if s.status in ('in_progress', 'not_started')),
-                'invoicing',
+                (s.stage for s in stages if s.status in ("in_progress", "not_started")),
+                "invoicing",
             )
             overall_status = (
-                'completed' if completed_count == total_count
-                else 'failed' if any(s.status == 'failed' for s in stages)
-                else 'active'
+                "completed"
+                if completed_count == total_count
+                else "failed"
+                if any(s.status == "failed" for s in stages)
+                else "active"
             )
 
             return TradeLifecycleState(
@@ -248,7 +264,7 @@ class TradeLifecycleService:
 
         except Exception as e:
             logger.error(
-                '[TradeLifecycleService] Failed to get trade state: %s',
+                "[TradeLifecycleService] Failed to get trade state: %s",
                 str(e),
                 exc_info=True,
             )
@@ -263,22 +279,30 @@ class TradeLifecycleService:
             from tenant_apps.purchase_orders.models import PurchaseOrder
             from tenant_apps.sales_orders.models import SalesOrder
 
-            active_pos = PurchaseOrder.objects.filter(
-                tenant=self.tenant,
-            ).exclude(status__in=['received', 'closed', 'cancelled']).count()
+            active_pos = (
+                PurchaseOrder.objects.filter(
+                    tenant=self.tenant,
+                )
+                .exclude(status__in=["received", "closed", "cancelled"])
+                .count()
+            )
 
-            active_sos = SalesOrder.objects.filter(
-                tenant=self.tenant,
-            ).exclude(status__in=['shipped', 'delivered', 'closed', 'cancelled']).count()
+            active_sos = (
+                SalesOrder.objects.filter(
+                    tenant=self.tenant,
+                )
+                .exclude(status__in=["shipped", "delivered", "closed", "cancelled"])
+                .count()
+            )
 
             return {
-                'active_purchase_orders': active_pos,
-                'active_sales_orders': active_sos,
-                'total_active_trades': active_pos + active_sos,
+                "active_purchase_orders": active_pos,
+                "active_sales_orders": active_sos,
+                "total_active_trades": active_pos + active_sos,
             }
         except Exception as e:
-            logger.debug('Pipeline summary failed: %s', e)
-            return {'active_purchase_orders': 0, 'active_sales_orders': 0, 'total_active_trades': 0}
+            logger.debug("Pipeline summary failed: %s", e)
+            return {"active_purchase_orders": 0, "active_sales_orders": 0, "total_active_trades": 0}
 
     def is_ready_for_next_step(self, trade_session_id: str) -> dict[str, Any]:
         """Check if a trade is ready to advance to its next stage.
@@ -287,26 +311,26 @@ class TradeLifecycleService:
         """
         state = self.get_trade_state(trade_session_id)
         if not state:
-            return {'ready': False, 'reason': 'Trade session not found'}
+            return {"ready": False, "reason": "Trade session not found"}
 
         current = state.current_stage
         current_idx = TRADE_STAGES.index(current) if current in TRADE_STAGES else -1
 
         if current_idx < 0:
-            return {'ready': False, 'reason': f'Unknown stage: {current}'}
+            return {"ready": False, "reason": f"Unknown stage: {current}"}
 
         # Check if previous stage is completed
         if current_idx > 0:
             prev_stage = state.stages[current_idx - 1]
-            if prev_stage.status != 'completed':
+            if prev_stage.status != "completed":
                 return {
-                    'ready': False,
-                    'reason': f'Previous stage "{prev_stage.stage}" is {prev_stage.status}',
-                    'blocking_stage': prev_stage.stage,
+                    "ready": False,
+                    "reason": f'Previous stage "{prev_stage.stage}" is {prev_stage.status}',
+                    "blocking_stage": prev_stage.stage,
                 }
 
         return {
-            'ready': True,
-            'current_stage': current,
-            'next_stage': TRADE_STAGES[current_idx + 1] if current_idx < len(TRADE_STAGES) - 1 else None,
+            "ready": True,
+            "current_stage": current,
+            "next_stage": TRADE_STAGES[current_idx + 1] if current_idx < len(TRADE_STAGES) - 1 else None,
         }

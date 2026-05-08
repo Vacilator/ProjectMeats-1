@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("invoices", "0011_refactor_invoices_to_tenantaware"),
     ]

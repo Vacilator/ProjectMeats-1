@@ -1,8 +1,8 @@
 # EPIC_TICKETS.md — Execution Backlog
 
-> **Status:** ordered execution backlog  
-> **Canonical priority source:** root `MASTER_PLAN.md`  
-> **Standards:** `.github/SDLC_PROTOCOLS.md`  
+> **Status:** ordered execution backlog
+> **Canonical priority source:** root `MASTER_PLAN.md`
+> **Standards:** `.github/SDLC_PROTOCOLS.md`
 > **Last Restructured:** 2026-05-07
 
 ## Operating Rules
@@ -647,7 +647,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Phase 17: Process Runtime Intelligence & Unified Operations
 
-> **Execution gate:** All Phase 17 tickets are blocked behind Phase 16 CTE contracts shipping on `development`.  
+> **Execution gate:** All Phase 17 tickets are blocked behind Phase 16 CTE contracts shipping on `development`.
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 17
 
 - [x] **RT-01.1 end-to-end-inquiry-to-po-process-workform-template**
@@ -896,7 +896,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Phase 18: Process Intelligence Scale & Self-Service Operations
 
-> **Execution gate:** All Phase 18 tickets are blocked behind Phase 17 runtime (RT-01 through RT-04) shipping on `development`.  
+> **Execution gate:** All Phase 18 tickets are blocked behind Phase 17 runtime (RT-01 through RT-04) shipping on `development`.
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 18
 
 - [x] **RT-06.1 in-app-email-notification-service**
@@ -1198,7 +1198,7 @@ Package 11 (CTE-04.1) ─────┬──▶ Package 12 (CTE-04.7)
                             │
                             └──▶ Package 13 (RT-08.3) [parallel after RT-08.1]
                                  Package 14 (RT-02.3) [parallel after RT-02.2]
-                            
+
 Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 ```
 

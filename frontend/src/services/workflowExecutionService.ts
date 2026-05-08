@@ -1,6 +1,6 @@
 /**
  * Workflow Execution API Service
- * 
+ *
  * Service for managing workflow execution tracking.
  * Phase 5: Frontend Dashboard Integration
  */
@@ -38,7 +38,7 @@ export class WorkflowExecutionService {
         : [];
 
     const results = rawResults.map(this.transformToExecution);
-    
+
     return {
       count: response.data.count || results.length,
       next: response.data.next || null,
@@ -60,7 +60,7 @@ export class WorkflowExecutionService {
    */
   async getAuditTrail(id: string): Promise<WorkflowAuditTrailResponse> {
     const response = await businessApi.get(`${this.baseUrl}${id}/history/`);
-    
+
     const execution = this.transformToExecution(response.data.submission);
     const auditTrail = (response.data.history || []).map((entry: any) => ({
       id: entry.id,

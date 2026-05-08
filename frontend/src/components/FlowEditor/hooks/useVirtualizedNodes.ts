@@ -1,15 +1,15 @@
 /**
  * @fileoverview Custom hook for virtualized node rendering in large workflows
  * @module FlowEditor/hooks/useVirtualizedNodes
- * 
+ *
  * Implements viewport-based virtualization to handle 1000+ node workflows efficiently.
  * Only nodes within viewport + buffer zone are rendered, dramatically reducing DOM nodes.
- * 
+ *
  * Performance targets:
  * - < 16ms render time (60fps)
  * - < 100MB memory for 1000 nodes
  * - < 50ms scroll/pan response
- * 
+ *
  * @see Phase 7.5: Performance Optimization
  */
 
@@ -90,7 +90,7 @@ export interface VirtualizedNodesResult<T extends Node = Node> {
 
 /**
  * Calculate if a node is within the viewport bounds
- * 
+ *
  * @param node - React Flow node
  * @param viewport - Current viewport state
  * @param bufferPx - Buffer zone around viewport (pixels)
@@ -104,17 +104,17 @@ function isNodeInViewport(
   // Node position is in flow coordinates
   const nodeX = node.position.x;
   const nodeY = node.position.y;
-  
+
   // Approximate node dimensions (can be overridden with node.width/height if available)
   const nodeWidth = (node as any).width ?? 200;
   const nodeHeight = (node as any).height ?? 100;
-  
+
   // Transform viewport bounds to flow coordinates
   const viewportLeft = (-viewport.x) / viewport.zoom - bufferPx;
   const viewportTop = (-viewport.y) / viewport.zoom - bufferPx;
   const viewportRight = (window.innerWidth - viewport.x) / viewport.zoom + bufferPx;
   const viewportBottom = (window.innerHeight - viewport.y) / viewport.zoom + bufferPx;
-  
+
   // Check if node intersects with viewport (with buffer)
   return (
     nodeX + nodeWidth >= viewportLeft &&
@@ -126,22 +126,22 @@ function isNodeInViewport(
 
 /**
  * Custom hook for virtualizing node rendering in large workflows
- * 
+ *
  * Dramatically improves performance for workflows with 100+ nodes by only
  * rendering nodes visible in the current viewport. Includes a configurable
  * buffer zone to prevent "pop-in" during pan/zoom operations.
- * 
+ *
  * @example
  * ```typescript
  * const MyFlowEditor = () => {
  *   const [nodes, setNodes] = useState<Node[]>(initialNodes);
  *   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
- *   
+ *
  *   const { visibleNodes, metrics } = useVirtualizedNodes(nodes, viewport, {
  *     bufferPx: 300,
  *     threshold: 50,
  *   });
- *   
+ *
  *   return (
  *     <ReactFlow
  *       nodes={visibleNodes}
@@ -154,7 +154,7 @@ function isNodeInViewport(
  *   );
  * };
  * ```
- * 
+ *
  * @param nodes - Full array of workflow nodes
  * @param viewport - Current React Flow viewport state
  * @param config - Virtualization configuration options
@@ -234,14 +234,14 @@ export function useVirtualizedNodes<T extends Node = Node>(
 
 /**
  * Hook for tracking workflow editor performance metrics
- * 
+ *
  * Monitors frame rate, memory usage, and interaction responsiveness.
  * Useful for identifying performance bottlenecks during development.
- * 
+ *
  * @example
  * ```typescript
  * const { fps, memoryMB, avgRenderTime } = usePerformanceMetrics();
- * 
+ *
  * // Display in dev tools overlay
  * logger.debug(`FPS: ${fps}, Memory: ${memoryMB}MB, Render: ${avgRenderTime}ms`);
  * ```
@@ -250,14 +250,14 @@ export function usePerformanceMetrics() {
   const [fps, setFps] = useState(60);
   const [memoryMB, setMemoryMB] = useState(0);
   const [avgRenderTime, setAvgRenderTime] = useState(0);
-  
+
   const frameTimesRef = useRef<number[]>([]);
   const renderTimesRef = useRef<number[]>([]);
   const lastFrameTimeRef = useRef(performance.now());
 
   useEffect(() => {
     let animationFrameId: number;
-    
+
     // Track FPS via requestAnimationFrame
     const measureFrame = (now: number) => {
       const delta = now - lastFrameTimeRef.current;
@@ -304,7 +304,7 @@ export function usePerformanceMetrics() {
     if (renderTimesRef.current.length > 10) {
       renderTimesRef.current.shift();
     }
-    
+
     const avg = renderTimesRef.current.reduce((a, b) => a + b, 0) / renderTimesRef.current.length;
     setAvgRenderTime(Math.round(avg * 100) / 100);
   }, []);
@@ -319,10 +319,10 @@ export function usePerformanceMetrics() {
 
 /**
  * Hook for optimistic UI updates with auto-save debouncing
- * 
+ *
  * Updates local state immediately for responsive UX, then syncs to backend
  * after user stops editing. Includes conflict resolution for multi-user scenarios.
- * 
+ *
  * @example
  * ```typescript
  * const { localData, updateLocal, isSaving, hasConflict } = useOptimisticUpdate({
@@ -330,7 +330,7 @@ export function usePerformanceMetrics() {
  *   saveFunction: async (data) => workformsApi.put(`/workflows/${id}/`, data),
  *   debounceMs: 1000,
  * });
- * 
+ *
  * // User edits node
  * const handleNodeChange = (node) => {
  *   updateLocal({ ...localData, nodes: [...localData.nodes, node] });
@@ -353,7 +353,7 @@ export function useOptimisticUpdate<T>({
   const [remoteData, setRemoteData] = useState<T>(initialData);
   const [isSaving, setIsSaving] = useState(false);
   const [hasConflict, setHasConflict] = useState(false);
-  
+
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingChangesRef = useRef(false);
 
@@ -361,7 +361,7 @@ export function useOptimisticUpdate<T>({
   const updateLocal = useCallback((data: T | ((prev: T) => T)) => {
     setLocalData(data);
     pendingChangesRef.current = true;
-    
+
     // Clear existing timer
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
@@ -376,13 +376,13 @@ export function useOptimisticUpdate<T>({
         const savedData = await saveFunction(
           typeof data === 'function' ? (data as any)(localData) : data
         );
-        
+
         setRemoteData(savedData);
         pendingChangesRef.current = false;
         setHasConflict(false);
       } catch (error) {
         logger.error('Auto-save failed:', error);
-        
+
         // Conflict detection (simplified - can be enhanced)
         if ((error as any).status === 409) {
           setHasConflict(true);

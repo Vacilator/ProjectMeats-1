@@ -1,21 +1,21 @@
 /**
  * Entity Mapping Modal
- * 
+ *
  * Allows users to map workflow form fields to ProjectMeats entity attributes.
  * Enables automatic data synchronization between workflows and business entities.
- * 
+ *
  * Features:
  * - Select target entity type (Supplier, Customer, Invoice, etc.)
  * - Map form fields to entity attributes via drag-and-drop or table
  * - Preview mapping before saving
  * - Validation for required entity fields
  * - Support for nested object mapping (e.g., customer.billing_address.city)
- * 
+ *
  * Use Cases:
  * - Supplier Onboarding Form → Supplier entity
  * - Customer Order Form → SalesOrder + Customer entities
  * - Invoice Approval Form → Invoice entity status update
- * 
+ *
  * Authority: Phase 2.2 - Entity Cascading (protein → cuts automation)
  */
 
@@ -293,7 +293,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
         ?.filter(attr => attr.required && mappings.some(m => m.entityAttribute === attr.name))
         .length || 0
     : 0;
-  
+
   const totalRequiredCount = selectedEntityType
     ? ENTITY_ATTRIBUTES[selectedEntityType]?.filter(attr => attr.required).length || 0
     : 0;
@@ -378,7 +378,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
           pagination={false}
           loading={loading}
           locale={{
-            emptyText: selectedEntityType 
+            emptyText: selectedEntityType
               ? 'No mappings yet. Click "Add Mapping" to start.'
               : 'Please select an entity type first.',
           }}

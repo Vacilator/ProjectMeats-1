@@ -1,14 +1,14 @@
 /**
  * Batch Operations Toolbar Component
  * Phase 7.2: Batch Operations
- * 
+ *
  * Floating toolbar that appears when multiple nodes are selected.
  * Provides quick access to batch operations:
  * - Copy/Cut/Paste/Delete
  * - Align (left/center/right, top/middle/bottom)
  * - Distribute (horizontally/vertically)
  * - Group operations
- * 
+ *
  * Created: 2026-02-27
  */
 
@@ -168,7 +168,7 @@ export interface BatchOperationsToolbarProps {
 /**
  * Floating toolbar for batch node operations.
  * Appears when multiple nodes are selected.
- * 
+ *
  * @example
  * ```tsx
  * <BatchOperationsToolbar

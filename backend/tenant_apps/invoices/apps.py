@@ -3,6 +3,5 @@ from django.apps import AppConfig
 
 class InvoicesConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = 'tenant_apps.invoices'
-    verbose_name = '💰 Invoices'
-
+    name = "tenant_apps.invoices"
+    verbose_name = "💰 Invoices"

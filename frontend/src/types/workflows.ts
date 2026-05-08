@@ -1,6 +1,6 @@
 /**
  * Workflow Execution Types
- * 
+ *
  * Type definitions for workflow execution tracking and management.
  * Phase 5: Frontend Dashboard Integration
  */
@@ -8,7 +8,7 @@
 /**
  * Workflow execution status choices
  */
-export type WorkflowExecutionStatus = 
+export type WorkflowExecutionStatus =
   | 'draft'
   | 'in_progress'
   | 'completed'

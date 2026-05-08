@@ -219,9 +219,9 @@ class ReportsSummaryAPIView(APIView):
 
         # Master data
         try:
-            from tenant_apps.suppliers.models import Supplier
-            from tenant_apps.customers.models import Customer
             from tenant_apps.contacts.models import Contact
+            from tenant_apps.customers.models import Customer
+            from tenant_apps.suppliers.models import Supplier
 
             summary["master_data"] = {
                 "suppliers": int(Supplier.objects.for_tenant(tenant).count()),
@@ -277,7 +277,9 @@ class PurchaseOrderTrendsAPIView(APIView):
 
         data = [
             {
-                "date": (row["bucket"].date().isoformat() if isinstance(row["bucket"], datetime) else str(row["bucket"])),
+                "date": (
+                    row["bucket"].date().isoformat() if isinstance(row["bucket"], datetime) else str(row["bucket"])
+                ),
                 "orders": int(row["orders"] or 0),
                 "value": float(row["value"] or 0),
                 "averageValue": float(row["averageValue"] or 0),

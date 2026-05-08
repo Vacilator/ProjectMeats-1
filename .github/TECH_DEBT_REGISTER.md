@@ -1,7 +1,7 @@
 # TECH_DEBT_REGISTER.md
 
-> **Status:** active machine-readable debt inventory  
-> **Canonical priority source:** root `MASTER_PLAN.md`  
+> **Status:** active machine-readable debt inventory
+> **Canonical priority source:** root `MASTER_PLAN.md`
 > **Execution backlog:** `.github/EPIC_TICKETS.md`
 
 | Debt ID | Domain | Finding | Severity | Effort | File Paths | Remediation Strategy | Linked Epic | Status |

@@ -1,9 +1,9 @@
 /**
  * Container Drag-and-Drop Hook
- * 
+ *
  * Provides magnetic snapping, collision detection, and visual feedback
  * for dragging nodes into containers.
- * 
+ *
  * Phase 7.2: Enhanced Container Management (Part 2/3)
  */
 
@@ -35,14 +35,14 @@ export interface ContainerDropResult {
 
 /**
  * Hook for enhanced container drag-and-drop with magnetic snapping
- * 
+ *
  * Features:
  * - Real-time collision detection
  * - Magnetic snapping to container centerlines
  * - Visual feedback (drop target highlighting)
  * - Snap preview indicators
  * - Automatic parent assignment
- * 
+ *
  * @param containerNodeTypes - Array of node types that are containers (default: ['formProcessGroup'])
  * @param snapThreshold - Distance in pixels for magnetic snap (default: 30)
  * @param gridSize - Grid size for snapping (default: 20)
@@ -54,7 +54,7 @@ export function useContainerDragAndDrop(
   gridSize: number = 20
 ) {
   const { getNodes, setNodes, getNode } = useReactFlow();
-  
+
   const [dragState, setDragState] = useState<DragState>({
     draggingNodeId: null,
     dropTargetId: null,
@@ -77,15 +77,15 @@ export function useContainerDragAndDrop(
   const findContainerAtPosition = useCallback(
     (position: XYPosition, excludeNodeId?: string): Node | null => {
       const nodes = getNodes();
-      
+
       // Find containers that the position is inside
       const candidates = nodes.filter(node => {
         if (!isContainer(node)) return false;
         if (node.id === excludeNodeId) return false;
-        
+
         const nodeWidth = node.width || 280;
         const nodeHeight = node.height || 400;
-        
+
         return isNodeInsideContainer(
           position,
           { width: 1, height: 1 }, // Point check

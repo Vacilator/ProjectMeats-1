@@ -1,6 +1,6 @@
 /**
  * Tests for Step Routing Components
- * 
+ *
  * Tests for StepRoutingLogic component and useStepRouting hook.
  */
 import React from 'react';
@@ -32,8 +32,8 @@ const mockFields: FormField[] = [
 ];
 
 const createCondition = (
-  fieldId: string, 
-  operator: RoutingCondition['operator'], 
+  fieldId: string,
+  operator: RoutingCondition['operator'],
   value: RoutingCondition['value']
 ): RoutingCondition => ({
   id: `cond-${Math.random().toString(36).slice(2)}`,
@@ -78,7 +78,7 @@ describe('StepRoutingLogic', () => {
 
   it('renders step selector chips', () => {
     render(<StepRoutingLogic {...defaultProps} />);
-    
+
     // Check for step names (may be within buttons)
     expect(screen.getByRole('button', { name: /📝 Request Form/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /✅ Manager Approval/i })).toBeInTheDocument();
@@ -86,22 +86,22 @@ describe('StepRoutingLogic', () => {
 
   it('shows empty state when no rules', () => {
     render(<StepRoutingLogic {...defaultProps} />);
-    
+
     expect(screen.getByText(/no routing rules configured/i)).toBeInTheDocument();
   });
 
   it('renders add rule button', () => {
     render(<StepRoutingLogic {...defaultProps} />);
-    
+
     expect(screen.getByText(/add routing rule/i)).toBeInTheDocument();
   });
 
   it('allows selecting different steps', () => {
     render(<StepRoutingLogic {...defaultProps} />);
-    
+
     const managerApprovalBtn = screen.getByRole('button', { name: /✅ Manager Approval/i });
     fireEvent.click(managerApprovalBtn);
-    
+
     // Description should update for the selected step
     expect(screen.getByText(/Configure routing rules for/i)).toBeInTheDocument();
   });
@@ -109,9 +109,9 @@ describe('StepRoutingLogic', () => {
   it('adds a new rule when add button clicked', () => {
     const onChange = vi.fn();
     render(<StepRoutingLogic {...defaultProps} onChange={onChange} />);
-    
+
     fireEvent.click(screen.getByText(/add routing rule/i));
-    
+
     expect(onChange).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({
         sourceStepId: 'step1',
@@ -125,9 +125,9 @@ describe('StepRoutingLogic', () => {
     const rules: RoutingRule[] = [
       createRule('step1', 'step2', [], { name: 'Fast Track', isDefault: true }),
     ];
-    
+
     render(<StepRoutingLogic {...defaultProps} rules={rules} />);
-    
+
     expect(screen.getByDisplayValue('Fast Track')).toBeInTheDocument();
   });
 
@@ -135,9 +135,9 @@ describe('StepRoutingLogic', () => {
     const rules: RoutingRule[] = [
       createRule('step1', 'step2', [], { isDefault: true }),
     ];
-    
+
     render(<StepRoutingLogic {...defaultProps} rules={rules} />);
-    
+
     expect(screen.getByText('Default')).toBeInTheDocument();
   });
 
@@ -146,11 +146,11 @@ describe('StepRoutingLogic', () => {
     const rules: RoutingRule[] = [
       createRule('step1', 'step2', [], { name: 'Test Rule' }),
     ];
-    
+
     render(<StepRoutingLogic {...defaultProps} rules={rules} onChange={onChange} />);
-    
+
     fireEvent.click(screen.getByLabelText(/delete rule/i));
-    
+
     expect(onChange).toHaveBeenCalledWith([]);
   });
 
@@ -159,11 +159,11 @@ describe('StepRoutingLogic', () => {
     const rules: RoutingRule[] = [
       createRule('step1', 'step2', []),
     ];
-    
+
     render(<StepRoutingLogic {...defaultProps} rules={rules} onChange={onChange} />);
-    
+
     fireEvent.click(screen.getByText(/add condition/i));
-    
+
     expect(onChange).toHaveBeenCalled();
     const call = onChange.mock.calls[0][0];
     expect(call[0].conditions.length).toBe(1);
@@ -173,9 +173,9 @@ describe('StepRoutingLogic', () => {
     const rules: RoutingRule[] = [
       createRule('step1', 'step2', [], { name: 'Test' }),
     ];
-    
+
     render(<StepRoutingLogic {...defaultProps} rules={rules} />);
-    
+
     // Should show step type icons/badges
     expect(screen.getAllByText(/📝/).length).toBeGreaterThan(0); // form icon
   });
@@ -185,13 +185,13 @@ describe('StepRoutingLogic', () => {
     const stepsWithOnlyLast: WorkflowStep[] = [
       { id: 'step5', name: 'Complete', order: 5, type: 'automated' },
     ];
-    
-    render(<StepRoutingLogic 
-      {...defaultProps} 
+
+    render(<StepRoutingLogic
+      {...defaultProps}
       currentStepId="step5"
       steps={stepsWithOnlyLast}
     />);
-    
+
     // When only one step exists, there are no target options
     expect(screen.getByText(/no routing rules configured/i)).toBeInTheDocument();
   });
@@ -203,10 +203,10 @@ describe('StepRoutingLogic', () => {
 
 describe('useStepRouting', () => {
   it('returns null when no rules', () => {
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useStepRouting([], 'step1')
     );
-    
+
     expect(result.current.getNextStep({})).toBeNull();
     expect(result.current.defaultNextStep).toBeNull();
   });
@@ -215,11 +215,11 @@ describe('useStepRouting', () => {
     const rules: RoutingRule[] = [
       createRule('step1', 'step2', [], { isDefault: true }),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.defaultNextStep).toBe('step2');
   });
 
@@ -230,11 +230,11 @@ describe('useStepRouting', () => {
       ]),
       createRule('step1', 'step2', [], { isDefault: true }),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ category: 'finance' })).toBe('step3');
     expect(result.current.getNextStep({ category: 'other' })).toBe('step2');
   });
@@ -246,11 +246,11 @@ describe('useStepRouting', () => {
       ], { priority: 1 }),
       createRule('step1', 'step2', [], { isDefault: true, priority: 2 }),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ amount: 1500 })).toBe('step3');
     expect(result.current.getNextStep({ amount: 500 })).toBe('step2');
   });
@@ -261,11 +261,11 @@ describe('useStepRouting', () => {
         createCondition('amount', 'less_than', 100),
       ]),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ amount: 50 })).toBe('step4');
     expect(result.current.getNextStep({ amount: 150 })).toBeNull();
   });
@@ -276,11 +276,11 @@ describe('useStepRouting', () => {
         createCondition('notes', 'is_empty', ''),
       ]),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ notes: '' })).toBe('step4');
     expect(result.current.getNextStep({ notes: 'Some note' })).toBeNull();
   });
@@ -291,11 +291,11 @@ describe('useStepRouting', () => {
         createCondition('notes', 'is_not_empty', ''),
       ]),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ notes: 'Has notes' })).toBe('step4');
     expect(result.current.getNextStep({ notes: '' })).toBeNull();
   });
@@ -307,11 +307,11 @@ describe('useStepRouting', () => {
         createCondition('category', 'equals', 'finance'),
       ], { logicalOperator: 'AND' }),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ amount: 1500, category: 'finance' })).toBe('step3');
     expect(result.current.getNextStep({ amount: 1500, category: 'other' })).toBeNull();
     expect(result.current.getNextStep({ amount: 500, category: 'finance' })).toBeNull();
@@ -324,11 +324,11 @@ describe('useStepRouting', () => {
         createCondition('urgent', 'equals', true),
       ], { logicalOperator: 'OR' }),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ amount: 1500, urgent: false })).toBe('step3');
     expect(result.current.getNextStep({ amount: 500, urgent: true })).toBe('step3');
     expect(result.current.getNextStep({ amount: 500, urgent: false })).toBeNull();
@@ -343,11 +343,11 @@ describe('useStepRouting', () => {
         createCondition('amount', 'greater_than', 1000),
       ], { priority: 1 }),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     // Higher priority rule (lower number) should match first
     expect(result.current.getNextStep({ amount: 1500 })).toBe('step3');
     expect(result.current.getNextStep({ amount: 750 })).toBe('step4');
@@ -359,11 +359,11 @@ describe('useStepRouting', () => {
       createRule('step1', 'step3', []),
       createRule('step1', 'step4', []),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     const possibleSteps = result.current.getPossibleNextSteps();
     expect(possibleSteps).toContain('step2');
     expect(possibleSteps).toContain('step3');
@@ -377,11 +377,11 @@ describe('useStepRouting', () => {
         createCondition('notes', 'contains', 'urgent'),
       ]),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ notes: 'This is URGENT request' })).toBe('step3');
     expect(result.current.getNextStep({ notes: 'Normal request' })).toBeNull();
   });
@@ -392,11 +392,11 @@ describe('useStepRouting', () => {
         createCondition('category', 'in_list', ['finance', 'hr', 'legal']),
       ]),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ category: 'hr' })).toBe('step3');
     expect(result.current.getNextStep({ category: 'marketing' })).toBeNull();
   });
@@ -405,11 +405,11 @@ describe('useStepRouting', () => {
     const rule = createRule('step1', 'step3', [
       createCondition('amount', 'greater_than', 1000),
     ]);
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting([rule], 'step1')
     );
-    
+
     expect(result.current.isRuleSatisfied(rule.id, { amount: 1500 })).toBe(true);
     expect(result.current.isRuleSatisfied(rule.id, { amount: 500 })).toBe(false);
     expect(result.current.isRuleSatisfied('nonexistent', { amount: 1500 })).toBe(false);
@@ -419,11 +419,11 @@ describe('useStepRouting', () => {
     const rule = createRule('step1', 'step3', [
       createCondition('urgent', 'equals', true),
     ]);
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting([], 'step1')
     );
-    
+
     expect(result.current.evaluateRule(rule, { urgent: true })).toBe(true);
     expect(result.current.evaluateRule(rule, { urgent: false })).toBe(false);
   });
@@ -434,11 +434,11 @@ describe('useStepRouting', () => {
         createCondition('category', 'equals', 'FINANCE'),
       ]),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ category: 'finance' })).toBe('step3');
     expect(result.current.getNextStep({ category: 'Finance' })).toBe('step3');
   });
@@ -449,11 +449,11 @@ describe('useStepRouting', () => {
         createCondition('tags', 'is_empty', ''),
       ]),
     ];
-    
-    const { result } = renderHook(() => 
+
+    const { result } = renderHook(() =>
       useStepRouting(rules, 'step1')
     );
-    
+
     expect(result.current.getNextStep({ tags: [] })).toBe('step3');
     expect(result.current.getNextStep({ tags: ['tag1'] })).toBeNull();
   });

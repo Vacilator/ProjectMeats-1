@@ -6,7 +6,6 @@ from django.db.migrations.operations.special import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("integrations", "0001_initial"),
         ("tenants", "0010_add_tenant_configuration"),

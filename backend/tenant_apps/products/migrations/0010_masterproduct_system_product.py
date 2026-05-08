@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("products", "0009_alter_masterproduct_protein"),
         ("system", "0015_enable_rls_tenant_forms_workforms"),

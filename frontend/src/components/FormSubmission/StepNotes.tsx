@@ -1,6 +1,6 @@
 /**
  * StepNotes Component
- * 
+ *
  * Collapsible notes panel for form steps.
  * Integrates with ActivityLog API for persistent notes.
  */
@@ -38,7 +38,7 @@ const NotesHeader = styled.div`
   cursor: pointer;
   padding: 0.5rem 0;
   user-select: none;
-  
+
   &:hover {
     opacity: 0.8;
   }
@@ -89,7 +89,7 @@ const NoteItem = styled.div<{ isPinned?: boolean }>`
   border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.375rem;
   padding: 0.75rem;
-  
+
   ${({ isPinned }) => isPinned && `
     border-left: 3px solid var(--color-primary, rgb(var(--color-primary)));
     background: var(--bg-primary-subtle, rgba(var(--color-primary), 0.14));
@@ -142,17 +142,17 @@ const NoteTextarea = styled.textarea`
   resize: vertical;
   background: var(--input-bg, rgb(var(--color-surface)));
   color: var(--text-primary, rgb(var(--color-text-primary)));
-  
+
   &:focus {
     outline: none;
     border-color: var(--color-primary, rgb(var(--color-primary)));
     box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.1);
   }
-  
+
   &::placeholder {
     color: var(--text-tertiary, rgb(var(--color-text-muted)));
   }
-  
+
   &:disabled {
     background: var(--bg-tertiary, rgb(var(--color-border)));
     cursor: not-allowed;
@@ -173,7 +173,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   ${({ variant }) => variant === 'secondary' ? `
     background: var(--bg-secondary, rgb(var(--color-surface)));
     color: var(--text-primary, rgb(var(--color-text-primary)));
@@ -188,7 +188,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
       background: var(--color-primary-dark, rgb(var(--color-primary)));
     }
   `}
-  
+
   &:disabled {
     opacity: 0.65;
     cursor: not-allowed;
@@ -206,7 +206,7 @@ const EmptyNotes = styled.p`
 const LoadingSpinner = styled.span`
   display: inline-block;
   animation: spin 1s linear infinite;
-  
+
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -281,7 +281,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
         content: newNote.trim(),
         title: `Note on ${stepName}`,
       });
-      
+
       setNotes(prev => [response.data, ...prev]);
       setNewNote('');
     } catch (err) {
@@ -316,7 +316,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
         </NotesTitle>
         <CollapseIcon isExpanded={isExpanded}>▼</CollapseIcon>
       </NotesHeader>
-      
+
       <NotesContent isExpanded={isExpanded}>
         {isLoading ? (
           <EmptyNotes>
@@ -346,7 +346,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
             ) : (
               <EmptyNotes>No notes yet. Add one below.</EmptyNotes>
             )}
-            
+
             {!disabled && (
               <AddNoteForm onSubmit={handleAddNote}>
                 <NoteTextarea

@@ -1,17 +1,17 @@
 {
     "python.analysis.typeCheckingMode": "standard",
-    
+
     // GitHub Copilot Configuration
     "github.copilot.enable": {
         "*": true
     },
-    
+
     // Workspace Focus for AI Assistants
     "github.copilot.advanced": {
         "inlineSuggestCount": 3,
         "listCount": 10
     },
-    
+
     // Priority Directories (90% of development focus)
     "search.exclude": {
         "**/node_modules": true,
@@ -23,7 +23,7 @@
         "**/archived": true,
         "docs/archive": true
     },
-    
+
     // File Associations
     "files.associations": {
         "*.tsx": "typescriptreact",
@@ -32,18 +32,18 @@
         ".copilotignore": "gitignore",
         "copilot-instructions.md": "markdown"
     },
-    
+
     // Editor Settings
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.organizeImports": "explicit"
     },
-    
+
     // Python Settings
     "python.linting.enabled": true,
     "python.linting.flake8Enabled": true,
     "python.formatting.provider": "black",
-    
+
     // TypeScript Settings
     "typescript.preferences.importModuleSpecifier": "relative",
     "typescript.updateImportsOnFileMove.enabled": "always"

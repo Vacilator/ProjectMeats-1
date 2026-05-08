@@ -3,6 +3,6 @@
 from .settlement_contract import SETTLEMENT_CONTRACT_VERSION, get_settlement_reconciliation_contract
 
 __all__ = [
-    'SETTLEMENT_CONTRACT_VERSION',
-    'get_settlement_reconciliation_contract',
+    "SETTLEMENT_CONTRACT_VERSION",
+    "get_settlement_reconciliation_contract",
 ]

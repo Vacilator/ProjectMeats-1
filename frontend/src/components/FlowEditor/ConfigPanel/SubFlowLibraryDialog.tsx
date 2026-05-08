@@ -1,10 +1,10 @@
 /**
  * Sub-Flow Template Library Dialog
- * 
+ *
  * UI for browsing, searching, and importing FormProcess templates.
- * 
+ *
  * Phase E.3: Schema + Config Integration + Reusability
- * 
+ *
  * Created: 2026-02-19
  */
 
@@ -85,7 +85,7 @@ const CloseButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.1);
     color: rgb(var(--color-primary));
@@ -105,7 +105,7 @@ const SearchInput = styled.input`
   font-size: 14px;
   color: rgb(var(--color-text-primary));
   background: rgb(var(--color-background-secondary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -139,7 +139,7 @@ const TemplateCard = styled.div`
   cursor: pointer;
   transition: all 0.2s ease;
   background: rgb(var(--color-background-secondary));
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
@@ -231,13 +231,13 @@ const ActionButton = styled.button`
   justify-content: center;
   gap: 6px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.05);
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
   }
-  
+
   &:active {
     transform: scale(0.95);
   }
@@ -352,7 +352,7 @@ export const SubFlowLibraryDialog: React.FC<SubFlowLibraryDialogProps> = ({
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      
+
       try {
         const text = await file.text();
         const template = importTemplateFromFile(text);
@@ -401,7 +401,7 @@ export const SubFlowLibraryDialog: React.FC<SubFlowLibraryDialogProps> = ({
                 {searchQuery ? 'No templates match your search' : 'No templates yet'}
               </EmptyStateText>
               <EmptyStateHint>
-                {searchQuery 
+                {searchQuery
                   ? 'Try a different search term'
                   : 'Export a FormProcess container to create your first template'
                 }

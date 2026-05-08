@@ -1,16 +1,16 @@
 /**
  * Keyboard Shortcuts Help Modal
- * 
+ *
  * Displays all available keyboard shortcuts for the Flow Editor.
  * Helps users discover power-user features and improve productivity.
- * 
+ *
  * Features:
  * - Categorized shortcuts (Editing, Navigation, Selection, View)
  * - Platform-specific display (Ctrl vs Cmd)
  * - Search/filter shortcuts
  * - Quick reference card
  * - Export as PDF/image
- * 
+ *
  * Authority: Phase 7.6 - Accessibility & I18n
  */
 

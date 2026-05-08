@@ -1,23 +1,23 @@
 /**
  * Create Record Action Configuration Panel
- * 
+ *
  * Specialized panel for configuring "Create Record" actions.
  * Allows selecting target entity and mapping form fields to entity fields.
- * 
+ *
  * Features:
  * - Entity type selector (Supplier, Customer, Product, etc.)
  * - Integration with FieldMappingPanel for field mapping
  * - Required field indicators
  * - Validation for entity selection
- * 
+ *
  * Phase E.1: Panel Migration - Step 4/4 (2 of 3)
  * Migrated to use shared styled components from ConfigPanel/shared
- * 
+ *
  * Changes:
  * - Replaced 18 local styled components with shared components
  * - Reduced duplication significantly
  * - Maintained exact same functionality
- * 
+ *
  * Created: 2026-02-05 - Phase 2 Task 2.2 Action Type-Specific Configs
  * Last Updated: 2026-02-17 - Phase E.1 Panel Migration
  */
@@ -111,7 +111,7 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
     fieldMappings: nodeData.fieldMappings || [],
     description: nodeData.description || '',
   });
-  
+
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -135,12 +135,12 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
       setValidationError('Please select an entity type');
       return;
     }
-    
+
     if (formData.fieldMappings.length === 0) {
       setValidationError('Please configure at least one field mapping');
       return;
     }
-    
+
     // Save changes
     onUpdate(node.id, formData);
     setHasUnsavedChanges(false);
@@ -187,7 +187,7 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
 
           <FormSection>
             <SectionTitle>Basic Information</SectionTitle>
-            
+
             <FormField>
               <LabelContainer>
                 <FieldLabel>
@@ -245,7 +245,7 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
 
           <FormSection>
             <SectionTitle>Target Entity</SectionTitle>
-            
+
             <FormField>
               <FieldLabel>
                 Entity Type <RequiredIndicator>*</RequiredIndicator>

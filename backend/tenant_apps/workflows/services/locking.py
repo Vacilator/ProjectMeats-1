@@ -15,6 +15,7 @@ from functools import lru_cache
 from typing import Any
 
 from django.conf import settings
+
 from redis import Redis
 from redis.exceptions import RedisError
 

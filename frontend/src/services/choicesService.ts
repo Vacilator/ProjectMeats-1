@@ -1,12 +1,12 @@
 /**
  * Choices Service
- * 
+ *
  * Fetches and caches static choice options from the backend.
- * 
+ *
  * Resolution Order:
  * 1. Try configService's SystemChoiceList API first (new v2 system)
  * 2. Fall back to legacy /choices/ endpoint for Django TextChoices
- * 
+ *
  * Usage:
  *   const options = await choicesService.getChoices('protein_type');
  *   const allChoices = await choicesService.getAllChoices();
@@ -69,7 +69,7 @@ export const FIELD_TO_CHOICE_TYPE: Record<string, ChoiceType> = {
   'purchasing_preference_origin': 'origin',
   'industry': 'industry',
   'industry_array': 'industry',
-  
+
   // Product fields
   'type_of_protein': 'protein_type',
   'protein_type': 'protein_type',
@@ -80,16 +80,16 @@ export const FIELD_TO_CHOICE_TYPE: Record<string, ChoiceType> = {
   'edible_or_inedible': 'edible_inedible',
   'origin': 'origin',
   'country_origin': 'country_origin',
-  
+
   // Plant fields
   'plant_type': 'plant_type',
   'shipping_offered': 'shipping_offered',
   'appointment_method': 'appointment_method',
-  
+
   // Contact fields
   'contact_type': 'contact_type',
   'department': 'department_supplier',
-  
+
   // Other
   'weight_unit': 'weight_unit',
   'carton_type': 'carton_type',
@@ -109,7 +109,7 @@ export const FIELD_TO_CHOICE_LIST_SLUG: Record<string, string> = {
   'edible_inedible': 'edible_inedible',
   'edible_or_inedible': 'edible_inedible',
   'weight_unit': 'weight_unit',
-  
+
   // Customer/Supplier fields
   'payment_terms': 'payment_terms',
   'accounting_payment_terms': 'payment_terms',
@@ -118,13 +118,13 @@ export const FIELD_TO_CHOICE_LIST_SLUG: Record<string, string> = {
   'certificate_type': 'certificate_type',
   'type_of_certificate': 'certificate_type',
   'shipping_offered': 'shipping_offered',
-  
+
   // Contact fields
   'contact_type': 'contact_type',
-  
+
   // Plant fields
   'plant_type': 'plant_type',
-  
+
   // Order status fields
   'po_status': 'po_status',
   'purchase_order_status': 'po_status',
@@ -144,13 +144,13 @@ export async function getChoices(choiceType: ChoiceType): Promise<ChoiceOption[]
   if (choicesCache && choicesCache[choiceType]) {
     return choicesCache[choiceType];
   }
-  
+
   // If cache is loading, wait for it
   if (cachePromise) {
     const result = await cachePromise;
     return result.choices[choiceType] || [];
   }
-  
+
   // Fetch specific choice type
   try {
     const response = await pmApiClient.get<ChoicesResponse>('/choices/', {
@@ -171,13 +171,13 @@ export async function getAllChoices(): Promise<Record<string, ChoiceOption[]>> {
   if (choicesCache) {
     return choicesCache;
   }
-  
+
   // If already loading, wait for it
   if (cachePromise) {
     const result = await cachePromise;
     return result.choices;
   }
-  
+
   // Fetch all choices
   cachePromise = pmApiClient.get<AllChoicesResponse>('/choices/')
     .then(response => {
@@ -189,21 +189,21 @@ export async function getAllChoices(): Promise<Record<string, ChoiceOption[]>> {
       cachePromise = null;
       return { choices: {}, choice_types: [] };
     });
-  
+
   const result = await cachePromise;
   return result.choices;
 }
 
 /**
  * Get choices for a field by its name
- * 
+ *
  * Resolution order:
  * 1. Check FIELD_TO_CHOICE_LIST_SLUG for v2 SystemChoiceList mapping
  * 2. Fall back to FIELD_TO_CHOICE_TYPE for legacy Django TextChoices
  */
 export async function getChoicesForField(fieldName: string): Promise<ChoiceOption[] | null> {
   const normalizedName = fieldName.toLowerCase().replace(/\s+/g, '_');
-  
+
   // First try: v2 SystemChoiceList via configService
   const choiceListSlug = FIELD_TO_CHOICE_LIST_SLUG[normalizedName];
   if (choiceListSlug) {
@@ -220,13 +220,13 @@ export async function getChoicesForField(fieldName: string): Promise<ChoiceOptio
       );
     }
   }
-  
+
   // Second try: legacy Django TextChoices
   const choiceType = FIELD_TO_CHOICE_TYPE[normalizedName];
   if (!choiceType) {
     return null; // Field doesn't have static choices
   }
-  
+
   return getChoices(choiceType);
 }
 

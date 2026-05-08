@@ -166,7 +166,7 @@ python config/manage_env.py audit
 
 **❌ DO NOT USE** (superseded by manifest system):
 - `environments/` directory → Use manifest
-- `shared/` directory → Use manifest  
+- `shared/` directory → Use manifest
 - `.env.example` files → Use manifest
 - `docs/GITHUB_SECRETS_CONFIGURATION.md` → Use `CONFIGURATION_AND_SECRETS.md`
 
@@ -174,8 +174,8 @@ python config/manage_env.py audit
 
 ---
 
-**Last Updated**: December 10, 2025  
-**Manifest Version**: 3.3  
+**Last Updated**: December 10, 2025
+**Manifest Version**: 3.3
 **Authority**: `config/env.manifest.json`
 
 ---
@@ -205,11 +205,11 @@ config/
 ## Why Unified Manifest?
 
 ### Problems Solved
-✅ **No Configuration Drift**: Frontend and backend configs are guaranteed to be in sync  
-✅ **Automated Validation**: `audit` command catches missing secrets before deployment  
-✅ **Self-Documenting**: Every variable has a description and mapping  
-✅ **Easy Onboarding**: One command generates correct .env files  
-✅ **CI/CD Ready**: GitHub Actions workflows reference the same source  
+✅ **No Configuration Drift**: Frontend and backend configs are guaranteed to be in sync
+✅ **Automated Validation**: `audit` command catches missing secrets before deployment
+✅ **Self-Documenting**: Every variable has a description and mapping
+✅ **Easy Onboarding**: One command generates correct .env files
+✅ **CI/CD Ready**: GitHub Actions workflows reference the same source
 
 ### Old Way (Deprecated)
 ```bash

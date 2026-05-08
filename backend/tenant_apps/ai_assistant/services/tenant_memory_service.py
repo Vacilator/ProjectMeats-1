@@ -21,26 +21,22 @@ from django.db import transaction
 from django.db.models import QuerySet
 
 from tenant_apps.ai_assistant.models import ChatMessage, MessageTypeChoices, TenantAIMemory
-from tenant_apps.ai_assistant.session_utils import (
-    bind_session_compaction_state,
-    get_session_compaction_watermark,
-)
-
+from tenant_apps.ai_assistant.session_utils import bind_session_compaction_state, get_session_compaction_watermark
 
 _WORD_RE = re.compile(r"[a-zA-Z0-9_\-]{3,}")
 _WHITESPACE_RE = re.compile(r"\s+")
-_SESSION_MEMORY_KEY_PREFIX = 'chat_session:'
+_SESSION_MEMORY_KEY_PREFIX = "chat_session:"
 _SESSION_MEMORY_SNIPPET_LIMIT = 180
 _SESSION_MEMORY_LINE_LIMIT = 10
 
 
 def _normalize_line(text: str) -> str:
-    return _WHITESPACE_RE.sub(' ', str(text or '')).strip()
+    return _WHITESPACE_RE.sub(" ", str(text or "")).strip()
 
 
 def _tokenize(text: str) -> set[str]:
     tokens: set[str] = set()
-    for m in _WORD_RE.finditer((text or '').lower()):
+    for m in _WORD_RE.finditer((text or "").lower()):
         w = m.group(0)
         if len(w) >= 3:
             tokens.add(w)
@@ -51,8 +47,8 @@ def _candidate_qs(*, tenant: Any) -> QuerySet[TenantAIMemory]:
     return (
         TenantAIMemory.objects.filter(tenant=tenant, is_active=True)
         .exclude(key__startswith=_SESSION_MEMORY_KEY_PREFIX)
-        .only('id', 'key', 'memory_text', 'memory_json', 'tags', 'created_on')
-        .order_by('-created_on')
+        .only("id", "key", "memory_text", "memory_json", "tags", "created_on")
+        .order_by("-created_on")
     )
 
 
@@ -70,11 +66,13 @@ def get_relevant_memories(*, tenant: Any, query: str, limit: int = 8, lookback: 
     scored: list[tuple[int, TenantAIMemory]] = []
 
     for r in rows:
-        blob = ' '.join([
-            str(r.key or ''),
-            str(r.memory_text or ''),
-            str(r.memory_json or ''),
-        ]).lower()
+        blob = " ".join(
+            [
+                str(r.key or ""),
+                str(r.memory_text or ""),
+                str(r.memory_json or ""),
+            ]
+        ).lower()
         tokens = _tokenize(blob)
         score = len(q_tokens & tokens)
         if score <= 0:
@@ -86,9 +84,9 @@ def get_relevant_memories(*, tenant: Any, query: str, limit: int = 8, lookback: 
 
 
 def format_memory_block(memories: Iterable[TenantAIMemory]) -> str:
-    memories_list = [m for m in memories if (m.memory_text or '').strip()]
+    memories_list = [m for m in memories if (m.memory_text or "").strip()]
     if not memories_list:
-        return ''
+        return ""
 
     bullets = "\n".join([f"- {m.memory_text.strip()}" for m in memories_list])
     return (
@@ -111,18 +109,18 @@ def get_session_compaction_memory(*, tenant: Any, session_id: Any) -> TenantAIMe
             is_active=True,
             key=session_memory_key(session_id),
         )
-        .only('id', 'key', 'memory_text', 'memory_json', 'tags', 'created_on', 'modified_on')
+        .only("id", "key", "memory_text", "memory_json", "tags", "created_on", "modified_on")
         .first()
     )
 
 
 def format_session_memory_block(memory: TenantAIMemory | None) -> str:
     if memory is None:
-        return ''
+        return ""
 
     memory_text = _normalize_line(memory.memory_text)
     if not memory_text:
-        return ''
+        return ""
 
     return (
         "\n\nSession Memory (durable summary of older messages in this chat):\n"
@@ -132,39 +130,39 @@ def format_session_memory_block(memory: TenantAIMemory | None) -> str:
 
 
 def _compaction_enabled() -> bool:
-    return bool(getattr(settings, 'AI_CHAT_COMPACTION_ENABLED', True))
+    return bool(getattr(settings, "AI_CHAT_COMPACTION_ENABLED", True))
 
 
 def _compaction_min_messages() -> int:
-    return max(1, int(getattr(settings, 'AI_CHAT_COMPACTION_MIN_MESSAGES', 18) or 18))
+    return max(1, int(getattr(settings, "AI_CHAT_COMPACTION_MIN_MESSAGES", 18) or 18))
 
 
 def _compaction_tail_messages() -> int:
-    return max(1, int(getattr(settings, 'AI_CHAT_COMPACTION_TAIL_MESSAGES', 12) or 12))
+    return max(1, int(getattr(settings, "AI_CHAT_COMPACTION_TAIL_MESSAGES", 12) or 12))
 
 
 def _compaction_max_summary_chars() -> int:
-    return max(400, int(getattr(settings, 'AI_CHAT_COMPACTION_MAX_SUMMARY_CHARS', 2400) or 2400))
+    return max(400, int(getattr(settings, "AI_CHAT_COMPACTION_MAX_SUMMARY_CHARS", 2400) or 2400))
 
 
 def _message_role_label(message_type: str) -> str:
     if message_type == MessageTypeChoices.USER:
-        return 'User'
+        return "User"
     if message_type == MessageTypeChoices.ASSISTANT:
-        return 'Assistant'
+        return "Assistant"
     if message_type == MessageTypeChoices.DOCUMENT:
-        return 'Document'
-    return 'System'
+        return "Document"
+    return "System"
 
 
 def _message_summary_text(message: ChatMessage) -> str:
     metadata = message.metadata if isinstance(message.metadata, dict) else {}
     if message.message_type == MessageTypeChoices.DOCUMENT:
-        filename = str(metadata.get('original_filename') or message.content or 'document').strip()
-        content = f'[Document] {filename}'
-        document_id = str(metadata.get('document_id') or '').strip()
+        filename = str(metadata.get("original_filename") or message.content or "document").strip()
+        content = f"[Document] {filename}"
+        document_id = str(metadata.get("document_id") or "").strip()
         if document_id:
-            content = f'{content} ({document_id})'
+            content = f"{content} ({document_id})"
         return content[:_SESSION_MEMORY_SNIPPET_LIMIT]
 
     content = _normalize_line(message.content)
@@ -173,8 +171,8 @@ def _message_summary_text(message: ChatMessage) -> str:
 
 def _format_compaction_window(value: Any) -> str:
     if not isinstance(value, datetime):
-        return ''
-    return value.astimezone().strftime('%Y-%m-%d %H:%M')
+        return ""
+    return value.astimezone().strftime("%Y-%m-%d %H:%M")
 
 
 def _build_session_summary(
@@ -184,29 +182,29 @@ def _build_session_summary(
     max_chars: int,
 ) -> str:
     if not messages:
-        return ''
+        return ""
 
     lines: list[str] = []
     compacted_count = len(messages)
     start_label = _format_compaction_window(messages[0].created_on)
     end_label = _format_compaction_window(messages[-1].created_on)
-    window_label = f'{start_label} to {end_label}' if start_label and end_label else 'earlier in this chat'
-    lines.append(f'Compacted {compacted_count} older messages from {window_label}.')
+    window_label = f"{start_label} to {end_label}" if start_label and end_label else "earlier in this chat"
+    lines.append(f"Compacted {compacted_count} older messages from {window_label}.")
 
     previous_summary = _normalize_line(previous_summary)
     if previous_summary:
         previous_summary = previous_summary[: max(200, max_chars // 2)]
-        lines.append(f'Earlier compacted context: {previous_summary}')
+        lines.append(f"Earlier compacted context: {previous_summary}")
 
     for message in messages[-_SESSION_MEMORY_LINE_LIMIT:]:
         snippet = _message_summary_text(message)
         if not snippet:
             continue
-        lines.append(f'{_message_role_label(message.message_type)}: {snippet}')
+        lines.append(f"{_message_role_label(message.message_type)}: {snippet}")
 
-    summary = ' '.join(line for line in lines if line).strip()
+    summary = " ".join(line for line in lines if line).strip()
     if len(summary) > max_chars:
-        summary = summary[: max_chars - 1].rstrip() + '…'
+        summary = summary[: max_chars - 1].rstrip() + "…"
     return summary
 
 
@@ -217,12 +215,12 @@ def compact_session_messages(*, tenant: Any, session: Any) -> TenantAIMemory | N
 
     tail_messages = _compaction_tail_messages()
     min_messages = max(_compaction_min_messages(), tail_messages + 1)
-    watermark = get_session_compaction_watermark(getattr(session, 'context_data', None))
+    watermark = get_session_compaction_watermark(getattr(session, "context_data", None))
 
     uncompacted_qs = (
         ChatMessage.objects.filter(session=session, tenant=tenant)
-        .only('id', 'message_type', 'content', 'metadata', 'created_on')
-        .order_by('created_on', 'id')
+        .only("id", "message_type", "content", "metadata", "created_on")
+        .order_by("created_on", "id")
     )
     if watermark is not None:
         uncompacted_qs = uncompacted_qs.filter(created_on__gt=watermark)
@@ -235,10 +233,10 @@ def compact_session_messages(*, tenant: Any, session: Any) -> TenantAIMemory | N
     if not messages_to_compact:
         return None
 
-    memory_key = session_memory_key(getattr(session, 'id', None))
-    existing_memory = get_session_compaction_memory(tenant=tenant, session_id=getattr(session, 'id', None))
+    memory_key = session_memory_key(getattr(session, "id", None))
+    existing_memory = get_session_compaction_memory(tenant=tenant, session_id=getattr(session, "id", None))
     summary_text = _build_session_summary(
-        previous_summary=getattr(existing_memory, 'memory_text', ''),
+        previous_summary=getattr(existing_memory, "memory_text", ""),
         messages=messages_to_compact,
         max_chars=_compaction_max_summary_chars(),
     )
@@ -254,31 +252,31 @@ def compact_session_messages(*, tenant: Any, session: Any) -> TenantAIMemory | N
             tenant=tenant,
             key=memory_key,
             defaults={
-                'memory_text': summary_text,
-                'memory_json': {
-                    'kind': 'session_compaction',
-                    'session_id': str(getattr(session, 'id', '') or ''),
-                    'source_message_ids': source_message_ids,
-                    'source_start_created_on': first_message.created_on.isoformat(),
-                    'source_end_created_on': last_message.created_on.isoformat(),
-                    'source_count': len(messages_to_compact),
+                "memory_text": summary_text,
+                "memory_json": {
+                    "kind": "session_compaction",
+                    "session_id": str(getattr(session, "id", "") or ""),
+                    "source_message_ids": source_message_ids,
+                    "source_start_created_on": first_message.created_on.isoformat(),
+                    "source_end_created_on": last_message.created_on.isoformat(),
+                    "source_count": len(messages_to_compact),
                 },
-                'tags': {
-                    'kind': 'session_compaction',
-                    'session_id': str(getattr(session, 'id', '') or ''),
+                "tags": {
+                    "kind": "session_compaction",
+                    "session_id": str(getattr(session, "id", "") or ""),
                 },
-                'is_active': True,
+                "is_active": True,
             },
         )
 
         session.context_data = bind_session_compaction_state(
-            getattr(session, 'context_data', None),
+            getattr(session, "context_data", None),
             tenant,
             memory_key=memory_key,
             last_compacted_created_on=last_message.created_on,
             last_compacted_message_id=last_message.id,
             compacted_count=len(messages_to_compact),
         )
-        session.save(update_fields=['context_data'])
+        session.save(update_fields=["context_data"])
 
     return memory

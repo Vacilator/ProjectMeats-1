@@ -1,9 +1,9 @@
 /**
  * Preview Modal Component
- * 
+ *
  * Live preview of the form with test data filling.
  * Shows progress bar, field mocks, and navigation.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 4 - FormBuilder Suite
  */
@@ -118,7 +118,7 @@ const NavButton = styled.button`
   gap: 8px;
   background: rgb(var(--color-surface-hover));
   color: rgb(var(--color-text-primary));
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -133,22 +133,22 @@ const StepIndicator = styled.div`
 export const PreviewModal: React.FC = () => {
   const { isPreviewModalOpen, steps, closePreviewModal } = useFormBuilderStore();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  
+
   const currentStep = steps[currentStepIndex];
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
-  
+
   const goNext = () => {
     if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     }
   };
-  
+
   const goPrev = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1);
     }
   };
-  
+
   return (
     <Overlay isOpen={isPreviewModalOpen} onClick={closePreviewModal}>
       <Modal onClick={(e) => e.stopPropagation()}>
@@ -158,11 +158,11 @@ export const PreviewModal: React.FC = () => {
             <X size={20} />
           </button>
         </Header>
-        
+
         <ProgressBar>
           <ProgressFill progress={progress} />
         </ProgressBar>
-        
+
         <Content>
           {currentStep && (
             <>
@@ -170,7 +170,7 @@ export const PreviewModal: React.FC = () => {
               {currentStep.displayDescription && (
                 <StepDescription>{currentStep.displayDescription}</StepDescription>
               )}
-              
+
               {currentStep.fields.map(field => (
                 <FieldGroup key={field.id}>
                   <Label>
@@ -186,17 +186,17 @@ export const PreviewModal: React.FC = () => {
             </>
           )}
         </Content>
-        
+
         <Footer>
           <NavButton onClick={goPrev} disabled={currentStepIndex === 0}>
             <ChevronLeft size={16} />
             Previous
           </NavButton>
-          
+
           <StepIndicator>
             Step {currentStepIndex + 1} of {steps.length}
           </StepIndicator>
-          
+
           <NavButton onClick={goNext} disabled={currentStepIndex === steps.length - 1}>
             Next
             <ChevronRight size={16} />

@@ -17,6 +17,7 @@ This file is kept for historical reference but serves no active purpose.
 It can be safely deleted in future cleanup efforts.
 """
 from django.urls import path
+
 from .health import health_check, health_detailed, ready_check
 
 # Legacy public schema URLs (not currently used)

@@ -5,11 +5,14 @@ Validates supplier creation, validation, tenant isolation, and error handling.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
+
 from django.contrib.auth.models import User
 from django.urls import reverse
-from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework.test import APITestCase
+
 from tenant_apps.suppliers.models import Supplier
+
 from apps.tenants.models import Tenant, TenantUser
 
 
@@ -20,9 +23,7 @@ class SupplierAPITests(APITestCase):
         """Set up test data."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}", 
-            email=f"test-{unique_id}@example.com", 
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         # Use session auth so TenantMiddleware can resolve X-Tenant-ID.
         self.client.force_login(self.user)
@@ -149,19 +150,17 @@ class SupplierAPITests(APITestCase):
         supplier = Supplier.objects.get()
         self.assertEqual(supplier.name, "Explicit Supplier")
         self.assertEqual(supplier.tenant, other_tenant)
-        
+
     def test_create_supplier_without_tenant_and_no_tenant_user(self):
         """Test that creating a supplier fails when user has no TenantUser association."""
         # Create a new user with no TenantUser association
         unique_id = uuid.uuid4().hex[:8]
         new_user = User.objects.create_user(
-            username=f"newuser-{unique_id}", 
-            email=f"newuser-{unique_id}@example.com", 
-            password="testpass123"
+            username=f"newuser-{unique_id}", email=f"newuser-{unique_id}@example.com", password="testpass123"
         )
         # Use session auth so TenantMiddleware can resolve X-Tenant-ID.
         self.client.force_login(new_user)
-        
+
         url = reverse("suppliers:supplier-list")
         data = {
             "name": "Test Supplier",
@@ -181,9 +180,7 @@ class SupplierAPITests(APITestCase):
         # Create another tenant and supplier
         unique_id = uuid.uuid4().hex[:8]
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}", 
-            email=f"other-{unique_id}@example.com", 
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",

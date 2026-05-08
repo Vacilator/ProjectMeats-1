@@ -45,7 +45,7 @@ assignees: ''
 ## 🔗 Related
 - Issue: #
 - PR: #
-- Commit: 
+- Commit:
 
 ## 🎯 Priority
 - [ ] P0 - Blocker (editor crashes, data loss)

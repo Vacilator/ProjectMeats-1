@@ -1,16 +1,16 @@
 /**
  * Auto-Suggest Products Component
- * 
+ *
  * Smart suggestions for product selection in inquiry/fulfillment forms.
- * 
+ *
  * Features:
  * - Debounced API queries (300ms)
  * - Rich preview cards (name, code, type, fresh/frozen)
  * - Criteria-based filtering (type, fresh/frozen, search query)
  * - One-click selection to auto-fill form
- * 
+ *
  * Created: 2026-02-23 - Cockpit Phase 2A Enhancement
- * 
+ *
  * @module AutoSuggestProducts
  */
 

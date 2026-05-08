@@ -380,17 +380,17 @@ const resumeMutation = useMutation({
    # List executions
    curl -H "Authorization: Bearer $TOKEN" \
         http://localhost:8000/api/workflows/executions/
-   
+
    # Create execution
    curl -X POST -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{"workflow": "uuid"}' \
         http://localhost:8000/api/workflows/executions/
-   
+
    # Get audit trail
    curl -H "Authorization: Bearer $TOKEN" \
         http://localhost:8000/api/workflows/executions/uuid/audit/
-   
+
    # Resume execution
    curl -X POST -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
@@ -421,4 +421,3 @@ const resumeMutation = useMutation({
 5. ⏳ Add usage_count to Catalog workflow cards
 6. ⏳ Integration testing
 7. ⏳ Performance optimization
-

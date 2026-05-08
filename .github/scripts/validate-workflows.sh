@@ -37,9 +37,9 @@ check_no_archived_workflows_dir() {
 # Check YAML syntax
 validate_yaml_syntax() {
     log_info "Validating YAML syntax..."
-    
+
     local failed=0
-    
+
     for workflow in .github/workflows/*.yml; do
         if [[ -f "$workflow" ]]; then
             if ! python -c "import yaml; yaml.safe_load(open('$workflow'))" 2>/dev/null; then
@@ -50,12 +50,12 @@ validate_yaml_syntax() {
             fi
         fi
     done
-    
+
     if [[ $failed -gt 0 ]]; then
         log_error "$failed workflow files have syntax errors"
         return 1
     fi
-    
+
     log_info "✓ All workflow files have valid YAML syntax"
     return 0
 }
@@ -194,17 +194,17 @@ check_cache_config() {
             log_warn "No cache configuration in $workflow"
             ((failed++))
         fi
-        
+
         if ! grep -q "buildx-cache" "$workflow"; then
             log_warn "No BuildKit cache in $workflow"
             ((failed++))
         fi
     done
-    
+
     if [[ $failed -eq 0 ]]; then
         log_info "✓ All deployment workflows have cache configured"
     fi
-    
+
     return 0
 }
 
@@ -236,10 +236,10 @@ check_health_checks() {
 # Check for fetch-depth configuration
 check_fetch_depth() {
     log_info "Checking fetch-depth configuration..."
-    
+
     local workflows=(.github/workflows/*.yml)
     local issues=0
-    
+
     for workflow in "${workflows[@]}"; do
         # Check if using checkout action (any version)
         if grep -qE "actions/checkout@" "$workflow"; then
@@ -250,20 +250,20 @@ check_fetch_depth() {
             fi
         fi
     done
-    
+
     if [[ $issues -eq 0 ]]; then
         log_info "✓ All checkouts have fetch-depth configured"
     fi
-    
+
     return 0
 }
 
 # Check for error handling
 check_error_handling() {
     log_info "Checking error handling in deployment scripts..."
-    
+
     local scripts=(.github/scripts/*.sh)
-    
+
     for script in "${scripts[@]}"; do
         if [[ -f "$script" ]]; then
             if ! grep -q "set -euo pipefail" "$script"; then
@@ -273,7 +273,7 @@ check_error_handling() {
             fi
         fi
     done
-    
+
     return 0
 }
 
@@ -1008,16 +1008,16 @@ PY
 # Check for environment-specific configurations
 check_env_separation() {
     log_info "Checking environment separation..."
-    
+
     # Check for env-specific secret usage
     local envs=("DEV" "UAT" "STAGING" "PROD")
-    
+
     for env in "${envs[@]}"; do
         if grep -r "${env}_" .github/workflows/*.yml >/dev/null 2>&1; then
             log_info "✓ Found ${env}-specific configuration"
         fi
     done
-    
+
     return 0
 }
 
@@ -2101,9 +2101,9 @@ main() {
     log_info "========================================="
     log_info "GitHub Actions Workflow Validation"
     log_info "========================================="
-    
+
     local failed=0
-    
+
     check_no_archived_workflows_dir || ((failed++))
     validate_yaml_syntax || ((failed++))
     check_manifest_secrets_for_all_workflows || ((failed++))
@@ -2137,14 +2137,14 @@ main() {
     check_env_separation || ((failed++))
     check_dependabot_auto_merge_scope || ((failed++))
     check_codeowners_security_overrides || ((failed++))
-    
+
     log_info "========================================="
-    
+
     if [[ $failed -gt 0 ]]; then
         log_error "Validation completed with $failed failures"
         return 1
     fi
-    
+
     log_info "✓ All validations passed"
     log_info "========================================="
     return 0

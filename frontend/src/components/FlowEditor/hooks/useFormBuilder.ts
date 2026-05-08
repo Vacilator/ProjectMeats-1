@@ -1,9 +1,9 @@
 /**
  * Use Form Builder Hook
- * 
+ *
  * Hook to manage FormBuilder modal state and integration with flow nodes.
  * Handles opening, closing, and saving form data to node configuration.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 6 - Deep Integration
  */
@@ -36,7 +36,7 @@ export function useFormBuilder(): UseFormBuilderReturn {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const { setNodes, getNode } = useReactFlow();
   const { loadForm, resetForm } = useFormBuilderStore();
-  
+
   /**
    * Open FormBuilder for a node
    */
@@ -53,11 +53,11 @@ export function useFormBuilder(): UseFormBuilderReturn {
         steps: []
       });
     }
-    
+
     setEditingNodeId(node.id);
     setIsOpen(true);
   }, [loadForm, resetForm]);
-  
+
   /**
    * Close FormBuilder
    */
@@ -65,7 +65,7 @@ export function useFormBuilder(): UseFormBuilderReturn {
     setIsOpen(false);
     setEditingNodeId(null);
   }, []);
-  
+
   /**
    * Save FormBuilder data to node
    */
@@ -127,7 +127,7 @@ export function useFormBuilder(): UseFormBuilderReturn {
 
     closeFormBuilder();
   }, [editingNodeId, getNode, setNodes, closeFormBuilder]);
-  
+
   return {
     isOpen,
     editingNodeId,

@@ -1,6 +1,6 @@
 /**
  * Tests for OptionListModal Component
- * 
+ *
  * Specifically tests the fix for: e.filter is not a function
  * Issue: API responses that are not arrays should be handled gracefully
  */

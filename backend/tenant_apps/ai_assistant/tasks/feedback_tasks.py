@@ -18,9 +18,10 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from celery import shared_task
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
+
+from celery import shared_task
 
 from apps.tenants.rls import tenant_rls
 
@@ -73,7 +74,8 @@ def compute_feedback_stats(tenant_id: str, days: int = 30) -> dict:
             "retraining_exported": aggregates["exported"] or 0,
             "period_days": days,
             "approval_rate": round(
-                (aggregates["thumbs_up"] or 0) / max(1, (aggregates["thumbs_up"] or 0) + (aggregates["thumbs_down"] or 0)),
+                (aggregates["thumbs_up"] or 0)
+                / max(1, (aggregates["thumbs_up"] or 0) + (aggregates["thumbs_down"] or 0)),
                 4,
             ),
         }
@@ -93,8 +95,9 @@ def export_retraining_batch(tenant_id: str, batch_size: int = 100) -> dict:
             AIFeedbackLog.objects.filter(
                 tenant_id=tenant_id,
                 retraining_status="queued",
-            )
-            .order_by("created_on")[:batch_size]
+            ).order_by(
+                "created_on"
+            )[:batch_size]
         )
 
         if not queued:
@@ -102,15 +105,17 @@ def export_retraining_batch(tenant_id: str, batch_size: int = 100) -> dict:
 
         entries = []
         for item in queued:
-            entries.append({
-                "document_id": str(item.document_id),
-                "document_type": item.document_type,
-                "original": item.original_extracted_data,
-                "corrected": item.user_corrected_data,
-                "confidence": item.confidence_score,
-                "signal": item.feedback_signal or "",
-                "comment": item.feedback_comment or "",
-            })
+            entries.append(
+                {
+                    "document_id": str(item.document_id),
+                    "document_type": item.document_type,
+                    "original": item.original_extracted_data,
+                    "corrected": item.user_corrected_data,
+                    "confidence": item.confidence_score,
+                    "signal": item.feedback_signal or "",
+                    "comment": item.feedback_comment or "",
+                }
+            )
 
         # Mark as exported
         ids = [item.pk for item in queued]
@@ -121,7 +126,8 @@ def export_retraining_batch(tenant_id: str, batch_size: int = 100) -> dict:
 
         logger.info(
             "[AI Feedback] Exported %d retraining entries for tenant=%s",
-            len(entries), tenant_id,
+            len(entries),
+            tenant_id,
         )
 
         return {"exported": len(entries), "entries": entries}
@@ -141,7 +147,9 @@ def trigger_login_sync(tenant_id: str, user_id: int | None = None) -> dict:
 
     logger.info(
         "[AI Inbox] Login sync for tenant=%s user=%s: %d new items",
-        tenant_id, user_id, result.get("feedback_logs_created", 0),
+        tenant_id,
+        user_id,
+        result.get("feedback_logs_created", 0),
     )
 
     return {

@@ -1,10 +1,10 @@
 /**
  * Form Field Configuration Panel
- * 
+ *
  * Comprehensive configuration panel for individual form fields.
  * Supports 12 field types with full validation, conditional visibility,
  * and multi-option configuration.
- * 
+ *
  * Features:
  * - 12 field types (text, textarea, number, email, phone, url, date, datetime, select, multi-select, checkbox, radio, file)
  * - Validation rules builder (via ValidationRuleBuilder)
@@ -12,7 +12,7 @@
  * - Multi-option configuration (manual, tenant-list, entity)
  * - Field dependencies
  * - Default values and placeholders
- * 
+ *
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  */
 import React, { useState, useEffect, useMemo } from 'react';
@@ -49,7 +49,7 @@ import {
 // TypeScript Interfaces
 // ============================================================================
 
-export type FormFieldType = 
+export type FormFieldType =
   | 'text'
   | 'textarea'
   | 'number'
@@ -68,23 +68,23 @@ export interface FormField {
   id: string;
   type: FormFieldType;
   label: string;
-  
+
   // Basic settings
   required: boolean;
   placeholder?: string;
   defaultValue?: any;
   helpText?: string;
-  
+
   // Validation
   validationRules: ValidationRule[];
-  
+
   // Conditional visibility
   visibility?: {
     mode: 'always' | 'conditional';
     conditions?: ConditionRule[];
     logic?: ConditionLogic;
   };
-  
+
   // Multi-option fields (select, radio, multi-select)
   options?: {
     source: 'manual' | 'system-choice-list' | 'tenant-list' | 'entity';
@@ -94,7 +94,7 @@ export interface FormField {
     entityType?: string;
     entityField?: string;
   };
-  
+
   // Field dependencies
   dependencies?: Array<{
     field: string;
@@ -290,16 +290,16 @@ const FieldTypeCard = styled.button<{ $selected: boolean }>`
   align-items: center;
   gap: 8px;
   padding: 16px 12px;
-  background: ${props => props.$selected 
-    ? 'rgba(var(--color-primary), 0.1)' 
+  background: ${props => props.$selected
+    ? 'rgba(var(--color-primary), 0.1)'
     : 'rgb(var(--color-background))'};
-  border: 2px solid ${props => props.$selected 
-    ? 'rgb(var(--color-primary))' 
+  border: 2px solid ${props => props.$selected
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.05);
@@ -324,21 +324,21 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: ${props => props.$active 
-    ? 'rgba(var(--color-primary), 0.1)' 
+  background: ${props => props.$active
+    ? 'rgba(var(--color-primary), 0.1)'
     : 'rgb(var(--color-background))'};
-  border: 1px solid ${props => props.$active 
-    ? 'rgb(var(--color-primary))' 
+  border: 1px solid ${props => props.$active
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
-  color: ${props => props.$active 
-    ? 'rgb(var(--color-primary))' 
+  color: ${props => props.$active
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-text-secondary))'};
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
@@ -366,7 +366,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
 
   // React Flow integration for upstream data inheritance
   const { getNodes, getEdges } = useReactFlow();
-  
+
   // Get upstream outputs for inheritance
   const upstreamOutputs = useMemo(() => {
     if (!currentNodeId) return [];
@@ -390,7 +390,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
       ...field,
       validationRules: field.validationRules || [],
     });
-    
+
     // Detect if current default value is inheritance syntax
     if (field.defaultValue && isInheritanceSyntax(field.defaultValue)) {
       setInheritanceMode('inherit');
@@ -527,7 +527,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     </UpstreamBadge>
                   )}
                 </Label>
-                
+
                 {/* Mode Toggle */}
                 {upstreamOutputs.length > 0 && (
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -612,7 +612,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 )}
 
                 <HelpText>
-                  {inheritanceMode === 'inherit' 
+                  {inheritanceMode === 'inherit'
                     ? 'Value automatically pulled from an upstream node\'s output'
                     : 'Value pre-filled when the form loads'}
                 </HelpText>

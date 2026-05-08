@@ -9,62 +9,58 @@ Provides DRF ViewSets for:
 - ConfigAuditLog (read-only audit trail)
 """
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from django.http import Http404
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Q
+
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
 
 from apps.system.models import (
-    SystemChoiceList,
-    SystemChoiceItem,
-    SystemFieldSchema,
-    TenantConfig,
     ConfigAuditLog,
+    SystemChoiceItem,
+    SystemChoiceList,
+    SystemFieldSchema,
     TenantChoiceOverride,
+    TenantConfig,
 )
-
-from apps.tenants.models import TenantUser
-from apps.tenants.activity_models import ActivityLog
 from apps.system.serializers import (
-    SystemChoiceListSerializer,
-    SystemChoiceListMinimalSerializer,
-    SystemChoiceItemSerializer,
-    SystemFieldSchemaSerializer,
-    TenantConfigSerializer,
-    ChoiceItemCreateSerializer,
     BulkChoiceUpdateSerializer,
-    TenantChoiceOverrideSerializer,
+    ChoiceItemCreateSerializer,
     ConfigAuditLogSerializer,
     ConfigAuditLogSummarySerializer,
+    SystemChoiceItemSerializer,
+    SystemChoiceListMinimalSerializer,
+    SystemChoiceListSerializer,
+    SystemFieldSchemaSerializer,
+    TenantChoiceOverrideSerializer,
+    TenantConfigSerializer,
 )
 from apps.system.services.config_resolver import ConfigResolver
-from apps.system.services.entity_introspection import (
-    get_entity_models,
-    get_entity_fields,
-    get_entity_display_fields,
-)
+from apps.system.services.entity_introspection import get_entity_display_fields, get_entity_fields, get_entity_models
+from apps.tenants.activity_models import ActivityLog
+from apps.tenants.models import TenantUser
 
 
 def _get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
-        return x_forwarded_for.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+        return x_forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
 
 
 CHOICE_LIST_ALIASES = {
-    'protein_type': ('protein_types', 'protein_type'),
-    'protein_types': ('protein_types', 'protein_type'),
+    "protein_type": ("protein_types", "protein_type"),
+    "protein_types": ("protein_types", "protein_type"),
 }
 
 
 def _normalize_choice_list_slug(raw_slug):
-    return str(raw_slug or '').strip().lower().replace('-', '_')
+    return str(raw_slug or "").strip().lower().replace("-", "_")
 
 
 def _iter_choice_list_slugs(raw_slug):
@@ -147,14 +143,14 @@ class IsTenantAdminOrReadOnly(permissions.BasePermission):
         if request.user.is_superuser:
             return True
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
             return False
 
         return TenantUser.objects.filter(
             tenant=tenant,
             user=request.user,
-            role__in=['owner', 'admin'],
+            role__in=["owner", "admin"],
             is_active=True,
         ).exists()
 
@@ -162,57 +158,53 @@ class IsTenantAdminOrReadOnly(permissions.BasePermission):
 class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for SystemChoiceList.
-    
+
     GET /api/v1/system/choice-lists/ - List all choice lists
     GET /api/v1/system/choice-lists/{slug}/ - Get choice list with items
     GET /api/v1/system/choice-lists/{slug}/items/ - Get just the items (with tenant custom)
     POST /api/v1/system/choice-lists/{slug}/items/ - Add tenant custom item
     """
+
     queryset = SystemChoiceList.objects.all()
     serializer_class = SystemChoiceListSerializer
     permission_classes = [IsTenantAdminOrReadOnly]
-    lookup_field = 'slug'
-    
+    lookup_field = "slug"
+
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action == "list":
             return SystemChoiceListMinimalSerializer
         return SystemChoiceListSerializer
-    
+
     def get_serializer(self, *args, **kwargs):
         serializer_class = self.get_serializer_class()
         return serializer_class(*args, **kwargs)
-    
-    @action(detail=True, methods=['get', 'post'])
+
+    @action(detail=True, methods=["get", "post"])
     def items(self, request, slug=None):
         """
         GET: Get choice items for this list (including tenant custom items).
         POST: Add a custom item for the current tenant.
         """
         choice_list = self.get_object()
-        tenant = getattr(request, 'tenant', None)
-        
-        if request.method == 'GET':
+        tenant = getattr(request, "tenant", None)
+
+        if request.method == "GET":
             # Get items with tenant filtering
-            items = SystemChoiceItem.objects.filter(
-                choice_list=choice_list,
-                is_active=True
-            )
-            
+            items = SystemChoiceItem.objects.filter(choice_list=choice_list, is_active=True)
+
             if tenant:
                 # System items + tenant's custom items
-                items = items.filter(
-                    Q(tenant__isnull=True) | Q(tenant=tenant)
-                )
+                items = items.filter(Q(tenant__isnull=True) | Q(tenant=tenant))
             else:
                 # System items only
                 items = items.filter(tenant__isnull=True)
-            
-            items = items.order_by('order', 'label')
 
-            paginate_raw = str(request.query_params.get('paginate') or '').lower()
-            paginate = paginate_raw not in ('0', 'false', 'no')
+            items = items.order_by("order", "label")
 
-            limit_raw = request.query_params.get('limit') or request.query_params.get('page_size')
+            paginate_raw = str(request.query_params.get("paginate") or "").lower()
+            paginate = paginate_raw not in ("0", "false", "no")
+
+            limit_raw = request.query_params.get("limit") or request.query_params.get("page_size")
             limit = None
             if limit_raw is not None:
                 try:
@@ -226,7 +218,7 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                 return Response(serializer.data)
 
             # Optional pagination for large lists when requested.
-            if (limit is not None) or request.query_params.get('page'):
+            if (limit is not None) or request.query_params.get("page"):
                 paginator = SystemChoiceItemsPagination()
                 page = paginator.paginate_queryset(items, request, view=self)
                 if page is not None:
@@ -235,24 +227,21 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
 
             serializer = SystemChoiceItemSerializer(items, many=True)
             return Response(serializer.data)
-        
-        elif request.method == 'POST':
+
+        elif request.method == "POST":
             # Create custom item for tenant
             if not choice_list.is_extensible:
                 return Response(
-                    {'error': 'This choice list does not allow custom items.'},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": "This choice list does not allow custom items."}, status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if not tenant:
                 return Response(
-                    {'error': 'Tenant context required to add custom items.'},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": "Tenant context required to add custom items."}, status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             serializer = ChoiceItemCreateSerializer(
-                data=request.data,
-                context={'choice_list': choice_list, 'tenant': tenant}
+                data=request.data, context={"choice_list": choice_list, "tenant": tenant}
             )
             serializer.is_valid(raise_exception=True)
 
@@ -260,12 +249,8 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
             from apps.tenants.rls import set_current_tenant
 
             set_current_tenant(str(tenant.id))
-            
-            item = SystemChoiceItem.objects.create(
-                choice_list=choice_list,
-                tenant=tenant,
-                **serializer.validated_data
-            )
+
+            item = SystemChoiceItem.objects.create(choice_list=choice_list, tenant=tenant, **serializer.validated_data)
 
             try:
                 ConfigAuditLog.log_change(
@@ -275,11 +260,11 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                     tenant=tenant,
                     request=request,
                     snapshot_after={
-                        'id': str(item.id),
-                        'choice_list': choice_list.slug,
-                        'value': item.value,
-                        'label': item.label,
-                        'order': item.order,
+                        "id": str(item.id),
+                        "choice_list": choice_list.slug,
+                        "value": item.value,
+                        "label": item.label,
+                        "order": item.order,
                     },
                 )
             except Exception:
@@ -289,54 +274,50 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                 ActivityLog.log_activity(
                     tenant=tenant,
                     user=request.user,
-                    action='optionlist.update',
+                    action="optionlist.update",
                     description=f"Added custom option '{item.label}' to list {choice_list.slug}.",
-                    entity_type='SystemChoiceItem',
+                    entity_type="SystemChoiceItem",
                     entity_id=item.id,
-                    metadata={'choice_list': choice_list.slug},
+                    metadata={"choice_list": choice_list.slug},
                     ip_address=_get_client_ip(request),
                 )
             except Exception:
                 pass
 
-            return Response(
-                SystemChoiceItemSerializer(item).data,
-                status=status.HTTP_201_CREATED
-            )
-    
-    @action(detail=True, methods=['post'])
+            return Response(SystemChoiceItemSerializer(item).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
     def reorder(self, request, slug=None):
         """Reorder items within this choice list."""
         choice_list = self.get_object()
-        
+
         if not choice_list.is_reorderable:
             return Response(
-                {'error': 'This choice list does not allow reordering.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "This choice list does not allow reordering."}, status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         serializer = BulkChoiceUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
-        tenant = getattr(request, 'tenant', None)
+
+        tenant = getattr(request, "tenant", None)
 
         if not request.user.is_superuser and not tenant:
-            return Response({'error': 'Tenant context required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Tenant context required."}, status=status.HTTP_400_BAD_REQUEST)
 
         if tenant:
             # RLS: ensure session vars are set on the active connection for this write.
             from apps.tenants.rls import set_current_tenant
 
             set_current_tenant(str(tenant.id))
-        
-        for item_data in serializer.validated_data['items']:
-            item_id = item_data['id']
-            new_order = int(item_data['order'])
+
+        for item_data in serializer.validated_data["items"]:
+            item_id = item_data["id"]
+            new_order = int(item_data["order"])
 
             # Only allow updating tenant's own items or system items (if admin)
-            item_filter = {'id': item_id, 'choice_list': choice_list}
+            item_filter = {"id": item_id, "choice_list": choice_list}
             if not request.user.is_superuser:
-                item_filter['tenant'] = tenant
+                item_filter["tenant"] = tenant
 
             SystemChoiceItem.objects.filter(**item_filter).update(order=new_order)
 
@@ -347,8 +328,8 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                 user=request.user,
                 tenant=tenant,
                 request=request,
-                notes='Reordered choice list items.',
-                new_value={'count': len(serializer.validated_data['items'])},
+                notes="Reordered choice list items.",
+                new_value={"count": len(serializer.validated_data["items"])},
             )
         except Exception:
             pass
@@ -358,37 +339,38 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                 ActivityLog.log_activity(
                     tenant=tenant,
                     user=request.user,
-                    action='optionlist.update',
+                    action="optionlist.update",
                     description=f"Reordered items for list {choice_list.slug}.",
-                    entity_type='SystemChoiceList',
+                    entity_type="SystemChoiceList",
                     entity_id=choice_list.id,
-                    metadata={'choice_list': choice_list.slug},
+                    metadata={"choice_list": choice_list.slug},
                     ip_address=_get_client_ip(request),
                 )
         except Exception:
             pass
 
-        return Response({'status': 'ok'})
+        return Response({"status": "ok"})
 
 
 class SystemChoiceItemViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing tenant-specific choice items.
-    
+
     Only allows modification of tenant-owned items.
     System items (tenant=None) are read-only.
     """
+
     serializer_class = SystemChoiceItemSerializer
     permission_classes = [IsTenantAdminOrReadOnly]
     pagination_class = SystemChoiceItemsPagination
 
     def paginate_queryset(self, queryset):
-        paginate_raw = str(self.request.query_params.get('paginate') or '').lower()
-        paginate = paginate_raw not in ('0', 'false', 'no')
+        paginate_raw = str(self.request.query_params.get("paginate") or "").lower()
+        paginate = paginate_raw not in ("0", "false", "no")
         if not paginate:
             return None
 
-        limit_raw = self.request.query_params.get('limit') or self.request.query_params.get('page_size')
+        limit_raw = self.request.query_params.get("limit") or self.request.query_params.get("page_size")
         if limit_raw is not None:
             try:
                 limit = int(limit_raw)
@@ -399,20 +381,18 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
                     return None
 
         return super().paginate_queryset(queryset)
-    
+
     def get_queryset(self):
-        tenant = getattr(self.request, 'tenant', None)
-        
+        tenant = getattr(self.request, "tenant", None)
+
         if self.request.user.is_superuser:
             return SystemChoiceItem.objects.all()
-        
+
         if tenant:
-            return SystemChoiceItem.objects.filter(
-                Q(tenant__isnull=True) | Q(tenant=tenant)
-            )
-        
+            return SystemChoiceItem.objects.filter(Q(tenant__isnull=True) | Q(tenant=tenant))
+
         return SystemChoiceItem.objects.filter(tenant__isnull=True)
-    
+
     def perform_destroy(self, instance):
         """Only allow deleting tenant-owned items."""
         if instance.tenant_id is None:
@@ -420,13 +400,13 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
 
             raise PermissionDenied("Cannot delete system-defined items.")
 
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         snapshot_before = {
-            'id': str(instance.id),
-            'choice_list': getattr(instance.choice_list, 'slug', None),
-            'value': instance.value,
-            'label': instance.label,
-            'order': instance.order,
+            "id": str(instance.id),
+            "choice_list": getattr(instance.choice_list, "slug", None),
+            "value": instance.value,
+            "label": instance.label,
+            "order": instance.order,
         }
 
         instance.delete()
@@ -448,11 +428,11 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
                 ActivityLog.log_activity(
                     tenant=tenant,
                     user=self.request.user,
-                    action='optionlist.delete',
+                    action="optionlist.delete",
                     description=f"Deleted tenant option '{snapshot_before['label']}'.",
-                    entity_type='SystemChoiceItem',
-                    entity_id=snapshot_before['id'],
-                    metadata={'choice_list': snapshot_before['choice_list']},
+                    entity_type="SystemChoiceItem",
+                    entity_id=snapshot_before["id"],
+                    metadata={"choice_list": snapshot_before["choice_list"]},
                     ip_address=_get_client_ip(self.request),
                 )
         except Exception:
@@ -466,14 +446,14 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
 
             raise PermissionDenied("Cannot modify system-defined items.")
 
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         snapshot_before = {
-            'id': str(instance.id),
-            'choice_list': getattr(instance.choice_list, 'slug', None),
-            'value': instance.value,
-            'label': instance.label,
-            'order': instance.order,
-            'is_active': instance.is_active,
+            "id": str(instance.id),
+            "choice_list": getattr(instance.choice_list, "slug", None),
+            "value": instance.value,
+            "label": instance.label,
+            "order": instance.order,
+            "is_active": instance.is_active,
         }
 
         updated = serializer.save()
@@ -487,12 +467,12 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
                 request=self.request,
                 snapshot_before=snapshot_before,
                 snapshot_after={
-                    'id': str(updated.id),
-                    'choice_list': getattr(updated.choice_list, 'slug', None),
-                    'value': updated.value,
-                    'label': updated.label,
-                    'order': updated.order,
-                    'is_active': updated.is_active,
+                    "id": str(updated.id),
+                    "choice_list": getattr(updated.choice_list, "slug", None),
+                    "value": updated.value,
+                    "label": updated.label,
+                    "order": updated.order,
+                    "is_active": updated.is_active,
                 },
             )
         except Exception:
@@ -503,11 +483,11 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
                 ActivityLog.log_activity(
                     tenant=tenant,
                     user=self.request.user,
-                    action='optionlist.update',
+                    action="optionlist.update",
                     description=f"Updated option '{updated.label}'.",
-                    entity_type='SystemChoiceItem',
+                    entity_type="SystemChoiceItem",
                     entity_id=updated.id,
-                    metadata={'choice_list': getattr(updated.choice_list, 'slug', None)},
+                    metadata={"choice_list": getattr(updated.choice_list, "slug", None)},
                     ip_address=_get_client_ip(self.request),
                 )
         except Exception:
@@ -517,20 +497,21 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
 class SystemFieldSchemaViewSet(viewsets.ModelViewSet):
     """
     ViewSet for SystemFieldSchema.
-    
+
     Global system schema metadata.
 
     Read access is available to authenticated users, but modifications are restricted
     to superusers because these rows affect all tenants.
     """
+
     queryset = SystemFieldSchema.objects.all()
     serializer_class = SystemFieldSchemaSerializer
     permission_classes = [IsSuperuserOrReadOnly]
-    lookup_field = 'field_path'
-    
+    lookup_field = "field_path"
+
     def get_object(self):
         """Allow lookup by field_path with dots."""
-        field_path = self.kwargs.get('field_path', '')
+        field_path = self.kwargs.get("field_path", "")
         return SystemFieldSchema.objects.get(field_path=field_path)
 
 
@@ -540,13 +521,13 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
     serializer_class = TenantChoiceOverrideSerializer
     permission_classes = [IsTenantAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['choice_list']
-    ordering_fields = ['updated_at', 'created_at']
-    ordering = ['-updated_at']
+    filterset_fields = ["choice_list"]
+    ordering_fields = ["updated_at", "created_at"]
+    ordering = ["-updated_at"]
 
     def get_queryset(self):
-        tenant = getattr(self.request, 'tenant', None)
-        qs = TenantChoiceOverride.objects.all().select_related('tenant', 'choice_list', 'updated_by')
+        tenant = getattr(self.request, "tenant", None)
+        qs = TenantChoiceOverride.objects.all().select_related("tenant", "choice_list", "updated_by")
 
         if self.request.user.is_superuser:
             return qs
@@ -557,11 +538,11 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
         return qs.filter(tenant=tenant)
 
     def perform_create(self, serializer):
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             from rest_framework.exceptions import ValidationError
 
-            raise ValidationError('Tenant context required.')
+            raise ValidationError("Tenant context required.")
 
         # RLS: ensure session vars are set on the active connection for this write.
         from apps.tenants.rls import set_current_tenant
@@ -578,10 +559,10 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
                 tenant=tenant,
                 request=self.request,
                 snapshot_after={
-                    'id': str(instance.id),
-                    'choice_list': str(instance.choice_list_id),
-                    'disabled_system_items': list(instance.disabled_system_items or []),
-                    'display_config': instance.display_config or {},
+                    "id": str(instance.id),
+                    "choice_list": str(instance.choice_list_id),
+                    "disabled_system_items": list(instance.disabled_system_items or []),
+                    "display_config": instance.display_config or {},
                 },
             )
         except Exception:
@@ -591,11 +572,11 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
             ActivityLog.log_activity(
                 tenant=tenant,
                 user=self.request.user,
-                action='optionlist.update',
-                description='Updated tenant choice list customizations.',
-                entity_type='TenantChoiceOverride',
+                action="optionlist.update",
+                description="Updated tenant choice list customizations.",
+                entity_type="TenantChoiceOverride",
                 entity_id=instance.id,
-                metadata={'choice_list': str(instance.choice_list_id)},
+                metadata={"choice_list": str(instance.choice_list_id)},
                 ip_address=_get_client_ip(self.request),
             )
         except Exception:
@@ -603,12 +584,12 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         instance = serializer.instance
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         snapshot_before = {
-            'id': str(instance.id),
-            'choice_list': str(instance.choice_list_id),
-            'disabled_system_items': list(instance.disabled_system_items or []),
-            'display_config': instance.display_config or {},
+            "id": str(instance.id),
+            "choice_list": str(instance.choice_list_id),
+            "disabled_system_items": list(instance.disabled_system_items or []),
+            "display_config": instance.display_config or {},
         }
 
         if tenant:
@@ -628,10 +609,10 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
                 request=self.request,
                 snapshot_before=snapshot_before,
                 snapshot_after={
-                    'id': str(updated.id),
-                    'choice_list': str(updated.choice_list_id),
-                    'disabled_system_items': list(updated.disabled_system_items or []),
-                    'display_config': updated.display_config or {},
+                    "id": str(updated.id),
+                    "choice_list": str(updated.choice_list_id),
+                    "disabled_system_items": list(updated.disabled_system_items or []),
+                    "display_config": updated.display_config or {},
                 },
             )
         except Exception:
@@ -642,11 +623,11 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
                 ActivityLog.log_activity(
                     tenant=tenant,
                     user=self.request.user,
-                    action='optionlist.update',
-                    description='Updated tenant choice list customizations.',
-                    entity_type='TenantChoiceOverride',
+                    action="optionlist.update",
+                    description="Updated tenant choice list customizations.",
+                    entity_type="TenantChoiceOverride",
                     entity_id=updated.id,
-                    metadata={'choice_list': str(updated.choice_list_id)},
+                    metadata={"choice_list": str(updated.choice_list_id)},
                     ip_address=_get_client_ip(self.request),
                 )
         except Exception:
@@ -656,25 +637,26 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
 class TenantConfigViewSet(viewsets.ModelViewSet):
     """
     ViewSet for TenantConfig.
-    
+
     Tenant admins can manage their own configurations.
     """
+
     serializer_class = TenantConfigSerializer
     permission_classes = [IsTenantAdminOrReadOnly]
-    
+
     def get_queryset(self):
-        tenant = getattr(self.request, 'tenant', None)
-        
+        tenant = getattr(self.request, "tenant", None)
+
         if self.request.user.is_superuser:
             return TenantConfig.objects.all()
-        
+
         if tenant:
             return TenantConfig.objects.filter(tenant=tenant)
-        
+
         return TenantConfig.objects.none()
-    
+
     def perform_create(self, serializer):
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             from rest_framework.exceptions import ValidationError
 
@@ -689,7 +671,7 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
                 user=self.request.user,
                 tenant=tenant,
                 request=self.request,
-                snapshot_after={'id': str(instance.id), 'key': instance.key, 'value': instance.value},
+                snapshot_after={"id": str(instance.id), "key": instance.key, "value": instance.value},
             )
         except Exception:
             pass
@@ -698,11 +680,11 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
             ActivityLog.log_activity(
                 tenant=tenant,
                 user=self.request.user,
-                action='config.update',
+                action="config.update",
                 description=f"Created config {instance.key}.",
-                entity_type='TenantConfig',
+                entity_type="TenantConfig",
                 entity_id=instance.id,
-                metadata={'key': instance.key},
+                metadata={"key": instance.key},
                 ip_address=_get_client_ip(self.request),
             )
         except Exception:
@@ -710,8 +692,8 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         instance = serializer.instance
-        tenant = getattr(self.request, 'tenant', None)
-        snapshot_before = {'id': str(instance.id), 'key': instance.key, 'value': instance.value}
+        tenant = getattr(self.request, "tenant", None)
+        snapshot_before = {"id": str(instance.id), "key": instance.key, "value": instance.value}
 
         updated = serializer.save(updated_by=self.request.user)
 
@@ -723,7 +705,7 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
                 tenant=tenant,
                 request=self.request,
                 snapshot_before=snapshot_before,
-                snapshot_after={'id': str(updated.id), 'key': updated.key, 'value': updated.value},
+                snapshot_after={"id": str(updated.id), "key": updated.key, "value": updated.value},
             )
         except Exception:
             pass
@@ -733,185 +715,179 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
                 ActivityLog.log_activity(
                     tenant=tenant,
                     user=self.request.user,
-                    action='config.update',
+                    action="config.update",
                     description=f"Updated config {updated.key}.",
-                    entity_type='TenantConfig',
+                    entity_type="TenantConfig",
                     entity_id=updated.id,
-                    metadata={'key': updated.key},
+                    metadata={"key": updated.key},
                     ip_address=_get_client_ip(self.request),
                 )
         except Exception:
             pass
-    
-    @action(detail=False, methods=['get'])
+
+    @action(detail=False, methods=["get"])
     def by_category(self, request):
         """Get configs grouped by category."""
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
             return Response({})
-        
+
         resolver = ConfigResolver(tenant=tenant)
         configs = resolver.get_all_tenant_configs()
-        
+
         # Group by first part of key
         grouped = {}
         for key, value in configs.items():
-            category = key.split('.')[0] if '.' in key else 'other'
+            category = key.split(".")[0] if "." in key else "other"
             if category not in grouped:
                 grouped[category] = {}
             grouped[category][key] = value
-        
+
         return Response(grouped)
 
 
 class ConfigResolverView(viewsets.ViewSet):
     """
     ViewSet for resolving configuration values.
-    
+
     GET /api/v1/system/config/resolve/?key=ui.theme.primary_color
     GET /api/v1/system/config/choices/{slug}/
     """
+
     permission_classes = [permissions.IsAuthenticated]
-    
-    @action(detail=False, methods=['get'])
+
+    @action(detail=False, methods=["get"])
     def resolve(self, request):
         """Resolve a configuration value with cascading."""
-        key = request.query_params.get('key')
-        default = request.query_params.get('default')
-        
+        key = request.query_params.get("key")
+        default = request.query_params.get("default")
+
         if not key:
-            return Response(
-                {'error': 'key parameter required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        tenant = getattr(request, 'tenant', None)
+            return Response({"error": "key parameter required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        tenant = getattr(request, "tenant", None)
         resolver = ConfigResolver(tenant=tenant)
         value = resolver.get(key, default=default)
-        
-        return Response({'key': key, 'value': value})
-    
-    @action(detail=False, methods=['get'], url_path='choices/(?P<slug>[^/.]+)')
+
+        return Response({"key": key, "value": value})
+
+    @action(detail=False, methods=["get"], url_path="choices/(?P<slug>[^/.]+)")
     def choices(self, request, slug=None):
         """Get choice items for a dropdown field."""
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         resolver = ConfigResolver(tenant=tenant)
         return Response(_resolve_choices_for_slug(resolver, slug))
-    
-    @action(detail=False, methods=['get'], url_path='field-schema/(?P<field_path>.+)')
+
+    @action(detail=False, methods=["get"], url_path="field-schema/(?P<field_path>.+)")
     def field_schema(self, request, field_path=None):
         """Get field schema configuration."""
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         resolver = ConfigResolver(tenant=tenant)
-        
+
         schema = resolver.get_field_schema(field_path)
         if schema:
             return Response(schema)
-        return Response(
-            {'error': f'No schema found for {field_path}'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"error": f"No schema found for {field_path}"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class ConfigAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Read-only ViewSet for ConfigAuditLog.
-    
+
     Provides audit trail viewing with filtering capabilities.
     Only accessible to staff users or tenant admins.
-    
+
     GET /api/v1/system/audit-logs/ - List audit logs
     GET /api/v1/system/audit-logs/{id}/ - Get single log entry
     GET /api/v1/system/audit-logs/summary/ - Get summary statistics
     """
+
     permission_classes = [IsTenantAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['entity_type', 'change_type', 'user']
-    search_fields = ['entity_name', 'user_email', 'notes']
-    ordering_fields = ['created_at', 'entity_type', 'change_type']
-    ordering = ['-created_at']
-    
+    filterset_fields = ["entity_type", "change_type", "user"]
+    search_fields = ["entity_name", "user_email", "notes"]
+    ordering_fields = ["created_at", "entity_type", "change_type"]
+    ordering = ["-created_at"]
+
     def get_queryset(self):
         """Filter audit logs by tenant context."""
-        tenant = getattr(self.request, 'tenant', None)
-        
+        tenant = getattr(self.request, "tenant", None)
+
         if self.request.user.is_superuser:
             # Superusers can see all logs
             qs = ConfigAuditLog.objects.all()
         elif tenant:
             # Tenant admins see their tenant's logs + system-level logs
-            qs = ConfigAuditLog.objects.filter(
-                Q(tenant=tenant) | Q(tenant__isnull=True)
-            )
+            qs = ConfigAuditLog.objects.filter(Q(tenant=tenant) | Q(tenant__isnull=True))
         else:
             # No tenant context - only system-level logs
             qs = ConfigAuditLog.objects.filter(tenant__isnull=True)
-        
+
         # Apply date filters from query params
-        date_from = self.request.query_params.get('date_from')
-        date_to = self.request.query_params.get('date_to')
-        
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
+
         if date_from:
             qs = qs.filter(created_at__gte=date_from)
         if date_to:
             qs = qs.filter(created_at__lte=date_to)
-        
-        return qs.select_related('user', 'tenant')
-    
+
+        return qs.select_related("user", "tenant")
+
     def get_serializer_class(self):
         """Use summary serializer for list, full serializer for detail."""
-        if self.action == 'list':
+        if self.action == "list":
             return ConfigAuditLogSummarySerializer
         return ConfigAuditLogSerializer
-    
-    @action(detail=False, methods=['get'])
+
+    @action(detail=False, methods=["get"])
     def summary(self, request):
         """Get summary statistics for audit logs."""
         qs = self.get_queryset()
-        
+
         # Count by entity type
         from django.db.models import Count
-        by_entity = qs.values('entity_type').annotate(count=Count('id')).order_by('-count')
-        
+
+        by_entity = qs.values("entity_type").annotate(count=Count("id")).order_by("-count")
+
         # Count by change type
-        by_change = qs.values('change_type').annotate(count=Count('id')).order_by('-count')
-        
+        by_change = qs.values("change_type").annotate(count=Count("id")).order_by("-count")
+
         # Count by user
-        by_user = qs.values('user_email').annotate(count=Count('id')).order_by('-count')[:10]
-        
+        by_user = qs.values("user_email").annotate(count=Count("id")).order_by("-count")[:10]
+
         # Recent activity
         recent = qs[:5]
-        
-        return Response({
-            'total_count': qs.count(),
-            'by_entity_type': list(by_entity),
-            'by_change_type': list(by_change),
-            'by_user': list(by_user),
-            'recent': ConfigAuditLogSummarySerializer(recent, many=True).data,
-        })
-    
-    @action(detail=False, methods=['get'])
+
+        return Response(
+            {
+                "total_count": qs.count(),
+                "by_entity_type": list(by_entity),
+                "by_change_type": list(by_change),
+                "by_user": list(by_user),
+                "recent": ConfigAuditLogSummarySerializer(recent, many=True).data,
+            }
+        )
+
+    @action(detail=False, methods=["get"])
     def entity_history(self, request):
         """Get history for a specific entity."""
-        entity_type = request.query_params.get('entity_type')
-        entity_name = request.query_params.get('entity_name')
-        object_id = request.query_params.get('object_id')
-        
+        entity_type = request.query_params.get("entity_type")
+        entity_name = request.query_params.get("entity_name")
+        object_id = request.query_params.get("object_id")
+
         if not (entity_type or object_id):
-            return Response(
-                {'error': 'entity_type or object_id required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "entity_type or object_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
         qs = self.get_queryset()
-        
+
         if entity_type:
             qs = qs.filter(entity_type=entity_type)
         if entity_name:
             qs = qs.filter(entity_name__icontains=entity_name)
         if object_id:
             qs = qs.filter(object_id=object_id)
-        
+
         serializer = ConfigAuditLogSerializer(qs[:50], many=True)
         return Response(serializer.data)
 
@@ -928,64 +904,51 @@ class EntityIntrospectionViewSet(viewsets.ViewSet):
     """
 
     # Allow dots in the entity id URL segment (DRF DefaultRouter uses this regex)
-    lookup_value_regex = r'[^/]+'
+    lookup_value_regex = r"[^/]+"
 
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def list(self, request):
         """
         List all business entities from tenant_apps.
-        
+
         Returns entity metadata including field counts and descriptions.
         """
         entities = get_entity_models()
-        return Response({
-            'count': len(entities),
-            'results': entities
-        })
-    
-    @action(detail=True, methods=['get'], url_path='fields')
+        return Response({"count": len(entities), "results": entities})
+
+    @action(detail=True, methods=["get"], url_path="fields")
     def fields(self, request, pk=None):
         """
         Get field definitions for a specific entity.
-        
+
         Args:
             pk: Entity ID (e.g., 'suppliers.supplier')
-            
+
         Returns:
             List of field definitions with types, validation rules, etc.
         """
         fields = get_entity_fields(pk)
-        
+
         if not fields:
-            return Response(
-                {'error': f'Entity not found: {pk}'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        return Response({
-            'entity_id': pk,
-            'field_count': len(fields),
-            'fields': fields
-        })
-    
-    @action(detail=True, methods=['get'], url_path='display-fields')
+            return Response({"error": f"Entity not found: {pk}"}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"entity_id": pk, "field_count": len(fields), "fields": fields})
+
+    @action(detail=True, methods=["get"], url_path="display-fields")
     def display_fields(self, request, pk=None):
         """
         Get recommended display fields for entity lookups.
-        
+
         Args:
             pk: Entity ID (e.g., 'suppliers.supplier')
-            
+
         Returns:
             List of field names suitable for display in lookups
         """
         display_fields = get_entity_display_fields(pk)
-        
-        return Response({
-            'entity_id': pk,
-            'display_fields': display_fields
-        })
+
+        return Response({"entity_id": pk, "display_fields": display_fields})
 
 
 class SystemChoicesAPIView(APIView):
@@ -1001,16 +964,16 @@ class SystemChoicesAPIView(APIView):
 
     def get(self, request):
         list_slug = (
-            request.query_params.get('list')
-            or request.query_params.get('slug')
-            or request.query_params.get('choice_type')
+            request.query_params.get("list")
+            or request.query_params.get("slug")
+            or request.query_params.get("choice_type")
         )
         if not list_slug:
             return Response(
-                {'error': 'list parameter required'},
+                {"error": "list parameter required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         resolver = ConfigResolver(tenant=tenant)
         return Response(_resolve_choices_for_slug(resolver, list_slug), status=status.HTTP_200_OK)

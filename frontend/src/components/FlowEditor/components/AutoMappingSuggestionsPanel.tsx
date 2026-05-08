@@ -1,21 +1,21 @@
 /**
  * AutoMappingSuggestions Component
- * 
+ *
  * Displays field mapping suggestions and allows users to accept/reject them.
  * Part of Smart Auto-Map Phase 3 implementation.
- * 
+ *
  * Created: 2026-03-04 - Smart Auto-Map Phase 3
  */
 
 import React from 'react';
 import styled from 'styled-components';
 import { Button, Spin, Alert, Tag, Tooltip } from 'antd';
-import { 
-  CheckOutlined, 
-  CloseOutlined, 
+import {
+  CheckOutlined,
+  CloseOutlined,
   ThunderboltOutlined,
   LinkOutlined,
-  InfoCircleOutlined 
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import { FieldMappingSuggestion } from '../utils/autoMappingService';
 
@@ -59,19 +59,19 @@ const SuggestionCard = styled.div<{ $score: number }>`
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem;
-  background: ${props => 
-    props.$score >= 0.9 
-      ? 'rgba(var(--color-success), 0.05)' 
+  background: ${props =>
+    props.$score >= 0.9
+      ? 'rgba(var(--color-success), 0.05)'
       : 'rgb(var(--color-background-secondary))'
   };
-  border: 1px solid ${props => 
-    props.$score >= 0.9 
-      ? 'rgba(var(--color-success), 0.2)' 
+  border: 1px solid ${props =>
+    props.$score >= 0.9
+      ? 'rgba(var(--color-success), 0.2)'
       : 'rgb(var(--color-border))'
   };
   border-radius: var(--radius-sm);
   transition: all 0.2s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
@@ -162,7 +162,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
 }) => {
   const autoSuggestions = suggestions.filter(s => s.autoApply);
   const manualSuggestions = suggestions.filter(s => !s.autoApply);
-  
+
   const getMatchReasonLabel = (reason: FieldMappingSuggestion['matchReason']) => {
     switch (reason) {
       case 'exact_name':
@@ -177,7 +177,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
         return 'Match';
     }
   };
-  
+
   const getMatchReasonColor = (reason: FieldMappingSuggestion['matchReason']) => {
     switch (reason) {
       case 'exact_name':
@@ -192,7 +192,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
         return 'default';
     }
   };
-  
+
   if (loading) {
     return (
       <Container>
@@ -202,7 +202,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
       </Container>
     );
   }
-  
+
   if (error) {
     return (
       <Container>
@@ -215,7 +215,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
       </Container>
     );
   }
-  
+
   if (suggestions.length === 0) {
     return (
       <Container>
@@ -229,7 +229,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
       </Container>
     );
   }
-  
+
   return (
     <Container>
       <Header>
@@ -244,7 +244,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
           <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} />
         )}
       </Header>
-      
+
       <SuggestionsList>
         {suggestions.map(suggestion => (
           <SuggestionCard key={suggestion.id} $score={suggestion.matchScore}>
@@ -255,7 +255,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
                 <FieldName>{suggestion.sourceFieldName}</FieldName>
                 <FieldLabel>({suggestion.sourceFieldLabel})</FieldLabel>
               </FieldMapping>
-              
+
               <MatchInfo>
                 <Tag color={getMatchReasonColor(suggestion.matchReason)} style={{ fontSize: '0.7rem' }}>
                   {getMatchReasonLabel(suggestion.matchReason)}
@@ -270,7 +270,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
                 )}
               </MatchInfo>
             </SuggestionContent>
-            
+
             <Actions>
               <Button
                 type="primary"
@@ -299,7 +299,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
           </SuggestionCard>
         ))}
       </SuggestionsList>
-      
+
       {autoSuggestions.length > 0 && onApplyAll && (
         <Footer>
           <InfoText>

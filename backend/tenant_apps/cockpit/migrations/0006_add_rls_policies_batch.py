@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cockpit", "0005_activitylog_custom_data_scheduledcall_custom_data_and_more"),
     ]
@@ -16,14 +15,14 @@ class Migration(migrations.Migration):
             sql="""
             -- Enable RLS on cockpit_activitylog
             ALTER TABLE cockpit_activitylog ENABLE ROW LEVEL SECURITY;
-            
+
             -- Create tenant isolation policy for ActivityLog
             CREATE POLICY cockpit_activitylog_tenant_isolation ON cockpit_activitylog
                 USING (tenant_id = current_setting('app.current_tenant')::uuid);
-                
+
             -- Enable RLS on cockpit_scheduledcall
             ALTER TABLE cockpit_scheduledcall ENABLE ROW LEVEL SECURITY;
-            
+
             -- Create tenant isolation policy for ScheduledCall
             CREATE POLICY cockpit_scheduledcall_tenant_isolation ON cockpit_scheduledcall
                 USING (tenant_id = current_setting('app.current_tenant')::uuid);
@@ -33,6 +32,6 @@ class Migration(migrations.Migration):
             ALTER TABLE cockpit_activitylog DISABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS cockpit_scheduledcall_tenant_isolation ON cockpit_scheduledcall;
             ALTER TABLE cockpit_scheduledcall DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

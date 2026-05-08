@@ -38,10 +38,7 @@ from typing import Any
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from tenant_apps.workflows.models import (
-    UserNotification,
-    UserNotificationPreferences,
-)
+from tenant_apps.workflows.models import UserNotification, UserNotificationPreferences
 
 logger = logging.getLogger("trade")
 User = get_user_model()
@@ -301,7 +298,9 @@ def _resolve_target_users(
             contacts = Contact.objects.filter(
                 **filters,
                 department=target_department,
-            ).select_related("user")[:5]
+            ).select_related(
+                "user"
+            )[:5]
 
             users = [c.user for c in contacts if getattr(c, "user", None)]
             if users:
@@ -316,9 +315,7 @@ def _resolve_target_users(
 def _should_send_email(*, user: Any, tenant: Any, notification_type: str) -> bool:
     """Check if user preferences allow email for this notification type."""
     try:
-        prefs = UserNotificationPreferences.objects.filter(
-            user=user, tenant=tenant
-        ).first()
+        prefs = UserNotificationPreferences.objects.filter(user=user, tenant=tenant).first()
 
         if not prefs:
             return True  # Default: send emails

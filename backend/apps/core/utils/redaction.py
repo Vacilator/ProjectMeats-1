@@ -28,8 +28,7 @@ HEADER_ASSIGNMENT_RE = re.compile(
     re.IGNORECASE,
 )
 QUERY_ASSIGNMENT_RE = re.compile(
-    r"(?P<key>token|access_token|refresh_token|api_key|password|secret)"
-    r"(?P<sep>=)(?P<value>[^&\s]+)",
+    r"(?P<key>token|access_token|refresh_token|api_key|password|secret)" r"(?P<sep>=)(?P<value>[^&\s]+)",
     re.IGNORECASE,
 )
 
@@ -148,10 +147,7 @@ class RedactingLogFilter(logging.Filter):
         record.msg = sanitize_data(record.msg)
 
         if isinstance(record.args, Mapping):
-            record.args = {
-                key: sanitize_data(value)
-                for key, value in record.args.items()
-            }
+            record.args = {key: sanitize_data(value) for key, value in record.args.items()}
         elif isinstance(record.args, tuple):
             record.args = tuple(sanitize_data(value) for value in record.args)
         elif record.args:

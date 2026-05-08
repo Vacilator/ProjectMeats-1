@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -67,15 +66,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "content",
-                    models.TextField(
-                        help_text="Activity note content (supports multiline text)"
-                    ),
+                    models.TextField(help_text="Activity note content (supports multiline text)"),
                 ),
                 (
                     "is_pinned",
-                    models.BooleanField(
-                        default=False, help_text="Pin important notes to top of feed"
-                    ),
+                    models.BooleanField(default=False, help_text="Pin important notes to top of feed"),
                 ),
                 (
                     "tags",
@@ -163,9 +158,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "description",
-                    models.TextField(
-                        blank=True, default="", help_text="Call notes/agenda"
-                    ),
+                    models.TextField(blank=True, default="", help_text="Call notes/agenda"),
                 ),
                 (
                     "scheduled_for",
@@ -173,21 +166,15 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "duration_minutes",
-                    models.PositiveIntegerField(
-                        default=30, help_text="Expected call duration in minutes"
-                    ),
+                    models.PositiveIntegerField(default=30, help_text="Expected call duration in minutes"),
                 ),
                 (
                     "is_completed",
-                    models.BooleanField(
-                        default=False, help_text="Has this call been completed?"
-                    ),
+                    models.BooleanField(default=False, help_text="Has this call been completed?"),
                 ),
                 (
                     "completed_at",
-                    models.DateTimeField(
-                        blank=True, help_text="When was this call completed?", null=True
-                    ),
+                    models.DateTimeField(blank=True, help_text="When was this call completed?", null=True),
                 ),
                 (
                     "activity_log",
@@ -247,9 +234,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="activitylog",
-            index=models.Index(
-                fields=["tenant", "-created_on"], name="cockpit_act_tenant__c2e219_idx"
-            ),
+            index=models.Index(fields=["tenant", "-created_on"], name="cockpit_act_tenant__c2e219_idx"),
         ),
         migrations.AddIndex(
             model_name="activitylog",
@@ -267,9 +252,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="scheduledcall",
-            index=models.Index(
-                fields=["tenant", "is_completed"], name="cockpit_sch_tenant__5a45d6_idx"
-            ),
+            index=models.Index(fields=["tenant", "is_completed"], name="cockpit_sch_tenant__5a45d6_idx"),
         ),
         migrations.AddIndex(
             model_name="scheduledcall",

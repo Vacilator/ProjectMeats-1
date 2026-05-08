@@ -133,7 +133,7 @@ To disable these jobs without restoring the original workflows, modify `main-pip
 
 ---
 
-**Last Updated**: December 29, 2025  
-**Archive Policy**: Keep archived workflows for 90 days, then consider permanent deletion  
-**Review Cycle**: Quarterly review of archived workflows  
+**Last Updated**: December 29, 2025
+**Archive Policy**: Keep archived workflows for 90 days, then consider permanent deletion
+**Review Cycle**: Quarterly review of archived workflows
 **Active Workflows**: 4 (main-pipeline, reusable-deploy, ops-command, auto-pr)

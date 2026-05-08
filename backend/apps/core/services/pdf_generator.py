@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from io import BytesIO
 from typing import Iterable
 
 from django.apps import apps
 from django.core.mail import EmailMessage
 from django.utils import timezone
+
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import letter
@@ -187,12 +188,19 @@ def _document_sections(instance) -> list[tuple[str, list[tuple[str, str]]]]:
         ("Status", _string_value(getattr(instance, "get_status_display", lambda: getattr(instance, "status", ""))())),
         ("Supplier", _related_label(getattr(instance, "supplier", None))),
         ("Customer", _related_label(getattr(instance, "customer", None))),
-        ("Carrier", _related_label(getattr(instance, "carrier", None)) or _string_value(getattr(instance, "carrier_name", ""))),
+        (
+            "Carrier",
+            _related_label(getattr(instance, "carrier", None)) or _string_value(getattr(instance, "carrier_name", "")),
+        ),
         ("Purchase Order", _related_label(getattr(instance, "linked_order", None))),
         ("Sales Order", _related_label(getattr(instance, "sales_order", None))),
         ("Total Amount", _string_value(getattr(instance, "total_amount", ""))),
         ("Payment Terms", _string_value(getattr(instance, "payment_terms", ""))),
-        ("Credit Limit", _string_value(getattr(instance, "credit_limit", "")) or _string_value(getattr(instance, "credit_limits", ""))),
+        (
+            "Credit Limit",
+            _string_value(getattr(instance, "credit_limit", ""))
+            or _string_value(getattr(instance, "credit_limits", "")),
+        ),
     ]
     sections.append(("General Information", general_rows))
 
@@ -203,48 +211,83 @@ def _document_sections(instance) -> list[tuple[str, list[tuple[str, str]]]]:
         ("Pickup Location", _related_label(getattr(instance, "pick_up_location", None))),
         ("Delivery Location", _related_label(getattr(instance, "delivery_location", None))),
         ("Carrier Release Format", _string_value(getattr(instance, "carrier_release_format", ""))),
-        ("Carrier Release Number", _string_value(getattr(instance, "carrier_release_number", "")) or _string_value(getattr(instance, "carrier_release_num", ""))),
-        ("Appointment Method", _string_value(getattr(instance, "how_to_make_appointment", "")) or _string_value(getattr(instance, "how_carrier_make_appointment", ""))),
+        (
+            "Carrier Release Number",
+            _string_value(getattr(instance, "carrier_release_number", ""))
+            or _string_value(getattr(instance, "carrier_release_num", "")),
+        ),
+        (
+            "Appointment Method",
+            _string_value(getattr(instance, "how_to_make_appointment", ""))
+            or _string_value(getattr(instance, "how_carrier_make_appointment", "")),
+        ),
     ]
     sections.append(("Logistics", logistics_rows))
 
     contacts_rows = [
-        ("Billing Contact", _join_parts(getattr(instance, "billing_contact_name", ""), getattr(instance, "billing_contact_title", ""))),
+        (
+            "Billing Contact",
+            _join_parts(getattr(instance, "billing_contact_name", ""), getattr(instance, "billing_contact_title", "")),
+        ),
         ("Billing Phone", _string_value(getattr(instance, "billing_contact_phone", ""))),
         ("Billing Email", _string_value(getattr(instance, "billing_contact_email", ""))),
-        ("AP Contact", _join_parts(getattr(instance, "accounting_payable_contact_name", ""), getattr(instance, "accounting_payable_contact_title", ""))),
+        (
+            "AP Contact",
+            _join_parts(
+                getattr(instance, "accounting_payable_contact_name", ""),
+                getattr(instance, "accounting_payable_contact_title", ""),
+            ),
+        ),
         ("AP Phone", _string_value(getattr(instance, "accounting_payable_contact_phone", ""))),
         ("AP Email", _string_value(getattr(instance, "accounting_payable_contact_email", ""))),
-        ("Shipping Contact", _join_parts(getattr(instance, "shipping_contact_name", ""), getattr(instance, "shipping_contact_title", ""))),
+        (
+            "Shipping Contact",
+            _join_parts(
+                getattr(instance, "shipping_contact_name", ""), getattr(instance, "shipping_contact_title", "")
+            ),
+        ),
         ("Shipping Phone", _string_value(getattr(instance, "shipping_contact_phone", ""))),
         ("Shipping Email", _string_value(getattr(instance, "shipping_contact_email", ""))),
     ]
     sections.append(("Contacts", contacts_rows))
 
     address_rows = [
-        ("Billing Address", _join_parts(
-            getattr(instance, "billing_address_street", ""),
-            getattr(instance, "billing_address_city", ""),
-            getattr(instance, "billing_address_state_zip", ""),
-            getattr(instance, "billing_building_name", ""),
-        )),
-        ("Shipping Address", _join_parts(
-            getattr(instance, "shipping_address_street", ""),
-            getattr(instance, "shipping_address_city", ""),
-            getattr(instance, "shipping_address_state_zip", ""),
-            getattr(instance, "shipping_building_name", ""),
-        )),
+        (
+            "Billing Address",
+            _join_parts(
+                getattr(instance, "billing_address_street", ""),
+                getattr(instance, "billing_address_city", ""),
+                getattr(instance, "billing_address_state_zip", ""),
+                getattr(instance, "billing_building_name", ""),
+            ),
+        ),
+        (
+            "Shipping Address",
+            _join_parts(
+                getattr(instance, "shipping_address_street", ""),
+                getattr(instance, "shipping_address_city", ""),
+                getattr(instance, "shipping_address_state_zip", ""),
+                getattr(instance, "shipping_building_name", ""),
+            ),
+        ),
     ]
     sections.append(("Addresses", address_rows))
 
     product_rows = [
         ("Product", _related_label(getattr(instance, "product", None))),
         ("Protein", _string_value(getattr(instance, "type_of_protein", ""))),
-        ("Description", _string_value(getattr(instance, "item_description", "")) or _string_value(getattr(instance, "description_of_product_item", ""))),
+        (
+            "Description",
+            _string_value(getattr(instance, "item_description", ""))
+            or _string_value(getattr(instance, "description_of_product_item", "")),
+        ),
         ("Fresh / Frozen", _string_value(getattr(instance, "fresh_or_frozen", ""))),
         ("Package Type", _string_value(getattr(instance, "package_type", ""))),
         ("Quantity", _string_value(getattr(instance, "quantity", ""))),
-        ("Weight", format_trade_weight(getattr(instance, "total_weight", None), getattr(instance, "weight_unit", None))),
+        (
+            "Weight",
+            format_trade_weight(getattr(instance, "total_weight", None), getattr(instance, "weight_unit", None)),
+        ),
     ]
     sections.append(("Product Summary", product_rows))
     return sections
@@ -312,7 +355,16 @@ def _build_line_items_table(items: list[dict[str, str]]) -> Table:
 
     table = Table(
         data,
-        colWidths=[0.45 * inch, 0.85 * inch, 2.05 * inch, 0.85 * inch, 0.9 * inch, 0.45 * inch, 0.5 * inch, 0.75 * inch],
+        colWidths=[
+            0.45 * inch,
+            0.85 * inch,
+            2.05 * inch,
+            0.85 * inch,
+            0.9 * inch,
+            0.45 * inch,
+            0.5 * inch,
+            0.75 * inch,
+        ],
         repeatRows=1,
     )
     table.setStyle(
@@ -334,7 +386,15 @@ def _build_line_items_table(items: list[dict[str, str]]) -> Table:
 def _related_label(value) -> str:
     if value is None:
         return ""
-    for attr in ("name", "title", "product_code", "order_number", "our_sales_order_num", "invoice_number", "our_carrier_po_num"):
+    for attr in (
+        "name",
+        "title",
+        "product_code",
+        "order_number",
+        "our_sales_order_num",
+        "invoice_number",
+        "our_carrier_po_num",
+    ):
         attr_value = getattr(value, attr, None)
         if attr_value:
             return _string_value(attr_value)

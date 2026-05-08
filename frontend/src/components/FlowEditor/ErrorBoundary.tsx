@@ -1,16 +1,16 @@
 /**
  * Error Boundary Component
- * 
+ *
  * Catches React errors in child components and displays fallback UI.
  * Prevents entire app from crashing when a single component fails.
- * 
+ *
  * Usage:
  * <ErrorBoundary fallback={<ErrorPanel />}>
  *   <ComponentThatMightError />
  * </ErrorBoundary>
- * 
+ *
  * Created: 2026-02-21 - Comprehensive Enhancements
- * 
+ *
  * @module ErrorBoundary
  */
 
@@ -63,7 +63,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { componentName = 'Unknown', onError } = this.props;
-    
+
     logger.error(`[ErrorBoundary] Error in ${componentName}:`, {
       error,
       errorInfo,
@@ -74,7 +74,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       error,
       errorInfo,
     });
-    
+
     // Send to Sentry for production monitoring
     if (typeof window !== 'undefined' && window.ENV?.SENTRY_DSN) {
       const Sentry = require('@sentry/react');
@@ -117,9 +117,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <ErrorIcon>
             <AlertTriangle size={48} />
           </ErrorIcon>
-          
+
           <ErrorTitle>{componentName} Error</ErrorTitle>
-          
+
           <ErrorMessage>
             {error?.message || 'An unexpected error occurred'}
           </ErrorMessage>
@@ -203,7 +203,7 @@ const DetailsHeader = styled.div`
   color: rgb(var(--color-text-tertiary));
   text-transform: uppercase;
   margin: 16px 0 8px 0;
-  
+
   &:first-child {
     margin-top: 0;
   }
@@ -238,11 +238,11 @@ const ResetButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-primary-hover));
   }
-  
+
   &:active {
     transform: translateY(1px);
   }

@@ -53,4 +53,3 @@
   // CRITICAL: Runs your idempotent multi-tenant migrations
   "postCreateCommand": "bash .devcontainer/setup.sh"
 }
-

@@ -1,6 +1,6 @@
 /**
  * WorkflowRunner Page
- * 
+ *
  * Container page for executing workflows.
  * Manages workflow state and renders the DynamicFormEngine.
  */
@@ -166,7 +166,7 @@ export const WorkflowRunner: React.FC = () => {
       // Fetch the current step schema
       // For simplicity, we'll construct it from the workflow run data
       // In production, you'd have an endpoint to get the current step schema
-      
+
       // Note: Full step schema API integration planned for Wave 4 (Admin Studio)
       // Currently using placeholder with data from workflow run
       setCurrentSchema({

@@ -1,9 +1,9 @@
 /**
  * Expression Input Component
- * 
+ *
  * Input field for expressions with visual variable chips.
  * Features: Clickable chips, delete-as-unit, syntax highlighting.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 5 - Smart Features
  */
@@ -46,12 +46,12 @@ const Container = styled.div`
 const InputWrapper = styled.div<{ focused: boolean; disabled?: boolean }>`
   min-height: 42px;
   padding: 8px 12px;
-  border: 1px solid ${props => props.focused 
-    ? 'rgb(var(--color-primary))' 
+  border: 1px solid ${props => props.focused
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: 8px;
-  background: ${props => props.disabled 
-    ? 'rgb(var(--color-surface-hover))' 
+  background: ${props => props.disabled
+    ? 'rgb(var(--color-surface-hover))'
     : 'rgb(var(--color-surface))'};
   display: flex;
   flex-wrap: wrap;
@@ -59,10 +59,10 @@ const InputWrapper = styled.div<{ focused: boolean; disabled?: boolean }>`
   gap: 6px;
   cursor: ${props => props.disabled ? 'not-allowed' : 'text'};
   transition: border-color 0.2s;
-  
+
   &:hover {
-    border-color: ${props => props.disabled 
-      ? 'rgb(var(--color-border))' 
+    border-color: ${props => props.disabled
+      ? 'rgb(var(--color-border))'
       : 'rgb(var(--color-primary))'};
   }
 `;
@@ -72,11 +72,11 @@ const ChipElement = styled.div<{ selected?: boolean }>`
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: ${props => props.selected 
-    ? 'rgb(var(--color-primary))' 
+  background: ${props => props.selected
+    ? 'rgb(var(--color-primary))'
     : 'rgba(var(--color-primary), 0.15)'};
-  color: ${props => props.selected 
-    ? 'rgb(var(--color-text-inverse))' 
+  color: ${props => props.selected
+    ? 'rgb(var(--color-text-inverse))'
     : 'rgb(var(--color-primary))'};
   border-radius: 4px;
   font-size: 13px;
@@ -85,7 +85,7 @@ const ChipElement = styled.div<{ selected?: boolean }>`
   cursor: pointer;
   transition: all 0.2s;
   user-select: none;
-  
+
   &:hover {
     background: rgb(var(--color-primary));
     color: rgb(var(--color-text-inverse));
@@ -102,7 +102,7 @@ const ChipRemoveButton = styled.button`
   align-items: center;
   color: inherit;
   opacity: 0.7;
-  
+
   &:hover {
     opacity: 1;
   }
@@ -117,12 +117,12 @@ const HiddenInput = styled.input`
   font-size: 14px;
   font-family: 'Courier New', monospace;
   outline: none;
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
     font-family: inherit;
   }
-  
+
   &:disabled {
     cursor: not-allowed;
   }
@@ -138,7 +138,7 @@ const SyntaxHelper = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  
+
   svg {
     flex-shrink: 0;
     margin-top: 2px;
@@ -167,11 +167,11 @@ const parseExpression = (expression: string, variables: Variable[]): Chip[] => {
   const chips: Chip[] = [];
   const regex = /\{\{([^}]+)\}\}/g;
   let match;
-  
+
   while ((match = regex.exec(expression)) !== null) {
     const path = match[1];
     const variable = variables.find(v => v.path === path);
-    
+
     if (variable) {
       chips.push({
         id: `${variable.id}-${match.index}`,
@@ -181,7 +181,7 @@ const parseExpression = (expression: string, variables: Variable[]): Chip[] => {
       });
     }
   }
-  
+
   return chips;
 };
 
@@ -200,15 +200,15 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
   const [focused, setFocused] = useState(false);
   const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   // Parse chips from value
   const chips = parseExpression(value, variables);
-  
+
   // Get display parts (text + chips)
   const getDisplayParts = () => {
     const parts: Array<{ type: 'text' | 'chip'; content: string | Chip }> = [];
     let lastIndex = 0;
-    
+
     chips.forEach(chip => {
       // Add text before chip
       if (chip.startIndex > lastIndex) {
@@ -217,16 +217,16 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
           content: value.substring(lastIndex, chip.startIndex)
         });
       }
-      
+
       // Add chip
       parts.push({
         type: 'chip',
         content: chip
       });
-      
+
       lastIndex = chip.endIndex;
     });
-    
+
     // Add remaining text
     if (lastIndex < value.length) {
       parts.push({
@@ -234,10 +234,10 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
         content: value.substring(lastIndex)
       });
     }
-    
+
     return parts;
   };
-  
+
   // Handle chip click
   const handleChipClick = (chip: Chip) => {
     setSelectedChipId(chip.id);
@@ -245,7 +245,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       onVariableClick(chip.variable);
     }
   };
-  
+
   // Handle chip remove
   const handleChipRemove = (chip: Chip, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -253,19 +253,19 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
     onChange(newValue);
     setSelectedChipId(null);
   };
-  
+
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
   };
-  
+
   // Focus input when container clicked
   const handleContainerClick = () => {
     if (!disabled) {
       inputRef.current?.focus();
     }
   };
-  
+
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Delete selected chip with backspace
@@ -278,9 +278,9 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       }
     }
   };
-  
+
   const displayParts = getDisplayParts();
-  
+
   return (
     <Container>
       <InputWrapper
@@ -307,11 +307,11 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
               </ChipElement>
             );
           }
-          
+
           // For text parts, show in hidden input
           return null;
         })}
-        
+
         <HiddenInput
           ref={inputRef}
           type="text"
@@ -324,7 +324,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
           disabled={disabled}
         />
       </InputWrapper>
-      
+
       {showSyntaxHelper && (
         <SyntaxHelper>
           <Code size={14} />

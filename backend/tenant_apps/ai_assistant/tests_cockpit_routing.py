@@ -38,15 +38,11 @@ class InferFormTypeTest(TestCase):
         self.assertEqual(result, FORM_TYPE_PURCHASE_ORDER)
 
     def test_line_items_with_price_means_bid(self):
-        result = infer_form_type({
-            "line_items": [{"quantity": "40000", "unit_price": "5.50"}]
-        })
+        result = infer_form_type({"line_items": [{"quantity": "40000", "unit_price": "5.50"}]})
         self.assertEqual(result, FORM_TYPE_BID)
 
     def test_line_items_without_price_means_inquiry(self):
-        result = infer_form_type({
-            "line_items": [{"quantity": "40000", "unit_of_measure": "LBS"}]
-        })
+        result = infer_form_type({"line_items": [{"quantity": "40000", "unit_of_measure": "LBS"}]})
         self.assertEqual(result, FORM_TYPE_INQUIRY)
 
     def test_empty_means_unknown(self):
@@ -54,10 +50,12 @@ class InferFormTypeTest(TestCase):
         self.assertEqual(result, FORM_TYPE_UNKNOWN)
 
     def test_po_takes_priority_over_line_items(self):
-        result = infer_form_type({
-            "po_numbers": ["123"],
-            "line_items": [{"quantity": "100", "unit_price": "10"}],
-        })
+        result = infer_form_type(
+            {
+                "po_numbers": ["123"],
+                "line_items": [{"quantity": "100", "unit_price": "10"}],
+            }
+        )
         self.assertEqual(result, FORM_TYPE_PURCHASE_ORDER)
 
 
@@ -92,9 +90,7 @@ class CreateDraftFromFeedbackTest(TestCase):
         from apps.tenants.models import Tenant
 
         self.tenant = Tenant.objects.create(name="Draft Test Tenant", slug="draft-test-tenant")
-        self.user = User.objects.create_user(
-            username="draft_user", email="draft@test.com", password="testpass"
-        )
+        self.user = User.objects.create_user(username="draft_user", email="draft@test.com", password="testpass")
         self.feedback = AIFeedbackLog.objects.create(
             tenant=self.tenant,
             document_id=uuid.uuid4(),
@@ -109,9 +105,7 @@ class CreateDraftFromFeedbackTest(TestCase):
         )
 
     def test_creates_draft_successfully(self):
-        draft = create_draft_from_feedback(
-            tenant=self.tenant, feedback_row=self.feedback, user=self.user
-        )
+        draft = create_draft_from_feedback(tenant=self.tenant, feedback_row=self.feedback, user=self.user)
         self.assertIsNotNone(draft.pk)
         self.assertEqual(draft.form_type, FORM_TYPE_PURCHASE_ORDER)
         self.assertEqual(draft.status, CockpitDraftStatus.PENDING)
@@ -121,9 +115,7 @@ class CreateDraftFromFeedbackTest(TestCase):
         self.assertEqual(draft.form_data["supplier_name"], "TX Foods")
 
     def test_parsed_payload_stored(self):
-        draft = create_draft_from_feedback(
-            tenant=self.tenant, feedback_row=self.feedback, user=self.user
-        )
+        draft = create_draft_from_feedback(tenant=self.tenant, feedback_row=self.feedback, user=self.user)
         self.assertIn("po_numbers", draft.parsed_payload)
         self.assertEqual(draft.parsed_payload["po_numbers"], ["226052"])
 
@@ -135,9 +127,7 @@ class UpdateDraftStatusTest(TestCase):
         from apps.tenants.models import Tenant
 
         self.tenant = Tenant.objects.create(name="Status Test Tenant", slug="status-test-tenant")
-        self.user = User.objects.create_user(
-            username="status_user", email="status@test.com", password="testpass"
-        )
+        self.user = User.objects.create_user(username="status_user", email="status@test.com", password="testpass")
         self.draft = CockpitDraftForm.objects.create(
             tenant=self.tenant,
             form_type=FORM_TYPE_PURCHASE_ORDER,

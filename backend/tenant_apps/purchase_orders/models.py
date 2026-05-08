@@ -8,11 +8,24 @@ Uses OrderMethodsMixin for shared order behavior (payment calculations, status c
 """
 import uuid
 from decimal import Decimal
-from django.db import models
+
 from django.contrib.auth.models import User
+from django.db import models
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from apps.tenants.models import Tenant
+
+from tenant_apps.contacts.services import resolve_supplier_order_contact_routes
+from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
+
+from apps.core.model_mixins import (
+    BaseLineItem,
+    BillingAddressSnapshotMixin,
+    BillingContactSnapshotMixin,
+    LogisticsMixin,
+    ShippingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    sync_alias_pair,
+)
 from apps.core.models import (
     AccountingPaymentTermsChoices,
     AppointmentMethodChoices,
@@ -27,21 +40,11 @@ from apps.core.models import (
     ProteinTypeChoices,
     SoftDeleteModel,
     TenantAwareModel,
+    TenantManager,
     TimestampModel,
     WeightUnitChoices,
-    TenantManager,
 )
-from apps.core.model_mixins import (
-    BaseLineItem,
-    BillingAddressSnapshotMixin,
-    BillingContactSnapshotMixin,
-    LogisticsMixin,
-    ShippingAddressSnapshotMixin,
-    ShippingContactSnapshotMixin,
-    sync_alias_pair,
-)
-from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
-from tenant_apps.contacts.services import resolve_supplier_order_contact_routes
+from apps.tenants.models import Tenant
 
 
 class PurchaseOrderStatus(models.TextChoices):
@@ -117,7 +120,7 @@ class PurchaseOrder(
 ):
     """
     Purchase Order model for managing purchase orders.
-    
+
     Inherits from:
     - OrderMethodsMixin: Shared order behavior (is_paid, is_complete, etc.)
     - TenantAwareModel: Provides tenant FK, custom_data JSONB, TenantManager
@@ -171,7 +174,7 @@ class PurchaseOrder(
         max_length=50,
         choices=LogisticsScenarioChoices.choices,
         default=LogisticsScenarioChoices.SUPPLIER_DELIVERY,
-        help_text="Logistics scenario: Customer Pickup, Supplier Delivery, or We Pickup"
+        help_text="Logistics scenario: Customer Pickup, Supplier Delivery, or We Pickup",
     )
 
     # Enhanced fields from Excel requirements (All 41 Fields)
@@ -211,31 +214,21 @@ class PurchaseOrder(
         default="",
         help_text="Canonical supplier confirmation order number.",
     )
-    
+
     # Supplier Auto-Populated Fields (from Supplier model on selection)
     supplier_corporate_address = models.TextField(
-        blank=True,
-        default="",
-        help_text="Auto-populated from Supplier - Corporate address"
+        blank=True, default="", help_text="Auto-populated from Supplier - Corporate address"
     )
     supplier_contact_name = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="Auto-populated from Supplier - Contact person name"
+        max_length=255, blank=True, default="", help_text="Auto-populated from Supplier - Contact person name"
     )
     supplier_contact_phone = models.CharField(
-        max_length=20,
-        blank=True,
-        default="",
-        help_text="Auto-populated from Supplier - Contact phone"
+        max_length=20, blank=True, default="", help_text="Auto-populated from Supplier - Contact phone"
     )
     supplier_contact_email = models.EmailField(
-        blank=True,
-        default="",
-        help_text="Auto-populated from Supplier - Contact email"
+        blank=True, default="", help_text="Auto-populated from Supplier - Contact email"
     )
-    
+
     # Carrier and Logistics Fields
     carrier = models.ForeignKey(
         "carriers.Carrier",
@@ -257,7 +250,7 @@ class PurchaseOrder(
         default="",
         help_text="How carrier makes appointments",
     )
-    
+
     # Product Details
     quantity = models.IntegerField(
         blank=True,
@@ -281,48 +274,40 @@ class PurchaseOrder(
         help_text="Unit of weight (LBS or KG)",
     )
     price_per_unit = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        blank=True,
-        null=True,
-        help_text="Price per unit/pound"
+        max_digits=10, decimal_places=2, blank=True, null=True, help_text="Price per unit/pound"
     )
     type_of_protein = models.CharField(
         max_length=50,
         choices=ProteinTypeChoices.choices,
         blank=True,
         default="",
-        help_text="Type of protein (Beef, Pork, Chicken, etc.)"
+        help_text="Type of protein (Beef, Pork, Chicken, etc.)",
     )
     fresh_or_frozen = models.CharField(
         max_length=20,
         choices=FreshOrFrozenChoices.choices,
         blank=True,
         default="",
-        help_text="Product state (Fresh or Frozen)"
+        help_text="Product state (Fresh or Frozen)",
     )
     package_type = models.CharField(
         max_length=50,
         choices=PackageTypeChoices.choices,
         blank=True,
         default="",
-        help_text="Package type (Combo, Box, Bag, etc.)"
+        help_text="Package type (Combo, Box, Bag, etc.)",
     )
     net_or_catch = models.CharField(
-        max_length=20,
-        choices=NetOrCatchChoices.choices,
-        blank=True,
-        default="",
-        help_text="Weight type (Net or Catch)"
+        max_length=20, choices=NetOrCatchChoices.choices, blank=True, default="", help_text="Weight type (Net or Catch)"
     )
     edible_or_inedible = models.CharField(
         max_length=50,
         choices=EdibleInedibleChoices.choices,
         blank=True,
         default="",
-        help_text="Edible or inedible product"
+        help_text="Edible or inedible product",
     )
-    
+
     # Facility and Contact
     plant = models.ForeignKey(
         "locations.Location",
@@ -355,34 +340,22 @@ class PurchaseOrder(
         blank=True,
         help_text="Primary contact for this order",
     )
-    
+
     # Payment Terms
     payment_terms = models.CharField(
         max_length=50,
         choices=AccountingPaymentTermsChoices.choices,
         blank=True,
         default="",
-        help_text="Payment terms (Wire, ACH, Check, etc.)"
+        help_text="Payment terms (Wire, ACH, Check, etc.)",
     )
     credit_limit = models.CharField(
-        max_length=50,
-        choices=CreditLimitChoices.choices,
-        blank=True,
-        default="",
-        help_text="Credit limit/terms"
+        max_length=50, choices=CreditLimitChoices.choices, blank=True, default="", help_text="Credit limit/terms"
     )
-    
+
     # Additional Metadata
-    item_description = models.TextField(
-        blank=True,
-        default="",
-        help_text="Detailed item description"
-    )
-    special_instructions = models.TextField(
-        blank=True,
-        default="",
-        help_text="Special instructions or notes"
-    )
+    item_description = models.TextField(blank=True, default="", help_text="Detailed item description")
+    special_instructions = models.TextField(blank=True, default="", help_text="Special instructions or notes")
     trade_session = models.ForeignKey(
         "inquiries.TradeSession",
         on_delete=models.SET_NULL,
@@ -391,16 +364,14 @@ class PurchaseOrder(
         related_name="purchase_orders",
         help_text="Trade session lineage key (CTE-05.1).",
     )
+
     class Meta:
         indexes = [
-            models.Index(fields=['tenant', 'order_number']),
-            models.Index(fields=['tenant', 'order_date']),
+            models.Index(fields=["tenant", "order_number"]),
+            models.Index(fields=["tenant", "order_date"]),
         ]
         constraints = [
-            models.UniqueConstraint(
-                fields=['tenant', 'order_number'],
-                name='unique_tenant_purchase_order_number'
-            ),
+            models.UniqueConstraint(fields=["tenant", "order_number"], name="unique_tenant_purchase_order_number"),
         ]
 
     def __str__(self):
@@ -431,12 +402,12 @@ class PurchaseOrder(
             existing = (
                 cls.objects.filter(tenant=tenant, order_number__startswith=prefix)
                 .select_for_update()
-                .values_list('order_number', flat=True)
+                .values_list("order_number", flat=True)
             )
 
             max_seq = 0
             for val in existing:
-                tail = str(val or '')[len(prefix):]
+                tail = str(val or "")[len(prefix) :]
                 if tail.isdigit():
                     max_seq = max(max_seq, int(tail))
 
@@ -495,7 +466,7 @@ class CarrierPurchaseOrder(
 ):
     """
     Carrier Purchase Order model for managing carrier-specific purchase orders.
-    
+
     Inherits from TenantAwareModel: Provides tenant FK, custom_data JSONB, TenantManager
     """
 
@@ -547,7 +518,7 @@ class CarrierPurchaseOrder(
         blank=True,
         help_text="Product being ordered",
     )
-    
+
     # CRITICAL: Logistics Bridge - Links CarrierPO to SupplierPO
     # This field answers "Who is hauling this meat?" directly from the Supplier PO
     linked_order = models.ForeignKey(
@@ -557,9 +528,9 @@ class CarrierPurchaseOrder(
         blank=True,
         related_name="carrier_logistics",
         help_text="Link to the associated Supplier Purchase Order (SupplierPO). "
-                  "This creates the logistics bridge to track which carrier is hauling which supplier order."
+        "This creates the logistics bridge to track which carrier is hauling which supplier order.",
     )
-    
+
     # Logistics Bridge - Links CarrierPO to SalesOrder for tracking via Sales Order Number
     sales_order = models.ForeignKey(
         "sales_orders.SalesOrder",
@@ -567,7 +538,7 @@ class CarrierPurchaseOrder(
         null=True,
         blank=True,
         related_name="carrier_logistics",
-        help_text="Link to the associated Sales Order for logistics tracking via Sales Order Number (spreadsheet #7)."
+        help_text="Link to the associated Sales Order for logistics tracking via Sales Order Number (spreadsheet #7).",
     )
 
     # Order details
@@ -687,9 +658,10 @@ class CarrierPurchaseOrder(
         related_name="carrier_purchase_orders",
         help_text="Trade session lineage key (CTE-05.1).",
     )
+
     class Meta:
         indexes = [
-            models.Index(fields=['tenant', 'our_carrier_po_num']),
+            models.Index(fields=["tenant", "our_carrier_po_num"]),
         ]
 
     def __str__(self):
@@ -722,7 +694,7 @@ class CarrierPOItem(BaseLineItem):
 class ColdStorageEntry(TenantAwareModel):
     """
     Cold Storage Entry model for tracking boxing and cold storage operations.
-    
+
     Inherits from TenantAwareModel: Provides tenant FK, custom_data JSONB, TenantManager
     """
 
@@ -822,12 +794,13 @@ class ColdStorageEntry(TenantAwareModel):
         default="",
         help_text="Additional notes",
     )
+
     class Meta:
         ordering = ["-date_time_stamp_created", "-created_on"]
         verbose_name = "Cold Storage Entry"
         verbose_name_plural = "Cold Storage Entries"
         indexes = [
-            models.Index(fields=['tenant', 'date_time_stamp_created']),
+            models.Index(fields=["tenant", "date_time_stamp_created"]),
         ]
 
     def __str__(self):
@@ -836,6 +809,7 @@ class ColdStorageEntry(TenantAwareModel):
 
 class PurchaseOrderHistory(TimestampModel):
     """Version history for Purchase Order modifications."""
+
     # Use custom manager for multi-tenancy
     objects = TenantManager()
 
@@ -844,7 +818,7 @@ class PurchaseOrderHistory(TimestampModel):
         Tenant,
         on_delete=models.CASCADE,
         related_name="purchase_order_histories",
-        help_text="Tenant this history entry belongs to"
+        help_text="Tenant this history entry belongs to",
     )
 
     purchase_order = models.ForeignKey(
@@ -951,19 +925,19 @@ class PurchaseOrderApprovalDispatch(TenantAwareModel):
 def auto_populate_supplier_fields(sender, instance, **kwargs):
     """
     Signal handler to auto-populate supplier contact fields when a supplier is selected.
-    
+
     This runs BEFORE saving the PurchaseOrder and populates:
     - supplier_corporate_address
     - supplier_contact_name
     - supplier_contact_phone
     - supplier_contact_email
-    
+
     Only populates if supplier is set and fields are currently empty.
     """
     if instance.supplier:
         supplier = instance.supplier
         contact_routing = _resolve_purchase_order_contact_routing(instance)
-        
+
         # Auto-populate only if fields are empty
         if not instance.supplier_corporate_address and supplier.address:
             instance.supplier_corporate_address = supplier.address

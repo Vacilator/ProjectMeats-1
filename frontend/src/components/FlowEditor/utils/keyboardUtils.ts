@@ -1,17 +1,17 @@
 /**
  * Keyboard Utility Functions
- * 
+ *
  * Phase 4: Keyboard Shortcut Focus Trap Fix
  * Provides utilities to detect when user is typing in input fields
  * to prevent global keyboard shortcuts from interfering.
- * 
+ *
  * Usage:
  * ```typescript
  * if (isTypingInInput(event)) {
  *   return; // Skip global shortcut
  * }
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Keyboard Shortcuts Fix
  */
 
@@ -65,13 +65,13 @@ export function isTypingInInput(event: KeyboardEvent | React.KeyboardEvent): boo
 
 /**
  * Check if shortcut should be prevented
- * 
+ *
  * Use this as a guard before executing global keyboard shortcuts:
  * ```typescript
  * if (shouldPreventShortcut(event)) return;
  * // Execute shortcut
  * ```
- * 
+ *
  * @param event - Keyboard event
  * @returns true if shortcut should be prevented
  */
@@ -81,16 +81,16 @@ export function shouldPreventShortcut(event: KeyboardEvent): boolean {
 
 /**
  * Safe keyboard shortcut handler wrapper
- * 
+ *
  * Wraps a keyboard shortcut handler to automatically check typing context:
  * ```typescript
  * const handleDelete = safeShortcut(() => {
  *   deleteSelectedNodes();
  * });
- * 
+ *
  * document.addEventListener('keydown', handleDelete);
  * ```
- * 
+ *
  * @param handler - Shortcut handler function
  * @returns Wrapped handler that checks typing context
  */
@@ -107,28 +107,28 @@ export function safeShortcut(
 
 /**
  * Check if element is a focusable input
- * 
+ *
  * Useful for determining if element should receive keyboard focus:
  * ```typescript
  * if (isFocusableInput(element)) {
  *   element.focus();
  * }
  * ```
- * 
+ *
  * @param element - DOM element to check
  * @returns true if element is a focusable input
  */
 export function isFocusableInput(element: HTMLElement | null): boolean {
   if (!element) return false;
-  
+
   const tag = element.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
     return true;
   }
-  
+
   if (element.isContentEditable || element.getAttribute('contenteditable') === 'true') {
     return true;
   }
-  
+
   return false;
 }

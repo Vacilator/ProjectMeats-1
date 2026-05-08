@@ -9,7 +9,7 @@ import { logger } from './logger';
 /**
  * Hook to measure component render performance.
  * Logs render time in development mode.
- * 
+ *
  * Usage:
  * ```tsx
  * const MyComponent = () => {
@@ -41,7 +41,7 @@ export function useRenderPerformance(componentName: string) {
 
 /**
  * Debounced callback hook for expensive operations.
- * 
+ *
  * @param callback - Function to debounce
  * @param delay - Delay in milliseconds
  * @returns Debounced version of callback
@@ -82,7 +82,7 @@ export function useDebounce<T extends (...args: any[]) => any>(
 /**
  * Hook to detect if component is in viewport (lazy rendering).
  * Useful for deferring expensive component rendering.
- * 
+ *
  * @param ref - React ref to element to observe
  * @param options - IntersectionObserver options
  * @returns true if element is visible

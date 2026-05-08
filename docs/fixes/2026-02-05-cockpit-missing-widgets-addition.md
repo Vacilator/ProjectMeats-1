@@ -266,7 +266,7 @@ If these endpoints don't exist yet, widgets will:
 
 ---
 
-**Category**: Enhancement  
-**Priority**: Medium (improves UX, resolves console warnings)  
-**Complexity**: Medium (follows established patterns)  
+**Category**: Enhancement
+**Priority**: Medium (improves UX, resolves console warnings)
+**Complexity**: Medium (follows established patterns)
 **Tested**: ✅ Build validation passed, manual testing required

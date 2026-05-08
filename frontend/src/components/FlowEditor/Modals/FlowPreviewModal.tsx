@@ -1,16 +1,16 @@
 /**
  * FlowPreviewModal Component
- * 
+ *
  * End-to-end preview mode for hybrid workflow-form flows.
  * Simulates form submission and workflow execution with mock data.
- * 
+ *
  * Features:
  * - Step-by-step execution visualization
  * - Form field simulation with validation
  * - Real-time data flow tracking
  * - Node state visualization (pending, active, complete, error)
  * - Execution timeline with logs
- * 
+ *
  * Created: 2026-02-21 - Phase 1: Hybrid Functionality
  */
 
@@ -336,7 +336,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
     const edges = getEdges();
 
     // Find root nodes (no incoming edges)
-    const rootNodes = nodes.filter(node => 
+    const rootNodes = nodes.filter(node =>
       !edges.some(edge => edge.target === node.id)
     );
 
@@ -359,7 +359,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
     };
 
     rootNodes.forEach(visit);
-    
+
     return order;
   }, [getNodes, getEdges]);
 
@@ -396,7 +396,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
 
     // Mock data based on node type
     const mockData: Record<string, any> = {};
-    
+
     if (node.type?.includes('form')) {
       // Generate mock form data
       const fields = getResolvedFormFields(node.data);
@@ -479,7 +479,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
     setExecutionStates({});
     setLogs([]);
     setCurrentNodeIndex(0);
-    
+
     addLog({
       nodeId: 'system',
       nodeName: 'System',

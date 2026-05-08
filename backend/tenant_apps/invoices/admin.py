@@ -1,9 +1,10 @@
 """
 Django admin configuration for Invoices app.
 """
-from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
-from .models import Invoice, Claim, PaymentTransaction
+from apps.core.admin_site import admin_site
+
+from .models import Claim, Invoice, PaymentTransaction
 
 
 class InvoiceAdmin(TenantFilteredAdmin):
@@ -130,10 +131,9 @@ class InvoiceAdmin(TenantFilteredAdmin):
     )
 
 
-
 class ClaimAdmin(TenantFilteredAdmin):
     """Admin interface for Claim model with tenant filtering."""
-    
+
     list_display = (
         "claim_number",
         "claim_type",
@@ -161,26 +161,27 @@ class ClaimAdmin(TenantFilteredAdmin):
 class PaymentTransactionAdmin(TenantFilteredAdmin):
     """Admin interface for PaymentTransaction model with tenant filtering."""
 
-    list_display = ("id", "payment_date", "amount", "payment_method", "reference_number", "purchase_order", "sales_order", "invoice", "created_by")
+    list_display = (
+        "id",
+        "payment_date",
+        "amount",
+        "payment_method",
+        "reference_number",
+        "purchase_order",
+        "sales_order",
+        "invoice",
+        "created_by",
+    )
     list_filter = ("payment_date", "payment_method")
     search_fields = ("reference_number", "notes")
     readonly_fields = ("created_on", "modified_on")
     raw_id_fields = ("purchase_order", "sales_order", "invoice", "created_by")
-    
+
     fieldsets = (
-        ("Payment Information", {
-            "fields": ("amount", "payment_date", "payment_method", "reference_number")
-        }),
-        ("Related Entity", {
-            "fields": ("purchase_order", "sales_order", "invoice")
-        }),
-        ("Additional Details", {
-            "fields": ("notes", "created_by")
-        }),
-        ("Metadata", {
-            "fields": ("tenant", "created_on", "modified_on"),
-            "classes": ("collapse",)
-        }),
+        ("Payment Information", {"fields": ("amount", "payment_date", "payment_method", "reference_number")}),
+        ("Related Entity", {"fields": ("purchase_order", "sales_order", "invoice")}),
+        ("Additional Details", {"fields": ("notes", "created_by")}),
+        ("Metadata", {"fields": ("tenant", "created_on", "modified_on"), "classes": ("collapse",)}),
     )
 
 

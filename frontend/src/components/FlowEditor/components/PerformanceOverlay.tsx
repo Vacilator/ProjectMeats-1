@@ -1,10 +1,10 @@
 /**
  * @fileoverview Development overlay for performance monitoring
  * @module FlowEditor/components/PerformanceOverlay
- * 
+ *
  * Displays real-time performance metrics during development.
  * Automatically hidden in production builds.
- * 
+ *
  * @see Phase 7.5: Performance Optimization
  */
 
@@ -72,7 +72,7 @@ const OverlayContainer = styled.div<{
         return 'bottom: 16px; right: 16px;';
     }
   }}
-  
+
   background: rgba(var(--color-overlay), 0.85);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(var(--color-header-background), 0.1);
@@ -86,7 +86,7 @@ const OverlayContainer = styled.div<{
   min-width: 200px;
   box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.3);
   user-select: none;
-  
+
   /* Prevent overlay from blocking interactions */
   pointer-events: auto;
 `;
@@ -96,11 +96,11 @@ const MetricRow = styled.div<{ $warning?: boolean }>`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
-  
+
   ${(props) => props.$warning && `
     animation: ${pulse} 1.5s ease-in-out infinite;
   `}
@@ -129,7 +129,7 @@ const Badge = styled.span<{ $type: 'success' | 'warning' | 'error' }>`
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  
+
   ${(props) => {
     switch (props.$type) {
       case 'success':
@@ -182,7 +182,7 @@ const ToggleButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: color 0.2s;
-  
+
   &:hover {
     color: rgba(var(--color-header-background), 0.9);
   }
@@ -215,15 +215,15 @@ function formatNumber(num: number): string {
 
 /**
  * Performance overlay component for development monitoring
- * 
+ *
  * Displays real-time metrics:
  * - FPS (frames per second)
  * - Memory usage (MB)
  * - Node rendering stats
  * - Average render time
- * 
+ *
  * Automatically hidden in production builds unless explicitly enabled.
- * 
+ *
  * @example
  * ```typescript
  * <ReactFlow nodes={nodes} edges={edges}>

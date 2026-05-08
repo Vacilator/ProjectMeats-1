@@ -70,5 +70,5 @@ All shortcuts follow WCAG 2.1 AAA guidelines:
 
 ---
 
-**Source files**: `useGlobalShortcuts.ts`, `useCommandPalette.ts`, `keyboardNavigation.ts`  
+**Source files**: `useGlobalShortcuts.ts`, `useCommandPalette.ts`, `keyboardNavigation.ts`
 **Last updated**: 2026-06-24

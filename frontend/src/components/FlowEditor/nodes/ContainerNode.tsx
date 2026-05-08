@@ -1,10 +1,10 @@
 /**
  * Container Node Component
  * Phase 7.2: Container Nesting Management
- * 
+ *
  * A special node type that acts as a visual grouping container for other nodes.
  * Similar to Figma's Frames or Sketch's Groups.
- * 
+ *
  * Features:
  * - Drag-and-drop nodes into container
  * - Visual boundary with label
@@ -12,7 +12,7 @@
  * - Nested containers support
  * - Auto-resize to fit children
  * - Theme-compliant styling
- * 
+ *
  * Created: 2026-02-27
  */
 
@@ -215,7 +215,7 @@ const NodeCount = styled.div`
 /**
  * Container node for grouping workflow nodes.
  * Provides visual organization and hierarchy.
- * 
+ *
  * @example
  * ```typescript
  * const containerNode: Node = {

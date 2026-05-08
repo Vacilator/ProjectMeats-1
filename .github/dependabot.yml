@@ -1,6 +1,6 @@
 # Dependabot Configuration for ProjectMeats
 # Enables automated dependency updates and security alerts
-# 
+#
 # Key Features:
 # - Grouped updates to reduce PR noise
 # - Configurable open PR limits

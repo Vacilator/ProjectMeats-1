@@ -14,20 +14,10 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.tenants.models import Tenant
+from tenant_apps.carriers.models import Carrier, CarrierFreightInquiry, CarrierFreightInquiryStatus
 from tenant_apps.contacts.models import Contact
-from tenant_apps.carriers.models import (
-    Carrier,
-    CarrierFreightInquiry,
-    CarrierFreightInquiryStatus,
-)
 from tenant_apps.customers.models import Customer
-from tenant_apps.inquiries.models import (
-    Inquiry,
-    InquiryRouteDecisionChoices,
-    InquiryStatusChoices,
-    InquirySupplierRFQ,
-)
+from tenant_apps.inquiries.models import Inquiry, InquiryRouteDecisionChoices, InquiryStatusChoices, InquirySupplierRFQ
 from tenant_apps.inquiries.services.happy_path_orchestrator import (
     BROKER_STEPS,
     FULFILL_STEPS,
@@ -36,13 +26,11 @@ from tenant_apps.inquiries.services.happy_path_orchestrator import (
     get_lineage_chain,
     get_orchestrator_state,
 )
-from tenant_apps.purchase_orders.models import (
-    CarrierPurchaseOrder,
-    PurchaseOrder,
-    PurchaseOrderStatus,
-)
+from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder, PurchaseOrderStatus
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
 from tenant_apps.suppliers.models import Supplier
+
+from apps.tenants.models import Tenant
 
 
 class OrchestratorTestBase(TestCase):
@@ -195,9 +183,7 @@ class OrchestratorStateDerivationTests(OrchestratorTestBase):
 class OrchestratorAdvanceTests(OrchestratorTestBase):
     """Test orchestrator advance logic."""
 
-    @patch(
-        "tenant_apps.inquiries.services.happy_path_orchestrator._step_draft_sales_order"
-    )
+    @patch("tenant_apps.inquiries.services.happy_path_orchestrator._step_draft_sales_order")
     def test_advance_fulfill_calls_draft_so(self, mock_step):
         mock_step.return_value = MagicMock(
             step=OrchestratorStep.DRAFT_SALES_ORDER,
@@ -310,9 +296,7 @@ class LineageChainTests(OrchestratorTestBase):
         chain = get_lineage_chain(tenant=self.tenant, inquiry=inquiry)
 
         self.assertIsNotNone(chain["supplier_purchase_order"])
-        self.assertEqual(
-            chain["supplier_purchase_order"]["status"], PurchaseOrderStatus.APPROVED
-        )
+        self.assertEqual(chain["supplier_purchase_order"]["status"], PurchaseOrderStatus.APPROVED)
 
     def test_lineage_chain_includes_contact_role_summaries(self):
         supplier_contact = Contact.objects.create(

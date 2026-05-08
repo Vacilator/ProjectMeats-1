@@ -41,12 +41,12 @@ const CurrentTenantButton = styled.button<{ $theme: Theme }>`
     max-width: 140px;
     padding: 6px 10px;
   }
-  
+
   &:hover {
     border-color: ${props => props.$theme.colors.primary};
     background: ${props => props.$theme.colors.surfaceHover};
   }
-  
+
   span {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -106,18 +106,18 @@ const TenantOption = styled.button<{ $theme: Theme; $isActive: boolean }>`
   cursor: pointer;
   transition: background 0.15s ease;
   gap: 10px;
-  
+
   &:hover {
     background: ${props => props.$theme.colors.surfaceHover};
   }
-  
+
   span.name {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   span.check {
     color: ${props => props.$theme.colors.primary};
     font-weight: bold;
@@ -139,7 +139,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
         setIsLoading(false);
         return;
       }
-      
+
       setIsLoading(true);
       try {
         const myTenants = await tenantService.getMyTenants();
@@ -150,7 +150,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
         setIsLoading(false);
       }
     };
-    
+
     loadTenants();
   }, [isSuperuser]);
 
@@ -183,12 +183,12 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
     localStorage.setItem('tenantId', tenant.id);
     localStorage.setItem('tenantName', tenant.name);
     localStorage.setItem('tenantSlug', tenant.slug);
-    
+
     // Update state
     setCurrentTenantId(tenant.id);
     setCurrentTenantName(tenant.name);
     setIsOpen(false);
-    
+
     // Reload the page to apply new tenant context
     window.location.reload();
   };
@@ -197,7 +197,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
   if (!isSuperuser) {
     return null;
   }
-  
+
   // Show loading state while fetching
   if (isLoading) {
     return (
@@ -209,7 +209,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
       </SelectorContainer>
     );
   }
-  
+
   // Don't render if only one tenant available
   if (tenants.length <= 1) {
     return null;
@@ -217,8 +217,8 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
 
   return (
     <SelectorContainer ref={dropdownRef}>
-      <CurrentTenantButton 
-        $theme={theme} 
+      <CurrentTenantButton
+        $theme={theme}
         onClick={() => setIsOpen(!isOpen)}
         title={`Current tenant: ${currentTenantName}`}
       >
@@ -226,7 +226,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
         <span>{currentTenantName}</span>
         <ChevronIcon $isOpen={isOpen}>▼</ChevronIcon>
       </CurrentTenantButton>
-      
+
       {isOpen && (
         <Dropdown $theme={theme}>
           <DropdownHeader $theme={theme}>

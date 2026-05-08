@@ -1,8 +1,8 @@
 # Config System Documentation
 
-**Status**: ✅ IMPLEMENTED  
-**Category**: Backend & Frontend  
-**Version**: v2.0  
+**Status**: ✅ IMPLEMENTED
+**Category**: Backend & Frontend
+**Version**: v2.0
 **Last Updated**: 2026-02-03
 
 ---
@@ -153,7 +153,7 @@ proteins = get_choices('protein_type', tenant=request.tenant)
 #### Resolution Priority
 
 1. **Tenant-specific TenantConfig** (highest priority)
-2. **SystemFieldSchema default** 
+2. **SystemFieldSchema default**
 3. **Code-defined default** (lowest priority)
 
 #### Caching
@@ -372,6 +372,6 @@ const proteinOptions = await choicesService.getChoicesForField('protein_type');
 
 ---
 
-**Document Status**: ✅ COMPLETE  
-**Maintainer**: Development Team  
+**Document Status**: ✅ COMPLETE
+**Maintainer**: Development Team
 **Last Review**: 2026-02-03

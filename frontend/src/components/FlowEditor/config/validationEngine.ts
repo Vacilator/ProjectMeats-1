@@ -1,9 +1,9 @@
 /**
  * Validation Engine
- * 
+ *
  * Validates field values against declarative validation rules.
  * Returns user-friendly error messages.
- * 
+ *
  * Created: 2026-02-18
  * Phase: D.2 - Dynamic Panel
  */
@@ -13,7 +13,7 @@ import { logger } from '@/utils/logger';
 
 /**
  * Validate a single field value against its validation rules
- * 
+ *
  * @param field - Field configuration with validation rules
  * @param value - Current field value
  * @param allValues - All form values (for cross-field validation)
@@ -41,7 +41,7 @@ export function validateField(
 
 /**
  * Validate a single validation rule
- * 
+ *
  * @param rule - Validation rule
  * @param value - Field value
  * @param allValues - All form values
@@ -161,7 +161,7 @@ function validateRule(
 
 /**
  * Validate all fields in form data
- * 
+ *
  * @param fields - Array of field configurations
  * @param formData - Current form values
  * @returns Map of field ID to error message (only includes fields with errors)
@@ -185,7 +185,7 @@ export function validateAllFields(
 
 /**
  * Check if form data is valid (no validation errors)
- * 
+ *
  * @param fields - Array of field configurations
  * @param formData - Current form values
  * @returns True if all fields are valid

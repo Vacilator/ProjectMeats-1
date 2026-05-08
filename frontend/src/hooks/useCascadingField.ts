@@ -1,6 +1,6 @@
 /**
  * Cascading Field Hook (Phase 2.3: Entity Cascading)
- * 
+ *
  * Handles dependent field filtering based on parent field selections.
  * Example: Selecting "Beef" in protein type automatically filters product cuts to beef-only.
  */
@@ -34,22 +34,22 @@ export interface CascadingFieldConfig {
 
 /**
  * Hook for managing cascading field options.
- * 
+ *
  * @param fieldId - UUID of the field with cascading enabled
  * @param parentValue - Current value of the parent field
  * @param enabled - Whether cascading is enabled for this field
- * 
+ *
  * @returns Object with:
  *   - options: Filtered options based on parent value
  *   - loading: Whether options are being fetched
  *   - error: Error message if fetch failed
  *   - refresh: Function to manually refresh options
- * 
+ *
  * @example
  * ```tsx
  * const MyForm = () => {
  *   const [proteinType, setProteinType] = useState('');
- *   
+ *
  *   const {
  *     options: cutOptions,
  *     loading,
@@ -59,7 +59,7 @@ export interface CascadingFieldConfig {
  *     parentValue: proteinType,
  *     enabled: !!proteinType
  *   });
- *   
+ *
  *   return (
  *     <>
  *       <Select
@@ -70,7 +70,7 @@ export interface CascadingFieldConfig {
  *           { value: 'Chicken', label: 'Chicken' }
  *         ]}
  *       />
- *       
+ *
  *       <Select
  *         value={cut}
  *         onChange={setCut}
@@ -188,7 +188,7 @@ export const useCascadingField = ({
 
 /**
  * Helper function to check if a field has cascading enabled.
- * 
+ *
  * @param field - Field configuration object
  * @returns True if cascading is enabled and properly configured
  */
@@ -202,7 +202,7 @@ export const isCascadingField = (field: any): boolean => {
 
 /**
  * Helper function to get cascading configuration from field.
- * 
+ *
  * @param field - Field configuration object
  * @returns Cascading config or null if not configured
  */

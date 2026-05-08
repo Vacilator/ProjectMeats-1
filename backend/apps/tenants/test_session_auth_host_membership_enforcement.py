@@ -7,9 +7,9 @@ from django.test.utils import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.tenants.models import Tenant, TenantDomain, TenantUser
 from tenant_apps.suppliers.models import Supplier
 
+from apps.tenants.models import Tenant, TenantDomain, TenantUser
 
 User = get_user_model()
 

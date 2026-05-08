@@ -6,9 +6,7 @@ Provides easy imports for different environments.
 import os
 
 # Default to development settings
-environment = os.environ.get(
-    "DJANGO_SETTINGS_MODULE", "projectmeats.settings.development"
-)
+environment = os.environ.get("DJANGO_SETTINGS_MODULE", "projectmeats.settings.development")
 
 # Import the appropriate settings
 if "production" in environment:

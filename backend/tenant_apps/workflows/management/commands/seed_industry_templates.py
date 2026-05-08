@@ -6,23 +6,23 @@ instead of starting from a blank canvas.
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from apps.tenants.models import Tenant
+
 from tenant_apps.workflows.models import TenantForm, WorkflowStatus
+
+from apps.tenants.models import Tenant
 
 
 class Command(BaseCommand):
-    help = 'Seed industry-standard workflow templates for all tenants'
+    help = "Seed industry-standard workflow templates for all tenants"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--tenant',
-            type=str,
-            help='Seed templates for a specific tenant slug (optional - defaults to all tenants)'
+            "--tenant", type=str, help="Seed templates for a specific tenant slug (optional - defaults to all tenants)"
         )
 
     def handle(self, *args, **options):
-        tenant_slug = options.get('tenant')
-        
+        tenant_slug = options.get("tenant")
+
         if tenant_slug:
             try:
                 tenants = [Tenant.objects.get(slug=tenant_slug)]
@@ -37,7 +37,7 @@ class Command(BaseCommand):
         for tenant in tenants:
             self._seed_tenant_templates(tenant)
 
-        self.stdout.write(self.style.SUCCESS('\n✅ Industry templates seeded successfully'))
+        self.stdout.write(self.style.SUCCESS("\n✅ Industry templates seeded successfully"))
 
     @transaction.atomic
     def _seed_tenant_templates(self, tenant):
@@ -47,7 +47,9 @@ class Command(BaseCommand):
         templates_created = 0
 
         # Template 1: Standard Beef Purchase Order
-        if not TenantForm.objects.filter(tenant=tenant, name="Standard Beef Purchase", is_system_template=True).exists():
+        if not TenantForm.objects.filter(
+            tenant=tenant, name="Standard Beef Purchase", is_system_template=True
+        ).exists():
             beef_po_template = self._create_beef_purchase_template(tenant)
             templates_created += 1
             self.stdout.write(f"  ✓ Created: {beef_po_template.name}")
@@ -59,19 +61,25 @@ class Command(BaseCommand):
             self.stdout.write(f"  ✓ Created: {credit_check_template.name}")
 
         # Template 3: Cold Storage Monitoring
-        if not TenantForm.objects.filter(tenant=tenant, name="Cold Storage Monitoring", is_system_template=True).exists():
+        if not TenantForm.objects.filter(
+            tenant=tenant, name="Cold Storage Monitoring", is_system_template=True
+        ).exists():
             cold_storage_template = self._create_cold_storage_monitoring_template(tenant)
             templates_created += 1
             self.stdout.write(f"  ✓ Created: {cold_storage_template.name}")
 
         # Template 4: Quality Inspection Workflow
-        if not TenantForm.objects.filter(tenant=tenant, name="Quality Inspection Workflow", is_system_template=True).exists():
+        if not TenantForm.objects.filter(
+            tenant=tenant, name="Quality Inspection Workflow", is_system_template=True
+        ).exists():
             quality_inspection_template = self._create_quality_inspection_template(tenant)
             templates_created += 1
             self.stdout.write(f"  ✓ Created: {quality_inspection_template.name}")
 
         # Template 5: Carrier Compliance Check
-        if not TenantForm.objects.filter(tenant=tenant, name="Carrier Compliance Check", is_system_template=True).exists():
+        if not TenantForm.objects.filter(
+            tenant=tenant, name="Carrier Compliance Check", is_system_template=True
+        ).exists():
             carrier_compliance_template = self._create_carrier_compliance_template(tenant)
             templates_created += 1
             self.stdout.write(f"  ✓ Created: {carrier_compliance_template.name}")
@@ -101,8 +109,8 @@ class Command(BaseCommand):
                         "data": {
                             "label": "Manual Trigger",
                             "triggerType": "manual",
-                            "description": "Manually initiated by user"
-                        }
+                            "description": "Manually initiated by user",
+                        },
                     },
                     {
                         "id": "action-1",
@@ -112,8 +120,8 @@ class Command(BaseCommand):
                             "label": "Create Purchase Order",
                             "actionType": "create_record",
                             "entityType": "purchase_order",
-                            "description": "Create new beef purchase order record"
-                        }
+                            "description": "Create new beef purchase order record",
+                        },
                     },
                     {
                         "id": "action-2",
@@ -122,8 +130,8 @@ class Command(BaseCommand):
                         "data": {
                             "label": "Log to Sentry",
                             "actionType": "send_notification",
-                            "description": "Log PO creation event for monitoring"
-                        }
+                            "description": "Log PO creation event for monitoring",
+                        },
                     },
                     {
                         "id": "action-3",
@@ -132,18 +140,18 @@ class Command(BaseCommand):
                         "data": {
                             "label": "Email Supplier",
                             "actionType": "send_email",
-                            "description": "Notify supplier of new purchase order"
-                        }
-                    }
+                            "description": "Notify supplier of new purchase order",
+                        },
+                    },
                 ],
                 "edges": [
                     {"id": "e1", "source": "trigger-1", "target": "action-1"},
                     {"id": "e2", "source": "action-1", "target": "action-2"},
-                    {"id": "e3", "source": "action-2", "target": "action-3"}
-                ]
-            }
+                    {"id": "e3", "source": "action-2", "target": "action-3"},
+                ],
+            },
         )
-        
+
         return form
 
     def _create_credit_check_template(self, tenant):
@@ -166,8 +174,8 @@ class Command(BaseCommand):
                         "data": {
                             "label": "Email Received",
                             "triggerType": "webhook",
-                            "description": "Triggered when customer email received"
-                        }
+                            "description": "Triggered when customer email received",
+                        },
                     },
                     {
                         "id": "action-1",
@@ -176,8 +184,8 @@ class Command(BaseCommand):
                         "data": {
                             "label": "AI Parse Email",
                             "actionType": "run_workflow",
-                            "description": "Use OpenAI to extract customer info and order details"
-                        }
+                            "description": "Use OpenAI to extract customer info and order details",
+                        },
                     },
                     {
                         "id": "action-2",
@@ -186,17 +194,14 @@ class Command(BaseCommand):
                         "data": {
                             "label": "Check Balance",
                             "actionType": "run_workflow",
-                            "description": "Verify customer account balance and credit limit"
-                        }
+                            "description": "Verify customer account balance and credit limit",
+                        },
                     },
                     {
                         "id": "condition-1",
                         "type": "condition",
                         "position": {"x": 100, "y": 550},
-                        "data": {
-                            "label": "Credit Approved?",
-                            "description": "Branch based on credit check result"
-                        }
+                        "data": {"label": "Credit Approved?", "description": "Branch based on credit check result"},
                     },
                     {
                         "id": "action-3-approved",
@@ -205,8 +210,8 @@ class Command(BaseCommand):
                         "data": {
                             "label": "Auto-Approve Order",
                             "actionType": "update_record",
-                            "description": "Automatically approve and process order"
-                        }
+                            "description": "Automatically approve and process order",
+                        },
                     },
                     {
                         "id": "action-3-rejected",
@@ -215,20 +220,20 @@ class Command(BaseCommand):
                         "data": {
                             "label": "Send for Manual Review",
                             "actionType": "send_notification",
-                            "description": "Notify credit manager for manual review"
-                        }
-                    }
+                            "description": "Notify credit manager for manual review",
+                        },
+                    },
                 ],
                 "edges": [
                     {"id": "e1", "source": "trigger-1", "target": "action-1"},
                     {"id": "e2", "source": "action-1", "target": "action-2"},
                     {"id": "e3", "source": "action-2", "target": "condition-1"},
                     {"id": "e4", "source": "condition-1", "target": "action-3-approved", "label": "Approved"},
-                    {"id": "e5", "source": "condition-1", "target": "action-3-rejected", "label": "Rejected"}
-                ]
-            }
+                    {"id": "e5", "source": "condition-1", "target": "action-3-rejected", "label": "Rejected"},
+                ],
+            },
         )
-        
+
         return form
 
     def _create_cold_storage_monitoring_template(self, tenant):

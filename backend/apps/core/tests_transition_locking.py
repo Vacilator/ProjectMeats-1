@@ -9,14 +9,20 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.test import TestCase, TransactionTestCase
 from django.db import connection
+from django.test import TestCase, TransactionTestCase
+
+from tenant_apps.carriers.models import Carrier
+from tenant_apps.customers.models import Customer
+from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder
+from tenant_apps.sales_orders.models import SalesOrder
+from tenant_apps.suppliers.models import Supplier
 
 from apps.core.events.contracts import TradeEventType
 from apps.core.services.transition_locking import (
+    VALID_TRANSITIONS,
     ConcurrentTransitionError,
     TransitionError,
-    VALID_TRANSITIONS,
     approve_carrier_po,
     approve_purchase_order,
     approve_sales_order,
@@ -24,14 +30,6 @@ from apps.core.services.transition_locking import (
     transition_entity,
 )
 from apps.tenants.models import Tenant
-from tenant_apps.purchase_orders.models import (
-    CarrierPurchaseOrder,
-    PurchaseOrder,
-)
-from tenant_apps.sales_orders.models import SalesOrder
-from tenant_apps.suppliers.models import Supplier
-from tenant_apps.customers.models import Customer
-from tenant_apps.carriers.models import Carrier
 
 
 class TransitionEntityTests(TestCase):
@@ -117,9 +115,7 @@ class TransitionEntityTests(TestCase):
 
     def test_tenant_isolation(self):
         """Should not find entities from other tenants."""
-        other_tenant = Tenant.objects.create(
-            name="Other", slug="other-lock", schema_name="other_lock"
-        )
+        other_tenant = Tenant.objects.create(name="Other", slug="other-lock", schema_name="other_lock")
         with self.assertRaises(TransitionError):
             transition_entity(
                 model_class=PurchaseOrder,
@@ -209,16 +205,10 @@ class ValidTransitionMapTests(TestCase):
 
     def test_is_valid_transition_helper(self):
         """is_valid_transition should correctly check validity."""
-        self.assertTrue(
-            is_valid_transition("PurchaseOrder", "pending_approval", "approved")
-        )
-        self.assertFalse(
-            is_valid_transition("PurchaseOrder", "pending_approval", "delivered")
-        )
+        self.assertTrue(is_valid_transition("PurchaseOrder", "pending_approval", "approved"))
+        self.assertFalse(is_valid_transition("PurchaseOrder", "pending_approval", "delivered"))
         # Unknown entity type — permissive
-        self.assertTrue(
-            is_valid_transition("UnknownModel", "any", "state")
-        )
+        self.assertTrue(is_valid_transition("UnknownModel", "any", "state"))
 
 
 class ConvenienceWrapperTests(TestCase):
@@ -230,15 +220,9 @@ class ConvenienceWrapperTests(TestCase):
             slug="wrapper-test",
             schema_name="wrapper_test",
         )
-        self.supplier = Supplier.objects.create(
-            tenant=self.tenant, name="Supplier"
-        )
-        self.customer = Customer.objects.create(
-            tenant=self.tenant, name="Customer"
-        )
-        self.carrier = Carrier.objects.create(
-            tenant=self.tenant, name="Carrier"
-        )
+        self.supplier = Supplier.objects.create(tenant=self.tenant, name="Supplier")
+        self.customer = Customer.objects.create(tenant=self.tenant, name="Customer")
+        self.carrier = Carrier.objects.create(tenant=self.tenant, name="Carrier")
 
     @patch("apps.core.events.dispatcher.emit_trade_event")
     def test_approve_purchase_order(self, mock_emit):
@@ -301,9 +285,7 @@ class ConcurrencyTests(TransactionTestCase):
             slug="concurrency-test",
             schema_name="concurrency_test",
         )
-        self.supplier = Supplier.objects.create(
-            tenant=self.tenant, name="Supplier"
-        )
+        self.supplier = Supplier.objects.create(tenant=self.tenant, name="Supplier")
 
     def test_double_approval_prevented(self):
         """Second approval attempt should fail with ConcurrentTransitionError."""

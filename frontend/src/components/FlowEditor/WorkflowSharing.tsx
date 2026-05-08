@@ -1,6 +1,6 @@
 /**
  * Workflow Sharing Component
- * 
+ *
  * Enables export/import of workflows as reusable templates.
  * Supports sharing between tenants, version control, and template library.
  */
@@ -87,7 +87,7 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
       const response = await businessApi.post(
         `/tenants/${tenantId}/workflows/${workflowId}/export_template/`
       );
-      
+
       const template = response.data;
       setExportedTemplate(template);
       message.success('Workflow exported successfully');
@@ -149,14 +149,14 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
       message.success('Workflow imported successfully');
       importForm.resetFields();
       onClose();
-      
+
       // Optionally navigate to the new workflow
       if (response.data.workflow?.id) {
         window.location.href = `/workflows/${response.data.workflow.id}`;
       }
     } catch (error: any) {
       logger.error('Failed to import workflow:', error);
-      
+
       if (error.response?.data?.error) {
         message.error(error.response.data.error);
       } else {
@@ -170,7 +170,7 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
   // Upload JSON file
   const handleFileUpload = (file: File) => {
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const template = JSON.parse(e.target?.result as string);
@@ -183,7 +183,7 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
         message.error('Invalid JSON file');
       }
     };
-    
+
     reader.readAsText(file);
     return false; // Prevent auto upload
   };

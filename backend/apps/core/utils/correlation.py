@@ -31,7 +31,7 @@ _correlation_context = threading.local()
 
 def get_correlation_id() -> str:
     """Get current correlation ID, or empty string if not set."""
-    return getattr(_correlation_context, 'correlation_id', '') or ''
+    return getattr(_correlation_context, "correlation_id", "") or ""
 
 
 def set_correlation_id(correlation_id: str) -> None:
@@ -41,7 +41,7 @@ def set_correlation_id(correlation_id: str) -> None:
 
 def clear_correlation_id() -> None:
     """Clear correlation ID from thread-local."""
-    _correlation_context.correlation_id = ''
+    _correlation_context.correlation_id = ""
 
 
 def generate_correlation_id() -> str:
@@ -57,7 +57,7 @@ class CorrelationIdFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.correlation_id = get_correlation_id() or '-'
+        record.correlation_id = get_correlation_id() or "-"
         return True
 
 
@@ -69,15 +69,15 @@ class CorrelationIdMiddleware:
     - Adds X-Request-ID to response headers for client-side tracing
     """
 
-    HEADER_NAME = 'HTTP_X_REQUEST_ID'
-    RESPONSE_HEADER = 'X-Request-ID'
+    HEADER_NAME = "HTTP_X_REQUEST_ID"
+    RESPONSE_HEADER = "X-Request-ID"
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         # Extract or generate correlation ID
-        correlation_id = request.META.get(self.HEADER_NAME, '').strip()
+        correlation_id = request.META.get(self.HEADER_NAME, "").strip()
         if not correlation_id or len(correlation_id) > 64:
             correlation_id = generate_correlation_id()
 
@@ -106,11 +106,11 @@ def propagate_correlation_to_task_headers(headers: dict[str, Any] | None = None)
     headers = headers or {}
     cid = get_correlation_id()
     if cid:
-        headers['correlation_id'] = cid
+        headers["correlation_id"] = cid
     return headers
 
 
 def extract_correlation_from_task(task_instance) -> str:
     """Extract correlation ID from a running Celery task's request headers."""
-    headers = getattr(task_instance.request, 'headers', None) or {}
-    return headers.get('correlation_id', '') or ''
+    headers = getattr(task_instance.request, "headers", None) or {}
+    return headers.get("correlation_id", "") or ""

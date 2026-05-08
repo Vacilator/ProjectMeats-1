@@ -2,15 +2,14 @@
 Bug Reports serializers for ProjectMeats.
 """
 from rest_framework import serializers
+
 from .models import BugReport
 
 
 class BugReportSerializer(serializers.ModelSerializer):
     """Serializer for BugReport model."""
 
-    reporter_name = serializers.CharField(
-        source="reporter.get_full_name", read_only=True
-    )
+    reporter_name = serializers.CharField(source="reporter.get_full_name", read_only=True)
 
     class Meta:
         model = BugReport

@@ -3,10 +3,10 @@ Validators for ProjectMeats.
 
 Provides OWASP-compliant validators for common field types.
 """
-from django.core.exceptions import ValidationError
-from django.core.validators import EmailValidator, RegexValidator
 import re
 
+from django.core.exceptions import ValidationError
+from django.core.validators import EmailValidator, RegexValidator
 
 # Email validator following OWASP recommendations
 email_validator = EmailValidator(

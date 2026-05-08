@@ -52,7 +52,7 @@ export const Dashboard: React.FC = () => {
             >
               ⚙️ Config Dashboard
             </Link>
-            <button 
+            <button
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors"
               onClick={() => showAlert({ type: 'info', title: 'Coming soon', content: 'Create new blueprint functionality to be implemented' })}
             >
@@ -77,8 +77,8 @@ export const Dashboard: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {blueprints.map((bp) => (
-              <Link 
-                key={bp.id} 
+              <Link
+                key={bp.id}
                 to={`/${bp.id}`}
                 className="block group"
               >

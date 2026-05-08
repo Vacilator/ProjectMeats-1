@@ -1,6 +1,6 @@
 /**
  * QuickActionsContext Tests
- * 
+ *
  * Tests for Quick Actions context provider including:
  * - Provider setup and context access
  * - Quick actions loading and caching
@@ -42,11 +42,11 @@ vi.mock('@/utils/uiDialogs', () => ({
 // Test component to access context
 const TestConsumer: React.FC<{ onContext?: (ctx: ReturnType<typeof useQuickActions>) => void }> = ({ onContext }) => {
   const ctx = useQuickActions();
-  
+
   if (onContext) {
     onContext(ctx);
   }
-  
+
   return (
     <div>
       <div data-testid="loading">{ctx.isLoading ? 'loading' : 'ready'}</div>
@@ -102,14 +102,14 @@ describe('QuickActionsContext', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Mock localStorage
     localStorageMock = {
       authToken: 'test-token',
       tenantId: '11111111-1111-4111-8111-111111111111',
     };
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => localStorageMock[key] || null);
-    
+
     // Default mock responses
     vi.mocked(quickActionsService.getQuickActions).mockResolvedValue({ items: mockQuickActions });
     vi.mocked(quickActionsService.getAvailableForms).mockResolvedValue(mockAvailableForms);
@@ -132,15 +132,15 @@ describe('QuickActionsContext', () => {
           <div>Child Content</div>
         </QuickActionsProvider>
       );
-      
+
       expect(screen.getByText('Child Content')).toBeInTheDocument();
     });
 
     it('should throw error when useQuickActions is used outside provider', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       expect(() => render(<TestConsumer />)).toThrow('useQuickActions must be used within a QuickActionsProvider');
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -307,21 +307,21 @@ describe('QuickActionsContext', () => {
 
     it('should handle load error gracefully', async () => {
       vi.mocked(quickActionsService.getQuickActions).mockRejectedValue(new Error('Network error'));
-      
+
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       expect(screen.getByTestId('error')).toHaveTextContent('Network error');
-      
+
       consoleSpy.mockRestore();
     });
 
@@ -329,17 +329,17 @@ describe('QuickActionsContext', () => {
       vi.mocked(quickActionsService.getAvailableForms).mockResolvedValue(
         { results: mockAvailableForms } as any
       );
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       // Should handle non-array response gracefully (becomes empty array)
       expect(screen.getByTestId('forms-count')).toHaveTextContent('0');
     });
@@ -348,23 +348,23 @@ describe('QuickActionsContext', () => {
   describe('Refresh Quick Actions', () => {
     it('should refresh data when called', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       // Initial load
       expect(quickActionsService.getQuickActions).toHaveBeenCalledTimes(1);
-      
+
       // Trigger refresh
       await user.click(screen.getByText('Refresh'));
-      
+
       await waitFor(() => {
         expect(quickActionsService.getQuickActions).toHaveBeenCalledTimes(2);
       });
@@ -374,44 +374,44 @@ describe('QuickActionsContext', () => {
   describe('Update Quick Actions', () => {
     it('should update quick actions', async () => {
       let contextRef: ReturnType<typeof useQuickActions>;
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer onContext={(ctx) => { contextRef = ctx; }} />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       const newActions = [
         { id: 'qa_3', type: 'form' as const, form_id: 'form-3', label: 'New Order', icon: 'shopping-cart', order: 0 },
       ];
-      
+
       await act(async () => {
         await contextRef!.updateQuickActions(newActions);
       });
-      
+
       expect(quickActionsService.updateQuickActions).toHaveBeenCalledWith(newActions);
     });
 
     it('should handle update error', async () => {
       vi.mocked(quickActionsService.updateQuickActions).mockRejectedValue(new Error('Update failed'));
-      
+
       let contextRef: ReturnType<typeof useQuickActions>;
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer onContext={(ctx) => { contextRef = ctx; }} />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       // The update throws, but we need to catch it to prevent unhandled rejection
       let thrownError: Error | null = null;
       await act(async () => {
@@ -421,11 +421,11 @@ describe('QuickActionsContext', () => {
           thrownError = err as Error;
         }
       });
-      
+
       expect(thrownError).not.toBeNull();
       expect(thrownError!.message).toBe('Update failed');
       expect(screen.getByTestId('error')).toHaveTextContent('Update failed');
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -433,17 +433,17 @@ describe('QuickActionsContext', () => {
   describe('Add Quick Action', () => {
     it('should add a new quick action from available form', async () => {
       let contextRef: ReturnType<typeof useQuickActions>;
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer onContext={(ctx) => { contextRef = ctx; }} />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       const newForm = {
         id: 'form-3',
         name: 'New Product',
@@ -454,11 +454,11 @@ describe('QuickActionsContext', () => {
         is_quick_action_enabled: true,
         step_count: 4,
       };
-      
+
       await act(async () => {
         await contextRef!.addQuickAction(newForm);
       });
-      
+
       // Should call updateQuickActions with new action added
       expect(quickActionsService.updateQuickActions).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -471,28 +471,28 @@ describe('QuickActionsContext', () => {
   describe('Remove Quick Action', () => {
     it('should remove a quick action by id', async () => {
       let contextRef: ReturnType<typeof useQuickActions>;
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer onContext={(ctx) => { contextRef = ctx; }} />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       await act(async () => {
         await contextRef!.removeQuickAction('qa_1');
       });
-      
+
       // Should call updateQuickActions without the removed action
       expect(quickActionsService.updateQuickActions).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({ id: 'qa_2' }),
         ])
       );
-      
+
       // Should not contain removed action
       const callArgs = vi.mocked(quickActionsService.updateQuickActions).mock.calls[0][0];
       expect(callArgs.find((a: any) => a.id === 'qa_1')).toBeUndefined();
@@ -502,24 +502,24 @@ describe('QuickActionsContext', () => {
   describe('Reorder Quick Actions', () => {
     it('should reorder quick actions with updated order values', async () => {
       let contextRef: ReturnType<typeof useQuickActions>;
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer onContext={(ctx) => { contextRef = ctx; }} />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       // Reverse order
       const reordered = [mockQuickActions[1], mockQuickActions[0]];
-      
+
       await act(async () => {
         await contextRef!.reorderQuickActions(reordered);
       });
-      
+
       // Should call updateQuickActions with new order values
       expect(quickActionsService.updateQuickActions).toHaveBeenCalledWith([
         expect.objectContaining({ id: 'qa_2', order: 0 }),
@@ -531,22 +531,22 @@ describe('QuickActionsContext', () => {
   describe('Form Submission', () => {
     it('should start a form submission', async () => {
       let contextRef: ReturnType<typeof useQuickActions>;
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer onContext={(ctx) => { contextRef = ctx; }} />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       await act(async () => {
         const submission = await contextRef!.startFormSubmission('form-1');
         expect(submission.id).toBe('sub-123');
       });
-      
+
       expect(formSubmissionService.create).toHaveBeenCalledWith('form-1');
       expect(screen.getByTestId('submission')).toHaveTextContent('sub-123');
       expect(screen.getByTestId('modal-open')).toHaveTextContent('yes');
@@ -555,27 +555,27 @@ describe('QuickActionsContext', () => {
     it('should close submission', async () => {
       const user = userEvent.setup();
       let contextRef: ReturnType<typeof useQuickActions>;
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer onContext={(ctx) => { contextRef = ctx; }} />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       // Start submission
       await act(async () => {
         await contextRef!.startFormSubmission('form-1');
       });
-      
+
       expect(screen.getByTestId('submission')).toHaveTextContent('sub-123');
-      
+
       // Close submission
       await user.click(screen.getByText('Close Submission'));
-      
+
       expect(screen.getByTestId('submission')).toHaveTextContent('none');
     });
   });
@@ -583,40 +583,40 @@ describe('QuickActionsContext', () => {
   describe('Editor State', () => {
     it('should open editor', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       expect(screen.getByTestId('editor-open')).toHaveTextContent('no');
-      
+
       await user.click(screen.getByText('Open Editor'));
-      
+
       expect(screen.getByTestId('editor-open')).toHaveTextContent('yes');
     });
 
     it('should close editor', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       await user.click(screen.getByText('Open Editor'));
       expect(screen.getByTestId('editor-open')).toHaveTextContent('yes');
-      
+
       await user.click(screen.getByText('Close Editor'));
       expect(screen.getByTestId('editor-open')).toHaveTextContent('no');
     });
@@ -625,48 +625,48 @@ describe('QuickActionsContext', () => {
   describe('Form Modal State', () => {
     it('should open form modal and create submission', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       await user.click(screen.getByText('Open Form'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('modal-open')).toHaveTextContent('yes');
       });
-      
+
       expect(formSubmissionService.create).toHaveBeenCalledWith('form-1');
     });
 
     it('should handle form modal open error', async () => {
       const user = userEvent.setup();
       vi.mocked(formSubmissionService.create).mockRejectedValue(new Error('Form not found'));
-      
+
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       await user.click(screen.getByText('Open Form'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('error')).toHaveTextContent('Form not found');
       });
-      
+
       expect(vi.mocked(showAlert)).toHaveBeenCalledTimes(1);
       const alertArgs = vi.mocked(showAlert).mock.calls[0][0];
       expect(alertArgs.type).toBe('error');
@@ -674,33 +674,33 @@ describe('QuickActionsContext', () => {
 
       const renderedAlert = render(<>{alertArgs.content}</>);
       expect(within(renderedAlert.container).getByText('Form not found')).toBeInTheDocument();
-      
+
       consoleSpy.mockRestore();
     });
 
     it('should close form modal and clear submission', async () => {
       const user = userEvent.setup();
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       // Open modal
       await user.click(screen.getByText('Open Form'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('modal-open')).toHaveTextContent('yes');
       });
-      
+
       // Close modal
       await user.click(screen.getByText('Close Modal'));
-      
+
       expect(screen.getByTestId('modal-open')).toHaveTextContent('no');
       expect(screen.getByTestId('submission')).toHaveTextContent('none');
     });
@@ -709,33 +709,33 @@ describe('QuickActionsContext', () => {
   describe('Empty Items Handling', () => {
     it('should handle empty quick actions response', async () => {
       vi.mocked(quickActionsService.getQuickActions).mockResolvedValue({ items: [] });
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       expect(screen.getByTestId('actions-count')).toHaveTextContent('0');
     });
 
     it('should handle null items in response', async () => {
       vi.mocked(quickActionsService.getQuickActions).mockResolvedValue({ items: null as any });
-      
+
       render(
         <QuickActionsProvider>
           <TestConsumer />
         </QuickActionsProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       // Should default to empty array
       expect(screen.getByTestId('actions-count')).toHaveTextContent('0');
     });

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("purchase_orders", "0015_alter_carrierpurchaseorder_type_of_protein_and_more"),
     ]

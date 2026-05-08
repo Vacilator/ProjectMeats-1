@@ -1,6 +1,6 @@
 /**
  * Cached Query Hook (Phase 8.1: Redis Query Caching)
- * 
+ *
  * React hook for cached API queries with Redis backend.
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -13,7 +13,7 @@ interface CacheOptions {
 
 /**
  * Hook for cached API queries.
- * 
+ *
  * Automatically caches results server-side via Redis.
  */
 export const useCachedQuery = <T>(
@@ -57,7 +57,7 @@ export const useCachedQuery = <T>(
 
 /**
  * Hook for parallel cached queries.
- * 
+ *
  * Executes multiple queries in parallel with caching.
  */
 export const useParallelCachedQueries = <T>(endpoints: string[]) => {
@@ -76,7 +76,7 @@ export const useParallelCachedQueries = <T>(endpoints: string[]) => {
         );
 
         const results = await Promise.all(promises);
-        
+
         const dataMap: Record<string, T> = {};
         results.forEach(({ endpoint, data }) => {
           dataMap[endpoint] = data;

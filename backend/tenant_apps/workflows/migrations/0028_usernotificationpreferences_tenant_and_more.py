@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("tenants", "0012_tenant_contact_phone_type"),
         ("workflows", "0027_merge_20260330_0146"),

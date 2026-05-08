@@ -241,7 +241,7 @@ jobs:
           cat > /tmp/clear_uat.sql <<- 'SQL'
           -- Disable triggers to allow truncation
           SET session_replication_role = 'replica';
-          
+
           -- Get list of all tenant-aware tables (those with tenant_id column)
           DO $$
           DECLARE
@@ -261,7 +261,7 @@ jobs:
               RAISE NOTICE 'Cleared %', r.table_name;
             END LOOP;
           END $$;
-          
+
           -- Re-enable triggers
           SET session_replication_role = 'origin';
           SQL
@@ -320,13 +320,13 @@ jobs:
           UPDATE apps_suppliers_supplier SET owner_id = $UAT_SUPERUSER_ID WHERE owner_id IS NOT NULL;
           UPDATE apps_plants_plant SET owner_id = $UAT_SUPERUSER_ID WHERE owner_id IS NOT NULL;
           UPDATE apps_customers_customer SET owner_id = $UAT_SUPERUSER_ID WHERE owner_id IS NOT NULL;
-          
+
           -- Update all created_by_id fields
           UPDATE apps_suppliers_supplier SET created_by_id = $UAT_SUPERUSER_ID WHERE created_by_id IS NOT NULL;
           UPDATE apps_plants_plant SET created_by_id = $UAT_SUPERUSER_ID WHERE created_by_id IS NOT NULL;
           UPDATE apps_customers_customer SET created_by_id = $UAT_SUPERUSER_ID WHERE created_by_id IS NOT NULL;
           UPDATE apps_purchase_orders_purchaseorder SET created_by_id = $UAT_SUPERUSER_ID WHERE created_by_id IS NOT NULL;
-          
+
           -- Update any updated_by_id fields
           UPDATE apps_suppliers_supplier SET updated_by_id = $UAT_SUPERUSER_ID WHERE updated_by_id IS NOT NULL;
           UPDATE apps_plants_plant SET updated_by_id = $UAT_SUPERUSER_ID WHERE updated_by_id IS NOT NULL;

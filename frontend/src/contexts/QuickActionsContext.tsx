@@ -26,25 +26,25 @@ interface QuickActionsContextType {
   availableForms: AvailableForm[];
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   refreshQuickActions: () => Promise<void>;
   updateQuickActions: (items: QuickActionItem[]) => Promise<void>;
   addQuickAction: (form: AvailableForm) => Promise<void>;
   removeQuickAction: (actionId: string) => Promise<void>;
   reorderQuickActions: (items: QuickActionItem[]) => Promise<void>;
-  
+
   // Form Submission
   activeSubmission: FormSubmission | null;
   startFormSubmission: (formId: string) => Promise<FormSubmission>;
   resumeSubmission: (submissionId: string) => Promise<void>;
   closeSubmission: () => void;
-  
+
   // UI State
   isEditorOpen: boolean;
   openEditor: () => void;
   closeEditor: () => void;
-  
+
   isFormModalOpen: boolean;
   openFormModal: (formId: string) => void;
   closeFormModal: () => void;

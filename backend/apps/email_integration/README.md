@@ -18,7 +18,7 @@ OAuth-connected email account with encrypted token storage.
 ### EmailTrigger
 Configure email-based workflow triggers with filters.
 
-### EmailAction  
+### EmailAction
 Send automated emails from workflow nodes.
 
 ### EmailLog

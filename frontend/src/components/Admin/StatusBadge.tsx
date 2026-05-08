@@ -1,6 +1,6 @@
 /**
  * Status Badge Component
- * 
+ *
  * Displays a user's status (active, inactive, invited).
  */
 import React from 'react';

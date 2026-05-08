@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -31,21 +30,15 @@ class Migration(migrations.Migration):
                 ("modified_on", models.DateTimeField(auto_now=True)),
                 (
                     "name",
-                    models.CharField(
-                        help_text="Location name or identifier", max_length=255
-                    ),
+                    models.CharField(help_text="Location name or identifier", max_length=255),
                 ),
                 (
                     "address",
-                    models.TextField(
-                        blank=True, default="", help_text="Full street address"
-                    ),
+                    models.TextField(blank=True, default="", help_text="Full street address"),
                 ),
                 (
                     "city",
-                    models.CharField(
-                        blank=True, default="", help_text="City", max_length=100
-                    ),
+                    models.CharField(blank=True, default="", help_text="City", max_length=100),
                 ),
                 (
                     "state_zip",
@@ -145,9 +138,7 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Locations",
                 "ordering": ["name"],
                 "indexes": [
-                    models.Index(
-                        fields=["tenant", "name"], name="locations_l_tenant__86980e_idx"
-                    ),
+                    models.Index(fields=["tenant", "name"], name="locations_l_tenant__86980e_idx"),
                     models.Index(
                         fields=["tenant", "supplier"],
                         name="locations_l_tenant__994396_idx",

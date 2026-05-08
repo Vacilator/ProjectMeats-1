@@ -21,7 +21,8 @@ Usage:
 
 import json
 import random
-from locust import HttpUser, task, between, SequentialTaskSet
+
+from locust import HttpUser, SequentialTaskSet, between, task
 
 
 class AuthenticationFlow(SequentialTaskSet):
@@ -38,12 +39,7 @@ class AuthenticationFlow(SequentialTaskSet):
             "password": "LoadTest123!",
         }
 
-        with self.client.post(
-            "/api/auth/login/",
-            json=payload,
-            catch_response=True,
-            name="01. Login"
-        ) as response:
+        with self.client.post("/api/auth/login/", json=payload, catch_response=True, name="01. Login") as response:
             if response.status_code == 200:
                 data = response.json()
                 self.user.auth_token = data.get("access")
@@ -61,10 +57,7 @@ class AuthenticationFlow(SequentialTaskSet):
         headers = {"Authorization": f"Bearer {self.user.auth_token}"}
 
         with self.client.get(
-            "/api/auth/me/",
-            headers=headers,
-            catch_response=True,
-            name="02. Verify Token"
+            "/api/auth/me/", headers=headers, catch_response=True, name="02. Verify Token"
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -79,12 +72,7 @@ class AuthenticationFlow(SequentialTaskSet):
 
         headers = {"Authorization": f"Bearer {self.user.auth_token}"}
 
-        with self.client.post(
-            "/api/auth/logout/",
-            headers=headers,
-            catch_response=True,
-            name="03. Logout"
-        ) as response:
+        with self.client.post("/api/auth/logout/", headers=headers, catch_response=True, name="03. Logout") as response:
             if response.status_code in [200, 204]:
                 response.success()
                 # Clean up auth token
@@ -129,10 +117,7 @@ class WorkflowOperations(SequentialTaskSet):
     def list_workflows(self):
         """List all workflows for the tenant."""
         with self.client.get(
-            "/api/workflows/",
-            headers=self.get_headers(),
-            catch_response=True,
-            name="Workflows - List"
+            "/api/workflows/", headers=self.get_headers(), catch_response=True, name="Workflows - List"
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -146,10 +131,7 @@ class WorkflowOperations(SequentialTaskSet):
         workflow_id = random.randint(1, 50)
 
         with self.client.get(
-            f"/api/workflows/{workflow_id}/",
-            headers=self.get_headers(),
-            catch_response=True,
-            name="Workflows - Detail"
+            f"/api/workflows/{workflow_id}/", headers=self.get_headers(), catch_response=True, name="Workflows - Detail"
         ) as response:
             if response.status_code in [200, 404]:
                 response.success()
@@ -168,11 +150,7 @@ class WorkflowOperations(SequentialTaskSet):
         }
 
         with self.client.post(
-            "/api/workflows/",
-            json=payload,
-            headers=self.get_headers(),
-            catch_response=True,
-            name="Workflows - Create"
+            "/api/workflows/", json=payload, headers=self.get_headers(), catch_response=True, name="Workflows - Create"
         ) as response:
             if response.status_code in [200, 201]:
                 response.success()
@@ -219,10 +197,7 @@ class FormSubmissionFlow(SequentialTaskSet):
         form_id = random.randint(1, 20)
 
         with self.client.get(
-            f"/api/forms/{form_id}/",
-            headers=self.get_headers(),
-            catch_response=True,
-            name="Forms - Get Definition"
+            f"/api/forms/{form_id}/", headers=self.get_headers(), catch_response=True, name="Forms - Get Definition"
         ) as response:
             if response.status_code in [200, 404]:
                 response.success()
@@ -250,7 +225,7 @@ class FormSubmissionFlow(SequentialTaskSet):
             json=payload,
             headers=self.get_headers(),
             catch_response=True,
-            name="Forms - Submit"
+            name="Forms - Submit",
         ) as response:
             if response.status_code in [200, 201]:
                 response.success()
@@ -294,10 +269,7 @@ class CatalogBrowsing(SequentialTaskSet):
     def list_suppliers(self):
         """List all suppliers."""
         with self.client.get(
-            "/api/suppliers/",
-            headers=self.get_headers(),
-            catch_response=True,
-            name="Catalog - List Suppliers"
+            "/api/suppliers/", headers=self.get_headers(), catch_response=True, name="Catalog - List Suppliers"
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -308,10 +280,7 @@ class CatalogBrowsing(SequentialTaskSet):
     def list_customers(self):
         """List all customers."""
         with self.client.get(
-            "/api/customers/",
-            headers=self.get_headers(),
-            catch_response=True,
-            name="Catalog - List Customers"
+            "/api/customers/", headers=self.get_headers(), catch_response=True, name="Catalog - List Customers"
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -328,7 +297,7 @@ class CatalogBrowsing(SequentialTaskSet):
             f"/api/suppliers/?search={search_query}",
             headers=self.get_headers(),
             catch_response=True,
-            name="Catalog - Search Suppliers"
+            name="Catalog - Search Suppliers",
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -339,13 +308,13 @@ class CatalogBrowsing(SequentialTaskSet):
 class ProjectMeatsUser(HttpUser):
     """
     Simulated ProjectMeats user.
-    
+
     Performs random tasks from multiple task sets:
     - Authentication flow
     - Workflow operations
     - Form submissions
     - Catalog browsing
-    
+
     Think time: 1-3 seconds between requests
     """
 
@@ -367,7 +336,7 @@ class ProjectMeatsUser(HttpUser):
 class AdminUser(HttpUser):
     """
     Simulated admin user with higher activity on workflow operations.
-    
+
     Think time: 0.5-2 seconds (faster than regular users)
     """
 
@@ -386,7 +355,7 @@ class AdminUser(HttpUser):
 class ReadOnlyUser(HttpUser):
     """
     Simulated read-only user (browsing only, no write operations).
-    
+
     Think time: 2-5 seconds (slower browsing)
     """
 
@@ -407,19 +376,19 @@ from locust import events
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
     """Hook that runs when load test starts."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("ProjectMeats Load Test Starting...")
     print(f"Target host: {environment.host}")
-    print("="*50 + "\n")
+    print("=" * 50 + "\n")
 
 
 @events.test_stop.add_listener
 def on_test_stop(environment, **kwargs):
     """Hook that runs when load test stops."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("ProjectMeats Load Test Complete!")
     print(f"Total requests: {environment.stats.total.num_requests}")
     print(f"Failures: {environment.stats.total.num_failures}")
     print(f"Average response time: {environment.stats.total.avg_response_time:.2f}ms")
     print(f"RPS: {environment.stats.total.total_rps:.2f}")
-    print("="*50 + "\n")
+    print("=" * 50 + "\n")

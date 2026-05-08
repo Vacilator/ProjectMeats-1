@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("invoices", "0014_invoice_deleted_at_invoice_is_deleted"),
         ("system", "0015_enable_rls_tenant_forms_workforms"),

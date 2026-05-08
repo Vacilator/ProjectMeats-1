@@ -1,6 +1,6 @@
 /**
  * FieldConfigPanel Component
- * 
+ *
  * Panel for configuring individual form field properties.
  * Used in form builder to set validation, display, and behavior options.
  */
@@ -11,7 +11,7 @@ import styled, { css, keyframes } from 'styled-components';
 // TYPES
 // ============================================================================
 
-export type FieldType = 
+export type FieldType =
   | 'text'
   | 'textarea'
   | 'number'
@@ -150,7 +150,7 @@ const CloseButton = styled.button`
   border-radius: 4px;
   font-size: 18px;
   line-height: 1;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover, 243 244 246));
     color: rgb(var(--color-text-primary, 17 24 39));
@@ -165,7 +165,7 @@ const Content = styled.div`
 
 const Section = styled.div`
   margin-bottom: 24px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -182,7 +182,7 @@ const SectionTitle = styled.h4`
 
 const FormGroup = styled.div`
   margin-bottom: 16px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -204,13 +204,13 @@ const Input = styled.input`
   font-size: 14px;
   background: rgb(var(--color-surface, 255 255 255));
   color: rgb(var(--color-text-primary, 17 24 39));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
     box-shadow: 0 0 0 3px rgba(var(--color-primary, 102 126 234), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary, 156 163 175));
   }
@@ -227,7 +227,7 @@ const Textarea = styled.textarea`
   resize: vertical;
   min-height: 80px;
   font-family: inherit;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -244,7 +244,7 @@ const Select = styled.select`
   background: rgb(var(--color-surface, 255 255 255));
   color: rgb(var(--color-text-primary, 17 24 39));
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -264,31 +264,31 @@ const TypeButton = styled.button<{ $selected: boolean }>`
   align-items: center;
   gap: 4px;
   padding: 12px 8px;
-  background: ${props => props.$selected 
-    ? 'rgb(var(--color-primary-bg, 238 242 255))' 
+  background: ${props => props.$selected
+    ? 'rgb(var(--color-primary-bg, 238 242 255))'
     : 'rgb(var(--color-surface, 255 255 255))'};
-  border: 1px solid ${props => props.$selected 
-    ? 'rgb(var(--color-primary, 102 126 234))' 
+  border: 1px solid ${props => props.$selected
+    ? 'rgb(var(--color-primary, 102 126 234))'
     : 'rgb(var(--color-border, 229 231 235))'};
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     ${props => !props.$selected && css`
       border-color: rgb(var(--color-primary, 102 126 234));
       background: rgb(var(--color-surface-hover, 243 244 246));
     `}
   }
-  
+
   .icon {
     font-size: 20px;
   }
-  
+
   .label {
     font-size: 11px;
-    color: ${props => props.$selected 
-      ? 'rgb(var(--color-primary, 102 126 234))' 
+    color: ${props => props.$selected
+      ? 'rgb(var(--color-primary, 102 126 234))'
       : 'rgb(var(--color-text-secondary, 107 114 128))'};
     font-weight: ${props => props.$selected ? 600 : 400};
   }
@@ -301,7 +301,7 @@ const CheckboxLabel = styled.label`
   font-size: 13px;
   color: rgb(var(--color-text-primary, 17 24 39));
   cursor: pointer;
-  
+
   input {
     width: 16px;
     height: 16px;
@@ -327,7 +327,7 @@ const OptionInput = styled.input`
   border: 1px solid rgb(var(--color-border, 229 231 235));
   border-radius: 4px;
   font-size: 13px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -342,7 +342,7 @@ const RemoveOptionButton = styled.button`
   cursor: pointer;
   font-size: 14px;
   border-radius: 4px;
-  
+
   &:hover {
     background: rgb(var(--color-error-bg, 254 242 242));
     color: rgb(var(--color-error, 239 68 68));
@@ -357,7 +357,7 @@ const AddOptionButton = styled.button`
   color: rgb(var(--color-text-secondary, 107 114 128));
   cursor: pointer;
   font-size: 13px;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary, 102 126 234));
     color: rgb(var(--color-primary, 102 126 234));
@@ -395,7 +395,7 @@ const ValidationInput = styled.input`
   border-radius: 4px;
   font-size: 13px;
   min-width: 80px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -426,18 +426,18 @@ const getValidationOptions = (type: FieldType): { value: ValidationRule['type'];
   const common = [
     { value: 'required' as const, label: 'Required' },
   ];
-  
+
   const textValidations = [
     { value: 'minLength' as const, label: 'Min Length' },
     { value: 'maxLength' as const, label: 'Max Length' },
     { value: 'pattern' as const, label: 'Pattern (Regex)' },
   ];
-  
+
   const numberValidations = [
     { value: 'min' as const, label: 'Minimum' },
     { value: 'max' as const, label: 'Maximum' },
   ];
-  
+
   switch (type) {
     case 'text':
     case 'textarea':
@@ -462,45 +462,45 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<'basic' | 'validation' | 'advanced'>('basic');
-  
+
   const updateField = useCallback((updates: Partial<FieldConfig>) => {
     onChange({ ...field, ...updates });
   }, [field, onChange]);
-  
+
   const updateOption = useCallback((index: number, updates: Partial<FieldOption>) => {
     const newOptions = [...(field.options || [])];
     newOptions[index] = { ...newOptions[index], ...updates };
     updateField({ options: newOptions });
   }, [field.options, updateField]);
-  
+
   const addOption = useCallback(() => {
     const newOptions = [...(field.options || []), { value: '', label: '' }];
     updateField({ options: newOptions });
   }, [field.options, updateField]);
-  
+
   const removeOption = useCallback((index: number) => {
     const newOptions = (field.options || []).filter((_, i) => i !== index);
     updateField({ options: newOptions });
   }, [field.options, updateField]);
-  
+
   const addValidation = useCallback((type: ValidationRule['type']) => {
     const newValidation: ValidationRule = { type };
     updateField({ validation: [...field.validation, newValidation] });
   }, [field.validation, updateField]);
-  
+
   const updateValidation = useCallback((index: number, updates: Partial<ValidationRule>) => {
     const newValidation = [...field.validation];
     newValidation[index] = { ...newValidation[index], ...updates };
     updateField({ validation: newValidation });
   }, [field.validation, updateField]);
-  
+
   const removeValidation = useCallback((index: number) => {
     const newValidation = field.validation.filter((_, i) => i !== index);
     updateField({ validation: newValidation });
   }, [field.validation, updateField]);
-  
+
   const currentType = FIELD_TYPES.find(t => t.value === field.type);
-  
+
   return (
     <Panel>
       <Header>
@@ -514,7 +514,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
           </CloseButton>
         )}
       </Header>
-      
+
       <Content>
         <Section>
           <SectionTitle>Field Type</SectionTitle>
@@ -533,10 +533,10 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             ))}
           </TypeGrid>
         </Section>
-        
+
         <Section>
           <SectionTitle>Basic Settings</SectionTitle>
-          
+
           <FormGroup>
             <Label htmlFor="field-name">Field Name (ID)</Label>
             <Input
@@ -547,7 +547,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             />
             <HelpText>Used in code and API. Use snake_case.</HelpText>
           </FormGroup>
-          
+
           <FormGroup>
             <Label htmlFor="field-label">Label</Label>
             <Input
@@ -557,7 +557,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
               placeholder="Field Label"
             />
           </FormGroup>
-          
+
           <FormGroup>
             <Label htmlFor="field-placeholder">Placeholder</Label>
             <Input
@@ -567,7 +567,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
               placeholder="Enter placeholder text..."
             />
           </FormGroup>
-          
+
           <FormGroup>
             <Label htmlFor="field-help">Help Text</Label>
             <Textarea
@@ -577,7 +577,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
               placeholder="Add help text to guide users..."
             />
           </FormGroup>
-          
+
           <FormGroup>
             <Label htmlFor="field-width">Width</Label>
             <Select
@@ -591,7 +591,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             </Select>
           </FormGroup>
         </Section>
-        
+
         {needsOptions(field.type) && (
           <Section>
             <SectionTitle>Options</SectionTitle>
@@ -622,7 +622,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             </OptionsList>
           </Section>
         )}
-        
+
         {(field.type === 'number' || field.type === 'currency') && (
           <Section>
             <SectionTitle>Number Settings</SectionTitle>
@@ -674,7 +674,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             )}
           </Section>
         )}
-        
+
         {(field.type === 'text' || field.type === 'textarea') && (
           <Section>
             <SectionTitle>Text Settings</SectionTitle>
@@ -702,7 +702,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             </RowPair>
           </Section>
         )}
-        
+
         {field.type === 'file' && (
           <Section>
             <SectionTitle>File Settings</SectionTitle>
@@ -711,8 +711,8 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
               <Input
                 id="field-accepted"
                 value={(field.acceptedTypes || []).join(', ')}
-                onChange={(e) => updateField({ 
-                  acceptedTypes: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
+                onChange={(e) => updateField({
+                  acceptedTypes: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                 })}
                 placeholder=".pdf, .doc, .docx"
               />
@@ -730,7 +730,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             </FormGroup>
           </Section>
         )}
-        
+
         <Section>
           <SectionTitle>Validation Rules</SectionTitle>
           <ValidationList>
@@ -765,7 +765,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
                 </RemoveOptionButton>
               </ValidationRow>
             ))}
-            <AddOptionButton 
+            <AddOptionButton
               onClick={() => addValidation('required')}
               type="button"
             >
@@ -773,7 +773,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
             </AddOptionButton>
           </ValidationList>
         </Section>
-        
+
         <Section>
           <SectionTitle>Behavior</SectionTitle>
           <FormGroup>

@@ -103,7 +103,7 @@ try:
     sock = socket.create_connection((settings.EMAIL_HOST, settings.EMAIL_PORT), timeout=10)
     print('✅ Socket connection successful')
     sock.close()
-    
+
     # Test SMTP connection with Django
     conn = get_connection()
     result = conn.open()

@@ -30,32 +30,32 @@ count=0
 
 for file in "${FILES[@]}"; do
   filepath="$FRONTEND_DIR/$file"
-  
+
   if [[ ! -f "$filepath" ]]; then
     echo "⚠️  Skipping $file (not found)"
     continue
   fi
-  
+
   # Count console.log occurrences
   before=$(grep -c "console\.log" "$filepath" || echo 0)
-  
+
   if [[ $before -eq 0 ]]; then
     echo "✓ $file (already clean)"
     continue
   fi
-  
+
   # Create backup
   cp "$filepath" "$filepath.bak"
-  
+
   # Replace console.log with logger.debug
   sed -i 's/console\.log(/logger.debug(/g' "$filepath"
-  
+
   # Replace console.warn with logger.warn
   sed -i 's/console\.warn(/logger.warn(/g' "$filepath"
-  
+
   # Replace console.error with logger.error
   sed -i 's/console\.error(/logger.error(/g' "$filepath"
-  
+
   # Add logger import if not present
   if ! grep -q "from '@/utils/logger'" "$filepath" && ! grep -q "from '.*utils/logger'" "$filepath"; then
     # Find first import statement
@@ -67,11 +67,11 @@ for file in "${FILES[@]}"; do
       sed -i "1i\\$LOGGER_IMPORT" "$filepath"
     fi
   fi
-  
+
   after=$(grep -c "console\." "$filepath" || echo 0)
   replaced=$((before - after))
   count=$((count + replaced))
-  
+
   echo "✓ $file: replaced $replaced console statements"
 done
 

@@ -2,14 +2,6 @@
 Security middleware package.
 """
 
-from .security import (
-    SecurityHeadersMiddleware,
-    InputSanitizationMiddleware,
-    SecureSessionMiddleware
-)
+from .security import InputSanitizationMiddleware, SecureSessionMiddleware, SecurityHeadersMiddleware
 
-__all__ = [
-    'SecurityHeadersMiddleware',
-    'InputSanitizationMiddleware',
-    'SecureSessionMiddleware'
-]
+__all__ = ["SecurityHeadersMiddleware", "InputSanitizationMiddleware", "SecureSessionMiddleware"]

@@ -5,8 +5,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
-if 'tenant_apps.ai_assistant' not in settings.INSTALLED_APPS:
-    raise unittest.SkipTest('tenant_apps.ai_assistant is excluded from INSTALLED_APPS in test settings')
+if "tenant_apps.ai_assistant" not in settings.INSTALLED_APPS:
+    raise unittest.SkipTest("tenant_apps.ai_assistant is excluded from INSTALLED_APPS in test settings")
 
 from tenant_apps.ai_assistant.services.semantic_cache import (
     build_context_signature,

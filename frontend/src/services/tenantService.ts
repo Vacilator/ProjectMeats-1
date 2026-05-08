@@ -91,7 +91,7 @@ export class TenantService {
         // Server responded with error
         const status = error.response.status;
         const data = error.response.data;
-        
+
         if (status === 400) {
           // Validation error - extract specific message
           if (data.logo) {
@@ -132,7 +132,7 @@ export class TenantService {
   /**
    * Update tenant theme colors via settings PATCH
    * This is the direct API method that sends colors as settings.theme
-   * 
+   *
    * @param id - Tenant ID
    * @param colors - Theme colors object
    * @throws {Error} With detailed message if update fails
@@ -167,7 +167,7 @@ export class TenantService {
       if (error.response) {
         const status = error.response.status;
         const data = error.response.data;
-        
+
         // Check if response is HTML instead of JSON (common issue)
         const contentType = error.response.headers['content-type'];
         if (contentType && contentType.includes('text/html')) {
@@ -185,12 +185,12 @@ export class TenantService {
           );
           throw new Error('Server returned HTML instead of JSON. Check server configuration and CORS settings.');
         }
-        
+
         if (status === 400) {
           // Validation error - extract specific message
           if (data.settings) {
-            const settingsErrors = typeof data.settings === 'object' 
-              ? JSON.stringify(data.settings) 
+            const settingsErrors = typeof data.settings === 'object'
+              ? JSON.stringify(data.settings)
               : data.settings;
             throw new Error(`Settings validation failed: ${settingsErrors}`);
           } else if (data.detail) {
@@ -231,7 +231,7 @@ export class TenantService {
         primary_color_light?: string;
         primary_color_dark?: string;
       } = {};
-      
+
       if (lightColor) data.primary_color_light = lightColor;
       if (darkColor) data.primary_color_dark = darkColor;
 
@@ -242,7 +242,7 @@ export class TenantService {
       if (error.response) {
         const status = error.response.status;
         const data = error.response.data;
-        
+
         if (status === 400) {
           // Validation error
           if (data.error) {

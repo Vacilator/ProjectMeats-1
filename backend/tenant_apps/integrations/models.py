@@ -12,8 +12,8 @@ from apps.core.models import TenantAwareModel
 
 
 class TenantWebhookEventType(models.TextChoices):
-    PURCHASE_ORDER_CREATED = 'purchase_order.created', 'Purchase Order Created'
-    WORKFORM_COMPLETED = 'workform.completed', 'Workform Completed'
+    PURCHASE_ORDER_CREATED = "purchase_order.created", "Purchase Order Created"
+    WORKFORM_COMPLETED = "workform.completed", "Workform Completed"
 
 
 def _generate_prefix() -> str:
@@ -22,7 +22,7 @@ def _generate_prefix() -> str:
 
 
 def _hash_secret(secret_value: str) -> str:
-    return hashlib.sha256(secret_value.encode('utf-8')).hexdigest()
+    return hashlib.sha256(secret_value.encode("utf-8")).hexdigest()
 
 
 def generate_api_key() -> Tuple[str, str, str]:
@@ -62,7 +62,7 @@ class TenantAPIKey(TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='tenant_api_keys_created',
+        related_name="tenant_api_keys_created",
     )
 
     last_used_at = models.DateTimeField(null=True, blank=True)
@@ -70,11 +70,11 @@ class TenantAPIKey(TenantAwareModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['tenant', 'key_prefix'], name='unique_tenant_api_key_prefix'),
+            models.UniqueConstraint(fields=["tenant", "key_prefix"], name="unique_tenant_api_key_prefix"),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'revoked_at']),
-            models.Index(fields=['tenant', 'key_prefix']),
+            models.Index(fields=["tenant", "revoked_at"]),
+            models.Index(fields=["tenant", "key_prefix"]),
         ]
 
     def __str__(self) -> str:
@@ -88,12 +88,12 @@ class TenantAPIKey(TenantAwareModel):
         if self.revoked_at:
             return
         self.revoked_at = at or timezone.now()
-        self.save(update_fields=['revoked_at', 'modified_on'])
+        self.save(update_fields=["revoked_at", "modified_on"])
 
     def verify(self, full_key: str) -> bool:
         """Verify a presented full key against this record."""
         try:
-            prefix, secret_value = full_key.split('.', 1)
+            prefix, secret_value = full_key.split(".", 1)
         except ValueError:
             return False
         if prefix != self.key_prefix:
@@ -111,19 +111,19 @@ class TenantWebhook(TenantAwareModel):
     is_active = models.BooleanField(default=True, db_index=True)
 
     # Used to sign outbound requests (HMAC). Do not expose via list endpoints.
-    signing_secret = models.CharField(max_length=128, blank=True, default='')
+    signing_secret = models.CharField(max_length=128, blank=True, default="")
 
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='tenant_webhooks_created',
+        related_name="tenant_webhooks_created",
     )
 
     class Meta:
         indexes = [
-            models.Index(fields=['tenant', 'event_type', 'is_active']),
+            models.Index(fields=["tenant", "event_type", "is_active"]),
         ]
 
     def __str__(self) -> str:
@@ -132,38 +132,38 @@ class TenantWebhook(TenantAwareModel):
     def rotate_secret(self) -> str:
         new_secret = generate_webhook_secret()
         self.signing_secret = new_secret
-        self.save(update_fields=['signing_secret', 'modified_on'])
+        self.save(update_fields=["signing_secret", "modified_on"])
         return new_secret
 
 
 class SettlementSourceAuthMode(models.TextChoices):
-    TENANT_API_KEY = 'tenant_api_key', 'Tenant API Key'
-    PROVIDER_HMAC_SIGNATURE = 'provider_hmac_signature', 'Provider HMAC Signature'
+    TENANT_API_KEY = "tenant_api_key", "Tenant API Key"
+    PROVIDER_HMAC_SIGNATURE = "provider_hmac_signature", "Provider HMAC Signature"
 
 
 class SettlementEventState(models.TextChoices):
-    RECEIVED = 'received', 'Received'
-    VALIDATED = 'validated', 'Validated'
-    DUPLICATE = 'duplicate', 'Duplicate'
-    READY_TO_POST = 'ready_to_post', 'Ready to Post'
-    POSTED = 'posted', 'Posted'
-    IGNORED = 'ignored', 'Ignored'
-    FAILED = 'failed', 'Failed'
+    RECEIVED = "received", "Received"
+    VALIDATED = "validated", "Validated"
+    DUPLICATE = "duplicate", "Duplicate"
+    READY_TO_POST = "ready_to_post", "Ready to Post"
+    POSTED = "posted", "Posted"
+    IGNORED = "ignored", "Ignored"
+    FAILED = "failed", "Failed"
 
 
 class SettlementReconciliationReason(models.TextChoices):
-    EXACT_INVOICE_MATCH = 'exact_invoice_match', 'Exact Invoice Match'
-    EXACT_SALES_ORDER_MATCH = 'exact_sales_order_match', 'Exact Sales Order Match'
-    EXACT_PURCHASE_ORDER_MATCH = 'exact_purchase_order_match', 'Exact Purchase Order Match'
-    MANUAL_INVOICE_OVERRIDE = 'manual_invoice_override', 'Manual Invoice Override'
-    MANUAL_SALES_ORDER_OVERRIDE = 'manual_sales_order_override', 'Manual Sales Order Override'
-    MANUAL_PURCHASE_ORDER_OVERRIDE = 'manual_purchase_order_override', 'Manual Purchase Order Override'
-    ACCOUNTANT_REJECTED = 'accountant_rejected', 'Accountant Rejected'
-    MISSING_REFERENCE = 'missing_reference', 'Missing Reference'
-    REFERENCE_NOT_FOUND = 'reference_not_found', 'Reference Not Found'
-    AMOUNT_MISMATCH = 'amount_mismatch', 'Amount Mismatch'
-    AMBIGUOUS_MATCH = 'ambiguous_match', 'Ambiguous Match'
-    UNSUPPORTED_DIRECTION = 'unsupported_direction', 'Unsupported Direction'
+    EXACT_INVOICE_MATCH = "exact_invoice_match", "Exact Invoice Match"
+    EXACT_SALES_ORDER_MATCH = "exact_sales_order_match", "Exact Sales Order Match"
+    EXACT_PURCHASE_ORDER_MATCH = "exact_purchase_order_match", "Exact Purchase Order Match"
+    MANUAL_INVOICE_OVERRIDE = "manual_invoice_override", "Manual Invoice Override"
+    MANUAL_SALES_ORDER_OVERRIDE = "manual_sales_order_override", "Manual Sales Order Override"
+    MANUAL_PURCHASE_ORDER_OVERRIDE = "manual_purchase_order_override", "Manual Purchase Order Override"
+    ACCOUNTANT_REJECTED = "accountant_rejected", "Accountant Rejected"
+    MISSING_REFERENCE = "missing_reference", "Missing Reference"
+    REFERENCE_NOT_FOUND = "reference_not_found", "Reference Not Found"
+    AMOUNT_MISMATCH = "amount_mismatch", "Amount Mismatch"
+    AMBIGUOUS_MATCH = "ambiguous_match", "Ambiguous Match"
+    UNSUPPORTED_DIRECTION = "unsupported_direction", "Unsupported Direction"
 
 
 class SettlementSource(TenantAwareModel):
@@ -183,9 +183,9 @@ class SettlementSource(TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='settlement_sources',
+        related_name="settlement_sources",
     )
-    signing_secret = models.CharField(max_length=128, blank=True, default='')
+    signing_secret = models.CharField(max_length=128, blank=True, default="")
     is_active = models.BooleanField(default=True, db_index=True)
     last_received_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
@@ -193,23 +193,23 @@ class SettlementSource(TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='settlement_sources_created',
+        related_name="settlement_sources_created",
     )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'provider_code', 'provider_account_reference'],
-                name='unique_tenant_settlement_source_provider_account',
+                fields=["tenant", "provider_code", "provider_account_reference"],
+                name="unique_tenant_settlement_source_provider_account",
             ),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'provider_code', 'is_active']),
-            models.Index(fields=['tenant', 'public_id']),
+            models.Index(fields=["tenant", "provider_code", "is_active"]),
+            models.Index(fields=["tenant", "public_id"]),
         ]
 
     def __str__(self) -> str:
-        return f'{self.tenant_id} {self.provider_code}:{self.provider_account_reference}'
+        return f"{self.tenant_id} {self.provider_code}:{self.provider_account_reference}"
 
     def provision_credential(self, *, created_by: Optional[User] = None) -> tuple[str, str]:
         if self.auth_mode == SettlementSourceAuthMode.TENANT_API_KEY:
@@ -218,32 +218,32 @@ class SettlementSource(TenantAwareModel):
                 self.api_key.revoke()
             api_key = TenantAPIKey.objects.create(
                 tenant=self.tenant,
-                name=f'Settlement Source: {self.name}',
+                name=f"Settlement Source: {self.name}",
                 key_prefix=prefix,
                 key_hash=secret_hash,
                 created_by=created_by,
             )
             self.api_key = api_key
-            self.signing_secret = ''
-            self.save(update_fields=['api_key', 'signing_secret', 'modified_on'])
-            return 'api_key', full_key
+            self.signing_secret = ""
+            self.save(update_fields=["api_key", "signing_secret", "modified_on"])
+            return "api_key", full_key
 
         signing_secret = generate_webhook_secret()
         if self.api_key and self.api_key.is_active:
             self.api_key.revoke()
         self.api_key = None
         self.signing_secret = signing_secret
-        self.save(update_fields=['api_key', 'signing_secret', 'modified_on'])
-        return 'signing_secret', signing_secret
+        self.save(update_fields=["api_key", "signing_secret", "modified_on"])
+        return "signing_secret", signing_secret
 
 
 class SettlementEvent(TenantAwareModel):
     """Replay-safe raw settlement event journal."""
 
-    source = models.ForeignKey(SettlementSource, on_delete=models.CASCADE, related_name='events')
+    source = models.ForeignKey(SettlementSource, on_delete=models.CASCADE, related_name="events")
     provider_code = models.CharField(max_length=64)
     provider_account_reference = models.CharField(max_length=120)
-    external_event_id = models.CharField(max_length=120, blank=True, default='')
+    external_event_id = models.CharField(max_length=120, blank=True, default="")
     event_type = models.CharField(max_length=64)
     direction = models.CharField(max_length=32)
     occurred_at = models.DateTimeField()
@@ -259,69 +259,69 @@ class SettlementEvent(TenantAwareModel):
         db_index=True,
     )
     normalized_payload = models.JSONField(default=dict, blank=True)
-    reconciliation_reason_code = models.CharField(max_length=64, blank=True, default='', db_index=True)
+    reconciliation_reason_code = models.CharField(max_length=64, blank=True, default="", db_index=True)
     delivery_count = models.PositiveIntegerField(default=1)
     received_at = models.DateTimeField(default=timezone.now, db_index=True)
     last_received_at = models.DateTimeField(default=timezone.now)
     processed_at = models.DateTimeField(null=True, blank=True)
-    processing_task_id = models.CharField(max_length=64, blank=True, default='')
-    last_error = models.TextField(blank=True, default='')
+    processing_task_id = models.CharField(max_length=64, blank=True, default="")
+    last_error = models.TextField(blank=True, default="")
     matched_purchase_order = models.ForeignKey(
-        'purchase_orders.PurchaseOrder',
+        "purchase_orders.PurchaseOrder",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='matched_settlement_events',
+        related_name="matched_settlement_events",
     )
     matched_sales_order = models.ForeignKey(
-        'sales_orders.SalesOrder',
+        "sales_orders.SalesOrder",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='matched_settlement_events',
+        related_name="matched_settlement_events",
     )
     matched_invoice = models.ForeignKey(
-        'invoices.Invoice',
+        "invoices.Invoice",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='matched_settlement_events',
+        related_name="matched_settlement_events",
     )
     payment_transaction = models.OneToOneField(
-        'invoices.PaymentTransaction',
+        "invoices.PaymentTransaction",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='source_settlement_event',
+        related_name="source_settlement_event",
     )
     reviewed_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='reviewed_settlement_events',
+        related_name="reviewed_settlement_events",
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
-    review_note = models.TextField(blank=True, default='')
+    review_note = models.TextField(blank=True, default="")
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'idempotency_key'],
-                name='unique_tenant_settlement_event_idempotency',
+                fields=["tenant", "idempotency_key"],
+                name="unique_tenant_settlement_event_idempotency",
             ),
             models.UniqueConstraint(
-                fields=['tenant', 'provider_code', 'external_event_id'],
-                condition=~Q(external_event_id=''),
-                name='unique_tenant_settlement_provider_event',
+                fields=["tenant", "provider_code", "external_event_id"],
+                condition=~Q(external_event_id=""),
+                name="unique_tenant_settlement_provider_event",
             ),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'state', 'received_at']),
-            models.Index(fields=['tenant', 'source', 'occurred_at']),
-            models.Index(fields=['tenant', 'provider_code', 'external_event_id']),
-            models.Index(fields=['tenant', 'reconciliation_reason_code', 'received_at']),
+            models.Index(fields=["tenant", "state", "received_at"]),
+            models.Index(fields=["tenant", "source", "occurred_at"]),
+            models.Index(fields=["tenant", "provider_code", "external_event_id"]),
+            models.Index(fields=["tenant", "reconciliation_reason_code", "received_at"]),
         ]
 
     def __str__(self) -> str:
-        return f'{self.provider_code}:{self.external_event_id or self.idempotency_key[:8]}'
+        return f"{self.provider_code}:{self.external_event_id or self.idempotency_key[:8]}"

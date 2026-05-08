@@ -1,13 +1,13 @@
 /**
  * Connection Validator Utility
  * Phase 7.2: Visual Connection Indicators
- * 
+ *
  * Validates workflow connections and provides visual feedback:
  * - Type compatibility checking
  * - Circular dependency detection
  * - Dangling connection detection
  * - Connection recommendations
- * 
+ *
  * Created: 2026-02-27
  */
 

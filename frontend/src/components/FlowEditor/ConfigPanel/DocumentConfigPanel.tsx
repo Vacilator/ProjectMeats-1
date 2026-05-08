@@ -1,9 +1,9 @@
 /**
  * DocumentConfigPanel Component
- * 
+ *
  * Configuration modal for Document/File Upload nodes in WorkForms editor.
  * Allows setting file types, size limits, upload destination, OCR, and validation rules.
- * 
+ *
  * Part of Phase 1 Task 1.3 - WORKFORMS_NAVIGATION_FIX_PLAN
  */
 
@@ -130,12 +130,12 @@ const PresetGrid = styled.div`
 
 const PresetButton = styled.button<{ selected: boolean }>`
   padding: 10px 14px;
-  border: 2px solid ${props => props.selected 
-    ? 'rgb(var(--color-primary))' 
+  border: 2px solid ${props => props.selected
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: 6px;
-  background: ${props => props.selected 
-    ? 'rgb(var(--color-primary) / 0.1)' 
+  background: ${props => props.selected
+    ? 'rgb(var(--color-primary) / 0.1)'
     : 'rgb(var(--color-surface))'};
   color: rgb(var(--color-text-primary));
   font-size: 13px;
@@ -498,8 +498,8 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
               min="1"
               max="100"
               value={formData.maxFileSize}
-              onChange={(e) => setFormData(prev => ({ 
-                ...prev, 
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
                 maxFileSize: parseInt(e.target.value) || 1,
               }))}
             />
@@ -520,8 +520,8 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
                 type="number"
                 min="1"
                 value={formData.minFiles}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
                   minFiles: parseInt(e.target.value) || 1,
                 }))}
               />
@@ -532,8 +532,8 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
                 type="number"
                 min="1"
                 value={formData.maxFiles}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
                   maxFiles: parseInt(e.target.value) || 1,
                 }))}
               />

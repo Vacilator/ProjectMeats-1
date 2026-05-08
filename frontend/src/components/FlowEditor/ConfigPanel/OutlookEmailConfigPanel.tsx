@@ -1,16 +1,16 @@
 /**
  * OutlookEmailConfigPanel
- * 
+ *
  * Configuration panel for OutlookEmailNode
- * 
+ *
  * Phase E.1: Panel Migration - Step 4/4
  * Migrated to use shared styled components from ConfigPanel/shared
- * 
+ *
  * Changes:
  * - Replaced 8 local styled components with shared components
  * - Reduced duplication
  * - Maintained exact same functionality
- * 
+ *
  * Last Updated: 2026-02-17
  */
 import React, { useState } from 'react';
@@ -56,7 +56,7 @@ const AddButton = styled.button`
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));

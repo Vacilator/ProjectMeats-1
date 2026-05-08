@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cockpit", "0004_add_user_workspace_layout"),
         ("tenants", "0010_add_tenant_configuration"),

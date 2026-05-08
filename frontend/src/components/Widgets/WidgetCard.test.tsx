@@ -1,6 +1,6 @@
 /**
  * WidgetCard Component Tests
- * 
+ *
  * Tests for dashboard widget card wrapper:
  * - Title and icon rendering
  * - Loading state display
@@ -32,7 +32,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByText('Test Widget')).toBeInTheDocument();
     });
 
@@ -42,7 +42,7 @@ describe('WidgetCard', () => {
           <div>Widget Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByText('Widget Content')).toBeInTheDocument();
     });
 
@@ -52,7 +52,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByTestId('icon')).toBeInTheDocument();
     });
 
@@ -62,7 +62,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(container.firstChild).toHaveClass('custom-class');
     });
   });
@@ -74,7 +74,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByText('Loading...')).toBeInTheDocument();
       expect(screen.queryByText('Content')).not.toBeInTheDocument();
     });
@@ -85,7 +85,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
       expect(screen.getByText('Content')).toBeInTheDocument();
     });
@@ -98,7 +98,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByText('Failed to load data')).toBeInTheDocument();
       expect(screen.queryByText('Content')).not.toBeInTheDocument();
     });
@@ -109,7 +109,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByText('Content')).toBeInTheDocument();
     });
 
@@ -119,7 +119,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByText('Loading...')).toBeInTheDocument();
       expect(screen.queryByText('Error message')).not.toBeInTheDocument();
     });
@@ -133,7 +133,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByTitle('Refresh')).toBeInTheDocument();
     });
 
@@ -143,22 +143,22 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.queryByTitle('Refresh')).not.toBeInTheDocument();
     });
 
     it('should call onRefresh when refresh button clicked', async () => {
       const user = userEvent.setup();
       const onRefresh = vi.fn();
-      
+
       render(
         <WidgetCard title="Test Widget" onRefresh={onRefresh}>
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       await user.click(screen.getByTitle('Refresh'));
-      
+
       expect(onRefresh).toHaveBeenCalledTimes(1);
     });
 
@@ -169,7 +169,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByTitle('Refresh')).toBeDisabled();
     });
   });
@@ -177,29 +177,29 @@ describe('WidgetCard', () => {
   describe('Custom Actions', () => {
     it('should render custom actions', () => {
       render(
-        <WidgetCard 
-          title="Test Widget" 
+        <WidgetCard
+          title="Test Widget"
           actions={<button data-testid="custom-action">Action</button>}
         >
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByTestId('custom-action')).toBeInTheDocument();
     });
 
     it('should render actions alongside refresh button', () => {
       const onRefresh = vi.fn();
       render(
-        <WidgetCard 
-          title="Test Widget" 
+        <WidgetCard
+          title="Test Widget"
           onRefresh={onRefresh}
           actions={<button data-testid="custom-action">Action</button>}
         >
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByTestId('custom-action')).toBeInTheDocument();
       expect(screen.getByTitle('Refresh')).toBeInTheDocument();
     });
@@ -212,7 +212,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       // Just verify content renders - styled-components handles the styling
       expect(screen.getByText('Content')).toBeInTheDocument();
     });
@@ -223,7 +223,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       // Just verify content renders - styled-components handles the styling
       expect(screen.getByText('Content')).toBeInTheDocument();
     });
@@ -236,7 +236,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
     });
 
@@ -246,7 +246,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByText('Content')).toBeInTheDocument();
     });
 
@@ -256,7 +256,7 @@ describe('WidgetCard', () => {
           <div>Content</div>
         </WidgetCard>
       );
-      
+
       expect(screen.getByText('Test Widget')).toBeInTheDocument();
       expect(screen.getByText('Content')).toBeInTheDocument();
     });

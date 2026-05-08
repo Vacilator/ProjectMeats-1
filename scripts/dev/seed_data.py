@@ -18,25 +18,25 @@ import sys
 def main():
     """
     Seed data stub - does not execute any database operations.
-    
+
     Expected seed data structure:
-    
+
     1. Tenants:
        - Default tenant for development
        - Test tenant for automated testing
-    
+
     2. Users:
        - Admin user (superuser)
        - Regular user per tenant
        - Guest user for demo access
-    
+
     3. Business Data (per tenant):
        - Sample suppliers (3-5)
        - Sample customers (5-10)
        - Sample contacts linked to suppliers/customers
        - Sample purchase orders (10-20)
        - Sample products (10-15)
-    
+
     Implementation Notes:
     - Use Django management commands for actual seeding
     - See: backend/apps/tenants/management/commands/

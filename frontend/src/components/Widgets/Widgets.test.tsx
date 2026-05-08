@@ -26,20 +26,20 @@ describe('WidgetCard', () => {
         <div>Content</div>
       </WidgetCard>
     );
-    
+
     expect(screen.getByText('Test Widget')).toBeInTheDocument();
     expect(screen.getByText('Content')).toBeInTheDocument();
   });
 
   it('renders icon when provided', () => {
     const TestIcon = () => <span data-testid="test-icon">Icon</span>;
-    
+
     render(
       <WidgetCard title="Test Widget" icon={<TestIcon />}>
         <div>Content</div>
       </WidgetCard>
     );
-    
+
     expect(screen.getByTestId('test-icon')).toBeInTheDocument();
   });
 
@@ -49,7 +49,7 @@ describe('WidgetCard', () => {
         <div>Content</div>
       </WidgetCard>
     );
-    
+
     expect(screen.getByText('Loading...')).toBeInTheDocument();
     expect(screen.queryByText('Content')).not.toBeInTheDocument();
   });
@@ -60,35 +60,35 @@ describe('WidgetCard', () => {
         <div>Content</div>
       </WidgetCard>
     );
-    
+
     expect(screen.getByText('Failed to load')).toBeInTheDocument();
     expect(screen.queryByText('Content')).not.toBeInTheDocument();
   });
 
   it('calls onRefresh when refresh button clicked', () => {
     const onRefresh = vi.fn();
-    
+
     render(
       <WidgetCard title="Test Widget" onRefresh={onRefresh}>
         <div>Content</div>
       </WidgetCard>
     );
-    
+
     const refreshButton = screen.getByTitle('Refresh');
     fireEvent.click(refreshButton);
-    
+
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
   it('disables refresh button when loading', () => {
     const onRefresh = vi.fn();
-    
+
     render(
       <WidgetCard title="Test Widget" loading={true} onRefresh={onRefresh}>
         <div>Content</div>
       </WidgetCard>
     );
-    
+
     const refreshButton = screen.getByTitle('Refresh');
     expect(refreshButton).toBeDisabled();
   });
@@ -101,7 +101,7 @@ describe('QuickActionsWidget', () => {
         <QuickActionsWidget />
       </TestWrapper>
     );
-    
+
     expect(screen.getByText('Quick Actions')).toBeInTheDocument();
   });
 
@@ -111,7 +111,7 @@ describe('QuickActionsWidget', () => {
         <QuickActionsWidget />
       </TestWrapper>
     );
-    
+
     // Check for default action buttons
     expect(screen.getByText('New Purchase Order')).toBeInTheDocument();
     expect(screen.getByText('New Sales Order')).toBeInTheDocument();
@@ -127,26 +127,26 @@ describe('QuickActionsWidget', () => {
         <QuickActionsWidget />
       </TestWrapper>
     );
-    
+
     expect(screen.getByText('Alt + P')).toBeInTheDocument();
     expect(screen.getByText('Ctrl + K')).toBeInTheDocument();
   });
 
   it('calls onOpenSearch when search action clicked', () => {
     const onOpenSearch = vi.fn();
-    
+
     render(
       <TestWrapper>
         <QuickActionsWidget onOpenSearch={onOpenSearch} />
       </TestWrapper>
     );
-    
+
     // Find and click the search button
     const searchButton = screen.getByText('Universal Search').closest('button');
     if (searchButton) {
       fireEvent.click(searchButton);
     }
-    
+
     expect(onOpenSearch).toHaveBeenCalledTimes(1);
   });
 });

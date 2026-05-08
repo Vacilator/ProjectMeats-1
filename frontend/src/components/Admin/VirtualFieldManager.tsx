@@ -1,19 +1,19 @@
 /**
  * Virtual Field Definition Manager
- * 
+ *
  * UI for managing TenantFieldDefinition (custom fields without migrations).
  * Allows admins to add custom fields to entities dynamically.
- * 
+ *
  * Features:
  * - Define custom fields for any entity
  * - Field types: text, select, date, number, checkbox, etc.
  * - Validation rules (required, min/max, patterns)
  * - Preview field configuration
  * - Data stored in custom_data JSONField
- * 
+ *
  * Phase 3: Virtual Schema
  * Created: 2026-02-23
- * 
+ *
  * @module VirtualFieldManager
  */
 
@@ -47,7 +47,7 @@ interface FieldDefinition {
   is_active: boolean;
 }
 
-type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'datetime' | 
+type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'datetime' |
                  'select' | 'multiselect' | 'checkbox' | 'url' | 'email';
 
 interface ValidationRules {

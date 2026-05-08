@@ -1,13 +1,13 @@
 /**
  * Action Node Component
- * 
+ *
  * Generic action node that can be configured for different action types:
  * - Send Email
  * - Create/Update/Delete Record
  * - HTTP Request
  * - Notify User
  * - Run Script
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  */
 import React from 'react';
@@ -22,27 +22,27 @@ import { getNodeTypeDefinition } from '../nodeTypes';
 
 export interface ActionNodeData extends BaseNodeData {
   actionType: 'email' | 'notify' | 'createRecord' | 'updateRecord' | 'deleteRecord' | 'http' | 'script';
-  
+
   // Email-specific
   to?: string;
   subject?: string;
   template?: string;
-  
+
   // Record-specific
   entity?: string;
   recordId?: string;
   fields?: Record<string, any>;
-  
+
   // HTTP-specific
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   url?: string;
   headers?: Record<string, string>;
   body?: any;
-  
+
   // Script-specific
   language?: 'javascript' | 'python';
   code?: string;
-  
+
   // Notification-specific
   userId?: string;
   message?: string;
@@ -185,7 +185,7 @@ function getActionDetails(data: ActionNodeData): { mainItems: ActionDetailItem[]
 export const ActionNode = React.memo<NodeProps<Node<ActionNodeData>>>((props) => {
   const { data, selected, id } = props;
   const { actionType = 'email' } = data; // Default to 'email' if undefined
-  
+
   // Get the appropriate node type definition
   const nodeTypeMap = {
     email: 'actionEmail',
@@ -196,9 +196,9 @@ export const ActionNode = React.memo<NodeProps<Node<ActionNodeData>>>((props) =>
     http: 'actionHTTP',
     script: 'actionScript',
   };
-  
+
   const nodeTypeDef = getNodeTypeDefinition(nodeTypeMap[actionType]) || getNodeTypeDefinition('actionEmail');
-  
+
   // Safety check: if nodeType is still undefined, provide a fallback
   const nodeType = nodeTypeDef || {
     id: 'actionEmail',
@@ -210,7 +210,7 @@ export const ActionNode = React.memo<NodeProps<Node<ActionNodeData>>>((props) =>
     maxInputs: 1,
     maxOutputs: 1,
   };
-  
+
   const { mainItems, extraItems } = getActionDetails(data);
 
   return (
@@ -224,7 +224,7 @@ export const ActionNode = React.memo<NodeProps<Node<ActionNodeData>>>((props) =>
         <ActionBadge $type={actionType}>
           {(actionType || 'email').replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
         </ActionBadge>
-        
+
         <ActionConfig>
           {mainItems.slice(0, 3).map((item, index) => {
             const empty = item.value === undefined || item.value === null || item.value === '';

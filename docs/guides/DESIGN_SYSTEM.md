@@ -1,7 +1,7 @@
 # ProjectMeats Design System
 
-**Version**: 2.0  
-**Last Updated**: January 30, 2026  
+**Version**: 2.0
+**Last Updated**: January 30, 2026
 **Status**: ✅ Active - Single Source of Truth
 
 ---
@@ -154,7 +154,7 @@ const StatusBadge = styled.span<{ status: string }>`
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
-  
+
   ${props => {
     switch (props.status) {
       case 'success':
@@ -282,11 +282,11 @@ const Container = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
-  
+
   @media (min-width: 768px) {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   @media (min-width: 1024px) {
     grid-template-columns: 1fr 2fr 1fr;
   }
@@ -297,7 +297,7 @@ const Container = styled.div`
 ```tsx
 const TableWrapper = styled.div`
   overflow-y: auto;
-  
+
   /* Only enable horizontal scroll on mobile when needed */
   @media (max-width: 768px) {
     overflow-x: auto;
@@ -310,10 +310,10 @@ const TableWrapper = styled.div`
 const ButtonGroup = styled.div`
   display: flex;
   gap: 0.75rem;
-  
+
   @media (max-width: 640px) {
     flex-direction: column;
-    
+
     button {
       width: 100%;
     }
@@ -346,16 +346,16 @@ import { Button } from '@/components/ui';
 </Button>
 ```
 
-**Variants:** `primary` | `secondary` | `outline` | `ghost` | `danger`  
+**Variants:** `primary` | `secondary` | `outline` | `ghost` | `danger`
 **Sizes:** `sm` | `md` | `lg`
 
 #### Modal (Portal-Based)
 ```tsx
 import Modal from '@/components/Modal/Modal';
 
-<Modal 
-  isOpen={showModal} 
-  onClose={() => setShowModal(false)} 
+<Modal
+  isOpen={showModal}
+  onClose={() => setShowModal(false)}
   title="My Modal"
   maxWidth="700px"
   footer={
@@ -374,7 +374,7 @@ import Modal from '@/components/Modal/Modal';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui';
 
 <Card padding="md">
-  <CardHeader 
+  <CardHeader
     title="Dashboard"
     description="Welcome back!"
     actions={<Button>New</Button>}
@@ -392,7 +392,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui';
 ```tsx
 import { PageContainer } from '@/components/ui';
 
-<PageContainer 
+<PageContainer
   title="Inventory Management"
   description="Track your meat products"
   actions={<Button>Add Product</Button>}
@@ -431,7 +431,7 @@ const MyForm = () => {
     e.preventDefault();
     setSubmitting(true);
     setErrors({});
-    
+
     try {
       await apiClient.post('/endpoint', formData);
       onSuccess();
@@ -454,7 +454,7 @@ const MyForm = () => {
         />
         {errors.name && <ErrorMessage>{errors.name}</ErrorMessage>}
       </FormGroup>
-      
+
       <SubmitButton type="submit" disabled={submitting}>
         {submitting ? 'Submitting...' : 'Submit'}
       </SubmitButton>
@@ -472,13 +472,13 @@ const Input = styled.input`
   border-radius: var(--radius-md);
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.2);
   }
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -517,7 +517,7 @@ useEffect(() => {
   if (isOpen) {
     const previousFocus = document.activeElement as HTMLElement;
     modalRef.current?.focus();
-    
+
     return () => {
       previousFocus?.focus();
     };
@@ -733,5 +733,5 @@ Before creating a new component:
 
 ---
 
-**Maintained By**: Frontend Team  
+**Maintained By**: Frontend Team
 **Status**: ✅ Active - Single Source of Truth

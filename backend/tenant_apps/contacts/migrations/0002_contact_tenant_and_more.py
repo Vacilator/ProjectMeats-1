@@ -4,69 +4,80 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
-
-
 def add_tenant_field_if_not_exists(apps, schema_editor):
     """Add tenant field only if it doesn't exist"""
     from django.db import connection
-    
+
     with connection.cursor() as cursor:
         # Check if table and tenant_id column exist
-        cursor.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
+        cursor.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
             WHERE table_schema='public'
-            AND table_name=%s 
+            AND table_name=%s
             AND column_name='tenant_id';
-        """, ['contacts_contact'])
-        
+        """,
+            ["contacts_contact"],
+        )
+
         if not cursor.fetchone():
             # Check if any tenants exist
             cursor.execute("SELECT id FROM tenants_tenant LIMIT 1;")
             result = cursor.fetchone()
-            
+
             if result:
                 # Production path: Tenant exists, use it as default
                 default_tenant_id = result[0]
-                cursor.execute("""
-                    ALTER TABLE contacts_contact 
-                    ADD COLUMN tenant_id UUID NOT NULL DEFAULT %s 
+                cursor.execute(
+                    """
+                    ALTER TABLE contacts_contact
+                    ADD COLUMN tenant_id UUID NOT NULL DEFAULT %s
                     REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED;
-                """, [default_tenant_id])
-                
+                """,
+                    [default_tenant_id],
+                )
+
                 # Remove the default after adding the column
-                cursor.execute("""
-                    ALTER TABLE contacts_contact 
+                cursor.execute(
+                    """
+                    ALTER TABLE contacts_contact
                     ALTER COLUMN tenant_id DROP DEFAULT;
-                """)
+                """
+                )
             else:
                 # Test/Fresh DB path: No tenants exist yet, add as nullable
-                cursor.execute("""
-                    ALTER TABLE contacts_contact 
-                    ADD COLUMN tenant_id UUID NULL 
+                cursor.execute(
+                    """
+                    ALTER TABLE contacts_contact
+                    ADD COLUMN tenant_id UUID NULL
                     REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED;
-                """)
+                """
+                )
 
 
 def add_indexes_if_not_exist(apps, schema_editor):
     """Add indexes only if they don't exist"""
     from django.db import connection
-    
+
     with connection.cursor() as cursor:
         # Get all indexes that should exist
-        cursor.execute("""
-            SELECT indexname FROM pg_indexes 
+        cursor.execute(
+            """
+            SELECT indexname FROM pg_indexes
             WHERE tablename=%s AND indexname LIKE %s;
-        """, ['contacts_contact', f'contacts_%'])
-        
+        """,
+            ["contacts_contact", f"contacts_%"],
+        )
+
         existing_indexes = {row[0] for row in cursor.fetchall()}
-        
+
         # This will be filled with actual index creation SQL if we find any
         # For now, we'll let Django's index management handle it
         pass
 
-class Migration(migrations.Migration):
 
+class Migration(migrations.Migration):
     dependencies = [
         ("contacts", "0001_initial"),
         ("tenants", "0001_initial"),
@@ -77,13 +88,13 @@ class Migration(migrations.Migration):
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AddField(
-                    model_name='contact',
-                    name='tenant',
+                    model_name="contact",
+                    name="tenant",
                     field=models.ForeignKey(
-                        help_text='Tenant this contact belongs to',
+                        help_text="Tenant this contact belongs to",
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='contacts',
-                        to='tenants.tenant'
+                        related_name="contacts",
+                        to="tenants.tenant",
                     ),
                     preserve_default=False,
                 ),
@@ -92,7 +103,6 @@ class Migration(migrations.Migration):
                 migrations.RunPython(add_tenant_field_if_not_exists, migrations.RunPython.noop),
             ],
         ),
-        
         # Step 3: Add index (now that Django knows the field exists)
         migrations.AddIndex(
             model_name="contact",

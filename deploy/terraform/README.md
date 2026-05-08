@@ -1,6 +1,6 @@
 # ProjectMeats Infrastructure Desired-State Scaffold
 
-**Status:** GA-02.1 scaffold + GA-02.3 async envelope contract  
+**Status:** GA-02.1 scaffold + GA-02.3 async envelope contract
 **Purpose:** capture the current launch-critical deployment topology and Celery worker envelope as code structure without changing live infrastructure
 
 This directory is the Terraform-backed **desired-state contract** for ProjectMeats infrastructure. It does **not** provision or mutate any environments yet. Its job is to make the current runtime topology explicit, show what is still manual, and codify the current Celery queue ownership / worker envelope so follow-on GA work can add runtime automation without guesswork.

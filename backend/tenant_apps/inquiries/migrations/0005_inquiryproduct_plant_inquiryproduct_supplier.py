@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0004_add_rls_policies_batch"),
         ("plants", "0011_fix_plants_rls_policies_safe_current_setting"),

@@ -1,7 +1,7 @@
 # React Flow - Lessons Learned & Best Practices
-**Date**: 2026-02-09  
-**Last Updated**: 2026-02-09  
-**Status**: 📚 Reference Document  
+**Date**: 2026-02-09
+**Last Updated**: 2026-02-09
+**Status**: 📚 Reference Document
 **Version**: React Flow v12.10.0
 
 ---
@@ -46,7 +46,7 @@ setNodes(updatedNodes);
 
 **Key Takeaway**: ALWAYS use array insertion at `parentIndex + 1`, NEVER use `.concat()` or `.push()` for child nodes.
 
-**Files Affected**: 
+**Files Affected**:
 - `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx` (Lines 2744-2761)
 - Any component that creates parent-child relationships
 
@@ -86,7 +86,7 @@ const finalNodes = applyDimensions(layoutedNodes, containerId, dimensions);
 setNodes(finalNodes);
 ```
 
-**Key Takeaway**: 
+**Key Takeaway**:
 - NEVER call `setNodes()` multiple times in the same function
 - Calculate ALL updates using `.map()`, then call `setNodes()` ONCE
 - Use functional composition to combine updates
@@ -114,8 +114,8 @@ setNodes(finalNodes);
 **✅ CORRECT - Order-Preserving Updates**:
 ```typescript
 // Update specific node while preserving array order
-const updatedNodes = nodes.map(node => 
-  node.id === targetId 
+const updatedNodes = nodes.map(node =>
+  node.id === targetId
     ? { ...node, data: { ...node.data, newField: value } }
     : node
 );
@@ -219,7 +219,7 @@ const { setCenter, fitView, zoomIn, zoomOut, screenToFlowPosition } = useReactFl
 
 **Key Takeaway**: When using viewport control methods from `useReactFlow()`, check the official documentation to see if the method should be destructured or called on the instance. If you get "is not defined" errors, try destructuring the method.
 
-**Files Affected**: 
+**Files Affected**:
 - `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx` (Line 1645)
 
 **Related Issues**: Bug report from 2026-02-21 - "setCenter is not defined" error in validation navigation
@@ -275,7 +275,7 @@ const updateNodesWithLayout = (
   return nodes.map(node => {
     const layoutChange = layoutChanges.find(lc => lc.id === node.id);
     const dimensionChange = dimensionUpdates[node.id];
-    
+
     return {
       ...node,
       ...(layoutChange || {}),
@@ -345,12 +345,12 @@ const childNode: Node = {
 // Inside container component
 const FormMultiStepContainerNode = ({ id }: NodeProps) => {
   const allNodes = useNodes();
-  
+
   // Find children using parentId
   const childNodes = useMemo(() => {
     return allNodes.filter(node => node.parentId === id);
   }, [allNodes, id]);
-  
+
   return (
     <div>
       <h3>Container: {childNodes.length} nodes</h3>
@@ -383,7 +383,7 @@ const onNodeEdit = (node: Node) => {
 
 // In BaseNode component
 const EditButton = ({ onClick }) => (
-  <button 
+  <button
     onClick={(e) => {
       e.stopPropagation();  // ✅ Prevent node selection
       e.preventDefault();   // ✅ Prevent default behavior
@@ -684,7 +684,7 @@ const childNode: Node = {
 
 ## 🔄 Maintenance Notes
 
-**Last Reviewed**: 2026-02-09  
+**Last Reviewed**: 2026-02-09
 **Next Review**: 2026-05-09 (Quarterly)
 
 **Update Triggers**:

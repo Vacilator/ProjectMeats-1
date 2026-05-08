@@ -15,7 +15,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("suppliers", "0013_remove_supplier_products_supplierplant_and_more"),
         ("system", "0011_tenantform_is_workform_tenantform_parent_workform"),

@@ -23,7 +23,7 @@ REQUIRE_REDIS_READINESS = False
 
 # Read additional ALLOWED_HOSTS from environment variable (comma-separated)
 # This allows GitHub Secrets to override/extend the default list
-_env_hosts = config("ALLOWED_HOSTS", default="", cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+_env_hosts = config("ALLOWED_HOSTS", default="", cast=lambda v: [s.strip() for s in v.split(",") if s.strip()])
 
 ALLOWED_HOSTS = [
     "localhost",
@@ -58,10 +58,8 @@ if database_url:
     # No django-tenants - we use tenant_id foreign keys for isolation
 
     # Set connection settings for development
-    _db_config.setdefault(
-        "CONN_MAX_AGE", 0
-    )  # Close connections after each request in development
-    
+    _db_config.setdefault("CONN_MAX_AGE", 0)  # Close connections after each request in development
+
     # Only add connect_timeout for PostgreSQL (not supported in SQLite)
     if "postgresql" in _db_config.get("ENGINE", ""):
         _db_config.setdefault("OPTIONS", {})
@@ -110,17 +108,15 @@ DATABASES["default"].setdefault("ATOMIC_REQUESTS", False)
 # CODESPACES AUTO-CONFIGURATION
 # ==============================================================================
 # Codespaces environment - ensure standard PostgreSQL backend
-if os.getenv('CODESPACES') == 'true':
-    if 'default' in DATABASES:
+if os.getenv("CODESPACES") == "true":
+    if "default" in DATABASES:
         # Ensure standard PostgreSQL backend (no schema-based tenancy)
-        if DATABASES['default']['ENGINE'] != 'django.db.backends.postgresql':
-            DATABASES['default']['ENGINE'] = 'django.db.backends.postgresql'
+        if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
+            DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
             logger.info("Codespaces detected: Using django.db.backends.postgresql")
 
 # Log which database backend is being used
-logger.info(
-    f"Development environment using database backend: {DATABASES['default']['ENGINE']}"
-)
+logger.info(f"Development environment using database backend: {DATABASES['default']['ENGINE']}")
 
 # CORS Settings for React development server
 CORS_ALLOWED_ORIGINS = [
@@ -168,7 +164,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
     "https://dev.meatscentral.com",
     "https://dev-backend.meatscentral.com",
-    "https://uat.meatscentral.com",          
+    "https://uat.meatscentral.com",
     "https://uat-backend.meatscentral.com",
     "http://localhost:3001",
     "http://127.0.0.1:3001",
@@ -189,9 +185,7 @@ FRONTEND_URL = config("FRONTEND_URL", default="https://dev.meatscentral.com")
 # Do not hardcode API keys in source code
 # For local development, set in your .env file or override with console backend:
 #   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-EMAIL_BACKEND = config(
-    "EMAIL_BACKEND", default="sendgrid_backend.SendgridBackend"
-)
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="sendgrid_backend.SendgridBackend")
 SENDGRID_API_KEY = config("SENDGRID_API_KEY", default=config("EMAIL_HOST_PASSWORD", default=""))
 SENDGRID_SANDBOX_MODE_IN_DEBUG = False
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@meatscentral.com")

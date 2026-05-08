@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0011_inquirysupplierrfq"),
         ("tenants", "0015_alter_tenantinvitation_role_alter_tenantuser_role"),

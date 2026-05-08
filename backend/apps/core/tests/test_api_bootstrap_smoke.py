@@ -18,7 +18,6 @@ from rest_framework.test import APITestCase
 
 from apps.tenants.models import Tenant, TenantUser
 
-
 User = get_user_model()
 
 

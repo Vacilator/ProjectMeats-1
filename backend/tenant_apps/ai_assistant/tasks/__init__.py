@@ -12,8 +12,9 @@ import logging
 from datetime import timedelta
 from typing import Any, Dict, List
 
-from celery import shared_task
 from django.utils import timezone
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ from .auto_tuner import orchestrate_rlhf_finetuning  # noqa: F401
 from .watchdog import run_ai_inbox_watchdog, run_daily_watchdog  # noqa: F401
 
 
-@shared_task(name='ai_assistant.process_rlhf_flywheel')
+@shared_task(name="ai_assistant.process_rlhf_flywheel")
 def process_rlhf_flywheel(days: int = 7) -> Dict[str, Any]:
     """Nightly RLHF flywheel aggregation.
 
@@ -45,8 +46,15 @@ def process_rlhf_flywheel(days: int = 7) -> Dict[str, Any]:
         since = timezone.now() - timedelta(days=int(days))
         qs = (
             AIFeedbackLog.objects.filter(created_on__gte=since)
-            .only('tenant_id', 'document_id', 'document_type', 'confidence_score', 'original_extracted_data', 'user_corrected_data')
-            .order_by('-created_on')
+            .only(
+                "tenant_id",
+                "document_id",
+                "document_type",
+                "confidence_score",
+                "original_extracted_data",
+                "user_corrected_data",
+            )
+            .order_by("-created_on")
         )
 
         count = qs.count()
@@ -56,35 +64,37 @@ def process_rlhf_flywheel(days: int = 7) -> Dict[str, Any]:
         jsonl: List[str] = []
         for row in sample_rows:
             record = {
-                'tenant_id': str(row.tenant_id),
-                'document_id': str(row.document_id),
-                'document_type': row.document_type,
-                'confidence_score': float(row.confidence_score or 0.0),
-                'input': row.original_extracted_data or {},
-                'output': row.user_corrected_data or {},
-                'metadata': {
-                    'source': 'rlhf_flywheel',
+                "tenant_id": str(row.tenant_id),
+                "document_id": str(row.document_id),
+                "document_type": row.document_type,
+                "confidence_score": float(row.confidence_score or 0.0),
+                "input": row.original_extracted_data or {},
+                "output": row.user_corrected_data or {},
+                "metadata": {
+                    "source": "rlhf_flywheel",
                 },
             }
             jsonl.append(json.dumps(record, ensure_ascii=False))
 
-        logger.info('[RLHF] Aggregated %s feedback logs (sample=%s)', count, len(sample_rows))
+        logger.info("[RLHF] Aggregated %s feedback logs (sample=%s)", count, len(sample_rows))
 
         return {
-            'status': 'ok',
-            'lookback_days': int(days),
-            'total_feedback_logs': count,
-            'sample_jsonl_count': len(jsonl),
-            'sample_jsonl_preview': jsonl[:3],
+            "status": "ok",
+            "lookback_days": int(days),
+            "total_feedback_logs": count,
+            "sample_jsonl_count": len(jsonl),
+            "sample_jsonl_preview": jsonl[:3],
         }
 
     except Exception as e:
-        logger.warning('[RLHF] Flywheel task failed: %s', str(e), exc_info=True)
-        return {'status': 'error', 'error': str(e)}
+        logger.warning("[RLHF] Flywheel task failed: %s", str(e), exc_info=True)
+        return {"status": "error", "error": str(e)}
 
 
-@shared_task(name='ai_assistant.compile_rlhf_data')
-def compile_rlhf_data(days: int = 7, limit: int = 5000, out: str | None = None, tenant_id: str | None = None) -> Dict[str, Any]:
+@shared_task(name="ai_assistant.compile_rlhf_data")
+def compile_rlhf_data(
+    days: int = 7, limit: int = 5000, out: str | None = None, tenant_id: str | None = None
+) -> Dict[str, Any]:
     """Compile a redacted OpenAI JSONL dataset from AIFeedbackLog.
 
     This task writes to durable Django storage and returns a summary.
@@ -97,15 +107,15 @@ def compile_rlhf_data(days: int = 7, limit: int = 5000, out: str | None = None, 
             options=CompileOptions(days=int(days), limit=int(limit), tenant_id=tenant_id, out_path=out)
         )
 
-        logger.info('[RLHF] Compiled dataset written=%s path=%s', summary.get('written'), summary.get('out_path'))
+        logger.info("[RLHF] Compiled dataset written=%s path=%s", summary.get("written"), summary.get("out_path"))
         return summary
 
     except Exception as e:
-        logger.warning('[RLHF] Compile task failed: %s', str(e), exc_info=True)
-        return {'status': 'error', 'error': str(e)}
+        logger.warning("[RLHF] Compile task failed: %s", str(e), exc_info=True)
+        return {"status": "error", "error": str(e)}
 
 
-@shared_task(name='ai_assistant.queue_feedback_for_training')
+@shared_task(name="ai_assistant.queue_feedback_for_training")
 def queue_feedback_for_training(feedback_id: str) -> Dict[str, Any]:
     """Queue a single feedback entry for model retraining (RT-02.3).
 
@@ -122,9 +132,9 @@ def queue_feedback_for_training(feedback_id: str) -> Dict[str, Any]:
         from tenant_apps.ai_assistant.services.feedback_service import queue_single_feedback
 
         result = queue_single_feedback(feedback_id)
-        logger.info('[RLHF] queue_feedback_for_training: %s', result)
+        logger.info("[RLHF] queue_feedback_for_training: %s", result)
         return result
 
     except Exception as e:
-        logger.warning('[RLHF] queue_feedback_for_training failed: %s', str(e), exc_info=True)
-        return {'status': 'error', 'error': str(e), 'feedback_id': feedback_id}
+        logger.warning("[RLHF] queue_feedback_for_training failed: %s", str(e), exc_info=True)
+        return {"status": "error", "error": str(e), "feedback_id": feedback_id}

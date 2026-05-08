@@ -1,6 +1,6 @@
 /**
  * Plants Management Page - Table View
- * 
+ *
  * Features:
  * - Table layout with sorting, pagination, and search
  * - Full CRUD operations (Create, Read, Update, Delete)
@@ -94,7 +94,7 @@ const ContextBanner = styled.div`
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -112,30 +112,30 @@ const StyledTable = styled(Table)`
     border: 1px solid rgb(var(--color-border));
     border-radius: var(--radius-lg);
   }
-  
+
   .ant-table-thead > tr > th {
     background: rgb(var(--color-surface));
     color: rgb(var(--color-text-primary));
     font-weight: 600;
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr > td {
     color: rgb(var(--color-text-primary));
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr:hover > td {
     background: rgb(var(--color-surface-hover));
   }
-  
+
   .ant-pagination {
     margin-top: 1rem;
   }
-  
+
   .ant-pagination-item-active {
     border-color: rgb(var(--color-primary));
-    
+
     a {
       color: rgb(var(--color-primary));
     }
@@ -147,7 +147,7 @@ const SupplierLink = styled.a`
   text-decoration: none;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     text-decoration: underline;
   }
@@ -187,7 +187,7 @@ const Plants: React.FC = () => {
   const navigate = useNavigate();
   const { supplierId } = useParams<{ supplierId?: string }>();
   const [searchParams] = useSearchParams();
-  
+
   // State
   const [plants, setPlants] = useState<Plant[]>([]);
   const [filteredPlants, setFilteredPlants] = useState<Plant[]>([]);
@@ -260,16 +260,16 @@ const Plants: React.FC = () => {
 
   const filterPlants = () => {
     let filtered = [...plants];
-    
+
     // Filter by context supplier
     if (contextSupplierId) {
       filtered = filtered.filter(p => p.supplier === contextSupplierId);
     }
-    
+
     // Filter by search text
     if (searchText) {
       const search = searchText.toLowerCase();
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         p.name.toLowerCase().includes(search) ||
         (p.plant_est_num || '').toLowerCase().includes(search) ||
         p.supplier_name?.toLowerCase().includes(search) ||
@@ -277,7 +277,7 @@ const Plants: React.FC = () => {
         p.state?.toLowerCase().includes(search)
       );
     }
-    
+
     setFilteredPlants(filtered);
   };
 

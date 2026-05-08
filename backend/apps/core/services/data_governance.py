@@ -393,7 +393,9 @@ def build_governance_posture_report(*, tenant, lookback_days: int = 30) -> dict[
             "active_legal_hold_count": active_legal_holds.count(),
             "last_completed_batch_at": _serialize_temporal_value(last_completed_batch_at),
             "failed_batch_ids": [str(value) for value in recent_failed_batches.values_list("id", flat=True)[:10]],
-            "stale_inflight_batch_ids": [str(value) for value in stale_inflight_batches.values_list("id", flat=True)[:10]],
+            "stale_inflight_batch_ids": [
+                str(value) for value in stale_inflight_batches.values_list("id", flat=True)[:10]
+            ],
         },
         "observability": {
             "logging_redaction_configured": logging_configured,
@@ -694,8 +696,7 @@ def _logging_redaction_configured() -> bool:
     )
     filter_ok = filters.get("redact_sensitive_data", {}).get("()") == "apps.core.utils.redaction.RedactingLogFilter"
     required_handler_ok = required_handlers.issubset(handlers.keys()) and all(
-        "redact_sensitive_data" in handlers.get(name, {}).get("filters", [])
-        for name in required_handlers
+        "redact_sensitive_data" in handlers.get(name, {}).get("filters", []) for name in required_handlers
     )
     optional_handler_ok = all(
         "redact_sensitive_data" in handlers.get(name, {}).get("filters", [])
@@ -740,8 +741,14 @@ def _run_redaction_probe() -> dict[str, Any]:
         and sanitized_payload.get("phone") == "[REDACTED:PHONE]"
         and sanitized_payload.get("authorization") == "[REDACTED:TOKEN]"
     )
-    event_ok = sanitized_event is not None and "audit@example.com" not in str(sanitized_event) and "secret-token" not in str(sanitized_event)
-    breadcrumb_ok = "audit@example.com" not in str(sanitized_breadcrumb) and "secret-token" not in str(sanitized_breadcrumb)
+    event_ok = (
+        sanitized_event is not None
+        and "audit@example.com" not in str(sanitized_event)
+        and "secret-token" not in str(sanitized_event)
+    )
+    breadcrumb_ok = "audit@example.com" not in str(sanitized_breadcrumb) and "secret-token" not in str(
+        sanitized_breadcrumb
+    )
     transaction_ok = "secret-token" not in str(sanitized_transaction)
 
     return {
@@ -799,7 +806,9 @@ def get_active_legal_holds(*, tenant):
     return list(ArchiveLegalHold.objects.filter(tenant=tenant, released_at__isnull=True))
 
 
-def hold_matches_instance(hold, *, model_label: str, object_pk: Any, parent_model_label: str = "", parent_object_pk: Any = None) -> bool:
+def hold_matches_instance(
+    hold, *, model_label: str, object_pk: Any, parent_model_label: str = "", parent_object_pk: Any = None
+) -> bool:
     """Return True when a legal hold applies to an archive candidate."""
 
     selector = hold.scope_selector or {}

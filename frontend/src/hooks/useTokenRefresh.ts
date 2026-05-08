@@ -1,14 +1,14 @@
 /**
  * Automatic Token Refresh Hook
- * 
+ *
  * Provides automatic JWT token refresh to prevent session expiration.
- * 
+ *
  * Features:
  * - Background token refresh before expiration
  * - Idle detection and auto-logout
  * - Session restoration on page reload
  * - Expiration warnings
- * 
+ *
  * Usage:
  * ```typescript
  * function App() {
@@ -23,12 +23,12 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { 
-  getAccessToken, 
-  refreshAccessToken, 
+import {
+  getAccessToken,
+  refreshAccessToken,
   clearTokens,
   needsRefresh,
-  isUsingJwt 
+  isUsingJwt
 } from '../services/jwtService';
 import { logger } from '@/utils/logger';
 
@@ -66,12 +66,12 @@ const DEFAULT_OPTIONS: Required<TokenRefreshOptions> = {
 
 export function useTokenRefresh(options: TokenRefreshOptions = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  
+
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const hasWarnedRef = useRef<boolean>(false);
-  
+
   const log = useCallback((...args: any[]) => {
     if (opts.debug) {
       logger.debug('[TokenRefresh]', args);
@@ -86,32 +86,32 @@ export function useTokenRefresh(options: TokenRefreshOptions = {}) {
     if (refreshTimerRef.current) {
       clearTimeout(refreshTimerRef.current);
     }
-    
+
     // Only schedule if using JWT
     if (!isUsingJwt()) {
       log('Not using JWT, skipping refresh schedule');
       return;
     }
-    
+
     const token = getAccessToken();
     if (!token) {
       log('No access token, skipping refresh schedule');
       return;
     }
-    
+
     // Check if token needs refresh
     if (needsRefresh()) {
       log('Token needs refresh now');
       refreshTokenNow();
       return;
     }
-    
+
     // Schedule next check for 1 minute from now
     const checkInterval = 60 * 1000; // 1 minute
     refreshTimerRef.current = setTimeout(() => {
       scheduleRefresh();
     }, checkInterval);
-    
+
     log('Next refresh check in', checkInterval / 1000, 'seconds');
   }, [log]);
 
@@ -120,10 +120,10 @@ export function useTokenRefresh(options: TokenRefreshOptions = {}) {
    */
   const refreshTokenNow = useCallback(async () => {
     log('Attempting token refresh...');
-    
+
     try {
       const newToken = await refreshAccessToken();
-      
+
       if (newToken) {
         log('Token refreshed successfully');
         hasWarnedRef.current = false; // Reset warning flag
@@ -143,11 +143,11 @@ export function useTokenRefresh(options: TokenRefreshOptions = {}) {
    */
   const resetIdleTimer = useCallback(() => {
     lastActivityRef.current = Date.now();
-    
+
     if (idleTimerRef.current) {
       clearTimeout(idleTimerRef.current);
     }
-    
+
     idleTimerRef.current = setTimeout(() => {
       const idleTime = Date.now() - lastActivityRef.current;
       if (idleTime >= opts.idleTimeout) {
@@ -174,19 +174,19 @@ export function useTokenRefresh(options: TokenRefreshOptions = {}) {
     }
 
     log('Initializing automatic token refresh');
-    
+
     // Start refresh schedule
     scheduleRefresh();
-    
+
     // Start idle detection
     resetIdleTimer();
-    
+
     // Listen for user activity
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
     events.forEach(event => {
       window.addEventListener(event, handleActivity);
     });
-    
+
     // Cleanup
     return () => {
       if (refreshTimerRef.current) {
@@ -208,19 +208,19 @@ export function useTokenRefresh(options: TokenRefreshOptions = {}) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         log('Page visible again, checking token status');
-        
+
         // When tab becomes visible, check if token needs refresh
         if (needsRefresh()) {
           refreshTokenNow();
         }
-        
+
         // Reset idle timer
         resetIdleTimer();
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

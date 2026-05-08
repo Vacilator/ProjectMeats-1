@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("purchase_orders", "0012_alter_carrierpurchaseorder_product_and_more"),
         ("tenants", "0010_add_tenant_configuration"),
@@ -68,27 +67,27 @@ class Migration(migrations.Migration):
             DROP POLICY IF EXISTS purchaseorder_tenant_isolation ON purchase_orders_purchaseorder;
             CREATE POLICY purchaseorder_tenant_isolation ON purchase_orders_purchaseorder
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             DROP POLICY IF EXISTS purchaseorder_tenant_insert ON purchase_orders_purchaseorder;
             CREATE POLICY purchaseorder_tenant_insert ON purchase_orders_purchaseorder
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- Enable RLS on purchase_orders_carrierpurchaseorder
             ALTER TABLE purchase_orders_carrierpurchaseorder ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS carrierpurchaseorder_tenant_isolation ON purchase_orders_carrierpurchaseorder;
             CREATE POLICY carrierpurchaseorder_tenant_isolation ON purchase_orders_carrierpurchaseorder
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             DROP POLICY IF EXISTS carrierpurchaseorder_tenant_insert ON purchase_orders_carrierpurchaseorder;
             CREATE POLICY carrierpurchaseorder_tenant_insert ON purchase_orders_carrierpurchaseorder
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             -- Enable RLS on purchase_orders_coldstorageentry
             ALTER TABLE purchase_orders_coldstorageentry ENABLE ROW LEVEL SECURITY;
             DROP POLICY IF EXISTS coldstorageentry_tenant_isolation ON purchase_orders_coldstorageentry;
             CREATE POLICY coldstorageentry_tenant_isolation ON purchase_orders_coldstorageentry
             USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-            
+
             DROP POLICY IF EXISTS coldstorageentry_tenant_insert ON purchase_orders_coldstorageentry;
             CREATE POLICY coldstorageentry_tenant_insert ON purchase_orders_coldstorageentry
             FOR INSERT WITH CHECK (tenant_id = current_setting('app.current_tenant', true)::uuid);
@@ -98,16 +97,16 @@ class Migration(migrations.Migration):
             DROP POLICY IF EXISTS purchaseorder_tenant_isolation ON purchase_orders_purchaseorder;
             DROP POLICY IF EXISTS purchaseorder_tenant_insert ON purchase_orders_purchaseorder;
             ALTER TABLE purchase_orders_purchaseorder DISABLE ROW LEVEL SECURITY;
-            
+
             -- Disable RLS policies for purchase_orders_carrierpurchaseorder
             DROP POLICY IF EXISTS carrierpurchaseorder_tenant_isolation ON purchase_orders_carrierpurchaseorder;
             DROP POLICY IF EXISTS carrierpurchaseorder_tenant_insert ON purchase_orders_carrierpurchaseorder;
             ALTER TABLE purchase_orders_carrierpurchaseorder DISABLE ROW LEVEL SECURITY;
-            
+
             -- Disable RLS policies for purchase_orders_coldstorageentry
             DROP POLICY IF EXISTS coldstorageentry_tenant_isolation ON purchase_orders_coldstorageentry;
             DROP POLICY IF EXISTS coldstorageentry_tenant_insert ON purchase_orders_coldstorageentry;
             ALTER TABLE purchase_orders_coldstorageentry DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

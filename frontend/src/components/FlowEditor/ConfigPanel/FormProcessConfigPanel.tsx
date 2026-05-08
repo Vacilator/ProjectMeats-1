@@ -1,15 +1,15 @@
 /**
  * FormProcessConfigPanel Component
- * 
+ *
  * Configuration panel for Form Process container nodes.
  * Displays step management UI and container settings.
- * 
+ *
  * Features:
  * - Step management (view, reorder, add, delete)
  * - Container properties (name, description)
  * - Navigation settings (back, skip, auto-advance)
  * - Behavior settings (progress indicator, confirm exit)
- * 
+ *
  * Created: 2026-02-17 - Phase B.4: Step Management UI
  */
 
@@ -75,21 +75,21 @@ const Toggle = styled.label`
   display: inline-block;
   width: 48px;
   height: 24px;
-  
+
   input {
     opacity: 0;
     width: 0;
     height: 0;
   }
-  
+
   input:checked + span {
     background: rgb(var(--color-primary));
   }
-  
+
   input:checked + span:before {
     transform: translateX(24px);
   }
-  
+
   span {
     position: absolute;
     cursor: pointer;
@@ -100,7 +100,7 @@ const Toggle = styled.label`
     background: rgb(var(--color-border));
     transition: 0.2s;
     border-radius: 24px;
-    
+
     &:before {
       position: absolute;
       content: "";

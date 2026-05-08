@@ -1,6 +1,6 @@
 /**
  * SchemaEditor Component
- * 
+ *
  * Industry-leading spreadsheet-style editor for defining Blueprint field schemas.
  * Matches Airtable/Notion standards with:
  * - Field templates for common patterns
@@ -14,7 +14,7 @@
  * - Auto-save with debounce
  * - Inline help tooltips
  * - Conditional visibility rules
- * 
+ *
  * Uses @tanstack/react-table for the table and @dnd-kit for row reordering.
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -220,13 +220,13 @@ const SearchInput = styled.input`
   background-color: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   width: 200px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -381,7 +381,7 @@ const HelpTooltip = styled.span`
   color: rgb(var(--color-text-secondary));
   margin-left: 0.25rem;
   cursor: help;
-  
+
   &:hover {
     color: rgb(var(--color-primary));
   }
@@ -491,7 +491,7 @@ const DragHandle = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   &:active {
     cursor: grabbing;
   }
@@ -593,7 +593,7 @@ const ValidationRow = styled.div`
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -785,7 +785,7 @@ const SortableRow: React.FC<{
                     {expandedValidation[row.original.id] ? '▼ Hide' : '▶ More'}
                   </button>
                 </div>
-                
+
                 {expandedValidation[row.original.id] && (
                   <ValidationSection>
                     <ValidationRow>
@@ -799,7 +799,7 @@ const SortableRow: React.FC<{
                       />
                       <span style={{ fontSize: '0.75rem' }}>Unique</span>
                     </ValidationRow>
-                    
+
                     {(row.original.type === 'text' || row.original.type === 'textarea') && (
                       <>
                         <ValidationRow>
@@ -845,7 +845,7 @@ const SortableRow: React.FC<{
                         </ValidationRow>
                       </>
                     )}
-                    
+
                     {row.original.type === 'number' && (
                       <>
                         <ValidationRow>
@@ -882,7 +882,7 @@ const SortableRow: React.FC<{
                     )}
                   </ValidationSection>
                 )}
-                
+
                 {/* Conditional Visibility Toggle */}
                 <div style={{ marginTop: '8px' }}>
                   <button
@@ -904,7 +904,7 @@ const SortableRow: React.FC<{
                     {row.original.visibilityRules?.length ? ` (${row.original.visibilityRules.length} rule${row.original.visibilityRules.length > 1 ? 's' : ''})` : ''}
                   </button>
                 </div>
-                
+
                 {/* Conditional Visibility Rules */}
                 {expandedVisibility[row.original.id] && (
                   <div style={{ marginTop: '8px', padding: '12px', background: 'rgb(249 250 251)', borderRadius: '6px' }}>
@@ -925,21 +925,21 @@ const SortableRow: React.FC<{
             )}
             {columnId === 'actions' && (
               <ActionsCell>
-                <ActionButton 
+                <ActionButton
                   onClick={() => onMoveUp(row.original.id)}
                   disabled={isFirst}
                   title="Move Up"
                 >
                   ↑
                 </ActionButton>
-                <ActionButton 
+                <ActionButton
                   onClick={() => onMoveDown(row.original.id)}
                   disabled={isLast}
                   title="Move Down"
                 >
                   ↓
                 </ActionButton>
-                <ActionButton 
+                <ActionButton
                   variant="danger"
                   onClick={() => {
                     void (async () => {
@@ -974,7 +974,7 @@ const SchemaEditor: React.FC = () => {
   const [availableEntities, setAvailableEntities] = useState<Array<{ id: string; name: string }>>([]);
   const [expandedValidation, setExpandedValidation] = useState<Record<string, boolean>>({});
   const [expandedVisibility, setExpandedVisibility] = useState<Record<string, boolean>>({});
-  
+
   // Industry-leading features state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
@@ -990,7 +990,7 @@ const SchemaEditor: React.FC = () => {
   const filteredFields = useMemo(() => {
     if (!searchQuery.trim()) return fields;
     const query = searchQuery.toLowerCase();
-    return fields.filter(f => 
+    return fields.filter(f =>
       f.label.toLowerCase().includes(query) ||
       f.key.toLowerCase().includes(query) ||
       f.type.toLowerCase().includes(query)
@@ -1225,11 +1225,11 @@ const SchemaEditor: React.FC = () => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
         const newFields = arrayMove(items, oldIndex, newIndex);
-        
+
         // Save to history and trigger API save
         saveToHistory(newFields, 'Reorder fields');
         triggerAutoSave();
-        
+
         return newFields;
       });
     }
@@ -1292,7 +1292,7 @@ const SchemaEditor: React.FC = () => {
 
   const handleSave = useCallback(async () => {
     setSaveStatus('saving');
-    
+
     try {
       // Get CSRF token from cookie
       const getCookie = (name: string) => {
@@ -1301,13 +1301,13 @@ const SchemaEditor: React.FC = () => {
         if (parts.length === 2) return parts.pop()?.split(';').shift();
         return null;
       };
-      const csrfToken = getCookie('csrftoken') || 
+      const csrfToken = getCookie('csrftoken') ||
                         document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-      
+
       // Save schema to API - backend expects schema_config, not fields
       const response = await adminClient.patch(
         `/admin/system-config/api/studio/versions/${blueprintId}/schema/`,
-        { 
+        {
           schema_config: fields.map((f, index) => ({
             ...f,
             order: index  // Include order in the save payload
@@ -1320,7 +1320,7 @@ const SchemaEditor: React.FC = () => {
           },
         }
       );
-      
+
       if (response.status === 200) {
         setSaveStatus('saved');
         notify.success('Schema saved successfully');
@@ -1452,12 +1452,12 @@ const SchemaEditor: React.FC = () => {
         );
       default:
         return (
-          <PreviewInput 
-            type={field.type === 'number' || field.type === 'currency' || field.type === 'percent' ? 'number' : 
-                  field.type === 'email' ? 'email' : 
-                  field.type === 'date' ? 'date' : 
+          <PreviewInput
+            type={field.type === 'number' || field.type === 'currency' || field.type === 'percent' ? 'number' :
+                  field.type === 'email' ? 'email' :
+                  field.type === 'date' ? 'date' :
                   field.type === 'datetime' ? 'datetime-local' : 'text'}
-            disabled 
+            disabled
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
           />
         );
@@ -1494,27 +1494,27 @@ const SchemaEditor: React.FC = () => {
         <ToolbarButton onClick={handleRedo} disabled={historyIndex >= history.length - 1} title="Redo (Ctrl+Y)">
           ↪ Redo
         </ToolbarButton>
-        
+
         <ToolbarDivider />
-        
+
         <ToolbarButton onClick={() => setIsTemplatesOpen(true)} title="Add from template">
           📋 Templates
         </ToolbarButton>
         <ToolbarButton onClick={handleAddField} title="Add blank field">
           ➕ Add Field
         </ToolbarButton>
-        
+
         <ToolbarDivider />
-        
+
         <ToolbarButton onClick={handleCopy} disabled={selectedFields.size === 0} title="Copy (Ctrl+C)">
           📄 Copy
         </ToolbarButton>
         <ToolbarButton onClick={handlePaste} disabled={clipboard.length === 0} title="Paste (Ctrl+V)">
           📋 Paste
         </ToolbarButton>
-        <ToolbarButton 
-          onClick={() => selectedFields.size === 1 && handleDuplicate([...selectedFields][0])} 
-          disabled={selectedFields.size !== 1} 
+        <ToolbarButton
+          onClick={() => selectedFields.size === 1 && handleDuplicate([...selectedFields][0])}
+          disabled={selectedFields.size !== 1}
           title="Duplicate selected field"
         >
           📑 Duplicate
@@ -1522,9 +1522,9 @@ const SchemaEditor: React.FC = () => {
         <ToolbarButton onClick={handleBulkDelete} disabled={selectedFields.size === 0} title="Delete (Del)">
           🗑️ Delete
         </ToolbarButton>
-        
+
         <ToolbarDivider />
-        
+
         <ToolbarButton onClick={() => setIsPreviewOpen(true)} title="Preview form">
           👁️ Preview
         </ToolbarButton>
@@ -1534,16 +1534,16 @@ const SchemaEditor: React.FC = () => {
         <ToolbarButton onClick={handleImport} title="Import from JSON">
           📥 Import
         </ToolbarButton>
-        
+
         <div style={{ flex: 1 }} />
-        
+
         <SearchInput
           type="text"
           placeholder="🔍 Search fields..."
           value={searchQuery}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
         />
-        
+
         {selectedFields.size > 0 && (
           <SelectionBadge>
             {selectedFields.size} selected
@@ -1591,8 +1591,8 @@ const SchemaEditor: React.FC = () => {
                 <TableHead>
                   <tr>
                     <TableHeadCell style={{ width: '40px' }}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={selectedFields.size === fields.length && fields.length > 0}
                         onChange={handleSelectAll}
                         title="Select all"

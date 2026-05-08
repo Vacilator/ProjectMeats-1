@@ -1,6 +1,6 @@
 /**
  * Real-time Workflow Validation Engine (Phase 7)
- * 
+ *
  * Validates workflows for:
  * - Missing required configurations
  * - Disconnected nodes (unreachable)
@@ -8,7 +8,7 @@
  * - Invalid connections
  * - Missing trigger nodes
  * - Type mismatches in data flow
- * 
+ *
  * Returns validation results with severity levels:
  * - ERROR: Blocks publish (missing config, circular deps)
  * - WARNING: Suggests improvements (unreachable nodes)
@@ -49,7 +49,7 @@ export interface ValidationResult {
  */
 export function validateWorkflow(nodes: Node[], edges: Edge[]): ValidationResult {
   const issues: ValidationIssue[] = [];
-  
+
   // 1. Check for trigger nodes
   const triggerNodes = nodes.filter(n => n.type === 'trigger');
   if (triggerNodes.length === 0) {
@@ -61,9 +61,9 @@ export function validateWorkflow(nodes: Node[], edges: Edge[]): ValidationResult
       category: 'config',
     });
   }
-  
+
   // 2. Check for terminal nodes (success/error)
-  const terminalNodes = nodes.filter(n => 
+  const terminalNodes = nodes.filter(n =>
     n.type === 'terminalSuccess' || n.type === 'terminalError'
   );
   if (terminalNodes.length === 0) {
@@ -75,13 +75,13 @@ export function validateWorkflow(nodes: Node[], edges: Edge[]): ValidationResult
       category: 'logic',
     });
   }
-  
+
   // 3. Validate each node's configuration
   nodes.forEach(node => {
     const nodeIssues = validateNodeConfig(node);
     issues.push(...nodeIssues);
   });
-  
+
   // 4. Check for disconnected nodes
   const disconnectedNodes = findDisconnectedNodes(nodes, edges);
   disconnectedNodes.forEach(nodeId => {
@@ -95,7 +95,7 @@ export function validateWorkflow(nodes: Node[], edges: Edge[]): ValidationResult
       category: 'connection',
     });
   });
-  
+
   // 5. Check for circular dependencies
   const circularPaths = detectCircularDependencies(nodes, edges);
   circularPaths.forEach((path, index) => {
@@ -107,7 +107,7 @@ export function validateWorkflow(nodes: Node[], edges: Edge[]): ValidationResult
       category: 'logic',
     });
   });
-  
+
   // 6. Check for unreachable nodes
   const unreachableNodes = findUnreachableNodes(nodes, edges);
   unreachableNodes.forEach(nodeId => {
@@ -121,7 +121,7 @@ export function validateWorkflow(nodes: Node[], edges: Edge[]): ValidationResult
       category: 'connection',
     });
   });
-  
+
   // 7. Performance checks
   if (nodes.length > 100) {
     issues.push({
@@ -132,11 +132,11 @@ export function validateWorkflow(nodes: Node[], edges: Edge[]): ValidationResult
       category: 'performance',
     });
   }
-  
+
   const errorCount = issues.filter(i => i.severity === 'error').length;
   const warningCount = issues.filter(i => i.severity === 'warning').length;
   const infoCount = issues.filter(i => i.severity === 'info').length;
-  
+
   return {
     isValid: errorCount === 0,
     issues,
@@ -298,12 +298,12 @@ export function validateNodeConfig(node: Node): ValidationIssue[] {
  */
 function findDisconnectedNodes(nodes: Node[], edges: Edge[]): string[] {
   const connectedNodeIds = new Set<string>();
-  
+
   edges.forEach(edge => {
     connectedNodeIds.add(edge.source);
     connectedNodeIds.add(edge.target);
   });
-  
+
   return nodes
     .filter(node => !connectedNodeIds.has(node.id))
     .filter(node => node.type !== 'trigger') // Triggers don't need incoming connections
@@ -318,12 +318,12 @@ function detectCircularDependencies(nodes: Node[], edges: Edge[]): string[][] {
   const visited = new Set<string>();
   const recStack = new Set<string>();
   const cycles: string[][] = [];
-  
+
   function dfs(nodeId: string, path: string[]): void {
     visited.add(nodeId);
     recStack.add(nodeId);
     path.push(nodeId);
-    
+
     const neighbors = graph.get(nodeId) || [];
     for (const neighbor of neighbors) {
       if (!visited.has(neighbor)) {
@@ -336,16 +336,16 @@ function detectCircularDependencies(nodes: Node[], edges: Edge[]): string[][] {
         cycles.push(cycle);
       }
     }
-    
+
     recStack.delete(nodeId);
   }
-  
+
   nodes.forEach(node => {
     if (!visited.has(node.id)) {
       dfs(node.id, []);
     }
   });
-  
+
   return cycles;
 }
 
@@ -355,19 +355,19 @@ function detectCircularDependencies(nodes: Node[], edges: Edge[]): string[][] {
 function findUnreachableNodes(nodes: Node[], edges: Edge[]): string[] {
   const triggerNodes = nodes.filter(n => n.type === 'trigger');
   if (triggerNodes.length === 0) return [];
-  
+
   const reachable = new Set<string>();
   const graph = buildAdjacencyList(edges);
-  
+
   // BFS from each trigger
   function bfs(startId: string): void {
     const queue = [startId];
     reachable.add(startId);
-    
+
     while (queue.length > 0) {
       const current = queue.shift()!;
       const neighbors = graph.get(current) || [];
-      
+
       for (const neighbor of neighbors) {
         if (!reachable.has(neighbor)) {
           reachable.add(neighbor);
@@ -376,9 +376,9 @@ function findUnreachableNodes(nodes: Node[], edges: Edge[]): string[] {
       }
     }
   }
-  
+
   triggerNodes.forEach(trigger => bfs(trigger.id));
-  
+
   return nodes
     .filter(node => !reachable.has(node.id))
     .filter(node => node.type !== 'trigger') // Other triggers might not be connected
@@ -390,14 +390,14 @@ function findUnreachableNodes(nodes: Node[], edges: Edge[]): string[] {
  */
 function buildAdjacencyList(edges: Edge[]): Map<string, string[]> {
   const graph = new Map<string, string[]>();
-  
+
   edges.forEach(edge => {
     if (!graph.has(edge.source)) {
       graph.set(edge.source, []);
     }
     graph.get(edge.source)!.push(edge.target);
   });
-  
+
   return graph;
 }
 
@@ -406,10 +406,10 @@ function buildAdjacencyList(edges: Edge[]): Map<string, string[]> {
  */
 export function getValidationBadgeColor(issues: ValidationIssue[]): string | null {
   if (issues.length === 0) return null;
-  
+
   const hasError = issues.some(i => i.severity === 'error');
   const hasWarning = issues.some(i => i.severity === 'warning');
-  
+
   if (hasError) return 'rgb(var(--color-error))'; // Red
   if (hasWarning) return 'rgb(var(--color-warning))'; // Yellow
   return 'rgb(var(--color-info))'; // Blue (info)

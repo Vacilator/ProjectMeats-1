@@ -252,9 +252,7 @@ def validate_source_manifest(raw_manifest: Any) -> ValidatedSourceManifest:
 
     version = raw_manifest["version"]
     if version != SOURCE_MANIFEST_VERSION:
-        raise ManifestValidationError(
-            f"Unsupported manifest version {version!r}; expected {SOURCE_MANIFEST_VERSION}."
-        )
+        raise ManifestValidationError(f"Unsupported manifest version {version!r}; expected {SOURCE_MANIFEST_VERSION}.")
 
     batch_key = raw_manifest["batch_key"]
     if not isinstance(batch_key, str) or not batch_key.strip():
@@ -314,9 +312,7 @@ def _validate_files(raw_files: Any) -> list[ValidatedSourceManifestFile]:
 
         file_format = raw_file["format"]
         if file_format not in SUPPORTED_SOURCE_FORMATS:
-            raise ManifestValidationError(
-                f"files[{index}].format {file_format!r} is not supported."
-            )
+            raise ManifestValidationError(f"files[{index}].format {file_format!r} is not supported.")
 
         relative_path = raw_file["relative_path"]
         if not isinstance(relative_path, str) or not relative_path.strip():
@@ -328,9 +324,7 @@ def _validate_files(raw_files: Any) -> list[ValidatedSourceManifestFile]:
 
         line_item_entity = _normalize_optional_string(raw_file.get("line_item_entity"))
         if line_item_entity is not None and line_item_entity not in LINE_ITEM_ENTITY_ORDER:
-            raise ManifestValidationError(
-                f"files[{index}].line_item_entity {line_item_entity!r} is not supported."
-            )
+            raise ManifestValidationError(f"files[{index}].line_item_entity {line_item_entity!r} is not supported.")
 
         validated_files.append(
             ValidatedSourceManifestFile(
@@ -340,12 +334,8 @@ def _validate_files(raw_files: Any) -> list[ValidatedSourceManifestFile]:
                 sheet_name=_normalize_optional_string(raw_file.get("sheet_name")),
                 header_row=header_row,
                 line_item_entity=line_item_entity,
-                source_document_key_column=_normalize_optional_string(
-                    raw_file.get("source_document_key_column")
-                ),
-                source_line_number_column=_normalize_optional_string(
-                    raw_file.get("source_line_number_column")
-                ),
+                source_document_key_column=_normalize_optional_string(raw_file.get("source_document_key_column")),
+                source_line_number_column=_normalize_optional_string(raw_file.get("source_line_number_column")),
             )
         )
 
@@ -355,17 +345,13 @@ def _validate_files(raw_files: Any) -> list[ValidatedSourceManifestFile]:
 def _reject_unknown_keys(payload: dict[str, Any], allowed_keys: frozenset[str], context: str) -> None:
     unknown_keys = sorted(set(payload) - allowed_keys)
     if unknown_keys:
-        raise ManifestValidationError(
-            f"Unknown keys in {context}: {', '.join(unknown_keys)}."
-        )
+        raise ManifestValidationError(f"Unknown keys in {context}: {', '.join(unknown_keys)}.")
 
 
 def _require_keys(payload: dict[str, Any], required_keys: tuple[str, ...], context: str) -> None:
     missing_keys = [key for key in required_keys if key not in payload]
     if missing_keys:
-        raise ManifestValidationError(
-            f"Missing required keys in {context}: {', '.join(missing_keys)}."
-        )
+        raise ManifestValidationError(f"Missing required keys in {context}: {', '.join(missing_keys)}.")
 
 
 def _normalize_optional_string(value: Any) -> str | None:

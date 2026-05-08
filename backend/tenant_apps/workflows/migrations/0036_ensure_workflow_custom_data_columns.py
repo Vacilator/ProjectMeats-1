@@ -14,7 +14,6 @@ Reverse is a no-op because removing the column would be unsafe on live tenants.
 
 from django.db import migrations
 
-
 _ADD_COLUMNS_SQL = """
 ALTER TABLE IF EXISTS workflows_tenantlist
     ADD COLUMN IF NOT EXISTS custom_data jsonb DEFAULT '{}'::jsonb;

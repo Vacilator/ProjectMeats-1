@@ -9,6 +9,9 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from tenant_apps.contacts.models import Contact
+from tenant_apps.locations.models import Location
+
+from apps.core.model_mixins import FinancialTermsMixin
 from apps.core.models import (
     AccountingPaymentTermsChoices,
     CertificateTypeChoices,
@@ -27,8 +30,6 @@ from apps.core.models import (
     ShippingOfferedChoices,
     TenantAwareModel,
 )
-from apps.core.model_mixins import FinancialTermsMixin
-from tenant_apps.locations.models import Location
 
 
 class Supplier(FinancialTermsMixin, TenantAwareModel):
@@ -36,15 +37,11 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
 
     # Basic information - keeping existing fields with same names
     name = models.CharField(max_length=255, help_text="Supplier company name")
-    contact_person = models.CharField(
-        max_length=255, blank=True, null=True, help_text="Primary contact person name"
-    )
+    contact_person = models.CharField(max_length=255, blank=True, null=True, help_text="Primary contact person name")
     email = models.EmailField(blank=True, null=True, help_text="Primary contact email")
 
     # Legacy primary phone (kept for backward compatibility)
-    phone = models.CharField(
-        max_length=20, blank=True, null=True, help_text="Primary contact phone number"
-    )
+    phone = models.CharField(max_length=20, blank=True, null=True, help_text="Primary contact phone number")
     phone_type = models.CharField(
         max_length=10,
         choices=PhoneTypeChoices.choices,
@@ -58,21 +55,21 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         max_length=20,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Mobile phone number",
     )
     phone_office = models.CharField(
         max_length=20,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Office phone number",
     )
     phone_office_extension = models.CharField(
         max_length=10,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Office phone extension",
     )
 
@@ -82,19 +79,13 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         max_length=255,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Street address (alternative to address field)",
     )
     city = models.CharField(max_length=100, blank=True, null=True, help_text="City")
-    state = models.CharField(
-        max_length=100, blank=True, null=True, help_text="State or province"
-    )
-    zip_code = models.CharField(
-        max_length=20, blank=True, null=True, help_text="ZIP or postal code"
-    )
-    country = models.CharField(
-        max_length=100, blank=True, null=True, help_text="Country"
-    )
+    state = models.CharField(max_length=100, blank=True, null=True, help_text="State or province")
+    zip_code = models.CharField(max_length=20, blank=True, null=True, help_text="ZIP or postal code")
+    country = models.CharField(max_length=100, blank=True, null=True, help_text="Country")
 
     # New enhanced fields based on spreadsheet requirements
     plant = models.ForeignKey(
@@ -102,18 +93,16 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='supplier_assignments',
+        related_name="supplier_assignments",
         help_text="Associated plant/location establishment",
     )
-    proteins = models.ManyToManyField(
-        Protein, blank=True, help_text="Protein types supplied by this supplier"
-    )
+    proteins = models.ManyToManyField(Protein, blank=True, help_text="Protein types supplied by this supplier")
     edible_inedible = models.CharField(
         max_length=50,
         choices=EdibleInedibleChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Type of products supplied",
     )
     type_of_plant = models.CharField(
@@ -121,7 +110,7 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         choices=PlantTypeChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Type of plant (e.g., Vertical, Processor)",
     )
     type_of_certificate = models.CharField(
@@ -129,18 +118,16 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         choices=CertificateTypeChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Certificate type (e.g., 3rd Party, BRC)",
     )
-    tested_product = models.BooleanField(
-        default=False, help_text="Does supplier provide tested products?"
-    )
+    tested_product = models.BooleanField(default=False, help_text="Does supplier provide tested products?")
     origin = models.CharField(
         max_length=100,
         choices=OriginChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Product origin (e.g., Domestic, Imported)",
     )
     country_origin = models.CharField(
@@ -148,7 +135,7 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         choices=CountryOriginChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Country of origin (e.g., USA, CAN)",
     )
     contacts = models.ManyToManyField(
@@ -159,41 +146,37 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
     )
 
     plants = models.ManyToManyField(
-        'plants.Plant',
-        through='SupplierPlant',
-        related_name='suppliers',
+        "plants.Plant",
+        through="SupplierPlant",
+        related_name="suppliers",
         blank=True,
-        help_text='Plants associated with this supplier (used for active item filtering).',
+        help_text="Plants associated with this supplier (used for active item filtering).",
     )
     shipping_offered = models.CharField(
         max_length=100,
         choices=ShippingOfferedChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Shipping services offered (e.g., Yes - Domestic)",
     )
     how_to_book_pickup = models.CharField(
         max_length=100,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="How to book pickup (e.g., Website, Call)",
     )
-    offer_contracts = models.BooleanField(
-        default=False, help_text="Does supplier offer contracts?"
-    )
-    offers_export_documents = models.BooleanField(
-        default=False, help_text="Does supplier offer export documents?"
-    )
-    
+    offer_contracts = models.BooleanField(default=False, help_text="Does supplier offer contracts?")
+    offers_export_documents = models.BooleanField(default=False, help_text="Does supplier offer export documents?")
+
     # Additional fields from Excel requirements
     accounting_payment_terms = models.CharField(
         max_length=50,
         choices=AccountingPaymentTermsChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Payment terms (e.g., Wire, ACH, Check)",
     )
     credit_limits = models.CharField(
@@ -201,7 +184,7 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         choices=CreditLimitChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Credit limits/terms (e.g., Net 30, Wire 1 day prior)",
     )
     fresh_or_frozen = models.CharField(
@@ -209,7 +192,7 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         choices=FreshOrFrozenChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Product state (Fresh or Frozen)",
     )
     package_type = models.CharField(
@@ -217,7 +200,7 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         choices=PackageTypeChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Package type (e.g., Boxed wax lined, Combo bins)",
     )
     net_or_catch = models.CharField(
@@ -225,14 +208,14 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         choices=NetOrCatchChoices.choices,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Weight type (Net or Catch)",
     )
     departments = models.CharField(
         max_length=255,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Departments (comma-separated: Sales, BOL, COA, etc.)",
     )
     departments_array = ArrayField(
@@ -247,35 +230,31 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         default=list,
         help_text="Preferred protein types (multi-select: Beef, Chicken, Pork, etc.)",
     )
-    
+
     # Deprecated fields - keeping for backward compatibility
     accounting_terms = models.CharField(
         max_length=100,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Accounting terms (deprecated, use accounting_payment_terms)",
     )
     accounting_line_of_credit = models.CharField(
         max_length=100,
         blank=True,
         null=True,
-        default='',
+        default="",
         help_text="Line of credit amount (deprecated, use account_line_of_credit)",
     )
-    credit_app_sent = models.BooleanField(
-        default=False, help_text="Has credit application been sent?"
-    )
-    credit_app_set_up = models.BooleanField(
-        default=False, help_text="Has credit application been set up?"
-    )
+    credit_app_sent = models.BooleanField(default=False, help_text="Has credit application been sent?")
+    credit_app_set_up = models.BooleanField(default=False, help_text="Has credit application been set up?")
 
     class Meta:
         ordering = ["name"]
         verbose_name = "Supplier"
         verbose_name_plural = "Suppliers"
         indexes = [
-            models.Index(fields=['tenant', 'name']),
+            models.Index(fields=["tenant", "name"]),
         ]
 
     def __str__(self):
@@ -286,26 +265,26 @@ class SupplierPlant(TenantAwareModel):
     """Tenant-aware Supplier ↔ Plant association (explicit through table for RLS)."""
 
     supplier = models.ForeignKey(
-        'Supplier',
+        "Supplier",
         on_delete=models.CASCADE,
-        related_name='plant_links',
+        related_name="plant_links",
     )
     plant = models.ForeignKey(
-        'plants.Plant',
+        "plants.Plant",
         on_delete=models.CASCADE,
-        related_name='supplier_links',
+        related_name="supplier_links",
     )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'supplier', 'plant'],
-                name='unique_supplier_plant_per_tenant',
+                fields=["tenant", "supplier", "plant"],
+                name="unique_supplier_plant_per_tenant",
             )
         ]
         indexes = [
-            models.Index(fields=['tenant', 'supplier']),
-            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=["tenant", "supplier"]),
+            models.Index(fields=["tenant", "plant"]),
         ]
 
     def __str__(self):
@@ -316,29 +295,29 @@ class SupplierAvailableItem(TenantAwareModel):
     """Supplier-specific availability for a system Product."""
 
     supplier = models.ForeignKey(
-        'Supplier',
+        "Supplier",
         on_delete=models.CASCADE,
-        related_name='available_items',
+        related_name="available_items",
     )
     product = models.ForeignKey(
-        'system.Product',
+        "system.Product",
         on_delete=models.PROTECT,
-        related_name='supplier_available_items',
+        related_name="supplier_available_items",
     )
 
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ['supplier', 'product__name']
+        ordering = ["supplier", "product__name"]
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'supplier', 'product'],
-                name='unique_supplier_product_per_tenant',
+                fields=["tenant", "supplier", "product"],
+                name="unique_supplier_product_per_tenant",
             )
         ]
         indexes = [
-            models.Index(fields=['tenant', 'supplier']),
-            models.Index(fields=['tenant', 'product'], name='sup_av_tenant_prod_idx'),
+            models.Index(fields=["tenant", "supplier"]),
+            models.Index(fields=["tenant", "product"], name="sup_av_tenant_prod_idx"),
         ]
 
     def __str__(self):

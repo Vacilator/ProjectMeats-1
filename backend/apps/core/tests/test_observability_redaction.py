@@ -6,10 +6,10 @@ from django.test import SimpleTestCase
 from apps.core.utils.redaction import (
     RedactingFormatter,
     RedactingLogFilter,
+    sanitize_data,
     sentry_before_breadcrumb,
     sentry_before_send,
     sentry_before_send_transaction,
-    sanitize_data,
 )
 
 

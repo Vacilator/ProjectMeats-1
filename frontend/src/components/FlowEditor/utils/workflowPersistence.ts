@@ -1,12 +1,12 @@
 /**
  * Workflow Persistence Utilities
- * 
+ *
  * Phase 7: Save and load workflow data to/from backend APIs
  * - Saves complete workflow to TenantWorkForm
  * - Links form steps to TenantForm records
  * - Handles container children serialization
  * - Reconstructs parent-child relationships on load
- * 
+ *
  * Created: 2026-02-08
  * Updated: 2026-02-10 - Fixed auth by using apiClient
  */
@@ -101,7 +101,7 @@ const getTenantId = (): string | null => {
 
 /**
  * Extract form references from workflow nodes
- * 
+ *
  * Scans nodes for tenantFormId references in:
  * - formStep nodes
  * - formReference nodes
@@ -152,7 +152,7 @@ export const extractFormReferences = (nodes: Node[]): string[] => {
 
 /**
  * Prepare workflow for saving
- * 
+ *
  * Ensures all container children have proper parent-child metadata
  */
 export const prepareWorkflowForSave = (
@@ -186,7 +186,7 @@ export const prepareWorkflowForSave = (
   // Ensure parents appear before children for React Flow subflows.
   // This also prevents "disappearing" nodes when reloading persisted workflows.
   const sortedNodes = sortNodesTopologically(nodesCopy);
-  
+
   const resolveSchemaNodeType = (node: Node): string => {
     const data = (node.data || {}) as any;
     if (typeof data.nodeType === 'string' && data.nodeType.trim()) return data.nodeType;
@@ -280,7 +280,7 @@ export const prepareWorkflowForSave = (
 
 /**
  * Save workflow to backend (create or update)
- * 
+ *
  * @param name - Workflow name
  * @param nodes - React Flow nodes array
  * @param edges - React Flow edges array
@@ -301,22 +301,22 @@ export const saveWorkflow = async (
 ): Promise<LoadWorkflowResponse> => {
   try {
     logger.debug('💾 Saving workflow...', { name, nodes: nodes.length, edges: edges.length });
-    
+
     // Validate tenant context
     const tenantId = getTenantId();
     if (!tenantId) {
       throw new Error('Tenant context missing. Please select a tenant.');
     }
-    
+
     const workflow_definition = prepareWorkflowForSave(nodes, edges, viewport);
-    
+
     const payload: SaveWorkflowPayload = {
       name,
       description: description || '',
       status,
       workflow_definition,
     };
-    
+
     if (existingWorkflowId) {
       const data = await updateTenantWorkForm(existingWorkflowId, payload as any);
       logger.debug('✅ Workflow updated:', data);
@@ -334,20 +334,20 @@ export const saveWorkflow = async (
       method: error?.config?.method,
       data: error?.response?.data,
     });
-    
+
     // Enhanced error handling with user-friendly messages
     if (error.response?.status === 401) {
       throw new Error('Please log in to save workflows.');
     }
-    
+
     if (error.message?.includes('Tenant context missing')) {
       throw new Error('Please select a tenant to save workflows.');
     }
-    
+
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data;
-      
+
       switch (status) {
         case 403:
           throw new Error('Permission denied. You do not have access to save this workflow.');
@@ -372,33 +372,33 @@ export const saveWorkflow = async (
 
 /**
  * Reconstruct parent-child relationships after loading
- * 
+ *
  * React Flow v11+ requires nodes to have parentId property set correctly.
  * This ensures all container children are properly linked.
  */
 export const reconstructParentChildRelationships = (nodes: Node[]): Node[] => {
   const reconstructed = JSON.parse(JSON.stringify(nodes));
-  
+
   for (const node of reconstructed) {
     if (node.parentId) {
       // Ensure extent is set for constrained movement
       if (!node.extent) {
         node.extent = 'parent';
       }
-      
+
       // Ensure expandParent is set
       if (node.expandParent === undefined) {
         node.expandParent = true;
       }
     }
   }
-  
+
   return reconstructed;
 };
 
 /**
  * Load workflow from backend by ID
- * 
+ *
  * @param workflowId - UUID of the workflow to load
  * @returns Promise with workflow data including nodes and edges
  */
@@ -406,7 +406,7 @@ export const loadWorkflow = async (
   workflowId: string
 ): Promise<LoadWorkflowResponse> => {
   // Removed getApiBaseUrl - using apiClient
-  
+
   try {
     const data = await getTenantWorkForm(workflowId);
 
@@ -422,7 +422,7 @@ export const loadWorkflow = async (
     return data as any;
   } catch (error: any) {
     logger.error('❌ Error loading workflow:', error);
-    
+
     if (error.response) {
       throw new Error(`Load failed: ${error.response.data?.error || error.response.statusText}`);
     } else if (error.request) {
@@ -435,7 +435,7 @@ export const loadWorkflow = async (
 
 /**
  * List all workflows for current tenant
- * 
+ *
  * @param filters - Optional filters (status, search)
  * @returns Promise with array of workflow list items
  */
@@ -451,7 +451,7 @@ export const listWorkflows = async (
     return workflows as any;
   } catch (error: any) {
     logger.error('❌ Error listing workflows:', error);
-    
+
     if (error.response) {
       throw new Error(`List failed: ${error.response.data?.error || error.response.statusText}`);
     } else if (error.request) {
@@ -464,18 +464,18 @@ export const listWorkflows = async (
 
 /**
  * Delete workflow by ID
- * 
+ *
  * @param workflowId - UUID of the workflow to delete
  */
 export const deleteWorkflow = async (workflowId: string): Promise<void> => {
   // Removed getApiBaseUrl - using apiClient
-  
+
   try {
     await deleteTenantWorkForm(workflowId);
     logger.debug('✅ Workflow deleted:', workflowId);
   } catch (error: any) {
     logger.error('❌ Error deleting workflow:', error);
-    
+
     if (error.response) {
       throw new Error(`Delete failed: ${error.response.data?.error || error.response.statusText}`);
     } else if (error.request) {
@@ -488,7 +488,7 @@ export const deleteWorkflow = async (workflowId: string): Promise<void> => {
 
 /**
  * Validate workflow for broken references
- * 
+ *
  * @param workflowId - UUID of the workflow to validate
  * @returns Validation result with any missing form references
  */
@@ -500,7 +500,7 @@ export const validateWorkflow = async (
   total_references: number;
 }> => {
   // Removed getApiBaseUrl - using apiClient
-  
+
   try {
     const data = await validateWorkForm(workflowId);
     logger.debug('✅ Workflow validation:', data);
@@ -517,7 +517,7 @@ export const validateWorkflow = async (
 
 /**
  * Get all container nodes in a workflow
- * 
+ *
  * @param workflowId - UUID of the workflow
  * @returns Promise with array of container summaries
  */
@@ -531,7 +531,7 @@ export const listContainers = async (
   form_references: string[];
 }>> => {
   // Removed getApiBaseUrl - using apiClient
-  
+
   try {
     const data = await listWorkFormContainers(workflowId);
     return data.containers || [];
@@ -543,7 +543,7 @@ export const listContainers = async (
 
 /**
  * Get details of a specific container
- * 
+ *
  * @param workflowId - UUID of the workflow
  * @param containerId - ID of the container node
  * @returns Promise with container details including child nodes
@@ -560,7 +560,7 @@ export const getContainerDetails = async (
   nodes: Node[];
 }> => {
   // Removed getApiBaseUrl - using apiClient
-  
+
   try {
     const data = await getContainerDetail(workflowId, containerId);
     return data as any;
@@ -581,11 +581,11 @@ export default {
   listWorkflows,
   deleteWorkflow,
   validateWorkflow,
-  
+
   // Container-specific
   listContainers,
   getContainerDetails,
-  
+
   // Utilities
   extractFormReferences,
   prepareWorkflowForSave,

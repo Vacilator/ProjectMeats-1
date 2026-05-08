@@ -1,6 +1,6 @@
 /**
  * Centralized Logging Utility
- * 
+ *
  * Replaces console.log with structured logging that can be:
  * - Disabled in production
  * - Filtered by level
@@ -46,11 +46,11 @@ class Logger {
     const timestamp = new Date().toISOString();
     const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
     const sanitizedMessage = sanitizeTelemetryString(message);
-    
+
     if (context?.component) {
       return `${prefix} [${sanitizeTelemetryString(context.component)}] ${sanitizedMessage}`;
     }
-    
+
     return `${prefix} ${sanitizedMessage}`;
   }
 
@@ -72,7 +72,7 @@ class Logger {
       : undefined;
     const sanitizedData = data === undefined ? undefined : sanitizeTelemetryData(data);
     const formattedMessage = this.formatMessage(level, message, sanitizedContext);
-    
+
     const consoleMethod =
       level === 'debug'
         ? console.debug
@@ -229,7 +229,7 @@ class Logger {
    */
   time(label: string): () => void {
     if (!this.shouldLog('debug')) return () => {};
-    
+
     const start = performance.now();
     return () => {
       const duration = performance.now() - start;
@@ -245,7 +245,7 @@ class Logger {
       fn();
       return;
     }
-    
+
     console.group(label);
     try {
       fn();

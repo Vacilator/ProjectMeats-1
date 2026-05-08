@@ -33,7 +33,7 @@ export type SmartWorkFormStep = {
 
   /**
    * Internal UI grouping key.
-   * 
+   *
    * NOTE: We also persist this as `entity_type` for backend snapshot compatibility.
    */
   entityKey:

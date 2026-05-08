@@ -1,12 +1,12 @@
 /**
  * AI Node Suggestions Service
- * 
+ *
  * Provides intelligent node placement suggestions based on:
  * - Current workflow context
  * - Node type relationships
  * - Common workflow patterns
  * - User behavior
- * 
+ *
  * Created: 2026-02-26 - Advanced Features
  */
 
@@ -228,7 +228,7 @@ export class AINodeSuggestionService {
     selectedNodeId?: string
   ): NodeSuggestion[] {
     const suggestions: NodeSuggestion[] = [];
-    
+
     // 1. If node selected, suggest based on its outputs
     if (selectedNodeId) {
       const selectedNode = nodes.find(n => n.id === selectedNodeId);
@@ -237,15 +237,15 @@ export class AINodeSuggestionService {
         suggestions.push(...contextualSuggestions);
       }
     }
-    
+
     // 2. Pattern-based suggestions (analyze workflow structure)
     const patternSuggestions = this.getPatternSuggestions(nodes, edges);
     suggestions.push(...patternSuggestions);
-    
+
     // 3. Gap analysis (missing common nodes)
     const gapSuggestions = this.getGapSuggestions(nodes, edges);
     suggestions.push(...gapSuggestions);
-    
+
     // 4. Terminal suggestions (workflows need end states)
     if (!this.hasTerminals(nodes)) {
       suggestions.push({
@@ -256,11 +256,11 @@ export class AINodeSuggestionService {
         reason: 'Workflow needs at least one end node',
       });
     }
-    
+
     // Sort by confidence and deduplicate
     return this.deduplicateAndSort(suggestions);
   }
-  
+
   /**
    * Get suggestions based on selected node's type
    */
@@ -271,13 +271,13 @@ export class AINodeSuggestionService {
   ): NodeSuggestion[] {
     const suggestions: NodeSuggestion[] = [];
     const nodeType = canonicalizeNodeTypeId(selectedNode.type || 'default');
-    
+
     // Get typical next nodes for this type
     const affinities = NODE_AFFINITIES[nodeType] || [];
-    
+
     affinities.forEach((suggestedType, index) => {
       const confidence = 0.8 - (index * 0.1); // Decay confidence for lower-ranked suggestions
-      
+
       suggestions.push({
         nodeType: suggestedType,
         label: this.getNodeLabel(suggestedType),
@@ -287,25 +287,25 @@ export class AINodeSuggestionService {
         position: this.suggestPosition(selectedNode, nodes),
       });
     });
-    
+
     return suggestions;
   }
-  
+
   /**
    * Get suggestions based on workflow patterns
    */
   private static getPatternSuggestions(nodes: Node[], edges: Edge[]): NodeSuggestion[] {
     const suggestions: NodeSuggestion[] = [];
-    
+
     // Extract node type sequence
     const nodeSequence = this.extractNodeSequence(nodes, edges);
-    
+
     // Match against known patterns
     WORKFLOW_PATTERNS.forEach(pattern => {
       if (this.matchesPattern(nodeSequence, pattern.pattern)) {
         pattern.nextSuggestions.forEach((suggestedType, index) => {
           const confidence = 0.7 - (index * 0.1);
-          
+
           suggestions.push({
             nodeType: suggestedType,
             label: this.getNodeLabel(suggestedType),
@@ -316,23 +316,23 @@ export class AINodeSuggestionService {
         });
       }
     });
-    
+
     return suggestions;
   }
-  
+
   /**
    * Get suggestions for missing workflow components
    */
   private static getGapSuggestions(nodes: Node[], edges: Edge[]): NodeSuggestion[] {
     const suggestions: NodeSuggestion[] = [];
-    
+
     const canonicalTypes = nodes.map((n) => canonicalizeNodeTypeId(n.type || ''));
 
     const hasForm = canonicalTypes.some((t) => t === 'form' || t === 'formProcess');
     const hasCondition = canonicalTypes.some((t) => t.startsWith('condition'));
     const hasAction = canonicalTypes.some((t) => t.startsWith('action'));
     const hasTerminal = canonicalTypes.some((t) => t.startsWith('end'));
-    
+
     // Suggest forms if none exist
     if (!hasForm && nodes.length > 1) {
       suggestions.push({
@@ -343,7 +343,7 @@ export class AINodeSuggestionService {
         reason: 'Workflow lacks user input',
       });
     }
-    
+
     // Suggest conditions if actions exist but no branching
     if (hasAction && !hasCondition) {
       suggestions.push({
@@ -354,7 +354,7 @@ export class AINodeSuggestionService {
         reason: 'Add decision points for flexibility',
       });
     }
-    
+
     // Suggest terminals if workflow has content but no end
     if (nodes.length > 2 && !hasTerminal) {
       suggestions.push({
@@ -365,36 +365,36 @@ export class AINodeSuggestionService {
         reason: 'Workflow needs clear end state',
       });
     }
-    
+
     return suggestions;
   }
-  
+
   /**
    * Check if workflow has terminal nodes
    */
   private static hasTerminals(nodes: Node[]): boolean {
     return nodes.some((n) => canonicalizeNodeTypeId(n.type || '').startsWith('end'));
   }
-  
+
   /**
    * Extract linear node sequence from workflow
    */
   private static extractNodeSequence(nodes: Node[], edges: Edge[]): string[] {
     // Simple BFS traversal for now
     if (nodes.length === 0) return [];
-    
+
     const sequence: string[] = [];
     const visited = new Set<string>();
-    
+
     // Find trigger node (starting point)
     const triggerNode = nodes.find(n => n.type?.startsWith('trigger'));
     if (!triggerNode) return nodes.map(n => n.type || 'default');
-    
+
     let current: (typeof triggerNode) | undefined = triggerNode;
     while (current && !visited.has(current.id)) {
       visited.add(current.id);
       sequence.push(canonicalizeNodeTypeId(current.type || 'default'));
-      
+
       // Find next node via edge
       const currentId: string = current.id;
       const outgoingEdge: Edge | undefined = edges.find((e) => e.source === currentId);
@@ -404,16 +404,16 @@ export class AINodeSuggestionService {
       if (!next) break;
       current = next;
     }
-    
+
     return sequence;
   }
-  
+
   /**
    * Match node sequence against pattern
    */
   private static matchesPattern(sequence: string[], pattern: string[]): boolean {
     if (sequence.length < pattern.length) return false;
-    
+
     // Check if pattern exists as substring in sequence
     for (let i = 0; i <= sequence.length - pattern.length; i++) {
       let matches = true;
@@ -425,25 +425,25 @@ export class AINodeSuggestionService {
       }
       if (matches) return true;
     }
-    
+
     return false;
   }
-  
+
   /**
    * Suggest position for new node relative to selected node
    */
   private static suggestPosition(selectedNode: Node, allNodes: Node[]): { x: number; y: number } {
     const baseX = selectedNode.position.x;
     const baseY = selectedNode.position.y;
-    
+
     // Position below and to the right
     const offsetX = 250;
     const offsetY = 150;
-    
+
     // Find available position (avoid overlaps)
     let x = baseX + offsetX;
     let y = baseY + offsetY;
-    
+
     // Check for overlaps and adjust
     const hasOverlap = (testX: number, testY: number) => {
       return allNodes.some(n => {
@@ -452,16 +452,16 @@ export class AINodeSuggestionService {
         return dx < 200 && dy < 100;
       });
     };
-    
+
     // Try a few positions
     for (let attempt = 0; attempt < 5; attempt++) {
       if (!hasOverlap(x, y)) break;
       y += 100; // Move down if position taken
     }
-    
+
     return { x, y };
   }
-  
+
   /**
    * Get human-readable label for node type
    */
@@ -484,10 +484,10 @@ export class AINodeSuggestionService {
       endCancel: 'Cancel End',
       dataTransform: 'Transform Data',
     };
-    
+
     return labels[nodeType] || nodeType;
   }
-  
+
   /**
    * Get description for node type
    */
@@ -510,16 +510,16 @@ export class AINodeSuggestionService {
       endCancel: 'User-initiated cancellation',
       dataTransform: 'Transform or calculate data',
     };
-    
+
     return descriptions[nodeType] || 'Workflow node';
   }
-  
+
   /**
    * Remove duplicate suggestions and sort by confidence
    */
   private static deduplicateAndSort(suggestions: NodeSuggestion[]): NodeSuggestion[] {
     const uniqueMap = new Map<string, NodeSuggestion>();
-    
+
     // Keep highest confidence version of each node type
     suggestions.forEach(suggestion => {
       const existing = uniqueMap.get(suggestion.nodeType);
@@ -527,7 +527,7 @@ export class AINodeSuggestionService {
         uniqueMap.set(suggestion.nodeType, suggestion);
       }
     });
-    
+
     // Convert back to array and sort by confidence
     return Array.from(uniqueMap.values())
       .sort((a, b) => b.confidence - a.confidence)

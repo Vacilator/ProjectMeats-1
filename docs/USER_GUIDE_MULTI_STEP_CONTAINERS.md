@@ -131,7 +131,7 @@ Press `?` to show the full keyboard shortcuts help modal.
    - `draft` - Work in progress
    - `active` - Ready for production
    - `archived` - Deprecated but kept for reference
-   
+
 2. **Add descriptions** - Explain the workflow's purpose and any special notes
 
 3. **Save frequently** - Use `Ctrl+S` often to avoid losing work
@@ -168,7 +168,7 @@ Press `?` to show the full keyboard shortcuts help modal.
 
 **Cause**: Network error or corrupted workflow data.
 
-**Solution**: 
+**Solution**:
 1. Check browser console for errors
 2. Verify backend API is running
 3. Try loading a different workflow
@@ -294,6 +294,6 @@ Infrastructure for nested child configurations (developer feature):
 
 ---
 
-**Last Updated**: February 19, 2026  
-**Version**: 2.0  
+**Last Updated**: February 19, 2026
+**Version**: 2.0
 **Status**: Complete (Phase E.3)

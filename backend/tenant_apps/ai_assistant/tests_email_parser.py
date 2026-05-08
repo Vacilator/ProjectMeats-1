@@ -2,18 +2,9 @@
 
 from django.test import TestCase
 
-from apps.core.tests.factories import (
-    ContactFactory,
-    CustomerFactory,
-    PlantFactory,
-    SupplierFactory,
-    TenantFactory,
-)
-from tenant_apps.ai_assistant.services.email_parser import (
-    ParsedTradeEmail,
-    parse_trade_email,
-    resolve_dependencies,
-)
+from tenant_apps.ai_assistant.services.email_parser import ParsedTradeEmail, parse_trade_email, resolve_dependencies
+
+from apps.core.tests.factories import ContactFactory, CustomerFactory, PlantFactory, SupplierFactory, TenantFactory
 
 
 class PONumberExtractionTest(TestCase):

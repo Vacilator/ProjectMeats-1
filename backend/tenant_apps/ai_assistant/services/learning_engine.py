@@ -32,13 +32,13 @@ def evaluate_and_extract(
         The created TenantKnowledgeFact, or None if inputs are empty.
     """
 
-    extracted_fact = (extracted_fact or '').strip()
-    domain = (domain or '').strip()
+    extracted_fact = (extracted_fact or "").strip()
+    domain = (domain or "").strip()
 
     if not extracted_fact:
         return None
 
-    if not getattr(settings, 'OPENAI_API_KEY', None):
+    if not getattr(settings, "OPENAI_API_KEY", None):
         # Store the fact anyway; embedding can be backfilled later.
         return TenantKnowledgeFact.objects.create(
             tenant=tenant,
@@ -52,13 +52,13 @@ def evaluate_and_extract(
 
         client = OpenAI(
             api_key=settings.OPENAI_API_KEY,
-            organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
+            organization=getattr(settings, "OPENAI_ORG_ID", None) or None,
         )
 
         # Generate mathematical embedding for the new fact
         response = client.embeddings.create(
             input=extracted_fact,
-            model='text-embedding-3-small',
+            model="text-embedding-3-small",
         )
         vector = response.data[0].embedding
 
@@ -71,7 +71,7 @@ def evaluate_and_extract(
         )
 
     except Exception as e:
-        logger.warning('Failed to generate embedding for extracted fact: %s', str(e), exc_info=True)
+        logger.warning("Failed to generate embedding for extracted fact: %s", str(e), exc_info=True)
         return TenantKnowledgeFact.objects.create(
             tenant=tenant,
             domain_category=domain,

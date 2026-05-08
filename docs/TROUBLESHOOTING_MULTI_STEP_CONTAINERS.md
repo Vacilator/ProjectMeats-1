@@ -417,6 +417,6 @@ When reporting bugs, include:
 
 ---
 
-**Last Updated**: February 19, 2026  
-**Version**: 1.1  
+**Last Updated**: February 19, 2026
+**Version**: 1.1
 **Maintained By**: ProjectMeats Development Team

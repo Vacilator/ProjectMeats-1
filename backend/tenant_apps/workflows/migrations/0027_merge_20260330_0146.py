@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("workflows", "0026_add_tenant_to_stepassignment"),
         ("workflows", "0026_add_tenant_to_usernotification"),

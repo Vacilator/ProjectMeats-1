@@ -1,9 +1,9 @@
 /**
  * Semantic Page Container Component
- * 
+ *
  * Provides consistent page layout with responsive padding and header section.
  * Uses CSS variables for colors.
- * 
+ *
  * Usage:
  *   <PageContainer title="Dashboard" actions={<Button>New Item</Button>}>
  *     <Card>Your content</Card>
@@ -101,9 +101,9 @@ const Content = styled.div`
   gap: 1rem;
 `;
 
-export const PageContainer: React.FC<PageContainerProps> = ({ 
-  children, 
-  title, 
+export const PageContainer: React.FC<PageContainerProps> = ({
+  children,
+  title,
   description,
   actions,
   maxWidth = 'full'

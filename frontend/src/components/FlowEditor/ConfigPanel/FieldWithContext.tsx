@@ -1,15 +1,15 @@
 /**
  * FieldWithContext Component
- * 
+ *
  * Phase 5: Context Inheritance
  * Input field wrapper that adds context data insertion capability.
- * 
+ *
  * Features:
  * - Shows "📊" icon to open Context Bubble
  * - Allows inserting {{nodeId.fieldKey}} templates
  * - Visual indicator when field contains template
  * - Resolves and shows preview of resolved value
- * 
+ *
  * Usage:
  * ```typescript
  * <FieldWithContext
@@ -20,7 +20,7 @@
  *   placeholder="Enter name or use data from previous steps"
  * />
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 5 Context Inheritance Implementation
  */
 
@@ -44,28 +44,28 @@ import { logger } from '@/utils/logger';
 interface FieldWithContextProps {
   /** Field label */
   label: string;
-  
+
   /** Current value */
   value: string;
-  
+
   /** Change handler */
   onChange: (value: string) => void;
-  
+
   /** Workflow context */
   context?: WorkflowContext;
-  
+
   /** Placeholder text */
   placeholder?: string;
-  
+
   /** Field type */
   type?: 'text' | 'textarea' | 'number' | 'email';
-  
+
   /** Disabled state */
   disabled?: boolean;
-  
+
   /** Required field */
   required?: boolean;
-  
+
   /** Show preview of resolved value */
   showPreview?: boolean;
 }
@@ -86,15 +86,15 @@ const InputWrapper = styled.div<{ $hasTemplate: boolean }>`
   position: relative;
   display: flex;
   align-items: stretch;
-  border: 1px solid ${props => 
-    props.$hasTemplate 
-      ? 'rgb(var(--color-primary))' 
+  border: 1px solid ${props =>
+    props.$hasTemplate
+      ? 'rgb(var(--color-primary))'
       : 'rgb(var(--color-border))'
   };
   border-radius: var(--radius-md);
   background: rgb(var(--color-surface));
   transition: all 0.2s;
-  
+
   &:focus-within {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
@@ -110,31 +110,31 @@ const ContextButton = styled.button<{ $active: boolean }>`
   align-items: center;
   justify-content: center;
   padding: 0 10px;
-  background: ${props => props.$active 
-    ? 'rgb(var(--color-primary))' 
+  background: ${props => props.$active
+    ? 'rgb(var(--color-primary))'
     : 'transparent'
   };
   border: none;
   border-left: 1px solid rgb(var(--color-border));
   cursor: pointer;
   transition: all 0.2s;
-  
+
   svg {
     width: 16px;
     height: 16px;
-    color: ${props => props.$active 
-      ? 'rgb(var(--color-text-inverse))' 
+    color: ${props => props.$active
+      ? 'rgb(var(--color-text-inverse))'
       : 'rgb(var(--color-text-tertiary))'
     };
   }
-  
+
   &:hover {
-    background: ${props => props.$active 
-      ? 'rgb(var(--color-primary-dark))' 
+    background: ${props => props.$active
+      ? 'rgb(var(--color-primary-dark))'
       : 'rgb(var(--color-surface-hover))'
     };
   }
-  
+
   &:disabled {
     cursor: not-allowed;
     opacity: 0.5;
@@ -227,13 +227,13 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
   // Close dropdown when clicking outside
   useEffect(() => {
     if (!showContextBubble) return;
-    
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowContextBubble(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showContextBubble]);
@@ -243,22 +243,22 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
     // Get current cursor position
     const input = inputRef.current;
     if (!input) return;
-    
+
     const start = input.selectionStart || 0;
     const end = input.selectionEnd || 0;
     const currentValue = value || '';
-    
+
     // Insert template at cursor position
-    const newValue = 
-      currentValue.substring(0, start) + 
-      template + 
+    const newValue =
+      currentValue.substring(0, start) +
+      template +
       currentValue.substring(end);
-    
+
     onChange(newValue);
-    
+
     // Close dropdown
     setShowContextBubble(false);
-    
+
     // Focus input and set cursor after inserted template
     setTimeout(() => {
       input.focus();
@@ -293,11 +293,11 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
         {required && <RequiredIndicator>*</RequiredIndicator>}
         {hasTemplate && <TemplateTag>{templates.length} template{templates.length > 1 ? 's' : ''}</TemplateTag>}
       </Label>
-      
+
       <div style={{ position: 'relative' }}>
         <InputWrapper $hasTemplate={hasTemplate}>
           {inputElement}
-          
+
           {context && (
             <ContextButton
               type="button"
@@ -310,7 +310,7 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
             </ContextButton>
           )}
         </InputWrapper>
-        
+
         {context && (
           <ContextDropdown $show={showContextBubble} ref={dropdownRef}>
             <ContextBubble
@@ -322,14 +322,14 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
           </ContextDropdown>
         )}
       </div>
-      
+
       {showPreview && hasTemplate && resolvedValue !== null && resolvedValue !== undefined && (
         <PreviewContainer>
           <Eye size={14} />
           <PreviewLabel>Preview:</PreviewLabel>
           <PreviewValue>
-            {typeof resolvedValue === 'object' 
-              ? JSON.stringify(resolvedValue) 
+            {typeof resolvedValue === 'object'
+              ? JSON.stringify(resolvedValue)
               : String(resolvedValue)
             }
           </PreviewValue>

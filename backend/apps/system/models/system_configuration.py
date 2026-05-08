@@ -20,16 +20,16 @@ class SystemConfiguration(models.Model):
 
     active_openai_model_id = models.CharField(
         max_length=128,
-        default='gpt-4o-mini',
-        help_text='Active OpenAI model ID to use for chat/swarm execution',
+        default="gpt-4o-mini",
+        help_text="Active OpenAI model ID to use for chat/swarm execution",
     )
 
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'system_configuration'
-        verbose_name = 'System Configuration'
-        verbose_name_plural = 'System Configuration'
+        db_table = "system_configuration"
+        verbose_name = "System Configuration"
+        verbose_name_plural = "System Configuration"
 
     def save(self, *args, **kwargs):
         self.id = 1

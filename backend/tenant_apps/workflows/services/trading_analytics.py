@@ -200,12 +200,14 @@ def compute_margin_trend(
                 margins.append(((sell - buy) / sell) * 100)
 
         avg_margin = sum(margins) / len(margins) if margins else 0.0
-        result.append(MarginDataPoint(
-            period=period_key,
-            average_margin=round(avg_margin, 2),
-            trade_count=len(period_trades),
-            total_revenue=round(total_rev, 2),
-        ))
+        result.append(
+            MarginDataPoint(
+                period=period_key,
+                average_margin=round(avg_margin, 2),
+                trade_count=len(period_trades),
+                total_revenue=round(total_rev, 2),
+            )
+        )
 
     return result
 
@@ -250,11 +252,7 @@ def compute_cycle_times(
     durations.sort()
     n = len(durations)
     median_idx = n // 2
-    median = (
-        durations[median_idx]
-        if n % 2 == 1
-        else (durations[median_idx - 1] + durations[median_idx]) / 2
-    )
+    median = durations[median_idx] if n % 2 == 1 else (durations[median_idx - 1] + durations[median_idx]) / 2
 
     return CycleTimeStats(
         average_days=round(sum(durations) / n, 1),
@@ -325,9 +323,7 @@ def build_analytics_dashboard(
 
     total_trades = sum(dp.trade_count for dp in margin_trend)
     avg_margin = (
-        sum(dp.average_margin * dp.trade_count for dp in margin_trend) / total_trades
-        if total_trades > 0
-        else 0.0
+        sum(dp.average_margin * dp.trade_count for dp in margin_trend) / total_trades if total_trades > 0 else 0.0
     )
 
     summary = {

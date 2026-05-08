@@ -1,5 +1,6 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from tenant_apps.purchase_orders.views import CarrierPurchaseOrderViewSet, PurchaseOrderViewSet
 
 # Create a router and register our viewsets

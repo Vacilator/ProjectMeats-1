@@ -1,6 +1,6 @@
 /**
  * NavigationMenu Component Tests
- * 
+ *
  * Tests for hierarchical navigation with expandable accordions
  */
 import React from 'react';
@@ -122,7 +122,7 @@ describe('NavigationMenu', () => {
 
       // Icons should still be visible
       expect(screen.getByText('📊')).toBeInTheDocument();
-      
+
       // Labels should be hidden (not in DOM)
       expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
@@ -166,9 +166,9 @@ describe('NavigationMenu', () => {
       );
 
       // Find the Products row and click its expand button
-      const productsRow = screen.getByText('Products').closest('[class*="AccordionHeader"]') || 
+      const productsRow = screen.getByText('Products').closest('[class*="AccordionHeader"]') ||
                           screen.getByText('Products').parentElement?.parentElement;
-      
+
       if (productsRow) {
         const expandBtn = within(productsRow as HTMLElement).queryByRole('button', { name: /expand/i });
         if (expandBtn) {
@@ -193,7 +193,7 @@ describe('NavigationMenu', () => {
       // First, expand Products by clicking anywhere on its header
       const productsText = screen.getByText('Products');
       const productsHeader = productsText.closest('div[class*="AccordionHeader"]') || productsText.parentElement;
-      
+
       if (productsHeader) {
         // Find the expand button within
         const expandBtns = within(productsHeader as HTMLElement).queryAllByRole('button');
@@ -208,7 +208,7 @@ describe('NavigationMenu', () => {
       // Now expand Settings
       const settingsText = screen.getByText('Settings');
       const settingsHeader = settingsText.closest('div[class*="AccordionHeader"]') || settingsText.parentElement;
-      
+
       if (settingsHeader) {
         const expandBtns = within(settingsHeader as HTMLElement).queryAllByRole('button');
         if (expandBtns.length > 0) {
@@ -231,10 +231,10 @@ describe('NavigationMenu', () => {
       // Find and click expand button for Settings
       const settingsText = screen.getByText('Settings');
       const settingsHeader = settingsText.closest('div') || settingsText.parentElement;
-      
+
       if (settingsHeader) {
         fireEvent.click(settingsHeader);
-        
+
         // Wait for expansion
         await screen.findByText('Profile');
 
@@ -331,7 +331,7 @@ describe('NavigationMenu', () => {
       // "No Path Item" has no path and no children
       const noPathItem = screen.getByText('No Path Item');
       expect(noPathItem).toBeInTheDocument();
-      
+
       // Should be a button, not a link
       const closestButton = noPathItem.closest('button');
       expect(closestButton).toBeInTheDocument();
@@ -344,7 +344,7 @@ describe('NavigationMenu', () => {
 
       const noPathItem = screen.getByText('No Path Item');
       const button = noPathItem.closest('button');
-      
+
       if (button) {
         // Should not throw when clicked
         expect(() => fireEvent.click(button)).not.toThrow();
@@ -360,7 +360,7 @@ describe('NavigationMenu', () => {
 
       const expandButtons = screen.getAllByRole('button', { name: /expand|collapse/i });
       expect(expandButtons.length).toBeGreaterThan(0);
-      
+
       expandButtons.forEach(btn => {
         expect(btn).toHaveAttribute('aria-label');
       });
@@ -391,7 +391,7 @@ describe('NavigationMenu', () => {
 
       // Chevron is an SVG inside the expand button
       const expandButtons = screen.getAllByRole('button', { name: /expand|collapse/i });
-      
+
       expandButtons.forEach(btn => {
         const svg = btn.querySelector('svg');
         expect(svg).toBeInTheDocument();
@@ -406,7 +406,7 @@ describe('NavigationMenu', () => {
       );
 
       const expandBtn = screen.getAllByRole('button', { name: /expand/i })[0];
-      
+
       // Simulate Enter key
       fireEvent.keyDown(expandBtn, { key: 'Enter' });
       fireEvent.click(expandBtn);
@@ -424,10 +424,10 @@ describe('NavigationMenu', () => {
 
       const settingsText = screen.getByText('Settings');
       const settingsHeader = settingsText.closest('div[class*="AccordionHeader"]') || settingsText.parentElement;
-      
+
       if (settingsHeader) {
         const expandBtn = within(settingsHeader as HTMLElement).queryByRole('button', { name: /expand/i });
-        
+
         if (expandBtn) {
           const mockEvent = {
             preventDefault: vi.fn(),
@@ -437,7 +437,7 @@ describe('NavigationMenu', () => {
           // Note: fireEvent doesn't use actual event object
           // But clicking the button should still work
           fireEvent.click(expandBtn);
-          
+
           // Verify the accordion expanded
           await screen.findByText('Profile');
         }
@@ -476,7 +476,7 @@ describe('NavigationMenu', () => {
 
       const settingsText = screen.getByText('Settings');
       const settingsHeader = settingsText.closest('div');
-      
+
       if (settingsHeader) {
         // Rapid clicks
         fireEvent.click(settingsHeader);

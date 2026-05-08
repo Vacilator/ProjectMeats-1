@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import re
 
-
 _CAMEL_1_RE = re.compile(r"(.)([A-Z][a-z]+)")
 _CAMEL_2_RE = re.compile(r"([a-z0-9])([A-Z])")
 _MULTI_UNDERSCORE_RE = re.compile(r"_+")

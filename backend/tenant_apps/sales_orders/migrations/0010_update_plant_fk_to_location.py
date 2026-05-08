@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("locations", "0004_add_plant_fields"),
         ("sales_orders", "0009_salesorder_custom_data_alter_salesorder_tenant"),

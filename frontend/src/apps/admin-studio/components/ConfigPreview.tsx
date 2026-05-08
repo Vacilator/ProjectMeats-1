@@ -1,14 +1,14 @@
 /**
  * ConfigPreview Component
- * 
+ *
  * Wave 4 Task 4.9: Real-time preview of configuration changes.
- * 
+ *
  * Shows a live preview of how configuration changes will affect:
  * - UI theme (colors, typography)
  * - Feature flags (enabled/disabled features)
  * - Business rules (limits, thresholds)
  * - Form field configurations
- * 
+ *
  * Features:
  * - Split-pane view (editor + preview)
  * - Live updates as config values change
@@ -46,12 +46,12 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     configs.forEach(c => { map[c.key] = c.value; });
     return map;
   }, [configs]);
-  
+
   // Get config value with default
   const getConfig = <T,>(key: string, defaultValue: T): T => {
     return (configMap[key] as T) ?? defaultValue;
   };
-  
+
   // UI Theme Preview
   const ThemePreview: React.FC = () => {
     const primaryColor = getConfig<string>('ui.theme.primary_color', 'rgb(var(--color-primary))');
@@ -59,34 +59,34 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     const borderRadius = getConfig<number>('ui.theme.border_radius', 8);
     const fontFamily = getConfig<string>('ui.theme.font_family', 'Inter');
     const darkMode = getConfig<boolean>('ui.theme.dark_mode', false);
-    
+
     const bgColor = darkMode ? 'rgb(var(--color-background))' : 'rgb(var(--color-surface))';
     const textColor = 'rgb(var(--color-text-primary))';
     const cardBg = 'rgb(var(--color-surface))';
-    
+
     return (
-      <div 
+      <div
         className="p-4 border rounded-lg transition-all"
-        style={{ 
-          backgroundColor: bgColor, 
+        style={{
+          backgroundColor: bgColor,
           color: textColor,
           fontFamily,
           borderRadius: `${borderRadius}px`,
         }}
       >
         <h4 className="text-sm font-semibold mb-3">🎨 Theme Preview</h4>
-        
+
         {/* Sample Card */}
-        <div 
+        <div
           className="p-3 mb-3"
-          style={{ 
-            backgroundColor: cardBg, 
+          style={{
+            backgroundColor: cardBg,
             borderRadius: `${borderRadius}px`,
             border: `1px solid ${darkMode ? 'rgb(var(--color-border))' : 'rgb(var(--color-border))'}`,
           }}
         >
           <div className="flex items-center gap-2 mb-2">
-            <div 
+            <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs"
               style={{ backgroundColor: primaryColor }}
             >
@@ -98,7 +98,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
             </div>
           </div>
           <div className="flex gap-2">
-            <span 
+            <span
               className="text-xs px-2 py-1 text-white"
               style={{ backgroundColor: primaryColor, borderRadius: `${borderRadius / 2}px` }}
             >
@@ -106,13 +106,13 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
             </span>
           </div>
         </div>
-        
+
         {/* Sample Buttons */}
         <div className="flex gap-2">
           <button
             className="px-3 py-1.5 text-xs text-white font-medium transition-colors"
-            style={{ 
-              backgroundColor: primaryColor, 
+            style={{
+              backgroundColor: primaryColor,
               borderRadius: `${borderRadius}px`,
             }}
           >
@@ -120,8 +120,8 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
           </button>
           <button
             className="px-3 py-1.5 text-xs text-white font-medium"
-            style={{ 
-              backgroundColor: secondaryColor, 
+            style={{
+              backgroundColor: secondaryColor,
               borderRadius: `${borderRadius}px`,
             }}
           >
@@ -129,7 +129,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
           </button>
           <button
             className="px-3 py-1.5 text-xs font-medium border"
-            style={{ 
+            style={{
               borderRadius: `${borderRadius}px`,
               borderColor: primaryColor,
               color: primaryColor,
@@ -139,20 +139,20 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
             Outline
           </button>
         </div>
-        
+
         {/* Color Swatches */}
         <div className="flex gap-2 mt-3">
-          <div 
+          <div
             className="w-8 h-8 rounded border"
             style={{ backgroundColor: primaryColor }}
             title={`Primary: ${primaryColor}`}
           />
-          <div 
+          <div
             className="w-8 h-8 rounded border"
             style={{ backgroundColor: secondaryColor }}
             title={`Secondary: ${secondaryColor}`}
           />
-          <div 
+          <div
             className="w-8 h-8 rounded border flex items-center justify-center text-xs"
             style={{ backgroundColor: bgColor, color: textColor }}
           >
@@ -162,7 +162,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
       </div>
     );
   };
-  
+
   // Feature Flags Preview
   const FeaturesPreview: React.FC = () => {
     const aiAssistant = getConfig<boolean>('features.ai_assistant.enabled', true);
@@ -170,7 +170,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     const advancedReports = getConfig<boolean>('features.advanced_reports.enabled', false);
     const realTimeUpdates = getConfig<boolean>('features.realtime_updates.enabled', false);
     const mobileApp = getConfig<boolean>('features.mobile_app.enabled', false);
-    
+
     const features = [
       { key: 'AI Assistant', enabled: aiAssistant, icon: '🤖' },
       { key: 'Bulk Operations', enabled: bulkOperations, icon: '📦' },
@@ -178,13 +178,13 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
       { key: 'Real-time Updates', enabled: realTimeUpdates, icon: '⚡' },
       { key: 'Mobile App', enabled: mobileApp, icon: '📱' },
     ];
-    
+
     return (
       <div className="p-4 border rounded-lg bg-white">
         <h4 className="text-sm font-semibold mb-3 text-gray-900">🚩 Feature Flags</h4>
         <div className="space-y-2">
           {features.map(f => (
-            <div 
+            <div
               key={f.key}
               className={`flex items-center justify-between p-2 rounded transition-colors ${
                 f.enabled ? 'bg-green-50' : 'bg-gray-50'
@@ -197,8 +197,8 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
                 </span>
               </span>
               <span className={`text-xs px-2 py-0.5 rounded ${
-                f.enabled 
-                  ? 'bg-green-100 text-green-800' 
+                f.enabled
+                  ? 'bg-green-100 text-green-800'
                   : 'bg-gray-200 text-gray-600'
               }`}>
                 {f.enabled ? 'ON' : 'OFF'}
@@ -209,7 +209,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
       </div>
     );
   };
-  
+
   // Business Rules Preview
   const BusinessRulesPreview: React.FC = () => {
     const autoApproveThreshold = getConfig<number>('business.po.auto_approve_threshold', 5000);
@@ -217,11 +217,11 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     const defaultPaymentTerms = getConfig<string>('business.invoice.default_payment_terms', 'Net 30');
     const currencySymbol = getConfig<string>('business.locale.currency_symbol', '$');
     const dateFormat = getConfig<string>('business.locale.date_format', 'MM/DD/YYYY');
-    
+
     return (
       <div className="p-4 border rounded-lg bg-white">
         <h4 className="text-sm font-semibold mb-3 text-gray-900">💼 Business Rules</h4>
-        
+
         {/* Auto-Approval Demo */}
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <div className="text-xs text-gray-500 mb-1">Auto-Approval Threshold</div>
@@ -234,18 +234,18 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
             POs under this amount are auto-approved
           </div>
         </div>
-        
+
         {/* Sample Order */}
         <div className="p-3 bg-blue-50 rounded-lg mb-3">
           <div className="flex justify-between items-center mb-2">
             <span className="font-medium text-sm">{SAMPLE_ENTITIES.order.number}</span>
             <span className={`text-xs px-2 py-0.5 rounded ${
-              SAMPLE_ENTITIES.order.amount < autoApproveThreshold 
-                ? 'bg-green-100 text-green-800' 
+              SAMPLE_ENTITIES.order.amount < autoApproveThreshold
+                ? 'bg-green-100 text-green-800'
                 : 'bg-amber-100 text-amber-800'
             }`}>
-              {SAMPLE_ENTITIES.order.amount < autoApproveThreshold 
-                ? '✓ Auto-Approved' 
+              {SAMPLE_ENTITIES.order.amount < autoApproveThreshold
+                ? '✓ Auto-Approved'
                 : '⏳ Needs Approval'}
             </span>
           </div>
@@ -256,7 +256,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
             {dateFormat.replace('MM', '02').replace('DD', '03').replace('YYYY', '2026')}
           </div>
         </div>
-        
+
         {/* Other Rules */}
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="p-2 bg-gray-50 rounded">
@@ -271,7 +271,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
       </div>
     );
   };
-  
+
   // Integrations Preview
   const IntegrationsPreview: React.FC = () => {
     const emailProvider = getConfig<string>('integrations.email.provider', 'sendgrid');
@@ -279,24 +279,24 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     const slackEnabled = getConfig<boolean>('integrations.slack.enabled', false);
     const stripeEnabled = getConfig<boolean>('integrations.stripe.enabled', false);
     const quickbooksEnabled = getConfig<boolean>('integrations.quickbooks.enabled', false);
-    
+
     const integrations = [
       { name: 'Email', provider: emailProvider, enabled: emailEnabled, icon: '📧' },
       { name: 'Slack', provider: 'slack', enabled: slackEnabled, icon: '💬' },
       { name: 'Stripe', provider: 'stripe', enabled: stripeEnabled, icon: '💳' },
       { name: 'QuickBooks', provider: 'quickbooks', enabled: quickbooksEnabled, icon: '📒' },
     ];
-    
+
     return (
       <div className="p-4 border rounded-lg bg-white">
         <h4 className="text-sm font-semibold mb-3 text-gray-900">🔗 Integrations</h4>
         <div className="space-y-2">
           {integrations.map(i => (
-            <div 
+            <div
               key={i.name}
               className={`flex items-center justify-between p-2 rounded border transition-all ${
-                i.enabled 
-                  ? 'border-green-200 bg-green-50' 
+                i.enabled
+                  ? 'border-green-200 bg-green-50'
                   : 'border-gray-200 bg-gray-50'
               }`}
             >
@@ -318,7 +318,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
       </div>
     );
   };
-  
+
   // Other/Generic Preview
   const OtherPreview: React.FC = () => {
     return (
@@ -343,7 +343,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
       </div>
     );
   };
-  
+
   // Render preview based on selected category
   const renderPreview = () => {
     switch (selectedCategory) {
@@ -360,7 +360,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
         return <OtherPreview />;
     }
   };
-  
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-3 border-b bg-gray-50">

@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from threading import local
 from typing import Any
 
-
 _storage = local()
 
 
@@ -33,9 +32,9 @@ def set_audit_context(ctx: AuditRequestContext) -> None:
 
 
 def get_audit_context() -> AuditRequestContext:
-    return getattr(_storage, 'ctx', AuditRequestContext())
+    return getattr(_storage, "ctx", AuditRequestContext())
 
 
 def clear_audit_context() -> None:
-    if hasattr(_storage, 'ctx'):
-        delattr(_storage, 'ctx')
+    if hasattr(_storage, "ctx"):
+        delattr(_storage, "ctx")

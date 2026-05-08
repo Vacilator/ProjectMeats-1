@@ -1,9 +1,9 @@
 /**
  * Base Node Component
- * 
+ *
  * Foundation for all flow editor nodes.
  * Provides consistent styling, status indicators, and connection handles.
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-09 - Added edit/delete controls and expand/collapse (Batch 3)
  * Updated: 2026-02-17 - Added badges, icons, pinning (Sprint 1 Task 1.2)
@@ -70,9 +70,9 @@ export interface BaseNodeProps {
 // Styled Components
 // ============================================================================
 
-const NodeContainer = styled.div<{ 
-  $color: string; 
-  $selected: boolean; 
+const NodeContainer = styled.div<{
+  $color: string;
+  $selected: boolean;
   $status: string;
   $isDirty?: boolean;
   $isPinned?: boolean;
@@ -90,18 +90,18 @@ const NodeContainer = styled.div<{
   }};
   border-radius: var(--radius-lg);
   padding: 0;
-  box-shadow: ${props => props.$selected 
-    ? '0 4px 12px rgba(var(--color-overlay), 0.15)' 
+  box-shadow: ${props => props.$selected
+    ? '0 4px 12px rgba(var(--color-overlay), 0.15)'
     : '0 2px 6px rgba(var(--color-overlay), 0.1)'};
   transition: all 0.2s ease;
-  
+
   /* Drag preview - semi-transparent ghost */
   opacity: ${props => props.$isDragging ? 0.5 : 1};
-  
+
   /* Add pulsing animation for dirty state (Phase 2) */
   ${props => props.$isDirty && `
     animation: dirtyPulse 2s ease-in-out infinite;
-    
+
     @keyframes dirtyPulse {
       0%, 100% {
         box-shadow: 0 2px 6px rgba(var(--color-warning), 0.3);
@@ -111,7 +111,7 @@ const NodeContainer = styled.div<{
       }
     }
   `}
-  
+
   /* Pinned state indicator */
   ${props => props.$isPinned && `
     &::before {
@@ -127,7 +127,7 @@ const NodeContainer = styled.div<{
       opacity: 0.3;
     }
   `}
-  
+
   &:hover {
     box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   }
@@ -162,7 +162,7 @@ const NodeTitle = styled.span<{ $editable?: boolean }>`
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: ${props => props.$editable ? 'text' : 'default'};
-  
+
   &:hover {
     ${props => props.$editable && `
       text-decoration: underline;
@@ -181,7 +181,7 @@ const NodeTitleInput = styled.input`
   font-size: 13px;
   font-weight: 600;
   outline: none;
-  
+
   &:focus {
     background: rgba(var(--color-header-background), 0.3);
     border-color: rgb(var(--color-text-inverse));
@@ -407,10 +407,10 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     isPinned = false,
     onPin,
   } = data;
-  
+
   // Phase 2: Determine if node has uncommitted changes
   const isDirty = configStatus === 'dirty';
-  
+
   // Batch 3: Expand/collapse state
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -422,10 +422,10 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   // Batch 4: Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(resolvedTitle);
-  
+
   // Sprint 1: Drag state
   const [isDragging, setIsDragging] = useState(false);
-  
+
   const headerDragHandleClass = dragHandleClassName ?? 'custom-drag-handle';
   const handleEditNode = onEdit ?? (() => nodeActions.editNode(id));
   const handleDeleteNode = onDelete ?? (() => nodeActions.deleteNode(id));
@@ -445,12 +445,12 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     e.stopPropagation();
     if (onPin) onPin();
   };
-  
+
   const toggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsExpanded(!isExpanded);
   };
-  
+
   // Batch 4: Title editing handlers
   const handleTitleDoubleClick = (e: React.MouseEvent) => {
     if (!canEditTitle) return;
@@ -458,18 +458,18 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     setIsEditingTitle(true);
     setEditedTitle(resolvedTitle);
   };
-  
+
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditedTitle(e.target.value);
   };
-  
+
   const handleTitleBlur = () => {
     if (handleTitleUpdate && editedTitle !== resolvedTitle) {
       handleTitleUpdate(editedTitle);
     }
     setIsEditingTitle(false);
   };
-  
+
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleTitleBlur();
@@ -478,12 +478,12 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       setIsEditingTitle(false);
     }
   };
-  
+
 
   return (
-    <NodeContainer 
+    <NodeContainer
       className={`pm-node${selected ? ' is-selected' : ''}`}
-      $color={nodeType.color} 
+      $color={nodeType.color}
       $selected={selected}
       $status={status}
       $isDirty={isDirty}
@@ -513,10 +513,10 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           }}
         />
       )}
-      
+
 
       {/* Status Indicator - REMOVED (confusing yellow dot) */}
-      
+
       <NodeToolbar isVisible={selected} position={Position.Top}>
         <ToolbarCard
           className="nodrag"
@@ -600,7 +600,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <NodeTitle 
+          <NodeTitle
             $editable={canEditTitle}
             onDoubleClick={handleTitleDoubleClick}
             title={canEditTitle ? "Double-click to edit" : undefined}
@@ -645,7 +645,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
             {children || (
               <>
                 <div>{nodeType.description}</div>
-                
+
                 {config && Object.keys(config).length > 0 && (
                   <ConfigPreview>
                     {Object.entries(config).slice(0, 2).map(([key, value]) => (
@@ -656,7 +656,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
                     ))}
                   </ConfigPreview>
                 )}
-                
+
                 {errorMessage && (
                   <ErrorMessage>{errorMessage}</ErrorMessage>
                 )}
@@ -665,7 +665,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           </NodeContent>
         </NodeBody>
       )}
-      
+
       {/* Output Handle */}
       {showOutputHandle && (
         <ButtonHandle
@@ -682,7 +682,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           }}
         />
       )}
-      
+
       {/* Error Route Handle (if applicable) */}
       {nodeType.hasErrorRoute && (
         <StyledHandle

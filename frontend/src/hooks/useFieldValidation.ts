@@ -1,6 +1,6 @@
 /**
  * Field Validation Hook (Phase 2.5: Enhanced Inheritance)
- * 
+ *
  * Provides type-safe validation with inheritance from entity models.
  */
 import { useState, useCallback } from 'react';
@@ -25,30 +25,30 @@ export interface ValidationRules {
 
 /**
  * Hook for field validation with inheritance support.
- * 
+ *
  * @param fieldId - UUID of the field
- * 
+ *
  * @returns Object with validation operations:
  *   - validateValue: Validate a value against field rules
  *   - syncValidation: Sync computed validation from entity model
  *   - getEffectiveRules: Get merged validation rules
  *   - loading: Whether operation is in progress
  *   - error: Error message if operation failed
- * 
+ *
  * @example
  * ```tsx
  * const EmailField = ({ fieldId }) => {
  *   const { validateValue, loading } = useFieldValidation(fieldId);
  *   const [email, setEmail] = useState('');
  *   const [errors, setErrors] = useState<string[]>([]);
- *   
+ *
  *   const handleChange = async (value: string) => {
  *     setEmail(value);
- *     
+ *
  *     const result = await validateValue(value);
  *     setErrors(result.errors);
  *   };
- *   
+ *
  *   return (
  *     <>
  *       <Input
@@ -81,12 +81,12 @@ export const useFieldValidation = (fieldId: string) => {
         `/form-fields/${fieldId}/validate-value/`,
         { value }
       );
-      
+
       return response.data;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Validation failed';
       setError(errorMsg);
-      
+
       // Return error state
       return {
         valid: false,
@@ -109,7 +109,7 @@ export const useFieldValidation = (fieldId: string) => {
       const response = await businessApi.post(
         `/form-fields/${fieldId}/sync-validation/`
       );
-      
+
       return response.data.computed_validation;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to sync validation';
@@ -132,7 +132,7 @@ export const useFieldValidation = (fieldId: string) => {
       const response = await businessApi.get(
         `/form-fields/${fieldId}/effective-validation/`
       );
-      
+
       return response.data;
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to get validation rules';
@@ -154,7 +154,7 @@ export const useFieldValidation = (fieldId: string) => {
 
 /**
  * Client-side validation function (no API call).
- * 
+ *
  * @param value - Value to validate
  * @param rules - Validation rules
  * @returns Validation result
@@ -208,7 +208,7 @@ export const validateLocally = (value: any, rules: ValidationRules): ValidationR
 
 /**
  * Helper to generate validation rules for common field types.
- * 
+ *
  * @param fieldType - Field type (email, number, etc.)
  * @returns Default validation rules
  */

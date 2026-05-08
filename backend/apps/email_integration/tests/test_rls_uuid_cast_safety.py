@@ -8,14 +8,14 @@ class EmailIntegrationRlsUuidCastSafetyTestCase(TransactionTestCase):
     """Regression test for invalid UUID casts when app.current_tenant = ''."""
 
     def test_email_integration_policies_use_nullif_current_setting(self):
-        if connection.vendor != 'postgresql':
-            self.skipTest('RLS policy introspection requires PostgreSQL')
+        if connection.vendor != "postgresql":
+            self.skipTest("RLS policy introspection requires PostgreSQL")
 
         expected_policy_fields = {
-            ('email_accounts', 'email_accounts_tenant_isolation'): 'qual',
-            ('email_actions', 'email_actions_tenant_isolation'): 'qual',
-            ('email_triggers', 'email_triggers_tenant_isolation'): 'qual',
-            ('email_logs', 'email_logs_tenant_isolation'): 'qual',
+            ("email_accounts", "email_accounts_tenant_isolation"): "qual",
+            ("email_actions", "email_actions_tenant_isolation"): "qual",
+            ("email_triggers", "email_triggers_tenant_isolation"): "qual",
+            ("email_logs", "email_logs_tenant_isolation"): "qual",
         }
 
         with connection.cursor() as cursor:
@@ -37,7 +37,7 @@ class EmailIntegrationRlsUuidCastSafetyTestCase(TransactionTestCase):
             self.assertTrue(expr, msg=f"Empty policy expression for {key} ({field})")
 
             s = str(expr).lower()
-            self.assertIn('current_setting', s)
-            self.assertIn('app.current_tenant', s)
-            self.assertIn('nullif', s)
-            self.assertIn('uuid', s)
+            self.assertIn("current_setting", s)
+            self.assertIn("app.current_tenant", s)
+            self.assertIn("nullif", s)
+            self.assertIn("uuid", s)

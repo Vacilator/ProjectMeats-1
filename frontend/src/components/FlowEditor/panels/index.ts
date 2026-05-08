@@ -1,6 +1,6 @@
 /**
  * Panel Components Index
- * 
+ *
  * Phase 4: Exports for panel components
  */
 

@@ -1,6 +1,6 @@
 /**
  * WorkflowProgressCard Component
- * 
+ *
  * Displays the progress of a workflow submission with step visualization.
  * Shows current step, completed steps, and remaining steps in a compact card format.
  */
@@ -11,7 +11,7 @@ import styled, { css, keyframes } from 'styled-components';
 // TYPES
 // ============================================================================
 
-export type WorkflowStepStatus = 
+export type WorkflowStepStatus =
   | 'pending'
   | 'in_progress'
   | 'completed'
@@ -68,10 +68,10 @@ const Card = styled.div<{ $clickable: boolean; $compact: boolean }>`
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: ${props => props.$compact ? '16px' : '20px 24px'};
   transition: all 0.2s ease;
-  
+
   ${props => props.$clickable && css`
     cursor: pointer;
-    
+
     &:hover {
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       transform: translateY(-2px);
@@ -110,7 +110,7 @@ const StatusBadge = styled.span<{ $status: WorkflowProgressCardProps['status'] }
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
-  
+
   ${props => {
     switch (props.$status) {
       case 'completed':
@@ -159,7 +159,7 @@ const ProgressFill = styled.div<{ $progress: number; $status: WorkflowProgressCa
   width: ${props => props.$progress}%;
   border-radius: 4px;
   transition: width 0.3s ease;
-  
+
   ${props => {
     if (props.$status === 'rejected' || props.$status === 'cancelled') {
       return css`background: rgb(var(--color-error));`;
@@ -188,11 +188,11 @@ const StepsTimeline = styled.div`
   gap: 4px;
   overflow-x: auto;
   padding: 4px 0;
-  
+
   &::-webkit-scrollbar {
     height: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border, 224 224 224));
     border-radius: 2px;
@@ -205,7 +205,7 @@ const StepDot = styled.div<{ $status: WorkflowStepStatus; $isCurrent: boolean }>
   border-radius: 50%;
   flex-shrink: 0;
   transition: all 0.2s ease;
-  
+
   ${props => {
     if (props.$isCurrent) {
       return css`
@@ -214,7 +214,7 @@ const StepDot = styled.div<{ $status: WorkflowStepStatus; $isCurrent: boolean }>
         animation: ${pulse} 2s infinite;
       `;
     }
-    
+
     switch (props.$status) {
       case 'completed':
       case 'approved':
@@ -244,8 +244,8 @@ const StepConnector = styled.div<{ $completed: boolean }>`
   min-width: 12px;
   max-width: 24px;
   height: 2px;
-  background: ${props => props.$completed 
-    ? 'rgb(var(--color-success))' 
+  background: ${props => props.$completed
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-border, 224 224 224))'};
   transition: background 0.3s ease;
 `;
@@ -313,7 +313,7 @@ const ActionLink = styled.button`
   padding: 4px 8px;
   border-radius: 4px;
   transition: background 0.15s ease;
-  
+
   &:hover {
     background: rgba(102, 126, 234, 0.1);
   }
@@ -330,7 +330,7 @@ const formatTimeAgo = (dateStr: string): string => {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
-  
+
   if (diffMins < 1) return 'Just now';
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
@@ -365,17 +365,17 @@ export const WorkflowProgressCard: React.FC<WorkflowProgressCardProps> = ({
   className,
 }) => {
   // Calculate progress
-  const completedSteps = steps.filter(s => 
+  const completedSteps = steps.filter(s =>
     s.status === 'completed' || s.status === 'approved'
   ).length;
   const progressPercent = Math.round((completedSteps / steps.length) * 100);
-  
+
   // Get current step
   const currentStep = steps[currentStepIndex];
-  
+
   return (
-    <Card 
-      $clickable={!!onClick} 
+    <Card
+      $clickable={!!onClick}
       $compact={compact}
       onClick={onClick}
       className={className}
@@ -392,7 +392,7 @@ export const WorkflowProgressCard: React.FC<WorkflowProgressCardProps> = ({
           {getStatusLabel(status)}
         </StatusBadge>
       </Header>
-      
+
       <ProgressSection>
         <ProgressBar>
           <ProgressFill $progress={progressPercent} $status={status} />
@@ -402,26 +402,26 @@ export const WorkflowProgressCard: React.FC<WorkflowProgressCardProps> = ({
           <span>{progressPercent}%</span>
         </ProgressText>
       </ProgressSection>
-      
+
       {!compact && (
         <>
           <StepsTimeline>
             {steps.map((step, index) => (
               <React.Fragment key={step.id}>
-                <StepDot 
-                  $status={step.status} 
+                <StepDot
+                  $status={step.status}
                   $isCurrent={index === currentStepIndex}
                   title={`${step.name}: ${step.status}`}
                 />
                 {index < steps.length - 1 && (
-                  <StepConnector 
-                    $completed={step.status === 'completed' || step.status === 'approved'} 
+                  <StepConnector
+                    $completed={step.status === 'completed' || step.status === 'approved'}
                   />
                 )}
               </React.Fragment>
             ))}
           </StepsTimeline>
-          
+
           {currentStep && status === 'in_progress' && (
             <CurrentStepInfo>
               <CurrentStepIcon>📋</CurrentStepIcon>
@@ -436,7 +436,7 @@ export const WorkflowProgressCard: React.FC<WorkflowProgressCardProps> = ({
           )}
         </>
       )}
-      
+
       <Footer>
         <Timestamp>Updated {formatTimeAgo(updatedAt)}</Timestamp>
         {onClick && <ActionLink>View Details →</ActionLink>}

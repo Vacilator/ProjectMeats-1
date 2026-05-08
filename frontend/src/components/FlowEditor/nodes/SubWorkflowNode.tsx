@@ -1,15 +1,15 @@
 /**
  * Sub-Workflow Node Component
- * 
+ *
  * Container node that references existing workflows.
  * Enables workflow reusability and composition.
- * 
+ *
  * Use Cases:
  * - Call shared approval workflows
  * - Reuse common data validation flows
  * - Compose complex workflows from smaller ones
  * - Implement workflow libraries
- * 
+ *
  * Created: 2026-02-27 - Phase 7.4 Advanced Node Types (Task 6)
  */
 import React from 'react';
@@ -27,37 +27,37 @@ export interface SubWorkflowNodeData extends BaseNodeData {
    * ID of the workflow to execute
    */
   workflowId?: string;
-  
+
   /**
    * Name of the referenced workflow (for display)
    */
   workflowName?: string;
-  
+
   /**
    * Input mapping: Map parent workflow variables to sub-workflow inputs
    */
   inputMapping?: Record<string, string>;
-  
+
   /**
    * Output mapping: Map sub-workflow outputs back to parent variables
    */
   outputMapping?: Record<string, string>;
-  
+
   /**
    * Pass all parent context to sub-workflow
    */
   inheritContext?: boolean;
-  
+
   /**
    * Wait for sub-workflow completion
    */
   waitForCompletion?: boolean;
-  
+
   /**
    * Timeout in seconds (optional)
    */
   timeout?: number;
-  
+
   /**
    * Error handling:
    * - 'fail': Fail parent workflow if sub-workflow fails
@@ -65,12 +65,12 @@ export interface SubWorkflowNodeData extends BaseNodeData {
    * - 'retry': Retry sub-workflow on failure
    */
   errorHandling?: 'fail' | 'continue' | 'retry';
-  
+
   /**
    * Number of retry attempts (if errorHandling is 'retry')
    */
   retryCount?: number;
-  
+
   /**
    * Workflow version (optional, defaults to latest)
    */
@@ -195,8 +195,8 @@ const ConfigOption = styled.div`
 `;
 
 const ConfigIcon = styled.span<{ $active: boolean }>`
-  color: ${props => props.$active 
-    ? 'rgb(var(--color-success))' 
+  color: ${props => props.$active
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-text-tertiary))'};
   font-size: 11px;
 `;
@@ -239,17 +239,17 @@ const EmptyState = styled.div`
 export const SubWorkflowNode: React.FC<NodeProps<Node<SubWorkflowNodeData>>> = (props) => {
   const { data } = props;
   const nodeTypeDef = getNodeTypeDefinition('subWorkflow');
-  
+
   const errorHandling = data.errorHandling || 'fail';
   const waitForCompletion = data.waitForCompletion !== false; // Default true
   const inheritContext = data.inheritContext || false;
-  
+
   const errorStrategyLabel = {
     fail: 'Fail Parent',
     continue: 'Continue',
     retry: `Retry (${data.retryCount || 3}x)`
   }[errorHandling];
-  
+
   const renderContent = () => {
     if (!data.workflowId && !data.workflowName) {
       return (
@@ -258,10 +258,10 @@ export const SubWorkflowNode: React.FC<NodeProps<Node<SubWorkflowNodeData>>> = (
         </EmptyState>
       );
     }
-    
+
     const inputMappings = Object.entries(data.inputMapping || {});
     const outputMappings = Object.entries(data.outputMapping || {});
-    
+
     return (
       <WorkflowContainer>
         <WorkflowHeader>
@@ -269,7 +269,7 @@ export const SubWorkflowNode: React.FC<NodeProps<Node<SubWorkflowNodeData>>> = (
           <WorkflowName>{data.workflowName || 'Unnamed Workflow'}</WorkflowName>
           {data.version && <VersionBadge>v{data.version}</VersionBadge>}
         </WorkflowHeader>
-        
+
         {inputMappings.length > 0 && (
           <MappingSection>
             <MappingLabel>Inputs</MappingLabel>
@@ -291,7 +291,7 @@ export const SubWorkflowNode: React.FC<NodeProps<Node<SubWorkflowNodeData>>> = (
             </MappingList>
           </MappingSection>
         )}
-        
+
         {outputMappings.length > 0 && (
           <MappingSection>
             <MappingLabel>Outputs</MappingLabel>
@@ -313,7 +313,7 @@ export const SubWorkflowNode: React.FC<NodeProps<Node<SubWorkflowNodeData>>> = (
             </MappingList>
           </MappingSection>
         )}
-        
+
         <ConfigRow>
           <div style={{ display: 'flex', gap: '8px' }}>
             <ConfigOption>
@@ -329,7 +329,7 @@ export const SubWorkflowNode: React.FC<NodeProps<Node<SubWorkflowNodeData>>> = (
             {errorStrategyLabel}
           </ErrorStrategyBadge>
         </ConfigRow>
-        
+
         {data.timeout && (
           <ConfigRow style={{ borderTop: 'none', marginTop: '2px', paddingTop: '2px' }}>
             <span style={{ fontSize: '10px', color: 'rgb(var(--color-text-tertiary))' }}>
@@ -340,7 +340,7 @@ export const SubWorkflowNode: React.FC<NodeProps<Node<SubWorkflowNodeData>>> = (
       </WorkflowContainer>
     );
   };
-  
+
   return (
     <BaseNode
       {...props}

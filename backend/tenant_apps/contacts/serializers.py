@@ -4,16 +4,17 @@ Contacts serializers for ProjectMeats.
 Provides serialization for contact API endpoints.
 """
 from rest_framework import serializers
+
 from tenant_apps.contacts.models import Contact
 
 
 class ContactSerializer(serializers.ModelSerializer):
     """Serializer for Contact model."""
 
-    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
-    customer_name = serializers.CharField(source='customer.name', read_only=True)
-    plant_name = serializers.CharField(source='plant.name', read_only=True)
-    location_name = serializers.CharField(source='location.name', read_only=True)
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    plant_name = serializers.CharField(source="plant.name", read_only=True)
+    location_name = serializers.CharField(source="location.name", read_only=True)
 
     class Meta:
         model = Contact
@@ -22,11 +23,9 @@ class ContactSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "email",
-
             # Legacy phone fields (backward compatibility)
             "phone",
             "phone_type",
-
             # New department + phone slots
             "department",
             "title",
@@ -37,7 +36,6 @@ class ContactSerializer(serializers.ModelSerializer):
             "protein_types_responsible",
             "items_responsible",
             "documents_responsible_for",
-
             "company",
             "position",
             "status",
@@ -80,6 +78,6 @@ class ContactSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value):
         """Validate email format if provided."""
-        if value and '@' not in value:
+        if value and "@" not in value:
             raise serializers.ValidationError("Invalid email format.")
         return value

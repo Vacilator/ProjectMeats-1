@@ -1,11 +1,11 @@
 /**
  * DynamicConfigPanel - Schema-Driven Configuration Panel
- * 
+ *
  * Renders node configuration UI dynamically from schemas instead of hardcoded components.
  * Supports conditional fields, validation, and context-aware configuration.
- * 
+ *
  * This is the core of the Dynamic Configuration Engine (Phase D).
- * 
+ *
  * Created: 2026-02-18
  * Phase: D.2 - Dynamic Panel
  * Updated: 2026-02-23 - Added auto-save functionality (Phase 4: Advanced Config)
@@ -43,9 +43,9 @@ import { validateField } from '../config/validationEngine';
 import { toFormFieldsFromSelectedFields } from '../utils/formFieldsDualModel';
 
 // Field renderers
-import { 
-  renderTextField, 
-  renderSelectField, 
+import {
+  renderTextField,
+  renderSelectField,
   renderToggleField,
   renderEntityTypeSelect  // Phase E: Dynamic entity type dropdown
 } from '../config/fieldRenderers/basicRenderers';
@@ -84,25 +84,25 @@ MemoAutoMappingSuggestionsPanel.displayName = 'MemoAutoMappingSuggestionsPanel';
 export interface DynamicConfigPanelProps {
   /** Current node being configured (nullable when no node selected) */
   node: Node | null;
-  
+
   /** All nodes in the flow (for context) */
   nodes: Node[];
-  
+
   /** All edges in the flow (for context) */
   edges: Edge[];
 
   /** Read-only mode: prevent any edits/mutations */
   readOnly?: boolean;
-  
+
   /** Callback to update node data */
   onUpdateNode: (nodeId: string, data: Partial<Node['data']>) => void;
-  
+
   /** Callback when Apply is clicked */
   onApply?: () => void;
-  
+
   /** Callback when Discard is clicked */
   onDiscard?: () => void;
-  
+
   /** Optional filter to show only specific sections (for tabbed interface) */
   sectionFilter?: (section: ConfigSection) => boolean;
 }
@@ -113,10 +113,10 @@ export interface DynamicConfigPanelProps {
 
 /**
  * Helper to aggressively check all known condition aliases and support functions
- * 
+ *
  * Checks for: conditional, visibilityCondition, showIf
  * Supports: function conditions and standard condition objects
- * 
+ *
  * @param item - Section or field to check
  * @param data - Current form data
  * @returns true if item should be visible, false otherwise
@@ -124,10 +124,10 @@ export interface DynamicConfigPanelProps {
 const checkIsVisible = (item: any, data: any): boolean => {
   // Check all known aliases for condition properties
   const cond = item.conditional || item.visibilityCondition || item.showIf;
-  
+
   // No condition = always visible
   if (!cond) return true;
-  
+
   // Support functional conditions
   if (typeof cond === 'function') {
     try {
@@ -137,7 +137,7 @@ const checkIsVisible = (item: any, data: any): boolean => {
       return true; // Default to visible on error
     }
   }
-  
+
   // Use standard evaluator for object conditions
   return evaluateCondition(cond, data);
 };
@@ -728,7 +728,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   // Render a single field with smooth visibility transitions (Agent C Phase 2)
   const renderField = (field: ConfigField) => {
     const isVisible = visibleFields.has(field.id);
-    
+
     // Always render but with conditional visibility for smooth transitions
     const rawValue = (effectiveFormData as any)[field.id];
 
@@ -766,58 +766,58 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'code-editor':
         renderedField = renderTextField(commonProps as any);
         break;
-      
+
       case 'select':
       case 'multiselect':
       case 'multiSelect': // FIX: Added exact match for schema
         renderedField = renderSelectField(commonProps);
         break;
-      
+
       case 'toggle':
         renderedField = renderToggleField(commonProps);
         break;
-      
+
       // Phase E: Dynamic entity type select (replaces old entity-selector usage)
       case 'entityType': // FIX: Added entityType field
       case 'entity-selector':
         // Use simple select dropdown for entity TYPE selection
         renderedField = renderEntityTypeSelect(commonProps);
         break;
-      
+
       // Complex renderers (Phase D.3) - kept for field-level operations
       case 'entity-field-picker':
         // Phase E.3: Cascade field picker - dynamically loads fields based on entityType
         renderedField = renderEntityFieldPicker({
           ...commonProps,
-          data: { 
-            ...formData, 
+          data: {
+            ...formData,
             _upstreamVariables: upstreamVariables  // Pass upstream variables for inheritance
           }
         });
         break;
-      
+
       case 'fieldMapping':
       case 'field-mapping':
         renderedField = renderFieldMapping({
           ...commonProps,
-          data: { 
-            ...formData, 
+          data: {
+            ...formData,
             _upstreamVariables: upstreamVariables  // Pass upstream variables for mapping
           }
         });
         break;
-      
+
       case 'variablePicker':
       case 'variable-picker':
         renderedField = renderVariablePicker({
           ...commonProps,
-          data: { 
-            ...formData, 
+          data: {
+            ...formData,
             _upstreamVariables: upstreamVariables  // Pass upstream variables for suggestions
           }
         });
         break;
-      
+
       case 'validation-builder':
         renderedField = renderValidationBuilder(commonProps);
         break;
@@ -1206,7 +1206,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         );
         break;
       }
-      
+
       // Button fields (2026-02-21 Comprehensive Enhancements)
       case 'button':
         renderedField = (
@@ -1246,7 +1246,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           </ButtonFieldContainer>
         );
         break;
-      
+
       // Phase E.3: Nested children
       case 'nested-children':
         renderedField = (
@@ -1259,7 +1259,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           />
         );
         break;
-      
+
       default:
         renderedField = (
           <PlaceholderField key={field.id}>
@@ -1268,11 +1268,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           </PlaceholderField>
         );
     }
-    
+
     // Agent C Phase 2: Wrap in transition container for smooth show/hide
     return (
-      <FieldTransitionWrapper 
-        key={field.id} 
+      <FieldTransitionWrapper
+        key={field.id}
         $isVisible={isVisible}
         style={{
           maxHeight: isVisible ? '1000px' : '0',
@@ -1357,7 +1357,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         <Title>{schema.displayName} Configuration</Title>
         {schema.description && <Subtitle>{schema.description}</Subtitle>}
       </Header>
-      
+
       <Content>
         {!isReadOnly && visibleAutoMapSuggestions.length > 0 && (
           <AutoMapBanner>
@@ -1384,7 +1384,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           .filter(section => !sectionFilter || sectionFilter(section))
           .map(renderSection)}
       </Content>
-      
+
       <Footer>
         <FooterInfo>
           {!isValid && <ErrorBadge>{Object.keys(errors).filter((k) => errors[k]).length} errors</ErrorBadge>}
@@ -1521,10 +1521,10 @@ const FieldTransitionWrapper = styled.div<{ $isVisible: boolean }>`
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   transition-property: max-height, opacity, margin-bottom;
-  
+
   /* Smooth collapse/expand animation */
   will-change: max-height, opacity;
-  
+
   /* Hide content when collapsed to prevent interaction */
   ${props => !props.$isVisible && `
     pointer-events: none;

@@ -1,9 +1,9 @@
 /**
  * Configuration Schema Registry
- * 
+ *
  * Central registry for all node configuration schemas.
  * Provides validation, registration, and retrieval of schemas.
- * 
+ *
  * Created: 2026-02-18
  * Phase: D.1 - Foundation
  */
@@ -119,7 +119,7 @@ class ConfigSchemaRegistry {
 
   /**
    * Register a single node configuration schema
-   * 
+   *
    * @param schema - Node configuration schema to register
    * @param overwrite - Allow overwriting existing schema (default: false)
    */
@@ -151,7 +151,7 @@ class ConfigSchemaRegistry {
 
   /**
    * Get schema for a node type
-   * 
+   *
    * @param nodeType - Node type identifier
    * @returns Schema (always returns a schema, using fallback if needed)
    */
@@ -210,11 +210,11 @@ class ConfigSchemaRegistry {
     if (!t) return t;
     return this.serverAliases.get(t) || t;
   }
-  
+
   /**
    * Create a fallback schema for node types without explicit schemas
    * Provides basic configuration fields that work for any node
-   * 
+   *
    * @param nodeType - Node type identifier
    * @returns Basic configuration schema
    */
@@ -263,7 +263,7 @@ class ConfigSchemaRegistry {
       ],
     };
   }
-  
+
   /**
    * Format node type name for display
    */
@@ -274,7 +274,7 @@ class ConfigSchemaRegistry {
       .replace(/^./, str => str.toUpperCase())
       .trim();
   }
-  
+
   /**
    * Infer category from node type prefix
    */
@@ -294,7 +294,7 @@ class ConfigSchemaRegistry {
 
   /**
    * Check if schema exists for a node type
-   * 
+   *
    * @param nodeType - Node type identifier
    * @returns True if schema exists
    */
@@ -304,7 +304,7 @@ class ConfigSchemaRegistry {
 
   /**
    * Get all registered node types
-   * 
+   *
    * @returns Array of registered node type identifiers
    */
   getRegisteredTypes(): string[] {
@@ -313,7 +313,7 @@ class ConfigSchemaRegistry {
 
   /**
    * Get all registered schemas
-   * 
+   *
    * @returns Array of all registered schemas
    */
   getAllSchemas(): NodeConfigSchema[] {
@@ -322,7 +322,7 @@ class ConfigSchemaRegistry {
 
   /**
    * Unregister a schema
-   * 
+   *
    * @param nodeType - Node type identifier
    * @returns True if schema was removed
    */
@@ -341,14 +341,14 @@ class ConfigSchemaRegistry {
 
   /**
    * Validate a schema definition
-   * 
+   *
    * Checks for:
    * - Required fields (nodeType, displayName, sections)
    * - Section structure (id, title, fields)
    * - Field structure (id, type, label)
    * - Duplicate IDs
    * - Invalid references in conditional rules
-   * 
+   *
    * @param schema - Schema to validate
    * @returns Validation result with errors and warnings
    */
@@ -456,10 +456,10 @@ class ConfigSchemaRegistry {
             // Primitive or unexpected type, wrap it
             validationRules = [field.validation];
           }
-          
+
           // Flatten to unwrap cross-realm double-wrapped arrays: [[{type: 'required'}]]
           // flat(Infinity) recursively flattens nested arrays
-          validationRules = validationRules.flat(Infinity).filter(r => 
+          validationRules = validationRules.flat(Infinity).filter(r =>
             r && typeof r === 'object' && !Array.isArray(r)
           );
         }
@@ -501,7 +501,7 @@ class ConfigSchemaRegistry {
 
   /**
    * Validate a conditional rule
-   * 
+   *
    * @param rule - Conditional rule to validate
    * @param validFieldIds - Set of valid field IDs
    * @param currentFieldId - ID of field being validated (to prevent self-reference)

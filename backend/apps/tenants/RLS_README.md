@@ -109,8 +109,8 @@ RLS policies add minimal overhead:
 
 ```sql
 -- Check if RLS is enabled
-SELECT schemaname, tablename, rowsecurity 
-FROM pg_tables 
+SELECT schemaname, tablename, rowsecurity
+FROM pg_tables
 WHERE tablename LIKE 'tenant_apps_%';
 
 -- Check policies
@@ -218,7 +218,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # Application-level filtering (primary)
         return Supplier.objects.filter(tenant=self.request.tenant)
-    
+
     def perform_create(self, serializer):
         # Set tenant on creation
         serializer.save(tenant=self.request.tenant)
@@ -240,7 +240,7 @@ class SupplierRLSTestCase(TestCase):
                 "SET LOCAL app.current_tenant_id = %s",
                 [str(self.tenant1.id)]
             )
-        
+
         # Should only see tenant1's suppliers
         suppliers = Supplier.objects.all()
         self.assertTrue(

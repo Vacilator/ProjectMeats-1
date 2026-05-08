@@ -1,10 +1,10 @@
 /**
  * Node Configuration Schemas
- * 
+ *
  * Declarative configuration schemas for all node types.
  * Each schema defines the structure, fields, validation, and behavior
  * of a node's configuration panel.
- * 
+ *
  * Created: 2026-02-18
  * Phase: D.1 - Foundation
  * Updated: 2026-02-21 - Removed window.dispatchEvent (use FormBuilderContext instead)
@@ -18,20 +18,20 @@ import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Z
 
 /**
  * IMPORTANT: FormBuilder Integration
- * 
+ *
  * The onClick handlers for FormBuilder buttons should NOT dispatch window events.
  * Instead, they should use FormBuilderContext from the component consuming these schemas.
- * 
+ *
  * Pattern:
  * ```tsx
  * const { openFormBuilder } = useFormBuilderContext();
- * 
+ *
  * // In DynamicConfigPanel or NodeConfigPanelWithShadow:
  * if (field.type === 'button' && field.onClick) {
  *   field.onClick(nodeId, nodeData); // This will call the function below
  * }
  * ```
- * 
+ *
  * The onClick functions below are factories that RETURN a function expecting context.
  * The consuming component must wrap them to inject the FormBuilderContext.
  */
@@ -42,10 +42,10 @@ import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Z
 
 /**
  * Configuration schema for Form node (renamed from Form Step: Single)
- * 
+ *
  * Defines a single-page form for data collection that can be used standalone
  * or inside a Form Process container.
- * 
+ *
  * **Phase E Update (2026-02-19):**
  * - Renamed from 'formStepSingle' to 'form' for simplified naming
  * - Updated displayName from 'Form Step: Single' to 'Form'
@@ -443,7 +443,7 @@ export const formSchema: NodeConfigSchema = {
 
 /**
  * Configuration schema for Form Process Container node
- * 
+ *
  * Defines a multi-step form container that groups Form Single Step nodes
  * into a cohesive workflow with navigation and behavior settings.
  */
@@ -588,10 +588,10 @@ export const formProcessSchema: NodeConfigSchema = {
 
 /**
  * Configuration schema for Form Process Group node
- * 
+ *
  * Labeled container with vertical auto-layout for child steps.
  * Uses React Flow's native parent-child grouping pattern.
- * 
+ *
  * Phase E.3: Auto-layout, expand/collapse, selection grouping
  */
 export const formProcessGroupSchema: NodeConfigSchema = {
@@ -707,7 +707,7 @@ export const formBookSchema: NodeConfigSchema = {
 
 /**
  * Configuration schema for Create Record node
- * 
+ *
  * Defines an action node that creates a new record in a selected entity
  * with field mappings from upstream workflow variables.
  */
@@ -820,7 +820,7 @@ export const createRecordSchema: NodeConfigSchema = {
 
 /**
  * Configuration schema for Outlook Email node
- * 
+ *
  * Defines an action node that sends an email via Outlook
  * with support for variable insertion from workflow context.
  */
@@ -939,7 +939,7 @@ export const outlookEmailSchema: NodeConfigSchema = {
 
 /**
  * All registered node configuration schemas
- * 
+ *
  * Phase E Update (2026-02-19):
  * - Updated to use 'formSchema' as primary schema
  * - formStepSingleSchema exported as alias for backward compatibility
@@ -963,7 +963,7 @@ const buildAllSchemas = (): NodeConfigSchema[] => [
   endSuccessSchema,
   endErrorSchema,
   timerDelaySchema,
-  
+
   // === EXTENDED SCHEMAS (Phase 4 - Agent C: Complete Config Coverage) ===
   // Form nodes
   formStepSchema,
@@ -972,18 +972,18 @@ const buildAllSchemas = (): NodeConfigSchema[] => [
   formReferenceSchema,
   formSignatureSchema,
   formFileUploadSchema,
-  
+
   // Trigger nodes
   triggerManualSchema,
   triggerScheduleSchema,
   triggerWebhookSchema,
   triggerEventSchema,
   triggerFormSchema,
-  
+
   // Logic nodes
   conditionSwitchSchema,
   conditionFilterSchema,
-  
+
   // Action nodes
   actionHTTPSchema,
   actionSMSSchema,
@@ -992,36 +992,36 @@ const buildAllSchemas = (): NodeConfigSchema[] => [
   actionCreateRecordSchema,
   actionUpdateRecordSchema,
   actionDeleteRecordSchema,
-  
+
   // Data nodes
   dataLookupSchema,
   dataMergeSchema,
   dataTransformSchema,
-  
+
   // Variable nodes
   setVariableSchema,
-  
+
   // Loop nodes
   loopForEachSchema,
   loopWhileSchema,
-  
+
   // Wait/Pending nodes
   timerScheduleSchema,
   pendingApprovalSchema,
   pendingDocumentSchema,
   pendingPaymentSchema,
   pendingResponseSchema,
-  
+
   // Document nodes
   documentMergeSchema,
-  
+
   // Utility nodes
   groupSubflowSchema,
   noteCommentSchema,
-  
+
   // Terminal nodes
   endCancelSchema,
-  
+
   // Phase 7.4: Advanced Node Types (2026-02-27)
   parallelPathSchema,
   subWorkflowSchema,
@@ -1045,10 +1045,10 @@ export const formStepSingleSchema = formSchema;
 
 /**
  * Unified Trigger Node Schema
- * 
+ *
  * Single trigger node with cascading configuration based on selected type.
  * Supports: webhook, schedule, manual/quick-action, event, form-submit.
- * 
+ *
  * Created: 2026-02-21 - Phase 2: Trigger + Documents + Palette
  */
 export const triggerSchema: NodeConfigSchema = {
@@ -1092,7 +1092,7 @@ export const triggerSchema: NodeConfigSchema = {
         },
       ]
     },
-    
+
     // Webhook Configuration (conditional)
     {
       id: 'webhookConfig',
@@ -1155,7 +1155,7 @@ export const triggerSchema: NodeConfigSchema = {
         },
       ]
     },
-    
+
     // Schedule Configuration (conditional)
     {
       id: 'scheduleConfig',
@@ -1248,7 +1248,7 @@ export const triggerSchema: NodeConfigSchema = {
         },
       ]
     },
-    
+
     // Event Configuration (conditional)
     {
       id: 'eventConfig',
@@ -1292,7 +1292,7 @@ export const triggerSchema: NodeConfigSchema = {
         },
       ]
     },
-    
+
     // Form Submit Configuration (conditional)
     {
       id: 'formSubmitConfig',
@@ -1317,7 +1317,7 @@ export const triggerSchema: NodeConfigSchema = {
         },
       ]
     },
-    
+
     // Manual/Quick Action Configuration (conditional)
     {
       id: 'manualConfig',
@@ -2093,7 +2093,7 @@ export const timerDelaySchema: NodeConfigSchema = {
 /**
  * CRITICAL FIX: Register schemas for ALL node types to prevent
  * "No configuration schema found" errors.
- * 
+ *
  * This section provides basic schemas for node types that don't have
  * dedicated advanced schemas yet. Each schema provides:
  * - Name and description fields (minimum viable config)
@@ -4192,7 +4192,7 @@ const endCancelSchema: NodeConfigSchema = {
 
 /**
  * Parallel Path Node Schema
- * 
+ *
  * Enables parallel execution branches for concurrent processing.
  */
 export const parallelPathSchema: NodeConfigSchema = {
@@ -4256,7 +4256,7 @@ export const parallelPathSchema: NodeConfigSchema = {
 
 /**
  * Sub-WorkForm Node Schema
- * 
+ *
  * Runs another WorkForm as a reusable sub-process.
  */
 export const subWorkflowSchema: NodeConfigSchema = {

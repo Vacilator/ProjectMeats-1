@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bug_reports", "0003_state_sync_tenant"),
         ("tenants", "0010_add_tenant_configuration"),

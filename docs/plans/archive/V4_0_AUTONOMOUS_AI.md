@@ -65,4 +65,3 @@ Each run produces **Proposed Actions**; nothing destructive happens without appr
   - execution
   - audit log entry
   - webhook notification
-

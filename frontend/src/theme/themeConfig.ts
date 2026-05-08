@@ -1,11 +1,11 @@
 /**
  * Centralized Theme Configuration for ProjectMeats
- * 
+ *
  * Provides three theme modes:
  * - light: Standard light mode
  * - dark: Dark mode with reduced eye strain
  * - high-contrast: WCAG AAA compliant high contrast mode
- * 
+ *
  * Authority: docs/DESIGN_SYSTEM.md
  */
 
@@ -168,7 +168,7 @@ export const canvasThemeVars = {
 export function applyCanvasTheme(mode: ThemeMode): void {
   const root = document.documentElement;
   const vars = canvasThemeVars[mode];
-  
+
   Object.entries(vars).forEach(([key, value]) => {
     root.style.setProperty(key, value);
   });

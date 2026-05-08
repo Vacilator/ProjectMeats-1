@@ -13,9 +13,9 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
+from tenant_apps.ai_assistant.services.document_parser import AI_DOCUMENT_ALLOWED_EXTENSIONS
 
 from apps.core.models import OwnedModel, StatusModel, TenantAwareModel
-from tenant_apps.ai_assistant.services.document_parser import AI_DOCUMENT_ALLOWED_EXTENSIONS
 
 
 class ChatSessionStatusChoices(models.TextChoices):
@@ -65,9 +65,7 @@ class ChatSession(OwnedModel, StatusModel):
         help_text="Tenant this chat session belongs to",
     )
 
-    last_activity = models.DateTimeField(
-        auto_now=True, help_text="Timestamp of last activity in this session"
-    )
+    last_activity = models.DateTimeField(auto_now=True, help_text="Timestamp of last activity in this session")
 
     class Meta:
         db_table = "ai_assistant_chat_sessions"
@@ -131,9 +129,7 @@ class ChatMessage(OwnedModel):
         help_text="Additional metadata about the message",
     )
 
-    is_processed = models.BooleanField(
-        default=True, help_text="Whether the message has been fully processed"
-    )
+    is_processed = models.BooleanField(default=True, help_text="Whether the message has been fully processed")
 
     class Meta:
         db_table = "ai_assistant_chat_messages"
@@ -282,28 +278,28 @@ class AIFeedback(TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_feedback_items',
+        related_name="ai_feedback_items",
     )
 
-    user_message = models.TextField(blank=True, default='')
-    assistant_message = models.TextField(blank=True, default='')
+    user_message = models.TextField(blank=True, default="")
+    assistant_message = models.TextField(blank=True, default="")
 
-    user_correction = models.TextField(help_text='User-provided correction')
-    lesson_text = models.TextField(help_text='Normalized lesson learned to apply in future responses')
+    user_correction = models.TextField(help_text="User-provided correction")
+    lesson_text = models.TextField(help_text="Normalized lesson learned to apply in future responses")
 
-    entity_type = models.CharField(max_length=64, blank=True, default='')
-    entity_id = models.CharField(max_length=64, blank=True, default='')
+    entity_type = models.CharField(max_length=64, blank=True, default="")
+    entity_id = models.CharField(max_length=64, blank=True, default="")
 
     tags = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        db_table = 'ai_assistant_feedback'
-        verbose_name = 'AI Feedback'
-        verbose_name_plural = 'AI Feedback'
+        db_table = "ai_assistant_feedback"
+        verbose_name = "AI Feedback"
+        verbose_name_plural = "AI Feedback"
         indexes = [
-            models.Index(fields=['tenant', 'is_active', 'created_on'], name='ai_fb_item_queue_idx'),
-            models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_fb_item_entity_idx'),
+            models.Index(fields=["tenant", "is_active", "created_on"], name="ai_fb_item_queue_idx"),
+            models.Index(fields=["tenant", "entity_type", "created_on"], name="ai_fb_item_entity_idx"),
         ]
 
 
@@ -313,23 +309,23 @@ class VectorMemory(TenantAwareModel):
     Stores embeddings for historical purchase orders and industry context snippets.
     """
 
-    source_type = models.CharField(max_length=64, default='context', help_text='context|purchase_order|other')
+    source_type = models.CharField(max_length=64, default="context", help_text="context|purchase_order|other")
     document_id = models.UUIDField(null=True, blank=True)
-    content = models.TextField(blank=True, default='')
+    content = models.TextField(blank=True, default="")
     metadata = models.JSONField(default=dict, blank=True)
 
     embedding = models.JSONField(
         default=list,
         blank=True,
-        help_text='Embedding vector as JSON array (pgvector optional).',
+        help_text="Embedding vector as JSON array (pgvector optional).",
     )
 
     class Meta:
-        db_table = 'ai_assistant_vector_memory'
-        verbose_name = 'Vector Memory'
-        verbose_name_plural = 'Vector Memory'
+        db_table = "ai_assistant_vector_memory"
+        verbose_name = "Vector Memory"
+        verbose_name_plural = "Vector Memory"
         indexes = [
-            models.Index(fields=['tenant', 'source_type'], name='ai_vec_tenant_src_idx'),
+            models.Index(fields=["tenant", "source_type"], name="ai_vec_tenant_src_idx"),
         ]
 
 
@@ -343,24 +339,24 @@ class TenantKnowledgeFact(TenantAwareModel):
     domain_category = models.CharField(
         max_length=64,
         blank=True,
-        default='',
-        help_text='Optional domain label (e.g. ordering, invoicing, cold_storage)',
+        default="",
+        help_text="Optional domain label (e.g. ordering, invoicing, cold_storage)",
     )
-    fact_text = models.TextField(help_text='Canonical tenant fact text')
+    fact_text = models.TextField(help_text="Canonical tenant fact text")
     embedding = models.JSONField(
         default=list,
         null=True,
         blank=True,
-        help_text='Embedding vector as JSON array (pgvector optional).',
+        help_text="Embedding vector as JSON array (pgvector optional).",
     )
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        db_table = 'ai_assistant_tenant_knowledge_facts'
-        verbose_name = 'Tenant Knowledge Fact'
-        verbose_name_plural = 'Tenant Knowledge Facts'
+        db_table = "ai_assistant_tenant_knowledge_facts"
+        verbose_name = "Tenant Knowledge Fact"
+        verbose_name_plural = "Tenant Knowledge Facts"
         indexes = [
-            models.Index(fields=['tenant', 'domain_category'], name='ai_kf_tenant_domain_idx'),
+            models.Index(fields=["tenant", "domain_category"], name="ai_kf_tenant_domain_idx"),
         ]
 
 
@@ -372,27 +368,27 @@ class TenantAIMemory(TenantAwareModel):
 
     key = models.CharField(
         max_length=128,
-        help_text='Stable key for upserts (e.g. vendor:acme:routing_rule)',
+        help_text="Stable key for upserts (e.g. vendor:acme:routing_rule)",
     )
-    memory_text = models.TextField(blank=True, default='', help_text='Human-readable memory text')
-    memory_json = models.JSONField(default=dict, blank=True, help_text='Optional structured memory payload')
+    memory_text = models.TextField(blank=True, default="", help_text="Human-readable memory text")
+    memory_json = models.JSONField(default=dict, blank=True, help_text="Optional structured memory payload")
     tags = models.JSONField(default=dict, blank=True)
     embedding = models.JSONField(
         default=list,
         blank=True,
-        help_text='Embedding vector as JSON array (pgvector optional).',
+        help_text="Embedding vector as JSON array (pgvector optional).",
     )
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        db_table = 'ai_assistant_tenant_memory'
-        verbose_name = 'Tenant AI Memory'
-        verbose_name_plural = 'Tenant AI Memories'
+        db_table = "ai_assistant_tenant_memory"
+        verbose_name = "Tenant AI Memory"
+        verbose_name_plural = "Tenant AI Memories"
         constraints = [
-            models.UniqueConstraint(fields=['tenant', 'key'], name='unique_ai_memory_key_per_tenant'),
+            models.UniqueConstraint(fields=["tenant", "key"], name="unique_ai_memory_key_per_tenant"),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'key'], name='ai_mem_tenant_key_idx'),
+            models.Index(fields=["tenant", "key"], name="ai_mem_tenant_key_idx"),
         ]
 
 
@@ -421,49 +417,45 @@ class AIDocument(TenantAwareModel):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='ai_documents',
-        help_text='User who uploaded this document',
+        related_name="ai_documents",
+        help_text="User who uploaded this document",
     )
 
     session = models.ForeignKey(
         ChatSession,
         on_delete=models.CASCADE,
-        related_name='documents',
+        related_name="documents",
         null=True,
         blank=True,
-        help_text='Optional chat session this document was uploaded into',
+        help_text="Optional chat session this document was uploaded into",
     )
 
     file = models.FileField(
         upload_to=aidocument_upload_to,
-        validators=[
-            FileExtensionValidator(
-                allowed_extensions=list(AI_DOCUMENT_ALLOWED_EXTENSIONS)
-            )
-        ],
+        validators=[FileExtensionValidator(allowed_extensions=list(AI_DOCUMENT_ALLOWED_EXTENSIONS))],
     )
 
-    original_filename = models.CharField(max_length=255, blank=True, default='')
-    content_type = models.CharField(max_length=128, blank=True, default='')
+    original_filename = models.CharField(max_length=255, blank=True, default="")
+    content_type = models.CharField(max_length=128, blank=True, default="")
     file_size = models.BigIntegerField(default=0)
 
     processing_status = models.CharField(
         max_length=20,
-        default='pending',
+        default="pending",
         choices=[
-            ('pending', 'pending'),
-            ('processing', 'processing'),
-            ('completed', 'completed'),
-            ('failed', 'failed'),
+            ("pending", "pending"),
+            ("processing", "processing"),
+            ("completed", "completed"),
+            ("failed", "failed"),
         ],
     )
 
     class Meta:
-        db_table = 'ai_assistant_documents'
-        verbose_name = 'AI Document'
-        verbose_name_plural = 'AI Documents'
+        db_table = "ai_assistant_documents"
+        verbose_name = "AI Document"
+        verbose_name_plural = "AI Documents"
         indexes = [
-            models.Index(fields=['tenant', 'owner', 'created_on'], name='aidoc_tnt_owner_created_idx'),
+            models.Index(fields=["tenant", "owner", "created_on"], name="aidoc_tnt_owner_created_idx"),
         ]
 
 
@@ -474,28 +466,28 @@ class AIDocumentSemanticChunk(TenantAwareModel):
     document = models.ForeignKey(
         AIDocument,
         on_delete=models.CASCADE,
-        related_name='semantic_chunks',
+        related_name="semantic_chunks",
     )
     chunk_index = models.PositiveIntegerField(default=0)
-    content = models.TextField(default='')
-    content_hash = models.CharField(max_length=64, blank=True, default='')
+    content = models.TextField(default="")
+    content_hash = models.CharField(max_length=64, blank=True, default="")
     embedding = models.JSONField(
         default=list,
         blank=True,
-        help_text='Embedding vector as JSON array (pgvector optional).',
+        help_text="Embedding vector as JSON array (pgvector optional).",
     )
     metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
-        db_table = 'ai_assistant_document_semantic_chunks'
-        verbose_name = 'AI Document Semantic Chunk'
-        verbose_name_plural = 'AI Document Semantic Chunks'
+        db_table = "ai_assistant_document_semantic_chunks"
+        verbose_name = "AI Document Semantic Chunk"
+        verbose_name_plural = "AI Document Semantic Chunks"
         constraints = [
-            models.UniqueConstraint(fields=['document', 'chunk_index'], name='unique_ai_document_chunk_index'),
+            models.UniqueConstraint(fields=["document", "chunk_index"], name="unique_ai_document_chunk_index"),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'document', 'chunk_index'], name='ai_doc_chunk_doc_idx'),
-            models.Index(fields=['tenant', 'created_on'], name='ai_doc_chunk_created_idx'),
+            models.Index(fields=["tenant", "document", "chunk_index"], name="ai_doc_chunk_doc_idx"),
+            models.Index(fields=["tenant", "created_on"], name="ai_doc_chunk_created_idx"),
         ]
 
     def __str__(self):
@@ -511,46 +503,46 @@ class AILineageEvent(TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='lineage_events',
+        related_name="lineage_events",
     )
     run = models.ForeignKey(
-        'AIRun',
+        "AIRun",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='lineage_events',
+        related_name="lineage_events",
     )
     task = models.ForeignKey(
-        'AITask',
+        "AITask",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='lineage_events',
+        related_name="lineage_events",
     )
     approval = models.ForeignKey(
-        'AIApproval',
+        "AIApproval",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='lineage_events',
+        related_name="lineage_events",
     )
     event_type = models.CharField(max_length=64)
-    source_type = models.CharField(max_length=64, blank=True, default='')
-    source_id = models.CharField(max_length=128, blank=True, default='')
-    target_type = models.CharField(max_length=64, blank=True, default='')
-    target_id = models.CharField(max_length=128, blank=True, default='')
-    summary = models.CharField(max_length=255, blank=True, default='')
+    source_type = models.CharField(max_length=64, blank=True, default="")
+    source_id = models.CharField(max_length=128, blank=True, default="")
+    target_type = models.CharField(max_length=64, blank=True, default="")
+    target_id = models.CharField(max_length=128, blank=True, default="")
+    summary = models.CharField(max_length=255, blank=True, default="")
     metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
-        db_table = 'ai_assistant_lineage_events'
-        verbose_name = 'AI Lineage Event'
-        verbose_name_plural = 'AI Lineage Events'
+        db_table = "ai_assistant_lineage_events"
+        verbose_name = "AI Lineage Event"
+        verbose_name_plural = "AI Lineage Events"
         indexes = [
-            models.Index(fields=['tenant', 'event_type', 'created_on'], name='ai_lineage_event_type_idx'),
-            models.Index(fields=['tenant', 'document', 'created_on'], name='ai_lineage_document_idx'),
-            models.Index(fields=['tenant', 'run', 'created_on'], name='ai_lineage_run_idx'),
-            models.Index(fields=['tenant', 'task', 'created_on'], name='ai_lineage_task_idx'),
+            models.Index(fields=["tenant", "event_type", "created_on"], name="ai_lineage_event_type_idx"),
+            models.Index(fields=["tenant", "document", "created_on"], name="ai_lineage_document_idx"),
+            models.Index(fields=["tenant", "run", "created_on"], name="ai_lineage_run_idx"),
+            models.Index(fields=["tenant", "task", "created_on"], name="ai_lineage_task_idx"),
         ]
 
     def __str__(self):
@@ -558,10 +550,10 @@ class AILineageEvent(TenantAwareModel):
 
 
 class CommunicationStatus(models.TextChoices):
-    DRAFT = 'draft', 'Draft'
-    SENT = 'sent', 'Sent'
-    CANCELLED = 'cancelled', 'Cancelled'
-    FAILED = 'failed', 'Failed'
+    DRAFT = "draft", "Draft"
+    SENT = "sent", "Sent"
+    CANCELLED = "cancelled", "Cancelled"
+    FAILED = "failed", "Failed"
 
 
 class CommunicationLog(TenantAwareModel):
@@ -574,62 +566,64 @@ class CommunicationLog(TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='communication_logs_created',
+        related_name="communication_logs_created",
     )
 
     # Generic link to a vendor/customer/etc (supports UUID or int PKs; stored as string)
-    entity_type = models.CharField(max_length=32, default='supplier')
-    entity_id = models.CharField(max_length=64, blank=True, default='')
+    entity_type = models.CharField(max_length=32, default="supplier")
+    entity_id = models.CharField(max_length=64, blank=True, default="")
 
     to_email = models.EmailField()
-    subject = models.CharField(max_length=300, default='')
-    body = models.TextField(default='')
+    subject = models.CharField(max_length=300, default="")
+    body = models.TextField(default="")
 
     provider = models.CharField(
         max_length=32,
-        default='manual',
-        help_text='manual|outlook (send is always human-approved)',
+        default="manual",
+        help_text="manual|outlook (send is always human-approved)",
     )
 
-    status = models.CharField(max_length=16, choices=CommunicationStatus.choices, default=CommunicationStatus.DRAFT, db_index=True)
+    status = models.CharField(
+        max_length=16, choices=CommunicationStatus.choices, default=CommunicationStatus.DRAFT, db_index=True
+    )
 
     sent_at = models.DateTimeField(null=True, blank=True)
-    error_message = models.TextField(blank=True, default='')
+    error_message = models.TextField(blank=True, default="")
     metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
-        db_table = 'ai_assistant_communication_logs'
-        verbose_name = 'Communication Log'
-        verbose_name_plural = 'Communication Logs'
+        db_table = "ai_assistant_communication_logs"
+        verbose_name = "Communication Log"
+        verbose_name_plural = "Communication Logs"
         indexes = [
-            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_comms_tenant_status_idx'),
-            models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_comms_tenant_entity_idx'),
+            models.Index(fields=["tenant", "status", "created_on"], name="ai_comms_tenant_status_idx"),
+            models.Index(fields=["tenant", "entity_type", "created_on"], name="ai_comms_tenant_entity_idx"),
         ]
 
 
 class AIRunStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    RUNNING = 'running', 'Running'
-    APPROVAL_REQUIRED = 'approval_required', 'Approval Required'
-    COMPLETED = 'completed', 'Completed'
-    FAILED = 'failed', 'Failed'
-    DENIED = 'denied', 'Denied'
+    PENDING = "pending", "Pending"
+    RUNNING = "running", "Running"
+    APPROVAL_REQUIRED = "approval_required", "Approval Required"
+    COMPLETED = "completed", "Completed"
+    FAILED = "failed", "Failed"
+    DENIED = "denied", "Denied"
 
 
 class AITaskStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    RUNNING = 'running', 'Running'
-    APPROVAL_REQUIRED = 'approval_required', 'Approval Required'
-    COMPLETED = 'completed', 'Completed'
-    FAILED = 'failed', 'Failed'
-    DENIED = 'denied', 'Denied'
+    PENDING = "pending", "Pending"
+    RUNNING = "running", "Running"
+    APPROVAL_REQUIRED = "approval_required", "Approval Required"
+    COMPLETED = "completed", "Completed"
+    FAILED = "failed", "Failed"
+    DENIED = "denied", "Denied"
 
 
 class AIApprovalStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    APPROVED = 'approved', 'Approved'
-    DENIED = 'denied', 'Denied'
-    EXPIRED = 'expired', 'Expired'
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    DENIED = "denied", "Denied"
+    EXPIRED = "expired", "Expired"
 
 
 class AIRun(TenantAwareModel):
@@ -641,36 +635,36 @@ class AIRun(TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_runs',
+        related_name="ai_runs",
     )
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_runs_requested',
+        related_name="ai_runs_requested",
     )
-    source = models.CharField(max_length=32, default='chat')
-    event_type = models.CharField(max_length=32, default='user_chat')
+    source = models.CharField(max_length=32, default="chat")
+    event_type = models.CharField(max_length=32, default="user_chat")
     status = models.CharField(max_length=32, choices=AIRunStatus.choices, default=AIRunStatus.PENDING)
-    correlation_id = models.CharField(max_length=128, blank=True, default='')
-    intent = models.CharField(max_length=128, blank=True, default='')
-    user_message = models.TextField(blank=True, default='')
-    response_text = models.TextField(blank=True, default='')
+    correlation_id = models.CharField(max_length=128, blank=True, default="")
+    intent = models.CharField(max_length=128, blank=True, default="")
+    user_message = models.TextField(blank=True, default="")
+    response_text = models.TextField(blank=True, default="")
     request_payload = models.JSONField(default=dict, blank=True)
     response_payload = models.JSONField(default=dict, blank=True)
-    error_message = models.TextField(blank=True, default='')
+    error_message = models.TextField(blank=True, default="")
     approval_required_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'ai_assistant_runs'
-        verbose_name = 'AI Run'
-        verbose_name_plural = 'AI Runs'
+        db_table = "ai_assistant_runs"
+        verbose_name = "AI Run"
+        verbose_name_plural = "AI Runs"
         indexes = [
-            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_run_tenant_status_idx'),
-            models.Index(fields=['tenant', 'requested_by', 'created_on'], name='ai_run_tenant_user_idx'),
-            models.Index(fields=['tenant', 'session', 'created_on'], name='ai_run_tenant_session_idx'),
+            models.Index(fields=["tenant", "status", "created_on"], name="ai_run_tenant_status_idx"),
+            models.Index(fields=["tenant", "requested_by", "created_on"], name="ai_run_tenant_user_idx"),
+            models.Index(fields=["tenant", "session", "created_on"], name="ai_run_tenant_session_idx"),
         ]
 
     def __str__(self):
@@ -684,14 +678,14 @@ class AITask(TenantAwareModel):
     run = models.ForeignKey(
         AIRun,
         on_delete=models.CASCADE,
-        related_name='tasks',
+        related_name="tasks",
     )
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_tasks_requested',
+        related_name="ai_tasks_requested",
     )
     tool_name = models.CharField(max_length=128)
     sequence = models.PositiveIntegerField(default=1)
@@ -702,21 +696,21 @@ class AITask(TenantAwareModel):
     resolved_at = models.DateTimeField(null=True, blank=True)
     input_payload = models.JSONField(default=dict, blank=True)
     output_payload = models.JSONField(default=dict, blank=True)
-    error_message = models.TextField(blank=True, default='')
-    target_entity_type = models.CharField(max_length=64, blank=True, default='')
-    target_entity_id = models.CharField(max_length=64, blank=True, default='')
+    error_message = models.TextField(blank=True, default="")
+    target_entity_type = models.CharField(max_length=64, blank=True, default="")
+    target_entity_id = models.CharField(max_length=64, blank=True, default="")
 
     class Meta:
-        db_table = 'ai_assistant_tasks'
-        verbose_name = 'AI Task'
-        verbose_name_plural = 'AI Tasks'
+        db_table = "ai_assistant_tasks"
+        verbose_name = "AI Task"
+        verbose_name_plural = "AI Tasks"
         constraints = [
-            models.UniqueConstraint(fields=['run', 'sequence'], name='unique_ai_task_sequence_per_run'),
+            models.UniqueConstraint(fields=["run", "sequence"], name="unique_ai_task_sequence_per_run"),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_task_tenant_status_idx'),
-            models.Index(fields=['tenant', 'run', 'sequence'], name='ai_task_tenant_run_idx'),
-            models.Index(fields=['tenant', 'tool_name', 'created_on'], name='ai_task_tenant_tool_idx'),
+            models.Index(fields=["tenant", "status", "created_on"], name="ai_task_tenant_status_idx"),
+            models.Index(fields=["tenant", "run", "sequence"], name="ai_task_tenant_run_idx"),
+            models.Index(fields=["tenant", "tool_name", "created_on"], name="ai_task_tenant_tool_idx"),
         ]
 
     def __str__(self):
@@ -730,43 +724,43 @@ class AIApproval(TenantAwareModel):
     run = models.ForeignKey(
         AIRun,
         on_delete=models.CASCADE,
-        related_name='approvals',
+        related_name="approvals",
     )
     task = models.OneToOneField(
         AITask,
         on_delete=models.CASCADE,
-        related_name='approval',
+        related_name="approval",
     )
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_approvals_requested',
+        related_name="ai_approvals_requested",
     )
     resolved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='ai_approvals_resolved',
+        related_name="ai_approvals_resolved",
     )
     tool_name = models.CharField(max_length=128)
     status = models.CharField(max_length=32, choices=AIApprovalStatus.choices, default=AIApprovalStatus.PENDING)
     request_payload = models.JSONField(default=dict, blank=True)
     response_payload = models.JSONField(default=dict, blank=True)
-    resolution_note = models.TextField(blank=True, default='')
+    resolution_note = models.TextField(blank=True, default="")
     expires_at = models.DateTimeField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'ai_assistant_approvals'
-        verbose_name = 'AI Approval'
-        verbose_name_plural = 'AI Approvals'
+        db_table = "ai_assistant_approvals"
+        verbose_name = "AI Approval"
+        verbose_name_plural = "AI Approvals"
         indexes = [
-            models.Index(fields=['tenant', 'status', 'created_on'], name='ai_appr_tenant_status_idx'),
-            models.Index(fields=['tenant', 'requested_by', 'created_on'], name='ai_appr_tenant_user_idx'),
-            models.Index(fields=['tenant', 'tool_name', 'created_on'], name='ai_appr_tenant_tool_idx'),
+            models.Index(fields=["tenant", "status", "created_on"], name="ai_appr_tenant_status_idx"),
+            models.Index(fields=["tenant", "requested_by", "created_on"], name="ai_appr_tenant_user_idx"),
+            models.Index(fields=["tenant", "tool_name", "created_on"], name="ai_appr_tenant_tool_idx"),
         ]
 
     def __str__(self):

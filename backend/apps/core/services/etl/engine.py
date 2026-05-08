@@ -11,12 +11,8 @@ from typing import Any
 from django.utils.module_loading import import_string
 
 from apps.core.models import ETLImportBatch, ETLImportRowJournal
-from .contracts import (
-    ENTITY_CONTRACTS,
-    SIDE_EFFECT_SUPPRESSION_RULES,
-    BatchManifest,
-    build_contract_preview,
-)
+
+from .contracts import ENTITY_CONTRACTS, SIDE_EFFECT_SUPPRESSION_RULES, BatchManifest, build_contract_preview
 from .journal import (
     build_command_options,
     checksum_manifest_payload,
@@ -35,7 +31,7 @@ def execute_dry_run(
     resolved_tenant,
     entity: str | None = None,
     limit: int | None = None,
-    output_format: str = 'text',
+    output_format: str = "text",
 ) -> dict[str, Any]:
     """Execute the restart-safe dry-run ETL journal flow."""
 
@@ -83,19 +79,19 @@ def execute_dry_run(
 
     preview.update(
         {
-            'batch_run': {
-                'batch_id': str(batch.id),
-                'run_key': batch.run_key,
-                'created': created,
-                'status': batch.status,
-                'mode': batch.mode,
-                'manifest_checksum': manifest_checksum,
-                'command_options': command_options,
-                'summary': summary,
-                'resume_cursor': resume_cursor,
+            "batch_run": {
+                "batch_id": str(batch.id),
+                "run_key": batch.run_key,
+                "created": created,
+                "status": batch.status,
+                "mode": batch.mode,
+                "manifest_checksum": manifest_checksum,
+                "command_options": command_options,
+                "summary": summary,
+                "resume_cursor": resume_cursor,
             },
-            'entity_results': entity_summaries,
-            'row_journal_count': processed_rows,
+            "entity_results": entity_summaries,
+            "row_journal_count": processed_rows,
         }
     )
     return preview
@@ -131,40 +127,40 @@ def _process_manifest(
             row_result = _classify_row(loaded_row, tenant=resolved_tenant)
             upsert_row_journal(batch=batch, tenant=resolved_tenant, row_result=row_result)
 
-            planned_action = row_result['planned_action']
-            counters['total_rows'] += 1
-            counters['processed_rows'] += 1
+            planned_action = row_result["planned_action"]
+            counters["total_rows"] += 1
+            counters["processed_rows"] += 1
             counters[planned_action] += 1
-            entity_counts[row_result['entity']]['rows'] += 1
-            entity_counts[row_result['entity']][planned_action] += 1
+            entity_counts[row_result["entity"]]["rows"] += 1
+            entity_counts[row_result["entity"]][planned_action] += 1
 
             processed_rows += 1
             resume_cursor = {
-                'entity': row_result['entity'],
-                'source_path': row_result['source_path'],
-                'source_sheet': row_result['source_sheet'],
-                'source_row_number': row_result['source_row_number'],
+                "entity": row_result["entity"],
+                "source_path": row_result["source_path"],
+                "source_sheet": row_result["source_sheet"],
+                "source_row_number": row_result["source_row_number"],
             }
 
         if limit is not None and processed_rows >= int(limit):
             break
 
     summary = {
-        'total_rows': counters['total_rows'],
-        'processed_rows': counters['processed_rows'],
-        'would_create_count': counters[ETLImportRowJournal.PlannedAction.WOULD_CREATE],
-        'would_update_count': counters[ETLImportRowJournal.PlannedAction.WOULD_UPDATE],
-        'would_skip_count': counters[ETLImportRowJournal.PlannedAction.WOULD_SKIP],
-        'error_count': counters[ETLImportRowJournal.PlannedAction.ERROR],
+        "total_rows": counters["total_rows"],
+        "processed_rows": counters["processed_rows"],
+        "would_create_count": counters[ETLImportRowJournal.PlannedAction.WOULD_CREATE],
+        "would_update_count": counters[ETLImportRowJournal.PlannedAction.WOULD_UPDATE],
+        "would_skip_count": counters[ETLImportRowJournal.PlannedAction.WOULD_SKIP],
+        "error_count": counters[ETLImportRowJournal.PlannedAction.ERROR],
     }
     entity_summaries = [
         {
-            'entity': entity_name,
-            'row_count': counter['rows'],
-            'would_create_count': counter[ETLImportRowJournal.PlannedAction.WOULD_CREATE],
-            'would_update_count': counter[ETLImportRowJournal.PlannedAction.WOULD_UPDATE],
-            'would_skip_count': counter[ETLImportRowJournal.PlannedAction.WOULD_SKIP],
-            'error_count': counter[ETLImportRowJournal.PlannedAction.ERROR],
+            "entity": entity_name,
+            "row_count": counter["rows"],
+            "would_create_count": counter[ETLImportRowJournal.PlannedAction.WOULD_CREATE],
+            "would_update_count": counter[ETLImportRowJournal.PlannedAction.WOULD_UPDATE],
+            "would_skip_count": counter[ETLImportRowJournal.PlannedAction.WOULD_SKIP],
+            "error_count": counter[ETLImportRowJournal.PlannedAction.ERROR],
         }
         for entity_name, counter in entity_counts.items()
     ]
@@ -184,8 +180,8 @@ def _classify_row(loaded_row: LoadedSourceRow, *, tenant) -> dict[str, Any]:
             contract=contract,
             normalized_payload=normalized_payload,
             row_fingerprint=row_fingerprint,
-            error_code='missing_natural_key',
-            error_message='Row is missing the canonical natural-key fields required for dry-run matching.',
+            error_code="missing_natural_key",
+            error_message="Row is missing the canonical natural-key fields required for dry-run matching.",
             warnings=warnings,
         )
 
@@ -200,7 +196,7 @@ def _classify_row(loaded_row: LoadedSourceRow, *, tenant) -> dict[str, Any]:
 
     if matched_instance is None:
         planned_action = ETLImportRowJournal.PlannedAction.WOULD_CREATE
-        target_identifier = ''
+        target_identifier = ""
     else:
         target_identifier = str(matched_instance.pk)
         if _instance_differs(matched_instance, normalized_payload):
@@ -209,23 +205,23 @@ def _classify_row(loaded_row: LoadedSourceRow, *, tenant) -> dict[str, Any]:
             planned_action = ETLImportRowJournal.PlannedAction.WOULD_SKIP
 
     return {
-        'entity': loaded_row.entity,
-        'source_path': loaded_row.source_path,
-        'source_sheet': loaded_row.source_sheet or '',
-        'source_row_number': loaded_row.source_row_number,
-        'source_identifier': source_identifier,
-        'normalized_lookup_key': source_identifier,
-        'row_fingerprint': row_fingerprint,
-        'planned_action': planned_action,
-        'target_model': contract.target_model,
-        'target_identifier': target_identifier,
-        'status': ETLImportRowJournal.Status.PLANNED,
-        'error_code': '',
-        'error_message': '',
-        'side_effects_suppressed': list(SIDE_EFFECT_SUPPRESSION_RULES),
-        'raw_payload': loaded_row.payload,
-        'normalized_payload': normalized_payload,
-        'warnings': warnings,
+        "entity": loaded_row.entity,
+        "source_path": loaded_row.source_path,
+        "source_sheet": loaded_row.source_sheet or "",
+        "source_row_number": loaded_row.source_row_number,
+        "source_identifier": source_identifier,
+        "normalized_lookup_key": source_identifier,
+        "row_fingerprint": row_fingerprint,
+        "planned_action": planned_action,
+        "target_model": contract.target_model,
+        "target_identifier": target_identifier,
+        "status": ETLImportRowJournal.Status.PLANNED,
+        "error_code": "",
+        "error_message": "",
+        "side_effects_suppressed": list(SIDE_EFFECT_SUPPRESSION_RULES),
+        "raw_payload": loaded_row.payload,
+        "normalized_payload": normalized_payload,
+        "warnings": warnings,
     }
 
 
@@ -240,23 +236,23 @@ def _build_error_result(
     warnings: list[str],
 ) -> dict[str, Any]:
     return {
-        'entity': loaded_row.entity,
-        'source_path': loaded_row.source_path,
-        'source_sheet': loaded_row.source_sheet or '',
-        'source_row_number': loaded_row.source_row_number,
-        'source_identifier': '',
-        'normalized_lookup_key': '',
-        'row_fingerprint': row_fingerprint,
-        'planned_action': ETLImportRowJournal.PlannedAction.ERROR,
-        'target_model': contract.target_model,
-        'target_identifier': '',
-        'status': ETLImportRowJournal.Status.ERROR,
-        'error_code': error_code,
-        'error_message': error_message,
-        'side_effects_suppressed': list(SIDE_EFFECT_SUPPRESSION_RULES),
-        'raw_payload': loaded_row.payload,
-        'normalized_payload': normalized_payload,
-        'warnings': warnings,
+        "entity": loaded_row.entity,
+        "source_path": loaded_row.source_path,
+        "source_sheet": loaded_row.source_sheet or "",
+        "source_row_number": loaded_row.source_row_number,
+        "source_identifier": "",
+        "normalized_lookup_key": "",
+        "row_fingerprint": row_fingerprint,
+        "planned_action": ETLImportRowJournal.PlannedAction.ERROR,
+        "target_model": contract.target_model,
+        "target_identifier": "",
+        "status": ETLImportRowJournal.Status.ERROR,
+        "error_code": error_code,
+        "error_message": error_message,
+        "side_effects_suppressed": list(SIDE_EFFECT_SUPPRESSION_RULES),
+        "raw_payload": loaded_row.payload,
+        "normalized_payload": normalized_payload,
+        "warnings": warnings,
     }
 
 
@@ -266,7 +262,7 @@ def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _normalize_value(value: Any) -> Any:
     if value is None:
-        return ''
+        return ""
     if isinstance(value, str):
         return value.strip()
     if isinstance(value, (int, float, bool)):
@@ -280,18 +276,18 @@ def _build_source_identifier(contract, normalized_payload: dict[str, Any]) -> st
     parts = []
     for field_name in contract.natural_keys:
         value = normalized_payload.get(field_name)
-        if value not in (None, '', []):
-            parts.append(f'{field_name}={value}')
-    return '|'.join(parts)
+        if value not in (None, "", []):
+            parts.append(f"{field_name}={value}")
+    return "|".join(parts)
 
 
 def _build_row_fingerprint(entity: str, source_path: str, payload: dict[str, Any]) -> str:
     encoded = json.dumps(
-        {'entity': entity, 'source_path': source_path, 'payload': payload},
+        {"entity": entity, "source_path": source_path, "payload": payload},
         sort_keys=True,
         default=str,
-        separators=(',', ':'),
-    ).encode('utf-8')
+        separators=(",", ":"),
+    ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -299,12 +295,14 @@ def _resolve_target_model(target_model: str):
     return import_string(target_model)
 
 
-def _match_existing_instance(*, target_model, contract, normalized_payload: dict[str, Any], tenant_id: str, warnings: list[str]):
-    filter_kwargs: dict[str, Any] = {'tenant_id': tenant_id}
+def _match_existing_instance(
+    *, target_model, contract, normalized_payload: dict[str, Any], tenant_id: str, warnings: list[str]
+):
+    filter_kwargs: dict[str, Any] = {"tenant_id": tenant_id}
     queryable_fields = []
 
     for field_name in contract.natural_keys:
-        if field_name not in normalized_payload or normalized_payload[field_name] in (None, '', []):
+        if field_name not in normalized_payload or normalized_payload[field_name] in (None, "", []):
             continue
         if not _model_has_field(target_model, field_name):
             continue
@@ -312,23 +310,21 @@ def _match_existing_instance(*, target_model, contract, normalized_payload: dict
         queryable_fields.append(field_name)
 
     if not queryable_fields:
-        warnings.append('matching_strategy_pending')
+        warnings.append("matching_strategy_pending")
         return None
 
-    return target_model.objects.filter(**filter_kwargs).order_by('pk').first()
+    return target_model.objects.filter(**filter_kwargs).order_by("pk").first()
 
 
 def _instance_differs(instance, normalized_payload: dict[str, Any]) -> bool:
     comparable_fields = [
-        field_name
-        for field_name in normalized_payload
-        if _model_has_field(instance.__class__, field_name)
+        field_name for field_name in normalized_payload if _model_has_field(instance.__class__, field_name)
     ]
     if not comparable_fields:
         return False
 
     for field_name in comparable_fields:
-        instance_value = getattr(instance, field_name, '')
+        instance_value = getattr(instance, field_name, "")
         if _normalize_value(instance_value) != normalized_payload[field_name]:
             return True
     return False

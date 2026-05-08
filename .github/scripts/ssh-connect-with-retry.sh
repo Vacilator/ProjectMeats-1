@@ -1,6 +1,6 @@
 #!/bin/bash
 # SSH Connection with Retry Logic and Diagnostics
-# 
+#
 # Usage: ssh-connect-with-retry.sh <user> <host> <command>
 #
 # This script provides robust SSH connectivity with:
@@ -109,7 +109,7 @@ TIMEOUT=$INITIAL_TIMEOUT
 
 while [ $ATTEMPT -le $MAX_RETRIES ]; do
   log "=== Attempt ${ATTEMPT}/${MAX_RETRIES} (timeout: ${TIMEOUT}s) ==="
-  
+
   # Try SSH connection
   if sshpass -e ssh \
     -o StrictHostKeyChecking=yes \
@@ -119,14 +119,14 @@ while [ $ATTEMPT -le $MAX_RETRIES ]; do
     -o BatchMode=no \
     "${USER}@${HOST}" \
     "${COMMAND}"; then
-    
+
     log_success "SSH connection successful on attempt ${ATTEMPT}"
     exit 0
   fi
-  
+
   EXIT_CODE=$?
   log_error "SSH connection failed with exit code ${EXIT_CODE}"
-  
+
   # Check if we should retry
   if [ $ATTEMPT -lt $MAX_RETRIES ]; then
     # Calculate exponential backoff delay using POSIX-compatible loop
@@ -138,14 +138,14 @@ while [ $ATTEMPT -le $MAX_RETRIES ]; do
       i=$((i + 1))
     done
     [ $DELAY -gt 30 ] && DELAY=30  # Cap at 30 seconds
-    
+
     log_warning "Retrying in ${DELAY} seconds..."
     sleep "$DELAY"
-    
+
     # Increase timeout for next attempt (exponential backoff)
     TIMEOUT=$((TIMEOUT + 20))
     [ $TIMEOUT -gt $MAX_TIMEOUT ] && TIMEOUT=$MAX_TIMEOUT
-    
+
     ATTEMPT=$((ATTEMPT + 1))
   else
     log_error "All ${MAX_RETRIES} connection attempts failed"

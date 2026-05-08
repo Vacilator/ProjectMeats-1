@@ -1,13 +1,13 @@
 /**
  * Grid Utility Functions
- * 
+ *
  * Provides grid-snapping and alignment utilities for the Flow Editor.
- * 
+ *
  * Features:
  * - Snap coordinates to grid (configurable grid size)
  * - Calculate grid alignment offsets
  * - Detect if position is grid-aligned
- * 
+ *
  * Phase 7.2: Enhanced Drag-and-Drop
  */
 
@@ -18,11 +18,11 @@ export interface GridPosition {
 
 /**
  * Snap a coordinate to the nearest grid point
- * 
+ *
  * @param value - The coordinate value (x or y)
  * @param gridSize - Size of each grid cell (default: 20)
  * @returns Snapped coordinate value
- * 
+ *
  * @example
  * snapCoordinate(19, 20) // Returns 20
  * snapCoordinate(5, 20)  // Returns 0
@@ -34,12 +34,12 @@ export function snapCoordinate(value: number, gridSize: number = 20): number {
 
 /**
  * Snap a position (x, y) to the nearest grid point
- * 
+ *
  * @param x - X coordinate
  * @param y - Y coordinate
  * @param gridSize - Size of each grid cell (default: 20)
  * @returns Snapped position
- * 
+ *
  * @example
  * snapToGrid(19, 21, 20) // Returns { x: 20, y: 20 }
  * snapToGrid(5, 5, 20)   // Returns { x: 0, y: 0 }
@@ -57,12 +57,12 @@ export function snapToGrid(
 
 /**
  * Calculate the offset needed to align a position to grid
- * 
+ *
  * @param x - X coordinate
  * @param y - Y coordinate
  * @param gridSize - Size of each grid cell (default: 20)
  * @returns Offset from current position to nearest grid point
- * 
+ *
  * @example
  * getSnapOffset(19, 21, 20) // Returns { x: 1, y: -1 }
  * getSnapOffset(20, 20, 20) // Returns { x: 0, y: 0 }
@@ -81,13 +81,13 @@ export function getSnapOffset(
 
 /**
  * Check if a position is aligned to the grid
- * 
+ *
  * @param x - X coordinate
  * @param y - Y coordinate
  * @param gridSize - Size of each grid cell (default: 20)
  * @param tolerance - Tolerance in pixels for "close enough" (default: 0)
  * @returns True if position is on grid (within tolerance)
- * 
+ *
  * @example
  * isGridAligned(20, 20, 20) // Returns true
  * isGridAligned(21, 20, 20, 2) // Returns true (within tolerance)
@@ -105,13 +105,13 @@ export function isGridAligned(
 
 /**
  * Snap a delta (change) value to grid increments
- * 
+ *
  * Useful for keyboard navigation (arrow keys move by grid increments)
- * 
+ *
  * @param delta - Change in position
  * @param gridSize - Size of each grid cell (default: 20)
  * @returns Snapped delta value
- * 
+ *
  * @example
  * snapDelta(25, 20) // Returns 20
  * snapDelta(-15, 20) // Returns -20
@@ -124,9 +124,9 @@ export function snapDelta(delta: number, gridSize: number = 20): number {
 
 /**
  * Get the nearest grid lines to a position
- * 
+ *
  * Useful for drawing grid alignment indicators
- * 
+ *
  * @param x - X coordinate
  * @param y - Y coordinate
  * @param gridSize - Size of each grid cell (default: 20)

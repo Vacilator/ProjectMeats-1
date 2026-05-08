@@ -1,9 +1,9 @@
 /**
  * Enhanced Node Context Menu
- * 
+ *
  * Right-click context menu for nodes with advanced operations.
  * Positioned correctly even in zoomed/panned canvases.
- * 
+ *
  * Features:
  * - Dynamic menu items based on node type
  * - AI suggestions (placeholder)
@@ -11,7 +11,7 @@
  * - Duplicate/Delete
  * - Copy/Paste
  * - Layout options
- * 
+ *
  * Created: 2026-02-21 - Phase 2: UI/UX Enhancements
  */
 

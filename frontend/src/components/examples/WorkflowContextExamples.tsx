@@ -1,14 +1,14 @@
 /**
  * Workflow Context Integration Example
- * 
+ *
  * Phase 5: Context Inheritance
  * Demonstrates how to use workflow context for data inheritance between steps.
- * 
+ *
  * This file serves as:
  * 1. Documentation for developers
  * 2. Reference implementation
  * 3. Testing playground
- * 
+ *
  * Created: 2026-02-12 - Phase 5 Context Inheritance Implementation
  */
 
@@ -20,7 +20,7 @@ import { Node } from '@xyflow/react';
 
 /**
  * Example 1: Basic Template Resolution
- * 
+ *
  * Shows how to resolve {{nodeId.fieldKey}} templates
  */
 export function BasicTemplateExample() {

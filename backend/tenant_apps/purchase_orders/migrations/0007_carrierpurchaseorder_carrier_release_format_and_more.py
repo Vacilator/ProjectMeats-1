@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("locations", "0002_enable_rls_locations"),
         ("purchase_orders", "0006_add_logistics_scenario_and_41_fields"),

@@ -1,7 +1,7 @@
 # Workflow Editor Enhancement Roadmap
 
 > NOTE: This is a reference roadmap document (not a canonical backlog).
-> 
+>
 > Current priorities/status: `MASTER_PLAN.md` (canonical) and `.github/MASTER_PLAN.md` (PR log)
 
 ---
@@ -79,8 +79,8 @@ This document outlines future enhancements for the ProjectMeats Workflow Editor 
 ## 1️⃣ Code Architecture & Refactoring
 
 ### 1.1 FlowEditor Foundation & Panel Migration
-**Status**: 🟢 Phase E.1 Complete, Phase E.2 In Progress  
-**Priority**: ⭐ Critical (Technical Debt Reduction)  
+**Status**: 🟢 Phase E.1 Complete, Phase E.2 In Progress
+**Priority**: ⭐ Critical (Technical Debt Reduction)
 **Effort**: 5-7 days total (E.1: 2 days ✅ | E.2: 3-5 days)
 
 **Phase E.1: Foundation** ✅ COMPLETE (Feb 17-18, 2026)
@@ -181,8 +181,8 @@ This document outlines future enhancements for the ProjectMeats Workflow Editor 
 ## 2️⃣ Visual Enhancements (UX/UI Polish)
 
 ### 1.1 Enhanced Edge Styling
-**Status**: 🟡 Partially Implemented  
-**Priority**: Medium  
+**Status**: 🟡 Partially Implemented
+**Priority**: Medium
 **Effort**: 1-2 days
 
 **Current State**: Basic edges with no visual hierarchy
@@ -224,8 +224,8 @@ const edgeTypes = {
 ---
 
 ### 1.2 Minimap Enhancement
-**Status**: 🔴 Not Implemented  
-**Priority**: Low  
+**Status**: 🔴 Not Implemented
+**Priority**: Low
 **Effort**: 1 day
 
 **Current State**: No minimap
@@ -258,8 +258,8 @@ import { MiniMap } from '@xyflow/react';
 ---
 
 ### 1.3 Background Grid & Patterns
-**Status**: 🟢 Implemented (Basic)  
-**Priority**: Low  
+**Status**: 🟢 Implemented (Basic)
+**Priority**: Low
 **Effort**: 0.5 days
 
 **Current State**: Basic dot grid
@@ -285,8 +285,8 @@ import { Background } from '@xyflow/react';
 ---
 
 ### 1.4 Node Visual Enhancements
-**Status**: 🟢 Mostly Complete  
-**Priority**: Low  
+**Status**: 🟢 Mostly Complete
+**Priority**: Low
 **Effort**: 2-3 days
 
 **Current State**: Basic node styling with hover controls
@@ -322,8 +322,8 @@ const StatusBadge = ({ status, message }: NodeBadge) => (
 ## 2️⃣ Collaboration Features (Multi-User)
 
 ### 2.1 Real-Time Collaboration
-**Status**: 🔴 Not Implemented  
-**Priority**: High (Future)  
+**Status**: 🔴 Not Implemented
+**Priority**: High (Future)
 **Effort**: 2-3 weeks
 
 **Vision**: Multiple users editing the same workflow simultaneously (like FigJam/Miro)
@@ -372,8 +372,8 @@ const { cursors, users } = useCollaboration(workflowId);
 ---
 
 ### 2.2 Commenting System
-**Status**: 🔴 Not Implemented  
-**Priority**: Medium  
+**Status**: 🔴 Not Implemented
+**Priority**: Medium
 **Effort**: 1 week
 
 **Features**:
@@ -411,8 +411,8 @@ const CommentMarker = ({ nodeId, count }: { nodeId: string; count: number }) => 
 ---
 
 ### 2.3 Version History & Diff Viewer
-**Status**: 🔴 Not Implemented  
-**Priority**: Medium  
+**Status**: 🔴 Not Implemented
+**Priority**: Medium
 **Effort**: 1 week
 
 **Features**:
@@ -450,8 +450,8 @@ const WorkflowDiff = ({ versionA, versionB }: { versionA: WorkflowVersion; versi
 ## 3️⃣ Advanced Layout & Organization
 
 ### 3.1 Auto-Layout Algorithms
-**Status**: 🟡 Basic Implementation  
-**Priority**: High  
+**Status**: 🟡 Basic Implementation
+**Priority**: High
 **Effort**: 1-2 weeks
 
 **Current State**: Manual layout with basic container auto-layout
@@ -474,17 +474,17 @@ const autoLayout = (nodes: Node[], edges: Edge[]): Node[] => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({ rankdir: 'LR', ranksep: 100, nodesep: 50 });
-  
+
   nodes.forEach(node => {
     dagreGraph.setNode(node.id, { width: 200, height: 100 });
   });
-  
+
   edges.forEach(edge => {
     dagreGraph.setEdge(edge.source, edge.target);
   });
-  
+
   dagre.layout(dagreGraph);
-  
+
   return nodes.map(node => {
     const position = dagreGraph.node(node.id);
     return { ...node, position: { x: position.x, y: position.y } };
@@ -497,8 +497,8 @@ const autoLayout = (nodes: Node[], edges: Edge[]): Node[] => {
 ---
 
 ### 3.2 Groups & Swimlanes
-**Status**: 🟡 Groups Implemented  
-**Priority**: Medium  
+**Status**: 🟡 Groups Implemented
+**Priority**: Medium
 **Effort**: 1 week
 
 **Enhancements**:
@@ -513,7 +513,7 @@ const autoLayout = (nodes: Node[], edges: Edge[]): Node[] => {
 ```typescript
 // Swimlane component
 const Swimlane = ({ id, title, color, width }: SwimlaneProps) => (
-  <div 
+  <div
     className="swimlane"
     style={{
       position: 'absolute',
@@ -540,8 +540,8 @@ const Swimlanes = () => (
 ---
 
 ### 3.3 Node Alignment & Distribution
-**Status**: 🔴 Not Implemented  
-**Priority**: Low  
+**Status**: 🔴 Not Implemented
+**Priority**: Low
 **Effort**: 3-4 days
 
 **Features**:
@@ -556,12 +556,12 @@ const Swimlanes = () => (
 const alignNodes = (nodes: Node[], alignment: 'left' | 'right' | 'top' | 'bottom' | 'center'): Node[] => {
   const selectedNodes = nodes.filter(n => n.selected);
   if (selectedNodes.length < 2) return nodes;
-  
+
   let targetValue: number;
   switch (alignment) {
     case 'left':
       targetValue = Math.min(...selectedNodes.map(n => n.position.x));
-      return nodes.map(n => 
+      return nodes.map(n =>
         n.selected ? { ...n, position: { ...n.position, x: targetValue } } : n
       );
     // ... other alignments
@@ -574,8 +574,8 @@ const alignNodes = (nodes: Node[], alignment: 'left' | 'right' | 'top' | 'bottom
 ## 4️⃣ Performance & Scalability
 
 ### 4.1 Virtualization for Large Workflows
-**Status**: 🔴 Not Implemented  
-**Priority**: High (if workflows >100 nodes)  
+**Status**: 🔴 Not Implemented
+**Priority**: High (if workflows >100 nodes)
 **Effort**: 1 week
 
 **Problem**: Performance degrades with 100+ nodes
@@ -592,7 +592,7 @@ const onlyRenderVisibleNodes = true; // Built-in prop
 // Custom optimization
 const filteredNodes = useMemo(() => {
   if (nodes.length < 100) return nodes;
-  
+
   const viewport = getViewport();
   return nodes.filter(node => {
     return isInViewport(node.position, viewport);
@@ -603,8 +603,8 @@ const filteredNodes = useMemo(() => {
 ---
 
 ### 4.2 Lazy Loading & Code Splitting
-**Status**: 🟡 Partial  
-**Priority**: Medium  
+**Status**: 🟡 Partial
+**Priority**: Medium
 **Effort**: 2-3 days
 
 **Features**:
@@ -636,8 +636,8 @@ const nodeTypes = {
 ---
 
 ### 4.3 Workflow Pagination & Subflows
-**Status**: 🔴 Not Implemented  
-**Priority**: Medium (for complex workflows)  
+**Status**: 🔴 Not Implemented
+**Priority**: Medium (for complex workflows)
 **Effort**: 2 weeks
 
 **Vision**: Break large workflows into pages/subflows
@@ -654,7 +654,7 @@ const nodeTypes = {
 // Subflow node
 const SubflowNode = ({ id, data }: NodeProps) => {
   const navigate = useNavigate();
-  
+
   return (
     <div onDoubleClick={() => navigate(`/workflow/${data.subflowId}`)}>
       <h3>{data.title}</h3>
@@ -686,8 +686,8 @@ const WorkflowBreadcrumb = () => {
 ## 5️⃣ Accessibility & Mobile
 
 ### 5.1 Keyboard Navigation
-**Status**: 🟡 Basic  
-**Priority**: High  
+**Status**: 🟡 Basic
+**Priority**: High
 **Effort**: 1 week
 
 **Current State**: Basic keyboard shortcuts (delete, undo/redo)
@@ -712,19 +712,19 @@ const useKeyboardShortcuts = () => {
         e.preventDefault();
         selectNextNode();
       }
-      
+
       // Arrow keys to move node
       if (e.key.startsWith('Arrow') && selectedNode) {
         e.preventDefault();
         moveNode(selectedNode.id, getDirection(e.key), 10);
       }
-      
+
       // Enter to edit
       if (e.key === 'Enter' && selectedNode) {
         openEditModal(selectedNode);
       }
     };
-    
+
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [selectedNode]);
@@ -734,8 +734,8 @@ const useKeyboardShortcuts = () => {
 ---
 
 ### 5.2 Screen Reader Support
-**Status**: 🔴 Minimal  
-**Priority**: Medium  
+**Status**: 🔴 Minimal
+**Priority**: Medium
 **Effort**: 1 week
 
 **Features**:
@@ -766,13 +766,13 @@ const AccessibleNode = ({ data, selected }: NodeProps) => (
 // Announce selection changes
 const AnnounceSelection = ({ selectedNode }: { selectedNode: Node | null }) => {
   const [announcement, setAnnouncement] = useState('');
-  
+
   useEffect(() => {
     if (selectedNode) {
       setAnnouncement(`Selected ${selectedNode.data.type}: ${selectedNode.data.title}`);
     }
   }, [selectedNode]);
-  
+
   return (
     <div role="status" aria-live="polite" className="sr-only">
       {announcement}
@@ -784,8 +784,8 @@ const AnnounceSelection = ({ selectedNode }: { selectedNode: Node | null }) => {
 ---
 
 ### 5.3 Mobile/Tablet Support
-**Status**: 🔴 Desktop Only  
-**Priority**: Low (depends on user demand)  
+**Status**: 🔴 Desktop Only
+**Priority**: Low (depends on user demand)
 **Effort**: 2-3 weeks
 
 **Challenges**:
@@ -806,8 +806,8 @@ const AnnounceSelection = ({ selectedNode }: { selectedNode: Node | null }) => {
 ## 6️⃣ Developer Experience (DX)
 
 ### 6.1 Node Type Registry & Hot Reload
-**Status**: 🟡 Basic Registry  
-**Priority**: Low  
+**Status**: 🟡 Basic Registry
+**Priority**: Low
 **Effort**: 3-4 days
 
 **Features**:
@@ -839,8 +839,8 @@ if (import.meta.hot) {
 ---
 
 ### 6.2 Workflow Testing Framework
-**Status**: 🔴 Not Implemented  
-**Priority**: Medium  
+**Status**: 🔴 Not Implemented
+**Priority**: Medium
 **Effort**: 1-2 weeks
 
 **Features**:
@@ -857,19 +857,19 @@ describe('Purchase Order Workflow', () => {
   it('should create PO when form submitted', async () => {
     const workflow = loadWorkflow('po-creation');
     const testData = { supplier: 'ACME', amount: 1000 };
-    
+
     const result = await executeWorkflow(workflow, testData);
-    
+
     expect(result.status).toBe('success');
     expect(result.outputs.purchaseOrder).toBeDefined();
   });
-  
+
   it('should show validation error for negative amount', async () => {
     const workflow = loadWorkflow('po-creation');
     const testData = { supplier: 'ACME', amount: -100 };
-    
+
     const result = await executeWorkflow(workflow, testData);
-    
+
     expect(result.status).toBe('error');
     expect(result.errors).toContain('Amount must be positive');
   });
@@ -879,8 +879,8 @@ describe('Purchase Order Workflow', () => {
 ---
 
 ### 6.3 Workflow Debugging Tools
-**Status**: 🔴 Not Implemented  
-**Priority**: High  
+**Status**: 🔴 Not Implemented
+**Priority**: High
 **Effort**: 1-2 weeks
 
 **Features**:
@@ -896,7 +896,7 @@ describe('Purchase Order Workflow', () => {
 // Debugger panel
 const WorkflowDebugger = ({ workflowId }: { workflowId: string }) => {
   const { execution, currentNode } = useWorkflowExecution(workflowId);
-  
+
   return (
     <div className="debugger-panel">
       <div className="execution-controls">
@@ -904,12 +904,12 @@ const WorkflowDebugger = ({ workflowId }: { workflowId: string }) => {
         <button onClick={stepOver}>Step Over</button>
         <button onClick={continue_}>Continue</button>
       </div>
-      
+
       <div className="variables">
         <h3>Variables</h3>
         <pre>{JSON.stringify(execution.variables, null, 2)}</pre>
       </div>
-      
+
       <div className="timeline">
         <h3>Execution Timeline</h3>
         {execution.timeline.map(event => (
@@ -930,8 +930,8 @@ const WorkflowDebugger = ({ workflowId }: { workflowId: string }) => {
 ## 7️⃣ Advanced Workflow Features
 
 ### 7.1 Conditional Logic & Branching
-**Status**: 🟡 Basic Conditions  
-**Priority**: High  
+**Status**: 🟡 Basic Conditions
+**Priority**: High
 **Effort**: 1 week
 
 **Enhancements**:
@@ -975,8 +975,8 @@ const ConditionBuilder = () => (
 ---
 
 ### 7.2 Loops & Iterations
-**Status**: 🔴 Not Implemented  
-**Priority**: Medium  
+**Status**: 🔴 Not Implemented
+**Priority**: Medium
 **Effort**: 1 week
 
 **Features**:
@@ -989,8 +989,8 @@ const ConditionBuilder = () => (
 ---
 
 ### 7.3 Error Handling & Retry Logic
-**Status**: 🔴 Not Implemented  
-**Priority**: High  
+**Status**: 🔴 Not Implemented
+**Priority**: High
 **Effort**: 1 week
 
 **Features**:
@@ -1003,8 +1003,8 @@ const ConditionBuilder = () => (
 ---
 
 ### 7.4 Variables & Data Flow
-**Status**: 🟡 Basic  
-**Priority**: High  
+**Status**: 🟡 Basic
+**Priority**: High
 **Effort**: 2 weeks
 
 **Enhancements**:
@@ -1019,8 +1019,8 @@ const ConditionBuilder = () => (
 ## 8️⃣ AI & Automation
 
 ### 8.1 AI-Assisted Workflow Building
-**Status**: 🔴 Not Implemented  
-**Priority**: Low (Future)  
+**Status**: 🔴 Not Implemented
+**Priority**: Low (Future)
 **Effort**: 4-6 weeks
 
 **Vision**: Natural language to workflow
@@ -1035,8 +1035,8 @@ const ConditionBuilder = () => (
 ---
 
 ### 8.2 Smart Node Recommendations
-**Status**: 🔴 Not Implemented  
-**Priority**: Low  
+**Status**: 🔴 Not Implemented
+**Priority**: Low
 **Effort**: 1-2 weeks
 
 **Features**:
@@ -1073,7 +1073,7 @@ const ConditionBuilder = () => (
 ## 📚 Case Study Insights
 
 ### Carto (Data Pipeline Visualization)
-**Industry**: Geospatial Analytics  
+**Industry**: Geospatial Analytics
 **Use Case**: Visual workflow builder for data preparation & analysis
 
 **Key Learnings**:
@@ -1090,7 +1090,7 @@ const ConditionBuilder = () => (
 ---
 
 ### DoubleLoop (Business Goal Tracking)
-**Industry**: Product Management  
+**Industry**: Product Management
 **Use Case**: Strategy maps and goal tracking
 
 **Key Learnings**:
@@ -1106,7 +1106,7 @@ const ConditionBuilder = () => (
 ---
 
 ### Hubql (Data Model Visualization)
-**Industry**: Database Management  
+**Industry**: Database Management
 **Use Case**: Flexible data model visualization
 
 **Key Learnings**:
@@ -1122,7 +1122,7 @@ const ConditionBuilder = () => (
 ---
 
 ### OneSignal (Customer Engagement Automation)
-**Industry**: Marketing Automation  
+**Industry**: Marketing Automation
 **Use Case**: Workflow builder for message automation
 
 **Key Learnings**:
@@ -1168,7 +1168,7 @@ const ConditionBuilder = () => (
 
 ## Phase 17 Editor Stabilization (RT-05)
 
-> **Execution gate:** RT-05 only begins after RT-01 through RT-04 are verified on `development`.  
+> **Execution gate:** RT-05 only begins after RT-01 through RT-04 are verified on `development`.
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 17 / Epic RT-05
 
 ### RT-05.1: Visual Support for Complex Node Types
@@ -1247,7 +1247,7 @@ RT-05.1 (visual support) → RT-05.2 (create variant) → RT-10.1 (library page)
 
 ## Sprint Capstone – Platform Finalization (Process Cockpit + Editor Enhancements)
 
-> **Added:** Sprint Capstone (Platform Finalization & Production Handover)  
+> **Added:** Sprint Capstone (Platform Finalization & Production Handover)
 > **PR:** Platform Finalization PR (merged to development)
 
 ### New Components Delivered

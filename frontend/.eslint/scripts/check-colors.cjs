@@ -2,19 +2,19 @@
 
 /**
  * Color Linter Script
- * 
+ *
  * Scans frontend files for hardcoded hex colors and reports violations.
  * This script enforces the use of theme variables and standardized color palette.
- * 
+ *
  * Usage:
  *   node .eslint/scripts/check-colors.js
  *   node .eslint/scripts/check-colors.js --fix (shows suggestions)
  *   node .eslint/scripts/check-colors.js src/pages/Login.tsx (check specific file)
- * 
+ *
  * Exit codes:
  *   0 - No violations found
  *   1 - Violations found
- * 
+ *
  * @author ProjectMeats UI Standardization Team
  * @date 2026-01-10
  */
@@ -199,9 +199,9 @@ async function main() {
   const args = process.argv.slice(2);
   const specificFile = args.find(arg => !arg.startsWith('--'));
   const showSuggestions = args.includes('--fix');
-  
+
   console.log('🔍 Checking for hardcoded colors...\n');
-  
+
   let files;
   if (specificFile) {
     files = [path.resolve(specificFile)];
@@ -213,10 +213,10 @@ async function main() {
       ignore: ['**/node_modules/**', '**/build/**', '**/coverage/**', '**/*.test.*', '**/*.spec.*']
     });
   }
-  
+
   let totalViolations = 0;
   const fileViolations = new Map();
-  
+
   for (const file of files) {
     try {
       const violations = checkFile(file);
@@ -228,18 +228,18 @@ async function main() {
       console.error(`❌ Error checking ${file}: ${err.message}`);
     }
   }
-  
+
   if (totalViolations === 0) {
     console.log('✅ No hardcoded colors found! All files are compliant.\n');
     process.exit(0);
   }
-  
+
   console.log(`❌ Found ${totalViolations} hardcoded color(s) in ${fileViolations.size} file(s):\n`);
-  
+
   for (const [file, violations] of fileViolations.entries()) {
     const relativePath = path.relative(path.join(__dirname, '../..'), file);
     console.log(`📄 ${relativePath}`);
-    
+
     violations.forEach(v => {
       console.log(`   Line ${v.line}:${v.column} - ${v.color}`);
       if (showSuggestions) {
@@ -249,12 +249,12 @@ async function main() {
       console.log('');
     });
   }
-  
+
   console.log('\n💡 To fix these violations:');
   console.log('   1. Replace hardcoded colors with theme variables');
   console.log('   2. Or use standardized palette colors (see UI_STANDARDS.md)');
   console.log('   3. Run this script again with --fix to see suggestions\n');
-  
+
   process.exit(1);
 }
 

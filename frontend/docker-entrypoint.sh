@@ -68,7 +68,7 @@ if [ "$USE_SSL" = true ]; then
         echo "✗ SSL template not found at /etc/nginx/templates/frontend-ssl.conf"
         exit 1
     fi
-    
+
     echo "→ Using SSL-enabled configuration (frontend-ssl.conf)"
     echo "→ Substituting environment variables: \${BACKEND_HOST} and \${DOMAIN_NAME}"
     envsubst '${BACKEND_HOST} ${DOMAIN_NAME}' < /etc/nginx/templates/frontend-ssl.conf > /etc/nginx/conf.d/default.conf
@@ -77,7 +77,7 @@ else
         echo "✗ HTTP template not found at /etc/nginx/templates/frontend-http.conf"
         exit 1
     fi
-    
+
     echo "→ Using HTTP-only configuration (frontend-http.conf)"
     echo "→ Substituting environment variables: \${BACKEND_HOST}"
     envsubst '${BACKEND_HOST}' < /etc/nginx/templates/frontend-http.conf > /etc/nginx/conf.d/default.conf

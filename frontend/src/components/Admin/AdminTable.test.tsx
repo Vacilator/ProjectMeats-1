@@ -1,6 +1,6 @@
 /**
  * AdminTable Component Tests
- * 
+ *
  * Tests for the AdminTable component to ensure:
  * - Actions array is properly handled
  * - Hidden actions are filtered correctly

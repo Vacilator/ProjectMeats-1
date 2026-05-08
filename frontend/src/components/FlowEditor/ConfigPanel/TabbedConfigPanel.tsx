@@ -1,12 +1,12 @@
 /**
  * TabbedConfigPanel - Advanced Config Panel with Tabs
- * 
+ *
  * Enhanced configuration panel with:
  * - Tabbed interface (General, Advanced, Preview)
  * - Schema-driven dynamic forms
  * - Live previews for form nodes
  * - Better UX with animations
- * 
+ *
  * Created: 2026-02-24
  */
 
@@ -461,7 +461,7 @@ const PanelContainer = styled(motion.div)`
   flex-direction: column;
   z-index: 10000;
   overflow: hidden;
-  
+
   @media (max-width: 600px) {
     width: 100vw;
     border-left: none;

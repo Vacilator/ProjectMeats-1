@@ -1,6 +1,6 @@
 /**
  * Workflow Analytics Dashboard
- * 
+ *
  * Real-time metrics, charts, and insights for workflow execution.
  * Shows success rates, duration trends, action performance, and error analysis.
  */
@@ -121,7 +121,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
     const fetchWorkflows = async () => {
       const tenantId = getTenantId();
       if (!tenantId) return;
-      
+
       try {
         const response = await businessApi.get(`/tenants/${tenantId}/workflows/`);
         setWorkflows(response.data.results || []);
@@ -145,7 +145,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
       setLoading(true);
       try {
         const params: any = {};
-        
+
         if (dateRange) {
           params.start_date = dateRange[0].toISOString();
           params.end_date = dateRange[1].toISOString();
@@ -157,7 +157,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
           `/tenants/${tenantId}/workflows/${selectedWorkflowId}/analytics/`,
           { params }
         );
-        
+
         setMetrics(response.data);
       } catch (error) {
         logger.error('Failed to fetch workflow metrics:', error);
@@ -176,7 +176,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
     const successRate = metrics.success_rate || 0;
     const avgDuration = metrics.avg_duration_seconds || 0;
     const totalExecutions = metrics.total_executions || 0;
-    
+
     // Calculate trend (mock - would need historical data)
     const successTrend = successRate > 90 ? 'up' : successRate < 70 ? 'down' : 'stable';
     const durationTrend = avgDuration < 10 ? 'up' : avgDuration > 30 ? 'down' : 'stable';
@@ -193,7 +193,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
             />
           </Card>
         </Col>
-        
+
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -221,7 +221,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
             />
           </Card>
         </Col>
-        
+
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -242,7 +242,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
             />
           </Card>
         </Col>
-        
+
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -270,24 +270,24 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
         <ResponsiveContainer width="100%" height={300} minWidth={1} minHeight={1} debounce={150}>
           <LineChart data={metrics.executions_by_day}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="date" 
+            <XAxis
+              dataKey="date"
               tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             />
             <YAxis />
             <RechartsTooltip />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="successful" 
-              stroke={STATUS_COLORS.success} 
+            <Line
+              type="monotone"
+              dataKey="successful"
+              stroke={STATUS_COLORS.success}
               name="Successful"
               strokeWidth={2}
             />
-            <Line 
-              type="monotone" 
-              dataKey="failed" 
-              stroke={STATUS_COLORS.failure} 
+            <Line
+              type="monotone"
+              dataKey="failed"
+              stroke={STATUS_COLORS.failure}
               name="Failed"
               strokeWidth={2}
             />
@@ -305,8 +305,8 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
         <ResponsiveContainer width="100%" height={250} minWidth={1} minHeight={1} debounce={150}>
           <BarChart data={metrics.executions_by_hour}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="hour" 
+            <XAxis
+              dataKey="hour"
               tickFormatter={(hour) => `${hour}:00`}
             />
             <YAxis />
@@ -352,8 +352,8 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
         key: 'success_rate',
         render: (rate: number) => (
           <Tooltip title={`${rate.toFixed(1)}%`}>
-            <Progress 
-              percent={rate} 
+            <Progress
+              percent={rate}
               strokeColor={rate > 90 ? STATUS_COLORS.success : rate > 70 ? STATUS_COLORS.pending : STATUS_COLORS.failure}
               size="small"
             />
@@ -421,8 +421,8 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
                       </Tag>
                       <Text strong>{error.count} errors</Text>
                     </Space>
-                    <Progress 
-                      percent={error.percentage} 
+                    <Progress
+                      percent={error.percentage}
                       strokeColor={CHART_COLORS[index % CHART_COLORS.length]}
                       showInfo={false}
                       size="small"
@@ -465,7 +465,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
                     </Option>
                   ))}
                 </Select>
-                
+
                 <Select
                   style={{ width: 150 }}
                   value={timeframe}
@@ -478,7 +478,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
                   <Option value="30d">Last 30 days</Option>
                   <Option value="90d">Last 90 days</Option>
                 </Select>
-                
+
                 <RangePicker
                   onChange={(dates) => {
                     if (dates) {

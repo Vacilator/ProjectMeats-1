@@ -1,11 +1,11 @@
 /**
  * Sub-Flow Manager
- * 
+ *
  * Handles export and import of FormProcess containers as reusable templates.
  * Stores templates in localStorage with support for sharing via JSON export/import.
- * 
+ *
  * Phase E.3: Schema + Config Integration + Reusability
- * 
+ *
  * Created: 2026-02-19
  */
 
@@ -67,15 +67,15 @@ export function getSubFlowLibrary(): SubFlowLibrary {
     if (!stored) {
       return { templates: {}, version: STORAGE_VERSION };
     }
-    
+
     const library = JSON.parse(stored) as SubFlowLibrary;
-    
+
     // Migrate if version mismatch (future-proofing)
     if (library.version !== STORAGE_VERSION) {
       logger.warn('[SubFlow] Library version mismatch, will auto-migrate');
       // Add migration logic here if needed
     }
-    
+
     return library;
   } catch (error) {
     logger.error('[SubFlow] Failed to load library:', error);
@@ -97,7 +97,7 @@ export function saveSubFlowLibrary(library: SubFlowLibrary): void {
 
 /**
  * Export a FormProcess container as a reusable template
- * 
+ *
  * @param containerNode - The FormProcess group node
  * @param allNodes - All nodes in the workflow
  * @param allEdges - All edges in the workflow
@@ -118,13 +118,13 @@ export function exportSubFlow(
 ): SubFlowTemplate {
   // Find all child nodes (nodes with parentId = containerNode.id)
   const childNodes = allNodes.filter(node => node.parentId === containerNode.id);
-  
+
   // Find all edges connecting children (source and target both are children)
   const childNodeIds = new Set(childNodes.map(n => n.id));
-  const internalEdges = allEdges.filter(edge => 
+  const internalEdges = allEdges.filter(edge =>
     childNodeIds.has(edge.source) && childNodeIds.has(edge.target)
   );
-  
+
   // Create template with relative positions and clean data
   const template: SubFlowTemplate = {
     id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -161,7 +161,7 @@ export function exportSubFlow(
       version: '1.0.0',
     },
   };
-  
+
   return template;
 }
 
@@ -176,7 +176,7 @@ export function saveTemplate(template: SubFlowTemplate): void {
 
 /**
  * Import a template into the workflow
- * 
+ *
  * @param template - The template to import
  * @param position - Position where the container should be placed
  * @param generateId - Function to generate unique IDs for nodes/edges
@@ -190,11 +190,11 @@ export function importSubFlow(
   // Generate new IDs for container and children
   const containerNewId = generateId();
   const childIdMap = new Map<string, string>(); // old ID -> new ID
-  
+
   template.childNodes.forEach((_, index) => {
     childIdMap.set(`child-${index}`, generateId());
   });
-  
+
   // Create container node with new ID and position
   const containerNode: Node = {
     id: containerNewId,
@@ -208,7 +208,7 @@ export function importSubFlow(
     width: template.containerNode.width,
     height: template.containerNode.height,
   };
-  
+
   // Create child nodes with new IDs and parentId
   const childNodes: Node[] = template.childNodes.map((childTemplate, index) => {
     const newId = childIdMap.get(`child-${index}`)!;
@@ -224,16 +224,16 @@ export function importSubFlow(
       height: childTemplate.height,
     } as Node;
   });
-  
+
   // Create edges with new IDs
   const edges: Edge[] = template.internalEdges.map((edgeTemplate, index) => {
     // Map old node IDs to new node IDs
     const sourceIndex = template.childNodes.findIndex((_, i) => i === index);
     const targetIndex = sourceIndex + 1; // Simple sequential connection
-    
+
     const sourceId = childIdMap.get(`child-${sourceIndex}`) || childNodes[0]?.id;
     const targetId = childIdMap.get(`child-${targetIndex}`) || childNodes[1]?.id;
-    
+
     return {
       id: generateId(),
       source: sourceId,
@@ -244,7 +244,7 @@ export function importSubFlow(
       markerEnd: edgeTemplate.markerEnd,
     };
   });
-  
+
   return {
     nodes: [containerNode, ...childNodes],
     edges,
@@ -282,8 +282,8 @@ export function deleteTemplate(id: string): void {
 export function searchTemplates(query: string): SubFlowTemplate[] {
   const library = getSubFlowLibrary();
   const lowerQuery = query.toLowerCase();
-  
-  return Object.values(library.templates).filter(template => 
+
+  return Object.values(library.templates).filter(template =>
     template.name.toLowerCase().includes(lowerQuery) ||
     template.description?.toLowerCase().includes(lowerQuery) ||
     template.tags.some(tag => tag.toLowerCase().includes(lowerQuery)) ||
@@ -304,12 +304,12 @@ export function exportTemplateToFile(template: SubFlowTemplate): string {
 export function importTemplateFromFile(json: string): SubFlowTemplate {
   try {
     const template = JSON.parse(json) as SubFlowTemplate;
-    
+
     // Validate template structure
     if (!template.id || !template.name || !template.containerNode) {
       throw new Error('Invalid template format');
     }
-    
+
     return template;
   } catch (error) {
     logger.error('[SubFlow] Failed to import template:', error);
@@ -323,7 +323,7 @@ export function importTemplateFromFile(json: string): SubFlowTemplate {
 export function duplicateTemplate(templateId: string, newName: string): SubFlowTemplate | null {
   const original = getTemplateById(templateId);
   if (!original) return null;
-  
+
   const duplicate: SubFlowTemplate = {
     ...original,
     id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -334,7 +334,7 @@ export function duplicateTemplate(templateId: string, newName: string): SubFlowT
       updatedAt: new Date().toISOString(),
     },
   };
-  
+
   saveTemplate(duplicate);
   return duplicate;
 }
@@ -347,7 +347,7 @@ export function updateTemplate(templateId: string, updates: Partial<Omit<SubFlow
   if (!template) {
     throw new Error('Template not found');
   }
-  
+
   const updated: SubFlowTemplate = {
     ...template,
     ...updates,
@@ -357,6 +357,6 @@ export function updateTemplate(templateId: string, updates: Partial<Omit<SubFlow
       updatedAt: new Date().toISOString(),
     },
   };
-  
+
   saveTemplate(updated);
 }

@@ -44,14 +44,14 @@ def safe_signal_handler(
         @functools.wraps(func)
         def wrapper(sender: Any, **kwargs: Any) -> None:
             handler_name = func.__qualname__
-            instance = kwargs.get('instance')
-            instance_repr = repr(instance)[:120] if instance else 'N/A'
+            instance = kwargs.get("instance")
+            instance_repr = repr(instance)[:120] if instance else "N/A"
 
             logger.log(
                 log_level,
-                '[Signal:%s] received sender=%s instance=%s',
+                "[Signal:%s] received sender=%s instance=%s",
                 handler_name,
-                getattr(sender, '__name__', str(sender)),
+                getattr(sender, "__name__", str(sender)),
                 instance_repr,
             )
 
@@ -60,9 +60,9 @@ def safe_signal_handler(
                     func(sender, **kwargs)
                 except Exception as exc:
                     logger.exception(
-                        '[Signal:%s] FAILED sender=%s error=%s',
+                        "[Signal:%s] FAILED sender=%s error=%s",
                         handler_name,
-                        getattr(sender, '__name__', str(sender)),
+                        getattr(sender, "__name__", str(sender)),
                         str(exc)[:300],
                     )
 

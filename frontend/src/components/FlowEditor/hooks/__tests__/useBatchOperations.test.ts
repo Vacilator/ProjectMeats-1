@@ -1,7 +1,7 @@
 /**
  * Batch Operations Hook Tests
  * Phase 7.2: Batch Operations
- * 
+ *
  * Tests for useBatchOperations hook:
  * - Clipboard operations (copy/cut/paste)
  * - Node duplication
@@ -10,7 +10,7 @@
  * - Distribution operations
  * - Keyboard shortcuts
  * - LocalStorage persistence
- * 
+ *
  * Created: 2026-02-27
  */
 

@@ -1,17 +1,17 @@
 /**
  * Custom hook for fetching Cockpit dashboard statistics
- * 
+ *
  * Fetches aggregated stats from the backend API for all dashboard widgets:
  * - Quick stats (orders, revenue, customers, suppliers)
  * - Today's numbers (KPIs)
  * - Recent activity feed
  * - Upcoming scheduled calls
- * 
+ *
  * Features:
  * - Auto-refresh every 5 minutes
  * - Loading and error states
  * - Type-safe response
- * 
+ *
  * Created: 2026-02-04 - Phase 1.3 Widget Real Data
  */
 import { useQuery } from '@tanstack/react-query';

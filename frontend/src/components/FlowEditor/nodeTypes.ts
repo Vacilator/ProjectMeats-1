@@ -1,9 +1,9 @@
 /**
  * Node Types Registry for Unified Flow Editor
- * 
+ *
  * Comprehensive node types combining forms and workflows.
  * Inspired by Make/n8n/Zapier patterns.
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  */
 
@@ -11,7 +11,7 @@
 // Node Type Definitions
 // ============================================================================
 
-export type NodeCategory = 
+export type NodeCategory =
   | 'trigger'
   | 'form'
   | 'logic'
@@ -52,7 +52,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 0,
     maxOutputs: 1,
   },
-  
+
   triggerSchedule: {
     id: 'triggerSchedule',
     name: 'Schedule Trigger',
@@ -64,7 +64,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   triggerWebhook: {
     id: 'triggerWebhook',
     name: 'Webhook Trigger',
@@ -76,7 +76,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   triggerEvent: {
     id: 'triggerEvent',
     name: 'Event Trigger',
@@ -88,7 +88,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   triggerForm: {
     id: 'triggerForm',
     name: 'Form Submit',
@@ -100,9 +100,9 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   // === FORM ELEMENTS ===
-  
+
   // Form step node (page) (renamed from formStepSingle in Phase E - 2026-02-19)
   form: {
     id: 'form',
@@ -115,7 +115,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   // NEW: Phase 2 renamed nodes (2026-02-14)
   // NOTE: This is now just an alias for backward compatibility
   // The actual "Form" node is the primary type above
@@ -131,7 +131,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hidden: true, // Deprecated - use 'form' instead
   },
-  
+
   // Canonical Form Process container (LOCKED)
   formProcess: {
     id: 'formProcess',
@@ -144,7 +144,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   // Legacy container aliases (hidden): kept for backward compatibility ONLY
   formBook: {
     id: 'formBook',
@@ -186,7 +186,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hidden: true,
   },
-  
+
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)
   // These map to the new node types but are marked as deprecated
   formStep: {
@@ -201,7 +201,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hidden: true, // Hide from palette
   },
-  
+
   formMultiStepContainer: {
     id: 'formMultiStepContainer',
     name: 'Multi-Step Container (DEPRECATED - use formProcess)',
@@ -214,7 +214,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hidden: true, // Hide from palette
   },
-  
+
   // OTHER FORM ELEMENTS
   formReference: {
     id: 'formReference',
@@ -227,7 +227,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   formSignature: {
     id: 'formSignature',
     name: 'Signature Field',
@@ -239,7 +239,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   formFileUpload: {
     id: 'formFileUpload',
     name: 'File Upload',
@@ -251,9 +251,9 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   // REMOVED: formMultiStepContainer moved above as deprecated alias
-  
+
   // === LOGIC & ROUTING ===
   conditionIf: {
     id: 'conditionIf',
@@ -266,7 +266,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 2, // true and false branches
     requiresConfig: true,
   },
-  
+
   conditionSwitch: {
     id: 'conditionSwitch',
     name: 'Switch/Case',
@@ -278,7 +278,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: -1, // unlimited
     requiresConfig: true,
   },
-  
+
   conditionFilter: {
     id: 'conditionFilter',
     name: 'Filter Records',
@@ -290,7 +290,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   loopForEach: {
     id: 'loopForEach',
     name: 'For Each Loop',
@@ -302,7 +302,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 2,
     requiresConfig: true,
   },
-  
+
   loopWhile: {
     id: 'loopWhile',
     name: 'While Loop',
@@ -314,7 +314,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 2,
     requiresConfig: true,
   },
-  
+
   loopDoUntil: {
     id: 'loopDoUntil',
     name: 'Do Until',
@@ -326,7 +326,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 2,
     requiresConfig: true,
   },
-  
+
   // Phase 7.4: Advanced Node Types (2026-02-27)
   parallelPath: {
     id: 'parallelPath',
@@ -339,7 +339,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: -1, // unlimited (one per path)
     requiresConfig: true,
   },
-  
+
   subWorkflow: {
     id: 'subWorkflow',
     name: 'Sub-WorkForm',
@@ -352,7 +352,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   // === ACTIONS ===
   actionEmail: {
     id: 'actionEmail',
@@ -366,7 +366,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   outlookEmail: {
     id: 'outlookEmail',
     name: 'Send Email (Outlook)',
@@ -379,7 +379,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   actionNotify: {
     id: 'actionNotify',
     name: 'In-App Notification',
@@ -392,7 +392,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   actionSMS: {
     id: 'actionSMS',
     name: 'Send SMS',
@@ -405,7 +405,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   actionCreateRecord: {
     id: 'actionCreateRecord',
     name: 'Create Record',
@@ -418,7 +418,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   actionUpdateRecord: {
     id: 'actionUpdateRecord',
     name: 'Update Record',
@@ -431,7 +431,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   actionDeleteRecord: {
     id: 'actionDeleteRecord',
     name: 'Delete Record',
@@ -444,7 +444,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   actionHTTP: {
     id: 'actionHTTP',
     name: 'HTTP Request',
@@ -457,7 +457,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   actionScript: {
     id: 'actionScript',
     name: 'Run Script',
@@ -470,7 +470,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   // === WAIT STATES (External Party Integration) ===
   pendingApproval: {
     id: 'pendingApproval',
@@ -483,7 +483,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 2, // approved and rejected
     requiresConfig: true,
   },
-  
+
   pendingDocument: {
     id: 'pendingDocument',
     name: 'Document Upload',
@@ -495,7 +495,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   pendingResponse: {
     id: 'pendingResponse',
     name: 'External Response',
@@ -507,7 +507,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   pendingPayment: {
     id: 'pendingPayment',
     name: 'Payment Confirmation',
@@ -519,7 +519,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 2, // paid and cancelled
     requiresConfig: true,
   },
-  
+
   timerDelay: {
     id: 'timerDelay',
     name: 'Delay',
@@ -531,7 +531,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   timerSchedule: {
     id: 'timerSchedule',
     name: 'Wait Until',
@@ -543,7 +543,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   // === DOCUMENTS ===
   documentGenerate: {
     id: 'documentGenerate',
@@ -557,7 +557,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   documentMerge: {
     id: 'documentMerge',
     name: 'Merge Documents',
@@ -570,7 +570,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   documentSign: {
     id: 'documentSign',
     name: 'Request Signature',
@@ -583,7 +583,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   documentStore: {
     id: 'documentStore',
     name: 'Store Document',
@@ -596,7 +596,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   documentUpload: {
     id: 'documentUpload',
     name: 'Upload Document',
@@ -609,7 +609,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   // === UTILITIES ===
   dataTransform: {
     id: 'dataTransform',
@@ -622,7 +622,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   dataLookup: {
     id: 'dataLookup',
     name: 'Lookup Record',
@@ -635,7 +635,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hasErrorRoute: true,
   },
-  
+
   dataMerge: {
     id: 'dataMerge',
     name: 'Merge Data',
@@ -647,7 +647,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   noteComment: {
     id: 'noteComment',
     name: 'Note',
@@ -658,7 +658,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 0,
     maxOutputs: 0,
   },
-  
+
   groupSubflow: {
     id: 'groupSubflow',
     name: 'Sub-WorkForm',
@@ -670,7 +670,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
-  
+
   // === TERMINAL ===
   endSuccess: {
     id: 'endSuccess',
@@ -682,7 +682,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 1,
     maxOutputs: 0,
   },
-  
+
   endError: {
     id: 'endError',
     name: 'Error End',
@@ -693,7 +693,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 1,
     maxOutputs: 0,
   },
-  
+
   endCancel: {
     id: 'endCancel',
     name: 'Cancel End',
@@ -704,7 +704,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 1,
     maxOutputs: 0,
   },
-  
+
   // ============================================================================
   // DEPRECATED NODES (Phase 6 - No longer available in palette)
   // ============================================================================
@@ -712,7 +712,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   // existing workflows. They are NOT registered in the nodeTypes object
   // in UnifiedFlowEditor, so they cannot be added to new workflows.
   // The migration tool (Phase 6.4) converts them to modern equivalents.
-  
+
   formField: {
     id: 'formField',
     name: 'Form Field (DEPRECATED)',
@@ -725,7 +725,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
     hidden: true, // Phase 6: Hide from palette (node still renders in existing flows)
   },
-  
+
   formSection: {
     id: 'formSection',
     name: 'Form Section (DEPRECATED)',

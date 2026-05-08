@@ -1,11 +1,11 @@
 /**
  * Report Bug Button Component
- * 
+ *
  * Reusable button that opens GitHub issues with pre-filled error details.
- * 
+ *
  * Extracted from: AdminErrorBoundary.tsx (handleReportBug method)
  * Created: 2026-02-19
- * 
+ *
  * Features:
  * - Auto-fills GitHub issue template with error details
  * - Includes page URL, userAgent, timestamp, and logged-in user
@@ -26,22 +26,22 @@ import { logger } from '../utils/logger';
 export interface ReportBugButtonProps {
   /** Error object or error message string (optional) */
   error?: Error | string | null;
-  
+
   /** Button variant style */
   variant?: 'primary' | 'secondary' | 'floating';
-  
+
   /** Custom button text (default: "Report Bug") */
   label?: string;
-  
+
   /** Show icon (default: true) */
   showIcon?: boolean;
-  
+
   /** Additional context to include in bug report */
   context?: string;
-  
+
   /** Custom className for styling */
   className?: string;
-  
+
   /** GitHub assignee username (default: "copilot") */
   assignee?: string;
 }
@@ -78,10 +78,10 @@ const generateBugReportBody = (
   const pageUrl = window.location.href;
   const userAgent = navigator.userAgent;
   const currentUser = getCurrentUser();
-  
+
   let errorMessage = 'No error provided';
   let errorStack = 'No stack trace available';
-  
+
   if (error) {
     if (typeof error === 'string') {
       errorMessage = error;
@@ -90,14 +90,14 @@ const generateBugReportBody = (
       errorStack = error.stack || 'No stack trace available';
     }
   }
-  
+
   // Build markdown template
   const body = `
 ## Bug Report
 
-**Timestamp:** ${timestamp}  
-**Reported by:** ${currentUser}  
-**Page URL:** ${pageUrl}  
+**Timestamp:** ${timestamp}
+**Reported by:** ${currentUser}
+**Page URL:** ${pageUrl}
 **User Agent:** ${userAgent}
 
 ---
@@ -133,7 +133,7 @@ ${context ? `### Additional Context\n\n${context}\n\n---\n` : ''}
 
 **Auto-generated bug report from ProjectMeats application**
 `.trim();
-  
+
   return body;
 };
 
@@ -148,17 +148,17 @@ const generateGitHubIssueUrl = (
   const errorMessage = error
     ? (typeof error === 'string' ? error : error.message)
     : 'Application Error';
-  
+
   const title = `Bug: ${errorMessage.substring(0, 80)}${errorMessage.length > 80 ? '...' : ''}`;
   const body = generateBugReportBody(error, context);
-  
+
   const params = new URLSearchParams({
     title,
     body,
     labels: 'bug,needs-triage',
     assignees: assignee,
   });
-  
+
   return `https://github.com/Meats-Central/ProjectMeats/issues/new?${params.toString()}`;
 };
 
@@ -179,7 +179,7 @@ export const ReportBugButton: React.FC<ReportBugButtonProps> = ({
     const url = generateGitHubIssueUrl(error, context, assignee);
     window.open(url, '_blank', 'noopener,noreferrer');
   };
-  
+
   // Render based on variant
   if (variant === 'floating') {
     return (
@@ -193,9 +193,9 @@ export const ReportBugButton: React.FC<ReportBugButtonProps> = ({
       </FloatingButton>
     );
   }
-  
+
   const ButtonComponent = variant === 'primary' ? PrimaryButton : SecondaryButton;
-  
+
   return (
     <ButtonComponent onClick={handleClick} className={className}>
       {showIcon && <Bug size={18} />}
@@ -219,12 +219,12 @@ const BaseButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &:not(:disabled):active {
     transform: translateY(0);
   }
@@ -233,7 +233,7 @@ const BaseButton = styled.button`
 const PrimaryButton = styled(BaseButton)`
   background: rgb(var(--color-primary));
   color: rgb(var(--color-primary-foreground));
-  
+
   &:not(:disabled):hover {
     background: rgb(var(--color-primary-dark));
     transform: translateY(-1px);
@@ -244,7 +244,7 @@ const SecondaryButton = styled(BaseButton)`
   background: transparent;
   color: rgb(var(--color-text-primary));
   border: 1px solid rgb(var(--color-border));
-  
+
   &:not(:disabled):hover {
     background: rgb(var(--color-bg-tertiary));
     border-color: rgb(var(--color-primary));
@@ -268,23 +268,23 @@ const FloatingButton = styled.button`
   justify-content: center;
   transition: all 0.3s ease;
   z-index: 1000;
-  
+
   &:hover {
     transform: scale(1.1);
     box-shadow: var(--shadow-float-hover);
   }
-  
+
   &:active {
     transform: scale(0.95);
   }
-  
+
   /* Responsive: smaller on mobile */
   @media (max-width: 768px) {
     width: 48px;
     height: 48px;
     bottom: 16px;
     right: 16px;
-    
+
     svg {
       width: 18px;
       height: 18px;

@@ -1,9 +1,9 @@
 /**
  * Node Validation Service
- * 
+ *
  * Validates node configurations and returns validation errors/warnings.
  * Provides real-time validation feedback for config panels.
- * 
+ *
  * Agent C: Advanced Polish
  * Created: 2026-02-24
  */
@@ -44,7 +44,7 @@ function validateField(
   context: Record<string, any>
 ): ValidationError[] {
   const errors: ValidationError[] = [];
-  
+
   // Required field check
   if (fieldSchema.required && (fieldValue === undefined || fieldValue === null || fieldValue === '')) {
     errors.push({
@@ -54,12 +54,12 @@ function validateField(
     });
     return errors; // Skip other checks if required and empty
   }
-  
+
   // Skip validation if field is empty and not required
   if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
     return errors;
   }
-  
+
   // Type validation
   if (fieldSchema.type === 'number' && isNaN(Number(fieldValue))) {
     errors.push({
@@ -68,7 +68,7 @@ function validateField(
       severity: 'error'
     });
   }
-  
+
   if (fieldSchema.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fieldValue)) {
     errors.push({
       field: fieldName,
@@ -76,7 +76,7 @@ function validateField(
       severity: 'error'
     });
   }
-  
+
   if (fieldSchema.type === 'url' && !/^https?:\/\/.+/.test(fieldValue)) {
     errors.push({
       field: fieldName,
@@ -84,7 +84,7 @@ function validateField(
       severity: 'warning'
     });
   }
-  
+
   // Min/Max validation
   if (fieldSchema.min !== undefined && Number(fieldValue) < fieldSchema.min) {
     errors.push({
@@ -93,7 +93,7 @@ function validateField(
       severity: 'error'
     });
   }
-  
+
   if (fieldSchema.max !== undefined && Number(fieldValue) > fieldSchema.max) {
     errors.push({
       field: fieldName,
@@ -101,7 +101,7 @@ function validateField(
       severity: 'error'
     });
   }
-  
+
   // Pattern validation
   if (fieldSchema.pattern && !new RegExp(fieldSchema.pattern).test(fieldValue)) {
     errors.push({
@@ -110,7 +110,7 @@ function validateField(
       severity: 'error'
     });
   }
-  
+
   // Array validation
   if (fieldSchema.type === 'array') {
     if (!Array.isArray(fieldValue)) {
@@ -127,7 +127,7 @@ function validateField(
       });
     }
   }
-  
+
   // Custom validation function
   if (fieldSchema.validate && typeof fieldSchema.validate === 'function') {
     const customError = fieldSchema.validate(fieldValue, context);
@@ -139,7 +139,7 @@ function validateField(
       });
     }
   }
-  
+
   return errors;
 }
 
@@ -148,10 +148,10 @@ function validateField(
  */
 function isFieldVisible(fieldSchema: any, values: Record<string, any>): boolean {
   if (!fieldSchema.showIf) return true;
-  
+
   const { field, operator, value } = fieldSchema.showIf;
   const fieldValue = values[field];
-  
+
   switch (operator) {
     case 'equals':
       return fieldValue === value;
@@ -194,7 +194,7 @@ export function validateNode(node: Node, allNodes?: Node[], allEdges?: any[]): V
 
   // Use getSchema() instead of get() - schemaRegistry is a class instance, not a Map
   const schema = schemaRegistry.getSchema(typeToValidate);
-  
+
   if (!schema || !schema.sections) {
     // No schema or no fields to validate
     return {
@@ -205,18 +205,18 @@ export function validateNode(node: Node, allNodes?: Node[], allEdges?: any[]): V
       score: 100
     };
   }
-  
+
   const errors: ValidationError[] = [];
   const warnings: ValidationError[] = [];
   const missingRequired: string[] = [];
   const values = node.data?.config || node.data || {};
-  
+
   // Flatten sections into single field array
   const allFields = schema.sections.flatMap(section => section.fields || []);
-  
+
   let totalFields = 0;
   let completedFields = 0;
-  
+
   // Validate each field
   for (const fieldSchema of allFields) {
     const fieldAny = fieldSchema as any;
@@ -224,22 +224,22 @@ export function validateNode(node: Node, allNodes?: Node[], allEdges?: any[]): V
     if (!fieldName) continue;
 
     const fieldValue = (values as Record<string, any>)[fieldName];
-    
+
     // Check conditional visibility
     if (!isFieldVisible(fieldSchema, values)) {
       continue; // Skip hidden fields
     }
-    
+
     totalFields++;
-    
+
     // Count as completed if has value (even if invalid)
     if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
       completedFields++;
     }
-    
+
     // Validate field
     const fieldErrors = validateField(fieldName, fieldValue, fieldSchema, values);
-    
+
     for (const error of fieldErrors) {
       if (error.severity === 'error') {
         errors.push(error);
@@ -251,10 +251,10 @@ export function validateNode(node: Node, allNodes?: Node[], allEdges?: any[]): V
       }
     }
   }
-  
+
   // Calculate completeness score
   const score = totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 100;
-  
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -274,18 +274,18 @@ export function getValidationBadge(node: Node): {
   message: string;
 } {
   const result = validateNode(node);
-  
+
   if (result.errors.length > 0) {
     return {
       show: true,
       type: 'error',
       count: result.errors.length,
-      message: result.errors.length === 1 
-        ? result.errors[0].message 
+      message: result.errors.length === 1
+        ? result.errors[0].message
         : `${result.errors.length} configuration errors`
     };
   }
-  
+
   if (result.warnings.length > 0) {
     return {
       show: true,
@@ -296,7 +296,7 @@ export function getValidationBadge(node: Node): {
         : `${result.warnings.length} warnings`
     };
   }
-  
+
   // Show success badge if score is 100
   if (result.score === 100) {
     return {
@@ -306,7 +306,7 @@ export function getValidationBadge(node: Node): {
       message: 'Configuration complete'
     };
   }
-  
+
   return {
     show: false,
     type: 'success',
@@ -320,22 +320,22 @@ export function getValidationBadge(node: Node): {
  */
 export function getValidationTooltip(node: Node): string {
   const result = validateNode(node);
-  
+
   if (result.errors.length === 0 && result.warnings.length === 0) {
-    return result.score === 100 
-      ? '✓ Configuration complete' 
+    return result.score === 100
+      ? '✓ Configuration complete'
       : `Configuration ${result.score}% complete`;
   }
-  
+
   const lines: string[] = [];
-  
+
   if (result.errors.length > 0) {
     lines.push('Errors:');
     result.errors.forEach(error => {
       lines.push(`  • ${error.message}`);
     });
   }
-  
+
   if (result.warnings.length > 0) {
     if (lines.length > 0) lines.push('');
     lines.push('Warnings:');
@@ -343,7 +343,7 @@ export function getValidationTooltip(node: Node): string {
       lines.push(`  • ${warning.message}`);
     });
   }
-  
+
   return lines.join('\n');
 }
 
@@ -358,27 +358,27 @@ export function filterVariablesByType(
   if (expectedType === 'any') {
     return variables;
   }
-  
+
   return variables.filter(v => {
     // Exact type match
     if (v.type === expectedType) return true;
-    
+
     // Type coercion rules
     if (expectedType === 'string') {
       // Everything can be converted to string
       return true;
     }
-    
+
     if (expectedType === 'number') {
       // Only number and boolean can be converted to number
       return v.type === 'number' || v.type === 'boolean';
     }
-    
+
     if (expectedType === 'boolean') {
       // Number and string can be converted to boolean
       return v.type === 'boolean' || v.type === 'number' || v.type === 'string';
     }
-    
+
     return false;
   });
 }

@@ -1,15 +1,15 @@
 /**
  * Visual Form Builder Panel
- * 
+ *
  * Embedded form builder for node configuration - NO JSON!
  * User-friendly drag-drop interface like Typeform/Zapier.
- * 
+ *
  * Features:
  * - Drag-drop fields (text, email, select, file, etc)
  * - Visual validation rules (checkboxes/toggles)
  * - Conditional logic builder (if-then UI)
  * - Live preview
- * 
+ *
  * Created: 2026-02-24
  * Phase: Visual Config Panel Enhancement
  */
@@ -17,11 +17,11 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { confirmDialog } from '@/utils/uiDialogs';
-import { 
-  Plus, 
-  Trash2, 
-  GripVertical, 
-  Eye, 
+import {
+  Plus,
+  Trash2,
+  GripVertical,
+  Eye,
   Settings,
   AlertCircle,
   CheckCircle,
@@ -40,10 +40,10 @@ import type { FormField, FieldType, ValidationRule } from '../../form-builder/ty
 export interface VisualFormBuilderPanelProps {
   /** Current fields configuration */
   fields: FormField[];
-  
+
   /** Callback when fields change */
   onChange: (fields: FormField[]) => void;
-  
+
   /** Read-only mode */
   readOnly?: boolean;
 }
@@ -111,11 +111,11 @@ const AddFieldButton = styled.button`
   align-items: center;
   gap: 6px;
   transition: opacity 0.2s;
-  
+
   &:hover {
     opacity: 0.9;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -132,14 +132,14 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 48px 24px;
   color: rgb(var(--color-text-secondary));
-  
+
   svg {
     width: 48px;
     height: 48px;
     margin-bottom: 16px;
     opacity: 0.3;
   }
-  
+
   p {
     font-size: 14px;
     margin: 0;
@@ -154,7 +154,7 @@ const FieldCard = styled.div<{ isDragging?: boolean; isExpanded?: boolean }>`
   cursor: ${props => props.isDragging ? 'grabbing' : 'grab'};
   transition: all 0.2s;
   opacity: ${props => props.isDragging ? 0.5 : 1};
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
@@ -173,7 +173,7 @@ const DragHandle = styled.div`
   cursor: grab;
   display: flex;
   align-items: center;
-  
+
   &:active {
     cursor: grabbing;
   }
@@ -229,7 +229,7 @@ const IconButton = styled.button<{ variant?: 'danger' }>`
   display: flex;
   align-items: center;
   transition: all 0.2s;
-  
+
   &:hover {
     background: ${props => props.variant === 'danger' ? 'rgba(var(--color-error), 0.1)' : 'rgb(var(--color-surface-hover))'};
   }
@@ -266,7 +266,7 @@ const Input = styled.input`
   font-size: 14px;
   color: rgb(var(--color-text-primary));
   transition: border-color 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -284,7 +284,7 @@ const Textarea = styled.textarea`
   resize: vertical;
   font-family: inherit;
   transition: border-color 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -300,7 +300,7 @@ const Select = styled.select`
   color: rgb(var(--color-text-primary));
   cursor: pointer;
   transition: border-color 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -314,7 +314,7 @@ const CheckboxWrapper = styled.label`
   cursor: pointer;
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  
+
   input[type="checkbox"] {
     width: 16px;
     height: 16px;
@@ -358,7 +358,7 @@ interface SortableFieldItemProps {
 const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [localField, setLocalField] = useState(field);
-  
+
   const {
     attributes,
     listeners,
@@ -367,14 +367,14 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
     transition,
     isDragging,
   } = useSortable({ id: field.id });
-  
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  
+
   const fieldTypeInfo = FIELD_TYPES.find(ft => ft.value === field.type);
-  
+
   // Sync local changes back to parent
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -382,23 +382,23 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
         onEdit(localField);
       }
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [localField, field, onEdit]);
-  
+
   const handleLocalChange = (updates: Partial<FormField>) => {
     setLocalField(prev => ({ ...prev, ...updates }));
   };
-  
+
   return (
     <FieldCard ref={setNodeRef} style={style} isDragging={isDragging} isExpanded={isExpanded}>
       <FieldHeader>
         <DragHandle {...listeners} {...attributes}>
           <GripVertical size={18} />
         </DragHandle>
-        
+
         <FieldIcon>{fieldTypeInfo?.icon || '📝'}</FieldIcon>
-        
+
         <FieldInfo>
           <FieldLabel>
             {field.label || 'Untitled Field'}
@@ -406,7 +406,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
           </FieldLabel>
           <FieldType>{fieldTypeInfo?.label || field.type}</FieldType>
         </FieldInfo>
-        
+
         <FieldActions>
           <IconButton onClick={() => setIsExpanded(!isExpanded)}>
             {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -416,7 +416,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
           </IconButton>
         </FieldActions>
       </FieldHeader>
-      
+
       <FieldDetails isExpanded={isExpanded}>
         <FormRow>
           <Label>Field Label *</Label>
@@ -427,7 +427,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
             placeholder="Enter field label"
           />
         </FormRow>
-        
+
         <FormRow>
           <Label>Placeholder Text</Label>
           <Input
@@ -437,7 +437,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
             placeholder="Enter placeholder"
           />
         </FormRow>
-        
+
         <FormRow>
           <Label>Help Text</Label>
           <Textarea
@@ -446,7 +446,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
             placeholder="Optional help text for users"
           />
         </FormRow>
-        
+
         <FormRow>
           <Label>Field Type</Label>
           <Select
@@ -460,7 +460,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
             ))}
           </Select>
         </FormRow>
-        
+
         {(localField.type === 'select' || localField.type === 'multiSelect' || localField.type === 'radio' || localField.type === 'checkbox') && (
           <FormRow>
             <Label>Options (one per line)</Label>
@@ -471,7 +471,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
             />
           </FormRow>
         )}
-        
+
         <ValidationSection>
           <ValidationTitle>Validation Rules</ValidationTitle>
           <ValidationRules>
@@ -483,7 +483,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
               />
               <span>Required field</span>
             </CheckboxWrapper>
-            
+
             {(localField.type === 'text' || localField.type === 'textarea') && (
               <>
                 <FormRow>
@@ -518,7 +518,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
                 </FormRow>
               </>
             )}
-            
+
             {(localField.type === 'number') && (
               <>
                 <FormRow>
@@ -575,18 +575,18 @@ export const VisualFormBuilderPanel: React.FC<VisualFormBuilderPanelProps> = ({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-  
+
   const handleDragEnd = useCallback((event: any) => {
     const { active, over } = event;
-    
+
     if (active.id !== over.id) {
       const oldIndex = fields.findIndex(f => f.id === active.id);
       const newIndex = fields.findIndex(f => f.id === over.id);
-      
+
       onChange(arrayMove(fields, oldIndex, newIndex));
     }
   }, [fields, onChange]);
-  
+
   const handleAddField = useCallback(() => {
     const newField: FormField = {
       id: `field_${Date.now()}`,
@@ -598,14 +598,14 @@ export const VisualFormBuilderPanel: React.FC<VisualFormBuilderPanelProps> = ({
       validation: [],
       width: 'full',
     };
-    
+
     onChange([...fields, newField]);
   }, [fields, onChange]);
-  
+
   const handleEditField = useCallback((updatedField: FormField) => {
     onChange(fields.map(f => f.id === updatedField.id ? updatedField : f));
   }, [fields, onChange]);
-  
+
   const handleDeleteField = useCallback((fieldId: string) => {
     void (async () => {
       const confirmed = await confirmDialog({
@@ -621,7 +621,7 @@ export const VisualFormBuilderPanel: React.FC<VisualFormBuilderPanelProps> = ({
       }
     })();
   }, [fields, onChange]);
-  
+
   return (
     <Container>
       <Header>
@@ -633,7 +633,7 @@ export const VisualFormBuilderPanel: React.FC<VisualFormBuilderPanelProps> = ({
           </AddFieldButton>
         )}
       </Header>
-      
+
       {fields.length === 0 ? (
         <EmptyState>
           <AlertCircle size={48} />

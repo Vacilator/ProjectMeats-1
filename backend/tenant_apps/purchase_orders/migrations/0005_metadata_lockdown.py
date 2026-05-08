@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     """
     Idempotent index creation for tenant-related fields.
-    
+
     Uses SeparateDatabaseAndState with IF NOT EXISTS to safely handle
     environments where indexes may already exist from earlier migrations.
     """
@@ -60,28 +60,28 @@ class Migration(migrations.Migration):
             database_operations=[
                 migrations.RunSQL(
                     sql="""
-                        CREATE INDEX IF NOT EXISTS purchase_or_tenant__6ab6fd_idx 
+                        CREATE INDEX IF NOT EXISTS purchase_or_tenant__6ab6fd_idx
                         ON purchase_orders_carrierpurchaseorder (tenant_id, our_carrier_po_num);
                     """,
                     reverse_sql="DROP INDEX IF EXISTS purchase_or_tenant__6ab6fd_idx;",
                 ),
                 migrations.RunSQL(
                     sql="""
-                        CREATE INDEX IF NOT EXISTS purchase_or_tenant__d5379c_idx 
+                        CREATE INDEX IF NOT EXISTS purchase_or_tenant__d5379c_idx
                         ON purchase_orders_coldstorageentry (tenant_id, date_time_stamp_created);
                     """,
                     reverse_sql="DROP INDEX IF EXISTS purchase_or_tenant__d5379c_idx;",
                 ),
                 migrations.RunSQL(
                     sql="""
-                        CREATE INDEX IF NOT EXISTS purchase_or_tenant__e12583_idx 
+                        CREATE INDEX IF NOT EXISTS purchase_or_tenant__e12583_idx
                         ON purchase_orders_purchaseorder (tenant_id, order_number);
                     """,
                     reverse_sql="DROP INDEX IF EXISTS purchase_or_tenant__e12583_idx;",
                 ),
                 migrations.RunSQL(
                     sql="""
-                        CREATE INDEX IF NOT EXISTS purchase_or_tenant__e60062_idx 
+                        CREATE INDEX IF NOT EXISTS purchase_or_tenant__e60062_idx
                         ON purchase_orders_purchaseorder (tenant_id, order_date);
                     """,
                     reverse_sql="DROP INDEX IF EXISTS purchase_or_tenant__e60062_idx;",

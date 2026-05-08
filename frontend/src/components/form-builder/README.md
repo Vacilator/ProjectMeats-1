@@ -161,7 +161,7 @@ const { loadForm } = useFormBuilderStore();
 const handleEditInBuilder = () => {
   // Load existing form data
   loadForm(node.data.formData);
-  
+
   // Open FormBuilder
   setIsFormBuilderOpen(true);
 };
@@ -177,7 +177,7 @@ const handleSave = (formData: any) => {
     // Optionally update node label
     label: formData.name
   });
-  
+
   // Close modal
   setIsFormBuilderOpen(false);
 };
@@ -259,7 +259,7 @@ npm run dev
 
 ---
 
-**Phase:** 4 - FormBuilder Suite  
-**Created:** 2026-02-21  
-**Status:** Complete  
+**Phase:** 4 - FormBuilder Suite
+**Created:** 2026-02-21
+**Status:** Complete
 **Next:** Phase 5 - Smart Features (Auto-populate, Auto-Map, Visual Chips)

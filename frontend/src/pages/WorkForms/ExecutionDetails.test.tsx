@@ -195,7 +195,7 @@ describe('WorkFormExecutionDetails', () => {
     await advance(2000);
 
     // After a refetch error, we should land in the error panel.
-    await waitForCondition(() => Boolean(screen.queryByRole('button', { name: /try again/i }))); 
+    await waitForCondition(() => Boolean(screen.queryByRole('button', { name: /try again/i })));
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
 
     // Advance multiple more ticks; should NOT keep polling.

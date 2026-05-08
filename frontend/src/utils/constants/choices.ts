@@ -1,9 +1,9 @@
 /**
  * Backend Choices Constants
- * 
+ *
  * These constants MUST match the TextChoices classes in backend/apps/core/models.py
  * Any changes to backend choices require updates here.
- * 
+ *
  * Phase 4: Frontend Integration & UX Alignment
  */
 

@@ -13,12 +13,9 @@ from typing import Any
 from django.db import transaction
 from django.utils import timezone
 
+from tenant_apps.inquiries.models import Inquiry, TradeSession, TradeSessionStatus
+
 from apps.tenants.rls import tenant_rls
-from tenant_apps.inquiries.models import (
-    Inquiry,
-    TradeSession,
-    TradeSessionStatus,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +38,7 @@ def get_or_create_trade_session(
         (trade_session, created) tuple.
     """
     with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
-        existing = TradeSession.objects.filter(
-            tenant=tenant, inquiry=inquiry
-        ).first()
+        existing = TradeSession.objects.filter(tenant=tenant, inquiry=inquiry).first()
         if existing:
             return existing, False
 
@@ -118,11 +113,7 @@ def _generate_next_trade_id(tenant: Any) -> str:
     year = timezone.now().year
     prefix = f"TRD-{year}-"
 
-    last_session = (
-        TradeSession.objects.filter(tenant=tenant, trade_id__startswith=prefix)
-        .order_by("-trade_id")
-        .first()
-    )
+    last_session = TradeSession.objects.filter(tenant=tenant, trade_id__startswith=prefix).order_by("-trade_id").first()
 
     if last_session:
         try:

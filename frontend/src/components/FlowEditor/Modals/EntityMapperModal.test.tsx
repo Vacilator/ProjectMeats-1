@@ -1,6 +1,6 @@
 /**
  * Unit tests for EntityMapperModal component
- * 
+ *
  * Tests cover:
  * - Entity type selection
  * - Form field loading
@@ -370,14 +370,14 @@ describe('EntityMapperModal', () => {
 
       // Click save (disabled due to incomplete mapping in this test)
       const saveButton = screen.getByText('Save Mapping');
-      
+
       // Verify save button exists
       expect(saveButton).toBeInTheDocument();
     });
 
     it('closes modal after successful save', async () => {
       const completeMapping = [{ formFieldId: 'field1', entityAttribute: 'name' }];
-      
+
       render(
         <EntityMapperModal
           open={true}
@@ -405,7 +405,7 @@ describe('EntityMapperModal', () => {
       mockOnSave.mockRejectedValueOnce(new Error('Save failed'));
 
       const completeMapping = [{ formFieldId: 'field1', entityAttribute: 'name' }];
-      
+
       render(
         <EntityMapperModal
           open={true}

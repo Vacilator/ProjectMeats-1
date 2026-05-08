@@ -1,9 +1,9 @@
 /**
  * Semantic Card Component
- * 
+ *
  * Uses CSS variables for colors, allowing tenant-specific branding
  * without component changes.
- * 
+ *
  * Usage:
  *   <Card>
  *     <CardHeader title="Dashboard" description="Welcome back!" />

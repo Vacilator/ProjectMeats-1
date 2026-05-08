@@ -1,9 +1,9 @@
 /**
  * SectionConfigPanel Component
- * 
+ *
  * Configuration modal for Section nodes in WorkForms editor.
  * Allows setting title, description, icon, collapsible behavior, and conditional visibility.
- * 
+ *
  * Part of Phase 1 Task 1.2 - WORKFORMS_NAVIGATION_FIX_PLAN
  */
 
@@ -137,11 +137,11 @@ const IconGrid = styled.div`
 `;
 
 const IconButton = styled.button<{ selected: boolean }>`
-  background: ${props => props.selected 
-    ? 'rgb(var(--color-primary))' 
+  background: ${props => props.selected
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-surface))'};
-  border: 2px solid ${props => props.selected 
-    ? 'rgb(var(--color-primary))' 
+  border: 2px solid ${props => props.selected
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: 6px;
   padding: 8px;
@@ -419,8 +419,8 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
               <ToggleInput
                 type="checkbox"
                 checked={formData.isCollapsible}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
                   isCollapsible: e.target.checked,
                   defaultCollapsed: e.target.checked ? prev.defaultCollapsed : false,
                 }))}
@@ -435,8 +435,8 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
                 <ToggleInput
                   type="checkbox"
                   checked={formData.defaultCollapsed}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
                     defaultCollapsed: e.target.checked,
                   }))}
                 />
@@ -448,7 +448,7 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
           <HelpText>
             <Info size={14} />
             <span>
-              {formData.isCollapsible 
+              {formData.isCollapsible
                 ? 'Users can expand/collapse this section to show or hide its contents'
                 : 'Section will always be visible and cannot be collapsed'}
             </span>

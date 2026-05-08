@@ -8,31 +8,24 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-from drf_spectacular.views import (
-    SpectacularAPIView,
-    SpectacularRedocView,
-    SpectacularSwaggerView,
-)
-from apps.core.health_api import (
-    HealthCheckAPIView,
-    HealthDetailedAPIView,
-    HealthWorkformsAPIView,
-    ReadyCheckAPIView,
-)
-from apps.core.monitoring_views import PipelineHealthAPIView, SystemMetricsAPIView
-from apps.core.admin_site import admin_site
+
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from tenant_apps.integrations.views import SettlementEventIngestAPIView
 from tenant_apps.workflows.views import SuggestNodesView
 from tenant_apps.workflows.views_triggers import TenantScopedWebhookReceiverAPIView
+
+from apps.core.admin_site import admin_site
+from apps.core.health_api import HealthCheckAPIView, HealthDetailedAPIView, HealthWorkformsAPIView, ReadyCheckAPIView
+from apps.core.monitoring_views import PipelineHealthAPIView, SystemMetricsAPIView
 from apps.email_integration.views.webhook_views import (
     tenant_gmail_webhook_notifications,
     tenant_outlook_webhook_notifications,
 )
 
 # Keep default admin for backwards compatibility, but use custom site as primary
-admin.site.site_header = '🥩 Meats Central Admin'
-admin.site.site_title = 'Meats Central'
-admin.site.index_title = 'Admin Dashboard'
+admin.site.site_header = "🥩 Meats Central Admin"
+admin.site.site_title = "Meats Central"
+admin.site.index_title = "Admin Dashboard"
 
 urlpatterns = [
     # Health check endpoints
@@ -45,20 +38,18 @@ urlpatterns = [
     path("api/v1/internal/pipeline-health/", PipelineHealthAPIView.as_view(), name="pipeline-health"),
     # NOTE: System Configuration Studio ARCHIVED 2026-02-14 (superseded by apps.system)
     # Admin interface (using custom three-tier admin site)
-    path("admin/", admin_site.urls, name='admin'),  # Custom three-tier admin (primary)
+    path("admin/", admin_site.urls, name="admin"),  # Custom three-tier admin (primary)
     # Legacy admin (redirect to custom admin)
-    path("admin-legacy/", admin.site.urls, name='admin-legacy'),  # Django default admin (legacy)
+    path("admin-legacy/", admin.site.urls, name="admin-legacy"),  # Django default admin (legacy)
     # API v1 endpoints
     path("api/v1/system/", include("apps.system.urls")),  # NEW: Centralized config system (v2.0 Wave 1)
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
-
     # Canonical public workflow webhook receiver (tenant selected via path).
     path(
         "api/v1/tenants/<uuid:tenant_id>/workflows/webhooks/<uuid:workflow_id>/<str:webhook_token>/",
         TenantScopedWebhookReceiverAPIView.as_view(),
         name="tenant-workflow-webhook-receiver",
     ),
-
     # Canonical public email webhook receivers (tenant selected via path).
     path(
         "api/v1/tenants/<uuid:tenant_id>/workflows/email/outlook/webhook/notifications/",
@@ -75,8 +66,7 @@ urlpatterns = [
         SettlementEventIngestAPIView.as_view(),
         name="tenant-settlement-event-ingest",
     ),
-
-    path('api/v1/integrations/', include('integrations.urls')),
+    path("api/v1/integrations/", include("integrations.urls")),
     path("api/v1/workflows/email/", include("apps.email_integration.urls")),  # Email integration & webhooks
     # NOTE: accounts_receivables DELETED in v2.0 Wave 1 (merged into invoices/accounting)
     path("api/v1/", include("tenant_apps.suppliers.urls")),
@@ -90,16 +80,16 @@ urlpatterns = [
     path("api/v1/", include("tenant_apps.carriers.urls")),
     path("api/v1/", include("tenant_apps.products.urls")),
     # Invoices → Accounting rename (v2.0 Wave 1 Week 4)
-    path("api/v1/", include("tenant_apps.invoices.urls")),                      # Legacy (deprecated)
-    path("api/v1/accounting/", include("tenant_apps.invoices.urls")),           # NEW canonical path
+    path("api/v1/", include("tenant_apps.invoices.urls")),  # Legacy (deprecated)
+    path("api/v1/accounting/", include("tenant_apps.invoices.urls")),  # NEW canonical path
     path("api/v1/", include("tenant_apps.locations.urls")),
     path("api/v1/", include("apps.core.urls")),  # Core shared utilities
     # Bug Reports → Feedback rename (v2.0 Wave 1 Week 3)
     path("api/v1/bug-reports/", include("tenant_apps.bug_reports.urls")),  # Legacy (deprecated)
-    path("api/v1/feedback/", include("tenant_apps.bug_reports.urls")),      # NEW canonical path
+    path("api/v1/feedback/", include("tenant_apps.bug_reports.urls")),  # NEW canonical path
     # Cockpit → Workspace rename (v2.0 Wave 1 Week 3)
-    path("api/v1/cockpit/", include("tenant_apps.cockpit.urls")),           # Legacy (deprecated)
-    path("api/v1/workspace/", include("tenant_apps.cockpit.urls")),         # NEW canonical path
+    path("api/v1/cockpit/", include("tenant_apps.cockpit.urls")),  # Legacy (deprecated)
+    path("api/v1/workspace/", include("tenant_apps.cockpit.urls")),  # NEW canonical path
     path("api/v1/", include("tenant_apps.inquiries.urls")),  # Inquiry management
     path("api/v1/", include("tenant_apps.fulfillments.urls")),  # Fulfillment tracking
     # Legacy alias (older clients) — canonical path is /api/v1/workflows/suggest-nodes/
@@ -121,7 +111,7 @@ urlpatterns = [
 ]
 
 # Optional apps
-if 'tenant_apps.ai_assistant' in settings.INSTALLED_APPS:
+if "tenant_apps.ai_assistant" in settings.INSTALLED_APPS:
     urlpatterns.append(path("api/v1/ai-assistant/", include("tenant_apps.ai_assistant.urls")))
 
 # Serve media files in development

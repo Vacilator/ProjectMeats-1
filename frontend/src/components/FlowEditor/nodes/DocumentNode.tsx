@@ -1,18 +1,18 @@
 /**
  * DocumentNode Component
- * 
+ *
  * Node for document operations:
  * - Generate (PDF, Word from template)
  * - Merge (combine multiple documents)
  * - Sign (request e-signature)
  * - Store (save to storage)
- * 
+ *
  * Features:
  * - Template selection
  * - Data mapping preview
  * - Output format options
  * - Storage location
- * 
+ *
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';

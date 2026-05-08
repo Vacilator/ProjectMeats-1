@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("products", "0004_state_sync_tenant"),
         ("suppliers", "0006_alter_supplier_plant"),

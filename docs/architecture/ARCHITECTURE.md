@@ -1,7 +1,7 @@
 # ProjectMeats Architecture (Authoritative — December 2025)
 
-**Status**: ✅ CURRENT  
-**Category**: Architecture  
+**Status**: ✅ CURRENT
+**Category**: Architecture
 **Last Updated**: 2026-03-18
 
 ---
@@ -78,7 +78,7 @@ flowchart LR
         H --> I[ViewSet Queries]
         I --> J[.filter tenant=request.tenant]
     end
-    
+
     subgraph "Database Schema"
         K[(PostgreSQL)]
         K --> L[Single Public Schema]
@@ -111,7 +111,7 @@ flowchart LR
 4. **Maintenance**: Easier backup/restore and database operations
 5. **Developer Experience**: Simpler mental model and debugging
 
-**⚠️ Historical Archive Notice:** 
+**⚠️ Historical Archive Notice:**
 Files in `docs/archive/legacy_2025/` reference the REJECTED schema-based design. These are explicitly excluded from AI indexing via `.cursorignore` and `.copilotignore`. DO NOT reference them for current implementation.
 
 ### What Remains

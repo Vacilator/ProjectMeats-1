@@ -1,9 +1,9 @@
 /**
  * Cockpit Navigation Context
- * 
+ *
  * Tracks user navigation path through search results and entity exploration.
  * Provides breadcrumb trail for "mind-map" style navigation.
- * 
+ *
  * Created: 2026-02-23 - Cockpit Phase 2A Final
  */
 
@@ -115,7 +115,7 @@ export const CockpitNavigationProvider: React.FC<{ children: React.ReactNode }> 
 
   const saveCurrentPath = useCallback(() => {
     if (path.length === 0) return;
-    
+
     setRecentPaths(prev => {
       const newRecent = [path, ...prev]
         .slice(0, MAX_RECENT_PATHS);

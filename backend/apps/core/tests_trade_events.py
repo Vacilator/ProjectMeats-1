@@ -16,12 +16,7 @@ from apps.core.events.contracts import (
     TradeEvent,
     TradeEventType,
 )
-from apps.core.events.dispatcher import (
-    clear_handlers,
-    emit_trade_event,
-    get_trade_event_log,
-    register_handler,
-)
+from apps.core.events.dispatcher import clear_handlers, emit_trade_event, get_trade_event_log, register_handler
 from apps.core.models import TradeEventLog
 from apps.tenants.models import Tenant
 
@@ -158,23 +153,15 @@ class TradeEventDispatcherTests(TestCase):
         )
 
         # Event should still be stored
-        self.assertTrue(
-            TradeEventLog.objects.filter(event_id=event.event_id).exists()
-        )
+        self.assertTrue(TradeEventLog.objects.filter(event_id=event.event_id).exists())
 
     def test_multiple_handlers_all_called(self):
         """Multiple handlers for same event type should all execute."""
         calls = []
 
-        register_handler(
-            TradeEventType.CARRIER_PO_APPROVED, lambda e: calls.append("h1")
-        )
-        register_handler(
-            TradeEventType.CARRIER_PO_APPROVED, lambda e: calls.append("h2")
-        )
-        register_handler(
-            TradeEventType.CARRIER_PO_APPROVED, lambda e: calls.append("h3")
-        )
+        register_handler(TradeEventType.CARRIER_PO_APPROVED, lambda e: calls.append("h1"))
+        register_handler(TradeEventType.CARRIER_PO_APPROVED, lambda e: calls.append("h2"))
+        register_handler(TradeEventType.CARRIER_PO_APPROVED, lambda e: calls.append("h3"))
 
         emit_trade_event(
             event_type=TradeEventType.CARRIER_PO_APPROVED,
@@ -185,9 +172,7 @@ class TradeEventDispatcherTests(TestCase):
 
     def test_get_trade_event_log_filters_by_tenant(self):
         """get_trade_event_log should only return events for the tenant."""
-        other_tenant = Tenant.objects.create(
-            name="Other", slug="other-events", schema_name="other_events"
-        )
+        other_tenant = Tenant.objects.create(name="Other", slug="other-events", schema_name="other_events")
 
         emit_trade_event(
             event_type=TradeEventType.INQUIRY_CREATED,
@@ -233,9 +218,7 @@ class TradeEventDispatcherTests(TestCase):
 
     def test_clear_handlers_removes_all(self):
         """clear_handlers() should remove all registered handlers."""
-        register_handler(
-            TradeEventType.INQUIRY_CREATED, lambda e: None
-        )
+        register_handler(TradeEventType.INQUIRY_CREATED, lambda e: None)
         clear_handlers()
 
         # Emit should not call any handler (just store)
@@ -244,9 +227,7 @@ class TradeEventDispatcherTests(TestCase):
             tenant_id=str(self.tenant.pk),
         )
         # No exception means no handler was called
-        self.assertTrue(
-            TradeEventLog.objects.filter(event_id=event.event_id).exists()
-        )
+        self.assertTrue(TradeEventLog.objects.filter(event_id=event.event_id).exists())
 
     def test_duplicate_event_id_is_rejected(self):
         """Storing the same event_id twice should raise (unique constraint)."""

@@ -1,6 +1,6 @@
 /**
  * Workflow Center - Available Workflows Catalog
- * 
+ *
  * The "App Store" view where users discover and launch workflows.
  * Displays published blueprints as cards with "Start Workflow" actions.
  */
@@ -109,11 +109,11 @@ export const WorkflowList: React.FC = () => {
   const [startingWorkflow, setStartingWorkflow] = useState<string | null>(null);
 
   // Fetch available workflows
-  const { 
-    data: blueprints, 
-    isLoading, 
+  const {
+    data: blueprints,
+    isLoading,
     error,
-    refetch 
+    refetch
   } = useQuery<Blueprint[]>({
     queryKey: withTenantQueryKey('availableWorkflows'),
     queryFn: async () => {
@@ -162,8 +162,8 @@ export const WorkflowList: React.FC = () => {
   };
 
   return (
-    <PageContainer 
-      title="Workflows" 
+    <PageContainer
+      title="Workflows"
       description="Browse and start available workflows"
       maxWidth="xl"
     >
@@ -179,9 +179,9 @@ export const WorkflowList: React.FC = () => {
           <p style={{ marginTop: '0.5rem' }}>
             {error instanceof Error ? error.message : 'An unexpected error occurred'}
           </p>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => refetch()}
             style={{ marginTop: '1rem' }}
           >
@@ -196,7 +196,7 @@ export const WorkflowList: React.FC = () => {
             <EmptyStateIcon>📋</EmptyStateIcon>
             <EmptyStateTitle>No Workflows Available</EmptyStateTitle>
             <EmptyStateDescription>
-              There are currently no published workflows available. 
+              There are currently no published workflows available.
               Contact your system administrator to publish workflows.
             </EmptyStateDescription>
           </EmptyState>
@@ -228,8 +228,8 @@ export const WorkflowList: React.FC = () => {
                   onClick={() => handleStartWorkflow(blueprint.slug)}
                   disabled={startingWorkflow === blueprint.slug}
                 >
-                  {startingWorkflow === blueprint.slug 
-                    ? 'Starting...' 
+                  {startingWorkflow === blueprint.slug
+                    ? 'Starting...'
                     : 'Start Workflow'}
                 </Button>
               </CardFooter>

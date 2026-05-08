@@ -3,25 +3,24 @@ Sales Orders views for ProjectMeats.
 
 Provides REST API endpoints for sales order management.
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError as DRFValidationError
+import logging
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from tenant_apps.carriers.services.freight_inquiry import send_carrier_freight_inquiries
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
 from tenant_apps.sales_orders.serializers import SalesOrderSerializer
-from tenant_apps.sales_orders.services.approval_dispatch import (
-    approve_sales_order_and_send_to_customer,
-)
-from tenant_apps.carriers.services.freight_inquiry import (
-    send_carrier_freight_inquiries,
-)
+from tenant_apps.sales_orders.services.approval_dispatch import approve_sales_order_and_send_to_customer
+
 from apps.core.exporting import CsvExportMixin
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +70,9 @@ class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewset
             "yes",
             "y",
         }
-        is_admin = bool(getattr(self.request.user, "is_superuser", False) or getattr(self.request.user, "is_staff", False))
+        is_admin = bool(
+            getattr(self.request.user, "is_superuser", False) or getattr(self.request.user, "is_staff", False)
+        )
 
         if include_deleted and is_admin:
             return SalesOrder.all_objects.for_tenant(self.request.tenant)
@@ -127,12 +128,14 @@ class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewset
                 {"error": result.error_message, "code": result.error_code, "details": result.details},
                 status=result.http_status,
             )
-        return Response({
-            "message": f"Freight inquiries sent to {result.inquiries_sent} carrier(s).",
-            "inquiries_sent": result.inquiries_sent,
-            "inquiries_failed": result.inquiries_failed,
-            "details": result.details,
-        })
+        return Response(
+            {
+                "message": f"Freight inquiries sent to {result.inquiries_sent} carrier(s).",
+                "inquiries_sent": result.inquiries_sent,
+                "inquiries_failed": result.inquiries_failed,
+                "details": result.details,
+            }
+        )
 
     def perform_create(self, serializer):
         """Set the tenant and auto-generate our_sales_order_num when creating a new sales order.
@@ -157,10 +160,10 @@ class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewset
 
         # Auto-generate our_sales_order_num if not provided (atomic to prevent duplicates)
         with transaction.atomic():
-            if not serializer.validated_data.get('our_sales_order_num'):
+            if not serializer.validated_data.get("our_sales_order_num"):
                 # Get all existing sales orders for this tenant with a lock
                 existing_sos = SalesOrder.objects.filter(tenant=tenant).select_for_update()
-                
+
                 # Find the highest numeric sales order number
                 max_order_num = 0
                 for so in existing_sos:
@@ -172,18 +175,18 @@ class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewset
                     except (ValueError, TypeError):
                         # Skip non-numeric order numbers
                         continue
-                
+
                 # Increment and assign
                 next_order_num = str(max_order_num + 1)
-                serializer.validated_data['our_sales_order_num'] = next_order_num
-                
+                serializer.validated_data["our_sales_order_num"] = next_order_num
+
                 logger.info(
                     f"Auto-generated our_sales_order_num: {next_order_num} for tenant {tenant.name}",
                     extra={
                         "tenant_id": tenant.id,
                         "our_sales_order_num": next_order_num,
                         "timestamp": timezone.now().isoformat(),
-                    }
+                    },
                 )
 
             serializer.save(tenant=tenant)

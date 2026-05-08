@@ -1,6 +1,6 @@
 /**
  * Validation Warnings Drawer (Phase 7)
- * 
+ *
  * Displays validation issues in a collapsible drawer with:
  * - Grouped by severity (errors, warnings, info)
  * - Click to navigate to problematic node
@@ -29,7 +29,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['errors']) // Errors expanded by default
   );
-  
+
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(section)) {
@@ -39,13 +39,13 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
     }
     setExpandedSections(newExpanded);
   };
-  
+
   const errorIssues = validation.issues.filter(i => i.severity === 'error');
   const warningIssues = validation.issues.filter(i => i.severity === 'warning');
   const infoIssues = validation.issues.filter(i => i.severity === 'info');
-  
+
   if (!isOpen) return null;
-  
+
   return (
     <DrawerContainer>
       <DrawerHeader>
@@ -59,7 +59,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
           <X size={18} />
         </CloseButton>
       </DrawerHeader>
-      
+
       <DrawerContent>
         {/* Errors Section */}
         {errorIssues.length > 0 && (
@@ -96,7 +96,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
             )}
           </Section>
         )}
-        
+
         {/* Warnings Section */}
         {warningIssues.length > 0 && (
           <Section>
@@ -129,7 +129,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
             )}
           </Section>
         )}
-        
+
         {/* Info Section */}
         {infoIssues.length > 0 && (
           <Section>
@@ -157,7 +157,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
             )}
           </Section>
         )}
-        
+
         {/* All Clear */}
         {validation.issues.length === 0 && (
           <AllClearMessage>
@@ -186,7 +186,7 @@ const DrawerContainer = styled.div`
   display: flex;
   flex-direction: column;
   animation: slideUp 0.2s ease-out;
-  
+
   @keyframes slideUp {
     from {
       transform: translateY(100%);
@@ -224,11 +224,11 @@ const StatusBadge = styled.span<{ $isValid: boolean }>`
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  background: ${props => props.$isValid 
-    ? 'rgba(var(--color-success), 0.1)' 
+  background: ${props => props.$isValid
+    ? 'rgba(var(--color-success), 0.1)'
     : 'rgba(var(--color-error), 0.1)'};
-  color: ${props => props.$isValid 
-    ? 'rgb(var(--color-success))' 
+  color: ${props => props.$isValid
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-error))'};
 `;
 
@@ -242,7 +242,7 @@ const CloseButton = styled.button`
   justify-content: center;
   color: rgb(var(--color-text-secondary));
   transition: color 0.2s;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -256,7 +256,7 @@ const DrawerContent = styled.div`
 
 const Section = styled.div`
   margin-bottom: 16px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -272,7 +272,7 @@ const SectionHeader = styled.div<{ $isExpanded: boolean }>`
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.05);
     border-color: rgb(var(--color-primary));
@@ -308,7 +308,7 @@ const IssueCard = styled.div<{ $severity: 'error' | 'warning' | 'info'; $isClick
   border-radius: 4px;
   cursor: ${props => props.$isClickable ? 'pointer' : 'default'};
   transition: all 0.2s;
-  
+
   ${props => props.$isClickable && `
     &:hover {
       background: rgba(var(--color-primary), 0.05);
@@ -345,14 +345,14 @@ const AllClearMessage = styled.div`
   justify-content: center;
   padding: 40px 20px;
   text-align: center;
-  
+
   h3 {
     margin: 16px 0 8px;
     font-size: 20px;
     font-weight: 600;
     color: rgb(var(--color-success));
   }
-  
+
   p {
     margin: 0;
     font-size: 14px;

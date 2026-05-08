@@ -1,8 +1,8 @@
 /**
  * Record Payment Modal
- * 
+ *
  * Universal modal for recording payments against Purchase Orders, Sales Orders, or Invoices.
- * 
+ *
  * Features:
  * - Pre-fills amount with outstanding balance
  * - Payment method dropdown (Check, Wire, ACH, Credit Card, Cash)
@@ -12,7 +12,7 @@
  * - Validates amount doesn't exceed outstanding
  * - Submits to /api/v1/payments/
  * - Auto-refreshes parent data on success
- * 
+ *
  * Usage:
  * ```tsx
  * <RecordPaymentModal
@@ -99,7 +99,7 @@ const CloseButton = styled.button`
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -152,12 +152,12 @@ const Input = styled.input`
   border-radius: var(--radius-md);
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -172,7 +172,7 @@ const Select = styled.select`
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -189,12 +189,12 @@ const TextArea = styled.textarea`
   font-size: 0.875rem;
   min-height: 80px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -289,7 +289,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateAmount()) {
       return;
     }

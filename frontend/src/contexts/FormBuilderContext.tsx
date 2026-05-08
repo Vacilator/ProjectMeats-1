@@ -1,9 +1,9 @@
 /**
  * FormBuilder Integration Context
- * 
+ *
  * Provides type-safe integration between React Flow editor and FormBuilder modal.
  * Replaces fragile window.dispatchEvent pattern with proper React context.
- * 
+ *
  * Created: 2026-02-21
  * Phase: Comprehensive Enhancements
  */
@@ -18,16 +18,16 @@ import { logger } from '@/utils/logger';
 export interface FormBuilderModalState {
   /** Whether modal is open */
   isOpen: boolean;
-  
+
   /** Node ID being edited */
   nodeId: string | null;
-  
+
   /** Node data (form configuration) */
   nodeData: any | null;
-  
+
   /** Node type (form, formProcessGroup, etc.) */
   nodeType: 'form' | 'formProcessGroup' | string | null;
-  
+
   /** Form ID (if editing existing form) */
   formId?: string | null;
 }
@@ -40,13 +40,13 @@ export interface FormBuilderActions {
     nodeType: 'form' | 'formProcessGroup' | string;
     formId?: string;
   }) => void;
-  
+
   /** Close FormBuilder */
   closeFormBuilder: () => void;
-  
+
   /** Update node data from FormBuilder */
   updateNodeData: (nodeId: string, updates: any) => void;
-  
+
   /** Check if FormBuilder is open for specific node */
   isEditingNode: (nodeId: string) => boolean;
 }
@@ -65,7 +65,7 @@ const FormBuilderContext = createContext<FormBuilderContextValue | null>(null);
 
 interface FormBuilderProviderProps {
   children: ReactNode;
-  
+
   /** Callback when node data is updated from FormBuilder */
   onNodeDataUpdate?: (nodeId: string, updates: any) => void;
 }
@@ -89,7 +89,7 @@ export const FormBuilderProvider: React.FC<FormBuilderProviderProps> = ({
     formId?: string;
   }) => {
     logger.debug('[FormBuilderContext] Opening FormBuilder', params);
-    
+
     setState({
       isOpen: true,
       nodeId: params.nodeId,
@@ -101,7 +101,7 @@ export const FormBuilderProvider: React.FC<FormBuilderProviderProps> = ({
 
   const closeFormBuilder = useCallback(() => {
     logger.debug('[FormBuilderContext] Closing FormBuilder');
-    
+
     setState({
       isOpen: false,
       nodeId: null,
@@ -113,13 +113,13 @@ export const FormBuilderProvider: React.FC<FormBuilderProviderProps> = ({
 
   const updateNodeData = useCallback((nodeId: string, updates: any) => {
     logger.debug('[FormBuilderContext] Updating node data', { nodeId, updates });
-    
+
     // Update internal state
     setState(prev => ({
       ...prev,
       nodeData: prev.nodeId === nodeId ? { ...prev.nodeData, ...updates } : prev.nodeData,
     }));
-    
+
     // Notify parent (UnifiedFlowEditor) to update React Flow nodes
     if (onNodeDataUpdate) {
       onNodeDataUpdate(nodeId, updates);
@@ -137,7 +137,7 @@ export const FormBuilderProvider: React.FC<FormBuilderProviderProps> = ({
     nodeData: state.nodeData,
     nodeType: state.nodeType,
     formId: state.formId,
-    
+
     // Actions
     openFormBuilder,
     closeFormBuilder,
@@ -158,28 +158,28 @@ export const FormBuilderProvider: React.FC<FormBuilderProviderProps> = ({
 
 /**
  * Hook to access FormBuilder integration context.
- * 
+ *
  * @example
  * ```tsx
  * const { openFormBuilder, closeFormBuilder, isOpen, nodeData } = useFormBuilderContext();
- * 
+ *
  * // Open FormBuilder
  * openFormBuilder({ nodeId, nodeData, nodeType: 'form' });
- * 
+ *
  * // Close FormBuilder
  * closeFormBuilder();
  * ```
  */
 export const useFormBuilderContext = (): FormBuilderContextValue => {
   const context = useContext(FormBuilderContext);
-  
+
   if (!context) {
     throw new Error(
       'useFormBuilderContext must be used within FormBuilderProvider. ' +
       'Wrap your component tree with <FormBuilderProvider>.'
     );
   }
-  
+
   return context;
 };
 

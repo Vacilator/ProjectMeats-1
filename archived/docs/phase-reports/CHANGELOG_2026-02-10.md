@@ -10,8 +10,8 @@ Five critical fixes merged to complete the multi-step container system functiona
 ## 🔧 Fixes & Enhancements
 
 ### [#2820] Fix: Workflow Persistence Authentication
-**Type**: Bug Fix (Critical)  
-**Component**: Workflow Persistence  
+**Type**: Bug Fix (Critical)
+**Component**: Workflow Persistence
 **Impact**: High
 
 #### Problem
@@ -39,8 +39,8 @@ None. Automatically uses existing auth tokens and session.
 ---
 
 ### [#2821] Fix: Show Dropped Nodes in Container MiniReactFlow
-**Type**: Bug Fix (Critical)  
-**Component**: Container System  
+**Type**: Bug Fix (Critical)
+**Component**: Container System
 **Impact**: High
 
 #### Problem
@@ -76,33 +76,33 @@ const cleanNode: Node = {
 ---
 
 ### [#2824] Feature: Enable Interactive Editing Inside Containers
-**Type**: Enhancement  
-**Component**: Container System  
+**Type**: Enhancement
+**Component**: Container System
 **Impact**: High
 
 #### Changes
 
 ##### 1. Removed MiniMap Component
-**Reason**: User request - cluttered interface, took up visual space  
+**Reason**: User request - cluttered interface, took up visual space
 **Impact**: Cleaner container UI with more room for nodes
 
 ##### 2. Fixed Pointer-Events Blocking
-**Problem**: Blanket `pointer-events: none !important` blocked ALL interactions  
+**Problem**: Blanket `pointer-events: none !important` blocked ALL interactions
 **Solution**: Granular pointer-events control per element type
 
 ```typescript
 const MiniFlowContainer = styled.div<{ $interactive?: boolean }>`
   pointer-events: auto; /* Always allow base events */
-  
+
   ${props => !props.$interactive && `
     .react-flow { pointer-events: none; }
   `}
-  
+
   .react-flow__node {
     cursor: ${props => props.$interactive ? 'grab' : 'default'};
     pointer-events: ${props => props.$interactive ? 'auto' : 'none'};
   }
-  
+
   .react-flow__node:active {
     cursor: ${props => props.$interactive ? 'grabbing' : 'default'};
   }
@@ -149,8 +149,8 @@ const handleNodesChange = useCallback((changes) => {
 ---
 
 ### [#2825] Debug: Add Extensive Logging for Diagnostics
-**Type**: Debug/Investigation  
-**Component**: Container System  
+**Type**: Debug/Investigation
+**Component**: Container System
 **Impact**: Medium (Diagnostic)
 
 #### Purpose
@@ -161,12 +161,12 @@ Comprehensive debug logging to identify exact failure point when nodes disappear
 ##### Container Component
 ```typescript
 useEffect(() => {
-  console.log(`[Container ${id}] allNodes changed. Count:`, allNodes.length, 
+  console.log(`[Container ${id}] allNodes changed. Count:`, allNodes.length,
     'My children:', allNodes.filter(n => n.parentId === id).length);
 }, [allNodes, id]);
 
 console.log(`[Container ${id}] Recalculating stats. Total nodes:`, allNodes.length);
-console.log(`[Container ${id}] Found ${childNodes.length} child nodes:`, 
+console.log(`[Container ${id}] Found ${childNodes.length} child nodes:`,
   childNodes.map(n => ({ id: n.id, type: n.type, hidden: n.hidden, parentId: n.parentId })));
 ```
 
@@ -185,8 +185,8 @@ Logs revealed container detection was failing due to bounding box calculation is
 ---
 
 ### [#2828] Fix: Container Bounding Box for Expanded Containers
-**Type**: Bug Fix (Critical)  
-**Component**: Container Drop Detection  
+**Type**: Bug Fix (Critical)
+**Component**: Container Drop Detection
 **Impact**: High
 
 #### Problem
@@ -212,7 +212,7 @@ From debug logs:
 #### Solution
 ```typescript
 // Use minimum 500px height for expanded containers
-const effectiveHeight = container.data?.isExpanded ? 
+const effectiveHeight = container.data?.isExpanded ?
                         Math.max(containerHeight, 500) : // Minimum for expanded
                         containerHeight;
 
@@ -376,6 +376,6 @@ None. All known issues resolved.
 
 **End of Changelog**
 
-**Date**: 2026-02-10  
-**Version**: Production Release  
+**Date**: 2026-02-10
+**Version**: Production Release
 **Status**: Complete ✅

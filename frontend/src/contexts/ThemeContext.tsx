@@ -1,13 +1,13 @@
 /**
  * Theme Context Provider
- * 
+ *
  * NEW: Semantic Design System Implementation
  * - Injects tenant colors into CSS variables at runtime
  * - Manages theme state (light/dark/high-contrast) across the application
  * - Persists theme preference to localStorage and syncs with backend
  * - Fetches tenant-specific branding (logo, colors) from backend
  * - Integrates with AntD ConfigProvider for consistent component theming
- * 
+ *
  * Components now reference CSS variables (--color-primary) instead of hardcoded colors.
  * This allows the same component to look completely different for each tenant.
  */
@@ -54,7 +54,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     if (stored === 'light' || stored === 'dark' || stored === 'high-contrast') {
       return stored;
     }
-    
+
     // Check for high contrast preference
     const prefersHighContrast = typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-contrast: more)').matches
@@ -62,14 +62,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     if (prefersHighContrast) {
       return 'high-contrast';
     }
-    
+
     // Check for dark mode preference
     const prefersDark = typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches
       : true;
     return prefersDark ? 'dark' : 'light';
   });
-  
+
   const [tenantBranding, setTenantBranding] = useState<TenantBranding | null>(null);
 
   const cssThemeMode: 'light' | 'dark' = themeName === 'dark' ? 'dark' : 'light';

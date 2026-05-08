@@ -1,8 +1,8 @@
 # 🎓 Lessons Learned: Deployment Failures & Search Issues (2026-02-23)
 
-**Incident Date**: February 23, 2026  
-**Severity**: CRITICAL (Full deployment pipeline broken)  
-**Resolution Time**: ~2 hours  
+**Incident Date**: February 23, 2026
+**Severity**: CRITICAL (Full deployment pipeline broken)
+**Resolution Time**: ~2 hours
 **Root Causes**: 3 distinct issues (Dependabot, Git workflow, Search config)
 
 ---
@@ -50,7 +50,7 @@ groups:
        update-types:
          - "minor"  # ✅ Only auto-merge safe updates
          - "patch"
-   
+
    ignore:
      - dependency-name: "tailwindcss"
        update-types: ["version-update:semver-major"]
@@ -103,7 +103,7 @@ gh pr create  # Now PR includes the fix
 1. **Pre-PR validation script** (`scripts/pre-pr-check.sh`):
    ```bash
    ./scripts/pre-pr-check.sh hotfix/my-branch
-   
+
    # Checks:
    # - Branch exists on remote
    # - All commits are pushed
@@ -117,7 +117,7 @@ gh pr create  # Now PR includes the fix
    ```bash
    # Step 1: Validate
    ./scripts/pre-pr-check.sh <branch-name>
-   
+
    # Step 2: Create PR (only if validation passes)
    gh pr create --base development --head <branch-name>
    ```
@@ -139,7 +139,7 @@ gh pr create  # Now PR includes the fix
   ```python
   # WRONG:
   'model': 'tenant_apps.suppliers.Supplier'  # Module path
-  
+
   # CORRECT:
   'model': 'suppliers.Supplier'  # Registered app name
   ```
@@ -148,11 +148,11 @@ gh pr create  # Now PR includes the fix
   # SalesOrder
   'order_number'  # Field doesn't exist
   'our_sales_order_num'  # Correct field name
-  
+
   # Product
   'name', 'sku'  # Fields don't exist
   'product_code', 'description_of_product_item'  # Correct
-  
+
   # Plant
   'establishment_number'  # Field doesn't exist
   'plant_est_num'  # Correct
@@ -169,12 +169,12 @@ gh pr create  # Now PR includes the fix
        """Verify all search model/field configurations are valid."""
        from apps.core.services.universal_search import SEARCHABLE_ENTITIES
        from django.apps import apps
-       
+
        for entity_type, config in SEARCHABLE_ENTITIES.items():
            # Verify model exists
            model = apps.get_model(config['model'])
            assert model is not None
-           
+
            # Verify fields exist
            for field in config['fields']:
                assert hasattr(model, field), f"{model} missing field: {field}"
@@ -226,7 +226,7 @@ jobs:
      workflow_run:
        workflows: ["Master Pipeline"]
        types: [completed]
-   
+
    jobs:
      validate-deployment:
        steps:
@@ -234,13 +234,13 @@ jobs:
            run: |
              # Check if deployment jobs actually succeeded
              DEPLOY_JOBS=$(gh run view $RUN_ID --json jobs --jq '.jobs[] | select(.name | contains("Deploy")) | select(.conclusion != "success") | .name')
-             
+
              if [[ -n "$DEPLOY_JOBS" ]]; then
                echo "deployment_ok=false"
                # Close any auto-promotion PRs
                gh pr close $PR_NUMBER --comment "Deployment failed, blocking promotion"
              fi
-         
+
          - name: Create Issue on Repeated Failures
            if: failures >= 3
            run: |
@@ -392,6 +392,6 @@ python manage.py check_search_data
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-02-23  
+**Document Version**: 1.0
+**Last Updated**: 2026-02-23
 **Next Review**: 2026-03-23 (1 month)

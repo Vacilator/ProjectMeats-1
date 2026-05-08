@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("customers", "0007_customer_custom_data_alter_customer_tenant"),
         ("locations", "0003_remove_location_contact_email_and_more"),

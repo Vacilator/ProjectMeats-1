@@ -1,6 +1,6 @@
 /**
  * Fulfillments Page
- * 
+ *
  * List and manage fulfillments.
  * Features:
  * - Fulfillment list with search and filters
@@ -61,13 +61,13 @@ const SearchInput = styled.input`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   min-width: 250px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -81,7 +81,7 @@ const FilterSelect = styled.select`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -117,11 +117,11 @@ const TableRow = styled.div`
   align-items: center;
   cursor: pointer;
   transition: background 0.15s;
-  
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
@@ -135,7 +135,7 @@ const FulfillmentNumber = styled.span`
 const InquiryLink = styled.span`
   font-size: 0.875rem;
   color: rgb(var(--color-text-secondary));
-  
+
   &:hover {
     text-decoration: underline;
   }
@@ -146,7 +146,7 @@ const EntityInfo = styled.div`
     font-weight: 500;
     color: rgb(var(--color-text-primary));
   }
-  
+
   .supplier {
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
@@ -190,7 +190,7 @@ const TrackingInfo = styled.div`
     font-family: monospace;
     color: rgb(var(--color-text-primary));
   }
-  
+
   .count {
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
@@ -209,7 +209,7 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'success' | 'secondar
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
-  
+
   ${props => {
     switch (props.variant) {
       case 'primary':
@@ -235,7 +235,7 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'success' | 'secondar
         `;
     }
   }}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -246,19 +246,19 @@ const EmptyState = styled.div`
   padding: 3rem;
   text-align: center;
   color: rgb(var(--color-text-secondary));
-  
+
   .icon {
     font-size: 3rem;
     margin-bottom: 1rem;
   }
-  
+
   .title {
     font-size: 1.125rem;
     font-weight: 500;
     color: rgb(var(--color-text-primary));
     margin-bottom: 0.5rem;
   }
-  
+
   .description {
     font-size: 0.875rem;
   }
@@ -296,11 +296,11 @@ const PaginationButton = styled.button`
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.05);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -324,19 +324,19 @@ const Fulfillments: React.FC = () => {
   const [fulfillments, setFulfillments] = useState<FulfillmentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FulfillmentStatus | ''>('');
-  
+
   // Pagination
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
-  
+
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  
+
   // Create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -346,19 +346,19 @@ const Fulfillments: React.FC = () => {
   const fetchFulfillments = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params: Record<string, any> = {
         page,
         page_size: pageSize,
       };
-      
+
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
-      
+
       const response = await apiClient.get('fulfillments/', { params });
       const data = response.data;
-      
+
       setFulfillments(data.results || data);
       setTotalCount(data.count || data.length);
     } catch (err) {
@@ -375,7 +375,7 @@ const Fulfillments: React.FC = () => {
 
   const handleAction = async (fulfillmentId: string, action: 'ship' | 'deliver' | 'complete') => {
     setActionLoading(fulfillmentId);
-    
+
     try {
       await apiClient.post(`fulfillments/${fulfillmentId}/${action}/`);
       fetchFulfillments();
@@ -393,7 +393,7 @@ const Fulfillments: React.FC = () => {
 
   const getActionButton = (fulfillment: FulfillmentListItem) => {
     const isLoading = actionLoading === fulfillment.id;
-    
+
     switch (fulfillment.status) {
       case 'pending':
       case 'in_progress':
@@ -461,7 +461,7 @@ const Fulfillments: React.FC = () => {
             setPage(1);
           }}
         />
-        
+
         <FilterSelect
           value={statusFilter}
           onChange={(e) => {
@@ -505,7 +505,7 @@ const Fulfillments: React.FC = () => {
             <div className="icon">📦</div>
             <div className="title">No Fulfillments Found</div>
             <div className="description">
-              {search || statusFilter 
+              {search || statusFilter
                 ? 'Try adjusting your filters'
                 : 'Fulfillments will appear here when you create them from accepted inquiries'}
             </div>
@@ -513,7 +513,7 @@ const Fulfillments: React.FC = () => {
         ) : (
           <>
             {fulfillments.map((fulfillment) => (
-              <TableRow 
+              <TableRow
                 key={fulfillment.id}
                 onClick={() => setSelectedFulfillmentId(fulfillment.id)}
               >

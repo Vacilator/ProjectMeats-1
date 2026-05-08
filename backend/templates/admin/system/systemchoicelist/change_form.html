@@ -29,7 +29,7 @@
     .drag-handle:hover {
         color: #333;
     }
-    
+
     /* Import/Export button styles */
     .admin-actions-bar {
         display: flex;
@@ -71,7 +71,7 @@
     .btn-reorder:hover {
         background: #5a6268;
     }
-    
+
     /* Tier badge */
     .tier-badge {
         display: inline-block;
@@ -89,10 +89,10 @@
         background: #fff3e0;
         color: #e65100;
     }
-    
+
     /* Alpine.js transitions */
     [x-cloak] { display: none !important; }
-    
+
     /* Modal styles */
     .modal-overlay {
         position: fixed;
@@ -124,7 +124,7 @@
     .modal-header h3 {
         margin: 0;
     }
-    
+
     /* Toast notification */
     .toast {
         position: fixed;
@@ -172,7 +172,7 @@
             🏢 Tenant Extensible
         </span>
     </div>
-    
+
     <!-- Import Modal -->
     <div class="modal-overlay" x-show="showImportModal" @click.self="showImportModal = false">
         <div class="modal-content">
@@ -183,8 +183,8 @@
             <div>
                 <p x-show="importFormat === 'json'">Paste JSON array of choice items:</p>
                 <p x-show="importFormat === 'csv'">Paste CSV data (header row: value,label,order,is_active,is_default):</p>
-                <textarea 
-                    x-model="importDataText" 
+                <textarea
+                    x-model="importDataText"
                     style="width: 100%; height: 200px; font-family: monospace; font-size: 12px;"
                     :placeholder="importFormat === 'csv' ? 'value,label,order,is_active,is_default\noption1,Option 1,1,true,false' : '[{\"value\": \"option1\", \"label\": \"Option 1\", \"order\": 1}]'"
                 ></textarea>
@@ -195,16 +195,16 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Toast Notification -->
-    <div 
-        class="toast" 
+    <div
+        class="toast"
         :class="toastType === 'success' ? 'toast-success' : 'toast-error'"
         x-show="showToast"
         x-text="toastMessage"
         x-transition
     ></div>
-    
+
     {{ block.super }}
 </div>
 
@@ -219,7 +219,7 @@ document.addEventListener('alpine:init', () => {
         toastType: 'success',
         dragEnabled: false,
         isSystemList: true,  // Will be set based on form data
-        
+
         init() {
             // Check if list is extensible (tenant-level allowed)
             const extensibleField = document.querySelector('input[name="is_extensible"]');
@@ -230,26 +230,26 @@ document.addEventListener('alpine:init', () => {
                 });
             }
         },
-        
+
         showNotification(message, type = 'success') {
             this.toastMessage = message;
             this.toastType = type;
             this.showToast = true;
             setTimeout(() => { this.showToast = false; }, 3000);
         },
-        
+
         exportToJson() {
             // Collect current choice items from the inline formset
             const items = [];
             const rows = document.querySelectorAll('.dynamic-systemchoiceitem_set');
-            
+
             rows.forEach(row => {
                 const valueInput = row.querySelector('input[name$="-value"]');
                 const labelInput = row.querySelector('input[name$="-label"]');
                 const orderInput = row.querySelector('input[name$="-order"]');
                 const activeInput = row.querySelector('input[name$="-is_active"]');
                 const defaultInput = row.querySelector('input[name$="-is_default"]');
-                
+
                 if (valueInput && valueInput.value) {
                     items.push({
                         value: valueInput.value,
@@ -260,7 +260,7 @@ document.addEventListener('alpine:init', () => {
                     });
                 }
             });
-            
+
             // Create download
             const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -271,23 +271,23 @@ document.addEventListener('alpine:init', () => {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
+
             this.showNotification(`Exported ${items.length} items as JSON`);
         },
-        
+
         exportToCsv() {
             // Collect current choice items from the inline formset
             const rows = document.querySelectorAll('.dynamic-systemchoiceitem_set');
             let csv = 'value,label,order,is_active,is_default\n';
             let count = 0;
-            
+
             rows.forEach(row => {
                 const valueInput = row.querySelector('input[name$="-value"]');
                 const labelInput = row.querySelector('input[name$="-label"]');
                 const orderInput = row.querySelector('input[name$="-order"]');
                 const activeInput = row.querySelector('input[name$="-is_active"]');
                 const defaultInput = row.querySelector('input[name$="-is_default"]');
-                
+
                 if (valueInput && valueInput.value) {
                     const escapeCsv = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
                     csv += [
@@ -300,7 +300,7 @@ document.addEventListener('alpine:init', () => {
                     count++;
                 }
             });
-            
+
             // Create download
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
@@ -311,10 +311,10 @@ document.addEventListener('alpine:init', () => {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
+
             this.showNotification(`Exported ${count} items as CSV`);
         },
-        
+
         importData() {
             if (this.importFormat === 'csv') {
                 this.importFromCsv();
@@ -322,38 +322,38 @@ document.addEventListener('alpine:init', () => {
                 this.importFromJson();
             }
         },
-        
+
         importFromJson() {
             try {
                 const items = JSON.parse(this.importDataText);
                 if (!Array.isArray(items)) {
                     throw new Error('JSON must be an array');
                 }
-                
+
                 // Find the inline formset
                 const tbody = document.querySelector('.inline-group tbody');
                 const addButton = document.querySelector('.add-row a');
-                
+
                 if (!tbody || !addButton) {
                     throw new Error('Could not find inline formset');
                 }
-                
+
                 // Add rows for each item
                 items.forEach((item, index) => {
                     // Click add button to create new row
                     addButton.click();
-                    
+
                     // Get the newly added row
                     const rows = document.querySelectorAll('.dynamic-systemchoiceitem_set:not(.has_original)');
                     const newRow = rows[rows.length - 1];
-                    
+
                     if (newRow) {
                         const valueInput = newRow.querySelector('input[name$="-value"]');
                         const labelInput = newRow.querySelector('input[name$="-label"]');
                         const orderInput = newRow.querySelector('input[name$="-order"]');
                         const activeInput = newRow.querySelector('input[name$="-is_active"]');
                         const defaultInput = newRow.querySelector('input[name$="-is_default"]');
-                        
+
                         if (valueInput) valueInput.value = item.value || '';
                         if (labelInput) labelInput.value = item.label || item.value || '';
                         if (orderInput) orderInput.value = item.order !== undefined ? item.order : index;
@@ -361,23 +361,23 @@ document.addEventListener('alpine:init', () => {
                         if (defaultInput) defaultInput.checked = item.is_default === true;
                     }
                 });
-                
+
                 this.showImportModal = false;
                 this.importDataText = '';
                 this.showNotification(`Imported ${items.length} items`);
-                
+
             } catch (error) {
                 this.showNotification(`Import failed: ${error.message}`, 'error');
             }
         },
-        
+
         importFromCsv() {
             try {
                 const lines = this.importDataText.trim().split('\n');
                 if (lines.length < 2) {
                     throw new Error('CSV must have header row and at least one data row');
                 }
-                
+
                 // Parse header
                 const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
                 const valueIdx = headers.indexOf('value');
@@ -385,37 +385,37 @@ document.addEventListener('alpine:init', () => {
                 const orderIdx = headers.indexOf('order');
                 const activeIdx = headers.indexOf('is_active');
                 const defaultIdx = headers.indexOf('is_default');
-                
+
                 if (valueIdx === -1) {
                     throw new Error('CSV must have a "value" column');
                 }
-                
+
                 // Find the inline formset
                 const addButton = document.querySelector('.add-row a');
                 if (!addButton) {
                     throw new Error('Could not find inline formset');
                 }
-                
+
                 // Parse data rows
                 let importCount = 0;
                 for (let i = 1; i < lines.length; i++) {
                     const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
                     if (cols.length === 0 || !cols[valueIdx]) continue;
-                    
+
                     // Click add button to create new row
                     addButton.click();
-                    
+
                     // Get the newly added row
                     const rows = document.querySelectorAll('.dynamic-systemchoiceitem_set:not(.has_original)');
                     const newRow = rows[rows.length - 1];
-                    
+
                     if (newRow) {
                         const valueInput = newRow.querySelector('input[name$="-value"]');
                         const labelInput = newRow.querySelector('input[name$="-label"]');
                         const orderInput = newRow.querySelector('input[name$="-order"]');
                         const activeInput = newRow.querySelector('input[name$="-is_active"]');
                         const defaultInput = newRow.querySelector('input[name$="-is_default"]');
-                        
+
                         if (valueInput) valueInput.value = cols[valueIdx] || '';
                         if (labelInput) labelInput.value = labelIdx !== -1 ? cols[labelIdx] : cols[valueIdx];
                         if (orderInput) orderInput.value = orderIdx !== -1 ? parseInt(cols[orderIdx]) || i : i;
@@ -424,28 +424,28 @@ document.addEventListener('alpine:init', () => {
                         importCount++;
                     }
                 }
-                
+
                 this.showImportModal = false;
                 this.importDataText = '';
                 this.showNotification(`Imported ${importCount} items from CSV`);
-                
+
             } catch (error) {
                 this.showNotification(`CSV import failed: ${error.message}`, 'error');
             }
         },
-        
+
         enableDragDrop() {
             if (this.dragEnabled) {
                 this.showNotification('Drag & drop already enabled');
                 return;
             }
-            
+
             const tbody = document.querySelector('.inline-group tbody');
             if (!tbody) {
                 this.showNotification('Could not find items table', 'error');
                 return;
             }
-            
+
             // Add drag handles to each row
             const rows = tbody.querySelectorAll('tr.dynamic-systemchoiceitem_set');
             rows.forEach(row => {
@@ -458,7 +458,7 @@ document.addEventListener('alpine:init', () => {
                     firstCell.insertBefore(handle, firstCell.firstChild);
                 }
             });
-            
+
             // Initialize Sortable
             new Sortable(tbody, {
                 handle: '.drag-handle',
@@ -477,7 +477,7 @@ document.addEventListener('alpine:init', () => {
                     this.showNotification('Order updated - save to persist');
                 }
             });
-            
+
             this.dragEnabled = true;
             this.showNotification('Drag & drop enabled - drag items to reorder');
         }

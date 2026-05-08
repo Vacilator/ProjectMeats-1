@@ -164,5 +164,5 @@ python manage.py migrate <app_name> <previous_migration_number>
 
 ---
 
-**Last Updated:** May 8, 2026  
+**Last Updated:** May 8, 2026
 **Authority:** docs/GOLDEN_PIPELINE.md

@@ -1,7 +1,7 @@
 # Tenant-Based Access Control and Role Permissions
 
-**Status**: ✅ CURRENT  
-**Category**: Features  
+**Status**: ✅ CURRENT
+**Category**: Features
 **Last Updated**: 2026-02-01
 
 ---
@@ -118,7 +118,7 @@ All ViewSets enforce tenant isolation:
 ```python
 class MyModelViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         # Strict tenant filtering
         if hasattr(self.request, 'tenant') and self.request.tenant:
@@ -183,7 +183,7 @@ python manage.py test apps.tenants.test_isolation --settings=projectmeats.settin
 3. **Force Update** (if needed):
    ```python
    from apps.tenants.models import TenantUser
-   
+
    # Re-save all TenantUsers to trigger signal
    for tu in TenantUser.objects.filter(is_active=True):
        tu.save()

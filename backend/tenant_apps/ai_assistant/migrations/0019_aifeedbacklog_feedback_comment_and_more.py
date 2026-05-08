@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ai_assistant", "0018_aidocumentsemanticchunk_ailineageevent"),
         ("tenants", "0015_alter_tenantinvitation_role_alter_tenantuser_role"),

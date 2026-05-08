@@ -1,6 +1,6 @@
 /**
  * FormBuilder components barrel export.
- * 
+ *
  * NOTE: Main FormBuilder.tsx removed - use components/form-builder instead.
  * This module kept for ConditionalVisibilityRules used by SchemaEditor.
  */

@@ -1,9 +1,9 @@
 /**
  * TenantForm API Service
- * 
+ *
  * Handles persistence of FormProcessGroup nodes to TenantForm backend records.
  * Implements the FormProcessGroup ↔ TenantForm mapping logic.
- * 
+ *
  * Created: 2026-02-24
  * Phase: Agent B - Persistence
  */
@@ -178,7 +178,7 @@ async function generateDefinitionHash(definition: any): Promise<string> {
 
 /**
  * Save FormProcessGroup node as TenantForm
- * 
+ *
  * @param groupNode - The FormProcessGroup node
  * @param allNodes - All nodes in the flow
  * @param allEdges - All edges in the flow
@@ -204,13 +204,13 @@ export async function saveFormProcessGroup(
 
 /**
  * Load TenantForm and sync back to FormProcessGroup node
- * 
+ *
  * @param tenantFormId - UUID of the TenantForm
  * @returns TenantForm data
  */
 export async function loadTenantForm(tenantFormId: string): Promise<TenantForm> {
   logger.debug('[TenantFormService] Loading TenantForm:', tenantFormId);
-  
+
   try {
     const response = await adminClient.get(`/workflows/forms/${tenantFormId}/`);
     return response.data;
@@ -222,12 +222,12 @@ export async function loadTenantForm(tenantFormId: string): Promise<TenantForm> 
 
 /**
  * Delete TenantForm
- * 
+ *
  * @param tenantFormId - UUID of the TenantForm
  */
 export async function deleteTenantForm(tenantFormId: string): Promise<void> {
   logger.debug('[TenantFormService] Deleting TenantForm:', tenantFormId);
-  
+
   try {
     await adminClient.delete(`/workflows/forms/${tenantFormId}/`);
   } catch (error: any) {
@@ -238,12 +238,12 @@ export async function deleteTenantForm(tenantFormId: string): Promise<void> {
 
 /**
  * List all TenantForms for the current tenant
- * 
+ *
  * @returns Array of TenantForms
  */
 export async function listTenantForms(): Promise<TenantForm[]> {
   logger.debug('[TenantFormService] Listing TenantForms');
-  
+
   try {
     const response = await adminClient.get('/workflows/forms/');
     return response.data.results || response.data;
@@ -256,7 +256,7 @@ export async function listTenantForms(): Promise<TenantForm[]> {
 /**
  * Auto-repair edges when a child node is deleted from FormProcessGroup
  * Bridges the gap between before/after nodes
- * 
+ *
  * @param deletedNodeId - ID of the deleted node
  * @param groupNodeId - ID of the parent FormProcessGroup
  * @param allNodes - All nodes in the flow
@@ -270,16 +270,16 @@ export function autoRepairEdges(
   allEdges: Edge[]
 ): Edge[] {
   logger.debug('[TenantFormService] Auto-repairing edges after node deletion:', deletedNodeId);
-  
+
   // Find edges connected to deleted node
   const incomingEdge = allEdges.find(edge => edge.target === deletedNodeId);
   const outgoingEdge = allEdges.find(edge => edge.source === deletedNodeId);
-  
+
   // Remove edges connected to deleted node
   let updatedEdges = allEdges.filter(
     edge => edge.source !== deletedNodeId && edge.target !== deletedNodeId
   );
-  
+
   // If both incoming and outgoing exist, bridge the gap
   if (incomingEdge && outgoingEdge) {
     const bridgeEdge: Edge = {
@@ -293,16 +293,16 @@ export function autoRepairEdges(
         strokeWidth: 2,
       }
     };
-    
+
     updatedEdges.push(bridgeEdge);
     logger.debug('[TenantFormService] Bridged gap with new edge:', bridgeEdge.id);
   }
-  
+
   // Renumber remaining child nodes
   const remainingChildren = getChildNodes(groupNodeId, allNodes)
     .filter(node => node.id !== deletedNodeId);
-  
+
   logger.debug(`[TenantFormService] ${remainingChildren.length} child nodes remaining`);
-  
+
   return updatedEdges;
 }

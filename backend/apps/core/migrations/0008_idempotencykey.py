@@ -6,38 +6,80 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tenants', '0001_initial'),
-        ('core', '0007_enable_rls_comment'),
+        ("tenants", "0001_initial"),
+        ("core", "0007_enable_rls_comment"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='IdempotencyKey',
+            name="IdempotencyKey",
             fields=[
-                ('created_on', models.DateTimeField(auto_now_add=True)),
-                ('modified_on', models.DateTimeField(auto_now=True)),
-                ('custom_data', models.JSONField(blank=True, default=dict, help_text='Extensible schema data for dynamic fields defined in Blueprints.')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('idempotency_key', models.CharField(help_text='Caller-supplied Idempotency-Key header value', max_length=255)),
-                ('request_method', models.CharField(help_text='HTTP method for the original mutation request', max_length=10)),
-                ('request_path', models.CharField(help_text='Canonical request path used for idempotency scoping', max_length=255)),
-                ('request_fingerprint', models.CharField(help_text='SHA-256 fingerprint of the request payload', max_length=64)),
-                ('response_status', models.PositiveSmallIntegerField(blank=True, help_text='Cached HTTP status for completed idempotent responses', null=True)),
-                ('response_body', models.JSONField(blank=True, help_text='Cached JSON response payload for completed requests', null=True)),
-                ('locked_until', models.DateTimeField(blank=True, help_text='Lease expiration for in-flight requests using this key', null=True)),
-                ('tenant', models.ForeignKey(help_text='Tenant this entity belongs to', on_delete=models.deletion.CASCADE, to='tenants.tenant')),
+                ("created_on", models.DateTimeField(auto_now_add=True)),
+                ("modified_on", models.DateTimeField(auto_now=True)),
+                (
+                    "custom_data",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Extensible schema data for dynamic fields defined in Blueprints.",
+                    ),
+                ),
+                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                (
+                    "idempotency_key",
+                    models.CharField(help_text="Caller-supplied Idempotency-Key header value", max_length=255),
+                ),
+                (
+                    "request_method",
+                    models.CharField(help_text="HTTP method for the original mutation request", max_length=10),
+                ),
+                (
+                    "request_path",
+                    models.CharField(help_text="Canonical request path used for idempotency scoping", max_length=255),
+                ),
+                (
+                    "request_fingerprint",
+                    models.CharField(help_text="SHA-256 fingerprint of the request payload", max_length=64),
+                ),
+                (
+                    "response_status",
+                    models.PositiveSmallIntegerField(
+                        blank=True, help_text="Cached HTTP status for completed idempotent responses", null=True
+                    ),
+                ),
+                (
+                    "response_body",
+                    models.JSONField(
+                        blank=True, help_text="Cached JSON response payload for completed requests", null=True
+                    ),
+                ),
+                (
+                    "locked_until",
+                    models.DateTimeField(
+                        blank=True, help_text="Lease expiration for in-flight requests using this key", null=True
+                    ),
+                ),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        help_text="Tenant this entity belongs to",
+                        on_delete=models.deletion.CASCADE,
+                        to="tenants.tenant",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_on'],
-                'indexes': [
-                    models.Index(fields=['tenant', 'idempotency_key'], name='core_idempo_tenant__833410_idx'),
-                    models.Index(fields=['tenant', 'locked_until'], name='core_idempo_tenant__db8539_idx'),
-                    models.Index(fields=['tenant', '-created_on'], name='core_idempo_tenant__58b7e7_idx'),
+                "ordering": ["-created_on"],
+                "indexes": [
+                    models.Index(fields=["tenant", "idempotency_key"], name="core_idempo_tenant__833410_idx"),
+                    models.Index(fields=["tenant", "locked_until"], name="core_idempo_tenant__db8539_idx"),
+                    models.Index(fields=["tenant", "-created_on"], name="core_idempo_tenant__58b7e7_idx"),
                 ],
-                'constraints': [
-                    models.UniqueConstraint(fields=('tenant', 'idempotency_key'), name='core_idempotencykey_tenant_key_uniq'),
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("tenant", "idempotency_key"), name="core_idempotencykey_tenant_key_uniq"
+                    ),
                 ],
             },
         ),

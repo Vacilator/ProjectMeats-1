@@ -7,7 +7,6 @@ from django.utils import timezone
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0006_inquiry_shipping_type"),
         ("tenants", "0013_alter_activitylog_action"),

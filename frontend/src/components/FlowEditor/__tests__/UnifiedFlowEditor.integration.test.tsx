@@ -1,6 +1,6 @@
 /**
  * UnifiedFlowEditor - E2E Integration Tests
- * 
+ *
  * Tests the complete workflow from node creation to persistence
  */
 
@@ -114,10 +114,10 @@ vi.mock('@xyflow/react', () => ({
 describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   const mockOnSave = vi.fn();
   let queryClient: QueryClient;
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Create fresh QueryClient for each test
     queryClient = new QueryClient({
       defaultOptions: {
@@ -127,22 +127,22 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
         },
       },
     });
-    
+
     // Mock API responses
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] });
-    (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ 
-      data: { id: '123', version: 1 } 
+    (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { id: '123', version: 1 }
     });
-    (apiClient.put as ReturnType<typeof vi.fn>).mockResolvedValue({ 
-      data: { id: '123', version: 2 } 
+    (apiClient.put as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { id: '123', version: 2 }
     });
-    
+
     // Create portal root
     const portalRoot = document.createElement('div');
     portalRoot.id = 'config-portal';
     document.body.appendChild(portalRoot);
   });
-  
+
   afterEach(() => {
     const portal = document.getElementById('config-portal');
     if (portal) {
@@ -150,7 +150,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
     }
     queryClient.clear();
   });
-  
+
   // Helper to render with QueryClientProvider
   const renderWithQuery = (ui: React.ReactElement) => {
     return render(
@@ -170,7 +170,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
       expect(screen.getByTestId('react-flow')).toBeInTheDocument();
       expect(screen.getByTestId('controls')).toBeInTheDocument();
-      
+
       // Check portal is hidden initially
       const portal = document.getElementById('config-portal');
       expect(portal).toBeInTheDocument();
@@ -189,13 +189,13 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
           edges: [],
         },
       };
-      
+
       (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: mockForm });
 
       renderWithQuery(
-        
+
           <UnifiedFlowEditor formId="123" onSave={mockOnSave} />
-        
+
       );
 
       await waitFor(() => {
@@ -207,9 +207,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('2. Node Palette & Canvas Interaction', () => {
     it('should show only Trigger nodes on a blank canvas', () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       // Blank canvas UX: only trigger entrypoints should be visible in the palette
@@ -240,9 +240,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should hide portal when no node is selected', () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       const portal = document.getElementById('config-portal');
@@ -254,9 +254,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('3. Form Persistence', () => {
     it('should save new form to backend', async () => {
       render(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       // Find and click save button
@@ -282,9 +282,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should update existing form', async () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor formId="123" onSave={mockOnSave} />
-        
+
       );
 
       const saveButton = screen.getByRole('button', { name: /save/i });
@@ -311,9 +311,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       );
 
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       const saveButton = screen.getByRole('button', { name: /save/i });
@@ -331,9 +331,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('4. Undo/Redo Functionality', () => {
     it('should undo and redo node additions', () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       const undoButton = screen.getByLabelText(/undo/i);
@@ -350,13 +350,13 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('5. Template Export/Import', () => {
     it('should export workflow as JSON', () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       const exportButton = screen.getByRole('button', { name: /export/i });
-      
+
       // Mock download
       const createObjectURL = vi.fn();
       global.URL.createObjectURL = createObjectURL;
@@ -369,9 +369,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should import workflow from JSON', async () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       const mockFile = new File(
@@ -381,7 +381,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       );
 
       const input = screen.getByLabelText(/import/i);
-      
+
       await userEvent.upload(input, mockFile);
 
       // Should load the workflow
@@ -394,14 +394,14 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('6. Read-Only Mode', () => {
     it('should disable editing in read-only mode', () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor readOnly={true} onSave={mockOnSave} />
-        
+
       );
 
       // Save button should not exist
       expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
-      
+
       // Undo/redo should be disabled
       expect(screen.getByLabelText(/undo/i)).toBeDisabled();
       expect(screen.getByLabelText(/redo/i)).toBeDisabled();
@@ -419,9 +419,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       };
 
       renderWithQuery(
-        
+
           <BadComponent />
-        
+
       );
 
       // Error boundary should catch it
@@ -434,9 +434,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('8. Keyboard Shortcuts', () => {
     it('should handle Ctrl+S for save', () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       fireEvent.keyDown(window, { key: 's', ctrlKey: true });
@@ -448,9 +448,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should handle Ctrl+Z for undo', () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
@@ -460,9 +460,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should handle Escape to close panels', () => {
       renderWithQuery(
-        
+
           <UnifiedFlowEditor onSave={mockOnSave} />
-        
+
       );
 
       fireEvent.keyDown(window, { key: 'Escape' });
@@ -487,13 +487,13 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       const startTime = performance.now();
 
       renderWithQuery(
-        
-          <UnifiedFlowEditor 
+
+          <UnifiedFlowEditor
             initialNodes={largeWorkflow.nodes}
             initialEdges={largeWorkflow.edges}
             onSave={mockOnSave}
           />
-        
+
       );
 
       const endTime = performance.now();

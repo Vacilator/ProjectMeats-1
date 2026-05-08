@@ -1,7 +1,7 @@
 # Database Sync Guide
 
-**Status**: ✅ CURRENT  
-**Category**: Guides  
+**Status**: ✅ CURRENT
+**Category**: Guides
 **Last Updated**: 2026-04-30
 
 ---
@@ -10,8 +10,8 @@
 > - `DATABASE_SYNC_STRATEGY.md` (architectural decisions)
 > - `DATABASE_SYNC_SETUP.md` (initial setup checklist)
 
-**Workflow:** `.github/workflows/db-sync-prod-to-uat.yml`  
-**Schedule:** Daily at 00:00 UTC  
+**Workflow:** `.github/workflows/db-sync-prod-to-uat.yml`
+**Schedule:** Daily at 00:00 UTC
 **Purpose:** Sync production business data to UAT environment for testing with realistic data
 
 ---
@@ -167,7 +167,7 @@ BEGIN
       AND table_name NOT LIKE 'django_%'
   ) LOOP
     -- Delete only non-test tenant data
-    EXECUTE format('DELETE FROM %I.%I WHERE tenant_id NOT IN (SELECT id FROM apps_tenants_tenant WHERE schema_name LIKE ''test_%%'');', 
+    EXECUTE format('DELETE FROM %I.%I WHERE tenant_id NOT IN (SELECT id FROM apps_tenants_tenant WHERE schema_name LIKE ''test_%%'');',
       r.table_schema, r.table_name);
   END LOOP;
 END $$;
@@ -369,7 +369,7 @@ ERROR: duplicate key value violates unique constraint
    ```
 2. Manually fix orphaned references:
    ```sql
-   UPDATE apps_suppliers_supplier 
+   UPDATE apps_suppliers_supplier
    SET owner_id = (SELECT id FROM auth_user WHERE is_superuser = true LIMIT 1)
    WHERE owner_id NOT IN (SELECT id FROM auth_user);
    ```
@@ -563,6 +563,6 @@ Impact: [any data loss]
 
 ---
 
-**Status:** ✅ Production-Ready  
-**Last Updated:** January 5, 2026  
+**Status:** ✅ Production-Ready
+**Last Updated:** January 5, 2026
 **Maintained By:** Infrastructure Team

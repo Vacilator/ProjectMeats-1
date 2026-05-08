@@ -17,7 +17,7 @@
   --color-primary-active: 153, 27, 27; /* red-800 */
   --color-primary-foreground: 255, 255, 255;
   --color-primary-dark: var(--color-primary-hover); /* back-compat alias */
-  
+
   --color-secondary: 31, 41, 55; /* gray-800 */
   --color-secondary-hover: 55, 65, 81; /* gray-700 */
   --color-secondary-foreground: 255, 255, 255;
@@ -36,7 +36,7 @@
   /* Back-compat aliases (used by older components) */
   --color-bg-primary: var(--color-surface);
   --color-bg-secondary: var(--color-background);
-  
+
   --color-text-primary: 44, 62, 80;
   --color-text-secondary: 108, 117, 125;
   --color-text-muted: var(--color-text-secondary);
@@ -48,7 +48,7 @@
 
   /* Back-compat alias used by some pages (e.g. FlowEditor) */
   --color-bg-layout: var(--color-background);
-  
+
   --color-border: 222, 226, 230; /* gray-300 */
   --color-border-light: 233, 236, 239; /* gray-200 */
   --color-input: 229, 231, 235;
@@ -104,7 +104,7 @@
   /* --- Typography --- */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   --font-mono: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
-  
+
   /* --- Input States --- */
   --color-input-readonly: 243, 244, 246; /* gray-100 - slightly darker than surface for light mode */
 }
@@ -117,7 +117,7 @@
   --color-primary-hover: 93, 173, 226;
   --color-primary-active: 41, 128, 185;
   --color-primary-dark: var(--color-primary-hover); /* back-compat alias */
-  
+
   --color-background: 26, 26, 26;
   --color-surface: 45, 45, 45;
   --color-surface-hover: 61, 61, 61;
@@ -127,7 +127,7 @@
   /* Back-compat aliases (used by older components) */
   --color-bg-primary: var(--color-surface);
   --color-bg-secondary: var(--color-background);
-  
+
   --color-text-primary: 224, 224, 224;
   --color-text-secondary: 160, 160, 160;
   --color-text-muted: var(--color-text-secondary);
@@ -139,7 +139,7 @@
 
   /* Back-compat alias */
   --color-bg-layout: var(--color-background);
-  
+
   --color-border: 61, 61, 61;
   --color-border-light: 77, 77, 77;
 
@@ -175,7 +175,7 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7);
   --shadow-float: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-float-hover: 0 6px 16px rgba(0, 0, 0, 0.7);
-  
+
   /* --- Input States (Dark Mode) --- */
   --color-input-readonly: 55, 55, 55; /* Slightly lighter than surface for visibility */
 }

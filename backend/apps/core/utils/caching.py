@@ -38,7 +38,7 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-_CACHE_PREFIX = 'pm:tc'
+_CACHE_PREFIX = "pm:tc"
 _DEFAULT_TIMEOUT = 300  # 5 minutes
 
 
@@ -53,7 +53,7 @@ def tenant_cache_key(tenant_id: str, *segments: str) -> str:
         Cache key like 'pm:tc:{tenant_id}:dashboard:stats'
     """
     parts = [_CACHE_PREFIX, str(tenant_id)] + list(segments)
-    return ':'.join(parts)
+    return ":".join(parts)
 
 
 def tenant_cache_key_with_params(tenant_id: str, prefix: str, params: dict[str, Any]) -> str:
@@ -61,15 +61,15 @@ def tenant_cache_key_with_params(tenant_id: str, prefix: str, params: dict[str, 
 
     Uses a hash of sorted params to keep key length manageable.
     """
-    param_str = '&'.join(f'{k}={v}' for k, v in sorted(params.items()) if v is not None)
-    param_hash = hashlib.md5(param_str.encode()).hexdigest()[:8] if param_str else 'all'
+    param_str = "&".join(f"{k}={v}" for k, v in sorted(params.items()) if v is not None)
+    param_hash = hashlib.md5(param_str.encode()).hexdigest()[:8] if param_str else "all"
     return tenant_cache_key(tenant_id, prefix, param_hash)
 
 
 def cached_queryset(
     prefix: str,
     timeout: int = _DEFAULT_TIMEOUT,
-    tenant_id_arg: str = 'tenant_id',
+    tenant_id_arg: str = "tenant_id",
 ) -> Callable:
     """Decorator for caching expensive queryset or service results.
 
@@ -92,15 +92,15 @@ def cached_queryset(
             key = tenant_cache_key(str(tid), prefix, func.__qualname__)
             cached = cache.get(key)
             if cached is not None:
-                logger.debug('[Cache HIT] %s', key)
+                logger.debug("[Cache HIT] %s", key)
                 return cached
 
-            logger.debug('[Cache MISS] %s', key)
+            logger.debug("[Cache MISS] %s", key)
             result = func(*args, **kwargs)
             try:
                 cache.set(key, result, timeout)
             except Exception:
-                logger.debug('Cache set failed for %s', key, exc_info=True)
+                logger.debug("Cache set failed for %s", key, exc_info=True)
             return result
 
         wrapper.cache_prefix = prefix
@@ -132,8 +132,9 @@ def invalidate_tenant_cache(tenant_id: str, *prefixes: str) -> int:
                 # Try pattern-based delete (Redis)
                 try:
                     from django_redis import get_redis_connection
-                    conn = get_redis_connection('default')
-                    keys = conn.keys(f'{key_pattern}*')
+
+                    conn = get_redis_connection("default")
+                    keys = conn.keys(f"{key_pattern}*")
                     if keys:
                         conn.delete(*keys)
                         count += len(keys)
@@ -146,15 +147,16 @@ def invalidate_tenant_cache(tenant_id: str, *prefixes: str) -> int:
             key_pattern = tenant_cache_key(str(tenant_id))
             try:
                 from django_redis import get_redis_connection
-                conn = get_redis_connection('default')
-                keys = conn.keys(f'{key_pattern}*')
+
+                conn = get_redis_connection("default")
+                keys = conn.keys(f"{key_pattern}*")
                 if keys:
                     conn.delete(*keys)
                     count = len(keys)
             except (ImportError, Exception):
                 pass
     except Exception:
-        logger.debug('Cache invalidation failed for tenant %s', tenant_id, exc_info=True)
+        logger.debug("Cache invalidation failed for tenant %s", tenant_id, exc_info=True)
     return count
 
 
@@ -171,20 +173,20 @@ class TenantCacheMixin:
     """
 
     cache_timeout: int = _DEFAULT_TIMEOUT
-    cache_actions: list[str] = ['list']
-    cache_prefix: str = ''
+    cache_actions: list[str] = ["list"]
+    cache_prefix: str = ""
 
     def _get_cache_prefix(self) -> str:
         return self.cache_prefix or self.__class__.__name__.lower()
 
     def _get_tenant_id(self) -> str | None:
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if tenant:
             return str(tenant.id)
         return None
 
     def list(self, request, *args, **kwargs):
-        if 'list' not in self.cache_actions:
+        if "list" not in self.cache_actions:
             return super().list(request, *args, **kwargs)
 
         tenant_id = self._get_tenant_id()
@@ -194,13 +196,14 @@ class TenantCacheMixin:
         # Build cache key from query params
         key = tenant_cache_key_with_params(
             tenant_id,
-            self._get_cache_prefix() + ':list',
+            self._get_cache_prefix() + ":list",
             dict(request.query_params),
         )
 
         cached = cache.get(key)
         if cached is not None:
             from rest_framework.response import Response
+
             return Response(cached)
 
         response = super().list(request, *args, **kwargs)

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("products", "0005_add_products_m2m"),
         ("suppliers", "0006_alter_supplier_plant"),

@@ -1,16 +1,16 @@
 /**
  * Shared Styled Components for Config Panels
- * 
+ *
  * Phase E.1: Foundation - Consolidation of duplicated styled components
- * 
+ *
  * Before: 400+ lines of duplicate styled components across 21 config panel files
  * After: Single source of truth with consistent styling
- * 
+ *
  * Usage:
  * ```typescript
  * import { PanelOverlay, PanelContainer, Label, Input } from './shared/StyledComponents';
  * ```
- * 
+ *
  * Created: 2026-02-17 - Phase E.1 FlowEditor Refactoring
  */
 import styled from 'styled-components';
@@ -33,7 +33,7 @@ export const PanelOverlay = styled.div<{ $isOpen?: boolean }>`
   z-index: 1000;
   display: ${props => props.$isOpen === false ? 'none' : 'block'};
   animation: fadeIn 0.2s ease-out;
-  
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -43,7 +43,7 @@ export const PanelOverlay = styled.div<{ $isOpen?: boolean }>`
 /**
  * Panel Container - Main panel wrapper (slide-in from right)
  * Used by: CreateRecordConfigPanel, DocumentConfigPanel, etc.
- * 
+ *
  * Updated: 2026-02-24 - Fixed responsive width and overflow issues
  */
 export const Panel = styled.div<{ $width?: string }>`
@@ -61,17 +61,17 @@ export const Panel = styled.div<{ $width?: string }>`
   z-index: 1001;
   overflow-x: auto;
   animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  
+
   @keyframes slideIn {
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
   }
-  
+
   @media (max-width: 1024px) {
     width: 60vw;
     min-width: 400px;
   }
-  
+
   @media (max-width: 768px) {
     width: 100vw;
     max-width: none;
@@ -125,12 +125,12 @@ export const CloseButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-background));
     color: rgb(var(--color-text-primary));
   }
-  
+
   &:active {
     transform: scale(0.95);
   }
@@ -169,7 +169,7 @@ export const PanelFooter = styled.div`
  */
 export const Section = styled.div<{ $marginBottom?: string }>`
   margin-bottom: ${props => props.$marginBottom || '20px'};
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -181,7 +181,7 @@ export const Section = styled.div<{ $marginBottom?: string }>`
  */
 export const FormSection = styled.div`
   margin-bottom: 24px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -218,7 +218,7 @@ export const SectionTitle = styled.h3`
  */
 export const FormField = styled.div<{ $marginBottom?: string }>`
   margin-bottom: ${props => props.$marginBottom || '16px'};
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -229,7 +229,7 @@ export const FormField = styled.div<{ $marginBottom?: string }>`
  */
 export const Field = styled.div`
   margin-bottom: 16px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -320,18 +320,18 @@ export const Input = styled.input<{ $hasError?: boolean }>`
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
   transition: all 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -349,13 +349,13 @@ export const TextInput = styled.input<{ $hasError?: boolean }>`
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
   transition: all 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -377,18 +377,18 @@ export const TextArea = styled.textarea<{ $hasError?: boolean; $minHeight?: stri
   min-height: ${props => props.$minHeight || '80px'};
   transition: all 0.2s;
   font-family: inherit;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -407,13 +407,13 @@ export const Select = styled.select<{ $hasError?: boolean }>`
   color: rgb(var(--color-text-primary));
   transition: all 0.2s;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -428,8 +428,8 @@ export const Select = styled.select<{ $hasError?: boolean }>`
  * Button - Configurable button with variants
  * Variants: primary (blue), secondary (gray), ghost (transparent)
  */
-export const Button = styled.button<{ 
-  $variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; 
+export const Button = styled.button<{
+  $variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   $size?: 'sm' | 'md' | 'lg';
   $fullWidth?: boolean;
 }>`
@@ -457,7 +457,7 @@ export const Button = styled.button<{
   cursor: pointer;
   transition: all 0.2s;
   width: ${props => props.$fullWidth ? '100%' : 'auto'};
-  
+
   /* Variant styles */
   ${props => {
     switch (props.$variant) {
@@ -490,7 +490,7 @@ export const Button = styled.button<{
         `;
     }
   }}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -553,7 +553,7 @@ export const AddButton = styled.button`
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
@@ -574,11 +574,11 @@ export const RemoveButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(var(--color-error), 0.1);
   }
-  
+
   &:active {
     transform: scale(0.95);
   }
@@ -602,7 +602,7 @@ export const ErrorMessage = styled.div`
   color: rgb(var(--color-error));
   font-size: 14px;
   margin-bottom: 16px;
-  
+
   svg {
     flex-shrink: 0;
   }
@@ -622,7 +622,7 @@ export const WarningMessage = styled.div`
   color: rgb(var(--color-warning));
   font-size: 14px;
   margin-bottom: 16px;
-  
+
   svg {
     flex-shrink: 0;
   }
@@ -677,7 +677,7 @@ export const SettingRow = styled.div`
   gap: 16px;
   padding: 12px 0;
   border-bottom: 1px solid rgb(var(--color-border));
-  
+
   &:last-child {
     border-bottom: none;
   }

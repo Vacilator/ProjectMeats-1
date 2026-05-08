@@ -1,15 +1,15 @@
 /**
  * Validation Rule Builder Component
- * 
+ *
  * Reusable component for building field validation rules.
  * Used by FormFieldConfigPanel and other configuration panels.
- * 
+ *
  * Features:
  * - Multiple validation rule types (required, length, pattern, etc.)
  * - Custom error messages
  * - Add/edit/delete rules
  * - Real-time validation preview
- * 
+ *
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  */
 import React, { useState } from 'react';
@@ -30,7 +30,7 @@ import {
 // TypeScript Interfaces
 // ============================================================================
 
-export type ValidationRuleType = 
+export type ValidationRuleType =
   | 'required'
   | 'minLength'
   | 'maxLength'
@@ -169,7 +169,7 @@ const RuleItem = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
@@ -230,12 +230,12 @@ const IconButton = styled.button`
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-border));
     color: rgb(var(--color-text-primary));
   }
-  
+
   &:hover svg {
     stroke-width: 2.5;
   }
@@ -256,7 +256,7 @@ const AddButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
@@ -339,7 +339,7 @@ const Input = styled.input`
   color: rgb(var(--color-text-primary));
   background: rgb(var(--color-background));
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -359,7 +359,7 @@ const TextArea = styled.textarea`
   font-family: inherit;
   resize: vertical;
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -377,11 +377,11 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   ${props => props.$variant === 'primary' ? `
     background: rgb(var(--color-primary));
     color: rgb(var(--color-text-inverse));
-    
+
     &:hover {
       opacity: 0.9;
     }
@@ -389,12 +389,12 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
     background: rgb(var(--color-background));
     color: rgb(var(--color-text-primary));
     border: 1px solid rgb(var(--color-border));
-    
+
     &:hover {
       background: rgb(var(--color-border));
     }
   `}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -440,7 +440,7 @@ export const ValidationRuleBuilder: React.FC<ValidationRuleBuilderProps> = ({
     if (!formData.type) return;
 
     const ruleDefinition = RULE_DEFINITIONS[formData.type];
-    
+
     // Validate required value
     if (ruleDefinition.requiresValue && !formData.value) {
       showAlert({

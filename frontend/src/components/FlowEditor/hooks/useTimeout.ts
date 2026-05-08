@@ -1,11 +1,11 @@
 /**
  * useTimeout Hook
- * 
+ *
  * Hook to detect when an async operation has exceeded a timeout threshold.
  * Useful for showing timeout messages or retry buttons.
- * 
+ *
  * Created: 2026-02-21 - Loading States Enhancement
- * 
+ *
  * @module useTimeout
  */
 
@@ -31,7 +31,7 @@ export interface UseTimeoutReturn {
 
 /**
  * Hook to detect when an async operation times out
- * 
+ *
  * @example
  * ```tsx
  * const { data, isLoading } = useQuery(...);
@@ -40,7 +40,7 @@ export interface UseTimeoutReturn {
  *   timeout: 5000,
  *   onTimeout: () => logger.debug('Request timed out!')
  * });
- * 
+ *
  * if (isTimedOut) {
  *   return <TimeoutMessage onRetry={resetTimeout} />;
  * }
@@ -48,7 +48,7 @@ export interface UseTimeoutReturn {
  */
 export function useTimeout(options: UseTimeoutOptions): UseTimeoutReturn {
   const { timeout = 5000, isLoading, onTimeout } = options;
-  
+
   const [isTimedOut, setIsTimedOut] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);

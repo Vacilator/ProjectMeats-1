@@ -14,7 +14,7 @@ import os
 # Always try setuptools first for any standard command
 try:
     from setuptools import setup
-    
+
     # If we have a standard setuptools command or are being called by pip, use setuptools
     if (len(sys.argv) > 1 and sys.argv[1] in [
         'egg_info', 'bdist_wheel', 'sdist', 'build', 'install', 'develop',
@@ -24,7 +24,7 @@ try:
         # All configuration is in pyproject.toml
         setup()
         sys.exit(0)
-        
+
 except ImportError:
     pass
 
@@ -35,6 +35,6 @@ print()
 print("Available options:")
 print("  python setup_env.py           # Full setup (backend + frontend)")
 print("  python setup_env.py --backend # Backend only")
-print("  python setup_env.py --frontend# Frontend only")  
+print("  python setup_env.py --frontend# Frontend only")
 print("  python setup_env.py --help    # Show help")
 sys.exit(1)

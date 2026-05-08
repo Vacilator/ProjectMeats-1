@@ -1,12 +1,12 @@
 /**
  * WorkForms Permissions Hook
- * 
+ *
  * Phase 4.2: Role-based permission system for WorkForms editor.
- * 
+ *
  * Usage:
  * ```typescript
  * const { permissions, isLoading } = useWorkFormPermissions();
- * 
+ *
  * if (permissions.can_create) {
  *   // Show create button
  * }

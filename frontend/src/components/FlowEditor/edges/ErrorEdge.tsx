@@ -1,9 +1,9 @@
 /**
  * Error Edge Component
- * 
+ *
  * Specialized edge for error handling paths in workflows.
  * Features warning icons, red styling, and error message display.
- * 
+ *
  * Sprint 1: Visual Excellence - Task 1.1
  * Created: 2026-02-17
  */

@@ -1,8 +1,8 @@
 /**
  * TabbedConfigPanelWithShadow
- * 
+ *
  * Wrapper around TabbedConfigPanel that adds shadow state management.
- * 
+ *
  * Features:
  * - Non-destructive editing (changes staged in shadowConfig)
  * - Apply/Discard buttons
@@ -10,7 +10,7 @@
  * - Confirmation on close with unsaved changes
  * - Tabbed interface (General, Advanced, Preview)
  * - Animated transitions
- * 
+ *
  * Created: 2026-02-24 - Phase D.3 Tabbed Config Enhancement
  */
 
@@ -67,7 +67,7 @@ const DirtyIndicatorBanner = styled.div<{ $show: boolean }>`
   color: rgb(var(--color-warning));
   font-size: 14px;
   font-weight: 500;
-  
+
   svg {
     flex-shrink: 0;
     width: 18px;
@@ -110,7 +110,7 @@ const ConfirmationModal = styled.div<{ $show: boolean }>`
   justify-content: center;
   z-index: 2000;
   animation: fadeIn 0.2s;
-  
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -170,7 +170,7 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
 }) => {
   const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
   const isReadOnly = Boolean(readOnly);
-  
+
   // Use shadow state hook
   const {
     shadowConfig,
@@ -196,7 +196,7 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
   const handleApply = useCallback(() => {
     if (!node) return;
     if (isReadOnly) return;
-    
+
     const sanitized = (sanitizeNodeConfigForPersistence(shadowConfig) || {}) as Record<string, any>;
 
     // Commit shadow state
@@ -204,7 +204,7 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
 
     // Also call the original onUpdate to trigger history
     onUpdate(node.id, sanitized);
-    
+
     logger.debug('Applied changes to node', { component: 'ShadowState', metadata: { nodeId: node.id } });
   }, [node, isReadOnly, commitShadow, onUpdate, shadowConfig]);
 

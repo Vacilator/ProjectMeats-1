@@ -1,8 +1,8 @@
 """API coverage for signed-grant public portal read endpoints."""
 
+import uuid
 from datetime import timedelta
 from decimal import Decimal
-import uuid
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
@@ -11,19 +11,15 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.core.models import (
-    PortalDocumentReference,
-    PortalGrant,
-    PortalGrantDocumentAccess,
-    TenantAuditEvent,
-)
-from apps.tenants.models import Tenant
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
 from tenant_apps.fulfillments.models import Fulfillment
 from tenant_apps.inquiries.models import Inquiry, InquiryEntityTypeChoices, InquiryStatusChoices
 from tenant_apps.invoices.models import Invoice, InvoiceStatus
 from tenant_apps.suppliers.models import Supplier
+
+from apps.core.models import PortalDocumentReference, PortalGrant, PortalGrantDocumentAccess, TenantAuditEvent
+from apps.tenants.models import Tenant
 
 
 @override_settings(ROOT_URLCONF="projectmeats.urls")
@@ -246,9 +242,7 @@ class PortalReadAPITests(APITestCase):
         invoice_only_token = "invoice-only-token"
         invoice_only_grant.issue_token(invoice_only_token)
         invoice_only_grant.save()
-        snapshot_url = (
-            f"/api/v1/tenants/{self.tenant.id}/portal/grants/{invoice_only_grant.id}/snapshot/"
-        )
+        snapshot_url = f"/api/v1/tenants/{self.tenant.id}/portal/grants/{invoice_only_grant.id}/snapshot/"
 
         response = self.client.get(snapshot_url, {"token": invoice_only_token})
 
@@ -287,9 +281,7 @@ class PortalReadAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_invoice_summary_rejects_tenant_path_mismatch(self):
-        mismatched_url = (
-            f"/api/v1/tenants/{self.other_tenant.id}/portal/grants/{self.grant.id}/invoice-summary/"
-        )
+        mismatched_url = f"/api/v1/tenants/{self.other_tenant.id}/portal/grants/{self.grant.id}/invoice-summary/"
 
         response = self.client.get(mismatched_url, {"token": self.raw_token})
 
@@ -318,9 +310,7 @@ class PortalReadAPITests(APITestCase):
         one_time_token = "one-time-portal-token"
         one_time_grant.issue_token(one_time_token)
         one_time_grant.save()
-        one_time_url = (
-            f"/api/v1/tenants/{self.tenant.id}/portal/grants/{one_time_grant.id}/snapshot/"
-        )
+        one_time_url = f"/api/v1/tenants/{self.tenant.id}/portal/grants/{one_time_grant.id}/snapshot/"
 
         first_response = self.client.get(one_time_url, {"token": one_time_token})
         second_response = self.client.get(one_time_url, {"token": one_time_token})

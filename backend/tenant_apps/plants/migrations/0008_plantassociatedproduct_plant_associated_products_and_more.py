@@ -6,7 +6,6 @@ from django.db.migrations.operations.special import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("plants", "0007_plant_created_on_plant_custom_data_plant_modified_on_and_more"),
         ("system", "0010_product_is_system_tenantproductpreference_is_custom"),

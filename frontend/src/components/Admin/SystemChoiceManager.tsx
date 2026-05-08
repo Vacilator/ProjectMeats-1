@@ -1,18 +1,18 @@
 /**
  * System Choice Manager
- * 
+ *
  * Admin UI for managing SystemChoiceList (Tier 1 system-wide defaults).
  * Allows superadmins to create/edit choice lists and items.
- * 
+ *
  * Features:
  * - CRUD operations for SystemChoiceList
  * - Manage SystemChoiceItem entries
  * - Set display order, enabled/disabled state
  * - Configure list properties (extensible, reorderable)
- * 
+ *
  * Phase 3: Tiered Choice Engine
  * Created: 2026-02-23
- * 
+ *
  * @module SystemChoiceManager
  */
 
@@ -136,10 +136,10 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
    */
   const filteredLists = useMemo(() => {
     return choiceLists.filter((list) => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         list.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
         list.slug.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const matchesCategory = categoryFilter === 'all' || list.category === categoryFilter;
 
       return matchesSearch && matchesCategory;

@@ -1,16 +1,16 @@
 /**
  * Payables Purchase Orders Page
- * 
+ *
  * Accounting view of purchase orders showing payment status and outstanding balances.
  * This is a specialized view focused on payables accounting rather than procurement.
- * 
+ *
  * Features:
  * - View all purchase orders from accounting perspective
  * - Filter by payment status (unpaid, partial, paid)
  * - Track outstanding amounts and due dates
  * - Side panel with order details and activity feed
  * - Record payment functionality with modal
- * 
+ *
  * Pattern: Follows Invoices.tsx architecture with side panel integration
  */
 import React, { useState, useEffect } from 'react';
@@ -78,7 +78,7 @@ const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
   transition: grid-template-columns 0.3s ease;
   flex: 1;
   overflow: hidden;
-  
+
   /* Stack layout on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -150,7 +150,7 @@ const TableWrapper = styled.div`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Allow table to shrink on smaller screens */
   @media (max-width: 768px) {
     min-width: 600px; /* Minimum width to prevent column squashing */
@@ -263,7 +263,7 @@ const CloseButton = styled.button`
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -279,12 +279,12 @@ const RecordPaymentButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(var(--color-success), 0.15);
     border-color: rgba(var(--color-success), 0.5);
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -348,14 +348,14 @@ const PayablePOs: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params: any = {};
       if (statusFilter !== 'all') {
         params.payment_status = statusFilter;
       }
-      
+
       const response = await apiClient.get('purchase-orders/', { params });
-      
+
       // Transform orders to include payment status (mocked for now - backend enhancement needed)
       const ordersWithPaymentStatus = response.data.results || response.data;
       setOrders(ordersWithPaymentStatus.map((order: PurchaseOrder) => ({

@@ -50,10 +50,7 @@ class Command(BaseCommand):
             "--schema-name",
             type=str,
             required=True,
-            help=(
-                "Database schema name (e.g., 'acme_corp'). "
-                "Must be unique and PostgreSQL-compatible."
-            ),
+            help=("Database schema name (e.g., 'acme_corp'). " "Must be unique and PostgreSQL-compatible."),
         )
         parser.add_argument(
             "--name",
@@ -281,9 +278,7 @@ class Command(BaseCommand):
         )
 
         if verbosity >= 1:
-            self.stdout.write(
-                self.style.SUCCESS(f"   ✅ Tenant created: {tenant.name} ({tenant.id})")
-            )
+            self.stdout.write(self.style.SUCCESS(f"   ✅ Tenant created: {tenant.name} ({tenant.id})"))
 
         return tenant
 
@@ -308,9 +303,7 @@ class Command(BaseCommand):
         )
 
         if verbosity >= 1:
-            self.stdout.write(
-                self.style.SUCCESS(f"   ✅ Domain created: {tenant_domain.domain} (primary)")
-            )
+            self.stdout.write(self.style.SUCCESS(f"   ✅ Domain created: {tenant_domain.domain} (primary)"))
 
         return tenant_domain
 
@@ -341,9 +334,7 @@ class Command(BaseCommand):
         )
 
         if verbosity >= 1:
-            self.stdout.write(
-                self.style.SUCCESS(f"   ✅ Admin user created: {admin_user.username}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"   ✅ Admin user created: {admin_user.username}"))
 
         return admin_user
 
@@ -366,9 +357,7 @@ class Command(BaseCommand):
         )
 
         if verbosity >= 1:
-            self.stdout.write(
-                self.style.SUCCESS(f"   ✅ Admin associated with tenant as {role}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"   ✅ Admin associated with tenant as {role}"))
 
         return tenant_user
 
@@ -431,9 +420,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  - Domain: {tenant_domain.domain}")
         self.stdout.write(f"  - Trial: {'Yes' if tenant.is_trial else 'No'}")
         if tenant.trial_ends_at:
-            self.stdout.write(
-                f"  - Trial Ends: {tenant.trial_ends_at.strftime('%Y-%m-%d')}"
-            )
+            self.stdout.write(f"  - Trial Ends: {tenant.trial_ends_at.strftime('%Y-%m-%d')}")
 
         self.stdout.write("\nAdmin User:")
         self.stdout.write(f"  - Username: {admin_user.username}")
@@ -444,9 +431,7 @@ class Command(BaseCommand):
             self.stdout.write("\nInvitation Link:")
             self.stdout.write(f"  - URL: {invitation_url}")
             self.stdout.write(f"  - Token: {invitation.token}")
-            self.stdout.write(
-                f"  - Expires: {invitation.expires_at.strftime('%Y-%m-%d %H:%M')}"
-            )
+            self.stdout.write(f"  - Expires: {invitation.expires_at.strftime('%Y-%m-%d %H:%M')}")
 
         self.stdout.write("\nNext Steps:")
         self.stdout.write("  1. Configure tenant settings as needed")

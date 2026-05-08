@@ -31,24 +31,25 @@ EventType = Literal["email", "user_chat", "webhook"]
 
 
 def _build_non_retryable_tool_message(tool_name: str, error: Dict[str, Any]) -> str:
-    message = str(error.get('message') or 'The tool failed.')
-    hint = str(error.get('hint') or '').strip()
-    hint_suffix = f' Hint: {hint}' if hint else ''
+    message = str(error.get("message") or "The tool failed.")
+    hint = str(error.get("hint") or "").strip()
+    hint_suffix = f" Hint: {hint}" if hint else ""
     return (
         f'System: Tool "{tool_name}" failed with a non-retryable error: "{message}". '
-        'Do not retry this tool. Ask the human user for the missing information or a clarifying choice.'
-        f'{hint_suffix}'
+        "Do not retry this tool. Ask the human user for the missing information or a clarifying choice."
+        f"{hint_suffix}"
     )
+
 
 def build_swarm_system_prompt(
     *,
     outlook_connected: bool,
     outlook_email: str | None,
     outlook_expired: bool,
-    lessons_block: str = '',
-    memory_block: str = '',
-    session_memory_block: str = '',
-    document_context_block: str = '',
+    lessons_block: str = "",
+    memory_block: str = "",
+    session_memory_block: str = "",
+    document_context_block: str = "",
 ) -> str:
     base = (
         "You are the ProjectMeats Intelligent Architect. "
@@ -126,7 +127,6 @@ def build_swarm_system_prompt(
     if document_context_block:
         base = base + str(document_context_block)
 
-
     if outlook_connected:
         return base + f"Outlook: CONNECTED ({outlook_email or 'unknown'}). You may use email tools when relevant."
 
@@ -139,11 +139,7 @@ def build_swarm_system_prompt(
 def _tool_call_signature(tool_name: str, raw_args: Any) -> str:
     def _normalize(value: Any) -> Any:
         if isinstance(value, dict):
-            return {
-                key: _normalize(item)
-                for key, item in value.items()
-                if item is not None
-            }
+            return {key: _normalize(item) for key, item in value.items() if item is not None}
         if isinstance(value, list):
             return [_normalize(item) for item in value]
         return value
@@ -159,11 +155,11 @@ def _tool_call_signature(tool_name: str, raw_args: Any) -> str:
     parsed = _normalize(parsed)
 
     try:
-        normalized_args = json.dumps(parsed, sort_keys=True, separators=(',', ':'), default=str)
+        normalized_args = json.dumps(parsed, sort_keys=True, separators=(",", ":"), default=str)
     except Exception:
         normalized_args = str(parsed)
 
-    return f'{tool_name}:{normalized_args}'
+    return f"{tool_name}:{normalized_args}"
 
 
 def _sanitize_history_for_openai(history: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
@@ -180,33 +176,31 @@ def _sanitize_history_for_openai(history: Optional[List[Dict[str, Any]]]) -> Lis
             index += 1
             continue
 
-        role = message.get('role')
-        if role == 'tool':
-            logger.warning('[SwarmOrchestrator] Dropping orphaned tool message from replay history')
+        role = message.get("role")
+        if role == "tool":
+            logger.warning("[SwarmOrchestrator] Dropping orphaned tool message from replay history")
             index += 1
             continue
 
-        if role != 'assistant':
+        if role != "assistant":
             sanitized.append(dict(message))
             index += 1
             continue
 
-        tool_calls = message.get('tool_calls')
+        tool_calls = message.get("tool_calls")
         if not isinstance(tool_calls, list) or not tool_calls:
             sanitized.append(dict(message))
             index += 1
             continue
 
         expected_tool_ids = [
-            str(tool_call.get('id'))
-            for tool_call in tool_calls
-            if isinstance(tool_call, dict) and tool_call.get('id')
+            str(tool_call.get("id")) for tool_call in tool_calls if isinstance(tool_call, dict) and tool_call.get("id")
         ]
 
         if not expected_tool_ids:
             repaired_message = dict(message)
-            repaired_message.pop('tool_calls', None)
-            if (repaired_message.get('content') or '').strip():
+            repaired_message.pop("tool_calls", None)
+            if (repaired_message.get("content") or "").strip():
                 sanitized.append(repaired_message)
             index += 1
             continue
@@ -217,17 +211,17 @@ def _sanitize_history_for_openai(history: Optional[List[Dict[str, Any]]]) -> Lis
 
         while cursor < len(history):
             follower = history[cursor]
-            if not isinstance(follower, dict) or follower.get('role') != 'tool':
+            if not isinstance(follower, dict) or follower.get("role") != "tool":
                 break
 
-            tool_call_id = str(follower.get('tool_call_id') or '')
+            tool_call_id = str(follower.get("tool_call_id") or "")
             if tool_call_id in expected_tool_ids and tool_call_id not in answered_ids:
                 tool_messages.append(dict(follower))
                 answered_ids.add(tool_call_id)
             else:
                 logger.warning(
-                    '[SwarmOrchestrator] Dropping orphaned or duplicate tool reply for tool_call_id=%s',
-                    tool_call_id or '<missing>',
+                    "[SwarmOrchestrator] Dropping orphaned or duplicate tool reply for tool_call_id=%s",
+                    tool_call_id or "<missing>",
                 )
             cursor += 1
 
@@ -238,12 +232,12 @@ def _sanitize_history_for_openai(history: Optional[List[Dict[str, Any]]]) -> Lis
             continue
 
         logger.warning(
-            '[SwarmOrchestrator] Stripping unanswered tool_calls from replay history: %s',
+            "[SwarmOrchestrator] Stripping unanswered tool_calls from replay history: %s",
             expected_tool_ids,
         )
         repaired_message = dict(message)
-        repaired_message.pop('tool_calls', None)
-        if (repaired_message.get('content') or '').strip():
+        repaired_message.pop("tool_calls", None)
+        if (repaired_message.get("content") or "").strip():
             sanitized.append(repaired_message)
         index += 1
 
@@ -257,10 +251,10 @@ def _coerce_tool_message_content(result: Any) -> str:
     try:
         return json.dumps(result, default=str)
     except Exception as exc:  # pragma: no cover - defensive fallback
-        logger.warning('[SwarmOrchestrator] Failed to serialize tool result: %s', str(exc), exc_info=True)
+        logger.warning("[SwarmOrchestrator] Failed to serialize tool result: %s", str(exc), exc_info=True)
         return (
-            f'TOOL EXECUTION FAILED: Unable to serialize tool result ({str(exc)}). '
-            'Instruct the user about this failure.'
+            f"TOOL EXECUTION FAILED: Unable to serialize tool result ({str(exc)}). "
+            "Instruct the user about this failure."
         )
 
 
@@ -305,28 +299,28 @@ class SwarmOrchestrator:
         or historical PO specifics, we route to the tenant-isolated Vector RAG agent.
         """
 
-        t = (text or '').lower()
+        t = (text or "").lower()
         keywords = [
-            'yield',
-            'trim',
-            'shrink',
-            'net lb',
-            'shelf life',
-            'shelf-life',
-            'code date',
-            'use by',
-            'fresh',
-            'frozen',
-            'box beef',
-            'boxed beef',
-            'primal',
-            'subprimal',
-            'edible',
-            'inedible',
-            'combo',
-            'reefer',
-            'temp',
-            'pallet',
+            "yield",
+            "trim",
+            "shrink",
+            "net lb",
+            "shelf life",
+            "shelf-life",
+            "code date",
+            "use by",
+            "fresh",
+            "frozen",
+            "box beef",
+            "boxed beef",
+            "primal",
+            "subprimal",
+            "edible",
+            "inedible",
+            "combo",
+            "reefer",
+            "temp",
+            "pallet",
         ]
         return any(k in t for k in keywords)
 
@@ -340,10 +334,12 @@ class SwarmOrchestrator:
 
     def _estimate_intent(self, event_type: EventType, payload: Dict[str, Any]) -> str:
         # Scaffold heuristic; IntentEngine can be plugged in later.
-        text = "\n".join([
-            str(payload.get("subject") or ""),
-            str(payload.get("message") or payload.get("body") or ""),
-        ]).lower()
+        text = "\n".join(
+            [
+                str(payload.get("subject") or ""),
+                str(payload.get("message") or payload.get("body") or ""),
+            ]
+        ).lower()
 
         if event_type == "email":
             if any(k in text for k in ["invoice", "inv#", "inv #"]):
@@ -360,13 +356,20 @@ class SwarmOrchestrator:
 
         return "unknown"
 
-    def route(self, *, event_type: EventType, payload: Dict[str, Any], correlation_id: Optional[str] = None) -> SwarmDecision:
+    def route(
+        self, *, event_type: EventType, payload: Dict[str, Any], correlation_id: Optional[str] = None
+    ) -> SwarmDecision:
         text = "\n".join([str(payload.get("subject") or ""), str(payload.get("message") or payload.get("body") or "")])
         urgency = self._estimate_urgency(text)
         intent = self._estimate_intent(event_type, payload)
 
         requires_sme = False
-        if event_type == 'user_chat' and intent not in {'action_create', 'document_invoice', 'document_purchase_order', 'document_bill_of_lading'}:
+        if event_type == "user_chat" and intent not in {
+            "action_create",
+            "document_invoice",
+            "document_purchase_order",
+            "document_bill_of_lading",
+        }:
             requires_sme = self._requires_meat_sme(text)
 
         chain: List[str] = ["Extractor", "Enricher"]
@@ -380,8 +383,12 @@ class SwarmOrchestrator:
 
         return SwarmDecision(event_type=event_type, intent=intent, urgency=urgency, agent_chain=chain, notes=notes)
 
-    def build_context(self, *, event_type: EventType, payload: Dict[str, Any], correlation_id: Optional[str] = None) -> AgentContext:
-        return AgentContext(tenant_id=self.tenant_id, event_type=event_type, payload=payload, correlation_id=correlation_id)
+    def build_context(
+        self, *, event_type: EventType, payload: Dict[str, Any], correlation_id: Optional[str] = None
+    ) -> AgentContext:
+        return AgentContext(
+            tenant_id=self.tenant_id, event_type=event_type, payload=payload, correlation_id=correlation_id
+        )
 
     def run_tool_loop(
         self,
@@ -399,29 +406,32 @@ class SwarmOrchestrator:
         """
         import os
 
-        openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
+        openai_api_key = getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY")
         if not openai_api_key:
-            raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
+            raise ValueError("OpenAI not configured (missing OPENAI_API_KEY)")
 
-        lessons_block = ''
+        lessons_block = ""
         try:
             from tenant_apps.ai_assistant.services.memory_service import format_lessons_block, get_relevant_lessons
 
             lessons = get_relevant_lessons(tenant=tenant, query=user_message, limit=8)
             lessons_block = format_lessons_block(lessons)
         except Exception as e:
-            logger.warning('[SwarmOrchestrator] Lessons lookup failed; continuing without lessons: %s', str(e))
+            logger.warning("[SwarmOrchestrator] Lessons lookup failed; continuing without lessons: %s", str(e))
 
-        memory_block = ''
+        memory_block = ""
         try:
-            from tenant_apps.ai_assistant.services.tenant_memory_service import format_memory_block, get_relevant_memories
+            from tenant_apps.ai_assistant.services.tenant_memory_service import (
+                format_memory_block,
+                get_relevant_memories,
+            )
 
             memories = get_relevant_memories(tenant=tenant, query=user_message, limit=8)
             memory_block = format_memory_block(memories)
         except Exception as e:
-            logger.warning('[SwarmOrchestrator] Tenant memory lookup failed; continuing without memory: %s', str(e))
+            logger.warning("[SwarmOrchestrator] Tenant memory lookup failed; continuing without memory: %s", str(e))
 
-        session_memory_block = ''
+        session_memory_block = ""
         if session_id:
             try:
                 from tenant_apps.ai_assistant.services.tenant_memory_service import (
@@ -432,9 +442,11 @@ class SwarmOrchestrator:
                 session_memory = get_session_compaction_memory(tenant=tenant, session_id=session_id)
                 session_memory_block = format_session_memory_block(session_memory)
             except Exception as e:
-                logger.warning('[SwarmOrchestrator] Session memory lookup failed; continuing without session memory: %s', str(e))
+                logger.warning(
+                    "[SwarmOrchestrator] Session memory lookup failed; continuing without session memory: %s", str(e)
+                )
 
-        document_context_block = ''
+        document_context_block = ""
         try:
             from tenant_apps.ai_assistant.services.semantic_indexing import (
                 find_relevant_document_context,
@@ -444,36 +456,38 @@ class SwarmOrchestrator:
             semantic_matches = find_relevant_document_context(tenant=tenant, query=user_message, limit=4)
             document_context_block = format_document_context_block(semantic_matches)
         except Exception as e:
-            logger.warning('[SwarmOrchestrator] Semantic document lookup failed; continuing without document context: %s', str(e))
+            logger.warning(
+                "[SwarmOrchestrator] Semantic document lookup failed; continuing without document context: %s", str(e)
+            )
 
         # Phase 8.2: intent classification → delegate deep meat/logistics questions to MeatSME RAG.
         # IMPORTANT: never route record creation or document-driven flows to RAG; those must use the tool loop.
         # Reliability mandate: if RAG fails for any reason, fall back to the standard tool loop.
-        intent = self._estimate_intent('user_chat', {'message': user_message})
-        if intent == 'unknown' and self._requires_meat_sme(user_message):
+        intent = self._estimate_intent("user_chat", {"message": user_message})
+        if intent == "unknown" and self._requires_meat_sme(user_message):
             try:
                 from tenant_apps.ai_assistant.swarm.agents.meat_sme import MeatSMEAgent
 
                 answer = MeatSMEAgent().analyze(
                     query=user_message,
-                    tenant_id=str(getattr(tenant, 'id', '') or self.tenant_id),
+                    tenant_id=str(getattr(tenant, "id", "") or self.tenant_id),
                 )
                 return {
-                    'response': answer,
-                    'messages': (history or []) + [{'role': 'user', 'content': user_message}],
-                    'notes': 'meat_sme_rag',
+                    "response": answer,
+                    "messages": (history or []) + [{"role": "user", "content": user_message}],
+                    "notes": "meat_sme_rag",
                 }
             except Exception as e:
-                logger.warning('[SwarmOrchestrator] MeatSME RAG failed; falling back to tool loop: %s', str(e))
+                logger.warning("[SwarmOrchestrator] MeatSME RAG failed; falling back to tool loop: %s", str(e))
 
         try:
             from openai import OpenAI
         except Exception as e:
-            raise RuntimeError('OpenAI client not available on server') from e
+            raise RuntimeError("OpenAI client not available on server") from e
 
         client = OpenAI(
             api_key=openai_api_key,
-            organization=(getattr(settings, 'OPENAI_ORG_ID', None) or os.environ.get('OPENAI_ORG_ID') or None),
+            organization=(getattr(settings, "OPENAI_ORG_ID", None) or os.environ.get("OPENAI_ORG_ID") or None),
         )
 
         from apps.integrations.models import ExternalAuthProvider
@@ -481,31 +495,27 @@ class SwarmOrchestrator:
         provider = (
             ExternalAuthProvider.objects.filter(
                 tenant=tenant,
-                provider_type='microsoft',
+                provider_type="microsoft",
                 is_active=True,
             )
-            .select_related('tenant')
+            .select_related("tenant")
             .first()
         )
-        outlook_email = getattr(provider, 'connected_email', None) if provider else None
+        outlook_email = getattr(provider, "connected_email", None) if provider else None
         outlook_expired = bool(provider.is_token_expired()) if provider else False
         outlook_connected = bool(provider and not outlook_expired)
 
         # Always allow safe internal tools; only advertise Outlook tools when connected.
-        email_tools = {'fetch_emails', 'ingest_email_attachment', 'check_unread_emails', 'draft_outlook_email'}
+        email_tools = {"fetch_emails", "ingest_email_attachment", "check_unread_emails", "draft_outlook_email"}
         if outlook_connected:
             tools = DEFAULT_OPENAI_TOOLS
         else:
-            tools = [
-                t
-                for t in DEFAULT_OPENAI_TOOLS
-                if t.get('function', {}).get('name') not in email_tools
-            ]
+            tools = [t for t in DEFAULT_OPENAI_TOOLS if t.get("function", {}).get("name") not in email_tools]
 
         messages: List[Dict[str, Any]] = [
             {
-                'role': 'system',
-                'content': build_swarm_system_prompt(
+                "role": "system",
+                "content": build_swarm_system_prompt(
                     outlook_connected=outlook_connected,
                     outlook_email=outlook_email,
                     outlook_expired=outlook_expired,
@@ -518,17 +528,17 @@ class SwarmOrchestrator:
         ]
         if history:
             messages.extend(_sanitize_history_for_openai(history))
-        messages.append({'role': 'user', 'content': user_message})
+        messages.append({"role": "user", "content": user_message})
 
         executor = ToolExecutor()
 
         from apps.system.services.ai_model_resolver import get_active_openai_model_id
 
-        model_name = get_active_openai_model_id(fallback='gpt-4o-mini')
-        temperature = float(getattr(settings, 'OPENAI_TEMPERATURE', 0.7) or 0.7)
-        max_tokens = int(getattr(settings, 'OPENAI_MAX_TOKENS', 2000) or 2000)
+        model_name = get_active_openai_model_id(fallback="gpt-4o-mini")
+        temperature = float(getattr(settings, "OPENAI_TEMPERATURE", 0.7) or 0.7)
+        max_tokens = int(getattr(settings, "OPENAI_MAX_TOKENS", 2000) or 2000)
 
-        max_rounds = int(getattr(settings, 'SWARM_TOOL_MAX_ROUNDS', 3) or 3)
+        max_rounds = int(getattr(settings, "SWARM_TOOL_MAX_ROUNDS", 3) or 3)
         rounds = 0
         tool_signatures: List[str] = []
         blocked_tools: set[str] = set()
@@ -547,59 +557,59 @@ class SwarmOrchestrator:
                 break
 
             create_kwargs: Dict[str, Any] = {
-                'model': model_name,
-                'messages': _sanitize_history_for_openai(messages),
-                'temperature': temperature,
-                'max_tokens': max_tokens,
+                "model": model_name,
+                "messages": _sanitize_history_for_openai(messages),
+                "temperature": temperature,
+                "max_tokens": max_tokens,
             }
-            messages = create_kwargs['messages']
+            messages = create_kwargs["messages"]
             if tools:
-                create_kwargs['tools'] = tools
-                create_kwargs['tool_choice'] = 'auto'
+                create_kwargs["tools"] = tools
+                create_kwargs["tool_choice"] = "auto"
 
             completion = client.chat.completions.create(**create_kwargs)
 
             msg = completion.choices[0].message
-            tool_calls = getattr(msg, 'tool_calls', None)
+            tool_calls = getattr(msg, "tool_calls", None)
 
             if not tool_calls:
-                final_text = (msg.content or '').strip()
+                final_text = (msg.content or "").strip()
                 if run is not None:
-                    run.status = 'completed'
+                    run.status = "completed"
                     run.completed_at = timezone.now()
                     run.response_text = final_text
                     run.response_payload = {
-                        'final_response': final_text,
-                        'tools_used': tool_signatures,
+                        "final_response": final_text,
+                        "tools_used": tool_signatures,
                     }
-                    run.error_message = ''
+                    run.error_message = ""
                     run.save(
                         update_fields=[
-                            'status',
-                            'completed_at',
-                            'response_text',
-                            'response_payload',
-                            'error_message',
-                            'modified_on',
+                            "status",
+                            "completed_at",
+                            "response_text",
+                            "response_payload",
+                            "error_message",
+                            "modified_on",
                         ]
                     )
                 return {
-                    'response': final_text,
-                    'messages': messages,
-                    'control_plane': {'run_id': str(run.id)} if run is not None else {},
+                    "response": final_text,
+                    "messages": messages,
+                    "control_plane": {"run_id": str(run.id)} if run is not None else {},
                 }
 
             # a) Append assistant's tool call message to history
-            assistant_payload: Dict[str, Any] = {'role': 'assistant', 'content': msg.content or ''}
-            assistant_payload['tool_calls'] = []
+            assistant_payload: Dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
+            assistant_payload["tool_calls"] = []
             for tc in tool_calls:
-                assistant_payload['tool_calls'].append(
+                assistant_payload["tool_calls"].append(
                     {
-                        'id': tc.id,
-                        'type': tc.type,
-                        'function': {
-                            'name': tc.function.name,
-                            'arguments': tc.function.arguments,
+                        "id": tc.id,
+                        "type": tc.type,
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
                         },
                     }
                 )
@@ -609,7 +619,7 @@ class SwarmOrchestrator:
             deferred_system_messages: List[str] = []
             for tc in tool_calls:
                 tool_name = tc.function.name
-                raw_args = tc.function.arguments or '{}'
+                raw_args = tc.function.arguments or "{}"
                 try:
                     args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
                 except Exception:
@@ -617,28 +627,26 @@ class SwarmOrchestrator:
 
                 signature = _tool_call_signature(tool_name, raw_args)
                 repeated_signature = (
-                    len(tool_signatures) >= 2
-                    and tool_signatures[-1] == signature
-                    and tool_signatures[-2] == signature
+                    len(tool_signatures) >= 2 and tool_signatures[-1] == signature and tool_signatures[-2] == signature
                 )
 
                 if tool_name in blocked_tools:
                     result = json.dumps(
                         {
-                            'ok': False,
-                            'tool': tool_name,
-                            'tenant_id': str(getattr(tenant, 'id', '') or ''),
-                            'error': {
-                                'code': 'TOOL_RETRY_BLOCKED',
-                                'message': 'This tool already failed with a non-retryable error in this run.',
-                                'hint': 'Do not retry this tool. Ask the user for the missing information instead.',
-                                'retryable': False,
+                            "ok": False,
+                            "tool": tool_name,
+                            "tenant_id": str(getattr(tenant, "id", "") or ""),
+                            "error": {
+                                "code": "TOOL_RETRY_BLOCKED",
+                                "message": "This tool already failed with a non-retryable error in this run.",
+                                "hint": "Do not retry this tool. Ask the user for the missing information instead.",
+                                "retryable": False,
                             },
                         }
                     )
                     deferred_system_messages.append(
                         f'System: Tool "{tool_name}" is blocked for the rest of this run because '
-                        'it already failed with a non-retryable error. Ask the user for clarification.'
+                        "it already failed with a non-retryable error. Ask the user for clarification."
                     )
                     if not loop_warning_injected:
                         max_rounds += 1
@@ -646,19 +654,19 @@ class SwarmOrchestrator:
                 elif repeated_signature:
                     result = json.dumps(
                         {
-                            'ok': False,
-                            'tool': tool_name,
-                            'tenant_id': str(getattr(tenant, 'id', '') or ''),
-                            'error': {
-                                'code': 'TOOL_LOOP_DETECTED',
-                                'message': 'You are stuck calling the same tool with the same parameters.',
-                                'hint': 'Stop retrying this tool and ask the user for clarification or adjust the query.',
-                                'retryable': False,
+                            "ok": False,
+                            "tool": tool_name,
+                            "tenant_id": str(getattr(tenant, "id", "") or ""),
+                            "error": {
+                                "code": "TOOL_LOOP_DETECTED",
+                                "message": "You are stuck calling the same tool with the same parameters.",
+                                "hint": "Stop retrying this tool and ask the user for clarification or adjust the query.",
+                                "retryable": False,
                             },
                         }
                     )
                     deferred_system_messages.append(
-                        'System: You are stuck in a loop. Stop calling this tool and ask the user for clarification.'
+                        "System: You are stuck in a loop. Stop calling this tool and ask the user for clarification."
                     )
                     if not loop_warning_injected:
                         max_rounds += 1
@@ -673,16 +681,16 @@ class SwarmOrchestrator:
                             tenant=tenant,
                             session_id=validated_session_id,
                             requested_by=user,
-                            source='chat',
-                            event_type='user_chat',
-                            status='running',
+                            source="chat",
+                            event_type="user_chat",
+                            status="running",
                             intent=intent,
                             correlation_id=str(validated_session_id or uuid.uuid4()),
                             user_message=user_message,
                             request_payload={
-                                'session_id': validated_session_id,
-                                'history_length': len(history or []),
-                                'user_message': user_message,
+                                "session_id": validated_session_id,
+                                "history_length": len(history or []),
+                                "user_message": user_message,
                             },
                         )
                     try:
@@ -696,23 +704,20 @@ class SwarmOrchestrator:
                         )
                     except Exception as exc:
                         logger.warning(
-                            '[SwarmOrchestrator] Tool %s raised before returning a contract-safe tool message: %s',
+                            "[SwarmOrchestrator] Tool %s raised before returning a contract-safe tool message: %s",
                             tool_name,
                             str(exc),
                             exc_info=True,
                         )
-                        result = (
-                            f'TOOL EXECUTION FAILED: {str(exc)}. '
-                            'Instruct the user about this failure.'
-                        )
+                        result = f"TOOL EXECUTION FAILED: {str(exc)}. " "Instruct the user about this failure."
                     tool_signatures.append(signature)
 
                 tool_content = _coerce_tool_message_content(result)
                 messages.append(
                     {
-                        'role': 'tool',
-                        'tool_call_id': tc.id,
-                        'content': tool_content,
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": tool_content,
                     }
                 )
 
@@ -720,65 +725,67 @@ class SwarmOrchestrator:
                     parsed_result = json.loads(tool_content)
                 except Exception:
                     parsed_result = {}
-                tool_data = parsed_result.get('data') if isinstance(parsed_result, dict) else {}
-                tool_error = parsed_result.get('error') if isinstance(parsed_result, dict) else None
-                if isinstance(tool_error, dict) and tool_error.get('retryable') is False:
+                tool_data = parsed_result.get("data") if isinstance(parsed_result, dict) else {}
+                tool_error = parsed_result.get("error") if isinstance(parsed_result, dict) else None
+                if isinstance(tool_error, dict) and tool_error.get("retryable") is False:
                     blocked_tools.add(tool_name)
                     deferred_system_messages.append(_build_non_retryable_tool_message(tool_name, tool_error))
                     if not loop_warning_injected:
                         max_rounds += 1
                         loop_warning_injected = True
-                if isinstance(tool_data, dict) and tool_data.get('approval_required'):
-                    response_text = str(tool_data.get('message') or 'Approval is required before this AI task can execute.').strip()
+                if isinstance(tool_data, dict) and tool_data.get("approval_required"):
+                    response_text = str(
+                        tool_data.get("message") or "Approval is required before this AI task can execute."
+                    ).strip()
                     if run is not None:
-                        run.status = 'approval_required'
+                        run.status = "approval_required"
                         run.approval_required_at = timezone.now()
                         run.response_text = response_text
                         run.response_payload = tool_data
                         run.save(
                             update_fields=[
-                                'status',
-                                'approval_required_at',
-                                'response_text',
-                                'response_payload',
-                                'modified_on',
+                                "status",
+                                "approval_required_at",
+                                "response_text",
+                                "response_payload",
+                                "modified_on",
                             ]
                         )
                     return {
-                        'response': response_text,
-                        'messages': messages,
-                        'control_plane': {
-                            'run_id': str(run.id) if run is not None else '',
-                            'task_id': str(tool_data.get('task_id') or ''),
-                            'approval_id': str(tool_data.get('approval_id') or ''),
-                            'approval_required': True,
-                            'tool_name': tool_name,
-                            },
-                        }
+                        "response": response_text,
+                        "messages": messages,
+                        "control_plane": {
+                            "run_id": str(run.id) if run is not None else "",
+                            "task_id": str(tool_data.get("task_id") or ""),
+                            "approval_id": str(tool_data.get("approval_id") or ""),
+                            "approval_required": True,
+                            "tool_name": tool_name,
+                        },
+                    }
 
             for deferred_message in deferred_system_messages:
-                messages.append({'role': 'system', 'content': deferred_message})
+                messages.append({"role": "system", "content": deferred_message})
 
             # d) Loop continues; next LLM call interprets tool results (and may call more tools)
 
         if run is not None:
-            run.status = 'failed'
+            run.status = "failed"
             run.completed_at = timezone.now()
-            run.error_message = 'Tool loop exceeded max rounds'
-            run.response_text = 'Tool loop exceeded max rounds; please refine your request.'
-            run.response_payload = {'tools_used': tool_signatures}
+            run.error_message = "Tool loop exceeded max rounds"
+            run.response_text = "Tool loop exceeded max rounds; please refine your request."
+            run.response_payload = {"tools_used": tool_signatures}
             run.save(
                 update_fields=[
-                    'status',
-                    'completed_at',
-                    'error_message',
-                    'response_text',
-                    'response_payload',
-                    'modified_on',
+                    "status",
+                    "completed_at",
+                    "error_message",
+                    "response_text",
+                    "response_payload",
+                    "modified_on",
                 ]
             )
         return {
-            'response': 'Tool loop exceeded max rounds; please refine your request.',
-            'messages': messages,
-            'control_plane': {'run_id': str(run.id)} if run is not None else {},
+            "response": "Tool loop exceeded max rounds; please refine your request.",
+            "messages": messages,
+            "control_plane": {"run_id": str(run.id)} if run is not None else {},
         }

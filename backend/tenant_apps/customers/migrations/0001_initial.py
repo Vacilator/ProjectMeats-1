@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -62,9 +61,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "address",
-                    models.TextField(
-                        blank=True, help_text="Customer address", null=True
-                    ),
+                    models.TextField(blank=True, help_text="Customer address", null=True),
                 ),
                 (
                     "street_address",
@@ -77,9 +74,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "city",
-                    models.CharField(
-                        blank=True, help_text="City", max_length=100, null=True
-                    ),
+                    models.CharField(blank=True, help_text="City", max_length=100, null=True),
                 ),
                 (
                     "state",
@@ -101,9 +96,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "country",
-                    models.CharField(
-                        blank=True, help_text="Country", max_length=100, null=True
-                    ),
+                    models.CharField(blank=True, help_text="Country", max_length=100, null=True),
                 ),
                 (
                     "edible_inedible",
@@ -156,9 +149,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "will_pickup_load",
-                    models.BooleanField(
-                        default=False, help_text="Will customer pickup load?"
-                    ),
+                    models.BooleanField(default=False, help_text="Will customer pickup load?"),
                 ),
                 (
                     "accounting_payment_terms",

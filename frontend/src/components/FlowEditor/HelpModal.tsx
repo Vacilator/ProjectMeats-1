@@ -1,8 +1,8 @@
 /**
  * Help Modal Component
- * 
+ *
  * Displays keyboard shortcuts, canvas commands, and workflow tips.
- * 
+ *
  * Created: 2026-02-09 - Workform Editor Enhancements Batch 1
  */
 import React from 'react';
@@ -293,7 +293,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
       <Modal role="dialog" aria-labelledby="help-modal-title" aria-modal="true">
         <Header>
           <Title id="help-modal-title">WorkForms Editor Help</Title>
-          <CloseButton 
+          <CloseButton
             onClick={onClose}
             aria-label="Close help modal"
             title="Close (Esc)"

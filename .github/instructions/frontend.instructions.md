@@ -184,7 +184,7 @@ import { useTenant } from '@/contexts/TenantContext';
 
 const MyComponent = () => {
   const { tenant, switchTenant } = useTenant();
-  
+
   return <div>Current: {tenant.name}</div>;
 };
 ```
@@ -205,11 +205,11 @@ import { useForm } from 'react-hook-form';
 
 const MyForm = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
-  
+
   const onSubmit = (data) => {
     // Handle form submission
   };
-  
+
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <input {...register('email', { required: true })} />
@@ -226,7 +226,7 @@ class ErrorBoundary extends React.Component {
     // Log error to service
     console.error('Error:', error, errorInfo);
   }
-  
+
   render() {
     if (this.state.hasError) {
       return <ErrorFallback />;

@@ -1,9 +1,9 @@
 /**
  * StepManagerPanel Component
- * 
+ *
  * Step management UI for Form Process containers.
  * Allows users to view, reorder, add, and configure child steps.
- * 
+ *
  * Features:
  * - List all child nodes in execution order
  * - Drag to reorder steps
@@ -12,18 +12,18 @@
  * - Edit step name inline
  * - Navigate to step configuration
  * - Visual step numbers and icons
- * 
+ *
  * Created: 2026-02-17 - Phase B.4: Step Management UI
  */
 
 import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
-import { 
-  GripVertical, 
-  Plus, 
-  Trash2, 
-  Edit2, 
-  Settings, 
+import {
+  GripVertical,
+  Plus,
+  Trash2,
+  Edit2,
+  Settings,
   CheckCircle,
   AlertCircle,
   ArrowRight
@@ -325,7 +325,7 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
   // Handle drop
   const handleDrop = useCallback((e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    
+
     if (draggedIndex === null || draggedIndex === targetIndex) {
       setDraggedIndex(null);
       return;

@@ -8,6 +8,7 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 import uuid
 from decimal import Decimal
+
 from django.db import models
 from django.utils import timezone
 
@@ -16,6 +17,7 @@ from apps.core.models import PhoneTypeChoices, ProteinTypeChoices, TenantAwareMo
 
 class InquiryStatusChoices(models.TextChoices):
     """Status progression for inquiries."""
+
     DRAFT = "draft", "Draft"
     PENDING = "pending", "Pending"
     QUOTED = "quoted", "Quoted"
@@ -27,6 +29,7 @@ class InquiryStatusChoices(models.TextChoices):
 
 class InquirySourceChoices(models.TextChoices):
     """Source of the inquiry."""
+
     SCHEDULED_CALL = "scheduled_call", "Scheduled Call"
     INBOUND_CALL = "inbound_call", "Inbound Call"
     EMAIL = "email", "Email"
@@ -38,12 +41,14 @@ class InquirySourceChoices(models.TextChoices):
 
 class InquiryEntityTypeChoices(models.TextChoices):
     """Entity type for the inquiry (supplier or customer)."""
+
     SUPPLIER = "supplier", "Supplier"
     CUSTOMER = "customer", "Customer"
 
 
 class InquiryShippingTypeChoices(models.TextChoices):
     """Shipping type for the inquiry (used for fulfillment/logistics defaults)."""
+
     TENANT = "tenant", "Tenant"
     CUSTOMER_PICKUP = "customer_pickup", "Customer Pick-Up"
     SUPPLIER_DELIVERING = "supplier_delivering", "Supplier Delivering"
@@ -51,6 +56,7 @@ class InquiryShippingTypeChoices(models.TextChoices):
 
 class InquiryRouteDecisionChoices(models.TextChoices):
     """Hardcoded happy-path route chosen for this inquiry."""
+
     FULFILL = "FULFILL", "Fulfill"
     BROKER = "BROKER", "Broker"
 
@@ -66,6 +72,7 @@ class InquirySupplierRFQStatusChoices(models.TextChoices):
 
 class UOMChoices(models.TextChoices):
     """Unit of measure choices aligned with existing WeightUnitChoices."""
+
     LBS = "LBS", "Pounds"
     KG = "KG", "Kilograms"
     CS = "CS", "Cases"
@@ -77,98 +84,96 @@ class UOMChoices(models.TextChoices):
 class Inquiry(TenantAwareModel):
     """
     Inquiry model for tracking product interest from calls.
-    
+
     Links to a source call (optional) and captures contact information
     at the time of inquiry for historical accuracy.
     """
-    
+
     # Auto-generated unique number per tenant
     inquiry_number = models.CharField(
-        max_length=20,
-        editable=False,
-        help_text="Auto-generated inquiry number (INQ-YYYY-NNNNN)"
+        max_length=20, editable=False, help_text="Auto-generated inquiry number (INQ-YYYY-NNNNN)"
     )
-    
+
     # Status and source tracking
     status = models.CharField(
         max_length=20,
         choices=InquiryStatusChoices.choices,
         default=InquiryStatusChoices.DRAFT,
         db_index=True,
-        help_text="Current status of the inquiry"
+        help_text="Current status of the inquiry",
     )
     source_type = models.CharField(
         max_length=20,
         choices=InquirySourceChoices.choices,
         default=InquirySourceChoices.OTHER,
-        help_text="How this inquiry originated"
+        help_text="How this inquiry originated",
     )
     source_call = models.ForeignKey(
-        'cockpit.ScheduledCall',
+        "cockpit.ScheduledCall",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='inquiries',
-        help_text="Source scheduled call (if applicable)"
+        related_name="inquiries",
+        help_text="Source scheduled call (if applicable)",
     )
     route_decision = models.CharField(
         max_length=16,
         choices=InquiryRouteDecisionChoices.choices,
         blank=True,
-        default='',
+        default="",
         db_index=True,
         help_text="Trading engine route chosen for this inquiry (FULFILL or BROKER)",
     )
     source_email = models.ForeignKey(
-        'integrations.EmailLog',
+        "integrations.EmailLog",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='inquiries',
+        related_name="inquiries",
         help_text="Source email record when this inquiry originated from inbound email",
     )
     source_email_message_id = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Snapshot of the source email message ID for durable lineage",
     )
     source_email_thread_id = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Snapshot of the source email thread/conversation ID for durable lineage",
     )
-    
+
     # Entity link (supplier OR customer)
     entity_type = models.CharField(
         max_length=20,
         choices=InquiryEntityTypeChoices.choices,
-        help_text="Whether this inquiry is from a supplier or customer"
+        help_text="Whether this inquiry is from a supplier or customer",
     )
     supplier = models.ForeignKey(
-        'suppliers.Supplier',
+        "suppliers.Supplier",
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name='inquiries',
-        help_text="Supplier (if entity_type is supplier)"
+        related_name="inquiries",
+        help_text="Supplier (if entity_type is supplier)",
     )
     customer = models.ForeignKey(
-        'customers.Customer',
+        "customers.Customer",
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name='inquiries',
-        help_text="Customer (if entity_type is customer)"
+        related_name="inquiries",
+        help_text="Customer (if entity_type is customer)",
     )
     contact = models.ForeignKey(
-        'contacts.Contact',
+        "contacts.Contact",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='inquiries',
-        help_text="Primary contact person"
+        related_name="inquiries",
+        help_text="Primary contact person",
     )
 
     shipping_type = models.CharField(
@@ -179,63 +184,51 @@ class Inquiry(TenantAwareModel):
         help_text="Shipping type (cascades into fulfillment/logistics)",
     )
     requested_master_product = models.ForeignKey(
-        'products.MasterProduct',
+        "products.MasterProduct",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='trading_inquiries',
+        related_name="trading_inquiries",
         help_text="Tenant-scoped master product anchor for the requested item",
     )
     requested_protein = models.CharField(
         max_length=50,
         choices=ProteinTypeChoices.choices,
         blank=True,
-        default='',
+        default="",
         db_index=True,
         help_text="Requested protein anchor used by the hardcoded trading path",
     )
     supplier_purchase_order = models.ForeignKey(
-        'purchase_orders.PurchaseOrder',
+        "purchase_orders.PurchaseOrder",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='source_inquiries',
+        related_name="source_inquiries",
         help_text="Supplier purchase order created from this inquiry",
     )
     sales_order = models.ForeignKey(
-        'sales_orders.SalesOrder',
+        "sales_orders.SalesOrder",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='source_inquiries',
+        related_name="source_inquiries",
         help_text="Sales order created from this inquiry",
     )
     carrier_purchase_order = models.ForeignKey(
-        'purchase_orders.CarrierPurchaseOrder',
+        "purchase_orders.CarrierPurchaseOrder",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='source_inquiries',
+        related_name="source_inquiries",
         help_text="Carrier purchase order created from this inquiry",
     )
-    
+
     # Contact info snapshot (preserved at time of inquiry)
-    contact_name = models.CharField(
-        max_length=255,
-        blank=True,
-        default='',
-        help_text="Contact name at time of inquiry"
-    )
-    contact_email = models.EmailField(
-        blank=True,
-        default='',
-        help_text="Contact email at time of inquiry"
-    )
+    contact_name = models.CharField(max_length=255, blank=True, default="", help_text="Contact name at time of inquiry")
+    contact_email = models.EmailField(blank=True, default="", help_text="Contact email at time of inquiry")
     contact_phone = models.CharField(
-        max_length=50,
-        blank=True,
-        default='',
-        help_text="Contact phone at time of inquiry"
+        max_length=50, blank=True, default="", help_text="Contact phone at time of inquiry"
     )
     contact_phone_type = models.CharField(
         max_length=10,
@@ -245,79 +238,42 @@ class Inquiry(TenantAwareModel):
         help_text="Contact phone type at time of inquiry (mobile or office)",
     )
     contact_company = models.CharField(
-        max_length=255,
-        blank=True,
-        default='',
-        help_text="Company name at time of inquiry"
+        max_length=255, blank=True, default="", help_text="Company name at time of inquiry"
     )
     contact_position = models.CharField(
-        max_length=100,
-        blank=True,
-        default='',
-        help_text="Contact position/title at time of inquiry"
+        max_length=100, blank=True, default="", help_text="Contact position/title at time of inquiry"
     )
-    
+
     # Timestamps and validity
-    inquiry_date = models.DateTimeField(
-        default=timezone.now,
-        help_text="When the inquiry was created"
-    )
-    quoted_date = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When the quote was provided"
-    )
-    decision_date = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When the inquiry was accepted or rejected"
-    )
-    valid_until = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Quote expiration date"
-    )
-    
+    inquiry_date = models.DateTimeField(default=timezone.now, help_text="When the inquiry was created")
+    quoted_date = models.DateTimeField(null=True, blank=True, help_text="When the quote was provided")
+    decision_date = models.DateTimeField(null=True, blank=True, help_text="When the inquiry was accepted or rejected")
+    valid_until = models.DateField(null=True, blank=True, help_text="Quote expiration date")
+
     # Notes and competitor tracking
-    notes = models.TextField(
-        blank=True,
-        default='',
-        help_text="General notes about this inquiry"
-    )
-    competitor_names = models.TextField(
-        blank=True,
-        default='',
-        help_text="Known competitors for this deal"
-    )
-    competitor_pricing_notes = models.TextField(
-        blank=True,
-        default='',
-        help_text="Intel on competitor pricing"
-    )
-    win_loss_reason = models.TextField(
-        blank=True,
-        default='',
-        help_text="Reason for win or loss (filled on close)"
-    )
-    
+    notes = models.TextField(blank=True, default="", help_text="General notes about this inquiry")
+    competitor_names = models.TextField(blank=True, default="", help_text="Known competitors for this deal")
+    competitor_pricing_notes = models.TextField(blank=True, default="", help_text="Intel on competitor pricing")
+    win_loss_reason = models.TextField(blank=True, default="", help_text="Reason for win or loss (filled on close)")
+
     # User tracking
     created_by = models.ForeignKey(
-        'auth.User',
+        "auth.User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='created_inquiries',
-        help_text="User who created this inquiry"
+        related_name="created_inquiries",
+        help_text="User who created this inquiry",
     )
-    
+
     class Meta:
         verbose_name = "Inquiry"
         verbose_name_plural = "Inquiries"
-        ordering = ['-inquiry_date']
+        ordering = ["-inquiry_date"]
         indexes = [
-            models.Index(fields=['tenant', 'inquiry_number']),
-            models.Index(fields=['tenant', 'status']),
-            models.Index(fields=['tenant', 'entity_type']),
+            models.Index(fields=["tenant", "inquiry_number"]),
+            models.Index(fields=["tenant", "status"]),
+            models.Index(fields=["tenant", "entity_type"]),
         ]
 
     def __str__(self):
@@ -334,22 +290,23 @@ class Inquiry(TenantAwareModel):
         """Generate unique inquiry number: INQ-YYYY-NNNNN."""
         year = timezone.now().year
         prefix = f"INQ-{year}-"
-        
+
         # Get the last inquiry number for this tenant and year
-        last_inquiry = Inquiry.objects.filter(
-            tenant=self.tenant,
-            inquiry_number__startswith=prefix
-        ).order_by('-inquiry_number').first()
-        
+        last_inquiry = (
+            Inquiry.objects.filter(tenant=self.tenant, inquiry_number__startswith=prefix)
+            .order_by("-inquiry_number")
+            .first()
+        )
+
         if last_inquiry:
             try:
-                last_num = int(last_inquiry.inquiry_number.split('-')[-1])
+                last_num = int(last_inquiry.inquiry_number.split("-")[-1])
                 next_num = last_num + 1
             except (ValueError, IndexError):
                 next_num = 1
         else:
             next_num = 1
-        
+
         return f"{prefix}{next_num:05d}"
 
     @property
@@ -362,16 +319,12 @@ class Inquiry(TenantAwareModel):
     @property
     def total_desired(self):
         """Sum of all line item desired totals."""
-        return self.products.aggregate(
-            total=models.Sum('desired_total')
-        )['total'] or Decimal('0.00')
+        return self.products.aggregate(total=models.Sum("desired_total"))["total"] or Decimal("0.00")
 
     @property
     def total_actual(self):
         """Sum of all line item actual totals."""
-        return self.products.aggregate(
-            total=models.Sum('actual_total')
-        )['total'] or Decimal('0.00')
+        return self.products.aggregate(total=models.Sum("actual_total"))["total"] or Decimal("0.00")
 
     @property
     def total_margin(self):
@@ -472,179 +425,93 @@ class InquiryProduct(TenantAwareModel):
 
     # NOTE: temporarily nullable for data backfill migration.
     tenant = models.ForeignKey(
-        'tenants.Tenant',
+        "tenants.Tenant",
         on_delete=models.CASCADE,
         db_index=True,
-        related_name='inquiry_products',
+        related_name="inquiry_products",
     )
 
-    inquiry = models.ForeignKey(
-        Inquiry,
-        on_delete=models.CASCADE,
-        related_name='products'
-    )
+    inquiry = models.ForeignKey(Inquiry, on_delete=models.CASCADE, related_name="products")
     product = models.ForeignKey(
-        'system.Product',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='inquiry_lines'
+        "system.Product", on_delete=models.SET_NULL, null=True, blank=True, related_name="inquiry_lines"
     )
     supplier = models.ForeignKey(
-        'suppliers.Supplier',
+        "suppliers.Supplier",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='inquiry_products',
-        help_text='Optional: supplier selected for this line (customer inquiries)',
+        related_name="inquiry_products",
+        help_text="Optional: supplier selected for this line (customer inquiries)",
     )
     plant = models.ForeignKey(
-        'plants.Plant',
+        "plants.Plant",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='inquiry_products',
-        help_text='Optional: plant selected for this line (customer inquiries)',
+        related_name="inquiry_products",
+        help_text="Optional: plant selected for this line (customer inquiries)",
     )
     quantity = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        help_text="Requested quantity"
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), help_text="Requested quantity"
     )
-    
+
     # Desired fields (customer/inquiry expectations)
     desired_total = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Expected total amount"
+        max_digits=12, decimal_places=2, null=True, blank=True, help_text="Expected total amount"
     )
     desired_price_per_unit = models.DecimalField(
-        max_digits=10,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Expected price per unit"
+        max_digits=10, decimal_places=4, null=True, blank=True, help_text="Expected price per unit"
     )
     desired_uom = models.CharField(
-        max_length=10,
-        choices=UOMChoices.choices,
-        default=UOMChoices.LBS,
-        help_text="Expected unit of measure"
+        max_length=10, choices=UOMChoices.choices, default=UOMChoices.LBS, help_text="Expected unit of measure"
     )
     desired_uom_value = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Quantity in UOM"
+        max_digits=12, decimal_places=2, null=True, blank=True, help_text="Quantity in UOM"
     )
-    desired_processed_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Expected processing date"
-    )
-    desired_expiration_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Expected expiration date"
-    )
-    desired_available_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="When needed/available"
-    )
-    desired_shipping_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Expected ship date"
-    )
-    desired_delivery_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Expected delivery date"
-    )
-    
+    desired_processed_date = models.DateField(null=True, blank=True, help_text="Expected processing date")
+    desired_expiration_date = models.DateField(null=True, blank=True, help_text="Expected expiration date")
+    desired_available_date = models.DateField(null=True, blank=True, help_text="When needed/available")
+    desired_shipping_date = models.DateField(null=True, blank=True, help_text="Expected ship date")
+    desired_delivery_date = models.DateField(null=True, blank=True, help_text="Expected delivery date")
+
     # Actual fields (reality/confirmed values)
     actual_total = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Actual total amount"
+        max_digits=12, decimal_places=2, null=True, blank=True, help_text="Actual total amount"
     )
     actual_price_per_unit = models.DecimalField(
-        max_digits=10,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Actual price per unit"
+        max_digits=10, decimal_places=4, null=True, blank=True, help_text="Actual price per unit"
     )
     actual_uom = models.CharField(
-        max_length=10,
-        choices=UOMChoices.choices,
-        blank=True,
-        default='',
-        help_text="Actual unit of measure"
+        max_length=10, choices=UOMChoices.choices, blank=True, default="", help_text="Actual unit of measure"
     )
     actual_uom_value = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Actual quantity in UOM"
+        max_digits=12, decimal_places=2, null=True, blank=True, help_text="Actual quantity in UOM"
     )
-    actual_processed_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Actual processing date"
-    )
-    actual_expiration_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Actual expiration date"
-    )
-    actual_available_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Actual availability date"
-    )
-    actual_shipping_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Actual ship date"
-    )
-    actual_delivery_date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Actual delivery date"
-    )
-    
+    actual_processed_date = models.DateField(null=True, blank=True, help_text="Actual processing date")
+    actual_expiration_date = models.DateField(null=True, blank=True, help_text="Actual expiration date")
+    actual_available_date = models.DateField(null=True, blank=True, help_text="Actual availability date")
+    actual_shipping_date = models.DateField(null=True, blank=True, help_text="Actual ship date")
+    actual_delivery_date = models.DateField(null=True, blank=True, help_text="Actual delivery date")
+
     # Metadata
-    notes = models.TextField(
-        blank=True,
-        default='',
-        help_text="Line item notes"
-    )
+    notes = models.TextField(blank=True, default="", help_text="Line item notes")
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Inquiry Product"
         verbose_name_plural = "Inquiry Products"
-        ordering = ['id']
+        ordering = ["id"]
 
     def __str__(self):
         if not self.product:
             return f"{self.inquiry.inquiry_number} - (No product)"
-        label = getattr(self.product, 'name', None) or getattr(self.product, 'product_code', None) or 'Product'
+        label = getattr(self.product, "name", None) or getattr(self.product, "product_code", None) or "Product"
         return f"{self.inquiry.inquiry_number} - {str(label)[:50]}"
 
     def save(self, *args, **kwargs):
         # Ensure tenant is persisted for RLS isolation.
-        if getattr(self, 'tenant_id', None) is None and self.inquiry_id is not None:
+        if getattr(self, "tenant_id", None) is None and self.inquiry_id is not None:
             self.tenant = self.inquiry.tenant
         super().save(*args, **kwargs)
 
@@ -671,65 +538,41 @@ class InquiryProduct(TenantAwareModel):
 class InquiryTemplate(TenantAwareModel):
     """
     Reusable inquiry templates with pre-configured products and settings.
-    
+
     Allows quick creation of common inquiry types (e.g., "Weekly Beef Order",
     "Standard Pork Inquiry") with pre-selected products and default pricing.
     """
-    
-    name = models.CharField(
-        max_length=100,
-        help_text="Template name (e.g., 'Weekly Beef Order')"
-    )
-    description = models.TextField(
-        blank=True,
-        default='',
-        help_text="Description of this template's purpose"
-    )
+
+    name = models.CharField(max_length=100, help_text="Template name (e.g., 'Weekly Beef Order')")
+    description = models.TextField(blank=True, default="", help_text="Description of this template's purpose")
     entity_type = models.CharField(
         max_length=20,
         choices=InquiryEntityTypeChoices.choices,
-        help_text="Whether this template is for suppliers or customers"
+        help_text="Whether this template is for suppliers or customers",
     )
-    is_active = models.BooleanField(
-        default=True,
-        help_text="Whether this template is available for use"
-    )
-    
+    is_active = models.BooleanField(default=True, help_text="Whether this template is available for use")
+
     # Default settings
-    default_valid_days = models.PositiveIntegerField(
-        default=7,
-        help_text="Default number of days quote is valid"
-    )
-    default_notes = models.TextField(
-        blank=True,
-        default='',
-        help_text="Default notes to include in inquiry"
-    )
-    
+    default_valid_days = models.PositiveIntegerField(default=7, help_text="Default number of days quote is valid")
+    default_notes = models.TextField(blank=True, default="", help_text="Default notes to include in inquiry")
+
     # Usage tracking
-    use_count = models.PositiveIntegerField(
-        default=0,
-        help_text="Number of times this template has been used"
-    )
-    
+    use_count = models.PositiveIntegerField(default=0, help_text="Number of times this template has been used")
+
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
-        'auth.User',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='created_inquiry_templates'
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="created_inquiry_templates"
     )
-    
+
     class Meta:
         verbose_name = "Inquiry Template"
         verbose_name_plural = "Inquiry Templates"
-        ordering = ['-use_count', 'name']
+        ordering = ["-use_count", "name"]
         indexes = [
-            models.Index(fields=['tenant', 'entity_type', 'is_active']),
+            models.Index(fields=["tenant", "entity_type", "is_active"]),
         ]
-    
+
     def __str__(self):
         return f"{self.name} ({self.entity_type})"
 
@@ -739,69 +582,44 @@ class InquiryTemplateProduct(TenantAwareModel):
 
     # Persist tenant_id for RLS isolation (backfilled from parent template).
     tenant = models.ForeignKey(
-        'tenants.Tenant',
+        "tenants.Tenant",
         on_delete=models.CASCADE,
         help_text="Tenant this entity belongs to",
-        related_name='inquiry_template_products',
+        related_name="inquiry_template_products",
     )
-    
-    template = models.ForeignKey(
-        InquiryTemplate,
-        on_delete=models.CASCADE,
-        related_name='products'
-    )
+
+    template = models.ForeignKey(InquiryTemplate, on_delete=models.CASCADE, related_name="products")
     product = models.ForeignKey(
-        'system.Product',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='template_lines'
+        "system.Product", on_delete=models.SET_NULL, null=True, blank=True, related_name="template_lines"
     )
-    
+
     # Default values for this product in this template
     default_quantity = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        help_text="Default quantity to request"
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), help_text="Default quantity to request"
     )
     default_uom = models.CharField(
-        max_length=10,
-        choices=UOMChoices.choices,
-        default=UOMChoices.LBS,
-        help_text="Default unit of measure"
+        max_length=10, choices=UOMChoices.choices, default=UOMChoices.LBS, help_text="Default unit of measure"
     )
     default_price_per_unit = models.DecimalField(
-        max_digits=10,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Default price per unit (if known)"
+        max_digits=10, decimal_places=4, null=True, blank=True, help_text="Default price per unit (if known)"
     )
-    notes = models.TextField(
-        blank=True,
-        default='',
-        help_text="Notes for this product in this template"
-    )
-    sort_order = models.PositiveIntegerField(
-        default=0,
-        help_text="Display order in template"
-    )
-    
+    notes = models.TextField(blank=True, default="", help_text="Notes for this product in this template")
+    sort_order = models.PositiveIntegerField(default=0, help_text="Display order in template")
+
     class Meta:
         verbose_name = "Template Product"
         verbose_name_plural = "Template Products"
-        ordering = ['sort_order', 'id']
-        unique_together = [['template', 'product']]
-    
+        ordering = ["sort_order", "id"]
+        unique_together = [["template", "product"]]
+
     def __str__(self):
         if not self.product:
             return f"{self.template.name} - (No product)"
-        label = getattr(self.product, 'name', None) or getattr(self.product, 'product_code', None) or 'Product'
+        label = getattr(self.product, "name", None) or getattr(self.product, "product_code", None) or "Product"
         return f"{self.template.name} - {str(label)[:30]}"
-    
+
     def save(self, *args, **kwargs):
-        if getattr(self, 'tenant_id', None) is None and self.template_id is not None:
+        if getattr(self, "tenant_id", None) is None and self.template_id is not None:
             self.tenant = self.template.tenant
         super().save(*args, **kwargs)
 

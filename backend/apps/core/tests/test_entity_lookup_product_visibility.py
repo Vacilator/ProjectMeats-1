@@ -12,7 +12,6 @@ from apps.system.models import Product, TenantProductPreference
 from apps.tenants.models import Tenant, TenantUser
 from apps.tenants.rls import set_current_tenant
 
-
 User = get_user_model()
 
 

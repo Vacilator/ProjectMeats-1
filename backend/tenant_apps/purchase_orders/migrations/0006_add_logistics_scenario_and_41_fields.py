@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("purchase_orders", "0005_metadata_lockdown"),
     ]
@@ -57,9 +56,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="purchaseorder",
             name="item_description",
-            field=models.TextField(
-                blank=True, default="", help_text="Detailed item description"
-            ),
+            field=models.TextField(blank=True, default="", help_text="Detailed item description"),
         ),
         migrations.AddField(
             model_name="purchaseorder",
@@ -136,9 +133,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="purchaseorder",
             name="special_instructions",
-            field=models.TextField(
-                blank=True, default="", help_text="Special instructions or notes"
-            ),
+            field=models.TextField(blank=True, default="", help_text="Special instructions or notes"),
         ),
         migrations.AddField(
             model_name="purchaseorder",

@@ -8,10 +8,6 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.core.models import ProteinTypeChoices
-from apps.integrations.models import EmailLog, ExternalAuthProvider
-from apps.system.models import Product
-from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.contacts.models import Contact, ContactDepartmentChoices
 from tenant_apps.customers.models import Customer
@@ -24,12 +20,17 @@ from tenant_apps.inquiries.models import (
     InquirySupplierRFQ,
     InquirySupplierRFQStatusChoices,
 )
-from tenant_apps.plants.models import Plant
 from tenant_apps.inquiries.services import create_supplier_quote_purchase_order_draft
 from tenant_apps.inquiries.services.supplier_quote_po_draft import SupplierQuotePODraftError
+from tenant_apps.plants.models import Plant
 from tenant_apps.products.models import MasterProduct
 from tenant_apps.purchase_orders.models import PurchaseOrder
 from tenant_apps.suppliers.models import Supplier
+
+from apps.core.models import ProteinTypeChoices
+from apps.integrations.models import EmailLog, ExternalAuthProvider
+from apps.system.models import Product
+from apps.tenants.models import Tenant, TenantUser
 
 
 class SupplierQuotePODraftServiceTests(TestCase):
@@ -220,7 +221,7 @@ class SupplierQuotePODraftServiceTests(TestCase):
                         "correlation_key": "11111111-1111-1111-1111-111111111111",
                         "candidate_rfqs": [],
                     },
-                }
+                },
             },
         )
         self.feedback_document_id = uuid.uuid5(

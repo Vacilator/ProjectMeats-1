@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cockpit", "0001_initial"),
         ("contenttypes", "0002_remove_content_type_name"),
@@ -26,8 +25,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="activitylog",
             name="object_id",
-            field=models.PositiveIntegerField(
-                blank=True, help_text="ID of the related entity", null=True
-            ),
+            field=models.PositiveIntegerField(blank=True, help_text="ID of the related entity", null=True),
         ),
     ]

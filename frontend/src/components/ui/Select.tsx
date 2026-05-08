@@ -1,6 +1,6 @@
 /**
  * Select Component - Reusable dropdown with semantic design system
- * 
+ *
  * Features:
  * - Theme-aware styling
  * - Full keyboard navigation

@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("inquiries", "0009_merge_20260331_0402"),
         ("integrations", "0006_alter_emaillog_status"),

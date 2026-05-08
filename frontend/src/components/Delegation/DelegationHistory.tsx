@@ -1,6 +1,6 @@
 /**
  * DelegationHistory Component
- * 
+ *
  * Displays the delegation history for a task, showing who delegated
  * to whom, when, and any notes associated with each delegation.
  */
@@ -75,20 +75,20 @@ const DelegationCard = styled.div<{ $status: DelegationRecord['status'] }>`
   padding: 16px;
   border: 1px solid rgb(var(--color-border, 224 224 224));
   animation: ${fadeIn} 0.3s ease;
-  
+
   ${props => props.$status === 'active' && css`
     border-left: 3px solid rgb(var(--color-info));
   `}
-  
+
   ${props => props.$status === 'completed' && css`
     border-left: 3px solid rgb(var(--color-success));
   `}
-  
+
   ${props => props.$status === 'revoked' && css`
     border-left: 3px solid rgb(var(--color-error));
     opacity: 0.7;
   `}
-  
+
   ${props => props.$status === 'expired' && css`
     border-left: 3px solid rgb(var(--color-warning));
     opacity: 0.7;
@@ -127,7 +127,7 @@ const Avatar = styled.div<{ $hasImage: boolean; $size?: number }>`
   font-size: ${props => (props.$size || 32) * 0.4}px;
   flex-shrink: 0;
   overflow: hidden;
-  
+
   img {
     width: 100%;
     height: 100%;
@@ -152,7 +152,7 @@ const StatusBadge = styled.span<{ $status: DelegationRecord['status'] }>`
   padding: 3px 8px;
   border-radius: 4px;
   text-transform: uppercase;
-  
+
   ${props => {
     switch (props.$status) {
       case 'active':
@@ -220,7 +220,7 @@ const RevokeButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgba(var(--color-error), 0.1);
   }
@@ -300,10 +300,10 @@ export const DelegationHistory: React.FC<DelegationHistoryProps> = ({
   return (
     <Container className={className}>
       {delegations.map((delegation) => {
-        const canRevoke = delegation.status === 'active' && 
+        const canRevoke = delegation.status === 'active' &&
                           currentUserId === delegation.fromUser.id &&
                           onRevoke;
-        
+
         return (
           <DelegationCard key={delegation.id} $status={delegation.status}>
             <DelegationHeader>
@@ -334,7 +334,7 @@ export const DelegationHistory: React.FC<DelegationHistoryProps> = ({
                 {getStatusLabel(delegation.status)}
               </StatusBadge>
             </DelegationHeader>
-            
+
             <DelegationMeta>
               <MetaItem>
                 <MetaIcon>📅</MetaIcon>
@@ -353,11 +353,11 @@ export const DelegationHistory: React.FC<DelegationHistoryProps> = ({
                 </MetaItem>
               )}
             </DelegationMeta>
-            
+
             {delegation.reason && (
               <ReasonText>"{delegation.reason}"</ReasonText>
             )}
-            
+
             {canRevoke && (
               <ActionRow>
                 <RevokeButton onClick={() => onRevoke!(delegation.id)}>

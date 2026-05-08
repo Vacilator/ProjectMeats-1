@@ -1,8 +1,8 @@
 # CODEOWNERS for ProjectMeats
 # This file defines who should review PRs for different parts of the codebase
-# 
+#
 # Each line is a file pattern followed by one or more owners.
-# These owners will be automatically requested for review when someone 
+# These owners will be automatically requested for review when someone
 # opens a pull request that modifies files matching the pattern.
 #
 # More details: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
@@ -20,7 +20,7 @@
 /backend/tenant_apps/workflows/ @Meats-Central/workflow-engine
 /backend/tenant_apps/invoices/ @Meats-Central/fintech-team
 
-# Frontend React/TypeScript code  
+# Frontend React/TypeScript code
 /frontend/ @Meats-Central/frontend-team
 /frontend/src/ @Meats-Central/frontend-team
 

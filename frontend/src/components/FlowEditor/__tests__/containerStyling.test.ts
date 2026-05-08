@@ -1,8 +1,8 @@
 /**
  * Container Styling Utilities - Unit Tests
- * 
+ *
  * Tests for container theming, sizing, and positioning utilities.
- * 
+ *
  * Phase 7.2: Enhanced Container Management
  */
 
@@ -20,7 +20,7 @@ describe('Container Styling Utilities', () => {
   describe('getContainerTheme', () => {
     it('should return base theme for expanded container', () => {
       const theme = getContainerTheme(true, false, false);
-      
+
       expect(theme.background).toBe('rgb(var(--color-surface))');
       expect(theme.border).toBe('rgb(var(--color-border))');
       expect(theme.shadow).toBe('0 2px 8px rgba(var(--color-overlay), 0.1)');
@@ -28,21 +28,21 @@ describe('Container Styling Utilities', () => {
 
     it('should return lighter theme for collapsed container', () => {
       const theme = getContainerTheme(false, false, false);
-      
+
       expect(theme.background).toBe('rgb(var(--color-surface) / 0.95)');
       expect(theme.shadow).toBe('0 1px 4px rgba(var(--color-overlay), 0.08)');
     });
 
     it('should emphasize shadow when dragging', () => {
       const theme = getContainerTheme(true, true, false);
-      
+
       expect(theme.shadow).toBe('0 8px 24px rgba(var(--color-primary), 0.3)');
       expect(theme.border).toBe('rgb(var(--color-primary))');
     });
 
     it('should highlight as drop target', () => {
       const theme = getContainerTheme(true, false, true);
-      
+
       expect(theme.background).toBe('rgba(var(--color-primary), 0.05)');
       expect(theme.border).toBe('rgb(var(--color-success))');
       expect(theme.shadow).toContain('rgba(var(--color-success), 0.2)');
@@ -52,14 +52,14 @@ describe('Container Styling Utilities', () => {
   describe('calculateContainerSize', () => {
     it('should return collapsed size when not expanded', () => {
       const size = calculateContainerSize(5, false);
-      
+
       expect(size.width).toBe(280);
       expect(size.height).toBe(48); // Header height only
     });
 
     it('should calculate expanded size based on children', () => {
       const size = calculateContainerSize(3, true);
-      
+
       expect(size.width).toBe(280);
       expect(size.height).toBeGreaterThan(200); // Min height
       expect(size.height).toBe(48 + (3 * 100 + 32)); // Header + content
@@ -67,7 +67,7 @@ describe('Container Styling Utilities', () => {
 
     it('should use minimum height for containers with no children', () => {
       const size = calculateContainerSize(0, true);
-      
+
       expect(size.height).toBe(48 + 200); // Header + min content
     });
   });
@@ -195,7 +195,7 @@ describe('Container Styling Utilities', () => {
 
       // Should have points along vertical axis
       expect(snapPoints.length).toBeGreaterThan(0);
-      
+
       // All points should be at container center horizontally
       const centerX = containerPos.x + containerSize.width / 2;
       snapPoints.forEach(point => {

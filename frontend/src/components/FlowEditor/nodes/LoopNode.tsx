@@ -1,9 +1,9 @@
 /**
  * Loop Node Component
- * 
+ *
  * Implements iteration logic for repeating workflow steps.
  * Supports for-each, while, and for-range loop types.
- * 
+ *
  * Phase 7.4: Advanced Node Types - Loop Constructs
  */
 
@@ -161,10 +161,10 @@ function getLoopTypeLabel(loopType: LoopType): string {
 
 /**
  * Loop Node
- * 
+ *
  * Implements iteration logic for repeating workflow steps. Supports
  * multiple loop types (for-each, while, for-range) with safety limits.
- * 
+ *
  * Features:
  * - Three loop types (for-each, while, for-range)
  * - Configurable iterator names
@@ -172,7 +172,7 @@ function getLoopTypeLabel(loopType: LoopType): string {
  * - Break on error option
  * - Runtime iteration counter
  * - Visual execution feedback
- * 
+ *
  * Usage:
  * ```tsx
  * // For-each loop
@@ -186,7 +186,7 @@ function getLoopTypeLabel(loopType: LoopType): string {
  *     maxIterations: 100
  *   }
  * };
- * 
+ *
  * // While loop
  * const whileNode = {
  *   type: 'loop',
@@ -197,7 +197,7 @@ function getLoopTypeLabel(loopType: LoopType): string {
  *     maxIterations: 10
  *   }
  * };
- * 
+ *
  * // For-range loop
  * const forRangeNode = {
  *   type: 'loop',

@@ -1,6 +1,6 @@
 /**
  * QuickActionsService Tests
- * 
+ *
  * Tests for Quick Actions and Form Submission services:
  * - Quick actions CRUD operations
  * - Form submission lifecycle

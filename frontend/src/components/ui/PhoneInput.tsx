@@ -1,6 +1,6 @@
 /**
  * PhoneInput Component - Masked phone input with (XXX)XXX-XXXX format
- * 
+ *
  * Features:
  * - Auto-formatting as user types
  * - Theme-aware styling
@@ -80,9 +80,9 @@ const StyledInputMask = styled(InputMask)<{ $theme: Theme; $hasError: boolean }>
   width: 100%;
   padding: 10px 12px;
   font-size: 14px;
-  border: 1px solid ${(props) => 
-    props.$hasError 
-      ? props.$theme.colors.danger 
+  border: 1px solid ${(props) =>
+    props.$hasError
+      ? props.$theme.colors.danger
       : props.$theme.colors.border
   };
   border-radius: 6px;

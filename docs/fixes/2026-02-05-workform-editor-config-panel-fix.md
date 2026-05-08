@@ -57,7 +57,7 @@ const handleTemplateSelect = useCallback((template: FlowTemplate) => {
       }
     };
   });
-  
+
   setNodes(mappedNodes);
   setEdges(template.edges);
   // ...
@@ -65,7 +65,7 @@ const handleTemplateSelect = useCallback((template: FlowTemplate) => {
 ```
 
 ### 2. Enhanced Node Type Detection
-**File**: `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`  
+**File**: `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`
 **Lines**: 2644-2660
 
 Added support for 'end*' prefix nodes and debug logging:
@@ -91,7 +91,7 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   if (nodeTypeId.startsWith('utility')) return 'utility';
   if (nodeTypeId.startsWith('terminal')) return 'terminal';
   if (nodeTypeId.startsWith('end')) return 'terminal'; // NEW: Map 'endSuccess', 'endError'
-  
+
   console.warn(`Unknown node type: ${nodeTypeId}, defaulting to action`);
   return 'action';
 }

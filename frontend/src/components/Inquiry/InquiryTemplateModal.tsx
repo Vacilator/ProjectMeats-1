@@ -1,6 +1,6 @@
 /**
  * InquiryTemplateModal - Create/Edit inquiry templates
- * 
+ *
  * Allows users to create reusable templates with pre-configured products
  * and default settings for quick inquiry creation.
  */
@@ -92,7 +92,7 @@ const Input = styled.input`
   font-size: 0.9rem;
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -106,7 +106,7 @@ const Select = styled.select`
   font-size: 0.9rem;
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -122,7 +122,7 @@ const TextArea = styled.textarea`
   color: rgb(var(--color-text-primary));
   min-height: 80px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -174,7 +174,7 @@ const RemoveButton = styled.button`
   cursor: pointer;
   padding: 4px 8px;
   font-size: 1.1rem;
-  
+
   &:hover {
     background: rgba(239, 68, 68, 0.1);
     border-radius: 4px;
@@ -192,7 +192,7 @@ const AddProductButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   margin-top: 12px;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
@@ -207,16 +207,16 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   ${props => props.$variant === 'primary' ? `
     background: rgb(var(--color-primary));
     color: white;
     border: none;
-    
+
     &:hover {
       opacity: 0.9;
     }
-    
+
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -225,7 +225,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
     background: transparent;
     color: rgb(var(--color-text-primary));
     border: 1px solid rgb(var(--color-border));
-    
+
     &:hover {
       background: rgba(var(--color-primary), 0.05);
     }
@@ -258,7 +258,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
   entityType: defaultEntityType,
 }) => {
   const isEditing = !!template;
-  
+
   // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -269,11 +269,11 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
   const [products, setProducts] = useState<TemplateProductLine[]>([]);
 
   const [proteinFilter, setProteinFilter] = useState<string[]>([]);
-  
+
   // Data state
   const [availableProducts, setAvailableProducts] = useState<ProductOption[]>([]);
   const [saving, setSaving] = useState(false);
-  
+
   // Load products list
   useEffect(() => {
     if (!isOpen) return;
@@ -294,7 +294,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
       })
       .catch((err) => logger.error('Failed to load products', { component: 'InquiryTemplateModal' }, err));
   }, [isOpen, proteinFilter.join('|')]);
-  
+
   // Initialize form when template changes
   useEffect(() => {
     if (template) {
@@ -325,7 +325,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
       setProducts([]);
     }
   }, [template, defaultEntityType, isOpen]);
-  
+
   const handleAddProduct = useCallback(() => {
     setProducts(prev => [...prev, {
       product: '',
@@ -335,16 +335,16 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
       sort_order: prev.length,
     }]);
   }, []);
-  
+
   const handleRemoveProduct = useCallback((index: number) => {
     setProducts(prev => prev.filter((_, i) => i !== index));
   }, []);
-  
+
   const handleProductChange = useCallback((index: number, field: keyof TemplateProductLine, value: any) => {
     setProducts(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
-      
+
       // If product changed, update product details
       if (field === 'product' && value) {
         const product = availableProducts.find(p => p.id === value);
@@ -353,11 +353,11 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
           updated[index].product_description = product.description_of_product_item;
         }
       }
-      
+
       return updated;
     });
   }, [availableProducts]);
-  
+
   const handleSave = async () => {
     if (!name.trim()) {
       showAlert({
@@ -367,7 +367,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
       });
       return;
     }
-    
+
     setSaving(true);
     try {
       const payload = {
@@ -386,14 +386,14 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
           sort_order: idx,
         })),
       };
-      
+
       let response;
       if (isEditing && template) {
         response = await businessApi.put(`inquiry-templates/${template.id}/`, payload);
       } else {
         response = await businessApi.post('inquiry-templates/', payload);
       }
-      
+
       onSave(response.data);
       onClose();
     } catch (error) {
@@ -407,7 +407,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
       setSaving(false);
     }
   };
-  
+
   return (
     <InquiryModalFrame
       isOpen={isOpen}
@@ -472,7 +472,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
               </Label>
             </CheckboxRow>
           </FormSection>
-          
+
           {/* Products */}
           <FormSection>
             <SectionTitle>📦 Default Products</SectionTitle>
@@ -590,7 +590,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
               ➕ Add Product
             </AddProductButton>
           </FormSection>
-          
+
           {/* Default Notes */}
           <FormSection>
             <SectionTitle>📋 Default Notes</SectionTitle>
@@ -604,8 +604,8 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
 
       <InquiryModalFooter>
           <Button onClick={onClose}>Cancel</Button>
-          <Button 
-            $variant="primary" 
+          <Button
+            $variant="primary"
             onClick={handleSave}
             disabled={saving || !name.trim()}
           >

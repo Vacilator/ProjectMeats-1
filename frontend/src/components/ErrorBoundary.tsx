@@ -1,12 +1,12 @@
 /**
  * Global Error Boundary Component
- * 
+ *
  * Catches errors anywhere in the component tree and displays fallback UI.
  * Prevents the entire app from crashing when unexpected errors occur.
- * 
+ *
  * Based on: AdminErrorBoundary.tsx
  * Created: 2026-02-19
- * 
+ *
  * Features:
  * - User-friendly error fallback UI
  * - Integrated ReportBugButton for quick bug reporting
@@ -14,7 +14,7 @@
  * - Error count tracking for persistent issues
  * - Recovery options (reset, go home)
  * - Show/hide technical details
- * 
+ *
  * Usage:
  * ```tsx
  * <ErrorBoundary>
@@ -101,7 +101,7 @@ class ErrorBoundary extends Component<Props, State> {
         },
       });
     }
-    
+
     // Optional: Send to backend telemetry endpoint
     this.sendToTelemetry(error, errorInfo);
   }
@@ -254,11 +254,11 @@ const ErrorCard = styled.div`
 const ErrorIcon = styled.div`
   color: rgb(var(--color-error));
   margin-bottom: 1.5rem;
-  
+
   svg {
     animation: pulse 2s ease-in-out infinite;
   }
-  
+
   @keyframes pulse {
     0%, 100% {
       opacity: 1;
@@ -281,7 +281,7 @@ const ErrorMessage = styled.p`
   color: rgb(var(--color-text-secondary));
   line-height: 1.6;
   margin: 0 0 2rem 0;
-  
+
   strong {
     color: rgb(var(--color-error));
     font-weight: 600;
@@ -345,12 +345,12 @@ const PrimaryButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-primary-dark));
     transform: translateY(-1px);
   }
-  
+
   &:active {
     transform: translateY(0);
   }
@@ -369,7 +369,7 @@ const SecondaryButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-bg-tertiary));
     border-color: rgb(var(--color-primary));

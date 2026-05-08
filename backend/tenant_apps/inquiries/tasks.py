@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import logging
 
-from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -184,9 +185,7 @@ def _saga_supplier_rfq_replied(event_log) -> dict:
     payload = event_log.payload or {}
     inquiry_id = payload.get("inquiry_id", event_log.entity_id)
 
-    logger.info(
-        f"Supplier RFQ replied for inquiry {inquiry_id} — PO draft will be created"
-    )
+    logger.info(f"Supplier RFQ replied for inquiry {inquiry_id} — PO draft will be created")
     return {"action": "po_draft_triggered", "inquiry_id": inquiry_id}
 
 
@@ -275,9 +274,7 @@ def _saga_trade_completed(event_log) -> dict:
 
     if trade_session_id:
         try:
-            from tenant_apps.inquiries.services.trade_session import (
-                update_trade_session_status,
-            )
+            from tenant_apps.inquiries.services.trade_session import update_trade_session_status
 
             update_trade_session_status(
                 trade_session_id=int(trade_session_id),

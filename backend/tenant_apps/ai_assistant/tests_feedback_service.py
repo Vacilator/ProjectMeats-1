@@ -16,7 +16,6 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from apps.core.models import TradeEventLog
 from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.ai_assistant.services.feedback_service import (
     EVENT_CORRECTION_APPLIED,
@@ -27,6 +26,8 @@ from tenant_apps.ai_assistant.services.feedback_service import (
     queue_single_feedback,
     suggest_corrections,
 )
+
+from apps.core.models import TradeEventLog
 
 User = get_user_model()
 

@@ -2,9 +2,10 @@
 Basic API endpoint tests for purchase orders.
 Tests the 404 fix for purchase-orders endpoint.
 """
-import pytest
 from django.test import Client
 from rest_framework import status
+
+import pytest
 
 
 @pytest.mark.django_db

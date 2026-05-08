@@ -20,8 +20,8 @@ import time
 from typing import Any, Sequence
 
 from django.db.models import QuerySet
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
@@ -62,29 +62,29 @@ class StructuredErrorMixin:
         self,
         message: str,
         *,
-        code: str = 'error',
+        code: str = "error",
         status_code: int = status.HTTP_400_BAD_REQUEST,
         details: dict[str, Any] | None = None,
     ) -> Response:
         payload: dict[str, Any] = {
-            'status': 'error',
-            'code': code,
-            'message': message,
+            "status": "error",
+            "code": code,
+            "message": message,
         }
         if details:
-            payload['details'] = details
+            payload["details"] = details
         return Response(payload, status=status_code)
 
     def success_response(
         self,
         data: Any = None,
         *,
-        message: str = 'ok',
+        message: str = "ok",
         status_code: int = status.HTTP_200_OK,
     ) -> Response:
-        payload: dict[str, Any] = {'status': 'success', 'message': message}
+        payload: dict[str, Any] = {"status": "success", "message": message}
         if data is not None:
-            payload['data'] = data
+            payload["data"] = data
         return Response(payload, status=status_code)
 
 
@@ -103,12 +103,12 @@ class QueryPerformanceLoggingMixin:
 
         if elapsed_ms > self.slow_query_threshold_ms:
             logger.warning(
-                '[SlowQuery] %s.list took %.0fms (threshold=%dms) path=%s tenant=%s',
+                "[SlowQuery] %s.list took %.0fms (threshold=%dms) path=%s tenant=%s",
                 self.__class__.__name__,
                 elapsed_ms,
                 self.slow_query_threshold_ms,
                 request.path,
-                getattr(getattr(request, 'tenant', None), 'id', 'N/A'),
+                getattr(getattr(request, "tenant", None), "id", "N/A"),
             )
 
         return response
@@ -120,7 +120,7 @@ class QueryPerformanceLoggingMixin:
 
         if elapsed_ms > self.slow_query_threshold_ms:
             logger.warning(
-                '[SlowQuery] %s.retrieve took %.0fms (threshold=%dms) path=%s',
+                "[SlowQuery] %s.retrieve took %.0fms (threshold=%dms) path=%s",
                 self.__class__.__name__,
                 elapsed_ms,
                 self.slow_query_threshold_ms,

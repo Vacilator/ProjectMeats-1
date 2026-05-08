@@ -1,16 +1,16 @@
 /**
  * DataMappingPanel Component
- * 
+ *
  * UI for mapping form field outputs to workflow node inputs.
  * Provides visual interface for creating, editing, and validating data connections.
- * 
+ *
  * Features:
  * - Drag-and-drop field mapping
  * - Auto-complete for field selection
  * - Transformation expression editor
  * - Validation feedback
  * - Preview of mapped data
- * 
+ *
  * Created: 2026-02-21 - Phase 1: Hybrid Functionality
  */
 
@@ -99,7 +99,7 @@ const MappingRow = styled.div<{ hasError?: boolean }>`
   padding: 12px;
   background: rgb(var(--color-background-secondary));
   border-radius: 6px;
-  border: 1px solid ${props => 
+  border: 1px solid ${props =>
     props.hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'
   };
 `;
@@ -217,15 +217,15 @@ const ValidationMessage = styled.div<{ type: 'error' | 'success' }>`
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: ${props => 
-    props.type === 'error' 
-      ? 'rgb(var(--color-error))' 
+  color: ${props =>
+    props.type === 'error'
+      ? 'rgb(var(--color-error))'
       : 'rgb(var(--color-success))'
   };
   padding: 8px 12px;
-  background: ${props => 
-    props.type === 'error' 
-      ? 'rgba(var(--color-error), 0.1)' 
+  background: ${props =>
+    props.type === 'error'
+      ? 'rgba(var(--color-error), 0.1)'
       : 'rgba(var(--color-success), 0.1)'
   };
   border-radius: 6px;
@@ -270,13 +270,13 @@ export const DataMappingPanel: React.FC<DataMappingPanelProps> = React.memo(({
   const [showTransform, setShowTransform] = useState<Record<string, boolean>>({});
 
   // Get available upstream form fields
-  const availableFields = useMemo(() => 
+  const availableFields = useMemo(() =>
     getUpstreamFormFields(node.id),
     [node.id, getUpstreamFormFields]
   );
 
   // Get current mappings for this node
-  const currentMappings = useMemo(() => 
+  const currentMappings = useMemo(() =>
     getMappingsForNode(node.id),
     [node.id, getMappingsForNode]
   );
@@ -314,7 +314,7 @@ export const DataMappingPanel: React.FC<DataMappingPanelProps> = React.memo(({
       fieldName: field.name,
       fieldType: field.type,
       // Extract formNodeId from handleId pattern
-      formNodeId: field.handleId.split('-')[0], 
+      formNodeId: field.handleId.split('-')[0],
     };
 
     setMapping(updatedMapping);

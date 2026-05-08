@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("plants", "0011_fix_plants_rls_policies_safe_current_setting"),
     ]

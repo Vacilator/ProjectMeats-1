@@ -1,18 +1,18 @@
 /**
  * SmartSearch Component
- * 
+ *
  * Mind-map style search with cascading relational results.
  * Displays entity relationships in chunks (calls, S.O.'s, associates).
- * 
+ *
  * Features:
  * - Cascading results (type entity → see relations)
  * - Breadcrumb navigation
  * - Top-5 results per entity type
  * - Relational chunks (recent activity, associates, orders)
  * - Favorites integration
- * 
+ *
  * Created: 2026-02-21 - Cockpit Phase 1: Smart Search Foundation
- * 
+ *
  * @module SmartSearch
  */
 
@@ -385,12 +385,12 @@ const formatEntitySubtitle = (item: any): string => {
   if (item.metadata?.labels && item.metadata.labels.length > 0) {
     return item.metadata.labels[0]; // Show first label
   }
-  
+
   // Fallback to common fields
   if (item.subtitle) return item.subtitle;
   if (item.status) return item.status;
   if (item.quantity) return `Qty: ${item.quantity}`;
-  
+
   return '';
 };
 
@@ -399,7 +399,7 @@ const formatEntitySubtitle = (item: any): string => {
  */
 const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
   const actions: SearchEntity[] = [];
-  
+
   switch (entity.type) {
     case 'customer':
       actions.push(
@@ -408,7 +408,7 @@ const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
         { id: 'view-history', type: 'order', name: 'View Full History', subtitle: 'See all transactions and interactions', metadata: { action: 'view_history', entityId: entity.id } }
       );
       break;
-    
+
     case 'supplier':
       actions.push(
         { id: 'create-po', type: 'order', name: 'Create Purchase Order', subtitle: 'Start new PO with this supplier', metadata: { action: 'create_po', entityId: entity.id } },
@@ -416,7 +416,7 @@ const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
         { id: 'view-history', type: 'order', name: 'View Purchase History', subtitle: 'See all orders from this supplier', metadata: { action: 'view_history', entityId: entity.id } }
       );
       break;
-    
+
     case 'product':
       actions.push(
         { id: 'adjust-inventory', type: 'product', name: 'Adjust Inventory', subtitle: 'Update stock levels', metadata: { action: 'adjust_inventory', entityId: entity.id } },
@@ -424,7 +424,7 @@ const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
         { id: 'view-movement', type: 'product', name: 'View Stock Movement', subtitle: 'See inventory history', metadata: { action: 'view_movement', entityId: entity.id } }
       );
       break;
-    
+
     case 'contact':
       actions.push(
         { id: 'send-email', type: 'inquiry', name: 'Send Email', subtitle: 'Contact via email', metadata: { action: 'send_email', entityId: entity.id } },
@@ -432,7 +432,7 @@ const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
       );
       break;
   }
-  
+
   return {
     type: 'actions' as any,
     title: 'Quick Actions',
@@ -462,7 +462,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const navigation = useCockpitNavigation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   const [internalQuery, setInternalQuery] = useState(initialQuery);
   const query = controlledQuery ?? internalQuery;
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
@@ -595,20 +595,20 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setIsRelationsLoading(true);
 
     try {
-      
+
       // Use unified Entity Graph API
       const response = await businessApi.get(
         `/system/entities/${entity.type}/${entity.id}/relationships/`
       );
-      
-      
+
+
       const chunks: RelationalChunk[] = [];
       const { relationships } = response.data;
-      
+
       // Transform API relationships to chunks
       Object.entries(relationships).forEach(([relType, items]: [string, any]) => {
         if (!items || items.length === 0) return;
-        
+
         const chunk: RelationalChunk = {
           type: relType as any,
           title: formatRelationshipTitle(relType),
@@ -621,7 +621,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           })),
           icon: getRelationshipIcon(relType),
         };
-        
+
         chunks.push(chunk);
       });
 
@@ -631,19 +631,19 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           `/system/entities/${entity.type}/${entity.id}/fuzzy-related/`,
           { params: { max_results: 30 } }
         );
-        
-        
+
+
         if (fuzzyResponse.data.fuzzy_matches && fuzzyResponse.data.fuzzy_matches.length > 0) {
           // Group fuzzy matches by type
           const fuzzyByType: Record<string, any[]> = {};
-          
+
           fuzzyResponse.data.fuzzy_matches.forEach((match: any) => {
             if (!fuzzyByType[match.type]) {
               fuzzyByType[match.type] = [];
             }
             fuzzyByType[match.type].push(match);
           });
-          
+
           // Add fuzzy chunks with distinctive styling
           Object.entries(fuzzyByType).forEach(([matchType, matches]) => {
             const fuzzyChunk: RelationalChunk = {

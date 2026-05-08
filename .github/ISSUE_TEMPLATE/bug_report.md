@@ -81,5 +81,5 @@ Paste error messages here
 
 ---
 
-**Branch Naming**: When fixing, use `fix/descriptive-name` format (or `hotfix/` for critical issues)  
+**Branch Naming**: When fixing, use `fix/descriptive-name` format (or `hotfix/` for critical issues)
 **PR Title Format**: `fix(scope): description` following [Conventional Commits](https://www.conventionalcommits.org/)

@@ -1,13 +1,13 @@
 /**
  * WorkForms API Service
- * 
+ *
  * Provides methods for interacting with WorkForms backend APIs:
  * - Entity registry and schema
  * - TenantForm CRUD operations
  * - TenantWorkForm CRUD operations
  * - Form merge/split operations
  * - Workflow clone/validate operations
- * 
+ *
  * Phase 2 of WF-ENH-2026-Q1
  * Created: 2026-02-06
  */
@@ -289,7 +289,7 @@ export const getTenantForm = async (formId: string): Promise<TenantForm> => {
  */
 export const getFormFields = async (formId: string): Promise<EntityField[]> => {
   const form = await getTenantForm(formId);
-  
+
   // Extract fields from form_definition structure.
   // Backward compatibility: some legacy code paths may still return `flow_data`.
   const definition = (form as any).form_definition ?? (form as any).flow_data;
@@ -306,7 +306,7 @@ export const getFormFields = async (formId: string): Promise<EntityField[]> => {
       }
     });
   }
-  
+
   return fields;
 };
 
@@ -622,7 +622,7 @@ const workformsApi = {
   getEntityRegistry,
   getEntitySchema,
   getEntityLookup,
-  
+
   // TenantForm APIs
   listTenantForms,
   getTenantForm,
@@ -631,24 +631,24 @@ const workformsApi = {
   updateTenantForm,
   deleteTenantForm,
   decrementFormUsage, // Task 2: Ghost Node Deletion
-  
+
   // Form operations
   mergeForms,
   splitForm,
-  
+
   // TenantWorkForm APIs
   listTenantWorkForms,
   getTenantWorkForm,
   createTenantWorkForm,
   updateTenantWorkForm,
   deleteTenantWorkForm,
-  
+
   // Workflow utilities
   cloneWorkForm,
   getWorkFormUsage,
   validateWorkForm,
   suggestNodes,
-  
+
   // Container utilities
   listWorkFormContainers,
   getContainerDetail,

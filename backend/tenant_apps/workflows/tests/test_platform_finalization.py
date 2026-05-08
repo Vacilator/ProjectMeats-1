@@ -20,6 +20,7 @@ class ResolveRFQContactsForSendTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+
         self.E2EProcessExecutors = E2EProcessExecutors
         self.tenant = MagicMock(pk="tenant-1")
         self.context = {
@@ -81,6 +82,7 @@ class BidSelectionWithContactsTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+
         self.E2EProcessExecutors = E2EProcessExecutors
         self.tenant = MagicMock(pk="tenant-1")
         self.context = {
@@ -123,6 +125,7 @@ class PrefillPOContactsTests(SimpleTestCase):
 
     def setUp(self):
         from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+
         self.E2EProcessExecutors = E2EProcessExecutors
         self.tenant = MagicMock(pk="tenant-1")
         self.context = {"supplier_id": "sup-1"}
@@ -156,28 +159,28 @@ class CockpitRoutingServiceTests(SimpleTestCase):
     def test_infer_form_type_po(self):
         """Infers purchase_order when PO numbers present."""
         from tenant_apps.ai_assistant.services.cockpit_routing import infer_form_type
+
         result = infer_form_type({"po_numbers": ["226052"]})
         self.assertEqual(result, "purchase_order")
 
     def test_infer_form_type_bid(self):
         """Infers bid when line items with prices present."""
         from tenant_apps.ai_assistant.services.cockpit_routing import infer_form_type
-        result = infer_form_type({
-            "line_items": [{"protein": "Beef", "unit_price": 3.50}]
-        })
+
+        result = infer_form_type({"line_items": [{"protein": "Beef", "unit_price": 3.50}]})
         self.assertEqual(result, "bid")
 
     def test_infer_form_type_inquiry(self):
         """Infers inquiry when line items without prices present."""
         from tenant_apps.ai_assistant.services.cockpit_routing import infer_form_type
-        result = infer_form_type({
-            "line_items": [{"protein": "Pork"}]
-        })
+
+        result = infer_form_type({"line_items": [{"protein": "Pork"}]})
         self.assertEqual(result, "inquiry")
 
     def test_infer_form_type_unknown(self):
         """Returns unknown when no clear signals."""
         from tenant_apps.ai_assistant.services.cockpit_routing import infer_form_type
+
         result = infer_form_type({})
         self.assertEqual(result, "unknown")
 
@@ -188,6 +191,7 @@ class ActionExecutorRegistrationTests(SimpleTestCase):
     def test_new_handlers_registered(self):
         """All master-data integration handlers are in the action map."""
         from tenant_apps.workflows.services.action_executor import ActionExecutor
+
         executor = ActionExecutor.__new__(ActionExecutor)
         executor.tenant = MagicMock()
         executor.context = {}
@@ -195,7 +199,7 @@ class ActionExecutorRegistrationTests(SimpleTestCase):
 
         # Call execute to trigger handler map creation
         # (We test the handler map keys exist)
-        with patch.object(ActionExecutor, '__init__', return_value=None):
+        with patch.object(ActionExecutor, "__init__", return_value=None):
             executor2 = ActionExecutor.__new__(ActionExecutor)
             executor2.tenant = MagicMock()
             executor2.context = {}
@@ -203,6 +207,7 @@ class ActionExecutorRegistrationTests(SimpleTestCase):
 
         # Check by importing and inspecting source
         import inspect
+
         source = inspect.getsource(ActionExecutor.execute)
         self.assertIn("resolve_rfq_contacts_for_send", source)
         self.assertIn("bid_selection_with_contacts", source)
@@ -214,15 +219,12 @@ class ContactResolutionMultiSelectTests(SimpleTestCase):
 
     def test_resolve_rfq_returns_none_when_no_contacts(self):
         """resolve_rfq_recipient returns None when supplier has no contacts."""
-        from tenant_apps.workflows.services.contact_resolution import (
-            resolve_rfq_recipient,
-        )
+        from tenant_apps.workflows.services.contact_resolution import resolve_rfq_recipient
+
         tenant = MagicMock(pk="t-1")
         supplier = MagicMock(pk="s-1")
 
-        with patch(
-            "tenant_apps.contacts.models.Contact.objects"
-        ) as mock_objects:
+        with patch("tenant_apps.contacts.models.Contact.objects") as mock_objects:
             mock_qs = MagicMock()
             mock_qs.exists.return_value = False
             mock_qs.order_by.return_value = mock_qs

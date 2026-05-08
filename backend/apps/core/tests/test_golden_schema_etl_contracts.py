@@ -20,7 +20,6 @@ from apps.core.services.etl import (
 )
 from apps.tenants.models import Tenant
 
-
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "etl"
 
 

@@ -7,7 +7,6 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
     Inquiry,
@@ -25,15 +24,15 @@ from tenant_apps.sales_orders.services.draft_sales_order import (
 )
 from tenant_apps.suppliers.models import Supplier
 
+from apps.tenants.models import Tenant, TenantUser
+
 
 class DraftSalesOrderFulfillTests(TestCase):
     """Test create_draft_from_fulfill service (FULFILL path)."""
 
     def setUp(self):
         uid = uuid.uuid4().hex[:8]
-        self.user = User.objects.create_user(
-            username=f"so-test-{uid}", email=f"so-{uid}@test.com", password="pass"
-        )
+        self.user = User.objects.create_user(username=f"so-test-{uid}", email=f"so-{uid}@test.com", password="pass")
         self.tenant = Tenant.objects.create(
             name=f"SO Tenant {uid}",
             slug=f"so-tenant-{uid}",
@@ -44,9 +43,7 @@ class DraftSalesOrderFulfillTests(TestCase):
         self.customer = Customer.objects.create(
             name=f"Customer {uid}", email=f"cust-{uid}@test.com", tenant=self.tenant
         )
-        self.supplier = Supplier.objects.create(
-            name=f"Supplier {uid}", email=f"sup-{uid}@test.com", tenant=self.tenant
-        )
+        self.supplier = Supplier.objects.create(name=f"Supplier {uid}", email=f"sup-{uid}@test.com", tenant=self.tenant)
         self.inquiry = Inquiry.objects.create(
             tenant=self.tenant,
             entity_type=InquiryEntityTypeChoices.CUSTOMER,
@@ -131,9 +128,7 @@ class DraftSalesOrderApprovedSourceTests(TestCase):
 
     def setUp(self):
         uid = uuid.uuid4().hex[:8]
-        self.user = User.objects.create_user(
-            username=f"so-ap-{uid}", email=f"so-ap-{uid}@test.com", password="pass"
-        )
+        self.user = User.objects.create_user(username=f"so-ap-{uid}", email=f"so-ap-{uid}@test.com", password="pass")
         self.tenant = Tenant.objects.create(
             name=f"SO AP Tenant {uid}",
             slug=f"so-ap-{uid}",
@@ -141,12 +136,8 @@ class DraftSalesOrderApprovedSourceTests(TestCase):
             created_by=self.user,
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
-        self.customer = Customer.objects.create(
-            name=f"Buyer {uid}", email=f"buyer-{uid}@test.com", tenant=self.tenant
-        )
-        self.supplier = Supplier.objects.create(
-            name=f"Supplier {uid}", email=f"sup-{uid}@test.com", tenant=self.tenant
-        )
+        self.customer = Customer.objects.create(name=f"Buyer {uid}", email=f"buyer-{uid}@test.com", tenant=self.tenant)
+        self.supplier = Supplier.objects.create(name=f"Supplier {uid}", email=f"sup-{uid}@test.com", tenant=self.tenant)
         self.inquiry = Inquiry.objects.create(
             tenant=self.tenant,
             entity_type=InquiryEntityTypeChoices.CUSTOMER,
@@ -211,9 +202,7 @@ class DraftSalesOrderApprovedSourceTests(TestCase):
 
     def test_approved_source_creates_draft_so(self):
         """Approved supplier PO creates draft SO with full lineage."""
-        result = create_draft_from_approved_source(
-            tenant=self.tenant, purchase_order=self.purchase_order
-        )
+        result = create_draft_from_approved_source(tenant=self.tenant, purchase_order=self.purchase_order)
 
         self.assertTrue(result.created)
         self.assertEqual(result.source_type, "approved_source")
@@ -236,12 +225,8 @@ class DraftSalesOrderApprovedSourceTests(TestCase):
 
     def test_approved_source_idempotent(self):
         """Second call returns existing SO without duplicate."""
-        result1 = create_draft_from_approved_source(
-            tenant=self.tenant, purchase_order=self.purchase_order
-        )
-        result2 = create_draft_from_approved_source(
-            tenant=self.tenant, purchase_order=self.purchase_order
-        )
+        result1 = create_draft_from_approved_source(tenant=self.tenant, purchase_order=self.purchase_order)
+        result2 = create_draft_from_approved_source(tenant=self.tenant, purchase_order=self.purchase_order)
 
         self.assertTrue(result1.created)
         self.assertFalse(result2.created)
@@ -253,9 +238,7 @@ class DraftSalesOrderApprovedSourceTests(TestCase):
         self.purchase_order.save()
 
         with self.assertRaises(DraftSalesOrderError) as ctx:
-            create_draft_from_approved_source(
-                tenant=self.tenant, purchase_order=self.purchase_order
-            )
+            create_draft_from_approved_source(tenant=self.tenant, purchase_order=self.purchase_order)
         self.assertIn("approved", str(ctx.exception))
 
     def test_approved_source_cross_tenant_blocked(self):
@@ -269,15 +252,11 @@ class DraftSalesOrderApprovedSourceTests(TestCase):
         )
 
         with self.assertRaises(DraftSalesOrderError):
-            create_draft_from_approved_source(
-                tenant=other_tenant, purchase_order=self.purchase_order
-            )
+            create_draft_from_approved_source(tenant=other_tenant, purchase_order=self.purchase_order)
 
     def test_approved_source_links_inquiry(self):
         """Inquiry.sales_order FK updated after SO creation."""
-        result = create_draft_from_approved_source(
-            tenant=self.tenant, purchase_order=self.purchase_order
-        )
+        result = create_draft_from_approved_source(tenant=self.tenant, purchase_order=self.purchase_order)
 
         self.inquiry.refresh_from_db()
         self.assertEqual(self.inquiry.sales_order_id, result.sales_order.id)
@@ -288,9 +267,7 @@ class DraftSalesOrderAPITests(TestCase):
 
     def setUp(self):
         uid = uuid.uuid4().hex[:8]
-        self.user = User.objects.create_user(
-            username=f"so-api-{uid}", email=f"so-api-{uid}@test.com", password="pass"
-        )
+        self.user = User.objects.create_user(username=f"so-api-{uid}", email=f"so-api-{uid}@test.com", password="pass")
         self.tenant = Tenant.objects.create(
             name=f"API Tenant {uid}",
             slug=f"api-tenant-{uid}",

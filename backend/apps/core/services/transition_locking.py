@@ -158,11 +158,7 @@ def transition_entity(
     with transaction.atomic():
         # Acquire row-level lock
         try:
-            entity = (
-                model_class.objects.select_for_update()
-                .filter(tenant_id=tenant_id)
-                .get(pk=pk)
-            )
+            entity = model_class.objects.select_for_update().filter(tenant_id=tenant_id).get(pk=pk)
         except model_class.DoesNotExist:
             raise TransitionError(
                 f"{entity_type} with pk={pk} not found for tenant {tenant_id}",
@@ -212,8 +208,7 @@ def transition_entity(
         entity.save(update_fields=update_fields)
 
         logger.info(
-            f"Transition: {entity_type} pk={pk} "
-            f"{from_status} → {to_status} by {actor_user_id}",
+            f"Transition: {entity_type} pk={pk} " f"{from_status} → {to_status} by {actor_user_id}",
             extra={
                 "entity_type": entity_type,
                 "entity_id": str(pk),
@@ -244,9 +239,7 @@ def transition_entity(
             )
         except Exception as exc:
             # Event emission failure should not rollback the transition
-            logger.warning(
-                f"Failed to emit event for {entity_type} pk={pk}: {exc}"
-            )
+            logger.warning(f"Failed to emit event for {entity_type} pk={pk}: {exc}")
 
     return entity
 
@@ -265,8 +258,9 @@ def approve_purchase_order(
     trade_session_id: str = "",
 ) -> models.Model:
     """Approve a supplier purchase order with transition locking."""
-    from apps.core.events.contracts import TradeEventType
     from tenant_apps.purchase_orders.models import PurchaseOrder
+
+    from apps.core.events.contracts import TradeEventType
 
     return transition_entity(
         model_class=PurchaseOrder,
@@ -290,8 +284,9 @@ def approve_sales_order(
     trade_session_id: str = "",
 ) -> models.Model:
     """Approve a sales order with transition locking."""
-    from apps.core.events.contracts import TradeEventType
     from tenant_apps.sales_orders.models import SalesOrder
+
+    from apps.core.events.contracts import TradeEventType
 
     return transition_entity(
         model_class=SalesOrder,
@@ -315,8 +310,9 @@ def approve_carrier_po(
     trade_session_id: str = "",
 ) -> models.Model:
     """Approve a carrier purchase order with transition locking."""
-    from apps.core.events.contracts import TradeEventType
     from tenant_apps.purchase_orders.models import CarrierPurchaseOrder
+
+    from apps.core.events.contracts import TradeEventType
 
     return transition_entity(
         model_class=CarrierPurchaseOrder,

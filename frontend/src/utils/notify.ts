@@ -1,6 +1,6 @@
 /**
  * Notification Utility
- * 
+ *
  * Centralized notification system using Ant Design's message component.
  * Provides consistent styling and behavior across the application.
  */
@@ -85,16 +85,16 @@ export const dismissNotification = (key: string) => {
  */
 export const handleApiError = (error: unknown, fallbackMessage = 'An error occurred') => {
   let errorMessage = fallbackMessage;
-  
+
   if (error && typeof error === 'object') {
     const err = error as { response?: { data?: { error?: string; detail?: string; message?: string } }; message?: string };
-    errorMessage = err.response?.data?.error 
-      || err.response?.data?.detail 
-      || err.response?.data?.message 
-      || err.message 
+    errorMessage = err.response?.data?.error
+      || err.response?.data?.detail
+      || err.response?.data?.message
+      || err.message
       || fallbackMessage;
   }
-  
+
   showError(errorMessage);
   return errorMessage;
 };

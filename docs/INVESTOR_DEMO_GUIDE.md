@@ -1,7 +1,7 @@
 # Investor Demo Guide — Meats Central
 
-> **Duration:** 5-7 minutes  
-> **Environment:** https://dev.meatscentral.com  
+> **Duration:** 5-7 minutes
+> **Environment:** https://dev.meatscentral.com
 > **Credentials:** `admin_test_development_1` / `password123!`
 
 ---
@@ -100,7 +100,7 @@
 > - **AI proposes actions** — with confidence scoring
 > - **Humans approve or override** — training the model
 > - **Eventually, the AI runs trades end-to-end** — when confidence is high enough
-> 
+>
 > This is the future of meat trading: **hands-free, AI-powered, always improving.**"
 
 ---

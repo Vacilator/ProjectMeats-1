@@ -11,14 +11,15 @@ from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 
-from apps.core.models import (
-    PortalDocumentReference,
-    PortalGrant,
-    PortalGrantDocumentAccess,
-    TenantAuditEvent,
-)
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from tenant_apps.fulfillments.models import Fulfillment
+from tenant_apps.fulfillments.serializers import PortalFulfillmentTrackingSerializer
+from tenant_apps.invoices.models import Invoice
+from tenant_apps.invoices.serializers import PortalInvoiceSummarySerializer
+from tenant_apps.purchase_orders.models import CarrierPurchaseOrder
+
+from apps.core.models import PortalDocumentReference, PortalGrant, PortalGrantDocumentAccess, TenantAuditEvent
 from apps.core.serializers import (
     PortalDocumentReferencePublicSerializer,
     PortalGrantHistoryResponseSerializer,
@@ -28,14 +29,8 @@ from apps.core.serializers import (
     PortalGrantOperatorTargetResponseSerializer,
     PortalGrantRevokeRequestSerializer,
 )
-from apps.tenants.rls import tenant_rls
 from apps.tenants.models import Tenant
-from tenant_apps.fulfillments.models import Fulfillment
-from tenant_apps.fulfillments.serializers import PortalFulfillmentTrackingSerializer
-from tenant_apps.invoices.models import Invoice
-from tenant_apps.invoices.serializers import PortalInvoiceSummarySerializer
-from tenant_apps.purchase_orders.models import CarrierPurchaseOrder
-
+from apps.tenants.rls import tenant_rls
 
 PORTAL_TOKEN_QUERY_PARAM = "token"
 PORTAL_TOKEN_HEADER = "X-Portal-Token"
@@ -108,8 +103,7 @@ class PortalGrantAccessMixin(APIView):
 
     def get_portal_token(self, request) -> str:
         return (
-            request.headers.get(PORTAL_TOKEN_HEADER, "")
-            or request.query_params.get(PORTAL_TOKEN_QUERY_PARAM, "")
+            request.headers.get(PORTAL_TOKEN_HEADER, "") or request.query_params.get(PORTAL_TOKEN_QUERY_PARAM, "")
         ).strip()
 
     def get_grant(self, tenant: Tenant, grant_id, token: str) -> PortalGrant:
@@ -117,9 +111,7 @@ class PortalGrantAccessMixin(APIView):
             raise self._portal_not_found()
 
         grant = (
-            PortalGrant.objects.select_for_update().filter(tenant=tenant, id=grant_id)
-            .select_related("tenant")
-            .first()
+            PortalGrant.objects.select_for_update().filter(tenant=tenant, id=grant_id).select_related("tenant").first()
         )
         if grant is None or not grant.token_matches(token) or not grant.is_active:
             raise self._portal_not_found()
@@ -219,15 +211,12 @@ class PortalGrantOperatorMixin(APIView):
         if not document_ids or not document_sources:
             return []
 
-        documents = (
-            PortalDocumentReference.objects.filter(
-                tenant=tenant,
-                is_active=True,
-                source_record_id__in=document_ids,
-                source_kind__in=document_sources,
-            )
-            .order_by("-published_at", "-created_on")
-        )
+        documents = PortalDocumentReference.objects.filter(
+            tenant=tenant,
+            is_active=True,
+            source_record_id__in=document_ids,
+            source_kind__in=document_sources,
+        ).order_by("-published_at", "-created_on")
 
         return list(documents)
 
@@ -309,10 +298,7 @@ class PortalGrantOperatorMixin(APIView):
                 "before portal access can be issued."
             )
         elif not available_documents:
-            issue_blocker = (
-                "This freight order does not have any curated portal-safe documents "
-                "available yet."
-            )
+            issue_blocker = "This freight order does not have any curated portal-safe documents " "available yet."
 
         return ResolvedPortalTarget(
             entity_type="carrier_purchase_order",
@@ -332,9 +318,7 @@ class PortalGrantOperatorMixin(APIView):
         for entity_type, scoped_ids in target.resource_scope.items():
             expected = {str(raw_id).strip() for raw_id in scoped_ids if str(raw_id).strip()}
             actual = {
-                str(raw_id).strip()
-                for raw_id in grant.resource_scope.get(entity_type, [])
-                if str(raw_id).strip()
+                str(raw_id).strip() for raw_id in grant.resource_scope.get(entity_type, []) if str(raw_id).strip()
             }
             if expected & actual:
                 return True
@@ -649,8 +633,7 @@ class PortalDocumentMetadataView(PortalGrantAccessMixin):
             documents = [
                 link.document_reference
                 for link in links
-                if link.document_reference.is_active
-                and link.document_reference.source_kind in grant.document_sources
+                if link.document_reference.is_active and link.document_reference.source_kind in grant.document_sources
             ]
 
             if not documents:
@@ -924,16 +907,14 @@ class PortalGrantHistoryView(PortalGrantOperatorMixin):
         with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
             grant = self.get_operator_grant(tenant=tenant, grant_id=grant_id)
             candidate_filters = Q(entity_type="PortalGrant", object_id=str(grant.id))
-            invoice_ids = [str(raw_id).strip() for raw_id in grant.resource_scope.get("invoice", []) if str(raw_id).strip()]
+            invoice_ids = [
+                str(raw_id).strip() for raw_id in grant.resource_scope.get("invoice", []) if str(raw_id).strip()
+            ]
             fulfillment_ids = [
-                str(raw_id).strip()
-                for raw_id in grant.resource_scope.get("fulfillment", [])
-                if str(raw_id).strip()
+                str(raw_id).strip() for raw_id in grant.resource_scope.get("fulfillment", []) if str(raw_id).strip()
             ]
             document_ids = [
-                str(link.document_reference_id)
-                for link in grant.document_links.all()
-                if link.document_reference_id
+                str(link.document_reference_id) for link in grant.document_links.all() if link.document_reference_id
             ]
 
             if invoice_ids:

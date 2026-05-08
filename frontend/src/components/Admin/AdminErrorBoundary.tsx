@@ -1,6 +1,6 @@
 /**
  * Admin Error Boundary Component
- * 
+ *
  * Catches errors in admin workspace and displays user-friendly fallback UI.
  * Prevents entire app from crashing when admin pages encounter errors.
  */
@@ -177,11 +177,11 @@ const ErrorCard = styled.div`
 const ErrorIcon = styled.div`
   color: rgb(var(--color-error));
   margin-bottom: 1.5rem;
-  
+
   svg {
     animation: pulse 2s ease-in-out infinite;
   }
-  
+
   @keyframes pulse {
     0%, 100% {
       opacity: 1;
@@ -204,7 +204,7 @@ const ErrorMessage = styled.p`
   color: rgb(var(--color-text-secondary));
   line-height: 1.6;
   margin: 0 0 2rem 0;
-  
+
   strong {
     color: rgb(var(--color-error));
     font-weight: 700;
@@ -268,12 +268,12 @@ const PrimaryButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-primary-hover));
     transform: translateY(-1px);
   }
-  
+
   &:active {
     background: rgb(var(--color-primary-active));
     transform: translateY(0);
@@ -293,7 +293,7 @@ const SecondaryButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
     border-color: rgba(var(--color-primary), 0.55);

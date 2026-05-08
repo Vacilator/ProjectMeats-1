@@ -1,9 +1,9 @@
 /**
  * Success Edge Component
- * 
+ *
  * Specialized edge for successful completion paths in workflows.
  * Features checkmark indicators, green styling, and success metrics.
- * 
+ *
  * Sprint 1: Visual Excellence - Task 1.1
  * Created: 2026-02-17
  */

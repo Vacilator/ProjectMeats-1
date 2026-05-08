@@ -1,9 +1,9 @@
 /**
  * Node Debugger Panel Component
- * 
+ *
  * Phase 4: Node Debugger Tab
  * Allows users to test node logic with mock data before saving.
- * 
+ *
  * Features:
  * - Input mock JSON context for testing
  * - Execute single node's backend logic simulation
@@ -11,7 +11,7 @@
  * - Show validation errors
  * - Does NOT affect saved workflow data
  * - Visual diff between input and output
- * 
+ *
  * Usage:
  * ```typescript
  * <NodeDebuggerPanel
@@ -20,7 +20,7 @@
  *   onClose={() => setShowDebugger(false)}
  * />
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Node Debugger Implementation
  */
 
@@ -32,13 +32,13 @@ const MonacoEditor = lazyWithChunkRecovery(
   () => import('@monaco-editor/react'),
   'NodeDebuggerPanel.MonacoEditor'
 );
-import { 
-  Play, 
-  AlertCircle, 
-  CheckCircle, 
-  RefreshCw, 
-  X, 
-  Code, 
+import {
+  Play,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
+  X,
+  Code,
   Zap,
   ArrowRight,
   Info,
@@ -52,10 +52,10 @@ import { Node } from '@xyflow/react';
 export interface NodeDebuggerPanelProps {
   /** Node to debug */
   node: Node;
-  
+
   /** Workflow context */
   workflow?: any;
-  
+
   /** Called when panel closes */
   onClose: () => void;
 }
@@ -91,7 +91,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
   const [isExecuting, setIsExecuting] = useState(false);
   const [result, setResult] = useState<DebugResult | null>(null);
   const [activeTab, setActiveTab] = useState<'input' | 'output'>('input');
-  
+
   // Parse mock context to check validity
   const isValidJSON = useMemo(() => {
     try {
@@ -101,7 +101,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
       return false;
     }
   }, [mockContext]);
-  
+
   // Simulate node execution
   const handleExecute = async () => {
     if (!isValidJSON) {
@@ -112,19 +112,19 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
       });
       return;
     }
-    
+
     setIsExecuting(true);
     setActiveTab('output');
-    
+
     try {
       const context = JSON.parse(mockContext);
       const startTime = Date.now();
-      
+
       // Simulate node execution logic based on node type
       const output = await simulateNodeExecution(node, context);
-      
+
       const executionTime = Date.now() - startTime;
-      
+
       setResult({
         success: true,
         output,
@@ -141,7 +141,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
       setIsExecuting(false);
     }
   };
-  
+
   // Reset debugger
   const handleReset = () => {
     setResult(null);
@@ -158,7 +158,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
       )
     );
   };
-  
+
   return (
     <PanelContainer data-config-panel>
       {/* Header */}
@@ -176,7 +176,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
           </IconButton>
         </HeaderActions>
       </PanelHeader>
-      
+
       {/* Node Info */}
       <NodeInfo>
         <NodeInfoLabel>Testing Node:</NodeInfoLabel>
@@ -185,7 +185,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
           <small>({node.type})</small>
         </NodeInfoValue>
       </NodeInfo>
-      
+
       {/* Warning Banner */}
       <WarningBanner>
         <Info size={16} />
@@ -193,7 +193,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
           This debugger simulates node execution. No data will be saved to the workflow.
         </span>
       </WarningBanner>
-      
+
       {/* Tabs */}
       <TabContainer>
         <Tab $active={activeTab === 'input'} onClick={() => setActiveTab('input')}>
@@ -205,7 +205,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
           <span>Output</span>
         </Tab>
       </TabContainer>
-      
+
       {/* Content */}
       <ContentContainer>
         {activeTab === 'input' && (
@@ -246,7 +246,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
             </Suspense>
           </EditorContainer>
         )}
-        
+
         {activeTab === 'output' && (
           <OutputContainer>
             {result === null ? (
@@ -274,7 +274,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
                     </>
                   )}
                 </StatusBanner>
-                
+
                 {/* Errors */}
                 {result.errors && result.errors.length > 0 && (
                   <ErrorList>
@@ -286,7 +286,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
                     ))}
                   </ErrorList>
                 )}
-                
+
                 {/* Warnings */}
                 {result.warnings && result.warnings.length > 0 && (
                   <WarningList>
@@ -298,7 +298,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
                     ))}
                   </WarningList>
                 )}
-                
+
                 {/* Output Data */}
                 {result.output !== null && (
                   <EditorContainer>
@@ -338,7 +338,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
           </OutputContainer>
         )}
       </ContentContainer>
-      
+
       {/* Footer */}
       <PanelFooter>
         <ExecuteButton
@@ -373,10 +373,10 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
 async function simulateNodeExecution(node: Node, context: any): Promise<any> {
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 500));
-  
+
   const nodeType = node.type;
   const nodeData = node.data;
-  
+
   // Mock execution logic based on node type
   switch (nodeType) {
     case 'form':
@@ -387,14 +387,14 @@ async function simulateNodeExecution(node: Node, context: any): Promise<any> {
         },
         _warnings: Array.isArray((nodeData as any)?.fields) && (nodeData as any).fields.length === 0 ? ['No fields configured'] : [],
       };
-      
+
     case 'condition':
       return {
         branchTaken: 'true',
         conditionResult: true,
         evaluatedAt: new Date().toISOString(),
       };
-      
+
     case 'action':
       return {
         status: 'completed',
@@ -404,7 +404,7 @@ async function simulateNodeExecution(node: Node, context: any): Promise<any> {
         },
         executedAt: new Date().toISOString(),
       };
-      
+
     default:
       return {
         nodeId: node.id,
@@ -460,7 +460,7 @@ const IconButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.15s;
-  
+
   &:hover {
     background: rgb(var(--color-background));
     color: rgb(var(--color-text-primary));
@@ -487,7 +487,7 @@ const NodeInfoValue = styled.div`
   gap: 8px;
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  
+
   small {
     opacity: 0.6;
   }
@@ -523,7 +523,7 @@ const Tab = styled.button<{ $active: boolean }>`
   font-weight: ${props => props.$active ? '600' : '400'};
   cursor: pointer;
   transition: all 0.15s;
-  
+
   &:hover {
     background: rgb(var(--color-surface));
     color: rgb(var(--color-text-primary));
@@ -588,12 +588,12 @@ const EmptyState = styled.div`
   padding: 60px 20px;
   text-align: center;
   color: rgb(var(--color-text-secondary));
-  
+
   p {
     margin: 16px 0 4px;
     font-size: 14px;
   }
-  
+
   small {
     font-size: 12px;
     opacity: 0.7;
@@ -612,7 +612,7 @@ const StatusBanner = styled.div<{ $success: boolean }>`
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 16px;
-  
+
   small {
     margin-left: auto;
     opacity: 0.7;
@@ -672,21 +672,21 @@ const ExecuteButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
-  
+
   &:hover:not(:disabled) {
     background: rgb(var(--color-primary-dark));
     transform: translateY(-1px);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   .spin {
     animation: spin 1s linear infinite;
   }
-  
+
   @keyframes spin {
     from {
       transform: rotate(0deg);

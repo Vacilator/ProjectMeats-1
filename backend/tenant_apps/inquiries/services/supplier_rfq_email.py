@@ -8,15 +8,7 @@ from typing import Iterable
 from django.db import transaction
 from django.utils import timezone
 
-from apps.core.services.supplier_matching import match_suppliers_for_inquiry
-from apps.integrations.models import ExternalAuthProvider
-from apps.integrations.providers.base import EmailProviderError, TokenExpiredError
-from apps.integrations.providers.microsoft import MicrosoftGraphProvider
-from apps.tenants.rls import set_current_tenant
-from tenant_apps.contacts.services import (
-    build_supplier_contact_context_lines,
-    resolve_supplier_contact_route,
-)
+from tenant_apps.contacts.services import build_supplier_contact_context_lines, resolve_supplier_contact_route
 from tenant_apps.inquiries.models import (
     InquiryRouteDecisionChoices,
     InquiryShippingTypeChoices,
@@ -24,6 +16,12 @@ from tenant_apps.inquiries.models import (
     InquirySupplierRFQStatusChoices,
 )
 from tenant_apps.suppliers.models import Supplier
+
+from apps.core.services.supplier_matching import match_suppliers_for_inquiry
+from apps.integrations.models import ExternalAuthProvider
+from apps.integrations.providers.base import EmailProviderError, TokenExpiredError
+from apps.integrations.providers.microsoft import MicrosoftGraphProvider
+from apps.tenants.rls import set_current_tenant
 
 
 @dataclass(frozen=True)
@@ -79,9 +77,7 @@ def _build_body(*, inquiry, supplier_name: str, correlation_key: str, contact_re
 
     for product_line in inquiry.products.select_related("product").all()[:10]:
         label = getattr(product_line.product, "name", "") or "Line item"
-        lines.append(
-            f"- {label}: qty {product_line.quantity} {product_line.desired_uom or ''}".rstrip()
-        )
+        lines.append(f"- {label}: qty {product_line.quantity} {product_line.desired_uom or ''}".rstrip())
         if product_line.desired_available_date:
             lines.append(f"  Needed by: {product_line.desired_available_date.isoformat()}")
         if product_line.desired_delivery_date:
@@ -108,7 +104,9 @@ def _build_body(*, inquiry, supplier_name: str, correlation_key: str, contact_re
             "If you can support the attached document packet, please return those items with your reply.",
             "",
             "Thank you,",
-            inquiry.created_by.get_full_name().strip() if inquiry.created_by and inquiry.created_by.get_full_name().strip() else "ProjectMeats",
+            inquiry.created_by.get_full_name().strip()
+            if inquiry.created_by and inquiry.created_by.get_full_name().strip()
+            else "ProjectMeats",
         ]
     )
     return "\n".join(lines)
@@ -143,7 +141,9 @@ def _get_access_token(provider: ExternalAuthProvider) -> str:
     return token
 
 
-def send_supplier_rfqs_for_inquiry(*, tenant, inquiry, user=None, supplier_ids: Iterable[int] | None = None) -> SupplierRFQDispatchResult:
+def send_supplier_rfqs_for_inquiry(
+    *, tenant, inquiry, user=None, supplier_ids: Iterable[int] | None = None
+) -> SupplierRFQDispatchResult:
     """Send RFQ emails for a broker inquiry and persist one durable audit row per supplier."""
 
     if tenant is None:
@@ -177,9 +177,7 @@ def send_supplier_rfqs_for_inquiry(*, tenant, inquiry, user=None, supplier_ids: 
 
     supplier_map = {
         supplier.id: supplier
-        for supplier in Supplier.objects.for_tenant(tenant)
-        .filter(id__in=candidate_ids)
-        .prefetch_related("contacts")
+        for supplier in Supplier.objects.for_tenant(tenant).filter(id__in=candidate_ids).prefetch_related("contacts")
     }
 
     sender_provider = _get_sender_provider(tenant=tenant)
@@ -283,10 +281,7 @@ def send_supplier_rfqs_for_inquiry(*, tenant, inquiry, user=None, supplier_ids: 
                         "X-ProjectMeats-Inquiry-RFQ": str(rfq.correlation_key),
                         "X-ProjectMeats-Inquiry-Id": str(inquiry.id),
                     },
-                    "attachments": [
-                        attachment.as_email_payload()
-                        for attachment in contact_resolution.attachments
-                    ],
+                    "attachments": [attachment.as_email_payload() for attachment in contact_resolution.attachments],
                 },
             )
             rfq.status = InquirySupplierRFQStatusChoices.SENT

@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("invoices", "0006_invoice_outstanding_amount_invoice_payment_status"),
         ("purchase_orders", "0008_purchaseorder_outstanding_amount_and_more"),
@@ -32,9 +31,7 @@ class Migration(migrations.Migration):
                 ("modified_on", models.DateTimeField(auto_now=True)),
                 (
                     "amount",
-                    models.DecimalField(
-                        decimal_places=2, help_text="Payment amount", max_digits=10
-                    ),
+                    models.DecimalField(decimal_places=2, help_text="Payment amount", max_digits=10),
                 ),
                 (
                     "payment_date",

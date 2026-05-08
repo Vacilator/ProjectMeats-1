@@ -1,16 +1,16 @@
 /**
  * NodeConfigPanelWithShadow
- * 
+ *
  * Phase 2: Shadow State Sidebar
  * Wrapper around NodeConfigPanel that adds shadow state management.
- * 
+ *
  * Features:
  * - Non-destructive editing (changes staged in shadowConfig)
  * - Apply/Discard buttons
  * - Dirty indicator
  * - Confirmation on close with unsaved changes
  * - Only creates history entry on Apply (not every keystroke)
- * 
+ *
  * Created: 2026-02-12 - Phase 2 Shadow State Implementation
  */
 
@@ -68,7 +68,7 @@ const DirtyIndicatorBanner = styled.div<{ $show: boolean }>`
   color: rgb(var(--color-warning));
   font-size: 14px;
   font-weight: 500;
-  
+
   svg {
     flex-shrink: 0;
     width: 18px;
@@ -99,7 +99,7 @@ const ConfirmationModal = styled.div<{ $show: boolean }>`
   justify-content: center;
   z-index: 2000;
   animation: fadeIn 0.2s;
-  
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -113,7 +113,7 @@ const ConfirmationDialog = styled.div`
   max-width: 400px;
   box-shadow: 0 8px 32px rgba(var(--color-overlay), 0.3);
   animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   @keyframes slideUp {
     from {
       transform: translateY(20px);
@@ -134,7 +134,7 @@ const DialogTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   svg {
     color: rgb(var(--color-warning));
   }
@@ -176,7 +176,7 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
   onSelectNode,
 }) => {
   const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
-  
+
   // Use shadow state hook
   const {
     shadowConfig,
@@ -201,7 +201,7 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
   // Handle apply - commit shadow to real config
   const handleApply = useCallback(() => {
     if (!node) return;
-    
+
     const sanitized = (sanitizeNodeConfigForPersistence(shadowConfig) || {}) as Record<string, any>;
 
     // Commit shadow state
@@ -210,17 +210,17 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
     // Also call the original onUpdate to trigger history
     onUpdate(node.id, sanitized);
   }, [node, commitShadow, onUpdate, shadowConfig]);
-  
+
   // Callbacks for FormProcessConfigPanel
   const handleDeleteNode = useCallback((nodeId: string) => {
     // Remove node and its edges
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
     setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
   }, [setNodes, setEdges]);
-  
+
   const handleAddStep = useCallback(() => {
     if (!node) return;
-    
+
     // Create a new formStep node inside the container
     const newStep: Node = {
       id: `step-${Date.now()}`,
@@ -234,10 +234,10 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
       },
       parentId: node.id,
     };
-    
+
     setNodes((nds) => [...nds, newStep]);
   }, [node, nodes, setNodes]);
-  
+
   const handleReorderSteps = useCallback((nodeIds: string[]) => {
     // Reposition nodes based on new order
     setNodes((nds) =>

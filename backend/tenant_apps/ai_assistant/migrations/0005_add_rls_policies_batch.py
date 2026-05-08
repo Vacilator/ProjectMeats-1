@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ai_assistant", "0004_aiconfiguration_created_on_and_more"),
     ]
@@ -16,7 +15,7 @@ class Migration(migrations.Migration):
             sql="""
             -- Enable RLS on ai_assistant_configurations
             ALTER TABLE ai_assistant_configurations ENABLE ROW LEVEL SECURITY;
-            
+
             -- Create tenant isolation policy
             CREATE POLICY ai_assistant_configurations_tenant_isolation ON ai_assistant_configurations
                 USING (tenant_id = current_setting('app.current_tenant')::uuid);
@@ -24,6 +23,6 @@ class Migration(migrations.Migration):
             reverse_sql="""
             DROP POLICY IF EXISTS ai_assistant_configurations_tenant_isolation ON ai_assistant_configurations;
             ALTER TABLE ai_assistant_configurations DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

@@ -1,8 +1,8 @@
 /**
  * Grid Utility Tests
- * 
+ *
  * Tests for grid-snapping and alignment utilities used in the Flow Editor.
- * 
+ *
  * Phase 7.2: Enhanced Drag-and-Drop
  */
 

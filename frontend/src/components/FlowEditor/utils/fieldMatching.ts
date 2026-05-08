@@ -1,9 +1,9 @@
 /**
  * Field Matching Engine
- * 
+ *
  * Matches fields between nodes based on name similarity and type compatibility.
  * Enables Smart Auto-Map to suggest which upstream fields should map to target fields.
- * 
+ *
  * Created: 2026-03-04 - Smart Auto-Map Phase 3
  */
 
@@ -45,7 +45,7 @@ export function areTypesCompatible(sourceType: string, targetType: string): bool
   if (sourceType === targetType) {
     return true;
   }
-  
+
   const compatibleTypes = TYPE_COMPATIBILITY[sourceType] || [];
   return compatibleTypes.includes(targetType);
 }
@@ -91,7 +91,7 @@ export function normalizeFieldName(fieldName: string): string {
  */
 function levenshteinDistance(str1: string, str2: string): number {
   const matrix: number[][] = [];
-  
+
   // Initialize matrix
   for (let i = 0; i <= str1.length; i++) {
     matrix[i] = [i];
@@ -99,7 +99,7 @@ function levenshteinDistance(str1: string, str2: string): number {
   for (let j = 0; j <= str2.length; j++) {
     matrix[0][j] = j;
   }
-  
+
   // Fill matrix
   for (let i = 1; i <= str1.length; i++) {
     for (let j = 1; j <= str2.length; j++) {
@@ -111,7 +111,7 @@ function levenshteinDistance(str1: string, str2: string): number {
       );
     }
   }
-  
+
   return matrix[str1.length][str2.length];
 }
 
@@ -121,20 +121,20 @@ function levenshteinDistance(str1: string, str2: string): number {
 export function calculateNameSimilarity(sourceName: string, targetName: string): number {
   const source = sourceName.toLowerCase();
   const target = targetName.toLowerCase();
-  
+
   // Exact match
   if (source === target) {
     return 1.0;
   }
-  
+
   // Normalized match (remove prefixes/suffixes)
   const normalizedSource = normalizeFieldName(source);
   const normalizedTarget = normalizeFieldName(target);
-  
+
   if (normalizedSource === normalizedTarget) {
     return 0.9;
   }
-  
+
   // Substring match (token-boundary only)
   // Treat as a strong match only when the match occurs on a boundary (e.g. email_address -> email),
   // not when it's an internal substring (e.g. email -> mail).
@@ -147,17 +147,17 @@ export function calculateNameSimilarity(sourceName: string, targetName: string):
   if (isTokenMatch(source, target) || isTokenMatch(target, source)) {
     return 0.7;
   }
-  
+
   // Levenshtein distance (fuzzy match)
   const maxLength = Math.max(source.length, target.length);
   const distance = levenshteinDistance(source, target);
   const similarity = 1 - (distance / maxLength);
-  
+
   // Only consider good fuzzy matches
   if (similarity >= 0.6) {
     return similarity * 0.6; // Scale down fuzzy matches
   }
-  
+
   return 0.0;
 }
 
@@ -234,15 +234,15 @@ export function findFieldMatches(
  */
 export function deduplicateMatches(matches: FieldMatch[]): FieldMatch[] {
   const bestMatches = new Map<string, FieldMatch>();
-  
+
   matches.forEach(match => {
     const existing = bestMatches.get(match.targetFieldName);
-    
+
     if (!existing || match.matchScore > existing.matchScore) {
       bestMatches.set(match.targetFieldName, match);
     }
   });
-  
+
   return Array.from(bestMatches.values());
 }
 

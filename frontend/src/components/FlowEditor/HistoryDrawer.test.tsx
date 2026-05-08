@@ -1,6 +1,6 @@
 /**
  * Unit Tests for History Drawer Component
- * 
+ *
  * Tests version history display, formatting, and interactions.
  */
 

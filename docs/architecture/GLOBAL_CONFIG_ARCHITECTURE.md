@@ -2,8 +2,8 @@
 
 **System Blueprint Engine - Architecture Documentation**
 
-Version: 2.0  
-Last Updated: January 23, 2026  
+Version: 2.0
+Last Updated: January 23, 2026
 Status: Phase 3 Complete (Runtime Engine + Integration)
 
 ---
@@ -56,16 +56,16 @@ def publish_blueprint(blueprint_version):
         # 1. Verify version is in DRAFT
         if blueprint_version.status != 'DRAFT':
             raise PermissionDenied("Cannot publish non-draft version")
-        
+
         # 2. Mark as PUBLISHED (immutable)
         blueprint_version.status = 'PUBLISHED'
         blueprint_version.save()
-        
+
         # 3. Set as active version on blueprint
         blueprint = blueprint_version.blueprint
         blueprint.published_version = blueprint_version
         blueprint.save()
-        
+
         # 4. Invalidate cache, notify tenants
         cache.delete(f'blueprint:{blueprint.slug}')
 ```
@@ -119,9 +119,9 @@ CREATE POLICY "tenant_isolation_workflow_runs" ON system_config_workflowrun
 
 ### 3.1 System Root Tenant
 
-**UUID**: `00000000-0000-0000-0000-000000000000` (zero-UUID)  
-**Name**: "System Root"  
-**Slug**: `system`  
+**UUID**: `00000000-0000-0000-0000-000000000000` (zero-UUID)
+**Name**: "System Root"
+**Slug**: `system`
 **Purpose**: Operational context for Global System Admins
 
 ### 3.2 How It Works
@@ -131,10 +131,10 @@ CREATE POLICY "tenant_isolation_workflow_runs" ON system_config_workflowrun
 if request.user.groups.filter(name='Global System Admins').exists():
     # Assign System Root tenant (bypasses standard resolution)
     request.tenant = Tenant.objects.get(id='00000000-0000-0000-0000-000000000000')
-    
+
     # Set PostgreSQL RLS session variable
     cursor.execute("SET LOCAL app.current_tenant_id = %s", [str(request.tenant.id)])
-    
+
     # Return early - skip domain/subdomain resolution
     return self.get_response(request)
 ```
@@ -166,8 +166,8 @@ if request.user.groups.filter(name='Global System Admins').exists():
 
 ### 4.1 `schema_config`: Field Definitions
 
-**Type**: `JSONField` (array of field definition objects)  
-**Location**: `BlueprintVersion.schema_config`  
+**Type**: `JSONField` (array of field definition objects)
+**Location**: `BlueprintVersion.schema_config`
 **Purpose**: Define dynamic fields that tenants can store in `custom_data`
 
 **Schema**:
@@ -187,7 +187,7 @@ interface FieldDefinition {
   };
 }
 
-type FieldType = 
+type FieldType =
   | 'text'               // Single-line text input
   | 'textarea'           // Multi-line text
   | 'number'             // Numeric input
@@ -235,8 +235,8 @@ type FieldType =
 
 ### 4.2 `workflow_config`: React Flow UI State
 
-**Type**: `JSONField` (React Flow node/edge format)  
-**Location**: `BlueprintVersion.workflow_config`  
+**Type**: `JSONField` (React Flow node/edge format)
+**Location**: `BlueprintVersion.workflow_config`
 **Purpose**: Visual workflow designer state (nodes, edges, positions)
 
 **Schema** (React Flow Standard):
@@ -324,8 +324,8 @@ interface Edge {
 
 ### 4.3 `logic_config`: Execution Logic & Mappings
 
-**Type**: `JSONField` (execution step definitions)  
-**Location**: `BlueprintVersion.logic_config`  
+**Type**: `JSONField` (execution step definitions)
+**Location**: `BlueprintVersion.logic_config`
 **Purpose**: Define how workflow steps execute and map data between steps
 
 **Schema**:
@@ -338,17 +338,17 @@ interface LogicConfig {
 interface ExecutionStep {
   step_id: string;           // Matches node ID from workflow_config
   step_type: 'entity_create' | 'entity_update' | 'action' | 'condition' | 'api_call';
-  
+
   // Data mappings: How to populate fields
   mappings: DataMapping[];
-  
+
   // Conditional execution
   condition?: {
     field: string;           // Field to check
     operator: '==' | '!=' | '>' | '<' | 'contains' | 'exists';
     value: any;              // Comparison value
   };
-  
+
   // Error handling
   on_error?: 'fail' | 'continue' | 'retry';
   retry_count?: number;
@@ -421,8 +421,8 @@ interface DataMapping {
 
 ### 4.4 Runtime Data: `data_context` (WorkflowRun)
 
-**Type**: `JSONField` (runtime execution state)  
-**Location**: `WorkflowRun.data_context`  
+**Type**: `JSONField` (runtime execution state)
+**Location**: `WorkflowRun.data_context`
 **Purpose**: Secure clipboard for workflow execution (stores intermediate results)
 
 **Schema**:
@@ -435,12 +435,12 @@ interface DataContext {
     error?: string;
     timestamp: string;
   };
-  
+
   // Global variables available to all steps
   tenant_id: string;
   user_id: string;
   initiated_at: string;
-  
+
   // Step-specific data
   entities_created: Record<string, string>;  // Maps step_id -> created entity ID
   api_responses: Record<string, any>;        // Maps step_id -> API response
@@ -496,8 +496,8 @@ The Runtime Engine transforms static blueprints into executable workflows throug
 GET /admin/system-config/api/available-workflows/
 ```
 
-**Purpose**: List published workflows available to tenant users  
-**Permission**: `IsAuthenticated` (any logged-in user)  
+**Purpose**: List published workflows available to tenant users
+**Permission**: `IsAuthenticated` (any logged-in user)
 **Returns**: Array of published blueprints
 
 **Response**:
@@ -524,8 +524,8 @@ GET /admin/system-config/api/available-workflows/
 POST /admin/system-config/api/runs/
 ```
 
-**Purpose**: Initiate a new workflow execution  
-**Permission**: `IsAuthenticated`  
+**Purpose**: Initiate a new workflow execution
+**Permission**: `IsAuthenticated`
 **Body**:
 ```json
 {
@@ -559,8 +559,8 @@ POST /admin/system-config/api/runs/
 POST /admin/system-config/api/runs/:run_id/submit_step/
 ```
 
-**Purpose**: Submit current step data and advance workflow  
-**Permission**: `IsAuthenticated` + tenant owns the run  
+**Purpose**: Submit current step data and advance workflow
+**Permission**: `IsAuthenticated` + tenant owns the run
 **Body**:
 ```json
 {
@@ -606,8 +606,8 @@ POST /admin/system-config/api/runs/:run_id/submit_step/
 GET /admin/system-config/api/runs/:run_id/
 ```
 
-**Purpose**: Get workflow run details  
-**Permission**: `IsAuthenticated` + tenant owns the run  
+**Purpose**: Get workflow run details
+**Permission**: `IsAuthenticated` + tenant owns the run
 **Response**:
 ```json
 {
@@ -629,7 +629,7 @@ GET /admin/system-config/api/runs/:run_id/
 
 #### Workflow Center (`/workflows`)
 
-**Component**: `WorkflowList.tsx`  
+**Component**: `WorkflowList.tsx`
 **Purpose**: "App Store" catalog of available workflows
 
 **Features**:
@@ -647,7 +647,7 @@ GET /admin/system-config/api/runs/:run_id/
 
 #### Workflow Runner (`/workflows/run/:runId`)
 
-**Component**: `WorkflowRunner.tsx` + `DynamicFormEngine.tsx`  
+**Component**: `WorkflowRunner.tsx` + `DynamicFormEngine.tsx`
 **Purpose**: Execute multi-step workflows
 
 **Features**:
@@ -855,23 +855,23 @@ Before deploying to production:
 
 ## 9. Glossary
 
-**Blueprint**: A template defining data structure and workflow for an entity type  
-**Version**: A specific iteration of a Blueprint (v1, v2, v3...)  
-**Draft**: Editable version, not visible to tenants  
-**Published**: Immutable version, available to all tenants  
-**System Root**: Special tenant (UUID: `0000...`) for Global Admin operations  
-**Global Admin**: User in "Global System Admins" group (manages Blueprints)  
-**Superuser**: Django superuser (can publish Blueprints)  
-**Tenant Isolation**: Data segregation ensuring tenants only see their own data  
-**RLS**: Row-Level Security (PostgreSQL feature for database-level isolation)  
-**Meta-Model**: "Configuration as Data" pattern where schemas are stored in JSON  
+**Blueprint**: A template defining data structure and workflow for an entity type
+**Version**: A specific iteration of a Blueprint (v1, v2, v3...)
+**Draft**: Editable version, not visible to tenants
+**Published**: Immutable version, available to all tenants
+**System Root**: Special tenant (UUID: `0000...`) for Global Admin operations
+**Global Admin**: User in "Global System Admins" group (manages Blueprints)
+**Superuser**: Django superuser (can publish Blueprints)
+**Tenant Isolation**: Data segregation ensuring tenants only see their own data
+**RLS**: Row-Level Security (PostgreSQL feature for database-level isolation)
+**Meta-Model**: "Configuration as Data" pattern where schemas are stored in JSON
 
 ---
 
 ## 10. Contact & Support
 
-**Documentation Maintained By**: System Architecture Team  
-**Last Reviewed**: January 23, 2026  
+**Documentation Maintained By**: System Architecture Team
+**Last Reviewed**: January 23, 2026
 **Questions?**: Contact the Platform Team
 
 **Related Documentation**:
@@ -882,7 +882,7 @@ Before deploying to production:
 
 ---
 
-**Status**: ✅ Phase 3 Complete (Runtime Engine + Integration)  
-**Implemented**: Workflow execution, public catalog, dynamic forms, tenant UI  
-**Production Ready**: Yes  
+**Status**: ✅ Phase 3 Complete (Runtime Engine + Integration)
+**Implemented**: Workflow execution, public catalog, dynamic forms, tenant UI
+**Production Ready**: Yes
 **Next**: Phase 4 - Polish & Release

@@ -1,9 +1,9 @@
 /**
  * Conditional Logic Evaluator
- * 
+ *
  * Evaluates conditional rules to determine field visibility.
  * Supports simple and complex conditions with AND/OR logic.
- * 
+ *
  * Created: 2026-02-18
  * Phase: D.2 - Dynamic Panel
  */
@@ -13,7 +13,7 @@ import { logger } from '@/utils/logger';
 
 /**
  * Evaluate a conditional rule against form data
- * 
+ *
  * @param rule - Conditional rule to evaluate
  * @param formData - Current form values
  * @returns True if condition is met (field should be visible)
@@ -50,7 +50,7 @@ export function evaluateCondition(
 
 /**
  * Evaluate a single operator comparison
- * 
+ *
  * @param operator - Comparison operator
  * @param fieldValue - Actual field value
  * @param targetValue - Expected value to compare against
@@ -162,7 +162,7 @@ function evaluateOperator(
 
 /**
  * Get all field IDs referenced in a conditional rule (for dependency tracking)
- * 
+ *
  * @param rule - Conditional rule
  * @returns Array of field IDs that this rule depends on
  */

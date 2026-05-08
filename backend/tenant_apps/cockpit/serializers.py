@@ -4,47 +4,48 @@ Cockpit serializers for aggregated search across tenant models.
 Provides lightweight, type-annotated serializers for polymorphic search results.
 """
 from rest_framework import serializers
-from apps.core.models import TradeEventLog, TradeExceptionQueue
-from tenant_apps.customers.models import Customer
-from tenant_apps.suppliers.models import Supplier
-from tenant_apps.purchase_orders.models import PurchaseOrder
-from tenant_apps.purchase_orders.models import CarrierPurchaseOrder
-from tenant_apps.sales_orders.models import SalesOrder
-from tenant_apps.inquiries.models import Inquiry, TradeSession
+
 from tenant_apps.cockpit.models import ActivityLog, ScheduledCall, UserWorkspaceLayout
+from tenant_apps.customers.models import Customer
+from tenant_apps.inquiries.models import Inquiry, TradeSession
+from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder
+from tenant_apps.sales_orders.models import SalesOrder
+from tenant_apps.suppliers.models import Supplier
+
+from apps.core.models import TradeEventLog, TradeExceptionQueue
 
 
 class CustomerSlotSerializer(serializers.ModelSerializer):
     """Lightweight serializer for Customer search results."""
-    
-    type = serializers.CharField(default='customer', read_only=True)
-    contact_name = serializers.CharField(source='contact_person', read_only=True)
+
+    type = serializers.CharField(default="customer", read_only=True)
+    contact_name = serializers.CharField(source="contact_person", read_only=True)
 
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'type', 'contact_name', 'email', 'phone']
+        fields = ["id", "name", "type", "contact_name", "email", "phone"]
 
 
 class SupplierSlotSerializer(serializers.ModelSerializer):
     """Lightweight serializer for Supplier search results."""
-    
-    type = serializers.CharField(default='supplier', read_only=True)
-    contact_name = serializers.CharField(source='contact_person', read_only=True)
+
+    type = serializers.CharField(default="supplier", read_only=True)
+    contact_name = serializers.CharField(source="contact_person", read_only=True)
 
     class Meta:
         model = Supplier
-        fields = ['id', 'name', 'type', 'contact_name', 'email', 'phone']
+        fields = ["id", "name", "type", "contact_name", "email", "phone"]
 
 
 class OrderSlotSerializer(serializers.ModelSerializer):
     """Lightweight serializer for PurchaseOrder search results."""
-    
-    type = serializers.CharField(default='order', read_only=True)
-    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+
+    type = serializers.CharField(default="order", read_only=True)
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
 
     class Meta:
         model = PurchaseOrder
-        fields = ['id', 'order_number', 'our_purchase_order_num', 'type', 'status', 'supplier_name', 'total_amount']
+        fields = ["id", "order_number", "our_purchase_order_num", "type", "status", "supplier_name", "total_amount"]
 
 
 class ActivityLogSerializer(serializers.ModelSerializer):
@@ -127,12 +128,12 @@ class ActivityLogUpdateSerializer(serializers.ModelSerializer):
 
 class ScheduledCallSerializer(serializers.ModelSerializer):
     """Serializer for ScheduledCall model."""
-    
+
     assigned_to_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
     # Allow null/empty description since it's optional
-    description = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
-    
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True, default="")
+
     class Meta:
         model = ScheduledCall
         fields = [
@@ -154,19 +155,19 @@ class ScheduledCallSerializer(serializers.ModelSerializer):
             "modified_on",
         ]
         read_only_fields = ["id", "created_on", "modified_on", "assigned_to_name", "created_by_name"]
-    
+
     def validate_description(self, value):
         """Convert null to empty string for database compatibility."""
         if value is None:
-            return ''
+            return ""
         return value
-    
+
     def get_assigned_to_name(self, obj):
         """Get the name of the user this call is assigned to."""
         if obj.assigned_to:
             return f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}".strip() or obj.assigned_to.username
         return None
-    
+
     def get_created_by_name(self, obj):
         """Get the name of the user who created this call."""
         if obj.created_by:
@@ -201,7 +202,7 @@ class UserWorkspaceLayoutSerializer(serializers.ModelSerializer):
             "modified_on",
         ]
         read_only_fields = ["id", "created_on", "modified_on"]
-    
+
     def validate_layout(self, value):
         """Validate layout is a list of layout items."""
         if not isinstance(value, list):
@@ -209,11 +210,11 @@ class UserWorkspaceLayoutSerializer(serializers.ModelSerializer):
         for item in value:
             if not isinstance(item, dict):
                 raise serializers.ValidationError("Each layout item must be an object")
-            required = {'i', 'x', 'y', 'w', 'h'}
+            required = {"i", "x", "y", "w", "h"}
             if not required.issubset(item.keys()):
                 raise serializers.ValidationError(f"Layout items must have keys: {required}")
         return value
-    
+
     def validate_widgets(self, value):
         """Validate widgets is a list of widget configs."""
         if not isinstance(value, list):
@@ -221,7 +222,7 @@ class UserWorkspaceLayoutSerializer(serializers.ModelSerializer):
         for item in value:
             if not isinstance(item, dict):
                 raise serializers.ValidationError("Each widget config must be an object")
-            required = {'id', 'type', 'title'}
+            required = {"id", "type", "title"}
             if not required.issubset(item.keys()):
                 raise serializers.ValidationError(f"Widget configs must have keys: {required}")
         return value
@@ -356,11 +357,15 @@ class TradeExceptionQueueListSerializer(serializers.ModelSerializer):
     def get_active_sibling_count(self, obj: TradeExceptionQueue) -> int:
         if not obj.trade_session_id:
             return 0
-        return TradeExceptionQueue.objects.filter(
-            tenant=obj.tenant,
-            trade_session_id=obj.trade_session_id,
-            status__in=["open", "retrying"],
-        ).exclude(pk=obj.pk).count()
+        return (
+            TradeExceptionQueue.objects.filter(
+                tenant=obj.tenant,
+                trade_session_id=obj.trade_session_id,
+                status__in=["open", "retrying"],
+            )
+            .exclude(pk=obj.pk)
+            .count()
+        )
 
     def get_trade_session(self, obj: TradeExceptionQueue) -> dict | None:
         trade_session = self._get_trade_session(obj)
@@ -433,24 +438,33 @@ class TradeExceptionQueueListSerializer(serializers.ModelSerializer):
         if inquiry is not None:
             entities.append(("inquiry", inquiry.pk, inquiry))
 
-            supplier_po = inquiry.supplier_purchase_order or PurchaseOrder.objects.filter(
-                tenant=obj.tenant,
-                trade_session=trade_session,
-            ).first()
+            supplier_po = (
+                inquiry.supplier_purchase_order
+                or PurchaseOrder.objects.filter(
+                    tenant=obj.tenant,
+                    trade_session=trade_session,
+                ).first()
+            )
             if supplier_po is not None:
                 entities.append(("purchase_order", supplier_po.pk, supplier_po))
 
-            sales_order = inquiry.sales_order or SalesOrder.objects.filter(
-                tenant=obj.tenant,
-                trade_session=trade_session,
-            ).first()
+            sales_order = (
+                inquiry.sales_order
+                or SalesOrder.objects.filter(
+                    tenant=obj.tenant,
+                    trade_session=trade_session,
+                ).first()
+            )
             if sales_order is not None:
                 entities.append(("sales_order", sales_order.pk, sales_order))
 
-            carrier_po = inquiry.carrier_purchase_order or CarrierPurchaseOrder.objects.filter(
-                tenant=obj.tenant,
-                trade_session=trade_session,
-            ).first()
+            carrier_po = (
+                inquiry.carrier_purchase_order
+                or CarrierPurchaseOrder.objects.filter(
+                    tenant=obj.tenant,
+                    trade_session=trade_session,
+                ).first()
+            )
             if carrier_po is not None:
                 entities.append(("carrier_purchase_order", carrier_po.pk, carrier_po))
 
@@ -490,7 +504,9 @@ class TradeExceptionQueueDetailSerializer(TradeExceptionQueueListSerializer):
         events = TradeEventLog.objects.filter(
             tenant=obj.tenant,
             trade_session_id=obj.trade_session_id,
-        ).order_by("-created_on")[:5]
+        ).order_by(
+            "-created_on"
+        )[:5]
         return TradeExceptionEventSerializer(
             [
                 {

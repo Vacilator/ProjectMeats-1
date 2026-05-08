@@ -1,6 +1,6 @@
 /**
  * AuthContext Tests
- * 
+ *
  * Tests for authentication context provider including:
  * - Provider rendering and context access
  * - Login/logout/signup flows
@@ -28,11 +28,11 @@ vi.mock('../services/authService', () => ({
 // Test component to access context
 const TestConsumer: React.FC<{ onAuth?: (auth: ReturnType<typeof useAuth>) => void }> = ({ onAuth }) => {
   const auth = useAuth();
-  
+
   if (onAuth) {
     onAuth(auth);
   }
-  
+
   return (
     <div>
       <div data-testid="loading">{auth.loading ? 'loading' : 'ready'}</div>
@@ -77,16 +77,16 @@ describe('AuthContext', () => {
           <div>Child Content</div>
         </AuthProvider>
       );
-      
+
       expect(screen.getByText('Child Content')).toBeInTheDocument();
     });
 
     it('should throw error when useAuth is used outside provider', () => {
       // Suppress console.error for this test
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       expect(() => render(<TestConsumer />)).toThrow('useAuth must be used within an AuthProvider');
-      
+
       consoleSpy.mockRestore();
     });
 
@@ -94,13 +94,13 @@ describe('AuthContext', () => {
       vi.mocked(authService.getCurrentUser).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve(null), 100))
       );
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       expect(screen.getByTestId('loading')).toHaveTextContent('loading');
     });
   });
@@ -109,34 +109,34 @@ describe('AuthContext', () => {
     it('should load current user on mount', async () => {
       vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser);
       vi.mocked(authService.isAdmin).mockReturnValue(false);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
       expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
     });
 
     it('should handle getCurrentUser failure gracefully', async () => {
       vi.mocked(authService.getCurrentUser).mockRejectedValue(new Error('Network error'));
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
       expect(screen.getByTestId('user')).toHaveTextContent('none');
     });
@@ -144,17 +144,17 @@ describe('AuthContext', () => {
     it('should set isAdmin based on authService.isAdmin', async () => {
       vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser);
       vi.mocked(authService.isAdmin).mockReturnValue(true);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       expect(screen.getByTestId('admin')).toHaveTextContent('admin');
     });
   });
@@ -163,23 +163,23 @@ describe('AuthContext', () => {
     it('should update user state on successful login', async () => {
       const user = userEvent.setup();
       vi.mocked(authService.login).mockResolvedValue(mockUser);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       await user.click(screen.getByText('Login'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
       });
-      
+
       expect(authService.login).toHaveBeenCalledWith({
         email: 'test@example.com',
         password: 'password',
@@ -192,28 +192,28 @@ describe('AuthContext', () => {
       vi.mocked(authService.login).mockImplementation(
         () => new Promise((resolve) => { resolveLogin = resolve; })
       );
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       // Start login
       await user.click(screen.getByText('Login'));
-      
+
       // Should show loading
       expect(screen.getByTestId('loading')).toHaveTextContent('loading');
-      
+
       // Complete login
       await act(async () => {
         resolveLogin!(mockUser);
       });
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
@@ -223,10 +223,10 @@ describe('AuthContext', () => {
       const user = userEvent.setup();
       const loginError = new Error('Invalid credentials');
       vi.mocked(authService.login).mockRejectedValue(loginError);
-      
+
       // Start with authenticated user
       vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser);
-      
+
       // Create a test component that catches login errors
       const TestWithErrorHandling: React.FC = () => {
         const auth = useAuth();
@@ -244,20 +244,20 @@ describe('AuthContext', () => {
           </div>
         );
       };
-      
+
       render(
         <AuthProvider>
           <TestWithErrorHandling />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
       });
-      
+
       // Attempt login (which will fail)
       await user.click(screen.getByText('Login'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
       });
@@ -269,23 +269,23 @@ describe('AuthContext', () => {
       const user = userEvent.setup();
       const newUser = { ...mockUser, email: 'new@example.com' };
       vi.mocked(authService.signUp).mockResolvedValue(newUser);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       await user.click(screen.getByText('SignUp'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('user')).toHaveTextContent('new@example.com');
       });
-      
+
       expect(authService.signUp).toHaveBeenCalledWith({
         email: 'new@example.com',
         password: 'pass123',
@@ -297,7 +297,7 @@ describe('AuthContext', () => {
     it('should clear user on signup failure', async () => {
       const user = userEvent.setup();
       vi.mocked(authService.signUp).mockRejectedValue(new Error('Email exists'));
-      
+
       // Create a test component that catches signup errors
       const TestWithErrorHandling: React.FC = () => {
         const auth = useAuth();
@@ -316,19 +316,19 @@ describe('AuthContext', () => {
           </div>
         );
       };
-      
+
       render(
         <AuthProvider>
           <TestWithErrorHandling />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       await user.click(screen.getByText('SignUp'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
       });
@@ -340,23 +340,23 @@ describe('AuthContext', () => {
       const user = userEvent.setup();
       vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser);
       vi.mocked(authService.logout).mockResolvedValue(undefined);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
       });
-      
+
       await user.click(screen.getByText('Logout'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
       });
-      
+
       expect(authService.logout).toHaveBeenCalled();
     });
 
@@ -364,19 +364,19 @@ describe('AuthContext', () => {
       const user = userEvent.setup();
       vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser);
       vi.mocked(authService.logout).mockRejectedValue(new Error('Logout failed'));
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
       });
-      
+
       await user.click(screen.getByText('Logout'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
       });
@@ -387,23 +387,23 @@ describe('AuthContext', () => {
     it('should refresh user data', async () => {
       const user = userEvent.setup();
       const updatedUser = { ...mockUser, email: 'updated@example.com' };
-      
+
       vi.mocked(authService.getCurrentUser)
         .mockResolvedValueOnce(mockUser)
         .mockResolvedValueOnce(updatedUser);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
       });
-      
+
       await user.click(screen.getByText('Refresh'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('user')).toHaveTextContent('updated@example.com');
       });
@@ -414,19 +414,19 @@ describe('AuthContext', () => {
       vi.mocked(authService.getCurrentUser)
         .mockResolvedValueOnce(mockUser)
         .mockRejectedValueOnce(new Error('Token expired'));
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
       });
-      
+
       await user.click(screen.getByText('Refresh'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
       });
@@ -436,13 +436,13 @@ describe('AuthContext', () => {
   describe('Computed Properties', () => {
     it('should compute isAuthenticated as true when user exists', async () => {
       vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
       });
@@ -450,30 +450,30 @@ describe('AuthContext', () => {
 
     it('should compute isAuthenticated as false when user is null', async () => {
       vi.mocked(authService.getCurrentUser).mockResolvedValue(null);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('ready');
       });
-      
+
       expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
     });
 
     it('should reflect isAdmin from authService', async () => {
       vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser);
       vi.mocked(authService.isAdmin).mockReturnValue(true);
-      
+
       render(
         <AuthProvider>
           <TestConsumer />
         </AuthProvider>
       );
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('admin')).toHaveTextContent('admin');
       });

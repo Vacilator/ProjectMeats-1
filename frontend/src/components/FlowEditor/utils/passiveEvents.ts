@@ -1,22 +1,22 @@
 /**
  * Passive Event Listeners Utility
- * 
+ *
  * Helpers for adding passive event listeners to improve scroll performance.
  * Passive listeners allow the browser to optimize scroll/touch performance
  * by not blocking the main thread waiting for event handlers.
- * 
+ *
  * Performance Impact:
  * - Eliminates "non-passive event listener" warnings
  * - Improves scroll/touch responsiveness by ~30-50ms
  * - Reduces jank during rapid interactions
- * 
+ *
  * React Flow Best Practices:
  * - Use passive listeners for wheel/touch events
  * - Only use non-passive when preventDefault() is required
  * - Add event listeners in useEffect cleanup
- * 
+ *
  * Created: 2026-02-21 - Phase 3 Performance & Stability
- * 
+ *
  * @module passiveEvents
  */
 
@@ -66,16 +66,16 @@ export const supportsPassive = (): boolean => {
 
 /**
  * Add passive event listener
- * 
+ *
  * Automatically uses passive: true for compatible events.
  * Falls back to standard listener if passive is not supported.
- * 
+ *
  * @example
  * ```tsx
  * useEffect(() => {
  *   const element = document.getElementById('canvas');
  *   const handler = (e: WheelEvent) => handleWheel(e);
- *   
+ *
  *   const cleanup = addPassiveListener(element, 'wheel', handler);
  *   return cleanup;
  * }, []);
@@ -124,16 +124,16 @@ export const shouldBePassive = (eventType: string): boolean => {
 
 /**
  * Add event listener with auto-detection of passive mode
- * 
+ *
  * Automatically makes wheel/touch/scroll events passive.
  * Use for events that don't need preventDefault().
- * 
+ *
  * @example
  * ```tsx
  * useEffect(() => {
  *   const element = canvasRef.current;
  *   if (!element) return;
- *   
+ *
  *   const cleanup = addSmartListener(element, 'wheel', handleWheel);
  *   return cleanup;
  * }, []);
@@ -157,24 +157,24 @@ export const addSmartListener = <K extends keyof WindowEventMap>(
 
 /**
  * React Hook: usePassiveEventListener
- * 
+ *
  * React hook for adding passive event listeners with automatic cleanup.
- * 
+ *
  * @example
  * ```tsx
  * import { useRef } from 'react';
  * import { usePassiveEventListener } from './utils/passiveEvents';
- * 
+ *
  * function MyComponent() {
  *   const canvasRef = useRef<HTMLDivElement>(null);
- *   
+ *
  *   usePassiveEventListener(
  *     canvasRef,
  *     'wheel',
  *     (e) => handleWheel(e),
  *     { passive: true }
  *   );
- *   
+ *
  *   return <div ref={canvasRef}>Canvas</div>;
  * }
  * ```
@@ -209,22 +209,22 @@ export const usePassiveEventListener = <
 
 /**
  * Batch add passive listeners to element
- * 
+ *
  * Efficiently adds multiple passive listeners at once.
  * Returns cleanup function that removes all listeners.
- * 
+ *
  * @example
  * ```tsx
  * useEffect(() => {
  *   const element = canvasRef.current;
  *   if (!element) return;
- *   
+ *
  *   const cleanup = batchAddPassiveListeners(element, {
  *     wheel: handleWheel,
  *     touchstart: handleTouchStart,
  *     touchmove: handleTouchMove,
  *   });
- *   
+ *
  *   return cleanup;
  * }, []);
  * ```
@@ -254,10 +254,10 @@ export const batchAddPassiveListeners = (
 
 /**
  * Monkey-patch addEventListener to use passive by default
- * 
+ *
  * WARNING: Use with caution! This modifies global behavior.
  * Only use if you're certain no event handlers need preventDefault().
- * 
+ *
  * @example
  * ```tsx
  * // In app entry point

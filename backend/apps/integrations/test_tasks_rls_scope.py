@@ -20,20 +20,20 @@ class IntegrationsEmailTasksRlsScopeTests(TestCase):
             finally:
                 calls.append(f"exit:{tenant_id}")
 
-        with patch.object(tasks, 'tenant_rls', fake_tenant_rls), patch.object(
+        with patch.object(tasks, "tenant_rls", fake_tenant_rls), patch.object(
             tasks,
-            'sync_ai_feedback_queue_for_tenant',
-            return_value={'drafts_seen': 0, 'feedback_logs_created': 0, 'unread_count': 0},
+            "sync_ai_feedback_queue_for_tenant",
+            return_value={"drafts_seen": 0, "feedback_logs_created": 0, "unread_count": 0},
         ) as sync_ai_inbox, patch(
-            'tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_provider_by_id',
-            return_value={'tenant_id': 't1', 'emails_saved': 0, 'emails_fetched': 0, 'errors': 0},
+            "tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_provider_by_id",
+            return_value={"tenant_id": "t1", "emails_saved": 0, "emails_fetched": 0, "errors": 0},
         ) as poll_provider:
-            result = tasks.sync_email_provider_inbox.run(123, 't1')
+            result = tasks.sync_email_provider_inbox.run(123, "t1")
 
-        self.assertEqual(result['success'], True)
-        poll_provider.assert_called_once_with(123, tenant_id='t1')
-        sync_ai_inbox.assert_called_once_with('t1')
-        self.assertEqual(calls, ['enter:t1', 'exit:t1'])
+        self.assertEqual(result["success"], True)
+        poll_provider.assert_called_once_with(123, tenant_id="t1")
+        sync_ai_inbox.assert_called_once_with("t1")
+        self.assertEqual(calls, ["enter:t1", "exit:t1"])
 
     def test_sync_single_tenant_scopes_rls(self):
         from apps.integrations import tasks
@@ -48,17 +48,17 @@ class IntegrationsEmailTasksRlsScopeTests(TestCase):
             finally:
                 calls.append(f"exit:{tenant_id}")
 
-        with patch.object(tasks, 'tenant_rls', fake_tenant_rls), patch.object(
+        with patch.object(tasks, "tenant_rls", fake_tenant_rls), patch.object(
             tasks,
-            'sync_ai_feedback_queue_for_tenant',
-            return_value={'drafts_seen': 0, 'feedback_logs_created': 0, 'unread_count': 0},
+            "sync_ai_feedback_queue_for_tenant",
+            return_value={"drafts_seen": 0, "feedback_logs_created": 0, "unread_count": 0},
         ) as sync_ai_inbox, patch(
-            'tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id',
-            return_value={'emails_saved': 0, 'emails_fetched': 0, 'errors': 0},
+            "tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id",
+            return_value={"emails_saved": 0, "emails_fetched": 0, "errors": 0},
         ) as poll_tenant:
-            result = tasks.sync_single_tenant.run('t1')
+            result = tasks.sync_single_tenant.run("t1")
 
-        self.assertEqual(result['success'], True)
-        poll_tenant.assert_called_once_with('t1')
-        sync_ai_inbox.assert_called_once_with('t1')
-        self.assertEqual(calls, ['enter:t1', 'exit:t1'])
+        self.assertEqual(result["success"], True)
+        poll_tenant.assert_called_once_with("t1")
+        sync_ai_inbox.assert_called_once_with("t1")
+        self.assertEqual(calls, ["enter:t1", "exit:t1"])

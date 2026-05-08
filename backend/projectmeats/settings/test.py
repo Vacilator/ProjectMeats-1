@@ -36,7 +36,7 @@ database_url = os.environ.get("DATABASE_URL", "").strip()
 if database_url:
     # Parse DATABASE_URL
     _db_config = dj_database_url.parse(database_url)
-        
+
     # Add connection timeout for database reliability
     if "postgresql" in _db_config.get("ENGINE", ""):
         if "OPTIONS" not in _db_config:
@@ -44,7 +44,7 @@ if database_url:
         _db_config["OPTIONS"]["connect_timeout"] = 10
 
     DATABASES = {"default": _db_config}
-    
+
 else:
     # Use PostgreSQL with standard backend for testing
     DATABASES = {

@@ -1,6 +1,6 @@
 /**
  * Calls Page - Professional Call Scheduling & Logging
- * 
+ *
  * Features:
  * - Multiple calendar views: Month, Week, Day, Agenda
  * - Full CRUD operations: Create, Read, Update, Delete
@@ -8,12 +8,12 @@
  * - Visual status indicators (upcoming, completed, overdue)
  * - Activity feed integration
  * - Call timer for tracking call duration
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties (rgb(var(--color-primary)))
  * - No hardcoded colors
  * - Responsive design
- * 
+ *
  * Updated: 2026-02-03 - Renamed from "Call Log" to "Calls"
  */
 import React, { useEffect, useRef, useState } from 'react';
@@ -157,7 +157,7 @@ const SplitPaneContainer = styled.div`
   gap: 1.5rem;
   height: calc(100vh - 180px);
   overflow: hidden;
-  
+
   /* Responsive: Stack on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -197,9 +197,9 @@ const PaneTitle = styled.h2`
 const CallCard = styled.div<{ isCompleted?: boolean; isSelected?: boolean }>`
   padding: 1rem;
   background: rgb(var(--color-surface));
-  border: 2px solid ${props => 
-    props.isSelected 
-      ? 'rgb(var(--color-primary))' 
+  border: 2px solid ${props =>
+    props.isSelected
+      ? 'rgb(var(--color-primary))'
       : 'rgb(var(--color-border))'
   };
   border-radius: var(--radius-md);
@@ -234,7 +234,7 @@ const CallBadge = styled.span<{ type: 'upcoming' | 'completed' | 'overdue' }>`
   font-weight: 500;
   border-radius: var(--radius-sm);
   white-space: nowrap;
-  
+
   ${props => {
     switch (props.type) {
       case 'completed':
@@ -399,7 +399,7 @@ const CallDetailsTitle = styled.h3`
 
 const CallDetailsSection = styled.div`
   margin-bottom: 1rem;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -428,7 +428,7 @@ const CallDetailsBadge = styled.span<{ type: 'upcoming' | 'completed' | 'overdue
   font-weight: 500;
   border-radius: var(--radius-md);
   white-space: nowrap;
-  
+
   ${props => {
     switch (props.type) {
       case 'completed':
@@ -467,12 +467,12 @@ const CalendarContainer = styled.div`
   min-height: 500px;
   overflow-y: auto;
   width: 100%;
-  
+
   /* Ensure calendar takes full width */
   .ant-picker-calendar {
     width: 100%;
   }
-  
+
   /* Responsive width for calendar */
   @media (max-width: 768px) {
     min-width: 300px;
@@ -505,7 +505,7 @@ const NavButton = styled.button`
   align-items: center;
   gap: 0.5rem;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
     border-color: rgb(var(--color-primary));
@@ -544,7 +544,7 @@ const TimeSlot = styled.div`
   min-height: 60px;
   position: relative;
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
@@ -554,7 +554,7 @@ const CallBlock = styled.div<{ duration: number; status: string; isDragging?: bo
   position: absolute;
   left: 4px;
   right: 4px;
-  background: ${props => 
+  background: ${props =>
     props.status === 'completed' ? 'rgba(var(--color-success), 0.15)' :
     props.status === 'overdue' ? 'rgba(var(--color-error), 0.15)' :
     'rgba(var(--color-primary), 0.15)'
@@ -572,7 +572,7 @@ const CallBlock = styled.div<{ duration: number; status: string; isDragging?: bo
   overflow: hidden;
   opacity: ${props => props.isDragging ? 0.5 : 1};
   transition: opacity 0.2s ease;
-  
+
   &:hover {
     opacity: 0.9;
   }
@@ -637,7 +637,7 @@ const WeekTimeSlot = styled.div`
   position: relative;
   padding: 0.25rem;
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
@@ -690,7 +690,7 @@ export const CallLog: React.FC = () => {
   // Phase 3-6: Calendar view state
   const [viewMode, setViewMode] = useState<ViewMode>('agenda'); // Default to agenda view
   const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
-  
+
   // Step 2: Call details display state
   const [selectedCallDetails, setSelectedCallDetails] = useState<ScheduledCall | null>(null);
 
@@ -710,7 +710,7 @@ export const CallLog: React.FC = () => {
       const callsData = response.data.results || response.data;
 
       // Sort by scheduled_for (upcoming first)
-      callsData.sort((a: ScheduledCall, b: ScheduledCall) => 
+      callsData.sort((a: ScheduledCall, b: ScheduledCall) =>
         new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()
       );
 
@@ -741,7 +741,7 @@ export const CallLog: React.FC = () => {
       });
 
       // Update local state
-      setCalls(calls.map(c => 
+      setCalls(calls.map(c =>
         c.id === callId ? { ...c, is_completed: true } : c
       ));
     } catch (err: any) {
@@ -756,10 +756,10 @@ export const CallLog: React.FC = () => {
 
   const getCallStatus = (call: ScheduledCall): 'upcoming' | 'completed' | 'overdue' => {
     if (call.is_completed) return 'completed';
-    
+
     const scheduledDate = new Date(call.scheduled_for);
     const now = new Date();
-    
+
     return scheduledDate < now ? 'overdue' : 'upcoming';
   };
 
@@ -841,10 +841,10 @@ export const CallLog: React.FC = () => {
   // ============================================================================
 
   const dateCellRender = (date: Dayjs) => {
-    const callsForDate = calls.filter(call => 
+    const callsForDate = calls.filter(call =>
       dayjs(call.scheduled_for).format('YYYY-MM-DD') === date.format('YYYY-MM-DD')
     );
-    
+
     return (
       <div style={{ overflow: 'hidden' }}>
         {callsForDate.slice(0, 3).map(call => {
@@ -895,9 +895,9 @@ export const CallLog: React.FC = () => {
 
   const handleDrop = async (e: React.DragEvent, targetHour: number, targetDate?: Dayjs) => {
     e.preventDefault();
-    
+
     if (!draggedCall) return;
-    
+
     try {
       // Calculate new scheduled time
       const baseDate = targetDate || currentDate;
@@ -906,19 +906,19 @@ export const CallLog: React.FC = () => {
         .minute(0)
         .second(0)
         .format('YYYY-MM-DDTHH:mm:ss');
-      
+
       // Update backend
       await businessApi.patch(`/workspace/scheduled-calls/${draggedCall.id}/`, {
         scheduled_for: newScheduledFor,
       });
-      
+
       // Update local state
       setCalls(calls.map(c =>
         c.id === draggedCall.id
           ? { ...c, scheduled_for: newScheduledFor }
           : c
       ));
-      
+
       setDraggedCall(null);
     } catch (err: any) {
       logger.error('Failed to reschedule call:', err);
@@ -937,7 +937,7 @@ export const CallLog: React.FC = () => {
 
   const renderDayView = () => {
     const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8 AM to 6 PM
-    
+
     return (
       <TimeSlotGrid>
         {hours.map(hour => {
@@ -1056,10 +1056,10 @@ export const CallLog: React.FC = () => {
       acc[date].push(call);
       return acc;
     }, {} as Record<string, ScheduledCall[]>);
-    
+
     // Sort dates
     const sortedDates = Object.keys(groupedCalls).sort();
-    
+
     if (sortedDates.length === 0) {
       return (
         <EmptyState>
@@ -1068,7 +1068,7 @@ export const CallLog: React.FC = () => {
         </EmptyState>
       );
     }
-    
+
     return (
       <AgendaList>
         {sortedDates.map(date => (
@@ -1091,7 +1091,7 @@ export const CallLog: React.FC = () => {
 
   const renderCallCard = (call: ScheduledCall) => {
     const status = getCallStatus(call);
-    
+
     return (
       <CallCard
         key={call.id}
@@ -1213,7 +1213,7 @@ export const CallLog: React.FC = () => {
               value={viewMode}
               onChange={(value) => setViewMode(value as ViewMode)}
             />
-            
+
             {viewMode !== 'agenda' && (
               <NavigationButtons>
                 <NavButton onClick={handlePrevious}>

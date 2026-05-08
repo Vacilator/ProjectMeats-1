@@ -11,36 +11,35 @@ from apps.core.models import TenantAuditEvent
 from apps.core.services.audit_trails import model_field_diff
 from apps.core.utils.audit_context import get_audit_context
 
-
 _TRACKED_MODELS = [
-    ('carriers', 'Carrier'),
-    ('purchase_orders', 'PurchaseOrder'),
-    ('purchase_orders', 'CarrierPurchaseOrder'),
-    ('sales_orders', 'SalesOrder'),
-    ('invoices', 'Invoice'),
-    ('suppliers', 'Supplier'),
-    ('plants', 'Plant'),
-    ('customers', 'Customer'),
-    ('locations', 'Location'),
-    ('contacts', 'Contact'),
-    ('inquiries', 'Inquiry'),
-    ('fulfillments', 'Fulfillment'),
-    ('products', 'MasterProduct'),
-    ('ai_assistant', 'CommunicationLog'),
+    ("carriers", "Carrier"),
+    ("purchase_orders", "PurchaseOrder"),
+    ("purchase_orders", "CarrierPurchaseOrder"),
+    ("sales_orders", "SalesOrder"),
+    ("invoices", "Invoice"),
+    ("suppliers", "Supplier"),
+    ("plants", "Plant"),
+    ("customers", "Customer"),
+    ("locations", "Location"),
+    ("contacts", "Contact"),
+    ("inquiries", "Inquiry"),
+    ("fulfillments", "Fulfillment"),
+    ("products", "MasterProduct"),
+    ("ai_assistant", "CommunicationLog"),
 ]
 
 _IGNORE_FIELDS = {
-    'id',
-    'pk',
-    'tenant',
-    'tenant_id',
-    'custom_data',
-    'created_at',
-    'updated_at',
-    'created_on',
-    'modified_on',
-    'deleted_at',
-    'is_deleted',
+    "id",
+    "pk",
+    "tenant",
+    "tenant_id",
+    "custom_data",
+    "created_at",
+    "updated_at",
+    "created_on",
+    "modified_on",
+    "deleted_at",
+    "is_deleted",
 }
 
 
@@ -59,41 +58,41 @@ _TRACKED = _tracked_instances()
 
 def _resolve_entity_name(instance):
     for attr in (
-        'name',
-        'subject',
-        'order_number',
-        'our_purchase_order_num',
-        'our_sales_order_num',
-        'invoice_number',
-        'our_carrier_po_num',
-        'inquiry_number',
-        'display_name',
+        "name",
+        "subject",
+        "order_number",
+        "our_purchase_order_num",
+        "our_sales_order_num",
+        "invoice_number",
+        "our_carrier_po_num",
+        "inquiry_number",
+        "display_name",
     ):
         value = getattr(instance, attr, None)
         if value:
             return str(value)[:255]
 
-    first_name = str(getattr(instance, 'first_name', '') or '').strip()
-    last_name = str(getattr(instance, 'last_name', '') or '').strip()
-    full_name = ' '.join(part for part in [first_name, last_name] if part).strip()
+    first_name = str(getattr(instance, "first_name", "") or "").strip()
+    last_name = str(getattr(instance, "last_name", "") or "").strip()
+    full_name = " ".join(part for part in [first_name, last_name] if part).strip()
     if full_name:
         return full_name[:255]
 
-    return ''
+    return ""
 
 
 @receiver(pre_save)
 def audit_pre_save(sender, instance, **kwargs):
     if sender not in _TRACKED:
         return
-    if not getattr(instance, 'pk', None):
+    if not getattr(instance, "pk", None):
         return
 
     try:
         before = sender.objects.filter(pk=instance.pk).first()
-        setattr(instance, '_audit_before', before)
+        setattr(instance, "_audit_before", before)
     except Exception:
-        setattr(instance, '_audit_before', None)
+        setattr(instance, "_audit_before", None)
 
 
 @receiver(post_save)
@@ -101,13 +100,13 @@ def audit_post_save(sender, instance, created, **kwargs):
     if sender not in _TRACKED:
         return
 
-    tenant = getattr(instance, 'tenant', None)
+    tenant = getattr(instance, "tenant", None)
     if tenant is None:
         return
 
     ctx = get_audit_context()
-    actor = ctx.user if getattr(ctx.user, 'is_authenticated', False) else None
-    actor_email = getattr(actor, 'email', '') if actor else ''
+    actor = ctx.user if getattr(ctx.user, "is_authenticated", False) else None
+    actor_email = getattr(actor, "email", "") if actor else ""
 
     content_type = ContentType.objects.get_for_model(sender)
 
@@ -127,11 +126,11 @@ def audit_post_save(sender, instance, created, **kwargs):
             actor=actor,
             actor_email=actor_email,
             ip_address=ctx.ip_address,
-            user_agent=ctx.user_agent or '',
+            user_agent=ctx.user_agent or "",
         )
         return
 
-    before = getattr(instance, '_audit_before', None)
+    before = getattr(instance, "_audit_before", None)
     diffs = model_field_diff(before=before, after=instance, ignore_fields=_IGNORE_FIELDS)
     if not diffs:
         return
@@ -149,7 +148,7 @@ def audit_post_save(sender, instance, created, **kwargs):
         actor=actor,
         actor_email=actor_email,
         ip_address=ctx.ip_address,
-        user_agent=ctx.user_agent or '',
+        user_agent=ctx.user_agent or "",
     )
 
 
@@ -158,13 +157,13 @@ def audit_pre_delete(sender, instance, **kwargs):
     if sender not in _TRACKED:
         return
 
-    tenant = getattr(instance, 'tenant', None)
+    tenant = getattr(instance, "tenant", None)
     if tenant is None:
         return
 
     ctx = get_audit_context()
-    actor = ctx.user if getattr(ctx.user, 'is_authenticated', False) else None
-    actor_email = getattr(actor, 'email', '') if actor else ''
+    actor = ctx.user if getattr(ctx.user, "is_authenticated", False) else None
+    actor_email = getattr(actor, "email", "") if actor else ""
 
     content_type = ContentType.objects.get_for_model(sender)
 
@@ -181,5 +180,5 @@ def audit_pre_delete(sender, instance, **kwargs):
         actor=actor,
         actor_email=actor_email,
         ip_address=ctx.ip_address,
-        user_agent=ctx.user_agent or '',
+        user_agent=ctx.user_agent or "",
     )

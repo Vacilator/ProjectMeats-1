@@ -4,15 +4,18 @@ Tests for Carriers app models and API behavior.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from django.urls import reverse
-from django.test import TestCase
+
 from django.contrib.auth.models import User
+from django.test import TestCase
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
+
 from rest_framework_simplejwt.tokens import RefreshToken
 from tenant_apps.carriers.models import Carrier
-from apps.tenants.models import Tenant, TenantUser
+
 from apps.core.models import CarrierTypeChoices
+from apps.tenants.models import Tenant, TenantUser
 
 
 class CarrierModelTest(TestCase):
@@ -22,9 +25,7 @@ class CarrierModelTest(TestCase):
         """Set up test data with tenant context."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -45,7 +46,7 @@ class CarrierModelTest(TestCase):
             dot_number=f"DOT-{unique_id}",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(carrier.name, f"Test Carrier {unique_id}")
         self.assertEqual(carrier.code, f"TC-{unique_id}")
         self.assertEqual(carrier.carrier_type, "truck")
@@ -59,14 +60,14 @@ class CarrierModelTest(TestCase):
             code=f"ES-{unique_id}",
             tenant=self.tenant,
         )
-        
+
         self.assertIn(f"ES-{unique_id}", str(carrier))
         self.assertIn("Express Shipping", str(carrier))
 
     def test_carrier_types(self):
         """Test different carrier types."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         for carrier_type in [CarrierTypeChoices.TRUCK, CarrierTypeChoices.RAIL, CarrierTypeChoices.AIR]:
             carrier = Carrier.objects.create(
                 name=f"Carrier {carrier_type} {unique_id}",
@@ -79,19 +80,17 @@ class CarrierModelTest(TestCase):
     def test_carrier_tenant_isolation(self):
         """Test that carriers are properly isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create carrier for first tenant
         carrier1 = Carrier.objects.create(
             name=f"Carrier 1 {unique_id}",
             code=f"C1-{unique_id}",
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -99,18 +98,18 @@ class CarrierModelTest(TestCase):
             contact_email=f"admin-{unique_id}@othercompany.com",
             created_by=other_user,
         )
-        
+
         # Create carrier for second tenant
         carrier2 = Carrier.objects.create(
             name=f"Carrier 2 {unique_id}",
             code=f"C2-{unique_id}",
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_carriers = Carrier.objects.for_tenant(self.tenant)
         tenant2_carriers = Carrier.objects.for_tenant(other_tenant)
-        
+
         self.assertEqual(tenant1_carriers.count(), 1)
         self.assertEqual(tenant2_carriers.count(), 1)
         self.assertIn(carrier1, tenant1_carriers)
@@ -127,7 +126,7 @@ class CarrierModelTest(TestCase):
             email=f"dispatch-{unique_id}@carrier.com",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(carrier.contact_person, "Jane Dispatcher")
         self.assertEqual(carrier.phone, "555-123-4567")
         self.assertTrue(carrier.is_active)
@@ -135,9 +134,10 @@ class CarrierModelTest(TestCase):
     def test_carrier_insurance_info(self):
         """Test carrier with insurance information."""
         from datetime import date, timedelta
+
         unique_id = uuid.uuid4().hex[:8]
         expiry_date = date.today() + timedelta(days=365)
-        
+
         carrier = Carrier.objects.create(
             name=f"Insured Carrier {unique_id}",
             code=f"IC-{unique_id}",
@@ -146,15 +146,16 @@ class CarrierModelTest(TestCase):
             insurance_expiry=expiry_date,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(carrier.insurance_provider, "SafeHaul Insurance")
         self.assertEqual(carrier.insurance_expiry, expiry_date)
 
     def test_carrier_accounting_info(self):
         """Test carrier with accounting information."""
         from apps.core.models import AccountingPaymentTermsChoices, CreditLimitChoices
+
         unique_id = uuid.uuid4().hex[:8]
-        
+
         carrier = Carrier.objects.create(
             name=f"Account Carrier {unique_id}",
             code=f"AC-{unique_id}",
@@ -163,7 +164,7 @@ class CarrierModelTest(TestCase):
             credit_limits=CreditLimitChoices.NET_30,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(carrier.my_customer_num_from_carrier, f"CUST-{unique_id}")
         self.assertEqual(carrier.accounting_payment_terms, AccountingPaymentTermsChoices.WIRE)
 
@@ -196,7 +197,7 @@ class CarrierModelTest(TestCase):
             country="USA",
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(carrier.city, "Dallas")
         self.assertEqual(carrier.state, "TX")
         self.assertEqual(carrier.country, "USA")

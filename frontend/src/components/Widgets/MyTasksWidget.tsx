@@ -1,15 +1,15 @@
 /**
  * My Tasks Widget
- * 
+ *
  * Displays the user's assigned tasks in a compact widget format.
  * Uses the NotificationsContext for action items.
- * 
+ *
  * Features:
  * - Task list with priority indicators
  * - Due date highlighting
  * - Quick actions (view, delegate)
  * - Link to full My Tasks page
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */
@@ -171,12 +171,12 @@ const TaskCount = styled.span`
 
 function formatDueDate(dueDate: string | null): string {
   if (!dueDate) return 'No due date';
-  
+
   const date = new Date(dueDate);
   const now = new Date();
   const diff = date.getTime() - now.getTime();
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-  
+
   if (days < 0) return `${Math.abs(days)}d overdue`;
   if (days === 0) return 'Due today';
   if (days === 1) return 'Due tomorrow';
@@ -234,8 +234,8 @@ export const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
               const showAlert = overdue || atRisk;
 
               return (
-                <TaskItem 
-                  key={task.id} 
+                <TaskItem
+                  key={task.id}
                   $isOverdue={showAlert}
                   onClick={() => handleTaskClick(task)}
                   role="button"
@@ -262,7 +262,7 @@ export const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
               );
             })}
           </TaskList>
-          
+
           {actionItems.length > maxItems && (
             <ViewAllLink onClick={() => navigate('/workforms/tasks')}>
               View all tasks

@@ -14,7 +14,7 @@ for file in .github/workflows/*.yml .github/workflows/*.yaml; do
   if [ ! -f "$file" ]; then
     continue
   fi
-  
+
   # Look for heredoc markers
   while IFS=: read -r line_num content; do
     # Check if using <<- (allows indentation)
@@ -22,14 +22,14 @@ for file in .github/workflows/*.yml .github/workflows/*.yaml; do
       # <<- allows indented closing delimiter, skip validation
       continue
     fi
-    
+
     # Extract delimiter name for << (without dash)
     DELIMITER=$(echo "$content" | sed -n "s/.*<<\s*['\"]\\?\([A-Z_]*\)['\"]\\?.*/\1/p")
-    
+
     if [ -n "$DELIMITER" ] && [ "$DELIMITER" != "SSH" ] && [ "$DELIMITER" != "ENVJS" ]; then
       # Find closing delimiter
       CLOSING_LINE=$(awk "NR>$line_num && /^[[:space:]]+$DELIMITER\$/ {print NR; exit}" "$file")
-      
+
       if [ -n "$CLOSING_LINE" ]; then
         echo "❌ ERROR in $file:"
         echo "   Line $line_num: Heredoc '$DELIMITER' has INDENTED closing delimiter at line $CLOSING_LINE"

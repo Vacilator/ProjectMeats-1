@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0002_alter_userpreferences_options_userfavorite"),
         ("tenants", "0011_bootstrap_rls_session_vars"),

@@ -16,8 +16,7 @@ from apps.core.services.data_governance import (
     execute_archive_run,
     get_archive_target_details,
 )
-from apps.tenants.models import Tenant
-from apps.tenants.models import TenantUser
+from apps.tenants.models import Tenant, TenantUser
 from apps.tenants.rls import tenant_rls
 
 

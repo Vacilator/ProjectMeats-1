@@ -117,10 +117,7 @@ class Deal(SoftDeleteModel, TenantAwareModel):
         year = timezone.now().year
         prefix = f"DEAL-{year}-"
         last_deal = (
-            Deal.objects.for_tenant(self.tenant)
-            .filter(deal_number__startswith=prefix)
-            .order_by("-deal_number")
-            .first()
+            Deal.objects.for_tenant(self.tenant).filter(deal_number__startswith=prefix).order_by("-deal_number").first()
         )
 
         next_number = 1

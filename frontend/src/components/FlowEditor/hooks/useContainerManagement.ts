@@ -1,7 +1,7 @@
 /**
  * Container Management Hook
  * Phase 7.2: Container Nesting Management
- * 
+ *
  * Manages container nodes and their child relationships:
  * - Create containers from selection
  * - Add/remove nodes from containers
@@ -9,7 +9,7 @@
  * - Nest containers (parent/child hierarchy)
  * - Auto-resize containers to fit children
  * - Maintain spatial relationships
- * 
+ *
  * Created: 2026-02-27
  */
 
@@ -67,7 +67,7 @@ const MIN_CONTAINER_HEIGHT = 300;
 /**
  * Hook for managing container nodes and their children.
  * Provides functions to create, modify, and organize containers.
- * 
+ *
  * @example
  * ```tsx
  * const {
@@ -75,7 +75,7 @@ const MIN_CONTAINER_HEIGHT = 300;
  *   addNodesToContainer,
  *   ungroupContainer
  * } = useContainerManagement();
- * 
+ *
  * // Group selected nodes
  * const container = createContainerFromSelection({
  *   label: 'Login Flow',

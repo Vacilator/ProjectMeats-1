@@ -1,8 +1,9 @@
 """
 Django admin configuration for Customers app.
 """
-from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
+from apps.core.admin_site import admin_site
+
 from .models import Customer
 
 

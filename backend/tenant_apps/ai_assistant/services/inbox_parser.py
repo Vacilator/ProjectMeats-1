@@ -29,45 +29,45 @@ logger = logging.getLogger(__name__)
 
 PO_PATTERNS = [
     # Standard formats: PO#12345, PO-12345, PO 12345
-    re.compile(r'\bPO\s*[#:\-]?\s*(\d{4,10})\b', re.IGNORECASE),
+    re.compile(r"\bPO\s*[#:\-]?\s*(\d{4,10})\b", re.IGNORECASE),
     # P.O. format: P.O. 12345
-    re.compile(r'\bP\.?\s*O\.?\s*[#:\-]?\s*(\d{4,10})\b', re.IGNORECASE),
+    re.compile(r"\bP\.?\s*O\.?\s*[#:\-]?\s*(\d{4,10})\b", re.IGNORECASE),
     # Purchase Order format: Purchase Order 12345
-    re.compile(r'\bPurchase\s+Order\s*[#:\-]?\s*(\d{4,10})\b', re.IGNORECASE),
+    re.compile(r"\bPurchase\s+Order\s*[#:\-]?\s*(\d{4,10})\b", re.IGNORECASE),
     # Order number: Order #12345
-    re.compile(r'\bOrder\s*[#:\-]\s*(\d{4,10})\b', re.IGNORECASE),
+    re.compile(r"\bOrder\s*[#:\-]\s*(\d{4,10})\b", re.IGNORECASE),
     # Requisition: REQ-12345
-    re.compile(r'\bREQ\s*[#:\-]?\s*(\d{4,10})\b', re.IGNORECASE),
+    re.compile(r"\bREQ\s*[#:\-]?\s*(\d{4,10})\b", re.IGNORECASE),
     # Alphanumeric: PO-ABC-12345
-    re.compile(r'\bPO\s*[#:\-]?\s*([A-Z]{1,4}[\-]?\d{4,10})\b', re.IGNORECASE),
+    re.compile(r"\bPO\s*[#:\-]?\s*([A-Z]{1,4}[\-]?\d{4,10})\b", re.IGNORECASE),
 ]
 
 # ─── Protein / Product Patterns ─────────────────────────────────────────
 
 PROTEIN_PATTERNS = [
-    re.compile(r'\b(beef|pork|chicken|lamb|veal|turkey|seafood|fish|bison)\b', re.IGNORECASE),
-    re.compile(r'\b(ribeye|sirloin|tenderloin|chuck|round|loin|breast|thigh|wing)\b', re.IGNORECASE),
-    re.compile(r'\b(ground\s+beef|ground\s+pork|ground\s+turkey)\b', re.IGNORECASE),
+    re.compile(r"\b(beef|pork|chicken|lamb|veal|turkey|seafood|fish|bison)\b", re.IGNORECASE),
+    re.compile(r"\b(ribeye|sirloin|tenderloin|chuck|round|loin|breast|thigh|wing)\b", re.IGNORECASE),
+    re.compile(r"\b(ground\s+beef|ground\s+pork|ground\s+turkey)\b", re.IGNORECASE),
 ]
 
 # Weight patterns: 5000 lbs, 2,500 KG, 50000 pounds etc.
 WEIGHT_PATTERN = re.compile(
-    r'(\d{1,3}(?:,\d{3})+|\d{1,9})(?:\.(\d+))?\s*(lbs?|kg|pounds?|kilograms?|tons?|cwt)\b',
+    r"(\d{1,3}(?:,\d{3})+|\d{1,9})(?:\.(\d+))?\s*(lbs?|kg|pounds?|kilograms?|tons?|cwt)\b",
     re.IGNORECASE,
 )
 
 # Price patterns: $12.50/lb, $5,000.00, USD 12.50
 PRICE_PATTERN = re.compile(
-    r'(?:\$|USD\s*)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,4})?)\s*(?:/\s*(lb|kg|cwt|ton|unit))?\b',
+    r"(?:\$|USD\s*)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,4})?)\s*(?:/\s*(lb|kg|cwt|ton|unit))?\b",
     re.IGNORECASE,
 )
 
 # Date patterns: 05/15/2026, May 15, 2026, 2026-05-15
 DATE_PATTERNS = [
-    re.compile(r'\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\b'),
-    re.compile(r'\b(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})\b'),
+    re.compile(r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\b"),
+    re.compile(r"\b(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})\b"),
     re.compile(
-        r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+(\d{1,2}),?\s+(\d{4})\b',
+        r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+(\d{1,2}),?\s+(\d{4})\b",
         re.IGNORECASE,
     ),
 ]

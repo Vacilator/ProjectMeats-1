@@ -8,7 +8,6 @@ from django.urls import reverse
 
 from apps.tenants.models import Tenant, TenantInvitation
 
-
 User = get_user_model()
 
 

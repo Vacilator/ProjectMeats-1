@@ -9,13 +9,11 @@
 
 from django.db import migrations
 
-
 SAFE_TENANT_UUID = "NULLIF(current_setting('app.current_tenant', true), '')::uuid"
 UNSAFE_TENANT_UUID = "current_setting('app.current_tenant', true)::uuid"
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("workflows", "0031_fix_missing_created_on_modified_on"),
     ]

@@ -11,11 +11,11 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase
 
-from apps.tenants.models import Tenant
 from tenant_apps.customers.models import Customer
 from tenant_apps.purchase_orders.models import PurchaseOrder
 from tenant_apps.suppliers.models import Supplier
 
+from apps.tenants.models import Tenant
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "etl"
 

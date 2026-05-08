@@ -6,7 +6,6 @@ from django.db.migrations.operations.special import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("locations", "0007_refactor_to_tenantaware"),
         ("system", "0010_product_is_system_tenantproductpreference_is_custom"),

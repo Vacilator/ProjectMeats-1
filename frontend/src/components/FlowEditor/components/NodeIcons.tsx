@@ -1,9 +1,9 @@
 /**
  * Node Icons Library
- * 
+ *
  * Centralized icon library for all workflow node types.
  * Provides consistent visual indicators with category-based color coding.
- * 
+ *
  * Sprint 1: Visual Excellence - Task 1.2
  * Created: 2026-02-17
  */
@@ -66,39 +66,39 @@ const iconMap: Record<NodeIconType, React.ComponentType<any>> = {
   'form-step': ListChecks,
   'form-field': Edit3,
   'form-process': Layers,
-  
+
   // Logic
   'conditional': GitBranch,
   'loop': Repeat,
   'wait': Clock,
   'delay': Pause,
-  
+
   // Data Operations
   'create-record': Database,
   'update-record': Edit3,
   'delete-record': Trash2,
   'query': FileSearch,
-  
+
   // Communication
   'email': Mail,
   'notification': Bell,
   'message': MessageSquare,
-  
+
   // Integration
   'api-call': Zap,
   'webhook': Send,
   'integration': Link,
-  
+
   // Container
   'container': Box,
   'group': Folder,
   'document': FileText,
-  
+
   // Utility
   'utility': Wrench,
   'script': Code,
   'terminal': Terminal,
-  
+
   // Control
   'start': Play,
   'end': Square,

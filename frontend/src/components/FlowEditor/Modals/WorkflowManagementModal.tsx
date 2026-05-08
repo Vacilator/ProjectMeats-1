@@ -1,11 +1,11 @@
 /**
  * Workflow Management Modal Component
- * 
+ *
  * Phase 8.2: Professional workflow creation/editing UI
  * - Replace prompt() with proper modal
  * - Add workflow name, description, status fields
  * - Form validation
- * 
+ *
  * Created: 2026-02-08
  */
 import React, { useState, useEffect } from 'react';
@@ -46,10 +46,10 @@ const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   justify-content: center;
   z-index: 10000;
   backdrop-filter: blur(4px);
-  
+
   /* Phase 8.4: Smooth fade-in animation */
   animation: ${props => props.$isOpen ? 'fadeIn 0.2s ease' : 'none'};
-  
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -69,10 +69,10 @@ const ModalContent = styled.div`
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1), 0 10px 10px -5px rgba(var(--color-overlay), 0.04);
-  
+
   /* Phase 8.4: Smooth scale-in animation */
   animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   @keyframes scaleIn {
     from {
       opacity: 0;
@@ -112,7 +112,7 @@ const CloseButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-background));
     color: rgb(var(--color-text-primary));
@@ -125,7 +125,7 @@ const ModalBody = styled.div`
 
 const FormGroup = styled.div`
   margin-bottom: 20px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -153,13 +153,13 @@ const Input = styled.input<{ $hasError?: boolean }>`
   border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary-rgb), 0.1)'};
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -177,13 +177,13 @@ const Textarea = styled.textarea`
   border-radius: var(--radius-md);
   resize: vertical;
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -199,7 +199,7 @@ const Select = styled.select`
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -220,7 +220,7 @@ const ErrorText = styled.div`
   font-size: 12px;
   color: rgb(var(--color-error));
   margin-top: 6px;
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -248,11 +248,11 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   &:hover {
     background: ${props => props.$variant === 'primary' ? 'rgba(var(--color-primary-rgb), 0.9)' : 'rgb(var(--color-background))'};
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;

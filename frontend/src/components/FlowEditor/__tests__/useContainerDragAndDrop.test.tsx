@@ -1,8 +1,8 @@
 /**
  * Container Drag-and-Drop Hook - Unit Tests
- * 
+ *
  * Tests for magnetic snapping and drop target detection.
- * 
+ *
  * Phase 7.2: Enhanced Container Management (Part 2/3)
  */
 
@@ -26,7 +26,7 @@ vi.mock('@xyflow/react', () => ({
 describe('useContainerDragAndDrop', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Setup default mock return values
     mockGetNodes.mockReturnValue([
       {

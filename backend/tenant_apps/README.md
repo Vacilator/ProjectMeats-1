@@ -6,7 +6,7 @@ This directory contains Django apps that are **tenant-specific** (isolated by te
 
 ProjectMeats uses **shared schema multi-tenancy** with row-level isolation via `tenant_id` foreign keys. All tenants share the same PostgreSQL schema.
 
-❌ **NEVER** use `django-tenants` or schema-based isolation  
+❌ **NEVER** use `django-tenants` or schema-based isolation
 ✅ **ALWAYS** use `tenant` ForeignKey for isolation
 
 ## Development Rules
@@ -21,10 +21,10 @@ from apps.core.managers import TenantManager
 class Supplier(models.Model):
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    
+
     # ✅ REQUIRED: Explicit TenantManager
     objects = TenantManager()
-    
+
     class Meta:
         indexes = [
             models.Index(fields=['tenant', 'name']),
@@ -58,9 +58,9 @@ class Customer(models.Model):
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     email = models.EmailField()
-    
+
     objects = TenantManager()  # ✅ REQUIRED
-    
+
     class Meta:
         indexes = [
             models.Index(fields=['tenant', 'email']),
@@ -73,7 +73,7 @@ class Customer(models.Model):
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     email = models.EmailField()
-    
+
     # ❌ MISSING: TenantManager not specified
     # This creates a security vulnerability!
 ```
@@ -88,11 +88,11 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         # ✅ ALWAYS filter by request.tenant
         return super().get_queryset().filter(tenant=self.request.tenant)
-    
+
     def perform_create(self, serializer):
         # ✅ ALWAYS assign request.tenant
         serializer.save(tenant=self.request.tenant)
@@ -110,7 +110,7 @@ python manage.py makemigrations
 python manage.py migrate --fake-initial --noinput
 ```
 
-❌ **NEVER** use `migrate_schemas` or `migrate --tenant`  
+❌ **NEVER** use `migrate_schemas` or `migrate --tenant`
 ✅ **ALWAYS** use standard `python manage.py migrate`
 
 ### Why Not django-tenants?

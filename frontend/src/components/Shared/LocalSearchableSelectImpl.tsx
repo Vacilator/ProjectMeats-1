@@ -1,9 +1,9 @@
 /**
  * Searchable Select Component
- * 
+ *
  * A searchable dropdown with filtering for foreign key selection.
  * Users can type to filter options and see display names instead of IDs.
- * 
+ *
  * Features:
  * - Text input for search/filter
  * - Dropdown shows filtered results
@@ -11,7 +11,7 @@
  * - Keyboard navigation (up/down arrows, enter to select, escape to close)
  * - Shows display name, not ID
  * - Theme-compliant styling
- * 
+ *
  * Usage:
  * ```tsx
  * <SearchableSelect
@@ -86,12 +86,12 @@ const Input = styled.input<{ $hasError?: boolean }>`
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: ${props => props.$hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-primary))'};
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -307,7 +307,7 @@ export const LocalSearchableSelect: React.FC<LocalSearchableSelectProps> = ({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setFocusedIndex(prev => 
+        setFocusedIndex(prev =>
           prev < filteredOptions.length - 1 ? prev + 1 : prev
         );
         break;
@@ -360,7 +360,7 @@ export const LocalSearchableSelect: React.FC<LocalSearchableSelectProps> = ({
           {required && <Required>*</Required>}
         </Label>
       )}
-      
+
       <InputWrapper $isOpen={isOpen} $hasError={!!error}>
         <Input
           ref={inputRef}

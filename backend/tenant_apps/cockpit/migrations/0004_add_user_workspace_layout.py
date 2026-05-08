@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cockpit", "0003_alter_activitylog_entity_type_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

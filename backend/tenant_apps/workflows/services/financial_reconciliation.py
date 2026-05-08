@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -89,10 +89,11 @@ def reconcile_trade_financials(
         ReconciliationResult with drift details and correction status.
     """
     import time
+
     start_time = time.time()
 
     result = ReconciliationResult(total_records=len(trades))
-    
+
     for trade in trades:
         trade_id = str(trade.get("trade_id", "unknown"))
         try:
@@ -132,12 +133,15 @@ def _reconcile_single_trade(
     stored_margin = Decimal(str(trade.get("stored_margin_percent", 0)))
 
     if sell > 0:
-        computed_margin = ((sell - buy) / sell * Decimal("100")).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        computed_margin = ((sell - buy) / sell * Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         _check_drift(
-            trade_id, "margin_percent", stored_margin, computed_margin,
-            result, auto_correct_threshold, alert_threshold,
+            trade_id,
+            "margin_percent",
+            stored_margin,
+            computed_margin,
+            result,
+            auto_correct_threshold,
+            alert_threshold,
         )
 
     # 2. Reconcile outstanding amount
@@ -147,8 +151,13 @@ def _reconcile_single_trade(
 
     computed_outstanding = (total - paid).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     _check_drift(
-        trade_id, "outstanding_amount", stored_outstanding, computed_outstanding,
-        result, auto_correct_threshold, alert_threshold,
+        trade_id,
+        "outstanding_amount",
+        stored_outstanding,
+        computed_outstanding,
+        result,
+        auto_correct_threshold,
+        alert_threshold,
     )
 
     # 3. Reconcile net exposure (if present)
@@ -156,12 +165,15 @@ def _reconcile_single_trade(
         so_outstanding = Decimal(str(trade.get("so_outstanding", 0)))
         po_outstanding = Decimal(str(trade.get("po_outstanding", 0)))
         stored_exposure = Decimal(str(trade.get("stored_net_exposure", 0)))
-        computed_exposure = (po_outstanding - so_outstanding).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        computed_exposure = (po_outstanding - so_outstanding).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         _check_drift(
-            trade_id, "net_exposure", stored_exposure, computed_exposure,
-            result, auto_correct_threshold, alert_threshold,
+            trade_id,
+            "net_exposure",
+            stored_exposure,
+            computed_exposure,
+            result,
+            auto_correct_threshold,
+            alert_threshold,
         )
 
 
@@ -202,11 +214,19 @@ def _check_drift(
         result.auto_corrected += 1
         logger.info(
             "Auto-corrected %s.%s: %s → %s (drift: %s%%)",
-            trade_id, field_name, stored, computed, drift_pct,
+            trade_id,
+            field_name,
+            stored,
+            computed,
+            drift_pct,
         )
     else:
         result.alerts_raised += 1
         logger.warning(
             "ALERT: %s.%s drift %s%% (stored: %s, computed: %s)",
-            trade_id, field_name, drift_pct, stored, computed,
+            trade_id,
+            field_name,
+            drift_pct,
+            stored,
+            computed,
         )

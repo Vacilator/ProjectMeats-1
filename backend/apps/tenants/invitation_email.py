@@ -55,11 +55,10 @@ def send_invitation_email_now(invitation: TenantInvitation) -> None:
         return
 
     # Common operational misconfig: SendGrid backend enabled but no API key.
-    if (
-        str(getattr(settings, 'EMAIL_BACKEND', '')).endswith('SendgridBackend')
-        and not getattr(settings, 'SENDGRID_API_KEY', '')
+    if str(getattr(settings, "EMAIL_BACKEND", "")).endswith("SendgridBackend") and not getattr(
+        settings, "SENDGRID_API_KEY", ""
     ):
-        raise RuntimeError('SENDGRID_API_KEY is not set for SendGrid email backend')
+        raise RuntimeError("SENDGRID_API_KEY is not set for SendGrid email backend")
 
     subject, body, invite_url = _build_invitation_email(invitation)
 

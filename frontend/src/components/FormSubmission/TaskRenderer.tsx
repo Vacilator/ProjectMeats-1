@@ -1,16 +1,16 @@
 /**
  * Task Renderer
- * 
+ *
  * Phase 4: Hybrid Task Renderer
  * Orchestrates rendering of different workflow node types.
- * 
+ *
  * Features:
  * - Routes nodes to appropriate renderer
  * - Handles form steps vs interaction cards
  * - Auto-executes automated nodes
  * - Integrates with workflow context
  * - Error boundaries per task
- * 
+ *
  * Usage:
  * ```typescript
  * <TaskRenderer
@@ -19,7 +19,7 @@
  *   onComplete={(data) => advanceToNextNode(data)}
  * />
  * ```
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Hybrid Task Renderer Implementation
  */
 
@@ -38,16 +38,16 @@ import { logger } from '@/utils/logger';
 export interface TaskRendererProps {
   /** Current workflow node to render */
   node: any;
-  
+
   /** Workflow context */
   context: WorkflowContext;
-  
+
   /** Callback when task is completed */
   onComplete: (data: Record<string, any>) => void;
-  
+
   /** Callback for wait states */
   onWait?: () => void;
-  
+
   /** Read-only mode */
   readOnly?: boolean;
 }
@@ -75,7 +75,7 @@ const ErrorContainer = styled.div`
 
 const ErrorIcon = styled.div`
   flex-shrink: 0;
-  
+
   svg {
     width: 20px;
     height: 20px;
@@ -181,7 +181,7 @@ class TaskErrorBoundary extends React.Component<
 
 /**
  * TaskRenderer orchestrates rendering of workflow nodes.
- * 
+ *
  * Decision tree:
  * 1. If node.type === 'formStep' → Render FormStep
  * 2. If node has interactionType → Find and render InteractionCard
@@ -216,7 +216,7 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({
   const cardDef = detectCardType(node.data);
   if (cardDef) {
     const CardComponent = cardDef.renderer;
-    
+
     return (
       <RendererContainer>
         <TaskErrorBoundary>
@@ -282,7 +282,7 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({
  */
 function isAutomatedNode(nodeType: string | undefined): boolean {
   if (!nodeType) return false;
-  
+
   const automatedTypes = [
     'actionEmail',
     'actionSMS',
@@ -297,7 +297,7 @@ function isAutomatedNode(nodeType: string | undefined): boolean {
     'timerDelay',
     'timerSchedule',
   ];
-  
+
   return automatedTypes.includes(nodeType);
 }
 

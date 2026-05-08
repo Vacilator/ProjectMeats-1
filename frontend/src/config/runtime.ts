@@ -1,10 +1,10 @@
 /**
  * Runtime Configuration Utility
- * 
+ *
  * This module provides runtime configuration that can be overridden
  * after the application is built and deployed. This solves the issue
  * where environment variables are baked in at build-time.
- * 
+ *
  * Configuration priority for API_BASE_URL and ENVIRONMENT:
  * 1. Runtime config from window.ENV (set via env-config.js) - explicit override
  * 2. Tenant context from domain detection (via tenantContext.ts) - automatic
@@ -35,14 +35,14 @@ declare global {
 }
 
 // Helper to detect if we're running in development mode
-const isDevelopment = typeof import.meta !== 'undefined' 
+const isDevelopment = typeof import.meta !== 'undefined'
   ? import.meta.env?.MODE === 'development'
   : typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
 
 /**
  * Get runtime configuration value
  * Priority: window.ENV > tenant context > import.meta.env (Vite) > process.env (legacy) > default
- * 
+ *
  * Note: For API_BASE_URL and ENVIRONMENT, we check window.ENV first
  * to allow explicit override, then fall back to tenant context.
  */
@@ -54,7 +54,7 @@ function getRuntimeConfig(key: string, defaultValue: string = ''): string {
       return value;
     }
   }
-  
+
   // For API_BASE_URL and ENVIRONMENT, use tenant context as fallback
   if (key === 'API_BASE_URL' || key === 'ENVIRONMENT') {
     try {
@@ -70,7 +70,7 @@ function getRuntimeConfig(key: string, defaultValue: string = ''): string {
       // This ensures backward compatibility
     }
   }
-  
+
   // Fall back to build-time environment variables
   // Try Vite's import.meta.env first (VITE_ prefix)
   if (typeof import.meta !== 'undefined' && import.meta.env) {
@@ -80,7 +80,7 @@ function getRuntimeConfig(key: string, defaultValue: string = ''): string {
       return String(viteValue);
     }
   }
-  
+
   // Legacy fallback for CRA (REACT_APP_ prefix)
   if (typeof process !== 'undefined' && process.env) {
     const envKey = `REACT_APP_${key}`;
@@ -89,7 +89,7 @@ function getRuntimeConfig(key: string, defaultValue: string = ''): string {
       return envValue;
     }
   }
-  
+
   // Use default value
   return defaultValue;
 }
@@ -115,10 +115,10 @@ function getRuntimeConfigNumber(key: string, defaultValue: number = 0): number {
 export const config = {
   // API Configuration - uses tenant context for domain-based multi-tenancy
   API_BASE_URL: getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1'),
-  
+
   // Environment - uses tenant context for domain-based detection
   ENVIRONMENT: getRuntimeConfig('ENVIRONMENT', 'development'),
-  
+
   // Feature Flags
   AI_ASSISTANT_ENABLED: getRuntimeConfigBoolean('AI_ASSISTANT_ENABLED', true),
   ENABLE_DOCUMENT_UPLOAD: getRuntimeConfigBoolean('ENABLE_DOCUMENT_UPLOAD', true),
@@ -126,7 +126,7 @@ export const config = {
   ENABLE_OPERATIONAL_OFFLINE_QUEUE: getRuntimeConfigBoolean('ENABLE_OPERATIONAL_OFFLINE_QUEUE', true),
   ENABLE_DEBUG: getRuntimeConfigBoolean('ENABLE_DEBUG', isDevelopment),
   ENABLE_DEVTOOLS: getRuntimeConfigBoolean('ENABLE_DEVTOOLS', isDevelopment),
-  
+
   // UI Configuration
   MAX_FILE_SIZE: getRuntimeConfigNumber('MAX_FILE_SIZE', 10485760), // 10MB
   SUPPORTED_FILE_TYPES: getRuntimeConfig('SUPPORTED_FILE_TYPES', 'pdf,jpg,jpeg,png,txt,doc,docx,xls,xlsx'),

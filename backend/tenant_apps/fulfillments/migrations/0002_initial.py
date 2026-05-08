@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -89,14 +88,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="fulfillment",
-            index=models.Index(
-                fields=["tenant", "status"], name="fulfillment_tenant__12673c_idx"
-            ),
+            index=models.Index(fields=["tenant", "status"], name="fulfillment_tenant__12673c_idx"),
         ),
         migrations.AddIndex(
             model_name="fulfillment",
-            index=models.Index(
-                fields=["inquiry"], name="fulfillment_inquiry_1a7c13_idx"
-            ),
+            index=models.Index(fields=["inquiry"], name="fulfillment_inquiry_1a7c13_idx"),
         ),
     ]

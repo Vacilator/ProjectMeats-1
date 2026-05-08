@@ -1,8 +1,8 @@
 /**
  * JWT Token Management Service
- * 
+ *
  * Wave S1: Security Hardening - Frontend JWT Integration
- * 
+ *
  * Handles JWT token storage, refresh, and expiration checking.
  * Works with the backend JWT endpoints:
  * - POST /api/v1/auth/token/ - Obtain tokens
@@ -80,13 +80,13 @@ function isTokenExpired(token: string, bufferMs: number = 0): boolean {
 export function storeTokens(accessToken: string, refreshToken: string): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-  
+
   // Store expiry for quick checks without decoding
   const expiry = getTokenExpiry(accessToken);
   if (expiry) {
     localStorage.setItem(TOKEN_EXPIRY_KEY, expiry.toString());
   }
-  
+
   // Remove legacy token if present
   localStorage.removeItem(LEGACY_TOKEN_KEY);
 }
@@ -106,7 +106,7 @@ export function getAccessToken(): string | null {
     }
     return accessToken;
   }
-  
+
   // Fall back to legacy token for backward compatibility
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
   if (legacyToken) {
@@ -135,7 +135,7 @@ export function isUsingJwt(): boolean {
 export function needsRefresh(): boolean {
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
   if (!accessToken) return false;
-  
+
   return isTokenExpired(accessToken, REFRESH_BUFFER_MS);
 }
 
@@ -148,33 +148,33 @@ export async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) {
     return refreshPromise;
   }
-  
+
   // Rate limit refresh attempts
   const now = Date.now();
   if (now - lastRefreshAttempt < MIN_REFRESH_INTERVAL_MS) {
     logger.debug('[JWT] Skipping refresh - too soon since last attempt');
     return getAccessToken();
   }
-  
+
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
     logger.debug('[JWT] No refresh token available');
     return null;
   }
-  
+
   // Check if refresh token itself is expired
   if (isTokenExpired(refreshToken)) {
     logger.debug('[JWT] Refresh token expired');
     clearTokens();
     return null;
   }
-  
+
   lastRefreshAttempt = now;
-  
+
   refreshPromise = (async () => {
     try {
       logger.debug('[JWT] Refreshing access token...');
-      
+
       // Use axios directly to avoid interceptor loops
       const response = await axios.post(
         `${API_BASE_URL}/auth/token/refresh/`,
@@ -184,28 +184,28 @@ export async function refreshAccessToken(): Promise<string | null> {
           timeout: 5000,
         }
       );
-      
+
       const { access, refresh: newRefresh } = response.data;
-      
+
       // Store new tokens (refresh token rotates)
       storeTokens(access, newRefresh || refreshToken);
-      
+
       logger.debug('[JWT] Token refreshed successfully');
       return access;
     } catch (error) {
       logger.error('[JWT] Token refresh failed:', error);
-      
+
       // If refresh fails with 401, tokens are invalid
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         clearTokens();
       }
-      
+
       return null;
     } finally {
       refreshPromise = null;
     }
   })();
-  
+
   return refreshPromise;
 }
 
@@ -233,14 +233,14 @@ export function getAuthHeader(): string | null {
     logger.debug('[JWT] Access token expired, needs refresh');
     return null;
   }
-  
+
   // Fall back to legacy token
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
   if (legacyToken) {
     logger.debug('[JWT] Using legacy Token auth');
     return `Token ${legacyToken}`;
   }
-  
+
   // No token available (expected during login)
   return null;
 }
@@ -272,7 +272,7 @@ export function getTenantFromToken(): {
 } | null {
   const claims = getTokenClaims();
   if (!claims) return null;
-  
+
   return {
     tenantIds: claims.tenant_ids as string[] | undefined,
     defaultTenantId: claims.default_tenant_id as string | undefined,

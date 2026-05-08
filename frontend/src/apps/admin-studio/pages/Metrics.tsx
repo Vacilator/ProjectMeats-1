@@ -1,15 +1,15 @@
 /**
  * Metrics Dashboard Component
- * 
+ *
  * Visual KPIs and analytics for workflows and forms.
  * Industry-standard metrics inspired by Shopify, Stripe dashboards.
- * 
+ *
  * Features:
  * - Workflow completion rates
- * - Form submission statistics  
+ * - Form submission statistics
  * - Real-time usage trends
  * - Performance health indicators
- * 
+ *
  * Created: 2026-02-26 - Gap Analysis Phase 4.2
  */
 import React, { useState } from 'react';
@@ -119,7 +119,7 @@ const KPICard = styled.div`
   border-radius: var(--radius-lg);
   padding: 20px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -165,7 +165,7 @@ const KPIChange = styled.div<{ $positive: boolean }>`
   font-size: 13px;
   font-weight: 600;
   color: ${props => props.$positive ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'};
-  
+
   svg {
     margin-right: 4px;
   }
@@ -208,11 +208,11 @@ const TableHead = styled.thead`
 
 const TableRow = styled.tr`
   border-bottom: 1px solid rgb(var(--color-border));
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.05);
   }
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -361,33 +361,33 @@ export const Metrics: React.FC = () => {
           <ResponsiveContainer width="100%" height={300} minWidth={1} minHeight={1} debounce={150}>
             <LineChart data={workflowMetrics.daily_usage}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-              <XAxis 
-                dataKey="date" 
+              <XAxis
+                dataKey="date"
                 tick={{ fontSize: 12 }}
               />
-              <YAxis 
+              <YAxis
                 tick={{ fontSize: 12 }}
               />
               <Tooltip />
               <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="executions" 
-                stroke="rgb(var(--color-info))" 
+              <Line
+                type="monotone"
+                dataKey="executions"
+                stroke="rgb(var(--color-info))"
                 strokeWidth={2}
                 name="Total Executions"
               />
-              <Line 
-                type="monotone" 
-                dataKey="completions" 
-                stroke="rgb(var(--color-success))" 
+              <Line
+                type="monotone"
+                dataKey="completions"
+                stroke="rgb(var(--color-success))"
                 strokeWidth={2}
                 name="Completions"
               />
-              <Line 
-                type="monotone" 
-                dataKey="failures" 
-                stroke="rgb(var(--color-error))" 
+              <Line
+                type="monotone"
+                dataKey="failures"
+                stroke="rgb(var(--color-error))"
                 strokeWidth={2}
                 name="Failures"
               />
@@ -428,10 +428,10 @@ export const Metrics: React.FC = () => {
             </TableHead>
             <tbody>
               {workflowMetrics.workflow_health.map((workflow, index) => {
-                const health = 
+                const health =
                   workflow.success_rate >= 90 ? 'good' :
                   workflow.success_rate >= 70 ? 'warning' : 'critical';
-                
+
                 return (
                   <TableRow key={index}>
                     <TableCell>{workflow.workflow_name}</TableCell>
@@ -492,15 +492,15 @@ function formatDuration(seconds: number): string {
 function generateMockDailyData(days: number): DailyUsage[] {
   const data: DailyUsage[] = [];
   const today = new Date();
-  
+
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    
+
     const executions = Math.floor(Math.random() * 50) + 20;
     const completions = Math.floor(executions * (0.8 + Math.random() * 0.15));
     const failures = executions - completions;
-    
+
     data.push({
       date: date.toISOString().split('T')[0].slice(5),
       executions,
@@ -508,7 +508,7 @@ function generateMockDailyData(days: number): DailyUsage[] {
       failures,
     });
   }
-  
+
   return data;
 }
 

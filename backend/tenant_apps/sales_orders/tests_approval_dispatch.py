@@ -3,11 +3,10 @@
 import uuid
 from unittest.mock import MagicMock, patch
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from apps.tenants.models import Tenant, TenantUser
-from django.contrib.auth import get_user_model
 from tenant_apps.sales_orders.models import (
     SalesOrder,
     SalesOrderApprovalDispatch,
@@ -18,6 +17,8 @@ from tenant_apps.sales_orders.services.approval_dispatch import (
     SalesOrderApprovalDispatchResult,
     approve_sales_order_and_send_to_customer,
 )
+
+from apps.tenants.models import Tenant, TenantUser
 
 User = get_user_model()
 
@@ -36,8 +37,8 @@ class SalesOrderApprovalDispatchServiceTests(TestCase):
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="admin")
 
         # Import models needed for FK
-        from tenant_apps.suppliers.models import Supplier
         from tenant_apps.customers.models import Customer
+        from tenant_apps.suppliers.models import Supplier
 
         cls.supplier = Supplier.objects.create(
             tenant=cls.tenant,
@@ -57,9 +58,7 @@ class SalesOrderApprovalDispatchServiceTests(TestCase):
         )
 
     def test_missing_tenant_returns_error(self):
-        result = approve_sales_order_and_send_to_customer(
-            tenant=None, sales_order=self.sales_order, user=self.user
-        )
+        result = approve_sales_order_and_send_to_customer(tenant=None, sales_order=self.sales_order, user=self.user)
         self.assertFalse(result.success)
         self.assertEqual(result.error_code, "missing_tenant")
 
@@ -103,9 +102,7 @@ class SalesOrderApprovalDispatchServiceTests(TestCase):
         mock_rls.return_value = MagicMock(ok=True)
         mock_provider.return_value = MagicMock(connected_email="sender@company.com", pk=None)
         mock_token.return_value = "fake-access-token"
-        mock_pdf.return_value = MagicMock(
-            filename="SO-12345.pdf", content=b"%PDF-1.4 fake content"
-        )
+        mock_pdf.return_value = MagicMock(filename="SO-12345.pdf", content=b"%PDF-1.4 fake content")
         mock_graph_instance = MagicMock()
         mock_graph_instance.send_email.return_value = MagicMock(
             message_id="msg-123", thread_id="thread-456", internet_message_id="internet-789"
@@ -120,9 +117,7 @@ class SalesOrderApprovalDispatchServiceTests(TestCase):
         self.sales_order.refresh_from_db()
         self.assertEqual(self.sales_order.status, SalesOrderStatus.APPROVED)
 
-        dispatch = SalesOrderApprovalDispatch.objects.get(
-            tenant=self.tenant, sales_order=self.sales_order
-        )
+        dispatch = SalesOrderApprovalDispatch.objects.get(tenant=self.tenant, sales_order=self.sales_order)
         self.assertEqual(dispatch.status, SalesOrderApprovalDispatchStatus.SENT)
         self.assertEqual(dispatch.recipient_email, "customer@example.com")
         self.assertEqual(dispatch.provider_message_id, "msg-123")
@@ -133,16 +128,12 @@ class SalesOrderApprovalDispatchServiceTests(TestCase):
     @patch("tenant_apps.sales_orders.services.approval_dispatch._get_access_token")
     @patch("tenant_apps.sales_orders.services.approval_dispatch.generate_document_pdf_for_instance")
     @patch("tenant_apps.sales_orders.services.approval_dispatch.MicrosoftGraphProvider")
-    def test_idempotent_when_already_sent(
-        self, mock_graph_cls, mock_pdf, mock_token, mock_provider, mock_rls
-    ):
+    def test_idempotent_when_already_sent(self, mock_graph_cls, mock_pdf, mock_token, mock_provider, mock_rls):
         """If dispatch is already SENT, calling again returns success without re-sending."""
         mock_rls.return_value = MagicMock(ok=True)
         mock_provider.return_value = MagicMock(connected_email="sender@company.com", pk=None)
         mock_token.return_value = "fake-access-token"
-        mock_pdf.return_value = MagicMock(
-            filename="SO-12345.pdf", content=b"%PDF-1.4 fake"
-        )
+        mock_pdf.return_value = MagicMock(filename="SO-12345.pdf", content=b"%PDF-1.4 fake")
         mock_graph_instance = MagicMock()
         mock_graph_instance.send_email.return_value = MagicMock(
             message_id="msg-1", thread_id="t-1", internet_message_id="i-1"
@@ -169,17 +160,13 @@ class SalesOrderApprovalDispatchServiceTests(TestCase):
     @patch("tenant_apps.sales_orders.services.approval_dispatch._get_access_token")
     @patch("tenant_apps.sales_orders.services.approval_dispatch.generate_document_pdf_for_instance")
     @patch("tenant_apps.sales_orders.services.approval_dispatch.MicrosoftGraphProvider")
-    def test_email_failure_marks_dispatch_failed(
-        self, mock_graph_cls, mock_pdf, mock_token, mock_provider, mock_rls
-    ):
+    def test_email_failure_marks_dispatch_failed(self, mock_graph_cls, mock_pdf, mock_token, mock_provider, mock_rls):
         from apps.integrations.providers.base import EmailProviderError
 
         mock_rls.return_value = MagicMock(ok=True)
         mock_provider.return_value = MagicMock(connected_email="sender@company.com", pk=None)
         mock_token.return_value = "fake-access-token"
-        mock_pdf.return_value = MagicMock(
-            filename="SO-12345.pdf", content=b"%PDF-1.4 fake"
-        )
+        mock_pdf.return_value = MagicMock(filename="SO-12345.pdf", content=b"%PDF-1.4 fake")
         mock_graph_instance = MagicMock()
         mock_graph_instance.send_email.side_effect = EmailProviderError("SMTP timeout")
         mock_graph_cls.return_value = mock_graph_instance
@@ -191,9 +178,7 @@ class SalesOrderApprovalDispatchServiceTests(TestCase):
         self.assertFalse(result.success)
         self.assertEqual(result.error_code, "email_send_error")
 
-        dispatch = SalesOrderApprovalDispatch.objects.get(
-            tenant=self.tenant, sales_order=self.sales_order
-        )
+        dispatch = SalesOrderApprovalDispatch.objects.get(tenant=self.tenant, sales_order=self.sales_order)
         self.assertEqual(dispatch.status, SalesOrderApprovalDispatchStatus.FAILED)
 
     @patch("tenant_apps.sales_orders.services.approval_dispatch.set_current_tenant")
@@ -218,9 +203,7 @@ class SalesOrderApprovalDispatchServiceTests(TestCase):
             status=SalesOrderStatus.PENDING_APPROVAL,
         )
 
-        result = approve_sales_order_and_send_to_customer(
-            tenant=self.tenant, sales_order=so, user=self.user
-        )
+        result = approve_sales_order_and_send_to_customer(tenant=self.tenant, sales_order=so, user=self.user)
         self.assertFalse(result.success)
         self.assertEqual(result.error_code, "no_recipient")
 
@@ -238,12 +221,10 @@ class SalesOrderApprovalDispatchAPITests(TestCase):
         cls.user = User.objects.create_user(username=f"api_user_{_uid()}", password="password123")
         TenantUser.objects.create(tenant=cls.tenant, user=cls.user, role="admin")
 
-        from tenant_apps.suppliers.models import Supplier
         from tenant_apps.customers.models import Customer
+        from tenant_apps.suppliers.models import Supplier
 
-        cls.supplier = Supplier.objects.create(
-            tenant=cls.tenant, name=f"Supplier {_uid()}"
-        )
+        cls.supplier = Supplier.objects.create(tenant=cls.tenant, name=f"Supplier {_uid()}")
         cls.customer = Customer.objects.create(
             tenant=cls.tenant, name=f"Customer {_uid()}", email="api-cust@example.com"
         )

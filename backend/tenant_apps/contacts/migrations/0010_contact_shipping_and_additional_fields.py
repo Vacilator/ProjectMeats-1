@@ -13,7 +13,6 @@ def migrate_shipping_department_to_booking(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("contacts", "0009_contactmasterproductresponsibility_and_more"),
     ]

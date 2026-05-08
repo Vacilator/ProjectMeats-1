@@ -1,13 +1,13 @@
 /**
  * Admin Permissions Hook
- * 
+ *
  * Provides role-based permission checks for tenant admin workspace.
  * Similar pattern to useWorkFormPermissions but for admin operations.
- * 
+ *
  * Usage:
  * ```typescript
  * const { permissions, isLoading } = useAdminPermissions();
- * 
+ *
  * if (permissions.can_manage_users) {
  *   // Show user management UI
  * }

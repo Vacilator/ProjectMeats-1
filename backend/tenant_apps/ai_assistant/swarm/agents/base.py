@@ -44,7 +44,9 @@ class BaseAgent(abc.ABC):
     def invoke(self, ctx: AgentContext) -> Dict[str, Any]:
         """Execute the agent on the given tenant-scoped context."""
 
-    def record_feedback(self, *, document_id: str, original: Dict[str, Any], corrected: Dict[str, Any], confidence: float) -> None:
+    def record_feedback(
+        self, *, document_id: str, original: Dict[str, Any], corrected: Dict[str, Any], confidence: float
+    ) -> None:
         """Record HITL feedback into the reinforcement flywheel.
 
         Scaffold-only: this method is safe to call even if the database model isn't wired.
@@ -59,7 +61,9 @@ class BaseAgent(abc.ABC):
             AIFeedbackLog.objects.create(
                 tenant_id=self.tenant_id,
                 document_id=document_id,
-                document_type=str((original or {}).get("document_type") or (corrected or {}).get("document_type") or ""),
+                document_type=str(
+                    (original or {}).get("document_type") or (corrected or {}).get("document_type") or ""
+                ),
                 original_extracted_data=original or {},
                 user_corrected_data=corrected or {},
                 confidence_score=float(confidence or 0.0),

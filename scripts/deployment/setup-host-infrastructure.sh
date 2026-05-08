@@ -1,10 +1,10 @@
 #!/bin/bash
 # Host Infrastructure Setup Script
-# 
+#
 # Purpose: Install and configure host-level reverse proxy for ProjectMeats
 # This script should be run ONCE per environment (dev/uat/prod) on the host server
 #
-# Usage: 
+# Usage:
 #   sudo ./setup-host-infrastructure.sh dev dev.meatscentral.com 127.0.0.1
 #   sudo ./setup-host-infrastructure.sh uat uat.meatscentral.com 127.0.0.1
 #   sudo ./setup-host-infrastructure.sh production meatscentral.com 127.0.0.1
@@ -60,13 +60,13 @@ server {
     listen 80;
     listen [::]:80;
     server_name $DOMAIN_NAME;
-    
+
     # Allow Let's Encrypt ACME challenge
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
         allow all;
     }
-    
+
     # Temporary: Allow all traffic during setup
     location / {
         return 200 "ProjectMeats infrastructure setup in progress...\n";
@@ -102,7 +102,7 @@ else
         --no-eff-email \
         --non-interactive \
         -d "$DOMAIN_NAME"
-    
+
     if [ $? -eq 0 ]; then
         echo "✓ SSL certificate obtained successfully"
     else

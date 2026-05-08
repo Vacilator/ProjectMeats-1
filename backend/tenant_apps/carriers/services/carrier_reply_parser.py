@@ -19,17 +19,12 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import status as http_status
 
+from tenant_apps.carriers.models import CarrierFreightInquiry, CarrierFreightInquiryStatus
+from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, CarrierPurchaseOrderStatus
+
 from apps.integrations.models import EmailLog
 from apps.system.services.ai_model_resolver import get_active_openai_model_id
 from apps.tenants.rls import tenant_rls
-from tenant_apps.carriers.models import (
-    CarrierFreightInquiry,
-    CarrierFreightInquiryStatus,
-)
-from tenant_apps.purchase_orders.models import (
-    CarrierPurchaseOrder,
-    CarrierPurchaseOrderStatus,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -167,26 +162,19 @@ def _correlate_inquiry(
 ) -> dict[str, Any]:
     """Find the CarrierFreightInquiry that this reply belongs to."""
 
-    base_qs = CarrierFreightInquiry.objects.select_related(
-        "carrier", "sales_order"
-    ).filter(
+    base_qs = CarrierFreightInquiry.objects.select_related("carrier", "sales_order").filter(
         tenant_id=tenant_id,
         status=CarrierFreightInquiryStatus.SENT,
     )
 
     # Method 1: Thread ID match
     if thread_id:
-        thread_matches = list(
-            base_qs.filter(provider_thread_id=thread_id).order_by("-sent_at")[:5]
-        )
+        thread_matches = list(base_qs.filter(provider_thread_id=thread_id).order_by("-sent_at")[:5])
         if len(thread_matches) == 1:
             return {"matched": True, "inquiry": thread_matches[0], "method": "thread_id"}
         if thread_matches:
             # Filter by sender email to disambiguate
-            sender_filtered = [
-                i for i in thread_matches
-                if i.recipient_email.lower() == sender_email
-            ]
+            sender_filtered = [i for i in thread_matches if i.recipient_email.lower() == sender_email]
             if len(sender_filtered) == 1:
                 return {"matched": True, "inquiry": sender_filtered[0], "method": "thread_id+sender"}
 
@@ -206,9 +194,7 @@ def _correlate_inquiry(
 
     # Method 3: Sender email only (most recent sent inquiry to this carrier)
     if sender_email:
-        sender_matches = list(
-            base_qs.filter(recipient_email__iexact=sender_email).order_by("-sent_at")[:1]
-        )
+        sender_matches = list(base_qs.filter(recipient_email__iexact=sender_email).order_by("-sent_at")[:1])
         if sender_matches:
             return {"matched": True, "inquiry": sender_matches[0], "method": "sender_email(recent)"}
 
@@ -287,10 +273,19 @@ def _extract_freight_quote(*, email_log: EmailLog, inquiry: CarrierFreightInquir
                     "notes": {"type": "string"},
                 },
                 "required": [
-                    "summary", "rationale", "confidence", "availability_status",
-                    "rate_per_mile", "flat_rate", "currency",
-                    "transit_days_min", "transit_days_max",
-                    "available_date", "truck_type", "capacity_lbs", "notes",
+                    "summary",
+                    "rationale",
+                    "confidence",
+                    "availability_status",
+                    "rate_per_mile",
+                    "flat_rate",
+                    "currency",
+                    "transit_days_min",
+                    "transit_days_max",
+                    "available_date",
+                    "truck_type",
+                    "capacity_lbs",
+                    "notes",
                 ],
                 "additionalProperties": False,
             },

@@ -1,7 +1,7 @@
 # Disaster Recovery & Restore Drill Runbook
 
-**Status:** ✅ CURRENT  
-**Category:** Runbooks  
+**Status:** ✅ CURRENT
+**Category:** Runbooks
 **Last Updated:** 2026-05-01
 
 ---

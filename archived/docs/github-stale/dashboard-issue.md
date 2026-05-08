@@ -78,7 +78,7 @@ const handleQuickAction = (action: string) => {
 
 ### 1. Real-Time Statistics
 - **Suppliers Count**: Live count from suppliers API
-- **Customers Count**: Live count from customers API  
+- **Customers Count**: Live count from customers API
 - **Purchase Orders**: Live count from purchase orders API
 - **Accounts Receivables**: Live count from accounts receivables API
 
@@ -140,8 +140,8 @@ const handleQuickAction = (action: string) => {
 
 ---
 
-**Branch:** `feature/dashboard-fix-enhancement`  
-**Type:** Enhancement  
-**Priority:** High  
-**Estimated Effort:** 4 hours  
+**Branch:** `feature/dashboard-fix-enhancement`
+**Type:** Enhancement
+**Priority:** High
+**Estimated Effort:** 4 hours
 **Status:** Ready for Review

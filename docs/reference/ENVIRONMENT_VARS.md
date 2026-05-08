@@ -1,7 +1,7 @@
 # Environment Variables Reference
 
-**Status**: ✅ CURRENT  
-**Category**: Reference  
+**Status**: ✅ CURRENT
+**Category**: Reference
 **Last Updated**: 2026-02-01
 
 ---
@@ -270,7 +270,7 @@ If deployment workflows fail with "secret not found":
 
 ---
 
-**Last Updated**: 2025-12-29  
-**Manifest Version**: `manifests/env.manifest.json` v5.x  
-**Audit Command**: `python config/manage_env.py audit`  
+**Last Updated**: 2025-12-29
+**Manifest Version**: `manifests/env.manifest.json` v5.x
+**Audit Command**: `python config/manage_env.py audit`
 **GitHub Secrets**: https://github.com/Meats-Central/ProjectMeats/settings/secrets/actions

@@ -1,6 +1,6 @@
 # Next Steps - Post-Pipeline Stabilization (Archived)
 
-**Created:** 2025-12-09  
+**Created:** 2025-12-09
 **Status:** Archived (historical reference only)
 
 **Authority:** For current priorities and truth, use `MASTER_PLAN.md` (canonical) and `docs/GOLDEN_PIPELINE.md`.
@@ -89,8 +89,8 @@ Currently, migrations run via SSH on deployment servers because GitHub Actions r
 ---
 
 #### Recommendation
-**Start with:** Current SSH approach (works reliably)  
-**Evaluate:** Option C (self-hosted runner) if migration volume increases  
+**Start with:** Current SSH approach (works reliably)
+**Evaluate:** Option C (self-hosted runner) if migration volume increases
 **Avoid:** Option A (too many IPs)
 
 **Decision Deadline:** Q1 2026 (unless migration reliability issues arise)
@@ -234,5 +234,5 @@ Low Priority, High Impact (Future)
 
 ---
 
-**Last Updated:** 2026-01-04  
+**Last Updated:** 2026-01-04
 **Next Review:** 2026-02-04 (monthly)

@@ -1,7 +1,7 @@
 # Workflow Engine API Reference
 
-**Status**: ✅ CURRENT  
-**Category**: Reference  
+**Status**: ✅ CURRENT
+**Category**: Reference
 **Last Updated**: 2026-02-01
 
 ---
@@ -559,7 +559,7 @@ enum FieldType {
 
 **Current Status:** No rate limiting implemented
 
-**Planned:** 
+**Planned:**
 - Workflow starts: 10 per minute per user
 - Step submissions: 20 per minute per user
 - Queries: 60 per minute per user

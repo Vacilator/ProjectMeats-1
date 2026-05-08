@@ -133,6 +133,8 @@ class DealWriteSerializer(serializers.ModelSerializer):
             if not assigned_trader.is_active:
                 raise serializers.ValidationError({"assigned_trader": "Assigned trader must be active."})
             if not TenantUser.objects.filter(tenant=tenant, user=assigned_trader, is_active=True).exists():
-                raise serializers.ValidationError({"assigned_trader": "Assigned trader must belong to the active tenant."})
+                raise serializers.ValidationError(
+                    {"assigned_trader": "Assigned trader must belong to the active tenant."}
+                )
 
         return attrs

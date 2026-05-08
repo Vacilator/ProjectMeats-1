@@ -5,13 +5,15 @@ Validates contact creation, validation, tenant isolation, and error handling.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
+
 from django.contrib.auth.models import User
 from django.urls import reverse
-from rest_framework.test import APITestCase
 from rest_framework import status
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APITestCase
+
 from rest_framework_simplejwt.tokens import RefreshToken
 from tenant_apps.contacts.models import Contact
+
 from apps.tenants.models import Tenant, TenantUser
 
 
@@ -28,9 +30,7 @@ class ContactAPITests(APITestCase):
         """Set up test data."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}", 
-            email=f"test-{unique_id}@example.com", 
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         self.client.force_authenticate(user=self.user)
 

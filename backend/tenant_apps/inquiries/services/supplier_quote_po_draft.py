@@ -10,12 +10,13 @@ from typing import Any
 from django.db import transaction
 from django.utils import timezone
 
-from apps.integrations.models import EmailLog
-from apps.tenants.rls import tenant_rls
 from tenant_apps.ai_assistant.models import AIFeedbackLog
 from tenant_apps.contacts.services import resolve_supplier_order_contact_routes
 from tenant_apps.inquiries.models import Inquiry, InquiryRouteDecisionChoices, InquirySupplierRFQ
 from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus
+
+from apps.integrations.models import EmailLog
+from apps.tenants.rls import tenant_rls
 
 WEIGHT_UOM_MAP = {
     "LB": "LBS",
@@ -112,12 +113,8 @@ def create_supplier_quote_purchase_order_draft(
             supplier_contact_name=str(
                 supplier_contact.get("recipient_name") or getattr(rfq.supplier, "contact_person", "") or ""
             ),
-            supplier_contact_phone=str(
-                supplier_contact.get("phone") or getattr(rfq.supplier, "phone", "") or ""
-            ),
-            supplier_contact_email=str(
-                supplier_contact.get("recipient_email") or rfq.recipient_email or ""
-            ),
+            supplier_contact_phone=str(supplier_contact.get("phone") or getattr(rfq.supplier, "phone", "") or ""),
+            supplier_contact_email=str(supplier_contact.get("recipient_email") or rfq.recipient_email or ""),
             notes=_build_purchase_order_notes(
                 inquiry=inquiry,
                 rfq=rfq,
@@ -167,7 +164,9 @@ def _get_qualifying_normalized_quote(latest_reply_parse: dict[str, Any]) -> dict
     normalized_quote = dict(latest_reply_parse.get("normalized_quote") or {})
     availability_status = str(normalized_quote.get("availability_status") or "").strip().lower()
     if availability_status not in {"affirmative", "partial"}:
-        raise SupplierQuotePODraftError("Only affirmative or partial supplier replies can create draft purchase orders.")
+        raise SupplierQuotePODraftError(
+            "Only affirmative or partial supplier replies can create draft purchase orders."
+        )
     has_commercial_signal = any(
         (
             normalized_quote.get("price_per_unit") is not None,
@@ -177,7 +176,9 @@ def _get_qualifying_normalized_quote(latest_reply_parse: dict[str, Any]) -> dict
         )
     )
     if not has_commercial_signal:
-        raise SupplierQuotePODraftError("The supplier reply must include at least one commercial signal before drafting a purchase order.")
+        raise SupplierQuotePODraftError(
+            "The supplier reply must include at least one commercial signal before drafting a purchase order."
+        )
     return normalized_quote
 
 
@@ -198,7 +199,9 @@ def _get_existing_purchase_order(*, tenant: Any, inquiry: Inquiry, rfq: InquiryS
             .first()
         )
         if purchase_order is None:
-            raise SupplierQuotePODraftError("The inquiry points to a missing supplier purchase order. Manual review is required.")
+            raise SupplierQuotePODraftError(
+                "The inquiry points to a missing supplier purchase order. Manual review is required."
+            )
 
         source_lineage = dict((purchase_order.custom_data or {}).get("source_lineage") or {})
         if source_lineage.get("rfq_id") == rfq.id:

@@ -1,6 +1,6 @@
 # Django Admin Organization Guide
 
-**Last Updated**: February 4, 2026  
+**Last Updated**: February 4, 2026
 **Status**: ✅ Production Ready
 
 ## Overview
@@ -19,8 +19,8 @@ The ProjectMeats Django Admin is organized into **three tiers** based on the pri
 
 ### 🔒 ROOT LEVEL - Infrastructure & User Management
 
-**Access**: Superusers only  
-**Scope**: Global, affects all tenants  
+**Access**: Superusers only
+**Scope**: Global, affects all tenants
 **Purpose**: Core infrastructure and authentication
 
 **Apps**:
@@ -33,8 +33,8 @@ The ProjectMeats Django Admin is organized into **three tiers** based on the pri
 
 ### ⚙️ SYSTEM LEVEL - Global Configuration & Templates
 
-**Access**: Superusers + System Administrators  
-**Scope**: Shared across tenants  
+**Access**: Superusers + System Administrators
+**Scope**: Shared across tenants
 **Purpose**: Define templates, choice lists, and blueprints that tenants can use
 
 **Apps**:
@@ -47,10 +47,10 @@ The ProjectMeats Django Admin is organized into **three tiers** based on the pri
 1. **SystemChoiceList**: Define dropdown options once, use across all tenants
    - Example: Payment terms (Net 30, Net 60, etc.)
    - Tenants can extend with custom values
-   
+
 2. **System Blueprints**: Define custom fields/forms that tenants can activate
    - Example: Add "Halal Certified" checkbox to Supplier model
-   
+
 3. **Tenant Management**: Create tenants, invite users, manage domains
 
 **Impact**: Changes here are **inherited by all tenants** but don't modify tenant data.
@@ -59,8 +59,8 @@ The ProjectMeats Django Admin is organized into **three tiers** based on the pri
 
 ### 🏢 TENANT LEVEL - Business Data (Isolated)
 
-**Access**: Tenant Administrators (see only their tenant's data)  
-**Scope**: Single tenant (strict isolation via `tenant` ForeignKey)  
+**Access**: Tenant Administrators (see only their tenant's data)
+**Scope**: Single tenant (strict isolation via `tenant` ForeignKey)
 **Purpose**: Manage day-to-day business operations
 
 **Apps** (grouped by function):
@@ -131,25 +131,25 @@ The custom admin index groups apps by tier with visual cues:
 ## Permission Model
 
 ### Superuser (Root Access)
-✅ Full access to all three tiers  
-✅ Can see all tenants' data  
-✅ Can manage infrastructure  
+✅ Full access to all three tiers
+✅ Can see all tenants' data
+✅ Can manage infrastructure
 
 ### System Administrator
-✅ Access to System Level (templates, configs)  
-✅ Cannot see tenant business data  
-❌ Cannot access Root Level  
+✅ Access to System Level (templates, configs)
+✅ Cannot see tenant business data
+❌ Cannot access Root Level
 
 ### Tenant Administrator
-✅ Access to Tenant Level (only their tenant)  
-✅ Can manage their tenant's business data  
-❌ Cannot access System or Root levels  
-❌ Cannot see other tenants' data  
+✅ Access to Tenant Level (only their tenant)
+✅ Can manage their tenant's business data
+❌ Cannot access System or Root levels
+❌ Cannot see other tenants' data
 
 ### Tenant User (Staff)
-✅ Read-only access to their tenant's data  
-❌ Cannot add, edit, or delete  
-❌ Cannot access admin at all (API only)  
+✅ Read-only access to their tenant's data
+❌ Cannot add, edit, or delete
+❌ Cannot access admin at all (API only)
 
 ---
 
@@ -227,11 +227,11 @@ Uses: `django.contrib.admin.site`
 ```python
 class MeatsCentralAdminSite(admin.AdminSite):
     """Custom admin with three-tier organization."""
-    
+
     site_header = "🥩 Meats Central Administration"
     site_title = "Meats Central Admin"
     index_title = "System Dashboard"
-    
+
     def get_app_list(self, request, app_label=None):
         """Group apps by tier and sort."""
         # ... tier organization logic ...
@@ -273,7 +273,7 @@ from apps.core.admin import TenantFilteredAdmin
 
 class SupplierAdmin(TenantFilteredAdmin):
     list_display = ['name', 'contact_email', 'tenant']
-    
+
     # Automatic tenant filtering - no code needed!
     # - get_queryset() filters by request.tenant
     # - save_model() sets tenant on creation
@@ -294,7 +294,7 @@ class SupplierAdmin(TenantFilteredAdmin):
     list_display = ['name', 'ap_contact_name', 'tenant']
     search_fields = ['name', 'ap_contact_name']
     list_filter = ['tenant']  # Only shows if superuser
-    
+
     # When staff user logs in:
     # 1. Only sees suppliers where tenant=their_tenant
     # 2. Can only create suppliers for their tenant
@@ -307,7 +307,7 @@ class SupplierAdmin(TenantFilteredAdmin):
 
 ### Task 1: Add New System-Wide Choice List
 
-**Tier**: System Level  
+**Tier**: System Level
 **Access**: Superuser only
 
 ```python
@@ -335,7 +335,7 @@ SystemChoiceItem.objects.create(
 
 ### Task 2: Invite New Tenant Owner
 
-**Tier**: System Level  
+**Tier**: System Level
 **Access**: Superuser only
 
 1. Go to `/admin/` → ⚙️ System Configuration → Tenants
@@ -383,7 +383,7 @@ TenantConfig.objects.create(
 
 ### Task 4: Manage Tenant-Specific Products
 
-**Tier**: Tenant Level  
+**Tier**: Tenant Level
 **Access**: Tenant Administrator
 
 1. Go to `/admin/` → 🏢 Tenant Data → Products
@@ -569,6 +569,6 @@ user.save()
 
 ## Questions?
 
-**Contact**: Infrastructure Team  
-**Slack**: #admin-support  
+**Contact**: Infrastructure Team
+**Slack**: #admin-support
 **Wiki**: https://wiki.meatscentral.com/admin

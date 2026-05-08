@@ -5,52 +5,59 @@ from django.conf import settings
 from django.db import migrations, models
 
 
-
-
 def add_tenant_field_if_not_exists(apps, schema_editor):
     """Add tenant field only if it doesn't exist"""
     from django.db import connection
-    
+
     with connection.cursor() as cursor:
         # Check if table and tenant_id column exist
-        cursor.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
+        cursor.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
             WHERE table_schema='public'
-            AND table_name=%s 
+            AND table_name=%s
             AND column_name='tenant_id';
-        """, ['carriers_carrier'])
-        
+        """,
+            ["carriers_carrier"],
+        )
+
         if not cursor.fetchone():
             # Check if any tenants exist
             cursor.execute("SELECT id FROM tenants_tenant LIMIT 1;")
             result = cursor.fetchone()
-            
+
             if result:
                 # Production path: Tenant exists, use it as default
                 default_tenant_id = result[0]
-                cursor.execute("""
-                    ALTER TABLE carriers_carrier 
-                    ADD COLUMN tenant_id UUID NOT NULL DEFAULT %s 
+                cursor.execute(
+                    """
+                    ALTER TABLE carriers_carrier
+                    ADD COLUMN tenant_id UUID NOT NULL DEFAULT %s
                     REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED;
-                """, [default_tenant_id])
-                
+                """,
+                    [default_tenant_id],
+                )
+
                 # Remove the default after adding the column
-                cursor.execute("""
-                    ALTER TABLE carriers_carrier 
+                cursor.execute(
+                    """
+                    ALTER TABLE carriers_carrier
                     ALTER COLUMN tenant_id DROP DEFAULT;
-                """)
+                """
+                )
             else:
                 # Test/Fresh DB path: No tenants exist yet, add as nullable
-                cursor.execute("""
-                    ALTER TABLE carriers_carrier 
-                    ADD COLUMN tenant_id UUID NULL 
+                cursor.execute(
+                    """
+                    ALTER TABLE carriers_carrier
+                    ADD COLUMN tenant_id UUID NULL
                     REFERENCES tenants_tenant(id) DEFERRABLE INITIALLY DEFERRED;
-                """)
+                """
+                )
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("carriers", "0001_initial"),
         ("contacts", "0001_initial"),
@@ -64,13 +71,13 @@ class Migration(migrations.Migration):
             state_operations=[
                 # Tell Django the field exists so models validate
                 migrations.AddField(
-                    model_name='carrier',
-                    name='tenant',
+                    model_name="carrier",
+                    name="tenant",
                     field=models.ForeignKey(
-                        help_text='Tenant this carrier belongs to',
+                        help_text="Tenant this carrier belongs to",
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='carriers',
-                        to='tenants.tenant'
+                        related_name="carriers",
+                        to="tenants.tenant",
                     ),
                     preserve_default=False,
                 ),
@@ -80,12 +87,9 @@ class Migration(migrations.Migration):
                 migrations.RunPython(add_tenant_field_if_not_exists, migrations.RunPython.noop),
             ],
         ),
-        
         # Add index (Safe to run after column is ensured)
         migrations.AddIndex(
             model_name="carrier",
-            index=models.Index(
-                fields=["tenant", "name"], name="carriers_ca_tenant__8e23de_idx"
-            ),
+            index=models.Index(fields=["tenant", "name"], name="carriers_ca_tenant__8e23de_idx"),
         ),
     ]

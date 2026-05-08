@@ -1,14 +1,14 @@
 /**
  * Auto-Save Hook for Workflow Editor
  * Phase 7.5: Incremental Auto-Save
- * 
+ *
  * Features:
  * - Debounced save to prevent excessive API calls
  * - Optimistic UI updates
  * - Save status indicators
  * - Error handling with retry logic
  * - Dirty state tracking
- * 
+ *
  * Created: 2026-02-27
  */
 
@@ -20,7 +20,7 @@ import { logger } from '@/utils/logger';
 // Types
 // ============================================================================
 
-export type SaveStatus = 
+export type SaveStatus =
   | 'idle'          // No changes
   | 'pending'       // Changes not yet saved
   | 'saving'        // Currently saving
@@ -65,7 +65,7 @@ export interface AutoSaveResult {
 
 /**
  * Hook for implementing auto-save functionality with debouncing and status tracking.
- * 
+ *
  * @example
  * ```tsx
  * const { status, isDirty, saveNow } = useAutoSave({
@@ -77,7 +77,7 @@ export interface AutoSaveResult {
  *   onSaveSuccess: () => toast.success('Workflow saved'),
  *   onSaveError: (err) => toast.error(err.message)
  * });
- * 
+ *
  * return (
  *   <div>
  *     <StatusIndicator status={status} />
@@ -122,13 +122,13 @@ export function useAutoSave<T>(
 
     try {
       await onSave(dataToSave);
-      
+
       // Save successful
       setStatus('saved');
       setIsDirty(false);
       setLastSaved(new Date());
       retryCountRef.current = 0;
-      
+
       onSaveSuccess?.();
 
       // Show "saved" indicator for a few seconds
@@ -141,7 +141,7 @@ export function useAutoSave<T>(
 
     } catch (err) {
       const saveError = err instanceof Error ? err : new Error('Save failed');
-      
+
       // Retry logic
       if (retryCountRef.current < maxRetries) {
         retryCountRef.current += 1;
@@ -149,13 +149,13 @@ export function useAutoSave<T>(
           `Auto-save failed, retrying (${retryCountRef.current}/${maxRetries})`,
           { component: 'useAutoSave', metadata: { error: saveError.message } }
         );
-        
+
         // Exponential backoff: 1s, 2s, 4s
         const retryDelay = 1000 * Math.pow(2, retryCountRef.current - 1);
         setTimeout(() => performSave(dataToSave), retryDelay);
         return;
       }
-      
+
       // Max retries exceeded
       setStatus('error');
       setError(saveError);

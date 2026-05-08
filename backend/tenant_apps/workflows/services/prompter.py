@@ -6,7 +6,7 @@ runtime context for OpenAI API calls.
 
 Usage:
     from workflows.services.prompter import AIPrompter
-    
+
     prompter = AIPrompter()
     final_prompt = prompter.build_suggestion_prompt(
         tenant=tenant_obj,
@@ -18,9 +18,10 @@ Usage:
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from django.conf import settings
+
 from pgvector.django import L2Distance
 
 logger = logging.getLogger(__name__)
@@ -29,35 +30,35 @@ logger = logging.getLogger(__name__)
 class AIPrompter:
     """
     Service for loading AI prompt templates and injecting dynamic context.
-    
+
     Templates are stored in /manifests/ai_standards/ and contain:
     - System role definitions
     - Response format specifications
     - Constraint rules
     - Node type schemas
     """
-    
+
     MANIFEST_DIR = Path(settings.BASE_DIR).parent / "manifests" / "ai_standards"
     DEFAULT_TEMPLATE = "suggestion_engine_v1.prompt"
-    
+
     def __init__(self, template_name: Optional[str] = None):
         """
         Initialize prompter with specified template.
-        
+
         Args:
             template_name: Name of prompt template file (defaults to suggestion_engine_v1.prompt)
         """
         self.template_name = template_name or self.DEFAULT_TEMPLATE
         self.template_path = self.MANIFEST_DIR / self.template_name
         self._template_cache = None
-    
+
     def load_template(self) -> str:
         """
         Load prompt template from manifests directory.
-        
+
         Returns:
             str: Raw template content
-            
+
         Raises:
             FileNotFoundError: If template doesn't exist
         """
@@ -67,12 +68,12 @@ class AIPrompter:
                     f"AI prompt template not found: {self.template_path}. "
                     f"Ensure /manifests/ai_standards/{self.template_name} exists."
                 )
-            
-            with open(self.template_path, 'r', encoding='utf-8') as f:
+
+            with open(self.template_path, "r", encoding="utf-8") as f:
                 self._template_cache = f.read()
-        
+
         return self._template_cache
-    
+
     def build_suggestion_prompt(
         self,
         tenant: Any,
@@ -91,7 +92,7 @@ class AIPrompter:
         template = self.load_template()
 
         additional_context = additional_context or {}
-        effective_user_request = (user_request or additional_context.get('user_request') or '').strip()
+        effective_user_request = (user_request or additional_context.get("user_request") or "").strip()
 
         context = self._build_context(
             tenant=tenant,
@@ -113,43 +114,48 @@ class AIPrompter:
     ) -> Dict[str, Any]:
         """Build context dictionary to inject into prompt."""
         # Extract existing nodes
-        existing_nodes = current_flow.get('nodes', [])
+        existing_nodes = current_flow.get("nodes", [])
         last_node = existing_nodes[-1] if existing_nodes else None
-        
+
         # Determine tenant industry type from custom_data or default
-        tenant_data = getattr(tenant, 'custom_data', {}) or {}
-        industry_type = tenant_data.get('industry_type', 'wholesale')
-        
+        tenant_data = getattr(tenant, "custom_data", {}) or {}
+        industry_type = tenant_data.get("industry_type", "wholesale")
+
         # Determine primary entities (default to common meat industry entities)
         if available_entities is None:
             available_entities = [
-                'Supplier', 'Customer', 'Invoice', 'Product',
-                'Carrier', 'PurchaseOrder', 'ColdStorageEntry'
+                "Supplier",
+                "Customer",
+                "Invoice",
+                "Product",
+                "Carrier",
+                "PurchaseOrder",
+                "ColdStorageEntry",
             ]
-        
+
         additional_context = additional_context or {}
 
         context = {
-            'tenant': {
-                'name': tenant.name,
-                'industry_type': industry_type,
-                'primary_entities': available_entities[:3],
+            "tenant": {
+                "name": tenant.name,
+                "industry_type": industry_type,
+                "primary_entities": available_entities[:3],
             },
-            'current_flow': {
-                'existing_nodes': [
+            "current_flow": {
+                "existing_nodes": [
                     {
-                        'id': node.get('id'),
-                        'type': node.get('type'),
-                        'label': node.get('data', {}).get('label', 'Untitled'),
+                        "id": node.get("id"),
+                        "type": node.get("type"),
+                        "label": node.get("data", {}).get("label", "Untitled"),
                     }
                     for node in existing_nodes
                 ],
-                'last_node_type': last_node.get('type') if last_node else None,
+                "last_node_type": last_node.get("type") if last_node else None,
             },
-            'available_entities': available_entities,
-            'user_request': user_request,
-            'additional_context': additional_context,
-            'tenant_knowledge_facts': self._retrieve_relevant_facts(
+            "available_entities": available_entities,
+            "user_request": user_request,
+            "additional_context": additional_context,
+            "tenant_knowledge_facts": self._retrieve_relevant_facts(
                 tenant=tenant,
                 current_flow=current_flow,
                 additional_context=additional_context,
@@ -157,7 +163,7 @@ class AIPrompter:
         }
 
         return context
-    
+
     def _retrieve_relevant_facts(
         self,
         *,
@@ -170,12 +176,11 @@ class AIPrompter:
         Safe-by-default: if OpenAI or pgvector are unavailable/misconfigured, this returns [].
         """
 
-        if not getattr(settings, 'OPENAI_API_KEY', None):
+        if not getattr(settings, "OPENAI_API_KEY", None):
             return []
 
         try:
             from openai import OpenAI
-
             from tenant_apps.ai_assistant.models import TenantKnowledgeFact
         except Exception:
             return []
@@ -183,14 +188,14 @@ class AIPrompter:
         try:
             client = OpenAI(
                 api_key=settings.OPENAI_API_KEY,
-                organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
+                organization=getattr(settings, "OPENAI_ORG_ID", None) or None,
             )
 
             # Convert user's context/question to vector
             query_input = f"{str(current_flow)} {str(additional_context)}"
             query_response = client.embeddings.create(
                 input=query_input,
-                model='text-embedding-3-small',
+                model="text-embedding-3-small",
             )
             query_vector = query_response.data[0].embedding
 
@@ -201,31 +206,31 @@ class AIPrompter:
                     is_active=True,
                     embedding__isnull=False,
                 )
-                .annotate(distance=L2Distance('embedding', query_vector))
-                .order_by('distance')[:5]
+                .annotate(distance=L2Distance("embedding", query_vector))
+                .order_by("distance")[:5]
             )
 
             return [
                 {
-                    'domain_category': f.domain_category,
-                    'fact_text': f.fact_text,
+                    "domain_category": f.domain_category,
+                    "fact_text": f.fact_text,
                 }
                 for f in facts
             ]
         except Exception as e:
-            logger.warning('Failed to retrieve tenant knowledge facts: %s', str(e), exc_info=True)
+            logger.warning("Failed to retrieve tenant knowledge facts: %s", str(e), exc_info=True)
             return []
 
     def parse_ai_response(self, raw_response: str) -> Dict[str, Any]:
         """
         Parse OpenAI response and validate structure.
-        
+
         Args:
             raw_response: Raw text response from OpenAI
-            
+
         Returns:
             dict: Parsed suggestions with validation
-            
+
         Raises:
             ValueError: If response is not valid JSON or missing required fields
         """
@@ -233,30 +238,28 @@ class AIPrompter:
             data = json.loads(raw_response)
         except json.JSONDecodeError as e:
             raise ValueError(f"AI response is not valid JSON: {e}")
-        
+
         # Validate required fields
-        if 'suggestions' not in data:
+        if "suggestions" not in data:
             raise ValueError("AI response missing 'suggestions' field")
-        
-        if not isinstance(data['suggestions'], list):
+
+        if not isinstance(data["suggestions"], list):
             raise ValueError("'suggestions' must be a list")
-        
+
         # Validate each suggestion
-        required_fields = {'type', 'label', 'description', 'reasoning', 'priority'}
-        for idx, suggestion in enumerate(data['suggestions']):
+        required_fields = {"type", "label", "description", "reasoning", "priority"}
+        for idx, suggestion in enumerate(data["suggestions"]):
             missing = required_fields - set(suggestion.keys())
             if missing:
-                raise ValueError(
-                    f"Suggestion {idx} missing required fields: {missing}"
-                )
-        
+                raise ValueError(f"Suggestion {idx} missing required fields: {missing}")
+
         # Enforce max 3 suggestions constraint
-        if len(data['suggestions']) > 3:
-            data['suggestions'] = data['suggestions'][:3]
-            data['_warning'] = "Trimmed to 3 suggestions (max allowed)"
-        
+        if len(data["suggestions"]) > 3:
+            data["suggestions"] = data["suggestions"][:3]
+            data["_warning"] = "Trimmed to 3 suggestions (max allowed)"
+
         return data
-    
+
     def build_supply_chain_template_prompt(
         self,
         tenant: Any,
@@ -289,10 +292,7 @@ class AIPrompter:
         )
         context["template_domain"] = template_domain
 
-        full_prompt = (
-            f"{template}\n\n---\n\n"
-            f"## CURRENT REQUEST\n\n{json.dumps(context, indent=2)}"
-        )
+        full_prompt = f"{template}\n\n---\n\n" f"## CURRENT REQUEST\n\n{json.dumps(context, indent=2)}"
         return full_prompt
 
     def get_fallback_suggestions(
@@ -303,7 +303,7 @@ class AIPrompter:
     ) -> Dict[str, Any]:
         """
         Generate static fallback suggestions when AI is unavailable.
-        
+
         Used for graceful degradation when:
         - OpenAI API key is missing
         - API is down or rate-limited
@@ -313,18 +313,18 @@ class AIPrompter:
         Phase-7 template library expansion (cold_storage_monitoring,
         quality_inspection, carrier_compliance) in addition to the original
         industry-type fallbacks.
-        
+
         Args:
             tenant: Tenant model instance
             current_flow: Current workflow state
             template_domain: Optional supply-chain template domain override.
                 When supplied this takes precedence over ``industry_type``.
-            
+
         Returns:
             dict: Static suggestions based on tenant type / template domain
         """
         # Supply-chain domain-specific fallbacks (new templates)
-        if template_domain == 'cold_storage_monitoring':
+        if template_domain == "cold_storage_monitoring":
             suggestions = [
                 {
                     "type": "actionHTTP",
@@ -356,7 +356,7 @@ class AIPrompter:
                 "alternative_approach": "Enable AI suggestions by configuring OpenAI API key",
             }
 
-        if template_domain == 'quality_inspection':
+        if template_domain == "quality_inspection":
             suggestions = [
                 {
                     "type": "FormStepSingle",
@@ -388,7 +388,7 @@ class AIPrompter:
                 "alternative_approach": "Enable AI suggestions by configuring OpenAI API key",
             }
 
-        if template_domain == 'carrier_compliance':
+        if template_domain == "carrier_compliance":
             suggestions = [
                 {
                     "type": "actionHTTP",
@@ -421,10 +421,10 @@ class AIPrompter:
             }
 
         # Legacy industry-type fallbacks
-        tenant_data = getattr(tenant, 'custom_data', {}) or {}
-        industry_type = tenant_data.get('industry_type', 'wholesale')
-        
-        if industry_type == 'processor':
+        tenant_data = getattr(tenant, "custom_data", {}) or {}
+        industry_type = tenant_data.get("industry_type", "wholesale")
+
+        if industry_type == "processor":
             suggestions = [
                 {
                     "type": "form",
@@ -448,7 +448,7 @@ class AIPrompter:
                     "priority": 3,
                 },
             ]
-        elif industry_type == 'distributor':
+        elif industry_type == "distributor":
             suggestions = [
                 {
                     "type": "actionUpdateRecord",
@@ -496,10 +496,10 @@ class AIPrompter:
                     "priority": 3,
                 },
             ]
-        
+
         return {
             "suggestions": suggestions,
             "confidence": 0.0,  # Static suggestions have no confidence score
             "mode": "static",  # Indicates fallback mode
-            "alternative_approach": "Enable AI suggestions by configuring OpenAI API key"
+            "alternative_approach": "Enable AI suggestions by configuring OpenAI API key",
         }

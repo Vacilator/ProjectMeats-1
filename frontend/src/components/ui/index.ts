@@ -1,6 +1,6 @@
 /**
  * Semantic UI Components
- * 
+ *
  * These components use CSS variables defined in index.css,
  * allowing tenant-specific branding without component changes.
  */

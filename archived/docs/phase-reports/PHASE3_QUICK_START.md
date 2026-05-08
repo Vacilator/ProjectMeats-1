@@ -15,7 +15,7 @@ def get_protein_choices(tenant=None):
         choice_list=protein_list,
         is_active=True
     )
-    
+
     if tenant:
         # Include tenant custom items, exclude disabled system items
         items = items.filter(
@@ -24,7 +24,7 @@ def get_protein_choices(tenant=None):
     else:
         # System items only
         items = items.filter(tenant__isnull=True)
-    
+
     return [(item.value, item.label) for item in items.order_by('order')]
 
 # Use in model field
@@ -77,29 +77,29 @@ from apps.system.models import TenantFieldDefinition
 class SupplierSerializer(serializers.ModelSerializer):
     # Include custom_data in serialization
     custom_data = serializers.JSONField(read_only=False)
-    
+
     class Meta:
         model = Supplier
         fields = ['id', 'name', 'custom_data', ...]
-    
+
     def validate_custom_data(self, value):
         """Validate custom fields against TenantFieldDefinition."""
         tenant = self.context.get('tenant')
         if not tenant:
             return value
-        
+
         field_defs = TenantFieldDefinition.objects.filter(
             tenant=tenant,
             model_name='suppliers.Supplier',
             is_active=True
         )
-        
+
         for field_def in field_defs:
             if field_def.field_key in value:
                 is_valid, error = field_def.validate_value(value[field_def.field_key])
                 if not is_valid:
                     raise serializers.ValidationError({field_def.field_key: error})
-        
+
         return value
 ```
 
@@ -115,7 +115,7 @@ import { ChoiceListEditor } from '@/components/Admin';
 // In your admin page
 export default function ChoiceManagementPage() {
   const [selectedList, setSelectedList] = useState('protein_types');
-  
+
   return (
     <div>
       <h1>Manage Choice Lists</h1>
@@ -125,7 +125,7 @@ export default function ChoiceManagementPage() {
         <option value="processing_grades">Processing Grades</option>
         <option value="cut_types">Cut Types</option>
       </select>
-      
+
       <ChoiceListEditor choiceListSlug={selectedList} />
     </div>
   );
@@ -148,11 +148,11 @@ const fetchChoiceItems = async (slug: string) => {
 // Use in a form
 export function ProductForm() {
   const [proteinTypes, setProteinTypes] = useState([]);
-  
+
   useEffect(() => {
     fetchChoiceItems('protein_types').then(setProteinTypes);
   }, []);
-  
+
   return (
     <select name="protein_type">
       {proteinTypes.map(item => (
@@ -183,13 +183,13 @@ interface CustomField {
 
 export function DynamicFieldRenderer({ modelName }: { modelName: string }) {
   const [fields, setFields] = useState<CustomField[]>([]);
-  
+
   useEffect(() => {
     axios.get('/api/v1/system/field-definitions/by-model/', {
       params: { model_name: modelName }
     }).then(res => setFields(res.data));
   }, [modelName]);
-  
+
   return (
     <div className="space-y-4">
       {fields.map(field => (
@@ -201,17 +201,17 @@ export function DynamicFieldRenderer({ modelName }: { modelName: string }) {
           {field.help_text && (
             <p className="text-sm text-gray-500">{field.help_text}</p>
           )}
-          
+
           {field.field_type === 'text' && (
             <input type="text" className="w-full border rounded px-3 py-2" />
           )}
           {field.field_type === 'number' && (
-            <input 
-              type="number" 
+            <input
+              type="number"
               min={field.config.min}
               max={field.config.max}
               step={field.config.step}
-              className="w-full border rounded px-3 py-2" 
+              className="w-full border rounded px-3 py-2"
             />
           )}
           {field.field_type === 'select' && (
@@ -511,6 +511,6 @@ TenantFieldDefinition.objects.create(
 
 ---
 
-**Last Updated:** 2026-02-14  
-**Phase:** 3 - Dynamic Choice Engine & Virtual Schema  
+**Last Updated:** 2026-02-14
+**Phase:** 3 - Dynamic Choice Engine & Virtual Schema
 **Status:** Production Ready

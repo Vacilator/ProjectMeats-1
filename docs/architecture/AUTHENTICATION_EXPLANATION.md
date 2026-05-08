@@ -1,7 +1,7 @@
 # Environment-Specific Authentication Configuration
 
-**Status**: ✅ CURRENT  
-**Category**: Architecture  
+**Status**: ✅ CURRENT
+**Category**: Architecture
 **Last Updated**: 2026-02-01
 
 ---
@@ -150,7 +150,7 @@ def perform_create(self, serializer):
     if not tenant and settings.DEBUG:  # False in staging - SKIPPED
         # Auto-create code NOT executed
         pass
-    
+
     if not tenant:  # No tenant in staging = ERROR
         raise ValidationError('Tenant context is required')  # ← Strict
 ```

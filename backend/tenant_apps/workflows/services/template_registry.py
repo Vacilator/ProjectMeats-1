@@ -61,21 +61,15 @@ def validate_template_schema(template_data: dict) -> list[str]:
     for trigger in triggers:
         data = trigger.get("data", {})
         if not data.get("preconditionCheck"):
-            errors.append(
-                f"Trigger '{data.get('label', trigger.get('id'))}' missing preconditionCheck"
-            )
+            errors.append(f"Trigger '{data.get('label', trigger.get('id'))}' missing preconditionCheck")
         if not data.get("telemetryEvent"):
-            errors.append(
-                f"Trigger '{data.get('label', trigger.get('id'))}' missing telemetryEvent"
-            )
+            errors.append(f"Trigger '{data.get('label', trigger.get('id'))}' missing telemetryEvent")
 
     # Validate all nodes have telemetry events
     for node in nodes:
         data = node.get("data", {})
         if not data.get("telemetryEvent"):
-            errors.append(
-                f"Node '{data.get('label', node.get('id'))}' missing telemetryEvent"
-            )
+            errors.append(f"Node '{data.get('label', node.get('id'))}' missing telemetryEvent")
 
     # Validate edges reference existing nodes
     all_ids = {t["id"] for t in triggers} | {n["id"] for n in nodes}

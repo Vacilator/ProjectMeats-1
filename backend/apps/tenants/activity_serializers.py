@@ -3,6 +3,7 @@ Serializers for activity logging.
 """
 
 from rest_framework import serializers
+
 from .activity_models import ActivityLog
 
 
@@ -14,22 +15,22 @@ class ActivityLogSerializer(serializers.ModelSerializer):
 
     tenant = serializers.SerializerMethodField()
     user = serializers.SerializerMethodField()
-    action_display = serializers.CharField(source='get_action_display', read_only=True)
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
 
     class Meta:
         model = ActivityLog
         fields = [
-            'id',
-            'tenant',
-            'user',
-            'action',
-            'action_display',
-            'entity_type',
-            'entity_id',
-            'description',
-            'metadata',
-            'ip_address',
-            'created_at',
+            "id",
+            "tenant",
+            "user",
+            "action",
+            "action_display",
+            "entity_type",
+            "entity_id",
+            "description",
+            "metadata",
+            "ip_address",
+            "created_at",
         ]
         read_only_fields = fields
 
@@ -38,14 +39,14 @@ class ActivityLogSerializer(serializers.ModelSerializer):
             return None
 
         return {
-            'id': obj.user.id,
-            'username': obj.user.username,
-            'first_name': obj.user.first_name,
-            'last_name': obj.user.last_name,
+            "id": obj.user.id,
+            "username": obj.user.username,
+            "first_name": obj.user.first_name,
+            "last_name": obj.user.last_name,
         }
 
     def get_tenant(self, obj):
         return {
-            'id': obj.tenant_id,
-            'name': obj.tenant.name,
+            "id": obj.tenant_id,
+            "name": obj.tenant.name,
         }

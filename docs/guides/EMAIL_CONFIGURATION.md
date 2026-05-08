@@ -1,7 +1,7 @@
 # Email Configuration Guide
 
-**Status**: ✅ CURRENT  
-**Category**: Guides  
+**Status**: ✅ CURRENT
+**Category**: Guides
 **Last Updated**: 2026-02-01
 
 ---
@@ -167,7 +167,7 @@ Look for:
 
 #### `SMTPAuthenticationError: (535, b'Authentication failed')`
 **Cause**: Invalid API key
-**Solution**: 
+**Solution**:
 - Verify API key is correct (starts with `SG.`)
 - Check key has "Mail Send" permissions
 - Generate new API key if needed

@@ -40,23 +40,23 @@ runs:
           .github/scripts/health-check.sh
         sparse-checkout-cone-mode: false
         fetch-depth: 1
-    
+
     - name: Wait before health check
       if: inputs.initial-wait != '0'
       shell: bash
       run: |
         echo "⏳ Waiting ${{ inputs.initial-wait }}s for service initialization..."
         sleep ${{ inputs.initial-wait }}
-    
+
     - name: Run health check
       id: health
       shell: bash
       run: |
         echo "=== Starting Orchestrated Health Check ==="
-        
+
         # Make script executable
         chmod +x .github/scripts/health-check.sh
-        
+
         # Run health check with error capture
         if .github/scripts/health-check.sh \
           "${{ inputs.health-url }}" \

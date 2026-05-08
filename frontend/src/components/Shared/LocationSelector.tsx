@@ -1,13 +1,13 @@
 /**
  * LocationSelector Component - RLS-Protected Location Dropdown
- * 
+ *
  * Features:
  * - Fetches locations from backend (filtered by RLS tenant isolation)
  * - Handles loading states and errors gracefully
  * - Supports optional type filtering (plant, warehouse, distribution center)
  * - Theme-aware styling
  * - Error handling for 403 Forbidden (RLS rejection) and token expiration
- * 
+ *
  * Phase 4: Frontend Integration & UX Alignment
  */
 
@@ -111,7 +111,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   return (
     <Container>
       {label && <Label $theme={theme}>{label}{required && ' *'}</Label>}
-      
+
       <StyledSelect
         value={value || ''}
         onChange={handleChange}
@@ -124,26 +124,26 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
         <option value="" disabled hidden>
           {loading ? 'Loading locations...' : placeholder}
         </option>
-        
+
         {!loading && !fetchError && locations.length === 0 && (
           <option value="" disabled>
             No locations available
           </option>
         )}
-        
+
         {!loading && fetchError && (
           <option value="" disabled>
             {fetchError}
           </option>
         )}
-        
+
         {!loading && !fetchError && locations.map((location) => (
           <option key={location.id} value={location.id}>
             {location.name} - {location.location_type} ({location.city}, {location.state_province})
           </option>
         ))}
       </StyledSelect>
-      
+
       {(error || fetchError) && (
         <ErrorMessage $theme={theme}>
           {error || fetchError}
@@ -176,9 +176,9 @@ const StyledSelect = styled.select<{ $theme: Theme; $hasError: boolean }>`
   width: 100%;
   padding: 10px 12px;
   font-size: 14px;
-  border: 1px solid ${(props) => 
-    props.$hasError 
-      ? props.$theme.colors.danger 
+  border: 1px solid ${(props) =>
+    props.$hasError
+      ? props.$theme.colors.danger
       : props.$theme.colors.border
   };
   border-radius: 6px;

@@ -1,30 +1,29 @@
+import logging
+
+from django import forms
+from django.conf import settings
 from django.contrib import admin, messages
+from django.contrib.auth.models import User
+from django.shortcuts import redirect, render
+from django.urls import path
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from django.conf import settings
-from django.shortcuts import render, redirect
-from django.urls import path
-from django import forms
-from django.contrib.auth.models import User
+
 from apps.core.admin import TenantFilteredAdmin
 from apps.core.admin_site import admin_site
-from .models import Tenant, TenantUser, TenantInvitation, TenantDomain
-import logging
+
+from .models import Tenant, TenantDomain, TenantInvitation, TenantUser
 
 logger = logging.getLogger(__name__)
 
 
 class InviteUserForm(forms.Form):
     email = forms.EmailField(label="User Email", required=True)
-    role = forms.ChoiceField(
-        choices=TenantInvitation.ROLE_CHOICES, 
-        initial='user',
-        label="Role"
-    )
+    role = forms.ChoiceField(choices=TenantInvitation.ROLE_CHOICES, initial="user", label="Role")
     message = forms.CharField(
-        widget=forms.Textarea(attrs={'rows': 3}), 
+        widget=forms.Textarea(attrs={"rows": 3}),
         required=False,
-        initial="Welcome! We're excited to have you join our team on Meats Central."
+        initial="Welcome! We're excited to have you join our team on Meats Central.",
     )
 
 
@@ -36,39 +35,32 @@ class OnboardOwnerForm(forms.Form):
 
 class FullOnboardForm(forms.Form):
     """Form to create Tenant + Owner Invite simultaneously from scratch."""
+
     tenant_name = forms.CharField(label="Company Name", max_length=255, required=True)
     slug = forms.SlugField(
-        label="URL Slug (e.g. acme-corp)", 
-        help_text="Unique identifier for the tenant URL",
-        required=True
+        label="URL Slug (e.g. acme-corp)", help_text="Unique identifier for the tenant URL", required=True
     )
     contact_email = forms.EmailField(label="Company Contact Email", required=True)
-    
+
     owner_email = forms.EmailField(
-        label="Owner Email", 
-        help_text="We will send the invitation here immediately.",
-        required=True
+        label="Owner Email", help_text="We will send the invitation here immediately.", required=True
     )
     owner_first_name = forms.CharField(label="Owner First Name", required=True)
     owner_last_name = forms.CharField(label="Owner Last Name", required=True)
-    
-    on_trial = forms.BooleanField(
-        label="Start 30-Day Trial?", 
-        initial=True, 
-        required=False
-    )
+
+    on_trial = forms.BooleanField(label="Start 30-Day Trial?", initial=True, required=False)
 
 
 class TenantAdmin(admin.ModelAdmin):
     """
     Admin interface for Tenant model with tiered actions.
-    
+
     Actions:
     1. Generate Team Invite (Superuser Only): Create generic reusable link.
     2. Onboard Owner (Superuser Only): Invite specific owner with personalized message.
     3. Send Individual Invite (Tenant Admin+): Invite specific email.
     """
-    
+
     # Custom template with "Onboard New Tenant Wizard" button
     change_list_template = "admin/tenants/tenant/change_list.html"
 
@@ -84,9 +76,14 @@ class TenantAdmin(admin.ModelAdmin):
     ]
     list_filter = ["is_active", "is_trial", "created_at"]
     search_fields = ["name", "slug", "domain", "contact_email"]
-    readonly_fields = ["id", "created_at", "updated_at", "test_credentials_display"]  # NEW: Added test_credentials_display
-    
-    actions = ['generate_team_invite', 'onboard_tenant_owner', 'send_individual_invite']
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+        "test_credentials_display",
+    ]  # NEW: Added test_credentials_display
+
+    actions = ["generate_team_invite", "onboard_tenant_owner", "send_individual_invite"]
 
     fieldsets = [
         ("Basic Information", {"fields": ("name", "slug", "schema_name", "domain")}),
@@ -112,13 +109,10 @@ class TenantAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request).select_related("created_by")
         if request.user.is_superuser:
             return qs
-        
-        tenant_ids = TenantUser.objects.filter(
-            user=request.user,
-            is_active=True
-        ).values_list('tenant_id', flat=True)
+
+        tenant_ids = TenantUser.objects.filter(user=request.user, is_active=True).values_list("tenant_id", flat=True)
         return qs.filter(id__in=tenant_ids)
-    
+
     @admin.action(description="⚡ Generate Team Invite Link (Superuser Only)")
     def generate_team_invite(self, request, queryset):
         """Generate a reusable Golden Ticket invitation link."""
@@ -131,28 +125,28 @@ class TenantAdmin(admin.ModelAdmin):
             return
 
         tenant = queryset.first()
-        
+
         invitation = TenantInvitation.objects.create(
             tenant=tenant,
             email=None,
-            role='user',
+            role="user",
             invited_by=request.user,
             is_reusable=True,
             max_uses=50,
-            status='pending',
-            message="Join your team on Project Meats!"
+            status="pending",
+            message="Join your team on Project Meats!",
         )
 
         link = self._get_invite_link(request, invitation)
-        
+
         self.message_user(
             request,
             format_html(
-                '<strong>✅ Golden Ticket Created!</strong><br>'
+                "<strong>✅ Golden Ticket Created!</strong><br>"
                 '<input type="text" value="{}" style="width: 100%; padding: 8px; margin-top: 5px;" readonly onclick="this.select();">',
-                link
+                link,
             ),
-            level=messages.SUCCESS
+            level=messages.SUCCESS,
         )
 
     @admin.action(description="🚀 Onboard New Tenant Owner (Superuser Only)")
@@ -172,13 +166,13 @@ class TenantAdmin(admin.ModelAdmin):
         tenant = queryset.first()
 
         # Handle Form Submission
-        if 'apply' in request.POST:
+        if "apply" in request.POST:
             form = OnboardOwnerForm(request.POST)
             if form.is_valid():
-                email = form.cleaned_data['email']
-                first_name = form.cleaned_data['first_name']
-                last_name = form.cleaned_data['last_name']
-                
+                email = form.cleaned_data["email"]
+                first_name = form.cleaned_data["first_name"]
+                last_name = form.cleaned_data["last_name"]
+
                 # Check for existing user
                 if User.objects.filter(email=email).exists():
                     self.message_user(request, f"User {email} already exists!", level=messages.WARNING)
@@ -188,11 +182,11 @@ class TenantAdmin(admin.ModelAdmin):
                 invitation = TenantInvitation.objects.create(
                     tenant=tenant,
                     email=email,
-                    role='admin',  # FORCE ADMIN ROLE
+                    role="admin",  # FORCE ADMIN ROLE
                     invited_by=request.user,
                     is_reusable=False,
-                    status='pending',
-                    message=f"Hi {first_name} {last_name},\n\nYour new tenant workspace '{tenant.name}' is ready. Click the link to set up your admin account."
+                    status="pending",
+                    message=f"Hi {first_name} {last_name},\n\nYour new tenant workspace '{tenant.name}' is ready. Click the link to set up your admin account.",
                 )
 
                 link = self._get_invite_link(request, invitation)
@@ -200,24 +194,31 @@ class TenantAdmin(admin.ModelAdmin):
                 self.message_user(
                     request,
                     format_html(
-                        '<strong>✅ Owner Onboarded!</strong> Invitation created for <strong>{} {}</strong> ({})<br>'
-                        'Send them this link:<br>'
+                        "<strong>✅ Owner Onboarded!</strong> Invitation created for <strong>{} {}</strong> ({})<br>"
+                        "Send them this link:<br>"
                         '<input type="text" value="{}" style="width: 100%; padding: 8px;" readonly onclick="this.select();">',
-                        first_name, last_name, email, link
+                        first_name,
+                        last_name,
+                        email,
+                        link,
                     ),
-                    level=messages.SUCCESS
+                    level=messages.SUCCESS,
                 )
                 return redirect(request.get_full_path())
         else:
             form = OnboardOwnerForm()
 
-        return render(request, 'admin/form_intermediate.html', {
-            'title': f'Onboard Owner for: {tenant.name}',
-            'objects': queryset,
-            'form': form,
-            'action': 'onboard_tenant_owner',
-            'opts': self.model._meta,
-        })
+        return render(
+            request,
+            "admin/form_intermediate.html",
+            {
+                "title": f"Onboard Owner for: {tenant.name}",
+                "objects": queryset,
+                "form": form,
+                "action": "onboard_tenant_owner",
+                "opts": self.model._meta,
+            },
+        )
 
     @admin.action(description="📧 Send Individual Invite")
     def send_individual_invite(self, request, queryset):
@@ -231,12 +232,12 @@ class TenantAdmin(admin.ModelAdmin):
         tenant = queryset.first()
 
         # Handle Form Submission
-        if 'apply' in request.POST:
+        if "apply" in request.POST:
             form = InviteUserForm(request.POST)
             if form.is_valid():
-                email = form.cleaned_data['email']
-                role = form.cleaned_data['role']
-                message = form.cleaned_data['message']
+                email = form.cleaned_data["email"]
+                role = form.cleaned_data["role"]
+                message = form.cleaned_data["message"]
 
                 # Create invitation
                 invitation = TenantInvitation.objects.create(
@@ -245,8 +246,8 @@ class TenantAdmin(admin.ModelAdmin):
                     role=role,
                     invited_by=request.user,
                     is_reusable=False,
-                    status='pending',
-                    message=message
+                    status="pending",
+                    message=message,
                 )
 
                 link = self._get_invite_link(request, invitation)
@@ -254,100 +255,103 @@ class TenantAdmin(admin.ModelAdmin):
                 self.message_user(
                     request,
                     format_html(
-                        '<strong>✅ Invite Created!</strong> Link for {}:<br>'
+                        "<strong>✅ Invite Created!</strong> Link for {}:<br>"
                         '<input type="text" value="{}" style="width: 100%; padding: 8px;" readonly onclick="this.select();">',
-                        email, link
+                        email,
+                        link,
                     ),
-                    level=messages.SUCCESS
+                    level=messages.SUCCESS,
                 )
                 return redirect(request.get_full_path())
         else:
             form = InviteUserForm()
 
-        return render(request, 'admin/form_intermediate.html', {
-            'title': f'Invite User to {tenant.name}',
-            'objects': queryset,
-            'form': form,
-            'action': 'send_individual_invite',
-            'opts': self.model._meta,
-        })
+        return render(
+            request,
+            "admin/form_intermediate.html",
+            {
+                "title": f"Invite User to {tenant.name}",
+                "objects": queryset,
+                "form": form,
+                "action": "send_individual_invite",
+                "opts": self.model._meta,
+            },
+        )
 
     def _get_invite_link(self, request, invitation):
         """Helper to construct the frontend signup URL."""
-        base_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-        
+        base_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+
         # Smart fallback based on host header
-        if not base_url or base_url == 'http://localhost:3000':
+        if not base_url or base_url == "http://localhost:3000":
             host = request.get_host()
-            if 'dev' in host:
+            if "dev" in host:
                 base_url = "https://dev.meatscentral.com"
-            elif 'uat' in host:
+            elif "uat" in host:
                 base_url = "https://uat.meatscentral.com"
-            elif 'meatscentral.com' in host:
+            elif "meatscentral.com" in host:
                 base_url = "https://meatscentral.com"
-            
+
         return f"{base_url}/signup?token={invitation.token}"
-    
+
     def get_urls(self):
         """Add custom URL for onboard wizard."""
         urls = super().get_urls()
         custom_urls = [
-            path('onboard/', self.admin_site.admin_view(self.onboard_view), name='tenant-onboard'),
+            path("onboard/", self.admin_site.admin_view(self.onboard_view), name="tenant-onboard"),
         ]
         return custom_urls + urls
-    
+
     def onboard_view(self, request):
         """
         Onboard New Tenant from Scratch wizard.
         Creates Tenant + Domain + Owner Invitation in one flow.
         """
         from django.utils import timezone
-        
-        if request.method == 'POST':
+
+        if request.method == "POST":
             form = FullOnboardForm(request.POST)
             if form.is_valid():
                 try:
                     # 1. Create Tenant
                     tenant = Tenant.objects.create(
-                        name=form.cleaned_data['tenant_name'],
-                        slug=form.cleaned_data['slug'],
-                        contact_email=form.cleaned_data['contact_email'],
-                        is_trial=form.cleaned_data['on_trial'],
-                        trial_ends_at=timezone.now() + timezone.timedelta(days=30) if form.cleaned_data['on_trial'] else None,
-                        created_by=request.user
+                        name=form.cleaned_data["tenant_name"],
+                        slug=form.cleaned_data["slug"],
+                        contact_email=form.cleaned_data["contact_email"],
+                        is_trial=form.cleaned_data["on_trial"],
+                        trial_ends_at=timezone.now() + timezone.timedelta(days=30)
+                        if form.cleaned_data["on_trial"]
+                        else None,
+                        created_by=request.user,
                     )
-                    
+
                     # 2. Create Default Domain
                     TenantDomain.objects.create(
-                        tenant=tenant,
-                        domain=f"{tenant.slug}.localhost",  # Adjust based on environment
-                        is_primary=True
+                        tenant=tenant, domain=f"{tenant.slug}.localhost", is_primary=True  # Adjust based on environment
                     )
 
                     # 3. Create Owner Invitation and Explicitly Send Email
-                    first_name = form.cleaned_data['owner_first_name']
-                    last_name = form.cleaned_data['owner_last_name']
-                    owner_email = form.cleaned_data['owner_email']
-                    
+                    first_name = form.cleaned_data["owner_first_name"]
+                    last_name = form.cleaned_data["owner_last_name"]
+                    owner_email = form.cleaned_data["owner_email"]
+
                     TenantInvitation.objects.create(
                         tenant=tenant,
                         email=owner_email,
-                        role='owner',
+                        role="owner",
                         invited_by=request.user,
-                        message=f"Welcome {first_name} {last_name}, your new workspace '{tenant.name}' is ready! Click the link to set up your account."
+                        message=f"Welcome {first_name} {last_name}, your new workspace '{tenant.name}' is ready! Click the link to set up your account.",
                     )
-                    
+
                     # Email is automatically sent by post_save signal in signals.py
                     # No need to manually trigger here (was causing duplicate emails)
                     logger.info(f"✅ Invitation created for {owner_email}. Email will be sent by post_save signal.")
 
                     self.message_user(
-                        request, 
-                        f"✅ Tenant '{tenant.name}' created and invite sent to {owner_email}!", 
-                        messages.SUCCESS
+                        request, f"✅ Tenant '{tenant.name}' created and invite sent to {owner_email}!", messages.SUCCESS
                     )
-                    return redirect('admin:tenants_tenant_changelist')
-                    
+                    return redirect("admin:tenants_tenant_changelist")
+
                 except Exception as e:
                     logger.exception("❌ Onboarding failed with exception:")
                     self.message_user(request, f"❌ Error: {str(e)}", messages.ERROR)
@@ -356,57 +360,50 @@ class TenantAdmin(admin.ModelAdmin):
 
         context = {
             **self.admin_site.each_context(request),
-            'title': '🚀 Onboard New Tenant From Scratch',
-            'form': form,
-            'opts': self.model._meta,
-            'action': 'onboard',
-            'objects': [],  # No selected objects for this wizard
+            "title": "🚀 Onboard New Tenant From Scratch",
+            "form": form,
+            "opts": self.model._meta,
+            "action": "onboard",
+            "objects": [],  # No selected objects for this wizard
         }
-        return render(request, 'admin/form_intermediate.html', context)
-    
+        return render(request, "admin/form_intermediate.html", context)
+
     def test_account_info(self, obj):
         """
         Show quick login info in list view for superusers on test tenants.
         Only displays for tenants with schema_name starting with 'test_'.
         """
-        if not obj.schema_name or not obj.schema_name.startswith('test_'):
+        if not obj.schema_name or not obj.schema_name.startswith("test_"):
             return "—"
-            
+
         # Try to find the admin user for this tenant
-        admin_user = User.objects.filter(
-            tenants__tenant=obj, 
-            tenants__role='admin',
-            tenants__is_active=True
-        ).first()
-        
+        admin_user = User.objects.filter(tenants__tenant=obj, tenants__role="admin", tenants__is_active=True).first()
+
         if admin_user:
             return format_html(
                 '<span style="color: green; font-weight: bold;">U: {}</span><br>'
                 '<span style="font-family: monospace; font-size: 11px;">P: password123!</span>',
-                admin_user.username
+                admin_user.username,
             )
         return "No Admin"
+
     test_account_info.short_description = "Test Creds"
-    
+
     def test_credentials_display(self, obj):
         """
         Detailed read-only field for object view showing test credentials.
         Only displays for test tenants (schema_name starts with 'test_').
         """
-        if not obj.schema_name or not obj.schema_name.startswith('test_'):
+        if not obj.schema_name or not obj.schema_name.startswith("test_"):
             return mark_safe(
                 '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">'
                 '<p style="color: #666;"><em>Not a test tenant. This section only applies to tenants '
-                'created via the seed_tenants management command.</em></p>'
-                '</div>'
+                "created via the seed_tenants management command.</em></p>"
+                "</div>"
             )
-            
-        admin_user = User.objects.filter(
-            tenants__tenant=obj, 
-            tenants__role='admin',
-            tenants__is_active=True
-        ).first()
-        
+
+        admin_user = User.objects.filter(tenants__tenant=obj, tenants__role="admin", tenants__is_active=True).first()
+
         if admin_user:
             return format_html(
                 '<div style="background: #e8f5e9; padding: 15px; border-radius: 5px; border: 1px solid #c8e6c9;">'
@@ -416,25 +413,26 @@ class TenantAdmin(admin.ModelAdmin):
                 '<tr><td style="padding: 8px 0; font-weight: bold;">Password:</td><td style="padding: 8px 0; font-family: monospace;">password123!</td></tr>'
                 '<tr><td style="padding: 8px 0; font-weight: bold;">Role:</td><td style="padding: 8px 0;">Tenant Admin</td></tr>'
                 '<tr><td style="padding: 8px 0; font-weight: bold;">Email:</td><td style="padding: 8px 0;">{}</td></tr>'
-                '</table>'
+                "</table>"
                 '<p style="margin-bottom: 0; margin-top: 10px; color: #2e7d32;"><em><strong>Note:</strong> This user has full Tenant Admin privileges.</em></p>'
-                '</div>',
+                "</div>",
                 admin_user.username,
-                admin_user.email
+                admin_user.email,
             )
         return mark_safe(
             '<div style="background: #fff3cd; padding: 15px; border-radius: 5px; border: 1px solid #ffc107;">'
             '<p style="margin: 0;">⚠️ No admin user found for this test tenant.</p>'
-            '</div>'
+            "</div>"
         )
+
     test_credentials_display.short_description = "Test Login Credentials"
 
 
 class TenantUserAdmin(TenantFilteredAdmin):
     """Admin interface for TenantUser associations with tenant filtering."""
 
-    change_list_template = 'admin/tenants/tenantuser/change_list.html'
-    
+    change_list_template = "admin/tenants/tenantuser/change_list.html"
+
     list_display = ["user", "tenant", "role", "is_active", "created_at"]
     list_filter = ["role", "is_active", "tenant"]
     search_fields = ["user__username", "user__email", "tenant__name", "tenant__slug"]
@@ -469,67 +467,54 @@ class TenantInvitationAdmin(TenantFilteredAdmin):
     list_filter = ["status", "role", "is_reusable", "tenant", "created_at"]
     search_fields = ["email", "tenant__name", "invited_by__username"]
     readonly_fields = ["id", "token", "created_at", "accepted_at", "accepted_by"]
-    
-    change_list_template = 'admin/tenants/tenantinvitation/change_list.html'
-    
+
+    change_list_template = "admin/tenants/tenantinvitation/change_list.html"
+
     fieldsets = [
-        ("Invitation Details", {
-            "fields": ("tenant", "email", "role", "message")
-        }),
-        ("Reusability Settings", {
-            "fields": ("is_reusable", "max_uses", "usage_count"),
-            "classes": ["collapse"]
-        }),
-        ("Status", {
-            "fields": ("status", "token", "expires_at")
-        }),
-        ("Tracking", {
-            "fields": ("invited_by", "created_at", "accepted_by", "accepted_at"),
-            "classes": ["collapse"]
-        }),
+        ("Invitation Details", {"fields": ("tenant", "email", "role", "message")}),
+        ("Reusability Settings", {"fields": ("is_reusable", "max_uses", "usage_count"), "classes": ["collapse"]}),
+        ("Status", {"fields": ("status", "token", "expires_at")}),
+        ("Tracking", {"fields": ("invited_by", "created_at", "accepted_by", "accepted_at"), "classes": ["collapse"]}),
     ]
-    
+
     def get_urls(self):
         """Add custom URL for invite user functionality."""
         urls = super().get_urls()
         custom_urls = [
-            path('invite/', self.admin_site.admin_view(self.invite_user_view), name='tenants_tenantinvitation_invite'),
+            path("invite/", self.admin_site.admin_view(self.invite_user_view), name="tenants_tenantinvitation_invite"),
         ]
         return custom_urls + urls
-    
+
     def invite_user_view(self, request):
         """View for creating new user invitations."""
         # Superusers can invite to any tenant
         if request.user.is_superuser:
             # Get unique tenants (not TenantUser associations)
-            tenants = Tenant.objects.all().order_by('name')
+            tenants = Tenant.objects.all().order_by("name")
             default_tenant = None  # Superusers must explicitly select tenant
         else:
             # Get user's tenant(s)
-            tenant_users = TenantUser.objects.filter(
-                user=request.user,
-                is_active=True
-            ).select_related('tenant')
-            
+            tenant_users = TenantUser.objects.filter(user=request.user, is_active=True).select_related("tenant")
+
             if not tenant_users.exists():
                 messages.error(request, "You don't have access to any tenants.")
-                return redirect('..')
-            
+                return redirect("..")
+
             # Get unique tenants for this user
-            tenant_ids = tenant_users.values_list('tenant_id', flat=True).distinct()
-            tenants = Tenant.objects.filter(id__in=tenant_ids).order_by('name')
-            
+            tenant_ids = tenant_users.values_list("tenant_id", flat=True).distinct()
+            tenants = Tenant.objects.filter(id__in=tenant_ids).order_by("name")
+
             # If user has only one tenant, use it as default
             default_tenant = tenants.first() if tenants.count() == 1 else None
-        
-        if request.method == 'POST':
+
+        if request.method == "POST":
             form = InviteUserForm(request.POST)
-            selected_tenant_id = request.POST.get('tenant', '')
+            selected_tenant_id = request.POST.get("tenant", "")
             if form.is_valid():
-                email = form.cleaned_data['email']
-                role = form.cleaned_data['role']
-                message = form.cleaned_data['message']
-                
+                email = form.cleaned_data["email"]
+                role = form.cleaned_data["role"]
+                message = form.cleaned_data["message"]
+
                 tenant = None
                 tenant_id = selected_tenant_id
                 if tenant_id:
@@ -548,73 +533,80 @@ class TenantInvitationAdmin(TenantFilteredAdmin):
                         role=role,
                         invited_by=request.user,
                         is_reusable=False,
-                        status='pending',
-                        message=message
+                        status="pending",
+                        message=message,
                     )
 
-                    base_url = getattr(settings, 'FRONTEND_URL', 'https://meatscentral.com')
+                    base_url = getattr(settings, "FRONTEND_URL", "https://meatscentral.com")
                     link = f"{base_url}/signup?token={invitation.token}"
 
                     messages.success(
                         request,
                         format_html(
-                            '✅ Invitation sent to <strong>{}</strong> as <strong>{}</strong> for <strong>{}</strong><br>'
+                            "✅ Invitation sent to <strong>{}</strong> as <strong>{}</strong> for <strong>{}</strong><br>"
                             'Invite link: <input type="text" value="{}" style="width: 100%; padding: 8px; margin-top: 8px;" readonly onclick="this.select();">',
-                            email, role, tenant.name, link
-                        )
+                            email,
+                            role,
+                            tenant.name,
+                            link,
+                        ),
                     )
-                    return redirect('..')
+                    return redirect("..")
         else:
             form = InviteUserForm()
-            selected_tenant_id = str(default_tenant.id) if default_tenant else ''
-        
+            selected_tenant_id = str(default_tenant.id) if default_tenant else ""
+
         context = {
-            'title': '🚀 Invite New User',
-            'form': form,
-            'opts': self.model._meta,
-            'has_view_permission': self.has_view_permission(request),
-            'site_header': admin.site.site_header,
-            'site_title': admin.site.site_title,
-            'tenants': tenants,
-            'default_tenant': default_tenant,
-            'is_superuser': request.user.is_superuser,
-            'selected_tenant_id': selected_tenant_id,
+            "title": "🚀 Invite New User",
+            "form": form,
+            "opts": self.model._meta,
+            "has_view_permission": self.has_view_permission(request),
+            "site_header": admin.site.site_header,
+            "site_title": admin.site.site_title,
+            "tenants": tenants,
+            "default_tenant": default_tenant,
+            "is_superuser": request.user.is_superuser,
+            "selected_tenant_id": selected_tenant_id,
         }
-        
-        return render(request, 'admin/tenants/invite_user.html', context)
-    
+
+        return render(request, "admin/tenants/invite_user.html", context)
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Make tenant field read-only for single-tenant admins on add page."""
         if db_field.name == "tenant" and not request.user.is_superuser:
-            tenant_ids = TenantUser.objects.filter(
-                user=request.user, 
-                is_active=True
-            ).values_list('tenant_id', flat=True)
-            
+            tenant_ids = TenantUser.objects.filter(user=request.user, is_active=True).values_list(
+                "tenant_id", flat=True
+            )
+
             # If user has only one tenant, restrict to that tenant
             if len(tenant_ids) == 1:
                 kwargs["queryset"] = Tenant.objects.filter(id__in=tenant_ids)
                 kwargs["initial"] = tenant_ids[0]
-        
+
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
-    
+
     def email_or_type(self, obj):
         if obj.is_reusable:
-            return format_html('<strong style="color: #0066cc;">{}</strong>', '🔗 Reusable Link')
+            return format_html('<strong style="color: #0066cc;">{}</strong>', "🔗 Reusable Link")
         return obj.email or "—"
+
     email_or_type.short_description = "Email / Type"
-    
+
     def usage_info(self, obj):
         if obj.is_reusable:
             percentage = (obj.usage_count / obj.max_uses * 100) if obj.max_uses > 0 else 0
             color = "#28a745" if percentage < 80 else "#ffc107" if percentage < 100 else "#dc3545"
             return format_html(
                 '<span style="color: {};">{} / {} uses ({}%)</span>',
-                color, obj.usage_count, obj.max_uses, int(percentage)
+                color,
+                obj.usage_count,
+                obj.max_uses,
+                int(percentage),
             )
         return "—"
+
     usage_info.short_description = "Usage"
-    
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related("tenant", "invited_by", "accepted_by")
@@ -627,12 +619,12 @@ class TenantDomainAdmin(admin.ModelAdmin):
     list_filter = ["is_primary", "created_at"]
     search_fields = ["domain", "tenant__name", "tenant__slug"]
     readonly_fields = ["created_at", "updated_at"]
-    
+
     fieldsets = [
         ("Domain Information", {"fields": ("domain", "tenant", "is_primary")}),
         ("Metadata", {"fields": ("created_at", "updated_at"), "classes": ["collapse"]}),
     ]
-    
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related("tenant")

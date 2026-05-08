@@ -2,10 +2,10 @@
  * Tests for ChoicesService
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { 
-  FIELD_TO_CHOICE_TYPE, 
+import {
+  FIELD_TO_CHOICE_TYPE,
   isStaticChoiceField,
-  clearChoicesCache 
+  clearChoicesCache
 } from './choicesService';
 
 describe('ChoicesService', () => {

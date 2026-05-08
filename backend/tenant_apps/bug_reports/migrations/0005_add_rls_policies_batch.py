@@ -6,7 +6,6 @@ from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bug_reports", "0004_bugreport_created_on_bugreport_custom_data_and_more"),
     ]
@@ -16,7 +15,7 @@ class Migration(migrations.Migration):
             sql="""
             -- Enable RLS on bug_reports_bugreport
             ALTER TABLE bug_reports_bugreport ENABLE ROW LEVEL SECURITY;
-            
+
             -- Create tenant isolation policy
             CREATE POLICY bug_reports_bugreport_tenant_isolation ON bug_reports_bugreport
                 USING (tenant_id = current_setting('app.current_tenant')::uuid);
@@ -24,6 +23,6 @@ class Migration(migrations.Migration):
             reverse_sql="""
             DROP POLICY IF EXISTS bug_reports_bugreport_tenant_isolation ON bug_reports_bugreport;
             ALTER TABLE bug_reports_bugreport DISABLE ROW LEVEL SECURITY;
-            """
+            """,
         ),
     ]

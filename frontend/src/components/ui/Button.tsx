@@ -1,9 +1,9 @@
 /**
  * Semantic Button Component
- * 
+ *
  * Uses CSS variables for colors, allowing tenant-specific branding
  * without component changes.
- * 
+ *
  * Usage:
  *   <Button variant="primary">Save</Button>
  *   <Button variant="secondary" size="lg">Cancel</Button>

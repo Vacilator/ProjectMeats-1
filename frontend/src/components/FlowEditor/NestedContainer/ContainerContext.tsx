@@ -1,9 +1,9 @@
 /**
  * Container Context for Nested Flow Management
- * 
+ *
  * Manages navigation and state for nested container views.
  * Allows entering/exiting containers to edit their internal flows.
- * 
+ *
  * Created: 2026-02-07
  */
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
@@ -25,22 +25,22 @@ interface ContainerState {
 interface ContainerContextType {
   // Current container being edited (null = main canvas)
   currentContainer: string | null;
-  
+
   // Navigation stack (breadcrumb trail)
   containerStack: ContainerState[];
-  
+
   // Enter a container to edit its contents
   enterContainer: (containerId: string, containerName: string, nodes: Node[], edges: Edge[]) => void;
-  
+
   // Exit current container back to parent
   exitContainer: () => void;
-  
+
   // Exit all the way to main canvas
   exitToMain: () => void;
-  
+
   // Check if currently inside a container
   isInContainer: () => boolean;
-  
+
   // Get breadcrumb trail
   getBreadcrumbs: () => { id: string | null; name: string }[];
 }
@@ -69,11 +69,11 @@ interface ContainerContextProviderProps {
 
 export const ContainerContextProvider: React.FC<ContainerContextProviderProps> = ({ children }) => {
   const [containerStack, setContainerStack] = useState<ContainerState[]>([]);
-  
+
   const currentContainer = useMemo(() => {
     return containerStack.length > 0 ? containerStack[containerStack.length - 1].containerId : null;
   }, [containerStack]);
-  
+
   const enterContainer = useCallback((
     containerId: string,
     containerName: string,
@@ -91,21 +91,21 @@ export const ContainerContextProvider: React.FC<ContainerContextProviderProps> =
       edges,
     }]);
   }, []);
-  
+
   const exitContainer = useCallback(() => {
     logger.debug('Exiting container', { component: 'ContainerContext' });
     setContainerStack(prev => prev.slice(0, -1));
   }, []);
-  
+
   const exitToMain = useCallback(() => {
     logger.debug('Exiting to main canvas', { component: 'ContainerContext' });
     setContainerStack([]);
   }, []);
-  
+
   const isInContainer = useCallback(() => {
     return containerStack.length > 0;
   }, [containerStack]);
-  
+
   const getBreadcrumbs = useCallback(() => {
     const breadcrumbs: Array<{ id: string | null; name: string }> = [{ id: null, name: 'Main Canvas' }];
     containerStack.forEach((state) => {
@@ -113,7 +113,7 @@ export const ContainerContextProvider: React.FC<ContainerContextProviderProps> =
     });
     return breadcrumbs;
   }, [containerStack]);
-  
+
   const value = useMemo<ContainerContextType>(() => {
     return {
       currentContainer,
@@ -133,7 +133,7 @@ export const ContainerContextProvider: React.FC<ContainerContextProviderProps> =
     isInContainer,
     getBreadcrumbs,
   ]);
-  
+
   return (
     <ContainerContext.Provider value={value}>
       {children}

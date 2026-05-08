@@ -1,9 +1,9 @@
 /**
  * Dynamic Configuration Engine - Type Definitions
- * 
+ *
  * Core type system for schema-based node configuration.
  * Enables declarative configuration instead of hardcoded React components.
- * 
+ *
  * Created: 2026-02-18
  * Phase: D.1 - Foundation
  */
@@ -90,7 +90,7 @@ export type LogicalOperator = 'AND' | 'OR';
 
 /**
  * Conditional rule for showing/hiding fields
- * 
+ *
  * @example
  * // Show "recipients" field only when "notifyViaEmail" is true
  * {
@@ -98,7 +98,7 @@ export type LogicalOperator = 'AND' | 'OR';
  *   operator: 'equals',
  *   value: true
  * }
- * 
+ *
  * @example
  * // Show "customMessage" when type is "custom" AND enabled is true
  * {
@@ -112,16 +112,16 @@ export type LogicalOperator = 'AND' | 'OR';
 export interface ConditionalRule {
   /** Field ID to watch for changes */
   field?: string;
-  
+
   /** Comparison operator */
   operator?: ConditionalOperator;
-  
+
   /** Value to compare against */
   value?: any;
-  
+
   /** Logical operator (for multiple conditions) */
   logic?: LogicalOperator;
-  
+
   /** Nested conditions (for complex logic) */
   conditions?: ConditionalRule[];
 }
@@ -147,13 +147,13 @@ export type ValidationRuleType =
 
 /**
  * Validation rule definition
- * 
+ *
  * @example
  * { type: 'required', message: 'Name is required' }
- * 
+ *
  * @example
  * { type: 'minLength', value: 3, message: 'Name must be at least 3 characters' }
- * 
+ *
  * @example
  * {
  *   type: 'custom',
@@ -164,13 +164,13 @@ export type ValidationRuleType =
 export interface ValidationRule {
   /** Validation rule type */
   type: ValidationRuleType;
-  
+
   /** Error message to display when validation fails */
   message: string;
-  
+
   /** Value for the rule (e.g., min=5, regex=/[A-Z]+/) */
   value?: any;
-  
+
   /** Custom validation function */
   validator?: (value: any, allValues: Record<string, any>) => boolean;
 }
@@ -185,19 +185,19 @@ export interface ValidationRule {
 export interface SelectOption {
   /** Option value (stored in form data) */
   value: string | number;
-  
+
   /** Display label */
   label: string;
-  
+
   /** Optional description */
   description?: string;
-  
+
   /** Optional icon component */
   icon?: ComponentType;
-  
+
   /** Disabled state */
   disabled?: boolean;
-  
+
   /** Group label (for grouped options) */
   group?: string;
 }
@@ -208,43 +208,43 @@ export interface SelectOption {
 
 /**
  * Configuration field definition
- * 
+ *
  * Defines a single input field in a configuration panel.
  */
 export interface ConfigField {
   /** Unique field identifier (used as data key) */
   id: string;
-  
+
   /** Field type (determines renderer component) */
   type: FieldType;
-  
+
   /** Display label */
   label: string;
-  
+
   /** Placeholder text (for text inputs) */
   placeholder?: string | { key: string; value: string };
-  
+
   /** Help text (shown in tooltip or below field) */
   helpText?: string;
-  
+
   /** Default value (used when field is empty) */
   defaultValue?: any;
-  
+
   /** Required field validation */
   required?: boolean;
-  
+
   /** Options for select/multiselect fields */
   options?: SelectOption[];
 
   /** UI hint: enable/disable auto-suggest (used by search-like fields) */
   showAutoSuggest?: boolean;
-  
+
   /** Validation rules */
   validation?: ValidationRule[];
-  
+
   /** Conditional visibility rule */
   conditional?: ConditionalRule;
-  
+
   /** Disabled state */
   disabled?: boolean;
 
@@ -283,10 +283,10 @@ export interface ConfigField {
 
   /** Custom component (for type='custom') */
   component?: ComponentType<any>;
-  
+
   /** Child schema (for type='nested-children') - Phase E.3 */
   childSchema?: Omit<NodeConfigSchema, 'nodeType' | 'displayName'>;
-  
+
   /** Additional props passed to field renderer */
   props?: Record<string, any>;
 
@@ -309,31 +309,31 @@ export interface ConfigField {
 
 /**
  * Configuration section (group of fields)
- * 
+ *
  * Sections provide visual organization and collapsible groups.
  */
 export interface ConfigSection {
   /** Unique section identifier */
   id: string;
-  
+
   /** Section title */
   title: string;
-  
+
   /** Icon component (lucide-react icon) */
   icon?: ComponentType;
-  
+
   /** Fields in this section */
   fields: ConfigField[];
-  
+
   /** Can section be collapsed? */
   collapsible?: boolean;
-  
+
   /** Expanded by default? */
   defaultExpanded?: boolean;
-  
+
   /** Section description (optional) */
   description?: string;
-  
+
   /** Conditional visibility (hide entire section) */
   conditional?: ConditionalRule;
 }
@@ -344,31 +344,31 @@ export interface ConfigSection {
 
 /**
  * Preset configuration values
- * 
+ *
  * Allows saving and loading common configurations.
  */
 export interface ConfigPreset {
   /** Preset identifier */
   id: string;
-  
+
   /** Preset name */
   name: string;
-  
+
   /** Preset description */
   description: string;
-  
+
   /** Field values (field ID → value) */
   values: Record<string, any>;
-  
+
   /** Thumbnail icon */
   icon?: ComponentType;
-  
+
   /** Is this a default preset? */
   isDefault?: boolean;
-  
+
   /** Created by user (for sharing) */
   createdBy?: string;
-  
+
   /** Creation timestamp */
   createdAt?: string;
 }
@@ -379,9 +379,9 @@ export interface ConfigPreset {
 
 /**
  * Complete configuration schema for a node type
- * 
+ *
  * Defines all sections, fields, validation, and behavior for a node's config panel.
- * 
+ *
  * @example
  * const formStepSchema: NodeConfigSchema = {
  *   nodeType: 'formStepSingle',
@@ -400,31 +400,31 @@ export interface ConfigPreset {
 export interface NodeConfigSchema {
   /** Node type identifier (matches node.type) */
   nodeType: string;
-  
+
   /** Human-readable name */
   displayName: string;
 
   /** Optional category (used by schemaRegistry fallbacks + UI grouping) */
   category?: string;
-  
+
   /** Description of what this node does */
   description?: string;
-  
+
   /** Icon for node type */
   icon?: ComponentType;
-  
+
   /** Configuration sections */
   sections: ConfigSection[];
-  
+
   /** Context-aware configuration (different fields based on context) */
   contextAware?: boolean;
-  
+
   /** Available presets */
   presets?: ConfigPreset[];
-  
+
   /** Schema version (for migrations) */
   version?: string;
-  
+
   /** Tags for categorization */
   tags?: string[];
 }
@@ -435,23 +435,23 @@ export interface NodeConfigSchema {
 
 /**
  * Node context information
- * 
+ *
  * Provides context about where a node is placed (standalone vs inside container).
  * Used for context-aware configuration.
  */
 export interface NodeContext {
   /** Is node inside a Form Process container? */
   insideFormProcess: boolean;
-  
+
   /** Parent node ID (if inside container) */
   parentNodeId?: string;
-  
+
   /** Sibling nodes (other steps in same container) */
   siblingNodes?: string[];
-  
+
   /** Step index (if inside container) */
   stepIndex?: number;
-  
+
   /** Total steps in container */
   totalSteps?: number;
 }
@@ -466,22 +466,22 @@ export interface NodeContext {
 export interface FieldRendererProps<T = any> {
   /** Field definition */
   field: ConfigField;
-  
+
   /** Current field value */
   value: T;
-  
+
   /** Change handler */
   onChange: (value: T) => void;
-  
+
   /** Validation error message (if any) */
   error?: string;
-  
+
   /** Disabled state */
   disabled?: boolean;
-  
+
   /** All form values (for cross-field logic) */
   allValues?: Record<string, any>;
-  
+
   /** Node context */
   context?: NodeContext;
 }
@@ -496,10 +496,10 @@ export interface FieldRendererProps<T = any> {
 export interface SchemaValidationResult {
   /** Is schema valid? */
   valid: boolean;
-  
+
   /** Error messages (if invalid) */
   errors: string[];
-  
+
   /** Warning messages (non-fatal) */
   warnings?: string[];
 }

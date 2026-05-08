@@ -34,7 +34,7 @@
                         <h2 class="text-xl font-semibold text-gray-900">Create New Blueprint</h2>
                         <p class="text-gray-600 mt-1">Start from scratch or use the Django admin to import existing entities</p>
                     </div>
-                    <a href="/admin/system_config/entityblueprint/add/" 
+                    <a href="/admin/system_config/entityblueprint/add/"
                        class="px-6 py-3 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition-colors">
                         ➕ New Blueprint
                     </a>
@@ -44,7 +44,7 @@
             <!-- Blueprints List -->
             <div class="bg-white rounded-lg border border-gray-200 p-6">
                 <h2 class="text-xl font-semibold text-gray-900 mb-4">Your Blueprints</h2>
-                
+
                 {% if blueprints %}
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {% for blueprint in blueprints %}
@@ -60,26 +60,26 @@
                                         <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded">Draft</span>
                                     {% endif %}
                                 </div>
-                                
+
                                 {% if blueprint.latest_version %}
                                     <div class="text-sm text-gray-600 mb-3">
                                         <div class="mb-1">📊 Schema fields: <strong>{{ blueprint.latest_version.schema_field_count }}</strong></div>
                                         <div>🔄 Workflow steps: <strong>{{ blueprint.latest_version.workflow_step_count }}</strong></div>
                                     </div>
-                                    
+
                                     <div class="flex gap-2">
-                                        <a href="{% url 'system_config:studio-detail' blueprint.latest_version.id %}" 
+                                        <a href="{% url 'system_config:studio-detail' blueprint.latest_version.id %}"
                                            class="flex-1 px-3 py-2 text-center bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors">
                                             ✏️ Edit in Studio
                                         </a>
-                                        <a href="/admin/system_config/blueprintversion/?blueprint__id={{ blueprint.id }}" 
+                                        <a href="/admin/system_config/blueprintversion/?blueprint__id={{ blueprint.id }}"
                                            class="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded hover:bg-gray-200 transition-colors">
                                             📜 Versions
                                         </a>
                                     </div>
                                 {% else %}
                                     <p class="text-sm text-red-600 mb-3">⚠️ No versions found</p>
-                                    <a href="/admin/system_config/entityblueprint/{{ blueprint.id }}/change/" 
+                                    <a href="/admin/system_config/entityblueprint/{{ blueprint.id }}/change/"
                                        class="block w-full px-3 py-2 text-center bg-gray-100 text-gray-700 text-sm font-medium rounded hover:bg-gray-200 transition-colors">
                                         View in Admin
                                     </a>
@@ -92,7 +92,7 @@
                         <div class="text-6xl mb-4">📝</div>
                         <h3 class="text-lg font-medium text-gray-900 mb-2">No blueprints yet</h3>
                         <p class="text-gray-600 mb-6">Create your first blueprint to get started</p>
-                        <a href="/admin/system_config/entityblueprint/add/" 
+                        <a href="/admin/system_config/entityblueprint/add/"
                            class="inline-block px-6 py-3 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition-colors">
                             ➕ Create First Blueprint
                         </a>

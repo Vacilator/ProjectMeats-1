@@ -1,12 +1,12 @@
 # Payment Developer Guide
 
-**Status**: ✅ CURRENT  
-**Category**: Features  
+**Status**: ✅ CURRENT
+**Category**: Features
 **Last Updated**: 2026-02-01
 
 ---
 
-> **Consolidated**: This guide focuses on **technical implementation**. 
+> **Consolidated**: This guide focuses on **technical implementation**.
 > See [Payment User Guide](PAYMENT_USER_GUIDE.md) for user workflows.
 
 ## Table of Contents
@@ -94,7 +94,7 @@ class PaymentMethod(models.TextChoices):
 
 class PaymentTransaction(models.Model):
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)
-    
+
     # Polymorphic links (only ONE should be set)
     purchase_order = models.ForeignKey(
         'purchase_orders.PurchaseOrder',
@@ -114,7 +114,7 @@ class PaymentTransaction(models.Model):
         related_name='payments',
         null=True, blank=True
     )
-    
+
     # Payment details
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     payment_method = models.CharField(
@@ -125,7 +125,7 @@ class PaymentTransaction(models.Model):
     reference_number = models.CharField(max_length=100, blank=True, null=True)
     payment_date = models.DateField()
     notes = models.TextField(blank=True, null=True)
-    
+
     # Audit fields
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -134,7 +134,7 @@ class PaymentTransaction(models.Model):
         null=True,
         related_name='payment_transactions'
     )
-    
+
     class Meta:
         db_table = 'payment_transactions'
         ordering = ['-payment_date', '-created_at']
@@ -144,11 +144,11 @@ class PaymentTransaction(models.Model):
             models.Index(fields=['tenant', 'sales_order']),
             models.Index(fields=['tenant', 'invoice']),
         ]
-    
+
     def save(self, *args, **kwargs):
         """Override save to auto-update parent entity payment status"""
         super().save(*args, **kwargs)
-        
+
         # Trigger calculation AFTER payment is saved
         if self.purchase_order:
             self._update_purchase_order_payment_status()
@@ -171,7 +171,7 @@ class PaymentStatus(models.TextChoices):
 
 class PurchaseOrder(models.Model):
     # ... existing fields ...
-    
+
     payment_status = models.CharField(
         max_length=10,
         choices=PaymentStatus.choices,
@@ -195,7 +195,7 @@ class PaymentStatus(models.TextChoices):
 
 class SalesOrder(models.Model):
     # ... existing fields ...
-    
+
     payment_status = models.CharField(
         max_length=10,
         choices=PaymentStatus.choices,
@@ -221,7 +221,7 @@ class PaymentStatus(models.TextChoices):
 
 class Invoice(models.Model):
     # ... existing fields ...
-    
+
     payment_status = models.CharField(
         max_length=10,
         choices=PaymentStatus.choices,
@@ -232,7 +232,7 @@ class Invoice(models.Model):
         decimal_places=2,
         default=0.00
     )
-    
+
     # Note: Invoice also has `status` field (draft/sent/paid/overdue/cancelled)
     # When payment_status == 'paid', invoice.status is also set to 'paid'
 ```
@@ -251,13 +251,13 @@ def _update_purchase_order_payment_status(self):
     po = self.purchase_order
     if not po:
         return
-    
+
     # Sum all payments
     total_paid = po.payments.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-    
+
     # Calculate outstanding
     outstanding = po.total_amount - total_paid
-    
+
     # Determine status
     if outstanding == Decimal('0.00'):
         status = 'paid'
@@ -265,7 +265,7 @@ def _update_purchase_order_payment_status(self):
         status = 'partial'
     else:
         status = 'unpaid'
-    
+
     # Update PO
     po.outstanding_amount = outstanding
     po.payment_status = status
@@ -276,16 +276,16 @@ def _update_sales_order_payment_status(self):
     so = self.sales_order
     if not so:
         return
-    
+
     # Sum all payments
     total_paid = so.payments.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-    
+
     # Handle null total_amount (edge case)
     total_amount = so.total_amount or Decimal('0.00')
-    
+
     # Calculate outstanding
     outstanding = total_amount - total_paid
-    
+
     # Determine status
     if outstanding == Decimal('0.00'):
         status = 'paid'
@@ -293,7 +293,7 @@ def _update_sales_order_payment_status(self):
         status = 'partial'
     else:
         status = 'unpaid'
-    
+
     # Update SO
     so.outstanding_amount = outstanding
     so.payment_status = status
@@ -304,13 +304,13 @@ def _update_invoice_payment_status(self):
     invoice = self.invoice
     if not invoice:
         return
-    
+
     # Sum all payments
     total_paid = invoice.payments.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-    
+
     # Calculate outstanding
     outstanding = invoice.total_amount - total_paid
-    
+
     # Determine status
     if outstanding == Decimal('0.00'):
         status = 'paid'
@@ -320,7 +320,7 @@ def _update_invoice_payment_status(self):
         status = 'partial'
     else:
         status = 'unpaid'
-    
+
     # Update Invoice
     invoice.outstanding_amount = outstanding
     invoice.payment_status = status
@@ -336,7 +336,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
     entity_type = serializers.SerializerMethodField()
     entity_reference = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = PaymentTransaction
         fields = [
@@ -346,7 +346,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
             'entity_type', 'entity_reference', 'created_by_name'
         ]
         read_only_fields = ['id', 'tenant', 'created_at', 'created_by']
-    
+
     def get_entity_type(self, obj):
         """Return which entity type this payment is for"""
         if obj.purchase_order:
@@ -356,7 +356,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         elif obj.invoice:
             return 'invoice'
         return None
-    
+
     def get_entity_reference(self, obj):
         """Return entity reference number (PO#, SO#, or Invoice#)"""
         if obj.purchase_order:
@@ -366,7 +366,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         elif obj.invoice:
             return obj.invoice.invoice_number
         return None
-    
+
     def get_created_by_name(self, obj):
         """Return name of user who created payment"""
         if obj.created_by:
@@ -382,7 +382,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
 class PaymentTransactionViewSet(viewsets.ModelViewSet):
     """
     API endpoint for recording and viewing payment transactions.
-    
+
     Supports:
     - Tenant-isolated queries (automatically filtered by request.tenant)
     - Auto-assignment of tenant and created_by on creation
@@ -391,11 +391,11 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
     queryset = PaymentTransaction.objects.all()
     serializer_class = PaymentTransactionSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         """Filter payments by tenant"""
         return super().get_queryset().filter(tenant=self.request.tenant)
-    
+
     def perform_create(self, serializer):
         """Auto-assign tenant and created_by on payment creation"""
         serializer.save(
@@ -471,17 +471,17 @@ interface RecordPaymentModalProps {
 ```typescript
 const validateAmount = (): boolean => {
   const parsedAmount = parseFloat(formData.amount);
-  
+
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
     setError('Amount must be greater than 0');
     return false;
   }
-  
+
   if (parsedAmount > outstandingAmount) {
     setError(`Amount cannot exceed outstanding balance ($${outstandingAmount.toFixed(2)})`);
     return false;
   }
-  
+
   return true;
 };
 ```
@@ -491,14 +491,14 @@ const validateAmount = (): boolean => {
 ```typescript
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  
+
   if (!validateAmount()) {
     return;
   }
-  
+
   setSubmitting(true);
   setError(null);
-  
+
   try {
     const payload = {
       [entityType]: entityId,  // Polymorphic field (only one set)
@@ -508,16 +508,16 @@ const handleSubmit = async (e: React.FormEvent) => {
       payment_date: formData.paymentDate,
       notes: formData.notes || null,
     };
-    
+
     await apiClient.post('/api/v1/payments/', payload);
-    
+
     if (onSuccess) {
       onSuccess();  // Trigger parent refresh
     }
-    
+
     onClose();
   } catch (err: any) {
-    const errorMsg = err.response?.data?.detail || 
+    const errorMsg = err.response?.data?.detail ||
                      err.response?.data?.amount?.[0] ||
                      'Failed to record payment. Please try again.';
     setError(errorMsg);
@@ -589,12 +589,12 @@ const RecordPaymentButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(34, 197, 94, 0.15);
     border-color: rgba(34, 197, 94, 0.5);
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -788,7 +788,7 @@ class PaymentCalculationTests(TestCase):
             outstanding_amount=Decimal('10000.00'),
             payment_status='unpaid'
         )
-    
+
     def test_full_payment(self):
         """Test that full payment sets status to 'paid'"""
         payment = PaymentTransaction.objects.create(
@@ -799,11 +799,11 @@ class PaymentCalculationTests(TestCase):
             payment_date='2026-01-15',
             created_by=self.user
         )
-        
+
         self.po.refresh_from_db()
         self.assertEqual(self.po.outstanding_amount, Decimal('0.00'))
         self.assertEqual(self.po.payment_status, 'paid')
-    
+
     def test_partial_payment(self):
         """Test that partial payment sets status to 'partial'"""
         payment = PaymentTransaction.objects.create(
@@ -814,11 +814,11 @@ class PaymentCalculationTests(TestCase):
             payment_date='2026-01-15',
             created_by=self.user
         )
-        
+
         self.po.refresh_from_db()
         self.assertEqual(self.po.outstanding_amount, Decimal('5000.00'))
         self.assertEqual(self.po.payment_status, 'partial')
-    
+
     def test_multiple_partial_payments(self):
         """Test that multiple payments correctly calculate outstanding"""
         PaymentTransaction.objects.create(
@@ -829,11 +829,11 @@ class PaymentCalculationTests(TestCase):
             payment_date='2026-01-15',
             created_by=self.user
         )
-        
+
         self.po.refresh_from_db()
         self.assertEqual(self.po.outstanding_amount, Decimal('7000.00'))
         self.assertEqual(self.po.payment_status, 'partial')
-        
+
         PaymentTransaction.objects.create(
             tenant=self.tenant,
             purchase_order=self.po,
@@ -842,7 +842,7 @@ class PaymentCalculationTests(TestCase):
             payment_date='2026-01-20',
             created_by=self.user
         )
-        
+
         self.po.refresh_from_db()
         self.assertEqual(self.po.outstanding_amount, Decimal('0.00'))
         self.assertEqual(self.po.payment_status, 'paid')
@@ -869,53 +869,53 @@ describe('RecordPaymentModal', () => {
     outstandingAmount: 10000.00,
     onSuccess: jest.fn(),
   };
-  
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
-  
+
   it('renders when open', () => {
     render(<RecordPaymentModal {...mockProps} />);
     expect(screen.getByText('Record Payment')).toBeInTheDocument();
     expect(screen.getByText('PO-2024-001')).toBeInTheDocument();
   });
-  
+
   it('pre-fills amount with outstanding balance', () => {
     render(<RecordPaymentModal {...mockProps} />);
     const amountInput = screen.getByLabelText('Amount');
     expect(amountInput).toHaveValue('10000.00');
   });
-  
+
   it('validates amount exceeds outstanding', async () => {
     render(<RecordPaymentModal {...mockProps} />);
-    
+
     const amountInput = screen.getByLabelText('Amount');
     fireEvent.change(amountInput, { target: { value: '15000.00' } });
-    
+
     const submitButton = screen.getByText('Record Payment');
     fireEvent.click(submitButton);
-    
+
     await waitFor(() => {
       expect(screen.getByText(/cannot exceed outstanding balance/i)).toBeInTheDocument();
     });
-    
+
     expect(apiClient.post).not.toHaveBeenCalled();
   });
-  
+
   it('submits payment successfully', async () => {
     (apiClient.post as jest.Mock).mockResolvedValue({ data: { id: 456 } });
-    
+
     render(<RecordPaymentModal {...mockProps} />);
-    
+
     const methodSelect = screen.getByLabelText('Payment Method');
     fireEvent.change(methodSelect, { target: { value: 'check' } });
-    
+
     const refInput = screen.getByLabelText('Reference Number');
     fireEvent.change(refInput, { target: { value: 'CHK-12345' } });
-    
+
     const submitButton = screen.getByText('Record Payment');
     fireEvent.click(submitButton);
-    
+
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith('/api/v1/payments/', {
         purchase_order: 123,
@@ -926,7 +926,7 @@ describe('RecordPaymentModal', () => {
         notes: null,
       });
     });
-    
+
     expect(mockProps.onSuccess).toHaveBeenCalled();
     expect(mockProps.onClose).toHaveBeenCalled();
   });
@@ -943,44 +943,44 @@ describe('Payment Workflow', () => {
     cy.login('testuser', 'password');
     cy.visit('/accounting/payables-pos');
   });
-  
+
   it('records a full payment for purchase order', () => {
     // Click first row to open side panel
     cy.get('table tbody tr').first().click();
-    
+
     // Wait for side panel to appear
     cy.contains('Record Payment').should('be.visible').click();
-    
+
     // Modal should appear with pre-filled amount
     cy.get('[data-testid="payment-modal"]').should('be.visible');
     cy.get('input[name="amount"]').should('have.value', '10000.00');
-    
+
     // Select payment method
     cy.get('select[name="paymentMethod"]').select('check');
-    
+
     // Enter reference number
     cy.get('input[name="referenceNumber"]').type('CHK-12345');
-    
+
     // Submit
     cy.contains('button', 'Record Payment').click();
-    
+
     // Verify success
     cy.contains('PAID').should('be.visible');
     cy.get('[data-testid="payment-modal"]').should('not.exist');
   });
-  
+
   it('records a partial payment', () => {
     cy.get('table tbody tr').first().click();
     cy.contains('Record Payment').click();
-    
+
     // Change amount to partial
     cy.get('input[name="amount"]').clear().type('5000.00');
-    
+
     cy.get('select[name="paymentMethod"]').select('wire');
     cy.get('input[name="referenceNumber"]').type('WIRE-98765');
-    
+
     cy.contains('button', 'Record Payment').click();
-    
+
     // Verify partial status
     cy.contains('PARTIAL').should('be.visible');
     cy.contains('Outstanding: $5,000.00').should('be.visible');
@@ -1077,16 +1077,16 @@ python manage.py migrate invoices 0005
 
 **Indexes Created:**
 ```sql
-CREATE INDEX payment_transactions_tenant_payment_date 
+CREATE INDEX payment_transactions_tenant_payment_date
 ON payment_transactions(tenant_id, payment_date);
 
-CREATE INDEX payment_transactions_tenant_po 
+CREATE INDEX payment_transactions_tenant_po
 ON payment_transactions(tenant_id, purchase_order_id);
 
-CREATE INDEX payment_transactions_tenant_so 
+CREATE INDEX payment_transactions_tenant_so
 ON payment_transactions(tenant_id, sales_order_id);
 
-CREATE INDEX payment_transactions_tenant_invoice 
+CREATE INDEX payment_transactions_tenant_invoice
 ON payment_transactions(tenant_id, invoice_id);
 ```
 
@@ -1310,7 +1310,7 @@ curl -H "Authorization: Bearer <token>" \
 
 ---
 
-**Document Status:** ✅ Production Ready  
-**Last Reviewed:** January 2026  
-**Next Review Date:** April 2026  
+**Document Status:** ✅ Production Ready
+**Last Reviewed:** January 2026
+**Next Review Date:** April 2026
 **Maintained By:** Engineering Team

@@ -1,19 +1,19 @@
 /**
  * ESLint Custom Rule: no-hardcoded-colors
- * 
+ *
  * Prevents hardcoded hex colors in styled-components and inline styles.
  * Enforces use of theme variables or standardized color palette.
- * 
+ *
  * Examples of INCORRECT code:
  * - const Button = styled.button`background: #667eea;`
  * - <div style={{ color: '#FF0000' }} />
  * - border: 1px solid #e9ecef
- * 
+ *
  * Examples of CORRECT code:
  * - const Button = styled.button`background: rgb(var(--color-primary));`
  * - const Button = styled.button`background: rgb(34, 197, 94);` // Standardized green
  * - <div style={{ color: 'rgb(var(--color-primary))' }} />
- * 
+ *
  * @author ProjectMeats UI Standardization Team
  * @date 2026-01-10
  */
@@ -94,14 +94,14 @@ module.exports = {
     function checkTemplateLiteral(node) {
       const sourceCode = context.getSourceCode();
       const text = sourceCode.getText(node);
-      
+
       let match;
       while ((match = hexColorRegex.exec(text)) !== null) {
         const color = match[0];
-        
+
         if (!isAllowedColor(color)) {
           const suggestion = getSuggestion(color);
-          
+
           context.report({
             node,
             messageId: 'hardcodedColorWithSuggestion',
@@ -120,12 +120,12 @@ module.exports = {
           if (prop.value && prop.value.type === 'Literal' && typeof prop.value.value === 'string') {
             const value = prop.value.value;
             const matches = value.match(hexColorRegex);
-            
+
             if (matches) {
               matches.forEach(color => {
                 if (!isAllowedColor(color)) {
                   const suggestion = getSuggestion(color);
-                  
+
                   context.report({
                     node: prop.value,
                     messageId: 'hardcodedColorWithSuggestion',

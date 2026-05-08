@@ -46,9 +46,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="location",
             name="country",
-            field=models.CharField(
-                blank=True, default="USA", help_text="Country", max_length=100
-            ),
+            field=models.CharField(blank=True, default="USA", help_text="Country", max_length=100),
         ),
         migrations.AddField(
             model_name="location",
@@ -63,9 +61,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="location",
             name="is_active",
-            field=models.BooleanField(
-                default=True, help_text="Whether this location is active"
-            ),
+            field=models.BooleanField(default=True, help_text="Whether this location is active"),
         ),
         migrations.AddField(
             model_name="location",
@@ -80,23 +76,17 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="location",
             name="phone",
-            field=models.CharField(
-                blank=True, default="", help_text="Location phone number", max_length=20
-            ),
+            field=models.CharField(blank=True, default="", help_text="Location phone number", max_length=20),
         ),
         migrations.AddField(
             model_name="location",
             name="state",
-            field=models.CharField(
-                blank=True, default="", help_text="State or province", max_length=50
-            ),
+            field=models.CharField(blank=True, default="", help_text="State or province", max_length=50),
         ),
         migrations.AddField(
             model_name="location",
             name="zip_code",
-            field=models.CharField(
-                blank=True, default="", help_text="ZIP or postal code", max_length=20
-            ),
+            field=models.CharField(blank=True, default="", help_text="ZIP or postal code", max_length=20),
         ),
         migrations.AlterField(
             model_name="location",

@@ -278,9 +278,9 @@ describe('shared/utils', () => {
       vi.advanceTimersByTime(50);
       debounced();
       vi.advanceTimersByTime(50);
-      
+
       expect(fn).not.toHaveBeenCalled();
-      
+
       vi.advanceTimersByTime(50);
       expect(fn).toHaveBeenCalledTimes(1);
     });

@@ -1,16 +1,16 @@
 /**
  * Auto Layout Utility
- * 
+ *
  * Automatic node positioning using dagre layout algorithm.
  * Provides beautiful, hierarchical layouts for workflow diagrams.
- * 
+ *
  * Features:
  * - Horizontal and vertical layout options
  * - Automatic spacing based on node dimensions
  * - Handles parent-child relationships with nested group layout
  * - Respects edge directions for flow
  * - Optimized for deeply nested E2E templates (20+ nodes)
- * 
+ *
  * Created: 2026-02-21 - Phase 2: UI/UX Enhancements
  * Enhanced: 2026-05-08 - PI-05: Nested group layout optimization
  */
@@ -222,20 +222,20 @@ export const layoutSelectedNodes = (
   if (selectedNodeIds.length === 0) {
     return allNodes;
   }
-  
+
   // Filter to selected nodes and their connecting edges
   const selectedNodes = allNodes.filter(n => selectedNodeIds.includes(n.id));
   const relevantEdges = edges.filter(
     e => selectedNodeIds.includes(e.source) && selectedNodeIds.includes(e.target)
   );
-  
+
   // Layout just the selected subgraph
   const { nodes: layoutedSelected } = getLayoutedElements(
     selectedNodes,
     relevantEdges,
     options
   );
-  
+
   // Merge back with unselected nodes
   return allNodes.map(node => {
     const layouted = layoutedSelected.find(n => n.id === node.id);
@@ -251,10 +251,10 @@ export const alignNodesHorizontally = (
   alignment: 'left' | 'center' | 'right' = 'center'
 ): Node[] => {
   if (nodes.length === 0) return nodes;
-  
+
   // Calculate target X based on alignment
   let targetX: number;
-  
+
   if (alignment === 'left') {
     targetX = Math.min(...nodes.map(n => n.position.x));
   } else if (alignment === 'right') {
@@ -265,7 +265,7 @@ export const alignNodesHorizontally = (
     const rightMost = Math.max(...nodes.map(n => n.position.x + (n.width || 280)));
     targetX = (leftMost + rightMost) / 2;
   }
-  
+
   return nodes.map(node => ({
     ...node,
     position: {
@@ -287,10 +287,10 @@ export const alignNodesVertically = (
   alignment: 'top' | 'middle' | 'bottom' = 'middle'
 ): Node[] => {
   if (nodes.length === 0) return nodes;
-  
+
   // Calculate target Y based on alignment
   let targetY: number;
-  
+
   if (alignment === 'top') {
     targetY = Math.min(...nodes.map(n => n.position.y));
   } else if (alignment === 'bottom') {
@@ -301,7 +301,7 @@ export const alignNodesVertically = (
     const bottomMost = Math.max(...nodes.map(n => n.position.y + (n.height || 100)));
     targetY = (topMost + bottomMost) / 2;
   }
-  
+
   return nodes.map(node => ({
     ...node,
     position: {
@@ -320,15 +320,15 @@ export const alignNodesVertically = (
  */
 export const distributeNodesHorizontally = (nodes: Node[]): Node[] => {
   if (nodes.length < 3) return nodes;
-  
+
   // Sort by X position
   const sorted = [...nodes].sort((a, b) => a.position.x - b.position.x);
-  
+
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
   const totalSpace = last.position.x - first.position.x;
   const spacing = totalSpace / (sorted.length - 1);
-  
+
   return nodes.map(node => {
     const index = sorted.findIndex(n => n.id === node.id);
     return {
@@ -346,15 +346,15 @@ export const distributeNodesHorizontally = (nodes: Node[]): Node[] => {
  */
 export const distributeNodesVertically = (nodes: Node[]): Node[] => {
   if (nodes.length < 3) return nodes;
-  
+
   // Sort by Y position
   const sorted = [...nodes].sort((a, b) => a.position.y - b.position.y);
-  
+
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
   const totalSpace = last.position.y - first.position.y;
   const spacing = totalSpace / (sorted.length - 1);
-  
+
   return nodes.map(node => {
     const index = sorted.findIndex(n => n.id === node.id);
     return {

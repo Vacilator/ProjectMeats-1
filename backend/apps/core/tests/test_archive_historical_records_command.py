@@ -11,12 +11,12 @@ from django.core.management.base import CommandError
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.core.models import ArchiveBatch, ArchiveLegalHold, ArchiveRecordSnapshot
-from apps.core.services.data_governance import subtract_years
-from apps.tenants.models import Tenant, TenantUser
 from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderItem
 from tenant_apps.suppliers.models import Supplier
 
+from apps.core.models import ArchiveBatch, ArchiveLegalHold, ArchiveRecordSnapshot
+from apps.core.services.data_governance import subtract_years
+from apps.tenants.models import Tenant, TenantUser
 
 PURCHASE_ORDER_LABEL = "tenant_apps.purchase_orders.models.PurchaseOrder"
 PURCHASE_ORDER_ITEM_LABEL = "tenant_apps.purchase_orders.models.PurchaseOrderItem"

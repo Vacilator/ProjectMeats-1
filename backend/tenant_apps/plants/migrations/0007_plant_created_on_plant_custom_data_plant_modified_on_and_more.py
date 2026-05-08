@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("plants", "0006_fix_address_fields_blank"),
         ("tenants", "0010_add_tenant_configuration"),
