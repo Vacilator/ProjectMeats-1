@@ -79,6 +79,11 @@ export const navigation: NavigationItem[] = [
     path: '/customers',
   },
   {
+    label: 'Trader Cockpit',
+    icon: '⚡',
+    path: '/trader-cockpit',
+  },
+  {
     label: 'Orders',
     icon: '📋',
     children: [

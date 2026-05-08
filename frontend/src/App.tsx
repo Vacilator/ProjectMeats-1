@@ -54,6 +54,7 @@ import Payables from './pages/Payables';
 import ColdStorage from './pages/ColdStorage';
 import Contacts from './pages/Contacts';
 import Plants from './pages/Suppliers/Plants';
+const TraderCockpitPage = React.lazy(() => import('./pages/TraderCockpitPage'));
 import SupplierProducts from './pages/Suppliers/Products';
 import CustomerLocations from './pages/Customers/Locations';
 import CustomerProducts from './pages/Customers/Products';
@@ -341,6 +342,7 @@ const App: React.FC = () => {
                 <Route path="accounting/settlements" element={<SettlementQueue />} />
                 
                 {/* Other Pages */}
+                <Route path="trader-cockpit" element={<React.Suspense fallback={null}><TraderCockpitPage /></React.Suspense>} />
                 <Route path="cold-storage" element={<ColdStorage />} />
                 <Route path="carriers" element={<Carriers />} />
                 <Route path="freight-orders" element={<FreightOrders />} />
