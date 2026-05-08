@@ -9,7 +9,7 @@
  * - Theme-compliant styling with antd Table
  * - Multi-tenancy support
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
@@ -18,6 +18,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -241,7 +242,7 @@ const Plants: React.FC = () => {
       });
       setPlants(response.data.results || response.data);
     } catch (error) {
-      console.error('Error loading plants:', error);
+      logger.error('Error loading plants', { component: 'Plants', metadata: { error } });
       message.error('Failed to load plants');
     } finally {
       setLoading(false);
@@ -253,7 +254,7 @@ const Plants: React.FC = () => {
       const response = await apiClient.get('suppliers/');
       setSuppliers(response.data.results || response.data);
     } catch (error) {
-      console.error('Error loading suppliers:', error);
+      logger.error('Error loading suppliers', { component: 'Plants', metadata: { error } });
     }
   };
 
@@ -280,9 +281,18 @@ const Plants: React.FC = () => {
     setFilteredPlants(filtered);
   };
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     setShowModal(true);
-  };
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    setShowModal(false);
+  }, []);
+
+  const handleModalSuccess = useCallback(() => {
+    setShowModal(false);
+    void loadPlants(contextSupplierId);
+  }, [contextSupplierId]);
 
   const handleEdit = (plant: Plant) => {
     const nextSupplierId = contextSupplierId ?? plant.supplier ?? null;
@@ -312,7 +322,7 @@ const Plants: React.FC = () => {
       message.success('Plant deleted successfully');
       loadPlants(contextSupplierId);
     } catch (error: any) {
-      console.error('Error deleting plant:', error);
+      logger.error('Error deleting plant', { component: 'Plants', metadata: { error } });
       message.error('Failed to delete plant');
     }
   };
@@ -518,14 +528,9 @@ const Plants: React.FC = () => {
           entityType="plant"
           mode="create"
           isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-          }}
+          onClose={handleModalClose}
           initialValues={plantFormInitialValues}
-          onSuccess={() => {
-            setShowModal(false);
-            void loadPlants(contextSupplierId);
-          }}
+          onSuccess={handleModalSuccess}
         />
       )}
     </PageContainer>
