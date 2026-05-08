@@ -830,6 +830,25 @@ class InquiryViewSet(viewsets.ModelViewSet):
 
         return result
 
+    # ------------------------------------------------------------------
+    # Trade Dependency Check (Trader Cockpit)
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=['get'], url_path='dependency-check')
+    def dependency_check(self, request, pk=None):
+        """Check all required dependencies before a trade can proceed.
+
+        GET /api/v1/inquiries/{id}/dependency-check/
+
+        Returns a structured checklist with satisfied/missing status for
+        all required master-data entities (Customer, Supplier, Plant, etc.).
+        """
+        from .services.trade_dependency_checker import check_trade_dependencies
+
+        inquiry = self.get_object()
+        result = check_trade_dependencies(tenant=request.tenant, inquiry=inquiry)
+        return Response(result.to_dict())
+
 
 class InquiryProductViewSet(viewsets.ModelViewSet):
     """ViewSet for InquiryProduct CRUD operations."""
