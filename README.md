@@ -6,7 +6,7 @@
 
 **The simplest, most powerful end-to-end meat supply-chain platform on earth.**
 
-Email → Order → Fulfillment with 95%+ zero human touch. AI-powered, hands-free meat trading.
+Email → Order → Fulfillment with AI-powered automation. Hands-free meat trading at scale.
 
 ---
 
