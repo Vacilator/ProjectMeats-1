@@ -579,6 +579,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       if ((f.ui?.widget === 'tags' || f.ui?.widget === 'multi_select') && !Array.isArray(current)) {
         setValueAtPath(next, f.key, []);
       }
+      // Auto-inference: apply ui.default_value when field is empty
+      const uiAny = f.ui as Record<string, unknown> | undefined;
+      if (uiAny?.default_value && !current) {
+        setValueAtPath(next, f.key, uiAny.default_value);
+      }
     }
     return next as Record<string, any>;
   }, [stableInitialValues, stableFields]);
@@ -1123,6 +1128,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   const renderField = (field: FieldDefinition) => {
     if (!isFieldVisible(field)) return null;
+    // Skip fields marked as hidden by the backend (audit/auto-computed fields)
+    const fieldAny = field as unknown as Record<string, unknown>;
+    if (fieldAny.hidden === true) return null;
+    const surfaces = fieldAny.surfaces as Record<string, boolean> | undefined;
+    if (surfaces && surfaces.form === false) return null;
 
     const error = getValueAtPath(errors, field.key);
     const hasError = !!error;
