@@ -20,7 +20,22 @@ interface SyncClaim {
   claimId?: string;
 }
 
+const IS_DEV = process.env.NODE_ENV === 'development';
+const SYNC_LOG_CTX = { component: 'AIInboxSyncProvider' } as const;
 const SYNC_CLAIM_SETTLE_MS = 50;
+
+/** Custom event emitted so the widget can show sync status. */
+export const AI_INBOX_SYNC_STATUS_EVENT = 'pm.aiInbox.syncStatus';
+export type AIInboxSyncStatus = 'started' | 'completed' | 'failed' | 'skipped';
+
+const emitSyncStatus = (status: AIInboxSyncStatus, source: AIInboxSyncSource, detail?: string) => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent(AI_INBOX_SYNC_STATUS_EVENT, {
+      detail: { status, source, message: detail },
+    }),
+  );
+};
 
 const getTenantId = (): string | null => {
   if (typeof window === 'undefined') {
@@ -66,6 +81,13 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
   const requestSync = useCallback(async (source: AIInboxSyncSource) => {
     const tenantId = getTenantId();
     if (!user || !tenantId || syncInFlightRef.current) {
+      if (IS_DEV) {
+        logger.debug(
+          `Sync skipped: user=${!!user} tenant=${!!tenantId} inFlight=${syncInFlightRef.current}`,
+          SYNC_LOG_CTX,
+        );
+      }
+      emitSyncStatus('skipped', source, 'precondition not met');
       return;
     }
 
@@ -73,6 +95,8 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
     const now = Date.now();
     const previousClaim = parseSyncClaim(window.localStorage.getItem(coalesceKey));
     if (previousClaim && now - previousClaim.requestedAt < AI_INBOX_AUTO_SYNC_COALESCE_MS) {
+      if (IS_DEV) logger.debug('Sync coalesced (too recent)', SYNC_LOG_CTX);
+      emitSyncStatus('skipped', source, 'coalesced');
       return;
     }
 
@@ -88,20 +112,31 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
     await new Promise((resolve) => window.setTimeout(resolve, SYNC_CLAIM_SETTLE_MS));
     const settledClaim = parseSyncClaim(window.localStorage.getItem(coalesceKey));
     if (settledClaim?.claimId !== claimId) {
+      if (IS_DEV) logger.debug('Sync claim lost to another tab', SYNC_LOG_CTX);
       return;
     }
 
     syncInFlightRef.current = true;
+    if (IS_DEV) logger.info(`Email sync triggered (source=${source})`, SYNC_LOG_CTX);
+    emitSyncStatus('started', source);
 
     try {
       const result = await aiInboxSyncApi.trigger({ source });
       if (!result.accepted) {
+        if (IS_DEV) {
+          logger.debug(
+            `Sync not accepted: ${(result as unknown as Record<string, unknown>).code ?? 'unknown'}`,
+            SYNC_LOG_CTX,
+          );
+        }
+        emitSyncStatus('skipped', source, 'not accepted by backend');
         return;
       }
 
       const taskId = typeof result.task_id === 'string' ? result.task_id : null;
       if (!taskId) {
         emitAIInboxRefreshEvent(source);
+        emitSyncStatus('completed', source);
         return;
       }
 
@@ -111,20 +146,17 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
         const status = await aiInboxSyncApi.getStatus(taskId);
         if (status.ready) {
           emitAIInboxRefreshEvent(source);
+          emitSyncStatus('completed', source);
+          if (IS_DEV) logger.info('Email sync completed', SYNC_LOG_CTX);
           return;
         }
       }
 
       emitAIInboxRefreshEvent(source);
+      emitSyncStatus('completed', source, 'deadline reached');
     } catch (error) {
-      logger.warn(
-        'AI inbox auto-sync request failed',
-        {
-          component: 'AIInboxSyncProvider',
-          metadata: { source },
-        },
-        error,
-      );
+      logger.warn('AI inbox auto-sync request failed', SYNC_LOG_CTX);
+      emitSyncStatus('failed', source);
     } finally {
       syncInFlightRef.current = false;
     }
@@ -138,6 +170,7 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
 
     const tenantId = getTenantId();
     if (!tenantId) {
+      if (IS_DEV) logger.debug('Login sync skipped — no tenantId yet', SYNC_LOG_CTX);
       return;
     }
 
@@ -147,6 +180,7 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
     }
 
     lastLoginSyncRef.current = syncKey;
+    if (IS_DEV) logger.info(`Login detected — triggering email sync for tenant ${tenantId}`, SYNC_LOG_CTX);
     void requestSync('login');
   }, [loading, requestSync, user]);
 
