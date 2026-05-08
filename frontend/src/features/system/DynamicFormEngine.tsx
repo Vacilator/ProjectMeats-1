@@ -122,6 +122,13 @@ interface DynamicFormEngineProps {
    * Parent should open an inline creation modal and call back with the new ID.
    */
   onCreateEntity?: (fieldKey: string, entityType: string) => void;
+
+  /**
+   * Contextual visibility rules for dynamic field show/hide based on trade context.
+   * Keys are field keys; values indicate visibility (true = visible, false = hidden).
+   * Applied AFTER schema-level visible_when rules. Additive-only integration.
+   */
+  contextVisibility?: Record<string, boolean>;
 }
 
 export interface DynamicFormConfig {
@@ -546,6 +553,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   dropdownOptions = {},
   formConfig: preloadedFormConfig,
   onCreateEntity,
+  contextVisibility,
 }) => {
   const stableInitialValues = useDeepStableValue(initialValues || EMPTY_INITIAL_VALUES);
   // Stabilize schema.fields identity when parents rebuild arrays on each render.
@@ -1066,6 +1074,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   const seenSections = new Set<string>();
 
   const isFieldVisible = React.useCallback((field: FieldDefinition): boolean => {
+    // Contextual visibility override (from SmartTradeCreator / contextualFormRules)
+    if (contextVisibility && field.key in contextVisibility) {
+      if (!contextVisibility[field.key]) return false;
+    }
+
     const rule = field.ui?.visible_when;
     if (!rule?.field) return true;
 
@@ -1085,7 +1098,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
 
     return Boolean(raw);
-  }, [dependencyValues]);
+  }, [dependencyValues, contextVisibility]);
 
   // When a field becomes hidden, clear its value to avoid submitting stale data.
   // This is critical for conditional fields like Plant.export_documents_handled.
