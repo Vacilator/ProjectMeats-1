@@ -63,6 +63,11 @@ class ActionExecutor:
             'upload_document': self.upload_document,
             'store_document': self.store_document,
             'send_notification': self.send_notification,
+            'generate_sales_order': self._e2e_generate_sales_order,
+            'bid_selection': self._e2e_bid_selection,
+            'check_bids': self._e2e_check_bids,
+            'create_purchase_order': self._e2e_create_purchase_order,
+            'resolve_contacts': self._e2e_resolve_contacts,
         }
         
         handler = handlers.get(action_type)
@@ -628,3 +633,30 @@ class ActionExecutor:
         except LookupError:
             logger.error(f"Model not found: {app_label}.{model_name}")
             return None
+
+    # ─── E2E Process Executor Delegation ────────────────────────────────
+
+    def _get_e2e_executors(self):
+        from tenant_apps.workflows.services.e2e_executors import E2EProcessExecutors
+        return E2EProcessExecutors(self.tenant, self.context)
+
+    def _e2e_generate_sales_order(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._get_e2e_executors().generate_sales_order(config)
+        return {'success': result.success, 'error': result.error, **result.data}
+
+    def _e2e_bid_selection(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._get_e2e_executors().bid_selection(config)
+        return {'success': result.success, 'error': result.error, **result.data}
+
+    def _e2e_check_bids(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._get_e2e_executors().check_bids(config)
+        return {'success': result.success, 'error': result.error, **result.data}
+
+    def _e2e_create_purchase_order(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._get_e2e_executors().create_purchase_order(config)
+        return {'success': result.success, 'error': result.error, **result.data}
+
+    def _e2e_resolve_contacts(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._get_e2e_executors().resolve_contacts(config)
+        return {'success': result.success, 'error': result.error, **result.data}
+

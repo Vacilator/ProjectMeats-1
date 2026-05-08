@@ -77,6 +77,15 @@ app.conf.beat_schedule = {
             'routing_key': 'pm.ops',
         },
     },
+    'ai-inbox-sync-every-15-minutes': {
+        'task': 'ai_assistant.run_ai_inbox_watchdog',
+        'schedule': 900.0,  # 15 minutes
+        'options': {
+            'expires': 840.0,
+            'queue': 'pm.ai',
+            'routing_key': 'pm.ai',
+        },
+    },
 }
 
 # Set timezone for scheduled tasks

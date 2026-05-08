@@ -7,10 +7,12 @@
  * Features:
  * - Horizontal and vertical layout options
  * - Automatic spacing based on node dimensions
- * - Handles parent-child relationships
+ * - Handles parent-child relationships with nested group layout
  * - Respects edge directions for flow
+ * - Optimized for deeply nested E2E templates (20+ nodes)
  * 
  * Created: 2026-02-21 - Phase 2: UI/UX Enhancements
+ * Enhanced: 2026-05-08 - PI-05: Nested group layout optimization
  */
 
 import dagre from 'dagre';
@@ -22,6 +24,8 @@ export interface LayoutOptions {
   rankSpacing?: number;
   edgeSpacing?: number;
   align?: 'UL' | 'UR' | 'DL' | 'DR';
+  layoutNestedGroups?: boolean;
+  groupPadding?: number;
 }
 
 const DEFAULT_OPTIONS: Required<LayoutOptions> = {
@@ -30,6 +34,8 @@ const DEFAULT_OPTIONS: Required<LayoutOptions> = {
   rankSpacing: 100,
   edgeSpacing: 20,
   align: 'UL',
+  layoutNestedGroups: true,
+  groupPadding: 40,
 };
 
 /**
@@ -81,7 +87,7 @@ export const getLayoutedElements = (
   dagre.layout(dagreGraph);
 
   // Apply positions back to top-level nodes, keep child nodes unchanged
-  const layoutedNodes = nodes.map((node) => {
+  let layoutedNodes = nodes.map((node) => {
     if (node.parentId) return node; // Skip child nodes
 
     const nodeWithPosition = dagreGraph.node(node.id);
@@ -102,11 +108,107 @@ export const getLayoutedElements = (
     };
   });
 
+  // Layout nested groups if enabled
+  if (opts.layoutNestedGroups) {
+    layoutedNodes = layoutNestedChildren(layoutedNodes, edges, opts);
+  }
+
   return {
     nodes: layoutedNodes,
     edges, // Return all edges original array
   };
 };
+
+/**
+ * Layout children within their parent group nodes.
+ * Uses a simplified vertical stack layout within each group container.
+ */
+function layoutNestedChildren(
+  nodes: Node[],
+  edges: Edge[],
+  opts: Required<LayoutOptions>
+): Node[] {
+  // Find all group/container parent IDs
+  const parentIds = new Set(
+    nodes.filter((n) => n.parentId).map((n) => n.parentId!)
+  );
+
+  if (parentIds.size === 0) return nodes;
+
+  const result = [...nodes];
+
+  for (const parentId of parentIds) {
+    const children = result.filter((n) => n.parentId === parentId);
+    if (children.length === 0) continue;
+
+    // Find edges between children of this parent
+    const childIds = new Set(children.map((n) => n.id));
+    const childEdges = edges.filter(
+      (e) => childIds.has(e.source) && childIds.has(e.target)
+    );
+
+    // If there are edges, use dagre for child layout; otherwise stack vertically
+    if (childEdges.length > 0 && children.length > 2) {
+      const childGraph = new dagre.graphlib.Graph();
+      childGraph.setGraph({
+        rankdir: opts.direction,
+        nodesep: opts.nodeSpacing * 0.6,
+        ranksep: opts.rankSpacing * 0.7,
+        marginx: opts.groupPadding,
+        marginy: opts.groupPadding,
+      });
+      childGraph.setDefaultEdgeLabel(() => ({}));
+
+      children.forEach((node) => {
+        const width = node.measured?.width ?? node.width ?? 250;
+        const height = node.measured?.height ?? node.height ?? 80;
+        childGraph.setNode(node.id, { width: Number(width), height: Number(height) });
+      });
+
+      childEdges.forEach((edge) => {
+        childGraph.setEdge(edge.source, edge.target);
+      });
+
+      dagre.layout(childGraph);
+
+      // Apply child positions relative to parent
+      for (const child of children) {
+        const pos = childGraph.node(child.id);
+        if (!pos) continue;
+        const width = child.measured?.width ?? child.width ?? 250;
+        const height = child.measured?.height ?? child.height ?? 80;
+        const idx = result.findIndex((n) => n.id === child.id);
+        if (idx >= 0) {
+          result[idx] = {
+            ...result[idx],
+            position: {
+              x: pos.x - Number(width) / 2,
+              y: pos.y - Number(height) / 2,
+            },
+          };
+        }
+      }
+    } else {
+      // Simple vertical stack for small groups
+      let yOffset = opts.groupPadding + 40; // Account for group header
+      const xOffset = opts.groupPadding;
+
+      for (const child of children) {
+        const idx = result.findIndex((n) => n.id === child.id);
+        if (idx >= 0) {
+          result[idx] = {
+            ...result[idx],
+            position: { x: xOffset, y: yOffset },
+          };
+          const height = child.measured?.height ?? child.height ?? 80;
+          yOffset += Number(height) + opts.nodeSpacing * 0.5;
+        }
+      }
+    }
+  }
+
+  return result;
+}
 
 /**
  * Layout only selected nodes while keeping others in place
