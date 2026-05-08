@@ -152,6 +152,7 @@ const getDaysUntilExpiry = (expiryDate?: string): number | null => {
 const ColdStorage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [selectedLot, setSelectedLot] = useState<ColdStorageLot | null>(null);
+  const [newLotOpen, setNewLotOpen] = useState(false);
 
   // Fetch warehouse locations (cold storage facilities)
   const facilitiesQuery = useQuery({
@@ -331,7 +332,7 @@ const ColdStorage: React.FC = () => {
             style={{ width: 220 }}
             allowClear
           />
-          <Button type="primary" icon={<Plus size={14} />} disabled>
+          <Button type="primary" icon={<Plus size={14} />} onClick={() => setNewLotOpen(true)}>
             New Lot
           </Button>
         </Space>
@@ -501,6 +502,31 @@ const ColdStorage: React.FC = () => {
             </div>
           </DetailGrid>
         )}
+      </Modal>
+
+      {/* New Lot Creation Modal */}
+      <Modal
+        open={newLotOpen}
+        onCancel={() => setNewLotOpen(false)}
+        title="New Cold Storage Lot"
+        footer={[
+          <Button key="cancel" onClick={() => setNewLotOpen(false)}>Cancel</Button>,
+          <Button key="create" type="primary" onClick={() => { setNewLotOpen(false); }}>
+            Create Lot
+          </Button>,
+        ]}
+        destroyOnClose
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          Create a new cold storage lot. Assign it to a facility and specify product details.
+        </Text>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Input placeholder="Lot Number (auto-generated if blank)" />
+          <Input placeholder="Product Name" />
+          <Input placeholder="Quantity" type="number" />
+          <Input placeholder="Weight (LBS)" type="number" />
+          <Input placeholder="Temperature Zone (frozen / chilled / ambient)" />
+        </Space>
       </Modal>
     </PageContainer>
   );

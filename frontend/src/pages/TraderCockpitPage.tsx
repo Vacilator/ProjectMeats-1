@@ -44,6 +44,7 @@ import {
 
 import { TradePipelineTracker } from '../components/Trader/TradePipelineTracker';
 import { SmartTradeCreator } from '../components/Trader/SmartTradeCreator';
+import { AITradeProposals } from '../components/Trader/AITradeProposals';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -353,6 +354,13 @@ const TraderCockpitPage: React.FC = () => {
           </StatLabel>
         </StatCard>
       </StatsRow>
+
+      {/* AI Trade Proposals */}
+      <AITradeProposals
+        onProposalExecuted={() => {
+          queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
+        }}
+      />
 
       {/* Active Trades Table */}
       <Card size="small" title="Active Trades">

@@ -9,6 +9,7 @@ import Omnibox from '../AIAssistant/Omnibox';
 import { CommandPalette } from '../Navigation/CommandPalette';
 import { AIAgentWidget } from '../AIAssistant/AIAgentWidget';
 import { ConnectivityBanner } from '../common/ConnectivityBanner';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { ConnectivityProvider } from '../../contexts/ConnectivityContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -66,7 +67,9 @@ const Layout: React.FC = () => {
           onSubmit={handleOmniboxSubmit}
         />
         <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
-        <AIAgentWidget />
+        <ErrorBoundary fallback={<div />}>
+          <AIAgentWidget />
+        </ErrorBoundary>
       </LayoutContainer>
     </ConnectivityProvider>
   );

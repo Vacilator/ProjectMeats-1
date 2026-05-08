@@ -42,7 +42,7 @@ import {
   getChatUploadFileKind,
 } from '@/components/ChatInterface/fileUploadConfig';
 import { groupChatSessionsByDate } from '@/components/ChatInterface/sessionHistory';
-import { aiStaffApi, chatApi, chatSessionsApi, hydrateDocumentMessageMetadata } from '@/services/aiService';
+import { aiStaffApi, chatApi, chatSessionsApi, hydrateDocumentMessageMetadata, AI_INBOX_REFRESH_EVENT } from '@/services/aiService';
 import { useStickyAutoScroll } from '@/hooks/useStickyAutoScroll';
 import { logger } from '@/utils/logger';
 import { AI_INBOX_SYNC_STATUS_EVENT, type AIInboxSyncStatus } from '@/contexts/AIInboxSyncContext';
@@ -797,6 +797,23 @@ export const AIAgentWidget: React.FC = () => {
 
     window.addEventListener(AI_INBOX_SYNC_STATUS_EVENT, handler);
     return () => window.removeEventListener(AI_INBOX_SYNC_STATUS_EVENT, handler);
+  }, []);
+
+  // Listen for inbox refresh events (fired after email sync completes) to request updated counts.
+  useEffect(() => {
+    const handler = () => {
+      const socket = inboxSocketRef.current;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        try {
+          socket.send(JSON.stringify({ type: 'request_count' }));
+        } catch {
+          // Socket send failed; count will update on next WS message
+        }
+      }
+    };
+
+    window.addEventListener(AI_INBOX_REFRESH_EVENT, handler);
+    return () => window.removeEventListener(AI_INBOX_REFRESH_EVENT, handler);
   }, []);
 
   useEffect(() => {
