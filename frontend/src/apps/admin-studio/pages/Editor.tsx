@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import SchemaEditor from '../components/SchemaEditorSimple';
 import { adminClient } from '@/services/apiService';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
-// Use UnifiedFlowEditor instead of WorkflowCanvas
-import { UnifiedFlowEditor } from '../../../components/FlowEditor';
+const UnifiedFlowEditor = lazy(() => import('../../../components/FlowEditor/UnifiedFlowEditor').then(m => ({ default: m.UnifiedFlowEditor })));
 import { VersionHistory } from '../components/VersionHistory';
 
 import { useParams } from 'react-router-dom';
@@ -257,14 +256,16 @@ const Editor: React.FC<EditorProps> = () => {
           <SchemaEditor blueprintId={blueprintId} csrfToken={csrfToken || ''} />
         )}
         {activeTab === 'canvas' && (
-          <UnifiedFlowEditor
-            readOnly={false}
-            editorMode="visual"
-            onSave={(nodes, edges) => {
-              logger.debug('Workflow saved:', { nodes, edges });
-              // TODO: Integrate with backend persistence
-            }}
-          />
+          <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>Loading editor…</div>}>
+            <UnifiedFlowEditor
+              readOnly={false}
+              editorMode="visual"
+              onSave={(nodes, edges) => {
+                logger.debug('Workflow saved:', { nodes, edges });
+                // TODO: Integrate with backend persistence
+              }}
+            />
+          </Suspense>
         )}
         {activeTab === 'history' && blueprintId && (
           <VersionHistory

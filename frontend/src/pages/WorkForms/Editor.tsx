@@ -6,7 +6,7 @@
  * endpoint is deprecated and must not be used.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
@@ -16,7 +16,7 @@ import { Wand2, Eye, Code2, Lock } from 'lucide-react';
 import { logger } from '@/utils/logger';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { toApiErrorText } from '@/services/apiErrorPresentation';
-import { UnifiedFlowEditor } from '../../components/FlowEditor';
+const UnifiedFlowEditor = lazy(() => import('../../components/FlowEditor/UnifiedFlowEditor').then(m => ({ default: m.UnifiedFlowEditor })));
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import {
   useWorkFormPermissions,
@@ -589,19 +589,21 @@ export const WorkFormsEditor: React.FC = () => {
 
       <EditorWrapper>
         {isInitialized && !permissionsLoading && (
-          <UnifiedFlowEditor
-            initialNodes={initialNodes}
-            initialEdges={initialEdges}
-            initialViewport={initialViewport}
-            initialWorkflowId={initialWorkflowId}
-            initialWorkflowName={flowName}
-            initialWorkflowStatus={status}
-            onWorkflowSaved={handleWorkflowSaved}
-            onChange={() => setHasUnsavedChanges(true)}
-            editorMode={editorMode}
-            readOnly={readOnly}
-            allowedNodeCategories={permissions.allowed_node_categories}
-          />
+          <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', color: 'rgb(var(--color-text-secondary))' }}>Loading editor…</div>}>
+            <UnifiedFlowEditor
+              initialNodes={initialNodes}
+              initialEdges={initialEdges}
+              initialViewport={initialViewport}
+              initialWorkflowId={initialWorkflowId}
+              initialWorkflowName={flowName}
+              initialWorkflowStatus={status}
+              onWorkflowSaved={handleWorkflowSaved}
+              onChange={() => setHasUnsavedChanges(true)}
+              editorMode={editorMode}
+              readOnly={readOnly}
+              allowedNodeCategories={permissions.allowed_node_categories}
+            />
+          </Suspense>
         )}
         {permissionsLoading && (
           <div
