@@ -100,6 +100,18 @@ export const resolveDraftEntityType = (item: PendingReviewItem | null): string =
   if (['inquiry', 'quote'].includes(documentType)) {
     return 'inquiry';
   }
+  if (['invoice'].includes(documentType)) {
+    return 'invoice';
+  }
+  if (['new_customer', 'customer'].includes(documentType)) {
+    return 'customer';
+  }
+  if (['contact'].includes(documentType)) {
+    return 'contact';
+  }
+  if (['supplier'].includes(documentType)) {
+    return 'supplier';
+  }
   return '';
 };
 

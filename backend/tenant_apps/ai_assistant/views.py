@@ -2043,6 +2043,66 @@ class PendingReviewResolveAPIView(APIView):
         )
 
 
+class BatchResolveAPIView(APIView):
+    """Resolve multiple HITL items in a single request.
+
+    Used by the unified modal "Approve All" action to resolve the main
+    review item plus all related entity drafts at once.
+    """
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = 'ai_feedback'
+
+    def post(self, request):
+        tenant = getattr(request, 'tenant', None)
+        if not can_access_ai_review_queue(user=request.user, tenant=tenant):
+            return Response(
+                {'error': 'You do not have access to this AI review queue'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        feedback_ids = request.data.get('feedback_ids') or []
+        if not isinstance(feedback_ids, list) or not feedback_ids:
+            return Response(
+                {'error': 'feedback_ids must be a non-empty list'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cap batch size
+        feedback_ids = feedback_ids[:50]
+        resolved = []
+        errors = []
+
+        for fid in feedback_ids:
+            try:
+                row = AIFeedbackLog.objects.get(id=fid, tenant_id=tenant_id)
+                if row.resolved_by_id:
+                    resolved.append({'id': str(row.id), 'status': 'already_resolved'})
+                    continue
+
+                row.resolved_by = request.user
+                row.save(update_fields=['resolved_by', 'modified_on', 'precision_delta'])
+                resolved.append({'id': str(row.id), 'status': 'resolved'})
+            except AIFeedbackLog.DoesNotExist:
+                errors.append({'id': str(fid), 'error': 'not_found'})
+            except Exception as exc:
+                errors.append({'id': str(fid), 'error': str(exc)[:200]})
+
+        return Response(
+            {
+                'resolved': resolved,
+                'errors': errors,
+                'total_resolved': len(resolved),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 # ---------------------------------------------------------------------------
 # RT-02.4: Cockpit Draft Form ViewSet
 # ---------------------------------------------------------------------------

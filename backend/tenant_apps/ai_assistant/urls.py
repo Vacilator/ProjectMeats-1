@@ -18,6 +18,7 @@ from .views import (
     AILearningMetricsAPIView,
     AIRunViewSet,
     AITaskViewSet,
+    BatchResolveAPIView,
     ChatBotAPIViewSet,
     ChatMessageViewSet,
     ChatSessionViewSet,
@@ -65,6 +66,7 @@ urlpatterns = [
 
     # Supporting endpoints
     path('review/<uuid:feedback_id>/resolve/', PendingReviewResolveAPIView.as_view(), name='ai-review-resolve'),
+    path('review/batch-resolve/', BatchResolveAPIView.as_view(), name='ai-review-batch-resolve'),
     path('swarm/invoke/', SwarmInvokeAPIView.as_view(), name='ai-swarm-invoke'),
 
 ]
