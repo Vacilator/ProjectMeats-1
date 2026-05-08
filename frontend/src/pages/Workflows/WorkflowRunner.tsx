@@ -187,7 +187,7 @@ export const WorkflowRunner: React.FC = () => {
   };
 
   const handleBackToDashboard = () => {
-    navigate('/dashboard');
+    navigate('/cockpit/dashboard');
   };
 
   if (isLoading) {

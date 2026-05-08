@@ -4,6 +4,8 @@ export { TradePipelineTracker } from './TradePipelineTracker';
 export type { TradePipelineTrackerProps } from './TradePipelineTracker';
 export { SmartTradeCreator } from './SmartTradeCreator';
 export type { SmartTradeCreatorProps } from './SmartTradeCreator';
+export { AITradeProposals } from './AITradeProposals';
+export type { AITradeProposalsProps } from './AITradeProposals';
 export {
   computeContextualFormRules,
   buildFormContext,

@@ -53,8 +53,8 @@ const FloatingAssistButton: React.FC = () => {
   };
 
   const menuItems = [
-    { label: 'Support: Questions (FAQ)', path: '/faq', icon: '❓' },
-    { label: 'Support: Create Ticket', path: '/support/ticket', icon: '🎫' },
+    { label: 'Support: Questions (FAQ)', path: '/cockpit/dashboard', icon: '❓' },
+    { label: 'Support: Create Ticket', path: '/cockpit/dashboard', icon: '🎫' },
     { label: 'Profile', path: '/profile', icon: '👤' },
   ];
 

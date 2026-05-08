@@ -115,6 +115,23 @@ export interface SmartInitiateResponse extends TradeInitiateResponse {
   context_suggestions: ContextSuggestion[];
 }
 
+export interface TradeProposal {
+  id: string;
+  title: string;
+  confidence: number;
+  source: 'email' | 'history' | 'pattern' | 'market';
+  route: 'FULFILL' | 'BROKER';
+  customer_name: string | null;
+  supplier_name: string | null;
+  type_of_protein: string | null;
+  weight: string | null;
+  delivery_context: 'customer_pickup' | 'supplier_delivery' | null;
+  suggested_fields: ContextSuggestion[];
+  created_at: string;
+  expires_at: string | null;
+  status: 'pending' | 'executed' | 'dismissed' | 'expired';
+}
+
 // ============================================================================
 // API Methods
 // ============================================================================
@@ -156,5 +173,25 @@ export const traderService = {
   async checkDependencies(inquiryId: string): Promise<DependencyCheckResult> {
     const response = await businessApi.get(`/inquiries/${inquiryId}/dependency-check/`);
     return response.data as DependencyCheckResult;
+  },
+
+  /** Fetch AI-generated trade proposals for the current tenant */
+  async getProposals(): Promise<TradeProposal[]> {
+    const response = await businessApi.get('/trades/proposals/');
+    const payload = response.data;
+    if (Array.isArray(payload)) return payload as TradeProposal[];
+    const results = (payload as { results?: TradeProposal[] } | null)?.results;
+    return Array.isArray(results) ? results : [];
+  },
+
+  /** Execute (approve) an AI trade proposal */
+  async executeProposal(proposalId: string): Promise<TradeInitiateResponse> {
+    const response = await businessApi.post(`/trades/${proposalId}/execute-proposal/`);
+    return response.data as TradeInitiateResponse;
+  },
+
+  /** Submit feedback on a proposal */
+  async submitProposalFeedback(proposalId: string, signal: 'thumbs_up' | 'thumbs_down', comment?: string): Promise<void> {
+    await businessApi.post(`/trades/${proposalId}/proposal-feedback/`, { signal, comment });
   },
 };

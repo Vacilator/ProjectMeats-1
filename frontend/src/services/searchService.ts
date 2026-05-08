@@ -76,7 +76,7 @@ const SEARCH_TYPE_ROUTES: Record<string, string> = {
   customer: '/customers',
   invoice: '/accounting/invoices',
   plant: '/plants',
-  product: '/products',
+  product: '/suppliers',
   purchase_order: '/purchase-orders',
   sales_order: '/sales-orders',
   supplier: '/suppliers',

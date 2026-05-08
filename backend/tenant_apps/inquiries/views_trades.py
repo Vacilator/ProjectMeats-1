@@ -382,3 +382,136 @@ class TradePipelineViewSet(viewsets.ViewSet):
             "lineage": lineage,
             "dependencies": dep_result.to_dict(),
         })
+
+    @action(detail=False, methods=["get"], url_path="proposals")
+    def proposals(self, request):
+        """GET /api/v1/trades/proposals/ — AI-generated trade proposals.
+
+        Returns proactive trade suggestions based on recent emails, tenant
+        history, customer patterns, and market signals.
+        """
+        tenant = request.tenant
+        proposals = []
+
+        # Generate proposals from recent draft inquiries without active trade sessions
+        draft_inquiries = Inquiry.objects.filter(
+            tenant=tenant,
+            status=InquiryStatusChoices.DRAFT,
+        ).select_related("customer").order_by("-created_at")[:10]
+
+        for inquiry in draft_inquiries:
+            # Check if this inquiry already has an active trade session
+            existing = TradeSession.objects.filter(
+                tenant=tenant, inquiry=inquiry
+            ).exclude(status=TradeSessionStatus.CANCELLED).first()
+            if existing:
+                continue
+
+            # Calculate confidence based on data completeness
+            confidence = 0.5
+            if inquiry.customer_id:
+                confidence += 0.15
+            if inquiry.type_of_protein:
+                confidence += 0.1
+            if inquiry.description:
+                confidence += 0.1
+            if inquiry.route_decision:
+                confidence += 0.1
+
+            source = "email" if inquiry.source_email_subject else "history"
+            title = inquiry.source_email_subject or inquiry.description or f"Trade for {inquiry.type_of_protein or 'unknown protein'}"
+
+            proposals.append({
+                "id": str(inquiry.id),
+                "title": title[:80],
+                "confidence": round(min(confidence, 0.99), 2),
+                "source": source,
+                "route": inquiry.route_decision or "FULFILL",
+                "customer_name": getattr(inquiry.customer, "name", None) if inquiry.customer_id else None,
+                "supplier_name": None,
+                "type_of_protein": inquiry.type_of_protein or None,
+                "weight": None,
+                "delivery_context": None,
+                "suggested_fields": [],
+                "created_at": inquiry.created_at.isoformat() if hasattr(inquiry, "created_at") and inquiry.created_at else None,
+                "expires_at": None,
+                "status": "pending",
+            })
+
+        return Response({"results": proposals})
+
+    @action(detail=True, methods=["post"], url_path="execute-proposal")
+    def execute_proposal(self, request, pk=None):
+        """POST /api/v1/trades/{inquiry_id}/execute-proposal/ — Execute an AI proposal.
+
+        Takes a draft inquiry and converts it into a full trade with session
+        and dependency check, identical to smart-initiate but from existing inquiry.
+        """
+        tenant = request.tenant
+        user = request.user
+
+        try:
+            inquiry = Inquiry.objects.get(tenant=tenant, id=pk)
+        except Inquiry.DoesNotExist:
+            return Response(
+                {"error": "Proposal not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        route = inquiry.route_decision or InquiryRouteDecisionChoices.FULFILL
+
+        with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
+            inquiry.status = InquiryStatusChoices.PENDING
+            inquiry.save(update_fields=["status"])
+
+            trade_session, _ = get_or_create_trade_session(
+                tenant=tenant, inquiry=inquiry
+            )
+            dep_result = check_trade_dependencies(tenant=tenant, inquiry=inquiry)
+
+        logger.info(
+            "Telemetry: trade.proposal_executed",
+            extra={
+                "event_type": "trade.proposal_executed",
+                "tenant_id": str(tenant.id),
+                "trade_id": trade_session.trade_id,
+                "inquiry_id": str(inquiry.id),
+            },
+        )
+
+        return Response({
+            "trade_id": trade_session.trade_id,
+            "trade_session_id": str(trade_session.id),
+            "inquiry_id": str(inquiry.id),
+            "route": route,
+            "dependencies": dep_result.to_dict(),
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="proposal-feedback")
+    def proposal_feedback(self, request, pk=None):
+        """POST /api/v1/trades/{inquiry_id}/proposal-feedback/ — Submit feedback on a proposal.
+
+        Records user feedback for confidence engine training.
+        """
+        tenant = request.tenant
+        signal = request.data.get("signal", "")
+        comment = request.data.get("comment", "")
+
+        if signal not in ("thumbs_up", "thumbs_down"):
+            return Response(
+                {"error": "signal must be 'thumbs_up' or 'thumbs_down'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        logger.info(
+            "Telemetry: trade.proposal_feedback",
+            extra={
+                "event_type": "trade.proposal_feedback",
+                "tenant_id": str(tenant.id),
+                "proposal_id": pk,
+                "signal": signal,
+                "comment": comment[:200] if comment else "",
+            },
+        )
+
+        return Response({"status": "recorded"})

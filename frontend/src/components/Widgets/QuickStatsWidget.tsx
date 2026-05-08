@@ -131,7 +131,7 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       value: `$${stats.quick_stats.total_revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       icon: <DollarSign size={16} />,
       color: 'rgb(var(--color-success))',
-      href: '/dashboard',
+      href: '/cockpit/dashboard',
     },
     {
       id: 'total_customers',

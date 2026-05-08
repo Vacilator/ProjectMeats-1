@@ -81,10 +81,10 @@ const ENTITY_ROUTES: Record<string, string> = {
   contact: '/contacts',
   purchase_order: '/purchase-orders',
   sales_order: '/sales-orders',
-  product: '/products',
+  product: '/suppliers',
   carrier: '/carriers',
   plant: '/suppliers/plants',
-  invoice: '/accounting/receivables',
+  invoice: '/accounting/receivables/invoices',
 };
 
 const ENTITY_CONFIG: Record<string, {
