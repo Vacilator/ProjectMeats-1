@@ -1,30 +1,32 @@
 /**
- * Trader Cockpit Page
+ * Trader Cockpit Page — Unified Command Center
  *
- * The single entry point for initiating and monitoring end-to-end meat trades.
- * Combines: New Trade wizard, active trades grid, pipeline visualization,
- * and dependency resolution.
+ * The single, beautiful hub for all meat trading operations.
+ * Radical simplicity: one-click actions, progressive disclosure,
+ * AI-driven suggestions, and minimal cognitive load.
  *
- * Features:
- * - "New Trade" button → route selection → dependency wizard → auto-pipeline
- * - Active trades table with pipeline status indicators
- * - Trade detail modal with TradeLineageFlow and dependency status
- * - Quick actions (Advance, View, Intervene)
+ * Sections (tab-based):
+ * - Command Center: AI Proposals + Quick Actions + KPIs
+ * - Live Pipeline: Active trades with real-time status
+ * - History: Completed trades and analytics
  *
  * Theme Compliance: CSS custom properties only.
  * Service Layer: Uses traderService for all API calls.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import {
+  Badge,
   Button,
   Card,
   Input,
   Modal,
+  Segmented,
   Skeleton,
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd';
@@ -40,6 +42,9 @@ import {
   AlertTriangle,
   ArrowRight,
   Zap,
+  Sparkles,
+  LayoutDashboard,
+  Clock,
 } from 'lucide-react';
 
 import { TradePipelineTracker } from '../components/Trader/TradePipelineTracker';
@@ -59,75 +64,171 @@ import { withTenantQueryKey } from '../utils/queryKeys';
 const { Text, Title } = Typography;
 
 // ============================================================================
-// Styled Components
+// Animations
+// ============================================================================
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+const pulseGlow = keyframes`
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
+`;
+
+// ============================================================================
+// Styled Components — Minimalist Design System
 // ============================================================================
 
 const PageContainer = styled.div`
-  padding: 1rem;
-  max-width: 1600px;
+  padding: 1.5rem 2rem;
+  max-width: 1400px;
   margin: 0 auto;
+  animation: ${fadeIn} 0.3s ease-out;
 `;
 
 const PageHeader = styled.div`
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+`;
+
+const HeaderLeft = styled.div`
+  flex: 1;
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+`;
+
+const Subtitle = styled(Text)`
+  font-size: 0.82rem;
+  color: rgb(var(--color-text-tertiary, 107 114 128));
+  display: block;
+  margin-top: 2px;
 `;
 
 const StatsRow = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 `;
 
-const StatCard = styled(Card)`
-  .ant-card-body {
-    padding: 0.75rem 1rem;
+const StatCard = styled.div<{ $accent?: string }>`
+  background: rgb(var(--color-bg-primary, 255 255 255));
+  border: 1px solid rgb(var(--color-border, 229 231 235));
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgb(var(--color-primary, 99 102 241) / 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
   }
 `;
 
 const StatValue = styled.div`
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 800;
   color: rgb(var(--color-text-primary, 17 24 39));
+  line-height: 1.2;
 `;
 
 const StatLabel = styled.div`
   font-size: 0.72rem;
+  font-weight: 500;
   color: rgb(var(--color-text-tertiary, 107 114 128));
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+`;
+
+const TabContainer = styled.div`
+  margin-bottom: 1.25rem;
+`;
+
+const SectionCard = styled(Card)`
+  border-radius: 12px;
+  overflow: hidden;
+  animation: ${fadeIn} 0.25s ease-out;
+
+  .ant-card-head {
+    border-bottom: 1px solid rgb(var(--color-border, 229 231 235) / 0.6);
+    padding: 0.75rem 1.25rem;
+    min-height: auto;
+  }
+
+  .ant-card-body {
+    padding: 1rem 1.25rem;
+  }
 `;
 
 const WizardModal = styled(Modal)`
+  .ant-modal-content {
+    border-radius: 16px;
+    overflow: hidden;
+  }
   .ant-modal-body {
-    padding: 24px;
+    padding: 1.5rem;
   }
 `;
 
 const DetailModalContent = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1rem;
+`;
+
+const QuickActionsRow = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+`;
+
+const QuickActionButton = styled(Button)`
+  border-radius: 10px;
+  height: 44px;
+  font-weight: 500;
+  padding: 0 1.25rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &.ant-btn-primary {
+    animation: ${pulseGlow} 3s ease-in-out infinite;
+  }
 `;
 
 // ============================================================================
-// Step Labels for Display
+// Constants
 // ============================================================================
 
 const STEP_LABELS: Record<string, string> = {
   supplier_rfq: 'Supplier RFQ',
-  supplier_reply_parse: 'Awaiting Supplier Reply',
-  draft_supplier_po: 'Draft Supplier PO',
-  approve_supplier_po: 'Approve Supplier PO',
-  draft_sales_order: 'Draft Sales Order',
-  approve_sales_order: 'Approve Sales Order',
+  supplier_reply_parse: 'Awaiting Reply',
+  draft_supplier_po: 'Draft PO',
+  approve_supplier_po: 'Approve PO',
+  draft_sales_order: 'Draft SO',
+  approve_sales_order: 'Approve SO',
   carrier_fan_out: 'Carrier Fan-Out',
-  carrier_reply_parse: 'Awaiting Carrier Reply',
+  carrier_reply_parse: 'Awaiting Carrier',
   draft_carrier_po: 'Draft Carrier PO',
   completed: 'Completed',
 };
@@ -143,6 +244,8 @@ const STATUS_COLORS: Record<string, string> = {
   halted: 'red',
 };
 
+type CockpitTab = 'command' | 'pipeline' | 'history';
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -152,6 +255,7 @@ const TraderCockpitPage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<TradeSession | null>(null);
+  const [activeTab, setActiveTab] = useState<CockpitTab>('command');
 
   // Fetch active trades
   const tradesQuery = useQuery({
@@ -181,7 +285,10 @@ const TraderCockpitPage: React.FC = () => {
     total: trades.length,
     active: trades.filter((t) => !['completed', 'cancelled', 'halted'].includes(t.status)).length,
     blocked: trades.filter((t) => t.status === 'halted').length,
-    completedToday: 0, // Would need timestamp filtering
+    completedToday: trades.filter((t) => {
+      if (t.status !== 'completed' || !t.updated_at) return false;
+      return new Date(t.updated_at).toDateString() === new Date().toDateString();
+    }).length,
   }), [trades]);
 
   // Handlers
@@ -189,7 +296,7 @@ const TraderCockpitPage: React.FC = () => {
     setWizardOpen(true);
   }, []);
 
-  // Advance trade mutation (used in table and detail modal)
+  // Advance trade mutation
   const advanceMutation = useMutation({
     mutationFn: (tradeSessionId: string) =>
       traderService.advanceTrade(tradeSessionId),
@@ -208,29 +315,30 @@ const TraderCockpitPage: React.FC = () => {
     },
   });
 
-  // Table columns
+  // Table columns — compact and clean
   const columns = useMemo<ColumnsType<TradeSession>>(
     () => [
       {
-        title: 'Trade ID',
+        title: 'Trade',
         dataIndex: 'trade_id',
         key: 'trade_id',
-        width: 140,
+        width: 130,
         render: (value: string) => <Text strong style={{ fontSize: '0.8rem' }}>{value}</Text>,
       },
       {
         title: 'Customer',
         dataIndex: 'customer_name',
         key: 'customer_name',
+        ellipsis: true,
         render: (value: string | null) => value || <Text type="secondary">—</Text>,
       },
       {
         title: 'Route',
         dataIndex: 'route',
         key: 'route',
-        width: 90,
+        width: 85,
         render: (value: string) => (
-          <Tag color={value === 'BROKER' ? 'purple' : 'blue'}>
+          <Tag color={value === 'BROKER' ? 'purple' : 'blue'} style={{ margin: 0, borderRadius: 6 }}>
             {value || 'FULFILL'}
           </Tag>
         ),
@@ -239,17 +347,18 @@ const TraderCockpitPage: React.FC = () => {
         title: 'Status',
         dataIndex: 'status',
         key: 'status',
-        width: 100,
+        width: 95,
         render: (value: string) => (
-          <Tag color={STATUS_COLORS[value] || 'default'}>
+          <Tag color={STATUS_COLORS[value] || 'default'} style={{ margin: 0, borderRadius: 6 }}>
             {value.charAt(0).toUpperCase() + value.slice(1)}
           </Tag>
         ),
       },
       {
-        title: 'Current Step',
+        title: 'Step',
         dataIndex: 'current_step',
         key: 'current_step',
+        ellipsis: true,
         render: (value: string) => (
           <Text style={{ fontSize: '0.75rem' }}>
             {STEP_LABELS[value] || value}
@@ -257,33 +366,24 @@ const TraderCockpitPage: React.FC = () => {
         ),
       },
       {
-        title: 'Started',
-        dataIndex: 'initiated_at',
-        key: 'initiated_at',
-        width: 110,
-        render: (value: string | null) =>
-          value ? new Date(value).toLocaleDateString() : '—',
-      },
-      {
-        title: 'Actions',
+        title: '',
         key: 'actions',
-        width: 120,
+        width: 100,
         render: (_: unknown, record: TradeSession) => (
-          <Space size={4}>
-            <Button
-              size="small"
-              type="primary"
-              ghost
-              icon={<ArrowRight size={12} />}
-              onClick={(e) => {
-                e.stopPropagation();
-                advanceMutation.mutate(record.id);
-              }}
-              loading={advanceMutation.isPending}
-            >
-              Advance
-            </Button>
-          </Space>
+          <Button
+            size="small"
+            type="primary"
+            ghost
+            icon={<ArrowRight size={12} />}
+            style={{ borderRadius: 8 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              advanceMutation.mutate(record.id);
+            }}
+            loading={advanceMutation.isPending}
+          >
+            Advance
+          </Button>
         ),
       },
     ],
@@ -292,116 +392,214 @@ const TraderCockpitPage: React.FC = () => {
 
   return (
     <PageContainer>
+      {/* Minimalist Header */}
       <PageHeader>
-        <div>
-          <Title level={3} style={{ marginBottom: 0 }}>
+        <HeaderLeft>
+          <Title level={3} style={{ marginBottom: 0, fontWeight: 800 }}>
             Trader Cockpit
           </Title>
-          <Text type="secondary">
-            Initiate, monitor, and advance end-to-end meat trades.
-          </Text>
-        </div>
-        <Space>
+          <Subtitle>
+            Your intelligent command center for end-to-end meat trades.
+          </Subtitle>
+        </HeaderLeft>
+        <HeaderActions>
           <Input
-            placeholder="Search trades…"
+            placeholder="Search…"
             prefix={<Search size={14} />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 220 }}
+            style={{ width: 200, borderRadius: 10 }}
             allowClear
           />
-          <Button
-            icon={<RefreshCw size={14} />}
-            onClick={() => tradesQuery.refetch()}
-            loading={tradesQuery.isFetching}
-          />
-          <Button
-            type="primary"
-            icon={<Plus size={14} />}
-            onClick={handleNewTrade}
-          >
-            New Trade
-          </Button>
-        </Space>
+          <Tooltip title="Refresh">
+            <Button
+              icon={<RefreshCw size={14} />}
+              onClick={() => tradesQuery.refetch()}
+              loading={tradesQuery.isFetching}
+              style={{ borderRadius: 10 }}
+            />
+          </Tooltip>
+        </HeaderActions>
       </PageHeader>
 
-      {/* Stats */}
+      {/* Glanceable KPIs */}
       <StatsRow>
-        <StatCard size="small">
+        <StatCard>
           <StatValue>{stats.total}</StatValue>
-          <StatLabel>
-            <Space size={4}><Activity size={10} /> Active Trades</Space>
-          </StatLabel>
+          <StatLabel><Activity size={11} /> Total Trades</StatLabel>
         </StatCard>
-        <StatCard size="small">
+        <StatCard>
           <StatValue>{stats.active}</StatValue>
-          <StatLabel>
-            <Space size={4}><TrendingUp size={10} /> In Progress</Space>
-          </StatLabel>
+          <StatLabel><TrendingUp size={11} /> In Progress</StatLabel>
         </StatCard>
-        <StatCard size="small">
-          <StatValue style={{ color: stats.blocked > 0 ? 'rgb(var(--color-error))' : undefined }}>
+        <StatCard>
+          <StatValue style={{ color: stats.blocked > 0 ? 'rgb(239, 68, 68)' : undefined }}>
             {stats.blocked}
           </StatValue>
-          <StatLabel>
-            <Space size={4}><AlertTriangle size={10} /> Blocked</Space>
-          </StatLabel>
+          <StatLabel><AlertTriangle size={11} /> Blocked</StatLabel>
         </StatCard>
-        <StatCard size="small">
+        <StatCard>
           <StatValue>{stats.completedToday}</StatValue>
-          <StatLabel>
-            <Space size={4}><CheckCircle2 size={10} /> Completed Today</Space>
-          </StatLabel>
+          <StatLabel><CheckCircle2 size={11} /> Today</StatLabel>
         </StatCard>
       </StatsRow>
 
-      {/* AI Trade Proposals */}
-      <AITradeProposals
-        onProposalExecuted={() => {
-          queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
-        }}
-      />
-
-      {/* Active Trades Table */}
-      <Card size="small" title="Active Trades">
-        {tradesQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} />
-        ) : filteredTrades.length > 0 ? (
-          <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={filteredTrades}
-            pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (total) => `${total} trades` }}
-            size="small"
-            onRow={(record) => ({
-              onClick: () => setSelectedTrade(record),
-              style: { cursor: 'pointer' },
-            })}
-          />
-        ) : (
-          <TransactionalEmptyState
-            icon={<Zap size={36} />}
-            title="No active trades"
-            message="Start your first end-to-end trade to see it tracked here. The system will guide you through dependency setup and pipeline automation."
-            actions={[
-              {
-                label: 'New Trade',
-                onClick: handleNewTrade,
-                variant: 'primary',
-              },
-            ]}
+      {/* Quick Actions */}
+      <QuickActionsRow>
+        <QuickActionButton
+          type="primary"
+          icon={<Plus size={15} />}
+          onClick={handleNewTrade}
+        >
+          New Trade
+        </QuickActionButton>
+        <Tooltip title="AI will suggest the best next actions">
+          <QuickActionButton
+            icon={<Sparkles size={15} />}
+            onClick={() => setActiveTab('command')}
           >
-            <TransactionalEmptyStateGuidance>
-              <TransactionalEmptyStateGuidanceItem>
-                Click "New Trade" to choose a route (Direct Fulfillment or Broker) and set up dependencies.
-              </TransactionalEmptyStateGuidanceItem>
-              <TransactionalEmptyStateGuidanceItem>
-                The system checks for required Customer, Supplier, Plant, and Contact before starting.
-              </TransactionalEmptyStateGuidanceItem>
-            </TransactionalEmptyStateGuidance>
-          </TransactionalEmptyState>
-        )}
-      </Card>
+            AI Suggestions
+          </QuickActionButton>
+        </Tooltip>
+      </QuickActionsRow>
+
+      {/* Tab Navigation */}
+      <TabContainer>
+        <Segmented
+          value={activeTab}
+          onChange={(val) => setActiveTab(val as CockpitTab)}
+          options={[
+            {
+              label: (
+                <Space size={6}>
+                  <Sparkles size={13} />
+                  <span>Command Center</span>
+                  <Badge count={0} size="small" style={{ display: 'none' }} />
+                </Space>
+              ),
+              value: 'command',
+            },
+            {
+              label: (
+                <Space size={6}>
+                  <LayoutDashboard size={13} />
+                  <span>Live Pipeline</span>
+                  {stats.active > 0 && <Badge count={stats.active} size="small" />}
+                </Space>
+              ),
+              value: 'pipeline',
+            },
+            {
+              label: (
+                <Space size={6}>
+                  <Clock size={13} />
+                  <span>History</span>
+                </Space>
+              ),
+              value: 'history',
+            },
+          ]}
+          style={{ borderRadius: 10 }}
+          block
+        />
+      </TabContainer>
+
+      {/* Tab Content */}
+      {activeTab === 'command' && (
+        <>
+          <AITradeProposals
+            onProposalExecuted={() => {
+              queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
+              setActiveTab('pipeline');
+            }}
+          />
+          {stats.active > 0 && (
+            <SectionCard
+              size="small"
+              title={<Text strong style={{ fontSize: '0.85rem' }}>Needs Attention</Text>}
+              extra={
+                <Button type="link" size="small" onClick={() => setActiveTab('pipeline')}>
+                  View all →
+                </Button>
+              }
+            >
+              <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={trades.filter((t) => t.status === 'halted').slice(0, 3)}
+                pagination={false}
+                size="small"
+                showHeader={false}
+                onRow={(record) => ({
+                  onClick: () => setSelectedTrade(record),
+                  style: { cursor: 'pointer' },
+                })}
+                locale={{ emptyText: <Text type="secondary">All clear — no trades need attention</Text> }}
+              />
+            </SectionCard>
+          )}
+        </>
+      )}
+
+      {activeTab === 'pipeline' && (
+        <SectionCard
+          size="small"
+          title={<Text strong style={{ fontSize: '0.85rem' }}>Active Trades</Text>}
+          extra={<Text type="secondary" style={{ fontSize: '0.72rem' }}>{filteredTrades.length} trades</Text>}
+        >
+          {tradesQuery.isLoading ? (
+            <Skeleton active paragraph={{ rows: 5 }} />
+          ) : filteredTrades.length > 0 ? (
+            <Table
+              rowKey="id"
+              columns={columns}
+              dataSource={filteredTrades}
+              pagination={{ pageSize: 12, showSizeChanger: false, size: 'small' }}
+              size="small"
+              onRow={(record) => ({
+                onClick: () => setSelectedTrade(record),
+                style: { cursor: 'pointer' },
+              })}
+            />
+          ) : (
+            <TransactionalEmptyState
+              icon={<Zap size={32} />}
+              title="No active trades"
+              message="Start a trade with one click — the AI will guide everything."
+              actions={[{ label: 'New Trade', onClick: handleNewTrade, variant: 'primary' }]}
+            >
+              <TransactionalEmptyStateGuidance>
+                <TransactionalEmptyStateGuidanceItem>
+                  Click "New Trade" or let AI proposals create one for you.
+                </TransactionalEmptyStateGuidanceItem>
+              </TransactionalEmptyStateGuidance>
+            </TransactionalEmptyState>
+          )}
+        </SectionCard>
+      )}
+
+      {activeTab === 'history' && (
+        <SectionCard
+          size="small"
+          title={<Text strong style={{ fontSize: '0.85rem' }}>Completed Trades</Text>}
+        >
+          {trades.filter((t) => t.status === 'completed').length > 0 ? (
+            <Table
+              rowKey="id"
+              columns={columns.filter((c) => c.key !== 'actions')}
+              dataSource={trades.filter((t) => t.status === 'completed')}
+              pagination={{ pageSize: 10, showSizeChanger: false, size: 'small' }}
+              size="small"
+              onRow={(record) => ({
+                onClick: () => setSelectedTrade(record),
+                style: { cursor: 'pointer' },
+              })}
+            />
+          ) : (
+            <Text type="secondary">No completed trades yet. They'll appear here once finished.</Text>
+          )}
+        </SectionCard>
+      )}
 
       {/* Smart Trade Creator Modal */}
       <WizardModal
@@ -413,28 +611,39 @@ const TraderCockpitPage: React.FC = () => {
         destroyOnClose
       >
         <SmartTradeCreator
-          onTradeCreated={(sessionId) => {
+          onTradeCreated={() => {
             setWizardOpen(false);
             queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
+            setActiveTab('pipeline');
             message.success('Trade pipeline started!');
           }}
           onCancel={() => setWizardOpen(false)}
         />
       </WizardModal>
 
-      {/* Trade Detail Modal */}
+      {/* Trade Detail Modal — clean and focused */}
       <Modal
         open={Boolean(selectedTrade)}
         onCancel={() => setSelectedTrade(null)}
-        title={selectedTrade?.trade_id || 'Trade Details'}
+        title={
+          <Space>
+            <Text strong>{selectedTrade?.trade_id}</Text>
+            {selectedTrade && (
+              <Tag color={STATUS_COLORS[selectedTrade.status] || 'default'} style={{ borderRadius: 6 }}>
+                {selectedTrade.status}
+              </Tag>
+            )}
+          </Space>
+        }
         footer={[
-          <Button key="close" onClick={() => setSelectedTrade(null)}>
+          <Button key="close" onClick={() => setSelectedTrade(null)} style={{ borderRadius: 8 }}>
             Close
           </Button>,
           <Button
             key="advance"
             type="primary"
             icon={<ArrowRight size={14} />}
+            style={{ borderRadius: 8 }}
             onClick={() => {
               if (selectedTrade) advanceMutation.mutate(selectedTrade.id);
             }}
@@ -443,7 +652,7 @@ const TraderCockpitPage: React.FC = () => {
             Advance
           </Button>,
         ]}
-        width={700}
+        width={650}
       >
         {selectedTrade && (
           <DetailModalContent>
@@ -451,27 +660,22 @@ const TraderCockpitPage: React.FC = () => {
               currentStep={selectedTrade.current_step}
               route={selectedTrade.route}
             />
-            <Space wrap>
-              <Tag color={STATUS_COLORS[selectedTrade.status] || 'default'}>
-                {selectedTrade.status}
-              </Tag>
-              <Tag color={selectedTrade.route === 'BROKER' ? 'purple' : 'blue'}>
+            <Space wrap style={{ marginTop: 8 }}>
+              <Tag color={selectedTrade.route === 'BROKER' ? 'purple' : 'blue'} style={{ borderRadius: 6 }}>
                 {selectedTrade.route || 'FULFILL'}
               </Tag>
               {selectedTrade.customer_name && (
-                <Text type="secondary">Customer: {selectedTrade.customer_name}</Text>
+                <Text type="secondary" style={{ fontSize: '0.8rem' }}>
+                  Customer: <strong>{selectedTrade.customer_name}</strong>
+                </Text>
               )}
             </Space>
-            <div>
-              <Text type="secondary" style={{ fontSize: '0.75rem' }}>
-                Current Step: <strong>{STEP_LABELS[selectedTrade.current_step] || selectedTrade.current_step}</strong>
-              </Text>
-            </div>
-            {selectedTrade.initiated_at && (
-              <Text type="secondary" style={{ fontSize: '0.72rem' }}>
-                Started: {new Date(selectedTrade.initiated_at).toLocaleString()}
-              </Text>
-            )}
+            <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+              Current Step: <strong>{STEP_LABELS[selectedTrade.current_step] || selectedTrade.current_step}</strong>
+              {selectedTrade.initiated_at && (
+                <> · Started {new Date(selectedTrade.initiated_at).toLocaleDateString()}</>
+              )}
+            </Text>
           </DetailModalContent>
         )}
       </Modal>
