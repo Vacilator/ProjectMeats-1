@@ -94,6 +94,7 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 - **Backend Polish & Hardening: SHIPPED.** Production-grade backend infrastructure: TenantTask Celery base class (auto RLS lifecycle, exponential backoff, structured logging), OptimizedQuerysetMixin + QueryPerformanceLoggingMixin + StructuredErrorMixin for ViewSets, safe_signal_handler decorator (crash-proof with on_commit deferral), TenantService base class with timed() + ServiceResult standardized returns. Applied select_related to cockpit ViewSets (ActivityLog, ScheduledCall, TradeException), moved inquiry follow-up call to transaction.on_commit. 18 new tests (PR #5061).
 - **Backend Scaling, Observability & Unsupervised AI Readiness: SHIPPED.** Enterprise-grade infrastructure: CorrelationIdMiddleware (X-Request-ID tracing through logs + Celery tasks), Redis-backed MetricsCollector (counters/gauges/histograms/timing), three-state CircuitBreaker with decorator + fallback, tenant-scoped caching utilities (TenantCacheMixin, @cached_queryset, invalidate_tenant_cache), centralized UnsupervisedPolicy engine (confidence threshold enforcement, rate limiting, blocked actions, audit trail). Admin-only monitoring endpoints (/internal/metrics/, /internal/pipeline-health/). 43 new tests (PR #5063).
 - **Canonical Business Entity Model Consolidation: SHIPPED.** 7 DRY abstract mixins (AddressMixin, BusinessPartyMixin, WeightMeasurementMixin, MonetaryFieldsMixin, ApprovalTrackingMixin, AuditUserMixin, LifecycleStateMixin) for future adoption across tenant models. Unified BusinessPartyService (cross-entity search/create across Supplier/Customer/Carrier) and TradeLifecycleService (E2E trade state aggregation with pipeline dashboard). Additive only — no schema changes. 35 new tests (PR #5065).
+- **Platform Synthesis – E2E Runtime + AI Inbox + Cockpit: SHIPPED.** Capstone integration wiring all prior components into production-ready runtime. E2E process executors (generate_sales_order, bid_selection with weighted scoring, check_bids, create_purchase_order, resolve_contacts) registered in ActionExecutor. Enhanced AI Inbox parser (6 PO regex patterns, protein/weight/price/date extraction, DependencyAutoCreator). Celery beat 15-min inbox sync. Feedback aggregation tasks (compute_feedback_stats, export_retraining_batch). ProcessStatusIndicator replacing forever-running spinners with failure messaging + retry. Nested dagre auto-layout for FlowEditor groups. 29 new tests (PR #5068).
 - **AI Widget WebSocket resilience shipped.** Dev-only structured logging, token refresh hardening, close-code diagnostics (PR #5040).
 - **Email sync on login shipped.** Django `user_logged_in` signal fires tenant-scoped Celery sync + frontend status indicator (PR #5041).
 - **Render loop fix shipped.** Stabilized `DynamicFormEngine` dependency tracking with deep-equality ref guard + signature-based visibility effect guard (PR #5038). Comprehensive 11-file sweep eliminates the entire React #185 bug class: engine-level ref-pattern guards in DynamicFormEngine + UniversalEntityForm, page-level useCallback extraction for Suppliers/Customers/Contacts/Carriers/FreightOrders/Inquiries, component-level for UnifiedEntityTable/CustomerDetailView/ScheduleCallModal (PR #5049).
@@ -1092,32 +1093,32 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 
 #### Epic PI-01: Finalize Multi-Trigger EndToEndInquiryToPOProcess Workform
 - **Goal:** Complete the production-ready E2E template with SO generation + PO wait nodes, enhanced contact multi-selects, runtime executors, and full test coverage.
-- **Key files:** `backend/tenant_apps/workflows/templates/process/end_to_end_inquiry_to_po.json`, `template_registry.py`, `contact_resolution.py`
-- **Blocked by:** Nothing (can start immediately)
+- **Key files:** `backend/tenant_apps/workflows/templates/process/end_to_end_inquiry_to_po.json`, `template_registry.py`, `contact_resolution.py`, `e2e_executors.py`
+- **Status:** ✅ PARTIAL (PR #5068) — Runtime executors shipped (generate_sales_order, bid_selection, check_bids, create_purchase_order, resolve_contacts). Template JSON already complete. Remaining: formal testing guide update, contact multi-select conditional fields.
 - **Acceptance:** All 5 triggers fire → FormProcess executes → BidSelection with margin → SO generated → PO wait completes → telemetry emitted at every step.
 
 #### Epic PI-02: Elevate AI Inbox to Production Grade
 - **Goal:** 15-min auto-sync, robust PO extraction parser, auto-dep creation, feedback loop w/ retraining queue, routing to Process Cockpit.
-- **Key files:** `ai_assistant/tasks/watchdog.py`, `integrations/services/email_ingestion.py`, `AIFeedbackLog` model
-- **Blocked by:** Nothing (can start immediately)
+- **Key files:** `ai_assistant/tasks/watchdog.py`, `ai_assistant/services/inbox_parser.py`, `ai_assistant/tasks/feedback_tasks.py`
+- **Status:** ✅ PARTIAL (PR #5068) — Enhanced parser (6 PO patterns + universal field extraction + DependencyAutoCreator), Celery beat 15-min sync, feedback aggregation tasks shipped. Remaining: cockpit routing integration, AI_INBOX_RESOLUTION.md update.
 - **Acceptance:** Rowena/TX PO 226052 email parses correctly → deps auto-created → draft routed to cockpit Action Required tab → feedback recorded.
 
 #### Epic PI-03: Consolidated Process Cockpit + Rich React Flow
 - **Goal:** Single /process-cockpit with all monitoring views, "View Process Flow" per entity, clickable nodes showing contacts/docs/I-O, failure messaging.
-- **Key files:** `ProcessCockpitPage.tsx`, `TradeLineageFlow.tsx`, `EmailIngestionCockpitPanel.tsx`
-- **Blocked by:** PI-01 (needs runtime data to visualize)
+- **Key files:** `ProcessCockpitPage.tsx`, `TradeLineageFlow.tsx`, `ProcessStatusIndicator.tsx`
+- **Status:** ✅ PARTIAL (PR #5068) — ProcessStatusIndicator shipped (replaces forever-running spinners). Remaining: cockpit view consolidation, View Process Flow button, rich node enhancement.
 - **Acceptance:** All process monitoring consolidated under one route; every entity has View Flow button; no "forever-running" spinners.
 
 #### Epic PI-04: Strengthen Master Data Integration
 - **Goal:** Wire Plant Contact enhancements (Type, Title, Responsibilities) into RFQ/PO/Bid nodes + Cockpit visualization + quick-create flows.
 - **Key files:** `contact_resolution.py`, `TradeLineageFlow.tsx`, `MissingDependencyResolver`
-- **Blocked by:** PI-01 (needs E2E template runtime)
+- **Blocked by:** PI-01 completion (resolve_contacts executor now ships but needs full integration testing)
 - **Acceptance:** SendEmail/RFQ resolves correct contact by type+responsibility; PO form pre-fills contacts; missing deps trigger inline creation.
 
 #### Epic PI-05: Stabilize Workform Editor (Post-Runtime)
 - **Goal:** Visual support for FormProcess groups, loop indicators, conditional field config, auto-layout for 20+ node templates, "Create Variant" workflow.
 - **Key files:** `FlowEditor/UnifiedFlowEditor.tsx`, `autoLayout.ts`, `TemplateSelector.tsx`
-- **Blocked by:** PI-01 through PI-04 verified on dev
+- **Status:** ✅ PARTIAL (PR #5068) — Nested dagre auto-layout for groups shipped. Remaining: loop indicators, conditional field config UI, Create Variant workflow.
 - **Acceptance:** E2E template loads + renders cleanly in editor; variant creation works; no layout overlap.
 
 ## Phase 12 — Enterprise Hardening & Tech Debt Eradication
