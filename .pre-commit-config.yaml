@@ -41,7 +41,7 @@ repos:
     hooks:
       - id: flake8
         files: ^backend/.*\.py$
-        args: ['--max-line-length=100', '--extend-ignore=E203,W503']
+        args: ['--max-line-length=120', '--extend-ignore=E203,W503']
 
   # Python syntax validation for migrations
   - repo: local
