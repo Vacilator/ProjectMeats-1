@@ -978,7 +978,7 @@ class SystemFormSchemaView(APIView):
                         'required': False,
                         'order': 0,
                         'help_text': 'Auto-generated if left blank.',
-                        'ui': {'section': 'Order Details'},
+                        'ui': {'section': 'Order Details', 'auto_generate': 'order_number'},
                     },
                     {
                         'key': 'customer',
@@ -1047,7 +1047,7 @@ class SystemFormSchemaView(APIView):
                         'type': 'text',
                         'required': False,
                         'order': 7,
-                        'ui': {'widget': 'select', 'section': 'Order Details'},
+                        'ui': {'widget': 'select', 'section': 'Order Details', 'default_value': 'LBS'},
                         'choices': [
                             {'value': 'LBS', 'label': 'Pounds (LBS)'},
                             {'value': 'KG', 'label': 'Kilograms (KG)'},
@@ -1133,7 +1133,9 @@ class SystemFormSchemaView(APIView):
                         'type': 'text',
                         'required': False,
                         'order': 20,
+                        'hidden': True,
                         'ui': {'widget': 'select', 'section': 'Billing & Payment'},
+                        'help_text': 'Auto-computed from invoice payments.',
                         'choices': [
                             {'value': 'UNPAID', 'label': 'Unpaid'},
                             {'value': 'PARTIALLY_PAID', 'label': 'Partially Paid'},
@@ -1147,7 +1149,9 @@ class SystemFormSchemaView(APIView):
                         'type': 'number',
                         'required': False,
                         'order': 21,
+                        'hidden': True,
                         'ui': {'section': 'Billing & Payment', 'read_only': True},
+                        'help_text': 'Auto-calculated: total - paid.',
                         'read_only': True,
                     },
                     # --- Contact Information section ---
