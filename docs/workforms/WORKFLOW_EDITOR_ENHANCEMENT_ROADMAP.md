@@ -1242,3 +1242,39 @@ RT-05.1 (visual support) → RT-05.2 (create variant) → RT-10.1 (library page)
 ---
 
 **Sprint Package 15 Editor Integration — Added: 2026-05-07**
+
+---
+
+## Sprint Capstone – Platform Finalization (Process Cockpit + Editor Enhancements)
+
+> **Added:** Sprint Capstone (Platform Finalization & Production Handover)  
+> **PR:** Platform Finalization PR (merged to development)
+
+### New Components Delivered
+
+#### Process Cockpit Enhancements
+- ✅ **ViewProcessFlowButton** (`frontend/src/components/Cockpit/ViewProcessFlowButton.tsx`) — Opens scoped React Flow (TradeLineageFlow) in modal for any entity record (Inquiry, SO, PO, Bid)
+- ✅ **MissingDependencyQuickCreate** (`frontend/src/components/Cockpit/MissingDependencyQuickCreate.tsx`) — Inline entity creation for Supplier/Customer/Contact/Plant when AI Inbox or form nodes detect missing dependencies
+
+#### FlowEditor Visual Enhancements
+- ✅ **LoopIterationIndicator** (`frontend/src/components/FlowEditor/nodes/LoopIterationIndicator.tsx`) — Visual progress indicator for ForEach/DoUntil/While loop nodes; shows current/total iterations with progress ring and estimated time remaining
+- ✅ **TemplateVariantCreator** (`frontend/src/components/FlowEditor/templates/TemplateVariantCreator.tsx`) — "Clone as Variant" modal workflow: name, description, variant type (Industry/Simplified/Extended/Custom), linked to parent template
+- ✅ **ContactResolutionConfigPanel** (`frontend/src/components/FlowEditor/ConfigPanel/ContactResolutionConfigPanel.tsx`) — Conditional fields for certifications/shipping preferences + multi-select chips for document attachment types
+
+### Backend Runtime (Supporting)
+- ✅ `resolve_rfq_contacts_for_send` — Contact resolution for RFQ dispatch with certification/shipping/document filters
+- ✅ `bid_selection_with_contacts` — Bid selection enriched with supplier contact details
+- ✅ `prefill_po_contacts` — Auto-populate billing/shipping/sales contacts for PO forms
+
+### Status
+- All 12 backend tests passing
+- Full regression suite (149 tests) green
+- Process Cockpit consolidation: All monitoring views route through `/process-cockpit`
+- TradeLineageFlow already shows enriched contact data (department, title, responsibilities)
+- FormProcessGroupNode handles nested groups (legacy alias to FormProcessNode)
+
+### Next Steps (Post-Finalization)
+- [ ] Full E.2 panel migration (19 remaining config panels)
+- [ ] Performance profiling for 20+ node templates with nested groups
+- [ ] Manual UAT of LoopIterationIndicator in active workflow execution
+- [ ] Template variant versioning and publish workflow
