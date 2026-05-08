@@ -327,6 +327,14 @@ class EmailLog(models.Model):
         null=True,
         help_text="AI-extracted order data (products, quantities, etc.)"
     )
+
+    # Attachment processing results
+    attachment_data = models.JSONField(
+        blank=True,
+        null=True,
+        default=None,
+        help_text="Attachment metadata and extracted text from AI processing",
+    )
     
     # Related order (if created)
     related_order_id = models.IntegerField(

@@ -320,10 +320,23 @@ class EmailIngestionService:
         
         self.stats['emails_fetched'] += len(emails)
         
-        # Save emails to database
+        # Save emails to database (with attachment processing)
         for email_data in emails:
             try:
-                self._save_email_log(tenant, provider, email_data)
+                # Download attachments if the email has them
+                attachments: list[dict] = []
+                if email_data.get('hasAttachments'):
+                    try:
+                        attachments = self._download_attachments(
+                            graph_provider, access_token, message_id=email_data.get('id'),
+                        )
+                    except Exception:
+                        logger.warning(
+                            'Attachment download failed for message %s; continuing without attachments',
+                            email_data.get('id'),
+                            exc_info=True,
+                        )
+                self._save_email_log(tenant, provider, email_data, attachments=attachments)
             except Exception as e:
                 logger.error(
                     f"Failed to save email {email_data.get('id')}: {str(e)}",
@@ -455,7 +468,8 @@ class EmailIngestionService:
         self,
         tenant: Tenant,
         provider: ExternalAuthProvider,
-        email_data: Dict[str, Any]
+        email_data: Dict[str, Any],
+        attachments: List[Dict[str, Any]] | None = None,
     ):
         """
         Save email to EmailLog (if not already saved).
@@ -464,6 +478,7 @@ class EmailIngestionService:
             tenant: Tenant this email belongs to
             provider: ExternalAuthProvider used to fetch email
             email_data: Email data from Microsoft Graph API
+            attachments: Downloaded attachment data from Graph API (optional)
         """
         message_id = email_data['id']
         
@@ -490,6 +505,48 @@ class EmailIngestionService:
             received_at = parser.parse(received_str)
         except:
             received_at = timezone.now()
+
+        # Process attachments for text extraction
+        attachment_data_payload = None
+        if attachments:
+            try:
+                from tenant_apps.ai_assistant.services.attachment_extractor import (
+                    extract_text_from_attachments,
+                )
+                extracted = extract_text_from_attachments(attachments)
+                # Build serializable metadata (strip raw bytes for DB storage)
+                attachment_data_payload = {
+                    'count': len(extracted),
+                    'files': [
+                        {
+                            'name': att.get('name', ''),
+                            'content_type': att.get('content_type', ''),
+                            'size': att.get('size'),
+                            'extraction_status': att.get('extraction_status', 'skipped'),
+                            'extracted_text': att.get('extracted_text', ''),
+                        }
+                        for att in extracted
+                    ],
+                }
+            except Exception:
+                logger.warning(
+                    'Attachment text extraction failed for message %s; storing metadata only',
+                    message_id,
+                    exc_info=True,
+                )
+                attachment_data_payload = {
+                    'count': len(attachments),
+                    'files': [
+                        {
+                            'name': att.get('name', ''),
+                            'content_type': att.get('content_type', ''),
+                            'size': att.get('size'),
+                            'extraction_status': 'error',
+                            'extracted_text': '',
+                        }
+                        for att in attachments
+                    ],
+                }
         
         # Create EmailLog entry
         with transaction.atomic():
@@ -505,13 +562,14 @@ class EmailIngestionService:
                 body_text=body_text,
                 body_html=body_html,
                 has_attachments=email_data.get('hasAttachments', False),
-                attachment_count=0,  # TODO: Fetch attachment count from API
+                attachment_count=len(attachments) if attachments else 0,
+                attachment_data=attachment_data_payload,
                 status='logged'
             )
         
         logger.info(
             f"Saved email log: {email_log.id} - {email_log.subject} "
-            f"from {sender_email}"
+            f"from {sender_email} (attachments={len(attachments or [])})"
         )
         self.stats['emails_saved'] += 1
     

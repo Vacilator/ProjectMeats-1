@@ -206,11 +206,23 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
             instance.mark_as_completed(extracted_data=supplier_reply)
             return
 
+        # Build combined attachment text from stored attachment_data
+        attachment_text = ''
+        if instance.attachment_data and isinstance(instance.attachment_data, dict):
+            files = instance.attachment_data.get('files') or []
+            text_parts = []
+            for f in files:
+                extracted = f.get('extracted_text', '')
+                if extracted and f.get('extraction_status') == 'success':
+                    text_parts.append(f"--- {f.get('name', 'attachment')} ---\n{extracted}")
+            attachment_text = '\n\n'.join(text_parts)
+
         classification = classify_ingested_email(
             subject=instance.subject,
             body_text=instance.body_text,
             sender_email=instance.sender_email,
             has_attachments=instance.has_attachments,
+            attachment_text=attachment_text,
         )
 
         inquiry, _ = upsert_inquiry_draft_from_email(instance, classification)

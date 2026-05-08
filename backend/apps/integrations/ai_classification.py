@@ -27,6 +27,7 @@ def classify_ingested_email(
     sender_email: str,
     body_text: str,
     has_attachments: bool,
+    attachment_text: str = '',
 ) -> dict[str, Any]:
     """Classify an ingested email into a lightweight operator review bucket."""
 
@@ -52,12 +53,15 @@ def classify_ingested_email(
         '6. requested_protein must be one of: '
         + ', '.join(value for value in SUPPORTED_PROTEIN_VALUES if value)
         + ' or an empty string when unknown.\n'
-        '7. requested_quantity and requested_uom must stay as plain strings and can be empty.\n\n'
+        '7. requested_quantity and requested_uom must stay as plain strings and can be empty.\n'
+        '8. When attachment content is provided, use it alongside the email body for classification and extraction.\n\n'
         f'Subject: {subject}\n'
         f'Sender: {sender_email}\n'
         f'Has attachments: {has_attachments}\n'
         f'Body:\n{body_text[:6000]}'
     )
+    if attachment_text:
+        prompt += f'\n\n--- Attachment Content ---\n{attachment_text[:8000]}'
     response_schema = {
         'type': 'json_schema',
         'json_schema': {

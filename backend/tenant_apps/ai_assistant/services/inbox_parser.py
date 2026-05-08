@@ -152,9 +152,12 @@ class InboxParser:
         body: str = "",
         sender_email: str = "",
         sender_name: str = "",
+        attachment_text: str = "",
     ) -> ParsedTradeDocument:
         """Parse email content into structured trade document data."""
         full_text = f"{subject}\n{body}"
+        if attachment_text:
+            full_text += f"\n{attachment_text}"
 
         result = ParsedTradeDocument(
             po_numbers=extract_po_numbers(full_text),
