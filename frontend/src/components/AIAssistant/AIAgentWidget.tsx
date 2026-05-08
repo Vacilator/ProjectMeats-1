@@ -45,6 +45,7 @@ import { groupChatSessionsByDate } from '@/components/ChatInterface/sessionHisto
 import { aiStaffApi, chatApi, chatSessionsApi, hydrateDocumentMessageMetadata } from '@/services/aiService';
 import { useStickyAutoScroll } from '@/hooks/useStickyAutoScroll';
 import { logger } from '@/utils/logger';
+import { AI_INBOX_SYNC_STATUS_EVENT, type AIInboxSyncStatus } from '@/contexts/AIInboxSyncContext';
 import type {
   DocumentLineageSummary,
   DocumentProcessingMetadata,
@@ -748,6 +749,7 @@ export const AIAgentWidget: React.FC = () => {
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(0);
   const [dragOver, setDragOver] = useState(false);
+  const [emailSyncActive, setEmailSyncActive] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inboxSocketRef = useRef<WebSocket | null>(null);
@@ -781,6 +783,21 @@ export const AIAgentWidget: React.FC = () => {
   useEffect(() => {
     toastRef.current = toast;
   }, [toast]);
+
+  // Listen for email sync status events from AIInboxSyncProvider.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ status: AIInboxSyncStatus }>).detail;
+      if (detail.status === 'started') {
+        setEmailSyncActive(true);
+      } else {
+        setEmailSyncActive(false);
+      }
+    };
+
+    window.addEventListener(AI_INBOX_SYNC_STATUS_EVENT, handler);
+    return () => window.removeEventListener(AI_INBOX_SYNC_STATUS_EVENT, handler);
+  }, []);
 
   useEffect(() => {
     if (!aiEnabled || typeof window === 'undefined' || typeof WebSocket === 'undefined') {
@@ -1127,15 +1144,17 @@ export const AIAgentWidget: React.FC = () => {
   const pill =
     state === 'thinking'
       ? { text: 'Thinking', variant: 'info' as const }
-      : aiInboxCount > 0
-        ? {
-            text: `${aiInboxCount} in Inbox`,
-            variant: 'warn' as const,
-          }
-        : aiInboxRealtimeStatus === 'degraded'
-          ? { text: 'Inbox reconnecting', variant: 'info' as const }
-        : state === 'action_required'
-          ? { text: 'Action required', variant: 'warn' as const }
+      : emailSyncActive
+        ? { text: 'Syncing emails…', variant: 'info' as const }
+        : aiInboxCount > 0
+          ? {
+              text: `${aiInboxCount} in Inbox`,
+              variant: 'warn' as const,
+            }
+          : aiInboxRealtimeStatus === 'degraded'
+            ? { text: 'Inbox reconnecting', variant: 'info' as const }
+          : state === 'action_required'
+            ? { text: 'Action required', variant: 'warn' as const }
           : { text: 'Idle', variant: 'ok' as const };
 
   const outlookBannerText = (() => {

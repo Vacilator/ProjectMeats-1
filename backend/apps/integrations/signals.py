@@ -1,6 +1,7 @@
 import logging
 import uuid
 
+from django.contrib.auth.signals import user_logged_in
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -12,7 +13,7 @@ from tenant_apps.workflows.models import NotificationPriority, NotificationType,
 
 from .ai_classification import classify_ingested_email
 from .inquiry_drafts import upsert_inquiry_draft_from_email
-from .models import EmailLog, EmailReviewDraft
+from .models import EmailLog, EmailReviewDraft, ExternalAuthProvider
 
 logger = logging.getLogger(__name__)
 
@@ -290,3 +291,42 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
     except Exception as e:
         logger.exception('AI extraction failed for email %s', instance.id)
         instance.mark_as_failed(str(e))
+
+
+@receiver(user_logged_in)
+def trigger_email_sync_on_login(sender, request, user, **kwargs):
+    """Fire a background email sync for every tenant the user belongs to.
+
+    Idempotent: Celery deduplicates via ``sync_single_tenant`` task-level
+    retry/locking. Safe to fire on every login — the worst case is a no-op
+    if no Microsoft provider is connected.
+    """
+    tenant_ids = list(
+        TenantUser.objects.filter(user=user, is_active=True)
+        .values_list('tenant_id', flat=True)
+    )
+    if not tenant_ids:
+        return
+
+    connected_tenant_ids = set(
+        ExternalAuthProvider.objects.filter(
+            tenant_id__in=tenant_ids,
+            provider_type='microsoft',
+            is_active=True,
+        ).values_list('tenant_id', flat=True)
+    )
+    if not connected_tenant_ids:
+        return
+
+    try:
+        from apps.integrations.tasks import sync_single_tenant
+
+        for tid in connected_tenant_ids:
+            sync_single_tenant.apply_async(args=[str(tid)], countdown=3)
+        logger.info(
+            'Login email-sync queued for user=%s tenants=%s',
+            user.pk,
+            [str(t) for t in connected_tenant_ids],
+        )
+    except Exception:
+        logger.exception('Failed to queue login email-sync for user=%s', user.pk)
