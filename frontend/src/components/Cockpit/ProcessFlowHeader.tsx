@@ -478,6 +478,26 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
         </FailureBar>
       )}
 
+      {!data.failure_info &&
+        (variant === 'info' || variant === 'warning') &&
+        data.duration_seconds != null &&
+        data.duration_seconds > 7200 && (
+        <FailureBar style={{
+          background: 'rgba(var(--color-warning), 0.05)',
+          borderColor: 'rgba(var(--color-warning), 0.2)',
+        }}>
+          <AlertTriangle size={18} color="rgb(var(--color-warning))" style={{ flexShrink: 0, marginTop: 1 }} />
+          <FailureContent>
+            <FailureMessage style={{ color: 'rgb(var(--color-warning))' }}>
+              This step has been running for {formatDuration(data.duration_seconds)} — it may be stalled.
+            </FailureMessage>
+            <RecoveryHint>
+              Check the step configuration, verify external dependencies (email, supplier response), or contact support if this persists.
+            </RecoveryHint>
+          </FailureContent>
+        </FailureBar>
+      )}
+
       {selectedNode && (
         <NodeDetailPopover
           entityType={selectedNode.entityType}

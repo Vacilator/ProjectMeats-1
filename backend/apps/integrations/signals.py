@@ -33,6 +33,15 @@ def _build_lineage_metadata(instance: EmailLog, **extra) -> dict:
         'sender_email': str(instance.sender_email or ''),
         'sender_name': str(instance.sender_name or ''),
     }
+    # Include file/attachment info when present
+    att_data = getattr(instance, 'attachment_data', None)
+    if isinstance(att_data, list) and att_data:
+        metadata['attachment_count'] = len(att_data)
+        metadata['attachment_filenames'] = [
+            str(a.get('filename', '')) for a in att_data if isinstance(a, dict)
+        ]
+    elif isinstance(att_data, dict) and att_data.get('files'):
+        metadata['attachment_count'] = len(att_data['files'])
     metadata.update({key: value for key, value in extra.items() if value not in (None, '')})
     return metadata
 
@@ -304,10 +313,20 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
             )
 
         _upsert_action_required_feedback(instance, classification)
+        # Build summary with file count
+        base_summary = str(classification.get('summary') or 'AI classified inbound email.')
+        att_data = getattr(instance, 'attachment_data', None)
+        att_count = 0
+        if isinstance(att_data, list):
+            att_count = len(att_data)
+        elif isinstance(att_data, dict) and att_data.get('files'):
+            att_count = len(att_data['files'])
+        if att_count > 0:
+            base_summary = f'Email + {att_count} file(s) processed. {base_summary}'
         _record_email_lineage_event(
             instance,
             event_type='email_classified',
-            summary=str(classification.get('summary') or 'AI classified inbound email.'),
+            summary=base_summary,
             target_type='inquiry' if inquiry is not None else '',
             target_id=str(getattr(inquiry, 'id', '') or ''),
             metadata={

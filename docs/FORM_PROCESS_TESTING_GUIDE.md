@@ -832,9 +832,89 @@ If any test fails, report with:
 
 ## Phase 17 — RT-01: EndToEndInquiryToPOProcess Template Tests
 
-> **Full test suite (33 test cases)** is maintained in `docs/FORM_PROCESS_TESTING_GUIDE.md` under the "Phase 17 — RT-01" section.  
-> Categories: Template Registration, Multi-Trigger Routing, Loop/Condition Logic, Plant Contact Integration, Telemetry, Tenant Safety.  
+> **Test file:** `backend/tenant_apps/workflows/tests/test_e2e_template.py`  
+> **Total:** 30 automated tests  
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 17 / Epic RT-01
+
+### Category 1: Template File Integrity
+
+| # | Test | Purpose |
+|---|------|---------|
+| 1 | `test_template_file_exists` | Verifies `end_to_end_inquiry_to_po.json` exists at expected path |
+| 2 | `test_template_is_valid_json` | Parses template as valid JSON dict |
+| 3 | `test_template_has_required_fields` | Checks templateId, version (1.2.0), category (trading), isSystemTemplate |
+| 4 | `test_metadata_accuracy` | Validates description, author, and version metadata |
+
+### Category 2: Multi-Trigger Routing (5 Triggers)
+
+| # | Test | Purpose |
+|---|------|---------|
+| 5 | `test_template_has_5_triggers` | Asserts exactly 5 triggers: New Inquiry, Direct Customer PO, Standalone Bid, Manual Sales Order, Trader PO |
+| 6 | `test_all_triggers_have_precondition_check` | Every trigger includes "no preceding process" safety guard |
+| 7 | `test_all_triggers_have_telemetry` | Every trigger emits a telemetry event on activation |
+
+### Category 3: Process Structure (Groups, Loops, Conditions)
+
+| # | Test | Purpose |
+|---|------|---------|
+| 8 | `test_template_has_form_process_group` | FormProcess container group node exists with child steps |
+| 9 | `test_template_has_form_steps_for_inquiry_sales_and_po_variants` | Inquiry, Sales Order, and PO form steps are present inside group |
+| 10 | `test_template_has_for_each_supplier_loop` | ForEachSupplier loop node iterates over supplier list for RFQ dispatch |
+| 11 | `test_template_has_do_until_loops` | DoUntilDueDate loop nodes exist for bid collection deadline logic |
+| 12 | `test_template_has_bid_selection_with_margin_logic` | BidSelection node includes margin calculation and best-bid ranking |
+| 13 | `test_template_has_generate_and_send_sales_order` | Generate SO + Send SO action nodes are wired after bid selection |
+| 14 | `test_template_has_po_wait_logic` | PO wait/approval gate logic prevents premature order placement |
+| 15 | `test_template_has_approval_gate` | Explicit approval gate node exists in the flow |
+| 16 | `test_approval_gate_wired_between_bid_selection_and_sales_order` | Approval gate is correctly positioned between bid selection and SO generation |
+
+### Category 4: Plant Contact Integration
+
+| # | Test | Purpose |
+|---|------|---------|
+| 17 | `test_template_has_contact_resolution` | Contact resolution step exists for intelligent RFQ recipient selection |
+| 18 | `test_template_purchase_order_variants_expose_contact_prepopulation` | PO form variants include contact prepopulation from Plant Contact Type + Title |
+
+### Category 5: Telemetry
+
+| # | Test | Purpose |
+|---|------|---------|
+| 19 | `test_all_nodes_have_telemetry` | Every major node emits telemetry events for observability |
+
+### Category 6: Schema Validation
+
+| # | Test | Purpose |
+|---|------|---------|
+| 20 | `test_valid_template_passes` | Well-formed template passes schema validation |
+| 21 | `test_missing_template_id_fails` | Template without templateId is rejected |
+| 22 | `test_missing_triggers_fails` | Template without triggers array is rejected |
+| 23 | `test_trigger_without_precondition_fails` | Trigger missing precondition_check is rejected |
+| 24 | `test_invalid_edge_reference_fails` | Edge referencing non-existent node is rejected |
+
+### Category 7: Runtime Registration (Tenant Safety)
+
+| # | Test | Purpose |
+|---|------|---------|
+| 25 | `test_register_creates_tenant_form` | Registration creates TenantForm with correct name and tenant |
+| 26 | `test_register_stores_flow_data` | Registration persists full flow_data JSON on TenantForm |
+| 27 | `test_register_is_idempotent` | Running registration twice does not create duplicates |
+| 28 | `test_register_force_updates` | Force flag updates existing TenantForm with new data |
+| 29 | `test_register_sets_quick_action` | Registration marks template as available in Quick Actions |
+| 30 | `test_flow_data_has_all_5_triggers` | Persisted flow_data includes all 5 trigger definitions |
+
+### Running Tests
+
+```bash
+source /venv/bin/activate
+cd backend
+
+# All 30 E2E template tests
+python manage.py test tenant_apps.workflows.tests.test_e2e_template --verbosity=2
+
+# Combined regression suite (E2E + finalization + synthesis)
+python manage.py test tenant_apps.workflows.tests.test_e2e_template \
+  tenant_apps.workflows.tests.test_platform_finalization \
+  tenant_apps.workflows.tests.test_platform_synthesis --verbosity=1
+```
 
 ---
 

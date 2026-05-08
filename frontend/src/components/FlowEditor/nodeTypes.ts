@@ -315,6 +315,18 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
   },
   
+  loopDoUntil: {
+    id: 'loopDoUntil',
+    name: 'Do Until',
+    category: 'logic',
+    icon: '⏳',
+    color: 'rgb(var(--color-warning))',
+    description: 'Repeat body until a condition becomes true (e.g. deadline reached)',
+    maxInputs: 2,
+    maxOutputs: 2,
+    requiresConfig: true,
+  },
+  
   // Phase 7.4: Advanced Node Types (2026-02-27)
   parallelPath: {
     id: 'parallelPath',
