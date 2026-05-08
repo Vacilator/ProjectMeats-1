@@ -1804,7 +1804,6 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
         suggestions = {}
         if feedback_signal == AIFeedbackLog.FeedbackSignal.THUMBS_DOWN:
             try:
-                from tenant_apps.ai_assistant.services.feedback_service import suggest_corrections
                 suggestions = suggest_corrections(
                     original_data=original,
                     confidence_score=confidence,

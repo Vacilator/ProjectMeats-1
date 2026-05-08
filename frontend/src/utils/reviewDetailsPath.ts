@@ -1,25 +1,7 @@
 import type { PendingReviewItem } from '@/services/aiService';
+import { normalizeEntityType } from './entityTypeRegistry';
 
 const REVIEW_BASE_URL = 'https://projectmeats.local';
-
-const normalizeEntityType = (raw: string): string => {
-  const value = String(raw || '').trim().toLowerCase();
-
-  if (['purchase_order', 'purchase-orders', 'purchase_orders'].includes(value)) {
-    return 'purchase_order';
-  }
-  if (['sales_order', 'sales-orders', 'sales_orders'].includes(value)) {
-    return 'sales_order';
-  }
-  if (['carrier-pos', 'carrier_po', 'carrier_purchase_order', 'carrier-purchase-order'].includes(value)) {
-    return 'carrier-pos';
-  }
-  if (['inquiries', 'inquiry'].includes(value)) {
-    return 'inquiry';
-  }
-
-  return value;
-};
 
 const withWorkflowSearch = (path: string, searchParams?: URLSearchParams): string => {
   const params = searchParams ? new URLSearchParams(searchParams) : new URLSearchParams();

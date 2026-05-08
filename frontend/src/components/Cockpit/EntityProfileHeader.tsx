@@ -6,6 +6,7 @@ import { businessApi } from '../../services/businessApi';
 import AmbientSuggestions from '@/components/AIAssistant/AmbientSuggestions';
 import { logger } from '@/utils/logger';
 import { resolveEntityDisplay, type ResolvedEntityDisplay } from '../../utils/entityDisplay';
+import { normalizeSchemaEntityType } from '../../utils/entityTypeRegistry';
 
 const { Text } = Typography;
 
@@ -53,24 +54,6 @@ type BackendSchema = {
   key_fields?: string[];
   header_fields?: string[];
   groups?: Array<{ id: string; label: string; order?: number }>;
-};
-
-const normalizeSchemaEntityType = (raw: string): string => {
-  const t = String(raw || '').trim().toLowerCase();
-
-  if (t === 'inquiry' || t === 'inquiries') return 'inquiry';
-  if (t === 'sales_order' || t === 'sales-orders' || t === 'sales_orders') return 'sales_order';
-  if (t === 'purchase_order' || t === 'purchase-orders' || t === 'purchase_orders') return 'purchase_order';
-
-  if (t === 'customer' || t === 'customers') return 'customer';
-  if (t === 'supplier' || t === 'suppliers') return 'supplier';
-  if (t === 'plant' || t === 'plants') return 'plant';
-  if (t === 'location' || t === 'locations') return 'location';
-  if (t === 'contact' || t === 'contacts') return 'contact';
-  if (t === 'invoice' || t === 'invoices') return 'invoice';
-  if (t === 'claim' || t === 'claims') return 'claim';
-
-  return t;
 };
 
 export interface EntityProfileHeaderProps {

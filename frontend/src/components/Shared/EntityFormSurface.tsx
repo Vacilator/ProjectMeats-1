@@ -76,17 +76,7 @@ export interface EntityFormSurfaceProps {
   onValuesChange?: (values: Record<string, unknown>) => void;
 }
 
-const normalizeEntityType = (raw: string): string => {
-  const t = String(raw || '')
-    .trim()
-    .toLowerCase();
-
-  if (t === 'inquiry' || t === 'inquiries') return 'inquiry';
-  if (t === 'customer' || t === 'customers') return 'customer';
-  if (t === 'supplier' || t === 'suppliers') return 'supplier';
-
-  return t;
-};
+import { normalizeEntityType } from '../../utils/entityTypeRegistry';
 
 const buildUnauthorizedLoadError = () => ({ response: { status: 401 } });
 const EMPTY_INITIAL_VALUES: Record<string, unknown> = {};
