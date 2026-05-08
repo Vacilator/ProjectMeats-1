@@ -57,6 +57,8 @@ export const CockpitPanel: React.FC<CockpitPanelProps> = ({
 }) => (
   <StyledCard
     size="small"
+    role="region"
+    aria-label={typeof title === 'string' ? title : undefined}
     title={
       title ? (
         <Text strong style={{ fontSize: '0.85rem' }}>

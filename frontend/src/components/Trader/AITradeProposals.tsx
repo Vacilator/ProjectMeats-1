@@ -191,7 +191,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
 
   if (proposalsQuery.isLoading) {
     return (
-      <ProposalsContainer>
+      <ProposalsContainer aria-busy="true" aria-label="Loading AI trade proposals">
         <Card size="small" title={<Space><Sparkles size={14} /> AI Proposals</Space>}>
           <Skeleton active paragraph={{ rows: 2 }} />
         </Card>
@@ -199,10 +199,14 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
     );
   }
 
+  if (proposalsQuery.isError) {
+    return null; // Silently degrade — non-critical feature
+  }
+
   if (proposals.length === 0) return null;
 
   return (
-    <ProposalsContainer>
+    <ProposalsContainer role="region" aria-label="AI Trade Proposals">
       <Card
         size="small"
         title={
@@ -266,6 +270,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
                   icon={<ThumbsUp size={14} />}
                   onClick={() => handleThumbsUp(proposal.id)}
                   loading={feedbackMutation.isPending}
+                  aria-label={`Approve proposal: ${proposal.title}`}
                 />
               </Tooltip>
               <Tooltip title="Reject — needs improvement">
@@ -274,6 +279,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
                   type="text"
                   icon={<ThumbsDown size={14} />}
                   onClick={() => handleThumbsDown(proposal.id)}
+                  aria-label={`Reject proposal: ${proposal.title}`}
                 />
               </Tooltip>
               <Button
@@ -282,6 +288,8 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
                 icon={<Play size={12} />}
                 onClick={() => handleExecute(proposal.id)}
                 loading={executeMutation.isPending}
+                aria-label={`Execute trade from proposal: ${proposal.title}`}
+                style={{ borderRadius: 8 }}
               >
                 Execute Trade
               </Button>

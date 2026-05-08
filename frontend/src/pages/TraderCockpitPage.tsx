@@ -53,6 +53,7 @@ import { AITradeProposals } from '../components/Trader/AITradeProposals';
 import { OperationsPanel } from '../components/Trader/OperationsPanel';
 import { StatCardGrid } from '../components/Shared/StatCardGrid';
 import { CockpitPanel } from '../components/Shared/CockpitPanel';
+import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -444,12 +445,14 @@ const TraderCockpitPage: React.FC = () => {
       {/* Tab Content */}
       {activeTab === 'command' && (
         <>
-          <AITradeProposals
-            onProposalExecuted={() => {
-              queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
-              setActiveTab('pipeline');
-            }}
-          />
+          <ErrorBoundary fallbackMessage="AI proposals could not be loaded.">
+            <AITradeProposals
+              onProposalExecuted={() => {
+                queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
+                setActiveTab('pipeline');
+              }}
+            />
+          </ErrorBoundary>
           {stats.active > 0 && (
             <CockpitPanel
               title="Needs Attention"
@@ -515,7 +518,9 @@ const TraderCockpitPage: React.FC = () => {
 
       {activeTab === 'operations' && (
         <CockpitPanel title="Operations Overview">
-          <OperationsPanel />
+          <ErrorBoundary fallbackMessage="Operations data could not be loaded.">
+            <OperationsPanel />
+          </ErrorBoundary>
         </CockpitPanel>
       )}
 
