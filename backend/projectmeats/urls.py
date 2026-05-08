@@ -19,6 +19,7 @@ from apps.core.health_api import (
     HealthWorkformsAPIView,
     ReadyCheckAPIView,
 )
+from apps.core.monitoring_views import PipelineHealthAPIView, SystemMetricsAPIView
 from apps.core.admin_site import admin_site
 from tenant_apps.integrations.views import SettlementEventIngestAPIView
 from tenant_apps.workflows.views import SuggestNodesView
@@ -39,6 +40,9 @@ urlpatterns = [
     path("api/v1/health/detailed/", HealthDetailedAPIView.as_view(), name="health-detailed"),
     path("api/v1/health/workforms/", HealthWorkformsAPIView.as_view(), name="health-workforms"),
     path("api/v1/ready/", ReadyCheckAPIView.as_view(), name="ready-check"),
+    # Internal monitoring (admin-only)
+    path("api/v1/internal/metrics/", SystemMetricsAPIView.as_view(), name="system-metrics"),
+    path("api/v1/internal/pipeline-health/", PipelineHealthAPIView.as_view(), name="pipeline-health"),
     # NOTE: System Configuration Studio ARCHIVED 2026-02-14 (superseded by apps.system)
     # Admin interface (using custom three-tier admin site)
     path("admin/", admin_site.urls, name='admin'),  # Custom three-tier admin (primary)
