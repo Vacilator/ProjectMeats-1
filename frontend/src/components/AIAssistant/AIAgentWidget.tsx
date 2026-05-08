@@ -816,12 +816,18 @@ export const AIAgentWidget: React.FC = () => {
     return () => window.removeEventListener(AI_INBOX_REFRESH_EVENT, handler);
   }, []);
 
+  // Stable ref for aiEnabled to avoid effect re-triggering on every health poll
+  const aiEnabledRef = useRef(aiEnabled);
+  useEffect(() => { aiEnabledRef.current = aiEnabled; }, [aiEnabled]);
+
   useEffect(() => {
     if (!aiEnabled || typeof window === 'undefined' || typeof WebSocket === 'undefined') {
       return;
     }
 
     let disposed = false;
+    // Cap reconnect attempts to prevent infinite spam
+    const MAX_RECONNECT_ATTEMPTS = 8;
 
     const clearReconnectTimer = () => {
       if (inboxReconnectTimerRef.current != null) {
@@ -852,24 +858,49 @@ export const AIAgentWidget: React.FC = () => {
       inboxReconnectAttemptsRef.current += 1;
       const attempt = inboxReconnectAttemptsRef.current;
 
-      const baseDelayMs = Math.min(15_000, 500 * 2 ** (attempt - 1));
+      // Stop retrying after MAX_RECONNECT_ATTEMPTS — user can manually reconnect
+      if (attempt > MAX_RECONNECT_ATTEMPTS) {
+        if (IS_DEV) {
+          logger.debug(`WS: max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached, giving up`, WS_LOG_CTX);
+        }
+        setAiInboxRealtimeStatus('degraded');
+        return;
+      }
+
+      // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s, 30s, 30s
+      const baseDelayMs = Math.min(30_000, 1000 * 2 ** (attempt - 1));
       const jitterFactor = 0.8 + Math.random() * 0.4;
-      const delayMs = Math.max(250, Math.round(baseDelayMs * jitterFactor));
+      const delayMs = Math.round(baseDelayMs * jitterFactor);
 
       if (IS_DEV) {
         logger.debug(
-          `WS: reconnect #${attempt} in ${delayMs}ms (refresh=${attemptRefresh})`,
+          `WS: reconnect #${attempt}/${MAX_RECONNECT_ATTEMPTS} in ${delayMs}ms (refresh=${attemptRefresh})`,
           WS_LOG_CTX,
         );
       }
 
       inboxReconnectTimerRef.current = window.setTimeout(() => {
+        // Skip reconnect if tab is hidden (saves resources)
+        if (document.hidden) {
+          if (IS_DEV) logger.debug('WS: tab hidden, deferring reconnect', WS_LOG_CTX);
+          scheduleReconnect(attemptRefresh);
+          return;
+        }
         void connect(attemptRefresh);
       }, delayMs);
     };
 
     const connect = async (attemptRefresh: boolean) => {
       if (disposed) return;
+
+      // Don't attempt to connect if there's already a healthy socket
+      const existingSocket = inboxSocketRef.current;
+      if (existingSocket && existingSocket.readyState === WebSocket.OPEN) {
+        return;
+      }
+      if (existingSocket && existingSocket.readyState === WebSocket.CONNECTING) {
+        return;
+      }
 
       const tenantId = resolveAIInboxTenantId();
       if (!tenantId) {
@@ -879,7 +910,11 @@ export const AIAgentWidget: React.FC = () => {
         return;
       }
 
-      setAiInboxRealtimeStatus('connecting');
+      // Only show "connecting" on first attempt to avoid UI jitter
+      if (inboxReconnectAttemptsRef.current <= 1) {
+        setAiInboxRealtimeStatus('connecting');
+      }
+
       let accessToken = getAccessToken();
       if (!accessToken && attemptRefresh) {
         if (IS_DEV) logger.debug('WS: no token, attempting refresh', WS_LOG_CTX);
@@ -987,8 +1022,7 @@ export const AIAgentWidget: React.FC = () => {
         };
 
         socket.onerror = () => {
-          // Suppress console spam — onclose owns retry logic and logging.
-          if (IS_DEV) logger.debug('WS: socket error event (onclose will handle retry)', WS_LOG_CTX);
+          // Suppress console spam — onclose owns retry logic
         };
 
         socket.onclose = (event) => {
@@ -1027,13 +1061,27 @@ export const AIAgentWidget: React.FC = () => {
       }
     };
 
+    // Reconnect when tab becomes visible again (if socket is dead)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && !disposed) {
+        const socket = inboxSocketRef.current;
+        if (!socket || socket.readyState === WebSocket.CLOSED) {
+          inboxReconnectAttemptsRef.current = 0; // Reset attempts on manual wake
+          void connect(true);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     void connect(true);
 
     return () => {
       disposed = true;
       clearReconnectTimer();
       closeSocket();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiEnabled]);
 
   useEffect(() => {
