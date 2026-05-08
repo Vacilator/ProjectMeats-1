@@ -24,7 +24,7 @@
  * 
  * Updated: 2026-02-03 - Added CallTimer support
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
 
 import { useZodForm } from '@/hooks/useZodForm';
@@ -392,6 +392,10 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   // Inquiry modal state
   const [showInquiryModal, setShowInquiryModal] = useState(false);
 
+  const handleInquiryModalClose = useCallback(() => {
+    setShowInquiryModal(false);
+  }, []);
+
   // Dynamic entity options
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
@@ -718,10 +722,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
           entityType="inquiries"
           mode="create"
           isOpen={showInquiryModal}
-          onClose={() => setShowInquiryModal(false)}
-          onSuccess={() => {
-            setShowInquiryModal(false);
-          }}
+          onClose={handleInquiryModalClose}
+          onSuccess={handleInquiryModalClose}
           context={{
             sourceCallId: initialData.id,
             ...(String(entityType).toLowerCase() === 'supplier'
