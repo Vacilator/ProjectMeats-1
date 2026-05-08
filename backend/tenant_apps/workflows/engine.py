@@ -132,7 +132,11 @@ class ActionExecutor:
 
 
 class SendEmailExecutor(ActionExecutor):
-    """Executor for send_email action."""
+    """Executor for send_email action.
+
+    Supports intelligent recipient resolution via Plant Contact Type when
+    ``resolve_from_contacts`` is enabled in the action config.
+    """
     
     def execute(self, action: TenantWorkflowAction, context: Dict) -> Dict:
         config = action.config
@@ -141,6 +145,14 @@ class SendEmailExecutor(ActionExecutor):
         subject = self._interpolate(config.get('subject', ''), context)
         body = self._interpolate(config.get('body', ''), context)
         
+        # Intelligent contact resolution: if config requests it, resolve
+        # recipient from Plant Contact Type / Title / Responsible For
+        if config.get('resolve_from_contacts') and not to_email:
+            resolved = self._resolve_recipient(action, config, context)
+            if resolved:
+                to_email = resolved.get('email', '')
+                context['resolved_contact'] = resolved
+
         if not to_email:
             return {'success': False, 'message': 'No recipient email specified'}
         
@@ -184,6 +196,43 @@ class SendEmailExecutor(ActionExecutor):
             return str(value) if value is not None else ''
         
         return re.sub(r'\{\{([^}]+)\}\}', replace, template)
+
+    def _resolve_recipient(
+        self, action: TenantWorkflowAction, config: Dict, context: Dict
+    ) -> Dict | None:
+        """Resolve recipient from Plant Contact Type / Title / Responsible For.
+
+        Config keys:
+        - ``preferred_contact_type``: e.g. "Sales", "Accounting"
+        - ``product_context``: optional protein/product for responsibility match
+        """
+        try:
+            from tenant_apps.workflows.services.contact_resolution import (
+                resolve_rfq_recipient,
+            )
+
+            tenant = getattr(action, "tenant", None) or context.get("tenant")
+            supplier = context.get("supplier") or context.get("record", {}).get("supplier")
+            if not tenant or not supplier:
+                return None
+
+            resolved = resolve_rfq_recipient(
+                tenant=tenant,
+                supplier=supplier,
+                preferred_contact_type=config.get("preferred_contact_type", "Sales"),
+                product_context=config.get("product_context"),
+            )
+            if resolved:
+                return {
+                    "email": resolved.email,
+                    "name": resolved.name,
+                    "contact_type": resolved.contact_type,
+                    "title": resolved.title,
+                    "resolution_method": resolved.resolution_method,
+                }
+        except Exception as exc:
+            logger.warning("Contact resolution failed, falling back: %s", exc)
+        return None
 
 
 class SendNotificationExecutor(ActionExecutor):

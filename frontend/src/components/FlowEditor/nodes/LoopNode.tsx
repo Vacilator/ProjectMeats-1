@@ -22,7 +22,7 @@ import type { BaseNodeData } from './BaseNode';
 /**
  * Loop iteration types
  */
-export type LoopType = 'for_each' | 'while' | 'for_range';
+export type LoopType = 'for_each' | 'while' | 'for_range' | 'do_until';
 
 /**
  * Data structure for Loop Node
@@ -149,6 +149,7 @@ function getLoopTypeLabel(loopType: LoopType): string {
     for_each: 'For Each',
     while: 'While',
     for_range: 'For Range',
+    do_until: 'Do Until',
   };
   return labels[loopType];
 }
@@ -280,6 +281,10 @@ export const LoopNode: React.FC<LoopNodeProps> = ({ data }) => {
           ) : data.loopType === 'while' ? (
             <>
               Condition: <strong>{(data as any).condition ?? (data as any).whileCondition ?? '—'}</strong>
+            </>
+          ) : data.loopType === 'do_until' ? (
+            <>
+              Repeat until: <strong>{(data as any).untilCondition ?? (data as any).whileCondition ?? '—'}</strong>
             </>
           ) : (
             <>

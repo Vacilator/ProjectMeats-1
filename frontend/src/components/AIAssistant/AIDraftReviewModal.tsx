@@ -6,6 +6,7 @@ import {
   AIInboxFeedbackActions,
   type AIInboxFeedbackSubmission,
 } from '@/components/AIAssistant/AIInboxFeedbackActions';
+import { MissingDependencyQuickCreate, type DependencyType } from '@/components/Cockpit/MissingDependencyQuickCreate';
 import { UnifiedForm } from '@/components/UnifiedForm';
 import { aiStaffApi, type PendingReviewItem } from '@/services/aiService';
 import {
@@ -206,6 +207,11 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
 }) => {
   const navigate = useNavigate();
   const resolvingAfterSaveRef = useRef(false);
+  const [quickCreateTarget, setQuickCreateTarget] = useState<{
+    entityType: DependencyType;
+    suggestedName?: string;
+    suggestedEmail?: string;
+  } | null>(null);
   const entityType = useMemo(() => resolveDraftEntityType(item), [item]);
   const initialValues = useMemo(() => mapDraftToInitialValues(item), [item]);
   const payload = useMemo(() => asRecord(item?.original_extracted_data), [item]);
@@ -413,7 +419,19 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                       padding: '4px 0',
                     }}
                   >
-                    <Text style={{ fontSize: 13 }}>{att.name || `Attachment ${idx + 1}`}</Text>
+                    <Text style={{ fontSize: 13 }}>
+                      {(() => {
+                        const ext = (att.name || '').split('.').pop()?.toLowerCase() ?? '';
+                        const icon =
+                          ['pdf'].includes(ext) ? '📄' :
+                          ['xlsx', 'xls', 'csv'].includes(ext) ? '📊' :
+                          ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? '🖼️' :
+                          ['doc', 'docx'].includes(ext) ? '📝' :
+                          '📎';
+                        return `${icon} `;
+                      })()}
+                      {att.name || `Attachment ${idx + 1}`}
+                    </Text>
                     {att.doc_type && att.doc_type !== 'other' ? (
                       <Tag color="geekblue" style={{ margin: 0 }}>
                         {att.doc_type.replace(/_/g, ' ')}
@@ -570,6 +588,32 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                           via {draft.source.replace(/_/g, ' ')}
                         </Text>
                       ) : null}
+                      {draft.status !== 'exists' ? (
+                        <Space size={4} style={{ marginLeft: 'auto' }}>
+                          <Button
+                            size="small"
+                            type="primary"
+                            style={{ fontSize: 11, padding: '0 8px', height: 22 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              message.success(`Approved ${typeLabel} draft.`);
+                            }}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="small"
+                            danger
+                            style={{ fontSize: 11, padding: '0 8px', height: 22 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              message.info(`Rejected ${typeLabel} draft.`);
+                            }}
+                          >
+                            Reject
+                          </Button>
+                        </Space>
+                      ) : null}
                     </Space>
                     {dataEntries.length > 0 ? (
                       <div style={{ display: 'grid', gap: 2 }}>
@@ -597,7 +641,22 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                       >
                         Open existing record
                       </Button>
-                    ) : null}
+                    ) : (
+                      ['supplier', 'customer', 'contact', 'plant'].includes(draft.entity_type) ? (
+                        <Button
+                          type="link"
+                          size="small"
+                          style={{ paddingLeft: 0, justifySelf: 'start' }}
+                          onClick={() => setQuickCreateTarget({
+                            entityType: draft.entity_type as DependencyType,
+                            suggestedName: String(draft.proposed_data?.name || draft.proposed_data?.company_name || ''),
+                            suggestedEmail: String(draft.proposed_data?.email || ''),
+                          })}
+                        >
+                          + Quick Create {typeLabel}
+                        </Button>
+                      ) : null
+                    )}
                   </div>
                 );
               })}
@@ -627,6 +686,20 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           />
         )}
       </div>
+
+      {quickCreateTarget && (
+        <MissingDependencyQuickCreate
+          open
+          entityType={quickCreateTarget.entityType}
+          suggestedName={quickCreateTarget.suggestedName}
+          suggestedEmail={quickCreateTarget.suggestedEmail}
+          onClose={() => setQuickCreateTarget(null)}
+          onCreated={(entityId, entityName) => {
+            message.success(`Created ${quickCreateTarget.entityType}: ${entityName}`);
+            setQuickCreateTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 };

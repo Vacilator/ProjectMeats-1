@@ -540,6 +540,15 @@ const ProcessCockpitPage: React.FC = () => {
     // AI Inbox items
     const reviews = Array.isArray(aiReviews) ? aiReviews : [];
     for (const review of reviews) {
+      const reviewAny = review as PendingReviewItem & {
+        attachment_count?: number;
+        created_on?: string;
+        created_at?: string;
+        confidence_score?: number;
+      };
+      const fileCountLabel = reviewAny.attachment_count && reviewAny.attachment_count > 0
+        ? `${reviewAny.attachment_count} file(s)`
+        : null;
       items.push({
         id: `ai-${review.id}`,
         source: 'ai-inbox',
@@ -548,14 +557,14 @@ const ProcessCockpitPage: React.FC = () => {
         subtitle: [
           review.sender && `From: ${review.sender}`,
           review.intent_label && `Intent: ${review.intent_label}`,
+          fileCountLabel,
         ]
           .filter(Boolean)
           .join(' • '),
         status: 'review',
         statusLabel: 'Needs Review',
-        timestamp: (review as PendingReviewItem & { created_on?: string; created_at?: string }).created_on
-          || (review as PendingReviewItem & { created_at?: string }).created_at || '',
-        confidence: (review as PendingReviewItem & { confidence_score?: number }).confidence_score,
+        timestamp: reviewAny.created_on || reviewAny.created_at || '',
+        confidence: reviewAny.confidence_score,
         raw: review,
       });
     }

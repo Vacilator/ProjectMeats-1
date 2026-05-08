@@ -358,9 +358,18 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
                             </Text>
                             {email.attachment_filenames && email.attachment_filenames.length > 0 ? (
                               <Space size={[4, 2]} wrap style={{ marginTop: 2 }}>
-                                {email.attachment_filenames.slice(0, 4).map((name) => (
-                                  <Tag key={name} style={{ fontSize: 11, margin: 0 }}>{name}</Tag>
-                                ))}
+                                {email.attachment_filenames.slice(0, 4).map((name) => {
+                                  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+                                  const icon =
+                                    ['pdf'].includes(ext) ? '📄' :
+                                    ['xlsx', 'xls', 'csv'].includes(ext) ? '📊' :
+                                    ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? '🖼️' :
+                                    ['doc', 'docx'].includes(ext) ? '📝' :
+                                    '📎';
+                                  return (
+                                    <Tag key={name} style={{ fontSize: 11, margin: 0 }}>{icon} {name}</Tag>
+                                  );
+                                })}
                                 {email.attachment_filenames.length > 4 ? (
                                   <Text type="secondary" style={{ fontSize: 11 }}>
                                     +{email.attachment_filenames.length - 4} more

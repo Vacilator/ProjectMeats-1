@@ -823,6 +823,16 @@ export const AIAgentWidget: React.FC = () => {
   // Connection lock: prevents overlapping async connect() calls
   const connectingLockRef = useRef(false);
 
+  // Ref for manual reconnect trigger (allows button to restart connection)
+  const manualReconnectRef = useRef<(() => void) | null>(null);
+
+  const handleManualReconnect = useCallback(() => {
+    inboxReconnectAttemptsRef.current = 0;
+    inboxRefreshAttemptedRef.current = false;
+    setAiInboxRealtimeStatus('connecting');
+    manualReconnectRef.current?.();
+  }, []);
+
   useEffect(() => {
     // Use ref to avoid re-running when aiEnabled toggles from health polls.
     // The effect runs once on mount; if AI is disabled, we simply skip connecting.
@@ -1095,6 +1105,12 @@ export const AIAgentWidget: React.FC = () => {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Expose connect for manual reconnect button
+    manualReconnectRef.current = () => {
+      connectingLockRef.current = false;
+      void connect(true);
+    };
+
     // Debounce initial connection (300ms) to survive React strict mode double-mount
     // and avoid immediate connection spam on page load
     const initialConnectTimer = window.setTimeout(() => {
@@ -1103,6 +1119,7 @@ export const AIAgentWidget: React.FC = () => {
 
     return () => {
       disposed = true;
+      manualReconnectRef.current = null;
       window.clearTimeout(initialConnectTimer);
       clearReconnectTimer();
       closeSocket();
@@ -1246,7 +1263,7 @@ export const AIAgentWidget: React.FC = () => {
               variant: 'warn' as const,
             }
           : aiInboxRealtimeStatus === 'degraded'
-            ? { text: 'Inbox offline', variant: 'info' as const }
+            ? { text: 'Inbox offline', variant: 'info' as const, showReconnect: true }
           : state === 'action_required'
             ? { text: 'Action required', variant: 'warn' as const }
           : { text: 'Idle', variant: 'ok' as const };
@@ -1841,6 +1858,24 @@ export const AIAgentWidget: React.FC = () => {
                 <Title title={headerTitle}>{headerTitle}</Title>
               </HeaderLeft>
               <StatusPill $variant={pill.variant}>{pill.text}</StatusPill>
+              {'showReconnect' in pill && (pill as { showReconnect?: boolean }).showReconnect ? (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleManualReconnect(); }}
+                  style={{
+                    fontSize: 10,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    border: '1px solid rgba(var(--color-primary), 0.3)',
+                    background: 'rgba(var(--color-primary), 0.1)',
+                    color: 'rgb(var(--color-primary))',
+                    cursor: 'pointer',
+                    marginLeft: 4,
+                  }}
+                >
+                  Reconnect
+                </button>
+              ) : null}
             </>
           ) : (
             icon
