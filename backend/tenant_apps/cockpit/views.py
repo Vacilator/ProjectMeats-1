@@ -313,7 +313,9 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
         if not hasattr(self.request, 'tenant') or not self.request.tenant:
             return ActivityLog.objects.none()
 
-        queryset = ActivityLog.objects.filter(tenant=self.request.tenant)
+        queryset = ActivityLog.objects.filter(
+            tenant=self.request.tenant,
+        ).select_related('created_by')
 
         # Filter by entity if provided
         entity_type = self.request.query_params.get('entity_type')
@@ -382,7 +384,9 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         if not hasattr(self.request, 'tenant') or not self.request.tenant:
             return ScheduledCall.objects.none()
         
-        queryset = ScheduledCall.objects.filter(tenant=self.request.tenant)
+        queryset = ScheduledCall.objects.filter(
+            tenant=self.request.tenant,
+        ).select_related('assigned_to', 'created_by')
         
         # Filter by entity if provided
         entity_type = self.request.query_params.get('entity_type')
@@ -550,7 +554,9 @@ class TradeExceptionQueueViewSet(viewsets.ReadOnlyModelViewSet):
         if not tenant:
             return TradeExceptionQueue.objects.none()
 
-        queryset = TradeExceptionQueue.objects.filter(tenant=tenant).order_by("-created_on")
+        queryset = TradeExceptionQueue.objects.filter(
+            tenant=tenant,
+        ).select_related('tenant').order_by("-created_on")
 
         if self.action == "list":
             status_param = self.request.query_params.get("status", "").strip()
