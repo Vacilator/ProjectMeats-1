@@ -346,7 +346,7 @@ const ColdStorage: React.FC = () => {
                 </div>
                 <Progress
                   percent={capacityPercent}
-                  strokeColor={capacityPercent > 85 ? '#ef4444' : capacityPercent > 65 ? '#f59e0b' : '#22c55e'}
+                  strokeColor={capacityPercent > 85 ? 'rgb(var(--color-error))' : capacityPercent > 65 ? 'rgb(var(--color-warning))' : 'rgb(var(--color-success))'}
                   size="small"
                 />
                 <div style={{ marginTop: 8, display: 'flex', gap: 4 }}>
@@ -448,7 +448,7 @@ const ColdStorage: React.FC = () => {
                   if (days !== null && days <= 14) {
                     return (
                       <Tooltip title={`${days} days remaining`}>
-                        <AlertTriangle size={12} style={{ marginLeft: 4, color: days <= 7 ? '#ef4444' : '#f59e0b' }} />
+                        <AlertTriangle size={12} style={{ marginLeft: 4, color: days <= 7 ? 'rgb(var(--color-error))' : 'rgb(var(--color-warning))' }} />
                       </Tooltip>
                     );
                   }

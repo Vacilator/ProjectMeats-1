@@ -19,7 +19,8 @@ from apps.core.admin import TenantFilteredAdmin
 from .models import (
     TenantList, TenantForm, TenantFormEntity, TenantFormField, TenantFormRule,
     TenantWorkflow, TenantWorkflowCondition, TenantWorkflowAction,
-    WorkflowExecutionLog, FormStatus, WorkflowStatus
+    WorkflowExecutionLog, FormStatus, WorkflowStatus,
+    TenantWorkFormExecution, WorkflowDeadLetter,
 )
 from .forms import (
     TenantListForm, TenantFormAdminForm, TenantFormEntityForm,
@@ -667,3 +668,33 @@ admin_site.register(TenantWorkflow, TenantWorkflowAdmin)
 admin_site.register(WorkflowExecutionLog, WorkflowExecutionLogAdmin)
 admin_site.register(FormSubmission, FormSubmissionAdmin)
 admin_site.register(FormStepSubmission, FormStepSubmissionAdmin)
+
+
+class TenantWorkFormExecutionAdmin(admin.ModelAdmin):
+    """Admin for WorkForm execution tracking."""
+
+    list_display = ['id', 'workform', 'status', 'started_by', 'started_at', 'completed_at']
+    list_filter = ['status', 'tenant']
+    search_fields = ['error_message']
+    readonly_fields = ['id', 'created_on', 'modified_on', 'started_at', 'completed_at']
+    raw_id_fields = ['workform', 'started_by']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('tenant', 'workform', 'started_by')
+
+
+class WorkflowDeadLetterAdmin(admin.ModelAdmin):
+    """Admin for dead letter queue — failed workflow nodes needing ops attention."""
+
+    list_display = ['id', 'node_type', 'node_id', 'status', 'retry_count', 'last_failed_at']
+    list_filter = ['status', 'node_type', 'tenant']
+    search_fields = ['node_id', 'error_message', 'task_id']
+    readonly_fields = ['id', 'created_on', 'modified_on', 'last_failed_at', 'resolved_at']
+    raw_id_fields = ['workform', 'workform_execution']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('tenant', 'workform', 'workform_execution')
+
+
+admin_site.register(TenantWorkFormExecution, TenantWorkFormExecutionAdmin)
+admin_site.register(WorkflowDeadLetter, WorkflowDeadLetterAdmin)

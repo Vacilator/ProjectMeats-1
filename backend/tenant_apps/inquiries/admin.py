@@ -1,7 +1,10 @@
 """Admin configuration for Inquiries."""
 from django.contrib import admin
 from apps.core.admin_site import admin_site
-from .models import Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct
+from .models import (
+    Inquiry, InquiryProduct, InquirySupplierRFQ,
+    InquiryTemplate, InquiryTemplateProduct, TradeSession,
+)
 
 
 class InquiryProductInline(admin.TabularInline):
@@ -120,3 +123,33 @@ class InquiryTemplateAdmin(admin.ModelAdmin):
 # Register models with custom admin site
 admin_site.register(Inquiry, InquiryAdmin)
 admin_site.register(InquiryTemplate, InquiryTemplateAdmin)
+
+
+class InquirySupplierRFQAdmin(admin.ModelAdmin):
+    """Admin for outbound RFQ audit records."""
+
+    list_display = ['inquiry', 'supplier', 'status', 'recipient_email', 'sent_at', 'attempt_count']
+    list_filter = ['status', 'provider', 'tenant']
+    search_fields = ['recipient_email', 'recipient_name', 'subject']
+    readonly_fields = ['correlation_key', 'created_on', 'modified_on', 'sent_at', 'last_attempted_at']
+    raw_id_fields = ['inquiry', 'supplier', 'created_by']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('tenant', 'inquiry', 'supplier')
+
+
+class TradeSessionAdmin(admin.ModelAdmin):
+    """Admin for trade lineage tracking."""
+
+    list_display = ['trade_id', 'status', 'inquiry', 'created_on']
+    list_filter = ['status', 'tenant']
+    search_fields = ['trade_id']
+    readonly_fields = ['trade_id', 'created_on', 'modified_on']
+    raw_id_fields = ['inquiry']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('tenant', 'inquiry')
+
+
+admin_site.register(InquirySupplierRFQ, InquirySupplierRFQAdmin)
+admin_site.register(TradeSession, TradeSessionAdmin)

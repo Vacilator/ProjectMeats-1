@@ -404,7 +404,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         </div>
         <div className="flex-1 overflow-y-auto">
           {filteredLists.map((list) => (
-            <button
+            <button type="button"
               key={list.id}
               onClick={() => void handleSelectList(list)}
               className={`w-full text-left p-3 border-b hover:bg-gray-50 transition-colors ${
@@ -449,20 +449,20 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button
+                  <button type="button"
                     onClick={handleImportJson}
                     className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                   >
                     📥 Import
                   </button>
-                  <button
+                  <button type="button"
                     onClick={handleExportJson}
                     className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                   >
                     📤 Export
                   </button>
                   {onClose && (
-                    <button
+                    <button type="button"
                       onClick={onClose}
                       className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                     >
@@ -543,7 +543,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                         {item.sort_order}
                       </td>
                       <td className="px-4 py-2 text-center">
-                        <button
+                        <button type="button"
                           onClick={() => void handleDeleteItem(index)}
                           className="text-red-600 hover:text-red-800 text-sm"
                           title="Delete item"
@@ -566,7 +566,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
 
             {/* Footer Actions */}
             <div className="bg-white border-t p-4 flex justify-between items-center">
-              <button
+              <button type="button"
                 onClick={handleAddItem}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
               >
@@ -577,7 +577,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                 {hasChanges && (
                   <span className="text-sm text-orange-600">● Unsaved changes</span>
                 )}
-                <button
+                <button type="button"
                   onClick={handleSave}
                   disabled={!hasChanges || saving}
                   className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
