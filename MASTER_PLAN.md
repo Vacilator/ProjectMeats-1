@@ -1086,6 +1086,40 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **CI automation:** promotion PRs dev→uat and uat→prod/main remain green and observable.
 - **Copilot Squad governance:** repo-local squad roles/tasks/agents/skills under `.copilot/squad/` + `.github/agents/` + `.github/skills/` with validator `bash scripts/validate_copilot_squad.sh`.
 
+### P0 — Platform Unification Epics (5 items, planned)
+
+**Status**: 📋 PLANNED — All infrastructure exists; connecting final runtime + UI integration layers.
+
+#### Epic PI-01: Finalize Multi-Trigger EndToEndInquiryToPOProcess Workform
+- **Goal:** Complete the production-ready E2E template with SO generation + PO wait nodes, enhanced contact multi-selects, runtime executors, and full test coverage.
+- **Key files:** `backend/tenant_apps/workflows/templates/process/end_to_end_inquiry_to_po.json`, `template_registry.py`, `contact_resolution.py`
+- **Blocked by:** Nothing (can start immediately)
+- **Acceptance:** All 5 triggers fire → FormProcess executes → BidSelection with margin → SO generated → PO wait completes → telemetry emitted at every step.
+
+#### Epic PI-02: Elevate AI Inbox to Production Grade
+- **Goal:** 15-min auto-sync, robust PO extraction parser, auto-dep creation, feedback loop w/ retraining queue, routing to Process Cockpit.
+- **Key files:** `ai_assistant/tasks/watchdog.py`, `integrations/services/email_ingestion.py`, `AIFeedbackLog` model
+- **Blocked by:** Nothing (can start immediately)
+- **Acceptance:** Rowena/TX PO 226052 email parses correctly → deps auto-created → draft routed to cockpit Action Required tab → feedback recorded.
+
+#### Epic PI-03: Consolidated Process Cockpit + Rich React Flow
+- **Goal:** Single /process-cockpit with all monitoring views, "View Process Flow" per entity, clickable nodes showing contacts/docs/I-O, failure messaging.
+- **Key files:** `ProcessCockpitPage.tsx`, `TradeLineageFlow.tsx`, `EmailIngestionCockpitPanel.tsx`
+- **Blocked by:** PI-01 (needs runtime data to visualize)
+- **Acceptance:** All process monitoring consolidated under one route; every entity has View Flow button; no "forever-running" spinners.
+
+#### Epic PI-04: Strengthen Master Data Integration
+- **Goal:** Wire Plant Contact enhancements (Type, Title, Responsibilities) into RFQ/PO/Bid nodes + Cockpit visualization + quick-create flows.
+- **Key files:** `contact_resolution.py`, `TradeLineageFlow.tsx`, `MissingDependencyResolver`
+- **Blocked by:** PI-01 (needs E2E template runtime)
+- **Acceptance:** SendEmail/RFQ resolves correct contact by type+responsibility; PO form pre-fills contacts; missing deps trigger inline creation.
+
+#### Epic PI-05: Stabilize Workform Editor (Post-Runtime)
+- **Goal:** Visual support for FormProcess groups, loop indicators, conditional field config, auto-layout for 20+ node templates, "Create Variant" workflow.
+- **Key files:** `FlowEditor/UnifiedFlowEditor.tsx`, `autoLayout.ts`, `TemplateSelector.tsx`
+- **Blocked by:** PI-01 through PI-04 verified on dev
+- **Acceptance:** E2E template loads + renders cleanly in editor; variant creation works; no layout overlap.
+
 ## Phase 12 — Enterprise Hardening & Tech Debt Eradication
 
 **Goal:** convert the current platform from feature-reactive execution into an enterprise-hardened, contract-first, fail-closed system with enforceable SDLC guardrails.
