@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { lazy, Suspense, useMemo, useState } from 'react';
 import { Button, Card, Select, Typography } from 'antd';
 import type { Edge, Node } from '@xyflow/react';
 
-import { UnifiedFlowEditor } from '@/components/FlowEditor/UnifiedFlowEditor';
+const UnifiedFlowEditor = lazy(() => import('@/components/FlowEditor/UnifiedFlowEditor').then(m => ({ default: m.UnifiedFlowEditor })));
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -88,12 +88,14 @@ export const PerfHarness: React.FC = () => {
         </Card>
 
         <div style={{ height: '75vh', minHeight: 640 }}>
-          <UnifiedFlowEditor
-            initialNodes={nodes}
-            initialEdges={edges}
-            editorMode="visual"
-            readOnly={false}
-          />
+          <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>Loading editor…</div>}>
+            <UnifiedFlowEditor
+              initialNodes={nodes}
+              initialEdges={edges}
+              editorMode="visual"
+              readOnly={false}
+            />
+          </Suspense>
         </div>
       </div>
     </div>

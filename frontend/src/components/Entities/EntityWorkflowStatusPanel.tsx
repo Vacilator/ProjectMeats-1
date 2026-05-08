@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Collapse, Modal, Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
-import { UnifiedFlowEditor } from '@/components/FlowEditor/UnifiedFlowEditor';
+const UnifiedFlowEditor = lazy(() => import('@/components/FlowEditor/UnifiedFlowEditor').then(m => ({ default: m.UnifiedFlowEditor })));
 import {
   workformExecutionService,
   type WorkFormExecution,
@@ -321,11 +321,13 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
           <FlowGrid>
             <TextBlock execution={selectedExecution} />
             <FlowEditorWrapper>
-              <UnifiedFlowEditor
-                readOnly
-                initialNodes={flowNodes as any}
-                initialEdges={flowEdges as any}
-              />
+              <Suspense fallback={<Spin />}>
+                <UnifiedFlowEditor
+                  readOnly
+                  initialNodes={flowNodes as any}
+                  initialEdges={flowEdges as any}
+                />
+              </Suspense>
             </FlowEditorWrapper>
           </FlowGrid>
         )}

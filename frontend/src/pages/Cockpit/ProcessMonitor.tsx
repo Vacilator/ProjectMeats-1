@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import { X, RefreshCw } from 'lucide-react';
@@ -6,7 +6,7 @@ import { X, RefreshCw } from 'lucide-react';
 import EmailIngestionCockpitPanel from '../../components/Cockpit/EmailIngestionCockpitPanel';
 import { businessApi } from '../../services/businessApi';
 import { useAuth } from '../../contexts/AuthContext';
-import { UnifiedFlowEditor } from '../../components/FlowEditor/UnifiedFlowEditor';
+const UnifiedFlowEditor = lazy(() => import('../../components/FlowEditor/UnifiedFlowEditor').then(m => ({ default: m.UnifiedFlowEditor })));
 import { withTenantQueryKey } from '../../utils/queryKeys';
 
 // ============================================================================
@@ -569,11 +569,13 @@ const ProcessMonitor: React.FC = () => {
               ) : formQuery.isError ? (
                 <EmptyState>Failed to load form flow definition.</EmptyState>
               ) : (
-                <UnifiedFlowEditor
-                  readOnly={true}
-                  initialNodes={nodes as any}
-                  initialEdges={edges as any}
-                />
+                <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>Loading flow…</div>}>
+                  <UnifiedFlowEditor
+                    readOnly={true}
+                    initialNodes={nodes as any}
+                    initialEdges={edges as any}
+                  />
+                </Suspense>
               )}
             </EditorPane>
 
