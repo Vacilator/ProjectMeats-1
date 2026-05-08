@@ -21,7 +21,6 @@ import {
   Card,
   Input,
   Modal,
-  Radio,
   Skeleton,
   Space,
   Table,
@@ -39,14 +38,12 @@ import {
   Activity,
   CheckCircle2,
   AlertTriangle,
-  Clock,
   ArrowRight,
   Zap,
 } from 'lucide-react';
 
-import { DependencyWizard } from '../components/Trader/DependencyWizard';
 import { TradePipelineTracker } from '../components/Trader/TradePipelineTracker';
-import { TradeLineageFlow } from '../components/Cockpit/TradeLineageFlow';
+import { SmartTradeCreator } from '../components/Trader/SmartTradeCreator';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -55,7 +52,6 @@ import {
 import {
   traderService,
   type TradeSession,
-  type DependencyCheckResult,
 } from '../services/traderService';
 import { withTenantQueryKey } from '../utils/queryKeys';
 
@@ -112,19 +108,6 @@ const WizardModal = styled(Modal)`
   }
 `;
 
-const RouteSelector = styled.div`
-  margin-bottom: 20px;
-`;
-
-const RouteDescription = styled.div`
-  font-size: 0.75rem;
-  color: rgb(var(--color-text-tertiary, 107 114 128));
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: rgba(var(--color-bg-secondary, 249 250 251));
-  border-radius: 6px;
-`;
-
 const DetailModalContent = styled.div`
   display: flex;
   flex-direction: column;
@@ -167,11 +150,7 @@ const TraderCockpitPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchText, setSearchText] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState<'FULFILL' | 'BROKER'>('FULFILL');
   const [selectedTrade, setSelectedTrade] = useState<TradeSession | null>(null);
-  const [depCheck, setDepCheck] = useState<DependencyCheckResult | null>(null);
-  const [newTradeInquiryId, setNewTradeInquiryId] = useState<string | null>(null);
-  const [newTradeSessionId, setNewTradeSessionId] = useState<string | null>(null);
 
   // Fetch active trades
   const tradesQuery = useQuery({
@@ -204,22 +183,12 @@ const TraderCockpitPage: React.FC = () => {
     completedToday: 0, // Would need timestamp filtering
   }), [trades]);
 
-  // Initiate trade mutation
-  const initiateMutation = useMutation({
-    mutationFn: (data: { route: 'FULFILL' | 'BROKER' }) =>
-      traderService.initiateTrade({ route: data.route }),
-    onSuccess: (result) => {
-      setDepCheck(result.dependencies);
-      setNewTradeInquiryId(result.inquiry_id);
-      setNewTradeSessionId(result.trade_session_id);
-      message.success(`Trade ${result.trade_id} initiated`);
-    },
-    onError: () => {
-      message.error('Failed to initiate trade');
-    },
-  });
+  // Handlers
+  const handleNewTrade = useCallback(() => {
+    setWizardOpen(true);
+  }, []);
 
-  // Advance trade mutation
+  // Advance trade mutation (used in table and detail modal)
   const advanceMutation = useMutation({
     mutationFn: (tradeSessionId: string) =>
       traderService.advanceTrade(tradeSessionId),
@@ -237,33 +206,6 @@ const TraderCockpitPage: React.FC = () => {
       message.error('Failed to advance trade');
     },
   });
-
-  // Handlers
-  const handleNewTrade = useCallback(() => {
-    setWizardOpen(true);
-    setDepCheck(null);
-    setNewTradeInquiryId(null);
-    setNewTradeSessionId(null);
-    setSelectedRoute('FULFILL');
-  }, []);
-
-  const handleInitiate = useCallback(() => {
-    initiateMutation.mutate({ route: selectedRoute });
-  }, [selectedRoute, initiateMutation]);
-
-  const handleStartPipeline = useCallback(() => {
-    if (newTradeSessionId) {
-      advanceMutation.mutate(newTradeSessionId);
-      setWizardOpen(false);
-      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
-    }
-  }, [newTradeSessionId, advanceMutation, queryClient]);
-
-  const handleRefreshDeps = useCallback(() => {
-    if (newTradeInquiryId) {
-      traderService.checkDependencies(newTradeInquiryId).then(setDepCheck);
-    }
-  }, [newTradeInquiryId]);
 
   // Table columns
   const columns = useMemo<ColumnsType<TradeSession>>(
@@ -453,54 +395,23 @@ const TraderCockpitPage: React.FC = () => {
         )}
       </Card>
 
-      {/* New Trade Wizard Modal */}
+      {/* Smart Trade Creator Modal */}
       <WizardModal
         open={wizardOpen}
         onCancel={() => setWizardOpen(false)}
-        title="New Trade"
+        title={null}
         footer={null}
-        width={560}
+        width={680}
         destroyOnClose
       >
-        {!depCheck ? (
-          <>
-            <RouteSelector>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                Select Trade Route
-              </Text>
-              <Radio.Group
-                value={selectedRoute}
-                onChange={(e) => setSelectedRoute(e.target.value)}
-                buttonStyle="solid"
-              >
-                <Radio.Button value="FULFILL">Direct Fulfillment</Radio.Button>
-                <Radio.Button value="BROKER">Broker (via Supplier)</Radio.Button>
-              </Radio.Group>
-              <RouteDescription>
-                {selectedRoute === 'FULFILL'
-                  ? 'You fulfill directly from your own inventory. Pipeline: Draft SO → Approve → Carrier assignment → Delivery.'
-                  : 'You source from a supplier first. Pipeline: Supplier RFQ → Quote → PO → Approve → Draft SO → Carrier → Delivery.'}
-              </RouteDescription>
-            </RouteSelector>
-            <Button
-              type="primary"
-              onClick={handleInitiate}
-              loading={initiateMutation.isPending}
-              icon={<ArrowRight size={14} />}
-              block
-            >
-              Initiate Trade & Check Dependencies
-            </Button>
-          </>
-        ) : (
-          <DependencyWizard
-            checklist={depCheck.checklist}
-            allSatisfied={depCheck.all_satisfied}
-            onStartTrade={handleStartPipeline}
-            onRefresh={handleRefreshDeps}
-            loading={advanceMutation.isPending}
-          />
-        )}
+        <SmartTradeCreator
+          onTradeCreated={(sessionId) => {
+            setWizardOpen(false);
+            queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
+            message.success('Trade pipeline started!');
+          }}
+          onCancel={() => setWizardOpen(false)}
+        />
       </WizardModal>
 
       {/* Trade Detail Modal */}

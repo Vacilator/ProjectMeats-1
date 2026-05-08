@@ -98,6 +98,23 @@ export interface TradeStatusResponse {
   dependencies: DependencyCheckResult;
 }
 
+export interface SmartInitiateRequest extends TradeInitiateRequest {
+  weight?: string;
+  delivery_context?: 'customer_pickup' | 'supplier_delivery';
+}
+
+export interface ContextSuggestion {
+  field: string;
+  value: string;
+  confidence: number;
+  source: string;
+  reason: string;
+}
+
+export interface SmartInitiateResponse extends TradeInitiateResponse {
+  context_suggestions: ContextSuggestion[];
+}
+
 // ============================================================================
 // API Methods
 // ============================================================================
@@ -113,6 +130,12 @@ export const traderService = {
   async initiateTrade(data: TradeInitiateRequest): Promise<TradeInitiateResponse> {
     const response = await businessApi.post('/trades/initiate/', data);
     return response.data as TradeInitiateResponse;
+  },
+
+  /** Smart initiate — richer payload with AI context suggestions */
+  async smartInitiate(data: SmartInitiateRequest): Promise<SmartInitiateResponse> {
+    const response = await businessApi.post('/trades/smart-initiate/', data);
+    return response.data as SmartInitiateResponse;
   },
 
   /** Advance a trade through the orchestrator */

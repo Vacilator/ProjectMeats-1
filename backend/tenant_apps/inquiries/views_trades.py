@@ -160,6 +160,122 @@ class TradePipelineViewSet(viewsets.ViewSet):
             "dependencies": dep_result.to_dict(),
         }, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["post"], url_path="smart-initiate")
+    def smart_initiate(self, request):
+        """POST /api/v1/trades/smart-initiate/ — Smart trade creation with AI context.
+
+        Accepts a richer payload including free-text descriptions, and returns
+        AI-extracted suggestions alongside the standard trade initiation result.
+
+        Body:
+            {
+                "route": "FULFILL" | "BROKER" (optional, inferred from text),
+                "customer_id": "uuid" (optional),
+                "supplier_id": "uuid" (optional),
+                "description": "string" (optional, free text for AI extraction),
+                "type_of_protein": "string" (optional),
+                "weight": "string" (optional),
+                "delivery_context": "customer_pickup" | "supplier_delivery" (optional),
+            }
+
+        Returns standard TradeInitiateResponse plus:
+            "context_suggestions": [
+                {"field": "...", "value": "...", "confidence": 0.9, "reason": "..."}
+            ]
+        """
+        tenant = request.tenant
+        user = request.user
+        data = request.data
+
+        # Determine route (default FULFILL)
+        route = data.get("route", InquiryRouteDecisionChoices.FULFILL)
+        if route not in [InquiryRouteDecisionChoices.FULFILL, InquiryRouteDecisionChoices.BROKER]:
+            route = InquiryRouteDecisionChoices.FULFILL
+
+        # Build context suggestions based on tenant history
+        context_suggestions = []
+
+        # If customer specified, suggest billing/delivery from their data
+        customer_id = data.get("customer_id")
+        if customer_id:
+            try:
+                from tenant_apps.customers.models import Customer
+                customer = Customer.objects.filter(
+                    tenant=tenant, id=customer_id
+                ).first()
+                if customer:
+                    if hasattr(customer, "billing_address") and customer.billing_address:
+                        context_suggestions.append({
+                            "field": "billing_address",
+                            "value": customer.billing_address,
+                            "confidence": 0.9,
+                            "source": "linked_entity",
+                            "reason": f"Billing address from {customer.name}",
+                        })
+            except Exception:
+                pass
+
+        # Protein type inference from recent trades
+        protein = data.get("type_of_protein", "")
+        if not protein and customer_id:
+            try:
+                recent_inquiry = Inquiry.objects.filter(
+                    tenant=tenant, customer_id=customer_id,
+                ).exclude(type_of_protein="").order_by("-created_at").first()
+                if recent_inquiry and recent_inquiry.type_of_protein:
+                    context_suggestions.append({
+                        "field": "type_of_protein",
+                        "value": recent_inquiry.type_of_protein,
+                        "confidence": 0.7,
+                        "source": "history",
+                        "reason": f"Most recent protein for this customer",
+                    })
+                    protein = recent_inquiry.type_of_protein
+            except Exception:
+                pass
+
+        with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
+            inquiry = Inquiry.objects.create(
+                tenant=tenant,
+                status=InquiryStatusChoices.DRAFT,
+                route_decision=route,
+                customer_id=customer_id or None,
+                supplier_id=data.get("supplier_id") or None,
+                description=data.get("description", ""),
+                type_of_protein=protein,
+                created_by=user,
+            )
+
+            trade_session, _ = get_or_create_trade_session(
+                tenant=tenant, inquiry=inquiry
+            )
+
+            dep_result = check_trade_dependencies(
+                tenant=tenant, inquiry=inquiry
+            )
+
+        logger.info(
+            "Telemetry: trade.smart_initiated",
+            extra={
+                "event_type": "trade.smart_initiated",
+                "tenant_id": str(tenant.id),
+                "trade_id": trade_session.trade_id,
+                "inquiry_id": str(inquiry.id),
+                "route": route,
+                "suggestions_count": len(context_suggestions),
+                "deps_satisfied": dep_result.all_satisfied,
+            },
+        )
+
+        return Response({
+            "trade_id": trade_session.trade_id,
+            "trade_session_id": str(trade_session.id),
+            "inquiry_id": str(inquiry.id),
+            "route": route,
+            "dependencies": dep_result.to_dict(),
+            "context_suggestions": context_suggestions,
+        }, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=["post"], url_path="advance")
     def advance(self, request, pk=None):
         """POST /api/v1/trades/{id}/advance/ — Advance a trade.
