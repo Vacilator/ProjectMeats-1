@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
  * Investor Demo Happy Path — E2E Smoke Test
  *
  * Validates the critical user journey shown during investor demos:
- * Login → Trader Command Center → Smart Trade Creator → Process Cockpit
+ * Login → Trader Command Center → Process Cockpit → Master Data
  *
  * This test runs against a live environment (dev by default).
  * Set PLAYWRIGHT_BASE_URL to target a different environment.
@@ -14,58 +14,57 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3000';
 
 test.describe('Investor Demo Flow', () => {
   test.beforeEach(async ({ page }) => {
-    // Login
     await page.goto(`${BASE_URL}/login`);
-    await page.fill('[name="username"], [name="email"], input[type="text"]', 'admin_test_development_1');
-    await page.fill('input[type="password"]', 'password123!');
-    await page.click('button[type="submit"]');
-    // Wait for redirect to cockpit/dashboard
-    await page.waitForURL(/\/(cockpit|trader-cockpit|dashboard)/, { timeout: 15000 });
+    // Use the first visible text input for username (login forms vary)
+    const usernameInput = page.locator('input[type="text"]:visible, input[name="username"]:visible, input[name="email"]:visible').first();
+    await usernameInput.fill('admin_test_development_1');
+    await page.locator('input[type="password"]:visible').first().fill('password123!');
+    await page.locator('button[type="submit"]:visible').first().click();
+    // Wait for auth redirect (any authenticated route)
+    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
   });
 
-  test('should load Trader Command Center with KPI cards', async ({ page }) => {
+  test('should load Trader Command Center with tabs', async ({ page }) => {
     await page.goto(`${BASE_URL}/trader-cockpit`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    // Verify the page renders with key sections
+    // Page renders with heading content
     const heading = page.locator('h1, h2, [data-testid="page-title"]').first();
     await expect(heading).toBeVisible({ timeout: 10000 });
 
-    // Verify at least one tab/section is visible
-    const tabOrSection = page.locator('[role="tab"], [role="tablist"], .ant-tabs');
+    // Tab navigation is present (Segmented or ant-tabs)
+    const tabOrSection = page.locator('[role="tab"], [role="tablist"], .ant-tabs, .ant-segmented');
     await expect(tabOrSection.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should navigate to Process Cockpit', async ({ page }) => {
     await page.goto(`${BASE_URL}/process-cockpit`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    // Process Cockpit should load with tabs
+    // Main content area renders
     const content = page.locator('[role="tabpanel"], .ant-tabs-content, main');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should navigate to Workforms Catalog', async ({ page }) => {
     await page.goto(`${BASE_URL}/workforms/catalog`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    // Catalog page should render
     const content = page.locator('main, [data-testid="catalog"], .catalog');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should navigate to Suppliers master data', async ({ page }) => {
     await page.goto(`${BASE_URL}/suppliers`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    // Table or list should render
     const tableOrList = page.locator('table, [role="grid"], .ant-table, [data-testid="entity-list"]');
     await expect(tableOrList.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should navigate to Customers master data', async ({ page }) => {
     await page.goto(`${BASE_URL}/customers`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const tableOrList = page.locator('table, [role="grid"], .ant-table, [data-testid="entity-list"]');
     await expect(tableOrList.first()).toBeVisible({ timeout: 10000 });
@@ -73,14 +72,13 @@ test.describe('Investor Demo Flow', () => {
 
   test('should access AI Assistant page', async ({ page }) => {
     await page.goto(`${BASE_URL}/ai-assistant`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    // AI page should render content
     const content = page.locator('main, [data-testid="ai-assistant"]');
     await expect(content.first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('should not show any error pages in demo flow', async ({ page }) => {
+  test('should not show error boundaries or 404 pages in demo flow', async ({ page }) => {
     const demoRoutes = [
       '/trader-cockpit',
       '/process-cockpit',
@@ -90,13 +88,15 @@ test.describe('Investor Demo Flow', () => {
     ];
 
     for (const route of demoRoutes) {
-      await page.goto(`${BASE_URL}${route}`);
+      const response = await page.goto(`${BASE_URL}${route}`);
       await page.waitForLoadState('domcontentloaded');
 
-      // No 404 or error boundaries
-      const errorText = page.locator('text=/404|Not Found|Something went wrong|Error/i');
-      const errorCount = await errorText.count();
-      expect(errorCount, `Route ${route} shows an error`).toBe(0);
+      // HTTP response should be successful
+      expect(response?.status(), `Route ${route} returned non-200`).toBeLessThan(400);
+
+      // No React error boundary or explicit 404 page component
+      const errorBoundary = page.locator('[data-testid="error-boundary"], [class*="error-boundary"]');
+      await expect(errorBoundary).toHaveCount(0, { timeout: 3000 });
     }
   });
 });

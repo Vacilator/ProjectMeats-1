@@ -80,9 +80,12 @@ cd frontend && npx tsc --noEmit && npm test
 
 ### Step 2: Promote to Production
 ```bash
-# Trigger production deployment via GitHub Actions
-# Merge UAT branch → main (triggers main-pipeline.yml)
+# Option A: GitHub Actions workflow dispatch (preferred)
+# Trigger production deployment via Actions tab → main-pipeline → Run workflow
+
+# Option B: Merge development → main (triggers main-pipeline.yml automatically)
 gh pr create --base main --head development --title "Release: Production v1.0"
+gh pr merge --squash --admin
 ```
 
 ### Step 3: Verify Deployment
