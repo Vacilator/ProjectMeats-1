@@ -84,7 +84,7 @@ const StatusBanner = styled.div<{ $status: ApprovalGateStatus }>`
       case 'rejected':
         return 'background: rgba(var(--color-error), 0.1); color: rgb(var(--color-error));';
       case 'pending':
-        return 'background: rgba(var(--color-warning), 0.1); color: rgb(161, 98, 7);';
+        return 'background: rgba(var(--color-warning), 0.1); color: rgb(var(--color-warning));';
       default:
         return 'background: rgba(var(--color-border), 0.3); color: rgb(var(--color-text-secondary));';
     }

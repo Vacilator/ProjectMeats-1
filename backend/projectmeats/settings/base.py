@@ -819,6 +819,9 @@ FLAGS = {
     ],
 }
 
+# Only use settings-based flags (no database queries during startup/migrations)
+FLAG_SOURCES = ('flags.sources.SettingsFlagsSource',)
+
 # ==============================================================================
 # Celery Configuration (Task Queue & Scheduled Jobs)
 # ==============================================================================
