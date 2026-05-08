@@ -10,6 +10,8 @@
  *   formatTimeLocal('2026-01-08T14:00:00Z') // → "9:00 AM"
  */
 
+import { logger } from './logger';
+
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export const isDateOnlyString = (value: string): boolean => DATE_ONLY_PATTERN.test(value);
@@ -18,7 +20,7 @@ export const formatCalendarDate = (dateString: string): string => {
   const date = new Date(`${dateString}T00:00:00Z`);
 
   if (isNaN(date.getTime())) {
-    console.warn('Invalid date string:', dateString);
+    logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
     return 'Invalid Date';
   }
 
@@ -42,7 +44,7 @@ export const formatToLocal = (dateString: string | null | undefined): string => 
     
     // Check if date is valid
     if (isNaN(date.getTime())) {
-      console.warn('Invalid date string:', dateString);
+      logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Date';
     }
     
@@ -55,7 +57,7 @@ export const formatToLocal = (dateString: string | null | undefined): string => 
       hour12: true,
     }).format(date);
   } catch (error) {
-    console.error('Error formatting date:', error, dateString);
+    logger.error('Error formatting date', { component: 'formatters', metadata: { dateString } }, error);
     return 'Error';
   }
 };
@@ -75,7 +77,7 @@ export const formatDateLocal = (dateString: string | null | undefined): string =
     const date = new Date(dateString);
     
     if (isNaN(date.getTime())) {
-      console.warn('Invalid date string:', dateString);
+      logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Date';
     }
     
@@ -85,7 +87,7 @@ export const formatDateLocal = (dateString: string | null | undefined): string =
       day: 'numeric',
     }).format(date);
   } catch (error) {
-    console.error('Error formatting date:', error, dateString);
+    logger.error('Error formatting date', { component: 'formatters', metadata: { dateString } }, error);
     return 'Error';
   }
 };
@@ -105,7 +107,7 @@ export const formatTimeLocal = (dateString: string | null | undefined): string =
     const date = new Date(dateString);
     
     if (isNaN(date.getTime())) {
-      console.warn('Invalid date string:', dateString);
+      logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Time';
     }
     
@@ -115,7 +117,7 @@ export const formatTimeLocal = (dateString: string | null | undefined): string =
       hour12: true,
     }).format(date);
   } catch (error) {
-    console.error('Error formatting time:', error, dateString);
+    logger.error('Error formatting time', { component: 'formatters', metadata: { dateString } }, error);
     return 'Error';
   }
 };
@@ -135,7 +137,7 @@ export const formatToLocalWithSeconds = (dateString: string | null | undefined):
     const date = new Date(dateString);
     
     if (isNaN(date.getTime())) {
-      console.warn('Invalid date string:', dateString);
+      logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Date';
     }
     
@@ -149,7 +151,7 @@ export const formatToLocalWithSeconds = (dateString: string | null | undefined):
       hour12: true,
     }).format(date);
   } catch (error) {
-    console.error('Error formatting datetime:', error, dateString);
+    logger.error('Error formatting datetime', { component: 'formatters', metadata: { dateString } }, error);
     return 'Error';
   }
 };
@@ -166,7 +168,7 @@ export const formatRelativeTime = (dateString: string | null | undefined): strin
     const now = new Date();
     
     if (isNaN(date.getTime())) {
-      console.warn('Invalid date string:', dateString);
+      logger.warn('Invalid date string', { component: 'formatters', metadata: { dateString } });
       return 'Invalid Date';
     }
     
@@ -191,7 +193,7 @@ export const formatRelativeTime = (dateString: string | null | undefined): strin
       return formatDateLocal(dateString);
     }
   } catch (error) {
-    console.error('Error formatting relative time:', error, dateString);
+    logger.error('Error formatting relative time', { component: 'formatters', metadata: { dateString } }, error);
     return 'Error';
   }
 };

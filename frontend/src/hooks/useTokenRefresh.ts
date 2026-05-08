@@ -50,14 +50,14 @@ interface TokenRefreshOptions {
 const DEFAULT_OPTIONS: Required<TokenRefreshOptions> = {
   refreshBeforeExpiry: 5 * 60 * 1000, // 5 minutes
   idleTimeout: 30 * 60 * 1000,         // 30 minutes
-  onExpiringSoon: () => console.warn('[TokenRefresh] Token expiring soon'),
+  onExpiringSoon: () => logger.warn('Token expiring soon', { component: 'TokenRefresh' }),
   onExpired: () => {
-    console.warn('[TokenRefresh] Token expired');
+    logger.warn('Token expired', { component: 'TokenRefresh' });
     clearTokens();
     window.location.href = '/login';
   },
   onIdle: () => {
-    console.warn('[TokenRefresh] User idle, logging out');
+    logger.warn('User idle, logging out', { component: 'TokenRefresh' });
     clearTokens();
     window.location.href = '/login?reason=idle';
   },

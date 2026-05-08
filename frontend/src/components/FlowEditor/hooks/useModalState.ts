@@ -105,7 +105,7 @@ export interface UseModalStateReturn {
  * const MyModal = () => {
  *   const { isOpen, isClosing, open, close } = useModalState({
  *     animationDuration: 300,
- *     onClose: () => console.log('Modal closed')
+ *     onClose: () => logger.debug('Modal closed')
  *   });
  *   
  *   return (

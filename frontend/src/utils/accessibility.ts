@@ -268,15 +268,18 @@ export function useA11yAudit(containerRef: React.RefObject<HTMLElement>): A11yAu
       setIssues(auditIssues);
       
       if (auditIssues.length > 0) {
-        console.group('🔍 Accessibility Issues');
-        auditIssues.forEach((issue) => {
-          console.warn(`[${issue.severity.toUpperCase()}] ${issue.issue}`, {
-            element: issue.element,
-            wcag: issue.wcagCriteria,
-            fix: issue.recommendation,
+        logger.group('🔍 Accessibility Issues', () => {
+          auditIssues.forEach((issue) => {
+            logger.warn(`[${issue.severity.toUpperCase()}] ${issue.issue}`, {
+              component: 'a11yAudit',
+              metadata: {
+                element: issue.element,
+                wcag: issue.wcagCriteria,
+                fix: issue.recommendation,
+              },
+            });
           });
         });
-        console.groupEnd();
       }
     }
   }, [containerRef]);
@@ -286,3 +289,4 @@ export function useA11yAudit(containerRef: React.RefObject<HTMLElement>): A11yAu
 
 // Import React for the hook
 import React from 'react';
+import { logger } from './logger';

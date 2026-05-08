@@ -9,6 +9,7 @@
  */
 
 import DOMPurify, { type Config } from 'dompurify';
+import { logger } from './logger';
 
 /**
  * Security utility class for OWASP compliance
@@ -101,7 +102,7 @@ export class SecurityUtils {
       // Return as base64
       return btoa(String.fromCharCode(...combined));
     } catch (error) {
-      console.error('Token encryption failed:', error);
+      logger.error('Token encryption failed', { component: 'SecurityUtils' }, error);
       throw new Error('Token encryption failed');
     }
   }
@@ -143,7 +144,7 @@ export class SecurityUtils {
       const decoder = new TextDecoder();
       return decoder.decode(decrypted);
     } catch (error) {
-      console.error('Token decryption failed:', error);
+      logger.error('Token decryption failed', { component: 'SecurityUtils' }, error);
       throw new Error('Token decryption failed');
     }
   }
@@ -261,7 +262,7 @@ export class SecureStorage {
         const encrypted = await SecurityUtils.encryptToken(serialized, this.encryptionKey);
         this.storage.setItem(key, encrypted);
       } catch (error) {
-        console.error('Secure storage setItem failed:', error);
+        logger.error('Secure storage setItem failed', { component: 'SecureStorage' }, error);
         throw error;
       }
     } else {
@@ -287,7 +288,7 @@ export class SecureStorage {
         return JSON.parse(stored);
       }
     } catch (error) {
-      console.error('Secure storage getItem failed:', error);
+      logger.error('Secure storage getItem failed', { component: 'SecureStorage' }, error);
       return null;
     }
   }

@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useDebounce } from '@/utils/performance';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -144,9 +145,9 @@ export function useAutoSave<T>(
       // Retry logic
       if (retryCountRef.current < maxRetries) {
         retryCountRef.current += 1;
-        console.warn(
-          `Auto-save failed, retrying (${retryCountRef.current}/${maxRetries})...`,
-          saveError
+        logger.warn(
+          `Auto-save failed, retrying (${retryCountRef.current}/${maxRetries})`,
+          { component: 'useAutoSave', metadata: { error: saveError.message } }
         );
         
         // Exponential backoff: 1s, 2s, 4s

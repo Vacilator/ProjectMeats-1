@@ -74,7 +74,7 @@ export const supportsPassive = (): boolean => {
  * ```tsx
  * useEffect(() => {
  *   const element = document.getElementById('canvas');
- *   const handler = (e: WheelEvent) => console.log('wheel', e);
+ *   const handler = (e: WheelEvent) => handleWheel(e);
  *   
  *   const cleanup = addPassiveListener(element, 'wheel', handler);
  *   return cleanup;
@@ -171,7 +171,7 @@ export const addSmartListener = <K extends keyof WindowEventMap>(
  *   usePassiveEventListener(
  *     canvasRef,
  *     'wheel',
- *     (e) => console.log('wheel event', e),
+ *     (e) => handleWheel(e),
  *     { passive: true }
  *   );
  *   

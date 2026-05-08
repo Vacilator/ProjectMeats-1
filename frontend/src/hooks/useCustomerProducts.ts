@@ -19,6 +19,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 // Types
 export interface Product {
@@ -188,7 +189,7 @@ export function useCustomerProducts(
       const data = Array.isArray(response.data) ? response.data : response.data.results;
       return Array.isArray(data) ? data : [];
     } catch (err: any) {
-      console.error('Failed to search products:', err);
+      logger.error('Failed to search products', { component: 'useCustomerProducts' }, err);
       return [];
     }
   }, [allProducts]);

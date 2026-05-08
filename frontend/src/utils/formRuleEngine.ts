@@ -5,6 +5,8 @@
  * Rules control visibility of fields and steps based on field values.
  */
 
+import { logger } from './logger';
+
 // Types for rule conditions and actions
 export interface RuleCondition {
   step_id?: string;        // ID of the step containing the field
@@ -143,7 +145,7 @@ function evaluateCondition(
       return !isEmpty(fieldValue);
     
     default:
-      console.warn(`Unknown operator: ${condition.operator}`);
+      logger.warn(`Unknown operator: ${condition.operator}`, { component: 'formRuleEngine' });
       return false;
   }
 }

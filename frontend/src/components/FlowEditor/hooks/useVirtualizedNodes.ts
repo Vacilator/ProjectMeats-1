@@ -243,7 +243,7 @@ export function useVirtualizedNodes<T extends Node = Node>(
  * const { fps, memoryMB, avgRenderTime } = usePerformanceMetrics();
  * 
  * // Display in dev tools overlay
- * console.log(`FPS: ${fps}, Memory: ${memoryMB}MB, Render: ${avgRenderTime}ms`);
+ * logger.debug(`FPS: ${fps}, Memory: ${memoryMB}MB, Render: ${avgRenderTime}ms`);
  * ```
  */
 export function usePerformanceMetrics() {
