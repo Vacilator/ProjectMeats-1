@@ -114,15 +114,18 @@ server {
     # Frontend React app (served by frontend container nginx)
     # This must be LAST to act as fallback
     location / {
-        # Frontend container serves on host port 80
-        # Docker maps container port 80 to host port 80
-        # But since host nginx is using port 80, frontend container must use different port!
-        # We need to fix this port conflict
         proxy_pass http://127.0.0.1:8080;
-        
+
         # SPA routing support
         proxy_intercept_errors on;
         error_page 404 = @frontend_fallback;
+
+        # Prevent caching of index.html at the proxy layer.
+        # Content-hashed assets (JS/CSS) are cached by the inner nginx;
+        # index.html MUST be fresh so chunk references match the current build.
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
     }
     
     # SPA fallback for client-side routing

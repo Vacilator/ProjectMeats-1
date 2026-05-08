@@ -101,9 +101,19 @@ server {
         proxy_pass http://127.0.0.1:8080;
         proxy_intercept_errors on;
         error_page 404 = @frontend_fallback;
+
+        # index.html MUST NOT be cached — it contains Vite chunk hash references.
+        # Stale index.html after deployment = 404 on lazy-loaded JS chunks.
+        # Content-hashed assets (*.js, *.css) are cached by the inner container nginx.
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
     }
 
     location @frontend_fallback {
         proxy_pass http://127.0.0.1:8080;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
     }
 }
