@@ -2697,7 +2697,7 @@ service = UniversalSearchService(tenant=tenant)  # ← Not pgvector!
 | Feature Area | Current Score | Industry Benchmark | Gap Priority |
 |--------------|---------------|-------------------|--------------|
 | Frontend Design System | 6/10 | Compound components, headless UI | 🟠 HIGH |
-| Universal Forms | 7/10 | Schema-driven, conditional branching | 🔴 CRITICAL |
+| Universal Forms | 8/10 | Schema-driven, conditional branching, sections, auto-inference | 🟠 HIGH |
 | Workflow Editor | 7/10 | Undo/redo ✅, parallel execution ❌ | 🔴 CRITICAL |
 | Workflow Execution | 5/10 | State machines, retry policies | 🔴 CRITICAL |
 | UX/Collaboration | 4/10 | Comments, @mentions, sharing | 🔴 CRITICAL |
