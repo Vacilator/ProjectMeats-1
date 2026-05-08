@@ -94,6 +94,7 @@ export const ViewProcessFlowButton: React.FC<ViewProcessFlowButtonProps> = ({
         className={className}
         title={label}
         type="button"
+        aria-label={label}
       >
         <GitBranch size={14} />
         {!compact && label}

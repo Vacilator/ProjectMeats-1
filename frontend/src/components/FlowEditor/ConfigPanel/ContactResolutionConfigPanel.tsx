@@ -202,7 +202,7 @@ export const ContactResolutionConfigPanel: React.FC<ContactResolutionConfigPanel
             options={CERTIFICATION_OPTIONS.map((c) => ({ value: c, label: c }))}
             placeholder="Select required certifications"
             tagRender={(props) => (
-              <Tag closable onClose={props.onClose} style={{ marginRight: 3 }}>
+              <Tag closable onClose={(e) => { e.preventDefault(); props.onClose(e); }} style={{ marginRight: 3 }}>
                 {props.label}
               </Tag>
             )}

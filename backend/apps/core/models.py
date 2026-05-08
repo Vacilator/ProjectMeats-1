@@ -25,12 +25,17 @@ class TenantManager(models.Manager):
     """
     Custom manager that filters querysets by tenant.
     
-    This manager automatically filters all queries by the current tenant
-    when available in the context.
+    Application-level tenant helper manager.
+
+    NOTE: Row-level security (RLS) at the PostgreSQL level provides the
+    actual database-enforced tenant isolation via `app.current_tenant`
+    session variable set by TenantMiddleware.  This manager provides
+    convenience methods (.for_tenant()) for explicit application-level
+    filtering where needed.
     """
 
     def get_queryset(self):
-        """Override to filter by tenant if available in context."""
+        """Return base queryset — RLS policies enforce tenant isolation at DB level."""
         return super().get_queryset()
 
     def for_tenant(self, tenant):

@@ -84,7 +84,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending: 'rgb(var(--color-warning))',
   in_progress: 'rgb(var(--color-info))',
   sourcing: 'rgb(var(--color-info))',
-  quoted: 'rgb(139, 92, 246)',
+  quoted: 'rgb(var(--color-primary))',
   ordered: 'rgb(var(--color-success))',
   completed: 'rgb(var(--color-success))',
   approved: 'rgb(var(--color-success))',
@@ -343,6 +343,7 @@ const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => 
                   {role.detailPath ? (
                     <ContactLinkButton
                       type="button"
+                      aria-label={`Open contact ${role.roleLabel || ''}`}
                       onClick={(event) => {
                         event.stopPropagation();
                         navigate(role.detailPath || '/');
