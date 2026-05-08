@@ -837,3 +837,95 @@ If any test fails, report with:
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 17 / Epic RT-01
 
 ---
+
+## Platform Finalization – E2E Master Data Integration Tests
+
+> **Added:** Sprint Capstone (Platform Finalization & Production Handover)  
+> **Test File:** `backend/tenant_apps/workflows/tests/test_platform_finalization.py`  
+> **Total:** 12 automated tests (all passing)
+
+### Test Categories
+
+#### 1. RFQ Contact Resolution (Master Data → SendEmail/RFQ)
+
+| # | Test | Purpose |
+|---|------|---------|
+| 1 | `test_resolve_rfq_contacts_for_send` | Verifies `resolve_rfq_contacts_for_send` executor resolves contacts with certifications, shipping prefs, and document attachment filters |
+| 2 | `test_rfq_contact_resolution_with_multi_select` | Validates multi-select filtering (certifications: Halal/Organic; shipping: Frozen/Refrigerated) returns only matching contacts |
+
+#### 2. Bid Selection Contact Enrichment
+
+| # | Test | Purpose |
+|---|------|---------|
+| 3 | `test_bid_selection_with_contacts_enrichment` | Confirms `bid_selection_with_contacts` returns winning bid + supplier contact details (name, email, phone, role, department) |
+
+#### 3. PO Contact Prefill
+
+| # | Test | Purpose |
+|---|------|---------|
+| 4 | `test_prefill_po_contacts` | Validates `prefill_po_contacts` auto-populates billing_contact, shipping_contact, and sales_contact from contact resolution |
+
+#### 4. Cockpit Routing Integration
+
+| # | Test | Purpose |
+|---|------|---------|
+| 5 | `test_cockpit_routing_creates_draft` | Verifies `create_draft_from_parsed_email` produces a draft with correct form_type, form_data, and status="pending_review" |
+| 6 | `test_cockpit_routing_form_type_inference` | Tests `infer_form_type` correctly maps PO-related emails to "purchase_order" form type |
+
+#### 5. Action Executor Registration
+
+| # | Test | Purpose |
+|---|------|---------|
+| 7 | `test_action_executor_has_e2e_handlers` | Asserts all 8 E2E action types are registered in ActionExecutor handler map |
+| 8 | `test_action_executor_delegates_to_e2e` | Verifies `execute_action` correctly delegates `resolve_rfq_contacts` to E2EExecutors |
+
+#### 6. AI Inbox Parser Integration (PO 226052 Scenario)
+
+| # | Test | Purpose |
+|---|------|---------|
+| 9 | `test_parse_rowena_tx_po_226052` | End-to-end parse of Rowena TX PO 226052 email: extracts PO number, protein type (ground beef), weight (40,000 lbs), ship date, and marks as actionable |
+| 10 | `test_inbox_parser_cockpit_routing` | Validates the full pipeline: InboxParser → parsed result → cockpit_routing.create_draft_from_parsed_email → correct draft payload |
+
+#### 7. Contact Resolution Multi-Select Filtering
+
+| # | Test | Purpose |
+|---|------|---------|
+| 11 | `test_resolve_rfq_contacts_certifications_filter` | Ensures only contacts with matching certifications (Halal) are returned when certification filter is active |
+| 12 | `test_resolve_rfq_contacts_document_attachments` | Verifies document attachment URLs are included in resolution output when `include_document_attachments=True` |
+
+### Running Tests
+
+```bash
+# All 12 finalization tests
+source /venv/bin/activate
+python manage.py test tenant_apps.workflows.tests.test_platform_finalization --verbosity=2
+
+# Full regression suite (149 tests)
+python manage.py test tenant_apps.workflows.tests.test_platform_synthesis \
+  tenant_apps.workflows.tests.test_platform_finalization \
+  tenant_apps.workflows.tests.test_e2e_template \
+  apps.core.tests.tests_model_consolidation \
+  apps.core.tests.tests_scaling_observability --verbosity=1
+```
+
+### PO 226052 Test Scenario (AI Inbox)
+
+**Input Email:**
+- Subject: "PO 226052 - Ground Beef 81/19 40,000 lbs - Rowena TX"
+- Sender: supplier@example.com
+- Body: References PO #226052, protein "Ground Beef 81/19", weight "40,000 lbs", ship date next Monday
+
+**Expected Parse Output:**
+- `po_number`: "226052"
+- `proteins`: includes "ground beef"
+- `weights`: includes entry for ~40,000 lbs
+- `is_actionable`: True
+- `has_po`: True
+
+**Expected Cockpit Draft:**
+- `form_type`: "purchase_order"
+- `form_data.po_number`: "226052"
+- `form_data.protein_type`: contains "beef"
+- `status`: "pending_review"
+
+---

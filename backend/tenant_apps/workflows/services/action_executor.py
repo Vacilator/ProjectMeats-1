@@ -68,6 +68,9 @@ class ActionExecutor:
             'check_bids': self._e2e_check_bids,
             'create_purchase_order': self._e2e_create_purchase_order,
             'resolve_contacts': self._e2e_resolve_contacts,
+            'resolve_rfq_contacts_for_send': self._e2e_resolve_rfq_send,
+            'bid_selection_with_contacts': self._e2e_bid_selection_contacts,
+            'prefill_po_contacts': self._e2e_prefill_po_contacts,
         }
         
         handler = handlers.get(action_type)
@@ -658,5 +661,17 @@ class ActionExecutor:
 
     def _e2e_resolve_contacts(self, config: Dict[str, Any]) -> Dict[str, Any]:
         result = self._get_e2e_executors().resolve_contacts(config)
+        return {'success': result.success, 'error': result.error, **result.data}
+
+    def _e2e_resolve_rfq_send(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._get_e2e_executors().resolve_rfq_contacts_for_send(config)
+        return {'success': result.success, 'error': result.error, **result.data}
+
+    def _e2e_bid_selection_contacts(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._get_e2e_executors().bid_selection_with_contacts(config)
+        return {'success': result.success, 'error': result.error, **result.data}
+
+    def _e2e_prefill_po_contacts(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._get_e2e_executors().prefill_po_contacts(config)
         return {'success': result.success, 'error': result.error, **result.data}
 

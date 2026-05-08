@@ -426,6 +426,178 @@ class E2EProcessExecutors:
         return _contact_to_dict(contact)
 
 
+    def resolve_rfq_contacts_for_send(self, config: dict[str, Any]) -> ExecutorResult:
+        """Resolve contacts for SendEmail/RFQ node dispatch (master-data-rfq-node).
+
+        Uses Plant Contact Type, Title, and "Responsible For" multi-selects to
+        determine the optimal RFQ recipient for the current supplier in the
+        ForEachSupplier loop.
+        """
+        try:
+            from tenant_apps.workflows.services.contact_resolution import (
+                resolve_rfq_recipient,
+            )
+
+            supplier_id = (
+                self.context.get("current_supplier", {}).get("id")
+                or self.context.get("supplier_id")
+            )
+            if not supplier_id:
+                return ExecutorResult(
+                    success=False,
+                    error="No supplier in context for RFQ contact resolution",
+                    telemetry_event="e2e_inquiry_to_po.rfq_send.no_supplier",
+                )
+
+            Supplier = apps.get_model("suppliers", "Supplier")
+            supplier = Supplier.objects.filter(
+                id=supplier_id, tenant=self.tenant
+            ).first()
+            if not supplier:
+                return ExecutorResult(
+                    success=False,
+                    error=f"Supplier {supplier_id} not found",
+                )
+
+            rfq_config = config.get("contactResolution", {})
+            preferred_type = rfq_config.get("plantContactType", "Sales")
+            certifications_filter = rfq_config.get("certifications", [])
+            shipping_prefs = rfq_config.get("shippingPreferences", [])
+            document_attachments = rfq_config.get("documentAttachments", [])
+            product_context = self.context.get("product_name")
+
+            contact = resolve_rfq_recipient(
+                tenant=self.tenant,
+                supplier=supplier,
+                preferred_contact_type=preferred_type,
+                product_context=product_context,
+            )
+
+            routing_data = _contact_to_dict(contact)
+            routing_data["certifications_filter"] = certifications_filter
+            routing_data["shipping_preferences"] = shipping_prefs
+            routing_data["document_attachments"] = document_attachments
+
+            logger.info(
+                "[E2E] RFQ contact resolved for supplier %s: %s (method=%s)",
+                supplier_id,
+                contact.name if contact else "none",
+                contact.resolution_method if contact else "none",
+            )
+
+            return ExecutorResult(
+                success=True,
+                data={
+                    "rfq_recipient": routing_data,
+                    "supplier_id": str(supplier_id),
+                    "supplier_name": getattr(supplier, "company_name", str(supplier)),
+                    "has_contact": contact is not None,
+                },
+                telemetry_event="e2e_inquiry_to_po.rfq_send.contact_resolved",
+            )
+
+        except Exception as e:
+            logger.exception("[E2E] resolve_rfq_contacts_for_send failed: %s", e)
+            return ExecutorResult(success=False, error=str(e))
+
+    def bid_selection_with_contacts(self, config: dict[str, Any]) -> ExecutorResult:
+        """Extended bid selection that surfaces resolved contact details (master-data-bid-selection).
+
+        Wraps bid_selection with supplier contact info for the winning bid.
+        """
+        base_result = self.bid_selection(config)
+        if not base_result.success:
+            return base_result
+
+        # Enhance with contact details from the winning supplier
+        try:
+            from tenant_apps.workflows.services.contact_resolution import (
+                resolve_bid_evaluator,
+            )
+
+            selected_bid_id = base_result.data.get("selected_bid_id")
+            bids = self.context.get("received_bids", [])
+            winning_bid = next(
+                (b for b in bids if str(b.get("id")) == selected_bid_id), {}
+            )
+            supplier_id = winning_bid.get("supplier_id")
+
+            if supplier_id:
+                Supplier = apps.get_model("suppliers", "Supplier")
+                supplier = Supplier.objects.filter(
+                    id=supplier_id, tenant=self.tenant
+                ).first()
+                if supplier:
+                    evaluator = resolve_bid_evaluator(
+                        tenant=self.tenant, supplier=supplier
+                    )
+                    base_result.data["supplier_contact"] = _contact_to_dict(evaluator)
+
+        except Exception as e:
+            logger.warning("[E2E] Contact enrichment for bid selection failed: %s", e)
+
+        return base_result
+
+    def prefill_po_contacts(self, config: dict[str, Any]) -> ExecutorResult:
+        """Pre-fill PO form step nodes with resolved contacts (master-data-po-nodes).
+
+        Auto-populates supplier/billing/shipping contacts from contact_resolution
+        results stored in context.
+        """
+        try:
+            from tenant_apps.workflows.services.contact_resolution import (
+                resolve_po_contact,
+                resolve_rfq_recipient,
+            )
+
+            supplier_id = (
+                self.context.get("selected_bid", {}).get("supplier_id")
+                or self.context.get("supplier_id")
+            )
+            if not supplier_id:
+                return ExecutorResult(
+                    success=True,
+                    data={"prefilled": False, "reason": "no_supplier"},
+                    telemetry_event="e2e_inquiry_to_po.po_prefill.no_supplier",
+                )
+
+            Supplier = apps.get_model("suppliers", "Supplier")
+            supplier = Supplier.objects.filter(
+                id=supplier_id, tenant=self.tenant
+            ).first()
+            if not supplier:
+                return ExecutorResult(
+                    success=True,
+                    data={"prefilled": False, "reason": "supplier_not_found"},
+                )
+
+            billing_contact = resolve_po_contact(
+                tenant=self.tenant, supplier=supplier, contact_type="Accounting"
+            )
+            shipping_contact = resolve_po_contact(
+                tenant=self.tenant, supplier=supplier, contact_type="Operations"
+            )
+            sales_contact = resolve_rfq_recipient(
+                tenant=self.tenant, supplier=supplier
+            )
+
+            return ExecutorResult(
+                success=True,
+                data={
+                    "prefilled": True,
+                    "billing_contact": _contact_to_dict(billing_contact),
+                    "shipping_contact": _contact_to_dict(shipping_contact),
+                    "sales_contact": _contact_to_dict(sales_contact),
+                    "supplier_name": getattr(supplier, "company_name", str(supplier)),
+                },
+                telemetry_event="e2e_inquiry_to_po.po_prefill.done",
+            )
+
+        except Exception as e:
+            logger.exception("[E2E] prefill_po_contacts failed: %s", e)
+            return ExecutorResult(success=False, error=str(e))
+
+
 def _contact_to_dict(contact: Any) -> dict:
     """Convert ResolvedContact to serializable dict."""
     if not contact:

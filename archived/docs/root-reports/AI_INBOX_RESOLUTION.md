@@ -57,3 +57,71 @@
 - Revert the notification producer/serializer route normalization and remove the My Tasks AI review queue/modal additions.
 - Draft data remains in `EmailReviewDraft` / `AIFeedbackLog`, so rollback is UI-routing safe and additive.
 - Auto-sync is additive only; rollback is a git revert of the async endpoint/provider/beat cadence without schema cleanup.
+
+---
+
+## Platform Finalization – PO 226052 End-to-End Test Case
+
+> **Added:** Sprint Capstone (Platform Finalization & Production Handover)
+
+### Test Scenario: Rowena TX PO 226052
+
+**Context:** A supplier sends a PO confirmation email. The AI Inbox must parse it, create a cockpit draft, and route it to Process Cockpit for trader review.
+
+**Input Email:**
+```
+Subject: PO 226052 - Ground Beef 81/19 40,000 lbs - Rowena TX
+From: supplier@example.com
+Body:
+  Please confirm PO #226052.
+  Product: Ground Beef 81/19
+  Quantity: 40,000 lbs
+  Ship Date: Next Monday
+  Facility: Rowena TX Plant
+```
+
+**Expected AI Inbox Parse Result:**
+| Field | Expected Value |
+|-------|---------------|
+| `po_number` | "226052" |
+| `proteins` | includes "ground beef" |
+| `weights` | includes ~40,000 lbs entry |
+| `is_actionable` | True |
+| `has_po` | True |
+| `confidence` | > 0.7 |
+
+**Expected Cockpit Draft:**
+| Field | Expected Value |
+|-------|---------------|
+| `form_type` | "purchase_order" |
+| `form_data.po_number` | "226052" |
+| `form_data.protein_type` | contains "beef" |
+| `status` | "pending_review" |
+
+**Automated Test:** `test_parse_rowena_tx_po_226052` in `backend/tenant_apps/workflows/tests/test_platform_finalization.py`
+
+### Cockpit Routing Verification
+
+1. Parsed email → `cockpit_routing.create_draft_from_parsed_email()` → draft created
+2. Draft appears in Process Cockpit "Action Required" tab
+3. Trader can edit draft form (pre-filled with parsed payload)
+4. On save → PO entity created → draft resolved → removed from queue
+
+### Contact Resolution Integration
+
+When the AI Inbox detects a PO email:
+1. `resolve_rfq_contacts_for_send` identifies relevant contacts by Plant Contact Type
+2. If contacts are missing → `MissingDependencyQuickCreate` widget appears
+3. Contacts with matching certifications/shipping prefs are prioritized
+4. Document attachments (spec sheets, certifications) are auto-linked
+
+### Test Commands
+
+```bash
+# Run the specific PO 226052 test
+source /venv/bin/activate
+python manage.py test tenant_apps.workflows.tests.test_platform_finalization.PlatformFinalizationTests.test_parse_rowena_tx_po_226052
+
+# Run full AI inbox + cockpit routing tests
+python manage.py test tenant_apps.workflows.tests.test_platform_finalization.PlatformFinalizationTests.test_inbox_parser_cockpit_routing
+```
