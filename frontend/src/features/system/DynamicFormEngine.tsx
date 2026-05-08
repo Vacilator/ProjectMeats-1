@@ -641,7 +641,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     control,
     name: dependencyFieldKeys as never[],
   });
-  const dependencyValues = useMemo<Record<string, unknown>>(() => {
+  // Stabilize dependency values with deep-equality ref to prevent infinite
+  // re-render loops. useWatch returns a new array reference on every render
+  // even when values haven't changed, which would cascade through
+  // isFieldVisible → visibility-clear useEffect → setValue → re-render.
+  const rawDependencyValues = useMemo<Record<string, unknown>>(() => {
     const watchedArray = Array.isArray(watchedDependencyValues)
       ? watchedDependencyValues
       : dependencyFieldKeys.length === 1
@@ -653,6 +657,11 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       return acc;
     }, {});
   }, [dependencyFieldKeys, watchedDependencyValues]);
+  const dependencyValuesRef = useRef(rawDependencyValues);
+  if (!isEqual(dependencyValuesRef.current, rawDependencyValues)) {
+    dependencyValuesRef.current = rawDependencyValues;
+  }
+  const dependencyValues = dependencyValuesRef.current;
 
   const keySet = useMemo(() => {
     const keys = (keyFieldKeys || []).map((k) => String(k).toLowerCase());
@@ -1051,7 +1060,16 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
 
   // When a field becomes hidden, clear its value to avoid submitting stale data.
   // This is critical for conditional fields like Plant.export_documents_handled.
+  // Guard: only run when dependencyValues actually change (signature-based).
+  const visibilityClearSignatureRef = useRef<string | null>(null);
+  const dependencySignature = useMemo(
+    () => getStableSignature(dependencyValues),
+    [dependencyValues]
+  );
   useEffect(() => {
+    if (visibilityClearSignatureRef.current === dependencySignature) return;
+    visibilityClearSignatureRef.current = dependencySignature;
+
     const currentValues = getValues() as Record<string, unknown>;
 
     for (const field of stableFields) {
@@ -1079,7 +1097,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         shouldValidate: true,
       });
     }
-  }, [getValues, isFieldVisible, setValue, stableFields]);
+  }, [dependencySignature, getValues, isFieldVisible, setValue, stableFields]);
 
   const renderField = (field: FieldDefinition) => {
     if (!isFieldVisible(field)) return null;
