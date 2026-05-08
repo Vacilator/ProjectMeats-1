@@ -519,7 +519,7 @@ Hardcode the exact happy-path B2B trading pipeline around Inquiry intake, routin
 
 ### Acceptance criteria
 1. Phase 16 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
-2. Phase 16 is clearly marked as **planned only**; no wording implies the core trading engine is already shipped.
+2. Phase 16b hardening epics (Trade Lineage, Event-Driven Saga, Concurrency Locks, Exception Control Tower) are **fully shipped** on `development` — all models, services, Celery consumers, and tests are merged.
 3. The backlog continues to have exactly one first unchecked `Ready` ticket above Phase 16, and every Phase 16 ticket is explicitly blocked.
 4. Phase 16 tickets explicitly tie AI structured outputs, outbound email, and PDF generation to `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` state transitions.
 5. Phase 16 hardening tickets explicitly name Celery-driven saga transitions, `select_for_update()` locking, `idempotency_key` enforcement, and trade-lineage propagation.
@@ -538,8 +538,8 @@ Hardcode the exact happy-path B2B trading pipeline around Inquiry intake, routin
    - Mitigation: use structured outputs, require draft-only creation, persist source-email lineage, and keep human approval before any external commitment.
 3. **Approval side effects send duplicate PDFs/emails** (High x High)
    - Mitigation: tie side effects to idempotent state transitions and audit-safe send/document records instead of button-click handlers alone.
-4. **Planning language overstates readiness** (Medium x Medium)
-   - Mitigation: keep Phase 16 blocked beneath the active backlog and mark it planned-only everywhere.
+4. **Planning language overstates readiness** (Medium x Medium) — MITIGATED
+   - Mitigation: acceptance criteria updated to reflect shipped state of Phase 16b hardening epics.
 5. **Distributed race conditions create duplicate downstream documents** (High x High)
    - Mitigation: use event-driven Celery consumers, transactional `select_for_update()` locks, and explicit `idempotency_key` enforcement at creation boundaries.
 6. **Failed async steps stall trades invisibly** (High x High)

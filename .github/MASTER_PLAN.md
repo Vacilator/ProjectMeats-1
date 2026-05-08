@@ -9,6 +9,7 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Operational Notes
 
+- **2026-05-08** — Fix React Error #185 (max update depth exceeded) on "New Plant" button: stabilized `dependencyValues` in DynamicFormEngine with deep-equality ref guard, added signature-based guard on visibility-clear useEffect, stabilized Plants.tsx modal callbacks with useCallback. (PR: #5038)
 - **2026-05-08** — Phase 20 console.log cleanup + copyright: replaced all remaining production `console.log/warn/error` with structured `logger` utility calls across SmartSearch, FormSubmissionModal, SystemChoiceManager, VirtualFieldManager, CloneInquiryModal, InquiryTemplateModal, ErrorBoundary, ReportBugButton, UserAvatar, RelationMindMap, form-builder store, QuickActionsEditor, MySubmissions. Updated footer copyright © 2025 → © 2026. (PRs: #5034, #5035)
 - **2026-05-08** — Phase 20 deprecated AntD prop fix: replaced all 19 `destroyOnClose` → `destroyOnHidden` across 14 files for Ant Design v5.x compatibility. (PR: #5033)
 - **2026-05-08** — Phase 20 MASTER_PLAN docs updated with all Phase 20 progress. (PR: #5032)
