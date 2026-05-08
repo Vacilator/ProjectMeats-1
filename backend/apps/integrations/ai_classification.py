@@ -15,6 +15,8 @@ ACTIONABLE_EMAIL_CATEGORIES: dict[str, str] = {
     'Purchase Order': 'purchase_order',
     'BOL': 'bill_of_lading',
     'New Customer': 'new_customer',
+    'Invoice': 'invoice',
+    'Pricing Sheet': 'pricing_sheet',
 }
 INQUIRY_EMAIL_CATEGORIES = {'Purchase Order', 'New Customer'}
 SUPPORTED_EMAIL_CATEGORIES = tuple([*ACTIONABLE_EMAIL_CATEGORIES.keys(), 'Spam/Other'])
@@ -42,19 +44,26 @@ def classify_ingested_email(
         organization=getattr(settings, 'OPENAI_ORG_ID', None) or os.environ.get('OPENAI_ORG_ID') or None,
     )
     prompt = (
-        'Classify this email into exactly one category: Purchase Order, BOL, New Customer, Spam/Other.\n'
-        'Return JSON only.\n'
+        'Classify this email into exactly one category: '
+        + ', '.join(SUPPORTED_EMAIL_CATEGORIES)
+        + '.\nReturn JSON only.\n'
         'Rules:\n'
         '1. Use Spam/Other when the message is not actionable for ProjectMeats operators.\n'
         '2. Keep summary under 160 characters.\n'
         '3. Confidence must be a number between 0 and 1.\n'
-        '4. actionable must be true only for Purchase Order, BOL, or New Customer.\n\n'
+        '4. actionable must be true only for Purchase Order, BOL, New Customer, Invoice, or Pricing Sheet.\n'
         '5. Extract contact/company/product details only when clearly supported by the email.\n'
         '6. requested_protein must be one of: '
         + ', '.join(value for value in SUPPORTED_PROTEIN_VALUES if value)
         + ' or an empty string when unknown.\n'
         '7. requested_quantity and requested_uom must stay as plain strings and can be empty.\n'
-        '8. When attachment content is provided, use it alongside the email body for classification and extraction.\n\n'
+        '8. When attachment content is provided, use it alongside the email body for classification and extraction.\n'
+        '9. po_number: extract PO/order number when present, empty string otherwise.\n'
+        '10. bol_number: extract BOL/bill of lading number when present, empty string otherwise.\n'
+        '11. total_amount: extract total dollar amount as string when present, empty string otherwise.\n'
+        '12. attachment_document_types: for each attachment section, classify its type '
+        '(purchase_order, bill_of_lading, invoice, pricing_sheet, manifest, label, certificate, photo, other). '
+        'Return a list of objects with name (filename) and doc_type.\n\n'
         f'Subject: {subject}\n'
         f'Sender: {sender_email}\n'
         f'Has attachments: {has_attachments}\n'
@@ -91,6 +100,21 @@ def classify_ingested_email(
                     },
                     'requested_quantity': {'type': 'string'},
                     'requested_uom': {'type': 'string'},
+                    'po_number': {'type': 'string'},
+                    'bol_number': {'type': 'string'},
+                    'total_amount': {'type': 'string'},
+                    'attachment_document_types': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'name': {'type': 'string'},
+                                'doc_type': {'type': 'string'},
+                            },
+                            'required': ['name', 'doc_type'],
+                            'additionalProperties': False,
+                        },
+                    },
                 },
                 'required': [
                     'category',
@@ -104,6 +128,10 @@ def classify_ingested_email(
                     'requested_protein',
                     'requested_quantity',
                     'requested_uom',
+                    'po_number',
+                    'bol_number',
+                    'total_amount',
+                    'attachment_document_types',
                 ],
                 'additionalProperties': False,
             },
@@ -160,4 +188,8 @@ def classify_ingested_email(
         'requested_protein': requested_protein,
         'requested_quantity': str(parsed.get('requested_quantity') or '').strip(),
         'requested_uom': str(parsed.get('requested_uom') or '').strip(),
+        'po_number': str(parsed.get('po_number') or '').strip(),
+        'bol_number': str(parsed.get('bol_number') or '').strip(),
+        'total_amount': str(parsed.get('total_amount') or '').strip(),
+        'attachment_document_types': parsed.get('attachment_document_types') or [],
     }

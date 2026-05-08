@@ -225,6 +225,30 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
     [initialValues, payload],
   );
 
+  const attachmentFilenames = useMemo<string[]>(() => {
+    const names = payload.attachment_filenames;
+    return Array.isArray(names)
+      ? names.map((n) => (typeof n === 'string' ? n : String(n))).filter(Boolean)
+      : [];
+  }, [payload.attachment_filenames]);
+
+  const attachmentDocTypes = useMemo<Array<{ name: string; doc_type: string }>>(() => {
+    const types = payload.attachment_document_types;
+    if (!Array.isArray(types)) {
+      return [];
+    }
+    return types
+      .filter((t): t is Record<string, unknown> => t != null && typeof t === 'object')
+      .map((t) => ({
+        name: String(t.name || ''),
+        doc_type: String(t.doc_type || 'other'),
+      }));
+  }, [payload.attachment_document_types]);
+
+  const attachmentCount = typeof payload.attachment_count === 'number'
+    ? payload.attachment_count
+    : attachmentFilenames.length;
+
   const setResolvingState = useCallback(
     (next: boolean) => {
       onResolvingChange?.(next);
@@ -301,6 +325,15 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
             {item.source_document_name ? (
               <Text type="secondary">Attachment: {item.source_document_name}</Text>
             ) : null}
+            {payload.po_number ? (
+              <Text type="secondary">PO #: {String(payload.po_number)}</Text>
+            ) : null}
+            {payload.bol_number ? (
+              <Text type="secondary">BOL #: {String(payload.bol_number)}</Text>
+            ) : null}
+            {payload.total_amount ? (
+              <Text type="secondary">Amount: {String(payload.total_amount)}</Text>
+            ) : null}
             {sourcePreview ? (
               <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
                 {sourcePreview}
@@ -331,6 +364,43 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
             />
           </div>
         </div>
+
+        {attachmentCount > 0 ? (
+          <div
+            style={{
+              border: '1px solid rgb(var(--color-border))',
+              borderRadius: 12,
+              padding: 16,
+              background: 'rgb(var(--color-surface))',
+            }}
+          >
+            <Title level={5} style={{ marginTop: 0 }}>
+              Attachments ({attachmentCount})
+            </Title>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {(attachmentDocTypes.length > 0 ? attachmentDocTypes : attachmentFilenames.map((n) => ({ name: n, doc_type: '' }))).map(
+                (att, idx) => (
+                  <div
+                    key={att.name || idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '4px 0',
+                    }}
+                  >
+                    <Text style={{ fontSize: 13 }}>{att.name || `Attachment ${idx + 1}`}</Text>
+                    {att.doc_type && att.doc_type !== 'other' ? (
+                      <Tag color="geekblue" style={{ margin: 0 }}>
+                        {att.doc_type.replace(/_/g, ' ')}
+                      </Tag>
+                    ) : null}
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
+        ) : null}
 
         {contactRoles.length > 0 ? (
           <div

@@ -208,14 +208,36 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
 
         # Build combined attachment text from stored attachment_data
         attachment_text = ''
+        attachment_meta = []
         if instance.attachment_data and isinstance(instance.attachment_data, dict):
             files = instance.attachment_data.get('files') or []
             text_parts = []
             for f in files:
                 extracted = f.get('extracted_text', '')
+                fname = f.get('name', 'attachment')
+                attachment_meta.append({
+                    'name': fname,
+                    'content_type': f.get('content_type', ''),
+                    'size': f.get('size', 0),
+                    'extraction_status': f.get('extraction_status', ''),
+                })
                 if extracted and f.get('extraction_status') == 'success':
-                    text_parts.append(f"--- {f.get('name', 'attachment')} ---\n{extracted}")
+                    text_parts.append(f"--- {fname} ---\n{extracted}")
             attachment_text = '\n\n'.join(text_parts)
+
+        if attachment_meta:
+            _record_email_lineage_event(
+                instance,
+                event_type='email_attachments_extracted',
+                summary=f'Processed {len(attachment_meta)} attachment(s) for AI extraction.',
+                target_type='',
+                target_id='',
+                metadata={
+                    'attachment_count': len(attachment_meta),
+                    'attachment_names': [a['name'] for a in attachment_meta],
+                    'extraction_statuses': [a['extraction_status'] for a in attachment_meta],
+                },
+            )
 
         classification = classify_ingested_email(
             subject=instance.subject,
@@ -224,6 +246,12 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
             has_attachments=instance.has_attachments,
             attachment_text=attachment_text,
         )
+
+        # Enrich classification with attachment metadata for downstream display
+        if attachment_meta:
+            classification['attachment_count'] = len(attachment_meta)
+            classification['attachment_filenames'] = [a['name'] for a in attachment_meta]
+            classification['attachment_details'] = attachment_meta
 
         inquiry, _ = upsert_inquiry_draft_from_email(instance, classification)
         if inquiry is not None:

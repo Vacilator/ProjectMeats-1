@@ -293,6 +293,12 @@ def build_pending_review_items(
         document = documents.get(row.document_id)
         review_entity_type = _infer_review_entity_type(row.document_type, payload)
 
+        # Extract attachment metadata from the original_extracted_data payload
+        att_count = int(payload.get('attachment_count') or 0)
+        att_filenames = payload.get('attachment_filenames') or []
+        if not isinstance(att_filenames, list):
+            att_filenames = []
+
         items.append(
             {
                 'id': row.id,
@@ -313,6 +319,8 @@ def build_pending_review_items(
                 'feedback_comment': row.feedback_comment,
                 'retraining_status': row.retraining_status,
                 'retraining_queued_at': row.retraining_queued_at,
+                'attachment_count': att_count,
+                'attachment_filenames': [str(n) for n in att_filenames[:20]],
             }
         )
 

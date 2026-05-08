@@ -53,6 +53,8 @@ type EmailLog = {
   sender: string;
   status: EmailLogStatus;
   has_attachments: boolean;
+  attachment_count?: number;
+  attachment_filenames?: string[];
   error_message: string | null;
   created_at: string;
   draft: {
@@ -350,8 +352,22 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
                             <Text type="secondary">{email.sender}</Text>
                             <Text type="secondary">
                               {new Date(email.created_at).toLocaleString()}
-                              {email.has_attachments ? ' • Has attachments' : ''}
+                              {email.has_attachments
+                                ? ` • ${email.attachment_count ?? 1} attachment${(email.attachment_count ?? 1) !== 1 ? 's' : ''}`
+                                : ''}
                             </Text>
+                            {email.attachment_filenames && email.attachment_filenames.length > 0 ? (
+                              <Space size={[4, 2]} wrap style={{ marginTop: 2 }}>
+                                {email.attachment_filenames.slice(0, 4).map((name) => (
+                                  <Tag key={name} style={{ fontSize: 11, margin: 0 }}>{name}</Tag>
+                                ))}
+                                {email.attachment_filenames.length > 4 ? (
+                                  <Text type="secondary" style={{ fontSize: 11 }}>
+                                    +{email.attachment_filenames.length - 4} more
+                                  </Text>
+                                ) : null}
+                              </Space>
+                            ) : null}
                           </Space>
                         }
                       />
