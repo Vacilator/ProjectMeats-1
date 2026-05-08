@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
+import { logger } from '@/utils/logger';
 import { 
   Fulfillment,
   Inquiry,
@@ -651,7 +652,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         form.setValue('supplierId', options[0].id, { shouldValidate: true, shouldDirty: true });
       }
     } catch (err) {
-      console.error('Failed to fetch suppliers:', err);
+      logger.error('Failed to fetch suppliers:', err);
       setSupplierOptions([]);
     } finally {
       setLoadingSuppliers(false);
@@ -670,7 +671,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         code: c.code,
       })));
     } catch (err) {
-      console.error('Failed to fetch carriers:', err);
+      logger.error('Failed to fetch carriers:', err);
       setCarrierOptions([]);
     } finally {
       setLoadingCarriers(false);
@@ -767,7 +768,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       onSuccess(response.data);
       onClose();
     } catch (err: any) {
-      console.error('Failed to create fulfillment:', err);
+      logger.error('Failed to create fulfillment:', err);
       const errorDetail = err.response?.data?.detail
         || err.response?.data?.message
         || JSON.stringify(err.response?.data)

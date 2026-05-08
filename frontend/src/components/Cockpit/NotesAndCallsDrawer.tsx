@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Drawer, Button, Input, List, Typography, Tag, Spin, Modal, message } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
+import { logger } from '@/utils/logger';
 
 const { Text } = Typography;
 
@@ -163,7 +164,7 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
       setNoteText('');
       void fetchTimeline();
     } catch (err) {
-      console.error('[NotesAndCallsDrawer] Failed to create note', err);
+      logger.error('[NotesAndCallsDrawer] Failed to create note', err);
     } finally {
       setSavingNote(false);
     }
@@ -231,7 +232,7 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
       setEditContent('');
       void fetchTimeline();
     } catch (err) {
-      console.error('[NotesAndCallsDrawer] Failed to edit note', err);
+      logger.error('[NotesAndCallsDrawer] Failed to edit note', err);
     } finally {
       setSavingEdit(false);
     }

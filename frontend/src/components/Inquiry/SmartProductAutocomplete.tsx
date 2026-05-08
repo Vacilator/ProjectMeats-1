@@ -18,6 +18,7 @@ import { businessApi } from '../../services/businessApi';
 import { Product } from '../../types';
 import { Search as SearchIcon, Star, Package, DollarSign, X } from 'lucide-react';
 import { coerceFiniteNumber, formatFixedWithFallback } from './numberFormatting';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -331,7 +332,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
       setSelectedProduct(response.data);
       setSearchTerm(response.data.product_code);
     } catch (err) {
-      console.error('Failed to fetch product:', err);
+      logger.error('Failed to fetch product:', err);
     }
   };
   
@@ -377,7 +378,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
 
         setResults(enrichedResults);
       } catch (err) {
-        console.error('Search failed:', err);
+        logger.error('Search failed:', err);
         setResults([]);
       } finally {
         setLoading(false);

@@ -23,6 +23,7 @@ import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { logger } from '@/utils/logger';
 
 interface ActivityLog {
   id: number;
@@ -146,7 +147,7 @@ const ActivityPage: React.FC = () => {
       setPage(pageNum);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load activity logs');
-      console.error('Error loading activity logs:', err);
+      logger.error('Error loading activity logs:', err);
     } finally {
       setLoading(false);
     }
@@ -199,7 +200,7 @@ const ActivityPage: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       setError('Failed to export activity logs');
-      console.error('Error exporting logs:', err);
+      logger.error('Error exporting logs:', err);
     } finally {
       setExporting(false);
     }

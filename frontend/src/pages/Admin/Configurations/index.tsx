@@ -16,6 +16,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { captureSentryException } from '@/utils/sentry';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface Configuration {
   id: string;
@@ -105,7 +106,7 @@ const ConfigurationsPage: React.FC = () => {
       const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setConfigurations(data);
     } catch (error) {
-      console.error('Failed to load configurations:', error);
+      logger.error('Failed to load configurations:', error);
       setLoadError('Failed to load configurations. Please refresh and try again.');
       toast.error('Failed to load configurations');
       setConfigurations([]);
@@ -228,7 +229,7 @@ const ConfigurationsPage: React.FC = () => {
       setChanges({});
       await loadConfigurations();
     } catch (error) {
-      console.error('Failed to save configurations:', error);
+      logger.error('Failed to save configurations:', error);
       toast.error('Failed to save configurations');
     } finally {
       setSaving(false);
@@ -295,7 +296,7 @@ const ConfigurationsPage: React.FC = () => {
       setShowCreateModal(false);
       await loadConfigurations();
     } catch (error: any) {
-      console.error('Failed to create configuration:', error);
+      logger.error('Failed to create configuration:', error);
       toast.error(error?.response?.data?.error || 'Failed to create configuration');
     } finally {
       setIsCreating(false);
@@ -308,7 +309,7 @@ const ConfigurationsPage: React.FC = () => {
       toast.success('Reset to default');
       await loadConfigurations();
     } catch (error: any) {
-      console.error('Failed to reset configuration:', error);
+      logger.error('Failed to reset configuration:', error);
       toast.error(error?.response?.data?.error || 'Failed to reset configuration');
     }
   };
@@ -334,7 +335,7 @@ const ConfigurationsPage: React.FC = () => {
       toast.success('Configuration deleted');
       await loadConfigurations();
     } catch (error: any) {
-      console.error('Failed to delete configuration:', error);
+      logger.error('Failed to delete configuration:', error);
       toast.error(error?.response?.data?.error || 'Failed to delete configuration');
     }
   };
@@ -356,7 +357,7 @@ const ConfigurationsPage: React.FC = () => {
       setChanges({});
       await loadConfigurations();
     } catch (error) {
-      console.error('Failed to reset configurations:', error);
+      logger.error('Failed to reset configurations:', error);
       toast.error('Failed to reset configurations');
     } finally {
       setSaving(false);

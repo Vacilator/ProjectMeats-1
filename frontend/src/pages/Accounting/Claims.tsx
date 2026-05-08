@@ -25,6 +25,7 @@ import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -488,7 +489,7 @@ export const Claims: React.FC = () => {
 
       setClaims(response.data.results || response.data);
     } catch (err: any) {
-      console.error('Failed to fetch claims:', err);
+      logger.error('Failed to fetch claims:', err);
       setError(err.response?.data?.detail || 'Failed to load claims');
     } finally {
       setLoading(false);
@@ -516,7 +517,7 @@ export const Claims: React.FC = () => {
       setClaims(claims.map(c => c.id === claimId ? response.data : c));
       setSelectedClaim(response.data);
     } catch (err: any) {
-      console.error('Failed to update claim status:', err);
+      logger.error('Failed to update claim status:', err);
       showAlert({
         type: 'error',
         title: 'Error',

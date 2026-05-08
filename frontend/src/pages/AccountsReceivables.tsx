@@ -5,6 +5,7 @@ import { Skeleton } from 'antd';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { formatCurrency } from '../shared/utils';
 import { apiService, Invoice } from '../services/apiService';
+import { logger } from '@/utils/logger';
 
 // Styled Components
 const Header = styled.div`
@@ -338,7 +339,7 @@ const AccountsReceivables: React.FC = () => {
       const data = await apiService.getInvoices();
       setReceivables(data);
     } catch (error) {
-      console.error('Error loading invoices:', error);
+      logger.error('Error loading invoices:', error);
     } finally {
       setLoading(false);
     }
@@ -372,7 +373,7 @@ const AccountsReceivables: React.FC = () => {
     } catch (error: unknown) {
       // Log detailed error information
       const err = error as Error & { response?: { status: number; data: unknown }; stack?: string };
-      console.error('Error saving invoice:', {
+      logger.error('Error saving invoice:', {
         message: err.message || 'Unknown error',
         stack: err.stack || 'No stack trace available',
         response: err.response ? {
@@ -422,7 +423,7 @@ const AccountsReceivables: React.FC = () => {
       await loadReceivables(); // Re-fetch to update the list
     } catch (error: unknown) {
       // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
-      console.error('Error deleting accounts receivable:', error);
+      logger.error('Error deleting accounts receivable:', error);
       const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
       const errorMessage = err?.response?.data?.detail
         || err?.response?.data?.message

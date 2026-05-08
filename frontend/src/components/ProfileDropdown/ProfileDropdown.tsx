@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { config } from '../../config/runtime';
 import { Theme } from '../../config/theme';
+import { logger } from '@/utils/logger';
 
 interface ProfileDropdownProps {
   // No props needed currently
@@ -40,7 +41,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
       // Redirect to login page or refresh
       window.location.href = '/login';
     } catch (error) {
-      console.error('Logout failed:', error);
+      logger.error('Logout failed:', error);
     }
   };
 

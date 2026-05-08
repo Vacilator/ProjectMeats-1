@@ -13,6 +13,7 @@ import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from 
 import { apiClient } from '../../services/apiService';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface SystemProduct {
   id: string;
@@ -154,7 +155,7 @@ const PlantProducts: React.FC = () => {
       const response = await apiClient.get(`/plants/${id}/`);
       setPlant(response.data);
     } catch (error) {
-      console.error('Error fetching plant:', error);
+      logger.error('Error fetching plant:', error);
       message.error('Failed to load plant details');
     }
   };
@@ -166,7 +167,7 @@ const PlantProducts: React.FC = () => {
       const response = await apiClient.get(`/plants/${id}/available-products/`);
       setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching plant products:', error);
+      logger.error('Error fetching plant products:', error);
       message.error('Failed to load plant products');
     } finally {
       setLoading(false);
@@ -188,7 +189,7 @@ const PlantProducts: React.FC = () => {
       const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       setSystemProducts(data);
     } catch (error) {
-      console.error('Error fetching system products:', error);
+      logger.error('Error fetching system products:', error);
       message.error('Failed to load product catalog');
     } finally {
       setLoadingSystemProducts(false);
@@ -236,7 +237,7 @@ const PlantProducts: React.FC = () => {
 
       fetchProducts();
     } catch (error) {
-      console.error('Error adding products:', error);
+      logger.error('Error adding products:', error);
       message.error('Failed to add products');
     } finally {
       setAddingProducts(false);
@@ -259,7 +260,7 @@ const PlantProducts: React.FC = () => {
       message.success('Product removed successfully');
       fetchProducts();
     } catch (error) {
-      console.error('Error removing product:', error);
+      logger.error('Error removing product:', error);
       message.error('Failed to remove product');
     }
   };

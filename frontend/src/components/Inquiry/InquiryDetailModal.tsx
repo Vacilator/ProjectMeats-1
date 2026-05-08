@@ -26,6 +26,7 @@ import {
 } from './numberFormatting';
 import { TradeLineageFlow } from '../Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../Cockpit/ProcessFlowHeader';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -402,7 +403,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
         onUpdate(response);
       }
     } catch (err) {
-      console.error('Failed to update status:', err);
+      logger.error('Failed to update status:', err);
     } finally {
       setUpdatingStatus(false);
     }

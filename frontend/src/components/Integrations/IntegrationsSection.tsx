@@ -6,6 +6,7 @@ import { confirmDialog } from '@/utils/uiDialogs';
 import { Trash2, RefreshCw } from 'lucide-react';
 import { EmailConnection } from './EmailConnection';
 import { IngestionMonitor } from './IngestionMonitor';
+import { logger } from '@/utils/logger';
 
 interface Connection {
   provider: 'microsoft' | 'google';
@@ -28,7 +29,7 @@ export const IntegrationsSection: React.FC = () => {
       setConnections(response.data.connections || []);
       setLastCheckedAt(new Date().toISOString());
     } catch (error: any) {
-      console.error('[IntegrationsSection] Failed to load connections:', error);
+      logger.error('[IntegrationsSection] Failed to load connections:', error);
       toast.error('Failed to load integrations');
     } finally {
       setIsLoading(false);
@@ -78,7 +79,7 @@ export const IntegrationsSection: React.FC = () => {
       toast.success(`${provider} disconnected successfully`);
       loadConnections();
     } catch (error: any) {
-      console.error('[IntegrationsSection] Disconnect failed:', error);
+      logger.error('[IntegrationsSection] Disconnect failed:', error);
       toast.error(error.response?.data?.error || 'Failed to disconnect');
     } finally {
       setIsDisconnecting(null);

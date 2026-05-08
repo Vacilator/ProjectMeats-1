@@ -41,6 +41,7 @@ import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 
 import { OptionListModal } from './OptionListModal';
 import { TenantListModal, type TenantList } from './TenantListModal';
+import { logger } from '@/utils/logger';
 
 const { Text } = Typography;
 
@@ -136,7 +137,7 @@ const OptionListsPage: React.FC = () => {
         const raw = response.data as any;
         return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       } catch (error) {
-        console.error('Failed to load choice lists:', error);
+        logger.error('Failed to load choice lists:', error);
         message.error('Failed to load system option lists');
         return [];
       }
@@ -155,7 +156,7 @@ const OptionListsPage: React.FC = () => {
         const raw = response.data as any;
         return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       } catch (error) {
-        console.error('Failed to load custom tenant lists:', error);
+        logger.error('Failed to load custom tenant lists:', error);
         message.error('Failed to load custom tenant lists');
         return [];
       }
@@ -179,7 +180,7 @@ const OptionListsPage: React.FC = () => {
         const raw = response.data as any;
         return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       } catch (error) {
-        console.error('Failed to load master products:', error);
+        logger.error('Failed to load master products:', error);
         message.error('Failed to load master products');
         return [];
       }
@@ -213,7 +214,7 @@ const OptionListsPage: React.FC = () => {
         }
         return next;
       } catch (error) {
-        console.error('Failed to load tenant product preferences:', error);
+        logger.error('Failed to load tenant product preferences:', error);
         message.error('Failed to load tenant product overrides');
         return {};
       }

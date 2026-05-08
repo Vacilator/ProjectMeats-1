@@ -32,6 +32,7 @@ import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 import { UnifiedForm } from '@/components/UnifiedForm';
 import { CallTimer } from '../Calls';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -462,7 +463,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
       
       setEntityOptions(options);
     } catch (err) {
-      console.error(`Failed to fetch ${type} options:`, err);
+      logger.error(`Failed to fetch ${type} options:`, err);
       setEntityOptions([]);
     } finally {
       setLoadingEntities(false);
@@ -519,7 +520,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error(`Failed to ${isEditMode ? 'update' : 'schedule'} call:`, err);
+      logger.error(`Failed to ${isEditMode ? 'update' : 'schedule'} call:`, err);
       setError(
         err.response?.data?.detail ||
           err.response?.data?.message ||

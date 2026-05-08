@@ -21,6 +21,7 @@ import { RecordPaymentModal, PaymentHistoryList } from '../../components/Shared'
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -361,7 +362,7 @@ const ReceivableSOs: React.FC = () => {
         outstanding_amount: order.outstanding_amount || order.total_amount,
       })));
     } catch (err: any) {
-      console.error('Failed to fetch sales orders:', err);
+      logger.error('Failed to fetch sales orders:', err);
       setError(err.response?.data?.message || 'Failed to load sales orders');
     } finally {
       setLoading(false);

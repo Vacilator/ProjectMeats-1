@@ -18,6 +18,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { getErrorMessage } from '../../hooks/useToast';
 import { Location } from '../../types/index';
 import { apiClient } from '../../services/apiService';
+import { logger } from '@/utils/logger';
 
 export interface LocationSelectorProps {
   value: string | null;
@@ -87,15 +88,15 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
       // Graceful error handling for RLS and auth failures
       if (status === 403) {
         setFetchError('Access denied - insufficient permissions');
-        console.error('[LocationSelector] RLS policy rejected request:', err);
+        logger.error('[LocationSelector] RLS policy rejected request:', err);
       } else if (status === 401) {
         setFetchError('Authentication required');
-        console.error('[LocationSelector] Not authenticated:', err);
+        logger.error('[LocationSelector] Not authenticated:', err);
       } else if (code === 'ECONNABORTED') {
         setFetchError('Request timeout - please try again');
       } else {
         setFetchError(getErrorMessage(err, 'Failed to load locations'));
-        console.error('[LocationSelector] Error fetching locations:', err);
+        logger.error('[LocationSelector] Error fetching locations:', err);
       }
     } finally {
       setLoading(false);

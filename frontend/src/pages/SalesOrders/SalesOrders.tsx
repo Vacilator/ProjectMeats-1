@@ -28,6 +28,7 @@ import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
 import { formatTradeDate, formatTradeDateTime, formatTradeWeight } from '../../utils/trade';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -618,7 +619,7 @@ export const SalesOrdersPage: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      console.error('Error exporting sales orders:', err);
+      logger.error('Error exporting sales orders:', err);
       setError('Failed to export sales orders');
     } finally {
       setExporting(false);
@@ -633,7 +634,7 @@ export const SalesOrdersPage: React.FC = () => {
       const response = await apiClient.get('sales-orders/');
       setOrders(response.data.results || response.data);
     } catch (err: any) {
-      console.error('Failed to fetch sales orders:', err);
+      logger.error('Failed to fetch sales orders:', err);
       setError(err.response?.data?.detail || 'Failed to load sales orders');
     } finally {
       setLoading(false);

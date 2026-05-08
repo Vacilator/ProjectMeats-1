@@ -29,6 +29,7 @@ import { AlertCircle } from 'lucide-react';
 import { WorkflowContext } from './hooks/useWorkflowContext';
 import { getCardDefinition, detectCardType, InteractionCardDefinition } from './InteractionCardRegistry';
 import ExecutionFormStep from './ExecutionFormStep';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -150,7 +151,7 @@ class TaskErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[TaskRenderer] Error caught by boundary:', error, errorInfo);
+    logger.error('[TaskRenderer] Error caught by boundary:', { metadata: { errorInfo: errorInfo.componentStack } }, error);
   }
 
   render() {

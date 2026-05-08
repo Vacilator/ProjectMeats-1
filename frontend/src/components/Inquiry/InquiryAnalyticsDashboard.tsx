@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -435,7 +436,7 @@ export const InquiryAnalyticsDashboard: React.FC<InquiryAnalyticsDashboardProps>
       const response = await apiClient.get('/inquiries/analytics/', { params });
       setData(response.data);
     } catch (error) {
-      console.error('Failed to fetch analytics:', error);
+      logger.error('Failed to fetch analytics:', error);
     } finally {
       setIsLoading(false);
     }

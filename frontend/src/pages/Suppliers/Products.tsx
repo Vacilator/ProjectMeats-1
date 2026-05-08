@@ -13,6 +13,7 @@ import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from 
 import { apiClient } from '../../services/apiService';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface AvailableItem {
   id: number;
@@ -159,7 +160,7 @@ const SupplierProducts: React.FC = () => {
       const response = await apiClient.get(`/suppliers/${id}/`);
       setSupplier(response.data);
     } catch (error) {
-      console.error('Error fetching supplier:', error);
+      logger.error('Error fetching supplier:', error);
       message.error('Failed to load supplier details');
     }
   };
@@ -171,7 +172,7 @@ const SupplierProducts: React.FC = () => {
       const response = await apiClient.get(`/suppliers/${id}/products/`);
       setItems(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching available products:', error);
+      logger.error('Error fetching available products:', error);
       message.error('Failed to load available products');
     } finally {
       setLoading(false);
@@ -193,7 +194,7 @@ const SupplierProducts: React.FC = () => {
       const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       setSystemProducts(data);
     } catch (error) {
-      console.error('Error fetching system products:', error);
+      logger.error('Error fetching system products:', error);
       message.error('Failed to load product catalog');
     } finally {
       setLoadingSystemProducts(false);
@@ -228,7 +229,7 @@ const SupplierProducts: React.FC = () => {
       setSelectedProductIds([]);
       fetchItems();
     } catch (error) {
-      console.error('Error adding products:', error);
+      logger.error('Error adding products:', error);
       message.error('Failed to add products');
     } finally {
       setAddingProducts(false);
@@ -251,7 +252,7 @@ const SupplierProducts: React.FC = () => {
       message.success('Product removed successfully');
       fetchItems();
     } catch (error) {
-      console.error('Error removing product:', error);
+      logger.error('Error removing product:', error);
       message.error('Failed to remove product');
     }
   };

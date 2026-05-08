@@ -25,6 +25,7 @@ import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
 import { isValidEmail } from '../../shared/utils';
 import { normalizeUsPhone } from '../../utils/phone';
 import { getSelectPopupContainer as getDefaultSelectPopupContainer } from '../../utils/antd';
+import { logger } from '@/utils/logger';
 
 export type UniversalEntityFormMode = 'create' | 'edit' | 'view' | 'clone';
 export type UniversalEntityFormVariant = 'modal' | 'inline';
@@ -2185,7 +2186,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           return changed ? next : prev;
         });
       } catch (error) {
-        console.error('[UniversalEntityForm] Failed to load master product dropdown options:', error);
+        logger.error('[UniversalEntityForm] Failed to load master product dropdown options:', error);
       }
     };
 
@@ -2718,7 +2719,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         onSuccess?.(result);
         onClose();
       } catch (err: unknown) {
-        console.error('[UniversalEntityForm] Submit failed:', err);
+        logger.error('[UniversalEntityForm] Submit failed:', err);
         const typed = err as {
           response?: {
             data?: unknown;
@@ -2829,7 +2830,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           };
         });
       } catch (err) {
-        console.error('[UniversalEntityForm] Failed to search products:', err);
+        logger.error('[UniversalEntityForm] Failed to search products:', err);
       } finally {
         if (productSearchSeqRef.current[fieldKey] === nextSeq) {
           setLoadingProducts((prev) => ({ ...prev, [fieldKey]: false }));

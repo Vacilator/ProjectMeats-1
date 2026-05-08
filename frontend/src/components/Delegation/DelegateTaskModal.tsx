@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 import { useZodForm } from '@/hooks/useZodForm';
 import styled, { keyframes } from 'styled-components';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TYPES
@@ -459,7 +460,7 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
       });
       onClose();
     } catch (error) {
-      console.error('Delegation failed:', error);
+      logger.error('Delegation failed:', error);
       setSubmitError('Delegation failed. Please try again.');
     }
   });

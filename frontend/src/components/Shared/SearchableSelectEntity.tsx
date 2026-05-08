@@ -12,6 +12,7 @@ import React, { useId, useState, useEffect, useRef, useCallback } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { entityOptionsService } from '../../services/quickActionsService';
 import QuickCreateModal from '../FormSubmission/QuickCreateModal';
+import { logger } from '@/utils/logger';
 
 interface Option {
   value: string;
@@ -295,7 +296,7 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
         setIsSearchMode(true);
       }
     } catch (err) {
-      console.error('Failed to load options:', err);
+      logger.error('Failed to load options:', err);
     } finally {
       setIsLoading(false);
     }

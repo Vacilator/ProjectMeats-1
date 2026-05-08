@@ -14,6 +14,7 @@ import styled from 'styled-components';
 import { apiClient } from '../services/apiService';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
 import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Styled Components
@@ -361,7 +362,7 @@ const Fulfillments: React.FC = () => {
       setFulfillments(data.results || data);
       setTotalCount(data.count || data.length);
     } catch (err) {
-      console.error('Failed to fetch fulfillments:', err);
+      logger.error('Failed to fetch fulfillments:', err);
       setError('Failed to load fulfillments. Please try again.');
     } finally {
       setLoading(false);
@@ -379,7 +380,7 @@ const Fulfillments: React.FC = () => {
       await apiClient.post(`fulfillments/${fulfillmentId}/${action}/`);
       fetchFulfillments();
     } catch (err) {
-      console.error(`Failed to ${action} fulfillment:`, err);
+      logger.error(`Failed to ${action} fulfillment:`, err);
     } finally {
       setActionLoading(null);
     }

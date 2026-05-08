@@ -10,6 +10,7 @@ import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { apiClient } from '../services/apiService';
 import { InquiryTemplate, InquiryEntityType } from '../types';
 import { InquiryTemplateModal } from '../components/Inquiry';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Styled Components
@@ -271,7 +272,7 @@ const InquiryTemplates: React.FC = () => {
       const response = await apiClient.get('/inquiry-templates/', { params });
       setTemplates(response.data.results || response.data);
     } catch (error) {
-      console.error('Failed to fetch templates:', error);
+      logger.error('Failed to fetch templates:', error);
     } finally {
       setLoading(false);
     }
@@ -306,7 +307,7 @@ const InquiryTemplates: React.FC = () => {
       await apiClient.delete(`/inquiry-templates/${template.id}/`);
       setTemplates(prev => prev.filter(t => t.id !== template.id));
     } catch (error) {
-      console.error('Failed to delete template:', error);
+      logger.error('Failed to delete template:', error);
       showAlert({ type: 'error', title: 'Error', content: 'Failed to delete template' });
     }
   };
@@ -320,7 +321,7 @@ const InquiryTemplates: React.FC = () => {
         t.id === template.id ? response.data : t
       ));
     } catch (error) {
-      console.error('Failed to update template:', error);
+      logger.error('Failed to update template:', error);
       showAlert({ type: 'error', title: 'Error', content: 'Failed to update template' });
     }
   };

@@ -4,6 +4,7 @@ import { Skeleton } from 'antd';
 import { useAuth } from '../contexts/AuthContext';
 import styled from 'styled-components';
 import { IntegrationsSection } from '../components/Integrations/IntegrationsSection';
+import { logger } from '@/utils/logger';
 
 // Renamed to avoid collision with component name (ESLint no-redeclare warning)
 interface UserSettings {
@@ -59,7 +60,7 @@ const Settings: React.FC = () => {
       try {
         setSettings(JSON.parse(savedSettings));
       } catch (error) {
-        console.error('Failed to parse saved settings:', error);
+        logger.error('Failed to parse saved settings:', error);
       }
     }
   }, []);
