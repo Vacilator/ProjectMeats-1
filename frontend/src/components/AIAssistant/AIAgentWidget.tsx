@@ -44,6 +44,7 @@ import {
 import { groupChatSessionsByDate } from '@/components/ChatInterface/sessionHistory';
 import { aiStaffApi, chatApi, chatSessionsApi, hydrateDocumentMessageMetadata } from '@/services/aiService';
 import { useStickyAutoScroll } from '@/hooks/useStickyAutoScroll';
+import { logger } from '@/utils/logger';
 import type {
   DocumentLineageSummary,
   DocumentProcessingMetadata,
@@ -580,9 +581,12 @@ const Input = styled.input`
 `;
 
 const newId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const IS_DEV = process.env.NODE_ENV === 'development';
+const WS_LOG_CTX = { component: 'AIAgentWidget' } as const;
 
 const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string | null => {
   if (typeof window === 'undefined' || !tenantId || !accessToken) {
+    if (IS_DEV) logger.debug('WS: skipped — missing tenantId or token', WS_LOG_CTX);
     return null;
   }
 
@@ -607,7 +611,9 @@ const resolveAIInboxTenantId = (): string | null => {
   }
   try {
     const tenantId = localStorage.getItem('tenantId');
-    return tenantId && tenantId.trim() ? tenantId.trim() : null;
+    if (tenantId && tenantId.trim()) return tenantId.trim();
+    if (IS_DEV) logger.debug('WS: no tenant in JWT or localStorage', WS_LOG_CTX);
+    return null;
   } catch {
     return null;
   }
@@ -810,10 +816,18 @@ export const AIAgentWidget: React.FC = () => {
 
       clearReconnectTimer();
       inboxReconnectAttemptsRef.current += 1;
+      const attempt = inboxReconnectAttemptsRef.current;
 
-      const baseDelayMs = Math.min(15_000, 500 * 2 ** (inboxReconnectAttemptsRef.current - 1));
+      const baseDelayMs = Math.min(15_000, 500 * 2 ** (attempt - 1));
       const jitterFactor = 0.8 + Math.random() * 0.4;
       const delayMs = Math.max(250, Math.round(baseDelayMs * jitterFactor));
+
+      if (IS_DEV) {
+        logger.debug(
+          `WS: reconnect #${attempt} in ${delayMs}ms (refresh=${attemptRefresh})`,
+          WS_LOG_CTX,
+        );
+      }
 
       inboxReconnectTimerRef.current = window.setTimeout(() => {
         void connect(attemptRefresh);
@@ -825,6 +839,7 @@ export const AIAgentWidget: React.FC = () => {
 
       const tenantId = resolveAIInboxTenantId();
       if (!tenantId) {
+        if (IS_DEV) logger.debug('WS: connect aborted — no tenant', WS_LOG_CTX);
         setAiInboxRealtimeStatus('idle');
         setAiInboxCount(0);
         return;
@@ -833,7 +848,13 @@ export const AIAgentWidget: React.FC = () => {
       setAiInboxRealtimeStatus('connecting');
       let accessToken = getAccessToken();
       if (!accessToken && attemptRefresh) {
-        accessToken = await refreshAccessToken();
+        if (IS_DEV) logger.debug('WS: no token, attempting refresh', WS_LOG_CTX);
+        try {
+          accessToken = await refreshAccessToken();
+        } catch {
+          if (IS_DEV) logger.warn('WS: token refresh failed', WS_LOG_CTX);
+          accessToken = null;
+        }
       }
 
       if (!accessToken) {
@@ -858,6 +879,7 @@ export const AIAgentWidget: React.FC = () => {
           inboxReconnectAttemptsRef.current = 0;
           inboxRefreshAttemptedRef.current = false;
           setAiInboxRealtimeStatus('live');
+          if (IS_DEV) logger.debug('WS: inbox socket connected', WS_LOG_CTX);
         };
 
         socket.onmessage = (event) => {
@@ -931,7 +953,8 @@ export const AIAgentWidget: React.FC = () => {
         };
 
         socket.onerror = () => {
-          // Let onclose own retry logic.
+          // Suppress console spam — onclose owns retry logic and logging.
+          if (IS_DEV) logger.debug('WS: socket error event (onclose will handle retry)', WS_LOG_CTX);
         };
 
         socket.onclose = (event) => {
@@ -941,20 +964,30 @@ export const AIAgentWidget: React.FC = () => {
           }
 
           if (event.code === 1000) {
+            if (IS_DEV) logger.debug('WS: clean close (1000)', WS_LOG_CTX);
             setAiInboxRealtimeStatus('idle');
             return;
+          }
+
+          if (IS_DEV) {
+            logger.warn(
+              `WS: closed code=${event.code} reason="${event.reason || 'none'}"`,
+              WS_LOG_CTX,
+            );
           }
 
           setAiInboxRealtimeStatus('degraded');
           if ((event.code === 4401 || event.code === 4403) && !inboxRefreshAttemptedRef.current) {
             inboxRefreshAttemptedRef.current = true;
+            if (IS_DEV) logger.debug('WS: auth rejection, will refresh token', WS_LOG_CTX);
             scheduleReconnect(true);
             return;
           }
 
           scheduleReconnect(false);
         };
-      } catch {
+      } catch (err) {
+        if (IS_DEV) logger.warn('WS: constructor threw', { ...WS_LOG_CTX, metadata: { err } });
         setAiInboxRealtimeStatus('degraded');
         scheduleReconnect(attemptRefresh);
       }
