@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, GitBranch, X, History, RotateCcw } from 'lucide-react';
 import { adminClient } from '@/services/apiService';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface Version {
   id: string;
@@ -43,7 +44,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
       );
       setVersions(response.data.versions || []);
     } catch (error) {
-      console.error('Failed to fetch version history:', error);
+      logger.error('Failed to fetch version history:', error);
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
       onRollback(response.data.new_version_id);
       void fetchVersionHistory();
     } catch (error) {
-      console.error('Rollback failed:', error);
+      logger.error('Rollback failed:', error);
       showAlert({
         title: 'Rollback failed',
         content: 'Failed to rollback. See console for details.',
@@ -98,7 +99,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
       );
       setComparisonData(response.data);
     } catch (error) {
-      console.error('Comparison failed:', error);
+      logger.error('Comparison failed:', error);
       showAlert({
         title: 'Comparison failed',
         content: 'Failed to compare versions. See console for details.',

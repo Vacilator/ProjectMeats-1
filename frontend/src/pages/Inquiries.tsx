@@ -521,7 +521,7 @@ const Inquiries: React.FC = () => {
   useEffect(() => {
     inquiryService.listInquiryTemplates()
       .then(setTemplates)
-      .catch(console.error);
+      .catch((err: unknown) => logger.error('Failed to load inquiry templates', {}, err));
   }, []);
 
 

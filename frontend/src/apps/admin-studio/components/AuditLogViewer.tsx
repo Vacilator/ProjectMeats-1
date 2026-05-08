@@ -18,6 +18,7 @@ import {
   AuditLogSummaryStats,
   AuditLogFilters,
 } from '../../../services/configService';
+import { logger } from '@/utils/logger';
 
 interface AuditLogViewerProps {
   /** Filter to specific entity type (e.g., 'TenantConfig', 'SystemChoiceList') */
@@ -96,7 +97,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       setTotalCount(logsResponse.count);
       setSummary(summaryResponse);
     } catch (err) {
-      console.error('Failed to load audit logs:', err);
+      logger.error('Failed to load audit logs:', err);
       setError('Failed to load audit logs');
     } finally {
       setLoading(false);
@@ -113,7 +114,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       const detail = await configService.getAuditLogDetail(id);
       setSelectedLog(detail);
     } catch (err) {
-      console.error('Failed to load log detail:', err);
+      logger.error('Failed to load log detail:', err);
     }
   };
   
