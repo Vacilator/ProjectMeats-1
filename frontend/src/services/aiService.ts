@@ -38,6 +38,8 @@ export type PendingReviewItem = ContractPendingReviewItem & {
   feedback_comment?: string;
   retraining_status?: string;
   retraining_queued_at?: string | null;
+  attachment_count?: number;
+  attachment_filenames?: string[];
 };
 export type PendingReviewListResponse = ContractPendingReviewListResponse;
 export type PendingReviewResolveRequest = ContractPendingReviewResolveRequest;

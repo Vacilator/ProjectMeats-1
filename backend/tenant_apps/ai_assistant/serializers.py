@@ -507,6 +507,10 @@ class PendingReviewItemSerializer(serializers.Serializer):
     feedback_comment = serializers.CharField(required=False, allow_blank=True)
     retraining_status = serializers.CharField(required=False, allow_blank=True)
     retraining_queued_at = serializers.DateTimeField(required=False, allow_null=True)
+    attachment_count = serializers.IntegerField(required=False, default=0)
+    attachment_filenames = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list,
+    )
 
 
 class PendingReviewListResponseSerializer(serializers.Serializer):

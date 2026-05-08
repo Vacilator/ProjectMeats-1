@@ -679,6 +679,18 @@ def get_email_logs(request):
         if email.sender_name:
             sender = f"{email.sender_name} <{email.sender_email}>"
 
+        # Build attachment summary from attachment_data if present
+        attachment_info = {}
+        att_data = getattr(email, 'attachment_data', None)
+        if att_data and isinstance(att_data, dict):
+            files = att_data.get('files') or []
+            attachment_info = {
+                'attachment_count': len(files),
+                'attachment_filenames': [
+                    str(f.get('name', '')) for f in files if f.get('name')
+                ],
+            }
+
         email_data.append(
             {
                 "id": str(email.id),
@@ -690,6 +702,7 @@ def get_email_logs(request):
                 "has_attachments": email.has_attachments,
                 "extracted_data": email.extracted_data,
                 "related_order_id": email.related_order_id,
+                **attachment_info,
                 "draft": (
                     {
                         "id": str(email.review_draft.id),
