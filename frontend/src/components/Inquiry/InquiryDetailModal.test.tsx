@@ -1,9 +1,15 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import type { Inquiry } from '../../types';
 import { InquiryDetailModal } from './InquiryDetailModal';
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
 
 const buildInquiry = (): Inquiry =>
   ({
@@ -36,7 +42,13 @@ const buildInquiry = (): Inquiry =>
 
 describe('InquiryDetailModal', () => {
   it('renders legacy null numeric values without crashing and preserves zero totals', () => {
-    render(<InquiryDetailModal isOpen onClose={() => {}} inquiry={buildInquiry()} />);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <InquiryDetailModal isOpen onClose={() => {}} inquiry={buildInquiry()} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
 
     expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
     expect(

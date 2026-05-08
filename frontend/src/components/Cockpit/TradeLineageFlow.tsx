@@ -410,7 +410,7 @@ function buildGraph(
       entityId: entity.data?.id ?? '',
       status: entity.data?.status ?? '',
       subtitle: entity.data?.number ?? '',
-      isActive: currentStep.toLowerCase().includes(entity.key.replace('_', '')),
+      isActive: (currentStep ?? '').toLowerCase().includes(entity.key.replace('_', '')),
       isEmpty: entity.data === null,
       contactRoles: Array.isArray(entity.data?.contact_roles)
         ? entity.data.contact_roles.map((role) => ({
