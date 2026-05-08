@@ -332,19 +332,44 @@ _SKIP_FIELDS = {
     'updated_at',
     'created_on',
     'updated_on',
+    'created_by',
+    'updated_by',
+    'deleted_at',
+    'deleted_by',
+    'is_deleted',
+    'is_active',
+}
+
+# Fields that should be hidden from user forms (audit/tracking only)
+_AUDIT_FIELDS = {
+    'date_time_stamp',
+    'trade_session',
 }
 
 
 def _infer_field_group(key: str) -> str:
+    """Infer logical section group from field key name."""
     k = (key or '').lower()
-    if k in {'name', 'title', 'status', 'entity_type'}:
-        return 'Overview'
+    if k in {'name', 'title', 'status', 'entity_type', 'our_sales_order_num',
+             'our_sales_order_number_for_customer', 'order_number', 'po_number'}:
+        return 'Order Details'
+    if k in {'supplier', 'customer', 'product', 'product_code', 'quantity',
+             'total_weight', 'weight_unit', 'price_per_unit', 'total_amount'}:
+        return 'Order Details'
     if 'contact' in k or k in {'email', 'phone', 'phone_type'}:
-        return 'Contact'
+        return 'Contact Information'
     if k in {'address', 'street_address', 'city', 'state', 'zip_code', 'country'}:
         return 'Address'
+    if k in {'carrier', 'carrier_release_num', 'delivery_po_num', 'delivery_po_number',
+             'plant', 'plant_est_number', 'pick_up_location', 'delivery_location',
+             'logistics_scenario', 'shipping_type'}:
+        return 'Shipping & Delivery'
+    if k in {'payment_status', 'outstanding_amount', 'total_amount', 'billing_address',
+             'billing_city', 'billing_state', 'billing_zip_code', 'billing_country',
+             'billing_contact_name', 'billing_contact_email', 'billing_contact_phone'}:
+        return 'Billing & Payment'
     if 'date' in k or k in {'valid_until', 'due_date', 'delivery_date', 'order_date', 'invoice_date'}:
-        return 'Dates'
+        return 'Dates & Scheduling'
     if 'note' in k or k in {'notes', 'competitor_names', 'competitor_pricing_notes', 'win_loss_reason'}:
         return 'Notes'
     return 'Details'
@@ -362,12 +387,17 @@ def _normalize_schema(schema: dict[str, Any]) -> dict[str, Any]:
         if not key:
             continue
 
+        # Hide audit fields from user forms (still in schema for admin views)
+        if key in _AUDIT_FIELDS:
+            ff['hidden'] = True
+
         ui = ff.get('ui') if isinstance(ff.get('ui'), dict) else {}
         read_only = bool(ff.get('read_only')) or bool(ui.get('read_only'))
         hidden = bool(ff.get('hidden')) or bool(ui.get('hidden'))
 
         ff['order'] = int(ff.get('order') if ff.get('order') is not None else idx)
-        ff['group'] = str(ff.get('group') or _infer_field_group(key))
+        group = str(ff.get('group') or _infer_field_group(key))
+        ff['group'] = group
         ff['read_only'] = read_only
         ff['hidden'] = hidden
 
@@ -378,6 +408,9 @@ def _normalize_schema(schema: dict[str, Any]) -> dict[str, Any]:
             'table': bool(surfaces.get('table', key in header_fields)),
         }
 
+        # Inject ui.section from group if not already set (enables frontend section headers)
+        if not ui.get('section'):
+            ui['section'] = group
         ff['ui'] = {**ui, 'read_only': read_only}
 
         normalized_fields.append(ff)
@@ -925,16 +958,261 @@ class SystemFormSchemaView(APIView):
 
             return Response(_normalize_schema(schema), status=status.HTTP_200_OK)
 
+        # --- Sales Order dedicated schema ---
+        if canonical in {
+            'sales_order',
+            'sales_orders',
+            'sales-orders',
+            'sales_orders.salesorder',
+            'tenant_apps.sales_orders.salesorder',
+        }:
+            schema = {
+                'name': 'Sales Order',
+                'description': 'Create/edit sales order with logical sections.',
+                'fields': [
+                    # --- Order Details section ---
+                    {
+                        'key': 'our_sales_order_num',
+                        'label': 'Sales Order Number',
+                        'type': 'text',
+                        'required': False,
+                        'order': 0,
+                        'help_text': 'Auto-generated if left blank.',
+                        'ui': {'section': 'Order Details'},
+                    },
+                    {
+                        'key': 'customer',
+                        'label': 'Customer',
+                        'type': 'text',
+                        'required': True,
+                        'order': 1,
+                        'ui': {'widget': 'searchable_select', 'section': 'Order Details', 'allow_create': True},
+                        'related_entity': 'customers.customer',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'supplier',
+                        'label': 'Supplier',
+                        'type': 'text',
+                        'required': True,
+                        'order': 2,
+                        'ui': {'widget': 'searchable_select', 'section': 'Order Details', 'allow_create': True},
+                        'related_entity': 'suppliers.supplier',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'product',
+                        'label': 'Product',
+                        'type': 'text',
+                        'required': False,
+                        'order': 3,
+                        'ui': {'widget': 'searchable_select', 'section': 'Order Details'},
+                        'related_entity': 'system.product',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'status',
+                        'label': 'Status',
+                        'type': 'text',
+                        'required': False,
+                        'order': 4,
+                        'ui': {'widget': 'select', 'section': 'Order Details'},
+                        'choices': [
+                            {'value': 'PENDING', 'label': 'Pending'},
+                            {'value': 'CONFIRMED', 'label': 'Confirmed'},
+                            {'value': 'IN_TRANSIT', 'label': 'In Transit'},
+                            {'value': 'DELIVERED', 'label': 'Delivered'},
+                            {'value': 'CANCELLED', 'label': 'Cancelled'},
+                        ],
+                    },
+                    {
+                        'key': 'quantity',
+                        'label': 'Quantity',
+                        'type': 'number',
+                        'required': False,
+                        'order': 5,
+                        'ui': {'section': 'Order Details'},
+                    },
+                    {
+                        'key': 'total_weight',
+                        'label': 'Total Weight',
+                        'type': 'number',
+                        'required': False,
+                        'order': 6,
+                        'ui': {'section': 'Order Details'},
+                    },
+                    {
+                        'key': 'weight_unit',
+                        'label': 'Weight Unit',
+                        'type': 'text',
+                        'required': False,
+                        'order': 7,
+                        'ui': {'widget': 'select', 'section': 'Order Details'},
+                        'choices': [
+                            {'value': 'LBS', 'label': 'Pounds (LBS)'},
+                            {'value': 'KG', 'label': 'Kilograms (KG)'},
+                        ],
+                    },
+                    {
+                        'key': 'total_amount',
+                        'label': 'Total Amount',
+                        'type': 'number',
+                        'required': False,
+                        'order': 8,
+                        'ui': {'section': 'Order Details'},
+                    },
+                    # --- Shipping & Delivery section ---
+                    {
+                        'key': 'carrier',
+                        'label': 'Carrier',
+                        'type': 'text',
+                        'required': False,
+                        'order': 10,
+                        'ui': {'widget': 'searchable_select', 'section': 'Shipping & Delivery', 'allow_create': True},
+                        'related_entity': 'carriers.carrier',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'carrier_release_num',
+                        'label': 'Carrier Release Number',
+                        'type': 'text',
+                        'required': False,
+                        'order': 11,
+                        'ui': {'section': 'Shipping & Delivery'},
+                    },
+                    {
+                        'key': 'delivery_po_num',
+                        'label': 'Delivery PO Number',
+                        'type': 'text',
+                        'required': False,
+                        'order': 12,
+                        'ui': {'section': 'Shipping & Delivery'},
+                    },
+                    {
+                        'key': 'plant',
+                        'label': 'Plant / Facility',
+                        'type': 'text',
+                        'required': False,
+                        'order': 13,
+                        'ui': {'widget': 'searchable_select', 'section': 'Shipping & Delivery'},
+                        'related_entity': 'locations.location',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'plant_est_number',
+                        'label': 'Plant Establishment #',
+                        'type': 'text',
+                        'required': False,
+                        'order': 14,
+                        'ui': {'section': 'Shipping & Delivery'},
+                    },
+                    {
+                        'key': 'pick_up_location',
+                        'label': 'Pick Up Location',
+                        'type': 'text',
+                        'required': False,
+                        'order': 15,
+                        'ui': {'widget': 'searchable_select', 'section': 'Shipping & Delivery'},
+                        'related_entity': 'locations.location',
+                        'choices': None,
+                    },
+                    {
+                        'key': 'delivery_location',
+                        'label': 'Delivery Location',
+                        'type': 'text',
+                        'required': False,
+                        'order': 16,
+                        'ui': {'widget': 'searchable_select', 'section': 'Shipping & Delivery'},
+                        'related_entity': 'locations.location',
+                        'choices': None,
+                    },
+                    # --- Billing & Payment section ---
+                    {
+                        'key': 'payment_status',
+                        'label': 'Payment Status',
+                        'type': 'text',
+                        'required': False,
+                        'order': 20,
+                        'ui': {'widget': 'select', 'section': 'Billing & Payment'},
+                        'choices': [
+                            {'value': 'UNPAID', 'label': 'Unpaid'},
+                            {'value': 'PARTIALLY_PAID', 'label': 'Partially Paid'},
+                            {'value': 'PAID', 'label': 'Paid'},
+                            {'value': 'OVERDUE', 'label': 'Overdue'},
+                        ],
+                    },
+                    {
+                        'key': 'outstanding_amount',
+                        'label': 'Outstanding Amount',
+                        'type': 'number',
+                        'required': False,
+                        'order': 21,
+                        'ui': {'section': 'Billing & Payment', 'read_only': True},
+                        'read_only': True,
+                    },
+                    # --- Contact Information section ---
+                    {
+                        'key': 'contact',
+                        'label': 'Primary Contact',
+                        'type': 'text',
+                        'required': False,
+                        'order': 25,
+                        'ui': {'widget': 'searchable_select', 'section': 'Contact Information'},
+                        'related_entity': 'contacts.contact',
+                        'choices': None,
+                    },
+                    # --- Notes section ---
+                    {
+                        'key': 'notes',
+                        'label': 'Notes',
+                        'type': 'textarea',
+                        'required': False,
+                        'order': 30,
+                        'ui': {'widget': 'textarea', 'section': 'Notes'},
+                    },
+                ],
+                'key_fields': [
+                    'our_sales_order_num',
+                    'customer',
+                    'supplier',
+                    'product',
+                    'status',
+                    'quantity',
+                    'total_weight',
+                    'carrier',
+                ],
+            }
+
+            key_set = set(schema.get('key_fields') or [])
+            for mf in schema.get('fields') or []:
+                mf_key = str(mf.get('key') or '')
+                mf_required = bool(mf.get('required'))
+                mf['is_advanced'] = bool(mf_key and (mf_key not in key_set) and (not mf_required))
+
+            return Response(_normalize_schema(schema), status=status.HTTP_200_OK)
+
         # get_entity_fields already supports aliases like 'customer', 'supplier', etc.
         fields = get_entity_fields(entity_type)
         if not fields:
             return Response({'error': f'Entity not found: {entity_type}'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Deduplicate fields that are canonical duplicates (e.g. delivery_po_num vs delivery_po_number)
+        _DEDUP_PREFER = {
+            'delivery_po_number': 'delivery_po_num',
+            'our_sales_order_number_for_customer': None,  # keep as-is, unique
+        }
+
         mapped_fields = []
+        seen_keys: set[str] = set()
         for idx, f in enumerate(fields):
             name = str(f.get('name') or '').strip()
             if not name or name in _SKIP_FIELDS:
                 continue
+
+            # Skip duplicate variants (keep the first / preferred one)
+            if name in _DEDUP_PREFER and _DEDUP_PREFER[name] in seen_keys:
+                continue
+            seen_keys.add(name)
 
             introspected_type = str(f.get('field_type') or 'text')
             mapped_type = _map_field_type(introspected_type)
