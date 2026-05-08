@@ -52,28 +52,10 @@ export interface UnifiedEntityTableProps<Row extends UnifiedEntityTableRow = Uni
   enableBulkActions?: boolean;
 }
 
-const normalizeSchemaEntityType = (raw: string): string => {
-  const t = String(raw || '').trim().toLowerCase();
+import { normalizeSchemaEntityType, entityRecordPath } from '../../utils/entityTypeRegistry';
 
-  if (t === 'inquiry' || t === 'inquiries') return 'inquiry';
-  if (t === 'sales_order' || t === 'sales-orders' || t === 'sales_orders') return 'sales_order';
-  if (t === 'purchase_order' || t === 'purchase-orders' || t === 'purchase_orders') return 'purchase_order';
-
-  if (t === 'customer' || t === 'customers') return 'customer';
-  if (t === 'supplier' || t === 'suppliers') return 'supplier';
-  if (t === 'plant' || t === 'plants') return 'plant';
-  if (t === 'location' || t === 'locations') return 'location';
-  if (t === 'contact' || t === 'contacts') return 'contact';
-  if (t === 'invoice' || t === 'invoices') return 'invoice';
-  if (t === 'claim' || t === 'claims') return 'claim';
-
-  return t;
-};
-
-const defaultRecordPath = (entityType: string, id: string) => {
-  const t = normalizeSchemaEntityType(entityType);
-  return `/records/${encodeURIComponent(t)}/${encodeURIComponent(id)}`;
-};
+const defaultRecordPath = (entityType: string, id: string) =>
+  entityRecordPath(entityType, id);
 
 const getRowSubtitle = (row: Record<string, unknown>): string | undefined => {
   const candidates = [row.subtitle, row.city, row.state, row.email, row.phone];

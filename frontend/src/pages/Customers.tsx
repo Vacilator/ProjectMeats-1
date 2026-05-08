@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Space, Table, Tag, Typography } from 'antd';
+import { Button, Input, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -106,8 +106,9 @@ const Customers: React.FC = () => {
   useEffect(() => {
     if (searchParams.get('action') === 'create') {
       setCreateOpen(true);
-      searchParams.delete('action');
-      setSearchParams(searchParams);
+      const next = new URLSearchParams(searchParams);
+      next.delete('action');
+      setSearchParams(next);
     }
   }, [searchParams, setSearchParams]);
 
@@ -138,8 +139,12 @@ const Customers: React.FC = () => {
       const confirmed = window.confirm('Are you sure you want to delete this customer?');
       if (!confirmed) return;
 
-      await apiService.deleteCustomer(Number(customerId));
-      void customersQuery.refetch();
+      try {
+        await apiService.deleteCustomer(Number(customerId));
+        void customersQuery.refetch();
+      } catch {
+        message.error('Failed to delete customer. Please try again.');
+      }
     },
     [customersQuery]
   );
