@@ -314,7 +314,7 @@ export const MappingSection: React.FC = () => {
       <Modal onClick={(e) => e.stopPropagation()}>
         <Header>
           <Title>Field Mappings</Title>
-          <button onClick={closeMappingModal} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+          <button type="button" onClick={closeMappingModal} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <X size={20} />
           </button>
         </Header>

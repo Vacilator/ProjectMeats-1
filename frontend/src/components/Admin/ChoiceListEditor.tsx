@@ -105,7 +105,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
     >
       {/* Drag handle */}
       {isReorderable && (
-        <button
+        <button type="button"
           {...attributes}
           {...listeners}
           className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
@@ -147,7 +147,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
       <div className="flex items-center gap-2">
         {item.is_system_defined ? (
           // System items: can only toggle visibility
-          <button
+          <button type="button"
             onClick={() => onToggleVisibility(item)}
             className="p-2 text-gray-400 hover:text-gray-600 rounded"
             title={item.is_active ? 'Hide for tenant' : 'Show for tenant'}
@@ -161,14 +161,14 @@ const SortableItem: React.FC<SortableItemProps> = ({
         ) : (
           // Tenant items: can edit and delete
           <>
-            <button
+            <button type="button"
               onClick={() => onEdit(item)}
               className="p-2 text-blue-600 hover:text-blue-700 rounded"
               title="Edit"
             >
               <Pencil className="w-5 h-5" />
             </button>
-            <button
+            <button type="button"
               onClick={() => onDelete(item)}
               className="p-2 text-red-600 hover:text-red-700 rounded"
               title="Delete"
@@ -347,7 +347,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-red-800">{error}</p>
-        <button
+        <button type="button"
           onClick={loadChoiceList}
           className="mt-2 text-red-600 hover:text-red-700 underline"
         >
@@ -387,7 +387,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         </div>
 
         {choiceList.is_extensible && !isAddingItem && (
-          <button
+          <button type="button"
             onClick={() => setIsAddingItem(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
@@ -432,14 +432,14 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
             </div>
           </div>
           <div className="flex gap-2">
-            <button
+            <button type="button"
               onClick={handleAddItem}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               <Check className="w-5 h-5" />
               Save
             </button>
-            <button
+            <button type="button"
               onClick={() => {
                 setIsAddingItem(false);
                 setNewItem({ value: '', label: '' });
@@ -473,13 +473,13 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                 />
               </div>
               <div className="flex gap-2 mt-4">
-                <button
+                <button type="button"
                   onClick={handleEditItem}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Save
                 </button>
-                <button
+                <button type="button"
                   onClick={() => setEditingItem(null)}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                 >

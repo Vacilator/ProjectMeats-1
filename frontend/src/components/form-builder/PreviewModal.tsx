@@ -154,7 +154,7 @@ export const PreviewModal: React.FC = () => {
       <Modal onClick={(e) => e.stopPropagation()}>
         <Header>
           <Title>Form Preview</Title>
-          <button onClick={closePreviewModal} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+          <button type="button" onClick={closePreviewModal} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <X size={20} />
           </button>
         </Header>

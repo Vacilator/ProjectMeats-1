@@ -165,6 +165,7 @@ export const ConfidenceScoringWidget: React.FC = () => {
       onRefresh={fetchMetrics}
       actions={
         <button
+          type="button"
           onClick={fetchMetrics}
           style={{
             background: 'none',

@@ -6,8 +6,12 @@ Provides entity types and field metadata from Django models.
 
 Created: 2026-02-12
 """
+import logging
+
 from django.apps import apps
 from django.db import models
+
+logger = logging.getLogger(__name__)
 
 
 ENTITY_ID_ALIASES = {
@@ -173,7 +177,7 @@ def get_entity_fields(entity_id: str):
 
         model = apps.get_model(app_label, model_name)
     except (ValueError, LookupError) as e:
-        print(f"[Entity Introspection] Failed to get model for '{entity_id}': {e}")
+        logger.warning("Failed to get model for '%s': %s", entity_id, e)
         return []
     
     fields = []
