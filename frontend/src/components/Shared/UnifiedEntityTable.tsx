@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Table } from 'antd';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button, message, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 
@@ -47,6 +47,9 @@ export interface UnifiedEntityTableProps<Row extends UnifiedEntityTableRow = Uni
 
   /** Defaults to true. */
   enableQuickEdit?: boolean;
+
+  /** Enable checkbox selection + bulk action toolbar. Defaults to false. */
+  enableBulkActions?: boolean;
 }
 
 const normalizeSchemaEntityType = (raw: string): string => {
@@ -110,12 +113,15 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
   recordPathForRow,
   rowKey,
   enableQuickEdit = true,
+  enableBulkActions = false,
 }: UnifiedEntityTableProps<Row>) => {
   const navigate = useNavigate();
   const [schema, setSchema] = useState<BackendSchema | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const normalizedEntityType = useMemo(() => normalizeSchemaEntityType(entityType), [entityType]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const exportingRef = useRef(false);
 
   const resolvedRowKey = useCallback(
     (row: Row) => {
@@ -268,8 +274,88 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
     return cols;
   }, [enableQuickEdit, entityType, handleQuickEdit, normalizedEntityType, schemaColumns]);
 
+  const handleExportCSV = useCallback(() => {
+    if (exportingRef.current) return;
+    exportingRef.current = true;
+
+    try {
+      const selectedData = data.filter((row) =>
+        selectedRowKeys.includes(String((row as any)?.id ?? '')),
+      );
+      if (selectedData.length === 0) {
+        message.warning('No rows selected for export.');
+        return;
+      }
+
+      const allKeys = new Set<string>();
+      selectedData.forEach((row) => Object.keys(row).forEach((k) => allKeys.add(k)));
+      const headers = Array.from(allKeys);
+
+      const csvRows = [headers.join(',')];
+      selectedData.forEach((row) => {
+        const vals = headers.map((h) => {
+          const v = (row as Record<string, unknown>)[h];
+          const s = v == null ? '' : String(v);
+          return s.includes(',') || s.includes('"') || s.includes('\n')
+            ? `"${s.replace(/"/g, '""')}"`
+            : s;
+        });
+        csvRows.push(vals.join(','));
+      });
+
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${entityType}_export_${selectedData.length}_rows.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success(`Exported ${selectedData.length} rows.`);
+    } finally {
+      exportingRef.current = false;
+    }
+  }, [data, entityType, selectedRowKeys]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedRowKeys([]);
+  }, []);
+
+  const rowSelection = enableBulkActions
+    ? {
+        selectedRowKeys,
+        onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
+      }
+    : undefined;
+
   return (
     <>
+      {enableBulkActions && selectedRowKeys.length > 0 && (
+        <div
+          style={{
+            padding: '8px 12px',
+            marginBottom: 8,
+            borderRadius: 8,
+            background: 'rgb(var(--color-surface))',
+            border: '1px solid rgb(var(--color-border))',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <span style={{ fontWeight: 500, fontSize: 13 }}>
+            {selectedRowKeys.length} selected
+          </span>
+          <Space size={8}>
+            <Button size="small" onClick={handleExportCSV}>
+              Export CSV
+            </Button>
+            <Button size="small" onClick={handleClearSelection}>
+              Clear
+            </Button>
+          </Space>
+        </div>
+      )}
+
       <Table<Row>
         size="small"
         rowKey={resolvedRowKey}
@@ -277,6 +363,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
         dataSource={data}
         loading={loading}
         pagination={pageSize ? { pageSize } : false}
+        rowSelection={rowSelection}
         onRow={(row) => ({
           onClick: () => {
             const id = String((row as any)?.id ?? '').trim();
