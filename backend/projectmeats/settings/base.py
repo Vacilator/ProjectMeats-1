@@ -181,6 +181,7 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",  # Must be first for CORS headers
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # Static files middleware
+    "apps.core.utils.correlation.CorrelationIdMiddleware",  # Request tracing (X-Request-ID)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -444,12 +445,12 @@ LOGGING = {
     "formatters": {
         "verbose": {
             "()": "apps.core.utils.redaction.RedactingFormatter",
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} [cid:{correlation_id}] {message}",
             "style": "{",
         },
         "simple": {
             "()": "apps.core.utils.redaction.RedactingFormatter",
-            "format": "{levelname} {message}",
+            "format": "{levelname} [cid:{correlation_id}] {message}",
             "style": "{",
         },
         "trade_json": {
@@ -459,26 +460,29 @@ LOGGING = {
     "filters": {
         "redact_sensitive_data": {
             "()": "apps.core.utils.redaction.RedactingLogFilter",
-        }
+        },
+        "correlation_id": {
+            "()": "apps.core.utils.correlation.CorrelationIdFilter",
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
-            "filters": ["redact_sensitive_data"],
+            "filters": ["redact_sensitive_data", "correlation_id"],
         },
         "file": {
             "class": "logging.FileHandler",
             "filename": BASE_DIR / "logs" / "django.log",
             "formatter": "verbose",
-            "filters": ["redact_sensitive_data"],
+            "filters": ["redact_sensitive_data", "correlation_id"],
         },
         "debug_file": {
             "class": "logging.FileHandler",
             "filename": BASE_DIR / "logs" / "debug.log",
             "formatter": "verbose",
             "level": "DEBUG",
-            "filters": ["redact_sensitive_data"],
+            "filters": ["redact_sensitive_data", "correlation_id"],
         },
     },
     "root": {
