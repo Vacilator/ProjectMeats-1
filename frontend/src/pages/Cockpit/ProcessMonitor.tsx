@@ -383,14 +383,20 @@ const ProcessMonitor: React.FC = () => {
 
   const [showMineOnly, setShowMineOnly] = useState(!isStaff);
   const [selected, setSelected] = useState<ProcessMonitorItem | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     // If user becomes known and is staff, don't force mine-only.
     setShowMineOnly((prev) => (isStaff ? prev : true));
   }, [isStaff]);
 
+  const listQueryKey = useMemo(
+    () => withTenantQueryKey('process-monitor', showMineOnly ? 'mine' : 'all'),
+    [showMineOnly]
+  );
+
   const listQuery = useQuery({
-    queryKey: withTenantQueryKey('process-monitor', { mine: showMineOnly }),
+    queryKey: listQueryKey,
     queryFn: async (): Promise<PaginatedResponse<ProcessMonitorItem>> => {
       const params = showMineOnly ? { assigned_to: 'me' } : undefined;
       const res = await businessApi.get<PaginatedResponse<ProcessMonitorItem>>(
@@ -429,10 +435,16 @@ const ProcessMonitor: React.FC = () => {
 
   const open = useCallback((item: ProcessMonitorItem) => {
     setSelected(item);
+    setSelectedNodeId(null);
   }, []);
 
   const close = useCallback(() => {
     setSelected(null);
+    setSelectedNodeId(null);
+  }, []);
+
+  const handleNodeClick = useCallback((_event: React.MouseEvent, node: { id: string; data?: Record<string, unknown> }) => {
+    setSelectedNodeId(node.id);
   }, []);
 
   useEffect(() => {
@@ -445,6 +457,21 @@ const ProcessMonitor: React.FC = () => {
   }, [selected]);
 
   const results = listQuery.data?.results || [];
+
+  const selectedNodeData = useMemo(() => {
+    if (!selectedNodeId) return null;
+    const node = nodes.find((n: { id: string }) => n.id === selectedNodeId) as { id: string; type?: string; data?: Record<string, unknown> } | undefined;
+    if (!node) return null;
+    return {
+      id: node.id,
+      type: node.type ?? node.data?.nodeType ?? 'unknown',
+      label: String(node.data?.label || node.data?.name || node.id),
+      entityType: String(node.data?.entityType || node.data?.entity_type || ''),
+      description: String(node.data?.description || node.data?.instructions || ''),
+      status: node.id === activeNodeId ? 'active' : 'completed',
+      config: node.data ?? {},
+    };
+  }, [selectedNodeId, nodes, activeNodeId]);
 
   return (
     <Container>
@@ -574,42 +601,87 @@ const ProcessMonitor: React.FC = () => {
                     readOnly={true}
                     initialNodes={nodes as any}
                     initialEdges={edges as any}
+                    onNodeClick={handleNodeClick}
                   />
                 </Suspense>
               )}
             </EditorPane>
 
             <DetailsPane>
-              <DetailRow>
-                <DetailLabel>Form</DetailLabel>
-                <DetailValue>{selected.form_name ?? '—'}</DetailValue>
-              </DetailRow>
-              <DetailRow>
-                <DetailLabel>Status</DetailLabel>
-                <DetailValue>{selected.status}</DetailValue>
-              </DetailRow>
-              <DetailRow>
-                <DetailLabel>Step</DetailLabel>
-                <DetailValue>{selected.current_step_name ?? '—'}</DetailValue>
-              </DetailRow>
-              <DetailRow>
-                <DetailLabel>Assigned</DetailLabel>
-                <DetailValue>{selected.assigned_to_display ?? 'Unassigned'}</DetailValue>
-              </DetailRow>
-              <DetailRow>
-                <DetailLabel>Due</DetailLabel>
-                <DetailValue>{selected.due_at ? (selected.is_overdue ? 'Overdue' : 'Due soon') : '—'}</DetailValue>
-              </DetailRow>
-              <DetailRow>
-                <DetailLabel>Elapsed</DetailLabel>
-                <DetailValue>{formatSeconds(selected.time_in_current_step_seconds)}</DetailValue>
-              </DetailRow>
+              {selectedNodeData ? (
+                <>
+                  <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'rgb(var(--color-text-primary))' }}>Node Details</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNodeId(null)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgb(var(--color-text-secondary))', fontSize: 12 }}
+                      aria-label="Back to process details"
+                    >
+                      ← Process Details
+                    </button>
+                  </div>
+                  <DetailRow>
+                    <DetailLabel>Node</DetailLabel>
+                    <DetailValue>{selectedNodeData.label}</DetailValue>
+                  </DetailRow>
+                  <DetailRow>
+                    <DetailLabel>Type</DetailLabel>
+                    <DetailValue>{String(selectedNodeData.type).replace(/([A-Z])/g, ' $1').trim()}</DetailValue>
+                  </DetailRow>
+                  {selectedNodeData.entityType && (
+                    <DetailRow>
+                      <DetailLabel>Entity</DetailLabel>
+                      <DetailValue>{selectedNodeData.entityType}</DetailValue>
+                    </DetailRow>
+                  )}
+                  <DetailRow>
+                    <DetailLabel>Status</DetailLabel>
+                    <DetailValue style={{ color: selectedNodeData.status === 'active' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-success))' }}>
+                      {selectedNodeData.status === 'active' ? '● Active' : '✓ Completed'}
+                    </DetailValue>
+                  </DetailRow>
+                  {selectedNodeData.description && (
+                    <DetailRow>
+                      <DetailLabel>Details</DetailLabel>
+                      <DetailValue style={{ fontWeight: 400 }}>{selectedNodeData.description}</DetailValue>
+                    </DetailRow>
+                  )}
+                </>
+              ) : (
+                <>
+                  <DetailRow>
+                    <DetailLabel>Form</DetailLabel>
+                    <DetailValue>{selected.form_name ?? '—'}</DetailValue>
+                  </DetailRow>
+                  <DetailRow>
+                    <DetailLabel>Status</DetailLabel>
+                    <DetailValue>{selected.status}</DetailValue>
+                  </DetailRow>
+                  <DetailRow>
+                    <DetailLabel>Step</DetailLabel>
+                    <DetailValue>{selected.current_step_name ?? '—'}</DetailValue>
+                  </DetailRow>
+                  <DetailRow>
+                    <DetailLabel>Assigned</DetailLabel>
+                    <DetailValue>{selected.assigned_to_display ?? 'Unassigned'}</DetailValue>
+                  </DetailRow>
+                  <DetailRow>
+                    <DetailLabel>Due</DetailLabel>
+                    <DetailValue>{selected.due_at ? (selected.is_overdue ? 'Overdue' : 'Due soon') : '—'}</DetailValue>
+                  </DetailRow>
+                  <DetailRow>
+                    <DetailLabel>Elapsed</DetailLabel>
+                    <DetailValue>{formatSeconds(selected.time_in_current_step_seconds)}</DetailValue>
+                  </DetailRow>
 
-              <div style={{ marginTop: 14, fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
-                {activeNodeId
-                  ? 'Active step node is highlighted in the flow view.'
-                  : 'Active step node could not be auto-identified in the flow view.'}
-              </div>
+                  <div style={{ marginTop: 14, fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
+                    {activeNodeId
+                      ? 'Click any node in the flow to view its details.'
+                      : 'Active step could not be auto-identified. Click any node to inspect it.'}
+                  </div>
+                </>
+              )}
             </DetailsPane>
           </Modal>
         </ModalOverlay>
