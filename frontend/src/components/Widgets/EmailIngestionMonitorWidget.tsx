@@ -19,6 +19,7 @@ import {
   emailSyncNeedsReconnect,
   getEmailSyncErrorCode,
 } from '../../utils/emailSyncDiagnostics';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -255,7 +256,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       const response = await businessApi.get<EmailLogsResponse>('/integrations/email/logs/?limit=5');
       setEmails(response.data.emails);
     } catch (error) {
-      console.error('Failed to fetch email logs:', error);
+      logger.error('Failed to fetch email logs', { component: 'EmailIngestionMonitorWidget' }, error);
     } finally {
       setLoading(false);
     }
@@ -328,7 +329,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
 
       await fetchEmailLogs();
     } catch (error: any) {
-      console.error('Failed to trigger sync:', error);
+      logger.error('Failed to trigger sync', { component: 'EmailIngestionMonitorWidget' }, error);
 
       const code = getEmailSyncErrorCode(error?.response?.data);
 

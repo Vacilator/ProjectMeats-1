@@ -25,6 +25,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';
 import { businessApi } from '@/services/businessApi';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -301,7 +302,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
         });
         setEvents(response.data.results || []);
       } catch (error) {
-        console.error('[CalendarWidget] Failed to fetch events:', error);
+        logger.error('Failed to fetch events', { component: 'CalendarWidget' }, error);
         setEvents([]);
       } finally {
         setLoading(false);

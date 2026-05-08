@@ -15,6 +15,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
 import { businessApi } from '../../services/businessApi';
+import { logger } from '@/utils/logger';
 import { Product } from '../../types';
 import { Search as SearchIcon, Star, Package, DollarSign, X } from 'lucide-react';
 import { coerceFiniteNumber, formatFixedWithFallback } from './numberFormatting';
@@ -331,7 +332,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
       setSelectedProduct(response.data);
       setSearchTerm(response.data.product_code);
     } catch (err) {
-      console.error('Failed to fetch product:', err);
+      logger.error('Failed to fetch product', { component: 'SmartProductAutocomplete' }, err);
     }
   };
   
@@ -377,7 +378,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
 
         setResults(enrichedResults);
       } catch (err) {
-        console.error('Search failed:', err);
+        logger.error('Search failed', { component: 'SmartProductAutocomplete' }, err);
         setResults([]);
       } finally {
         setLoading(false);

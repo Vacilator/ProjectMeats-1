@@ -51,6 +51,7 @@ import { Select } from '../../../components/ui/Select';
 import { Input } from './Input';
 import { notify } from '../../../utils/notify';
 import { ConditionalVisibilityRules, VisibilityRule } from '../../../components/FormBuilder';
+import { logger } from '@/utils/logger';
 
 // Field definition type
 export interface FieldDefinition {
@@ -1325,7 +1326,7 @@ const SchemaEditor: React.FC = () => {
         notify.success('Schema saved successfully');
       }
     } catch (error: any) {
-      console.error('Error saving schema:', error);
+      logger.error('Error saving schema', { component: 'SchemaEditor' }, error);
       setSaveStatus('unsaved');
       notify.error(`Failed to save schema: ${error.message || 'Unknown error'}`);
     }

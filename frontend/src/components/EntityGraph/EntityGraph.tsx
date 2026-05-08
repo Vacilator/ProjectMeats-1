@@ -28,6 +28,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import styled from 'styled-components';
+import { logger } from '@/utils/logger';
 import { X, Edit2, ExternalLink, ChevronRight } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import { EntityNode, EntityNodeData } from './EntityNode';
@@ -413,7 +414,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
       
       setTruncated(isTruncated);
     } catch (err: any) {
-      console.error('Failed to fetch entity graph:', err);
+      logger.error('Failed to fetch entity graph', { component: 'EntityGraph' }, err);
       setError(err.response?.data?.error || 'Failed to load entity graph');
     } finally {
       setLoading(false);

@@ -17,6 +17,7 @@ import {
   InquiryStatus,
 } from '../../types';
 import { inquiryService } from '../../services/inquiryService';
+import { logger } from '@/utils/logger';
 import { CreateFulfillmentModal } from '../Fulfillment';
 import { InquiryModalContainer, InquiryModalOverlay } from './InquiryModalFrame';
 import {
@@ -402,7 +403,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
         onUpdate(response);
       }
     } catch (err) {
-      console.error('Failed to update status:', err);
+      logger.error('Failed to update status', { component: 'InquiryDetailModal' }, err);
     } finally {
       setUpdatingStatus(false);
     }

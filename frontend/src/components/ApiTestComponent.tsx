@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { apiService, Supplier } from '../services/apiService';
+import { logger } from '@/utils/logger';
 
 const TestButton = styled.button`
   background-color: rgb(var(--color-primary));
@@ -50,7 +51,7 @@ const ApiTestComponent: React.FC = () => {
       setSuccess(`✅ Successfully created supplier: ${result.name} (ID: ${result.id})`);
       fetchSuppliers(); // Refresh the list
     } catch (err) {
-      console.error('Error creating supplier:', err);
+      logger.error('Error creating supplier', { component: 'ApiTestComponent' }, err);
       setError(`❌ Error creating supplier: ${err}`);
     } finally {
       setLoading(false);
@@ -62,7 +63,7 @@ const ApiTestComponent: React.FC = () => {
       const supplierData = await apiService.getSuppliers();
       setSuppliers(supplierData);
     } catch (err) {
-      console.error('Error fetching suppliers:', err);
+      logger.error('Error fetching suppliers', { component: 'ApiTestComponent' }, err);
       setError(`❌ Error fetching suppliers: ${err}`);
     }
   };

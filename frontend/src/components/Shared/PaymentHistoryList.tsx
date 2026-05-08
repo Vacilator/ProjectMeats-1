@@ -22,6 +22,7 @@ import { getErrorMessage } from '../../hooks/useToast';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -164,7 +165,7 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
 
       setPayments(sortedPayments);
     } catch (err: unknown) {
-      console.error('Error fetching payment history:', err);
+      logger.error('Error fetching payment history', { component: 'PaymentHistoryList' }, err);
       setPayments([]);
       setError(getErrorMessage(err, 'Failed to load payment history'));
     } finally {

@@ -30,6 +30,7 @@ import { z } from 'zod';
 import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
+import { logger } from '@/utils/logger';
 import { UnifiedForm } from '@/components/UnifiedForm';
 import { CallTimer } from '../Calls';
 
@@ -458,7 +459,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
       
       setEntityOptions(options);
     } catch (err) {
-      console.error(`Failed to fetch ${type} options:`, err);
+      logger.error(`Failed to fetch ${type} options`, { component: 'ScheduleCallModal' }, err);
       setEntityOptions([]);
     } finally {
       setLoadingEntities(false);
@@ -515,7 +516,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error(`Failed to ${isEditMode ? 'update' : 'schedule'} call:`, err);
+      logger.error(`Failed to ${isEditMode ? 'update' : 'schedule'} call`, { component: 'ScheduleCallModal' }, err);
       setError(
         err.response?.data?.detail ||
           err.response?.data?.message ||

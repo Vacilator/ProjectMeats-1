@@ -8,6 +8,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import styled from 'styled-components';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -43,8 +44,8 @@ class AdminErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error to console and error reporting service
-    console.error('❌ [AdminErrorBoundary] Caught error:', error);
-    console.error('📍 [AdminErrorBoundary] Component stack:', errorInfo.componentStack);
+    logger.error('Caught error', { component: 'AdminErrorBoundary' }, error);
+    logger.error('Component stack', { component: 'AdminErrorBoundary', metadata: { componentStack: errorInfo.componentStack } });
 
     // Update state with error details
     this.setState(prevState => ({

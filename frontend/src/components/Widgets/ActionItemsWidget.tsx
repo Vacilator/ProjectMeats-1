@@ -21,6 +21,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';
 import { apiClient } from '../../services/apiService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -184,7 +185,7 @@ export const ActionItemsWidget: React.FC<ActionItemsWidgetProps> = ({
         });
         setItems(response.data.results || []);
       } catch (error) {
-        console.error('[ActionItemsWidget] Failed to fetch action items:', error);
+        logger.error('Failed to fetch action items', { component: 'ActionItemsWidget' }, error);
         setItems([]);
       } finally {
         setLoading(false);

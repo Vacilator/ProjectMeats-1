@@ -9,6 +9,7 @@ import styled from 'styled-components';
 import FormPreview from './FormPreview';
 import { adminClient } from '@/services/apiService';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface FieldDefinition {
   id: string;
@@ -334,7 +335,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
       setFields(schemaConfig);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch schema:', error);
+      logger.error('Failed to fetch schema', { component: 'SchemaEditorSimple' }, error);
       setMessage({ text: 'Failed to load schema configuration', type: 'error' });
       setLoading(false);
     }
@@ -359,7 +360,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
       setMessage({ text: '✅ Saved successfully!', type: 'success' });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      console.error('Failed to save schema:', error);
+      logger.error('Failed to save schema', { component: 'SchemaEditorSimple' }, error);
       setMessage({ text: '❌ Failed to save changes', type: 'error' });
     } finally {
       setSaving(false);

@@ -12,6 +12,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { apiClient } from '../../services/apiService';
 import { useToast } from '../../hooks/useToast';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 const { Text } = Typography;
 
@@ -82,7 +83,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
       const lists = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setChoiceLists(lists);
     } catch (error) {
-      console.error('[TenantChoiceOverride] Failed to load choice lists:', error);
+      logger.error('Failed to load choice lists', { component: 'TenantChoiceOverride' }, error);
       toast.error('Failed to load choice lists');
       setChoiceLists([]);
     } finally {
@@ -127,13 +128,13 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
             setCustomOrder([]);
           }
         } catch (error) {
-          console.error('[TenantChoiceOverride] No override found:', error);
+          logger.error('No override found', { component: 'TenantChoiceOverride' }, error);
           setTenantOverride(null);
           setDisabledItems(new Set());
           setCustomOrder([]);
         }
       } catch (error) {
-        console.error('[TenantChoiceOverride] Failed to load list data:', error);
+        logger.error('Failed to load list data', { component: 'TenantChoiceOverride' }, error);
         toast.error('Failed to load list data');
         setSystemItems([]);
         setTenantOverride(null);
@@ -242,7 +243,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
       setIsAddCustomModalOpen(false);
       setNewCustomItem({ value: '', label: '' });
     } catch (error) {
-      console.error('[TenantChoiceOverride] Failed to add custom item:', error);
+      logger.error('Failed to add custom item', { component: 'TenantChoiceOverride' }, error);
       toast.error('Failed to add custom item');
     }
   }, [selectedList, newCustomItem, systemItems.length, loadListData, toast]);
@@ -269,7 +270,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
       toast.success('Saved customizations');
       await loadListData(selectedList);
     } catch (error: any) {
-      console.error('[TenantChoiceOverride] Failed to save override:', error);
+      logger.error('Failed to save override', { component: 'TenantChoiceOverride' }, error);
       toast.error(error?.response?.data?.error || 'Failed to save customizations');
     } finally {
       setIsSaving(false);

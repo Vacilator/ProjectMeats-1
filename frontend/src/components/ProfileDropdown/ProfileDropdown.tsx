@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { logger } from '@/utils/logger';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { config } from '../../config/runtime';
@@ -40,7 +41,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
       // Redirect to login page or refresh
       window.location.href = '/login';
     } catch (error) {
-      console.error('Logout failed:', error);
+      logger.error('Logout failed', { component: 'ProfileDropdown' }, error);
     }
   };
 

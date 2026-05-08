@@ -7,6 +7,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
+import { logger } from '@/utils/logger';
 
 interface Note {
   id: number;
@@ -260,7 +261,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
       setNotes(notesList);
       setLoadedFor(currentKey);
     } catch (err) {
-      console.error('Failed to load step notes:', err);
+      logger.error('Failed to load step notes', { component: 'StepNotes' }, err);
       setError('Failed to load notes');
     } finally {
       setIsLoading(false);
@@ -284,7 +285,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
       setNotes(prev => [response.data, ...prev]);
       setNewNote('');
     } catch (err) {
-      console.error('Failed to add note:', err);
+      logger.error('Failed to add note', { component: 'StepNotes' }, err);
       setError('Failed to add note');
     } finally {
       setIsAdding(false);

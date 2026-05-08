@@ -5,6 +5,7 @@ import {
 } from '../../../services/configService';
 import { apiClient } from '../../../services/apiService';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface ChoiceListEditorProps {
   listSlug?: string;
@@ -70,7 +71,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         }
       }
     } catch (err) {
-      console.error('Error loading choice lists:', err);
+      logger.error('Error loading choice lists', { component: 'ChoiceListEditor' }, err);
       setError('Failed to load choice lists');
     } finally {
       setLoading(false);
@@ -95,7 +96,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       setHasChanges(false);
       setError(null);
     } catch (err) {
-      console.error('Error loading items:', err);
+      logger.error('Error loading items', { component: 'ChoiceListEditor' }, err);
       setError('Failed to load choice items');
     } finally {
       setLoading(false);
@@ -302,7 +303,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       setTimeout(() => setSuccessMessage(null), 3000);
       setHasChanges(false);
     } catch (err: unknown) {
-      console.error('Error saving items:', err);
+      logger.error('Error saving items', { component: 'ChoiceListEditor' }, err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
       setError(errorMessage);
     } finally {

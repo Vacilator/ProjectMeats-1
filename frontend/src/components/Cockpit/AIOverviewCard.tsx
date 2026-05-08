@@ -4,6 +4,7 @@ import { Sparkles, ChevronDown } from 'lucide-react';
 import { Spin, message } from 'antd';
 
 import { businessApi } from '@/services/businessApi';
+import { logger } from '@/utils/logger';
 
 export interface AIOverviewCardProps {
   entityType: string;
@@ -165,7 +166,7 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
         return;
       }
 
-      console.error('[AIOverviewCard] Failed to load AI overview:', err);
+      logger.error('Failed to load AI overview', { component: 'AIOverviewCard' }, err);
       setState({ status: 'error', message: 'AI Summary temporarily unavailable.' });
     }
   }, [endpoint]);

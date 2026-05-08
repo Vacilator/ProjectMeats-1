@@ -61,7 +61,7 @@ const Editor: React.FC<EditorProps> = () => {
       setIsPublished(response.data.is_published || false);
       setBlueprintName(response.data.blueprint_name || '');
     } catch (error) {
-      console.error('Error fetching blueprint status:', error);
+      logger.error('Error fetching blueprint status', { component: 'Editor' }, error);
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ const Editor: React.FC<EditorProps> = () => {
         type: 'success',
       });
     } catch (error: any) {
-      console.error('Error publishing:', error);
+      logger.error('Error publishing', { component: 'Editor' }, error);
       showAlert({
         title: 'Publish failed',
         content: error?.message ?? 'Failed to publish workflow.',
@@ -143,7 +143,7 @@ const Editor: React.FC<EditorProps> = () => {
         type: 'success',
       });
     } catch (error: any) {
-      console.error('Error unpublishing:', error);
+      logger.error('Error unpublishing', { component: 'Editor' }, error);
       showAlert({
         title: 'Unpublish failed',
         content: error?.message ?? 'Failed to unpublish workflow.',

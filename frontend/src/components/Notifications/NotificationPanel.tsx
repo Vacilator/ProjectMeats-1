@@ -11,6 +11,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '@/utils/logger';
 import { 
   Bell, Check, CheckCheck, X, Clock, AlertCircle, 
   CheckCircle, MessageSquare, FileText, Workflow, Info
@@ -333,7 +334,7 @@ function groupNotificationsByTime(notifications: Notification[]): Record<string,
   
   // Defensive check: ensure notifications is an array
   if (!Array.isArray(notifications)) {
-    console.warn('[NotificationPanel] Expected array, got:', typeof notifications);
+    logger.warn('Expected array for notifications', { component: 'NotificationPanel', metadata: { receivedType: typeof notifications } });
     return groups;
   }
   

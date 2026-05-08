@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -389,7 +390,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
       const response = await apiClient.get(`/fulfillments/${fulfillmentId}/`);
       setFulfillment(response.data);
     } catch (error) {
-      console.error('Failed to load fulfillment:', error);
+      logger.error('Failed to load fulfillment', { component: 'FulfillmentDetailModal' }, error);
     } finally {
       setIsLoading(false);
     }
@@ -404,7 +405,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
       await loadFulfillment();
       onUpdate?.();
     } catch (error) {
-      console.error(`Failed to ${action} fulfillment:`, error);
+      logger.error(`Failed to ${action} fulfillment`, { component: 'FulfillmentDetailModal' }, error);
     } finally {
       setIsActionLoading(false);
     }
@@ -422,7 +423,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
       await loadFulfillment();
       onUpdate?.();
     } catch (error) {
-      console.error('Failed to add tracking number:', error);
+      logger.error('Failed to add tracking number', { component: 'FulfillmentDetailModal' }, error);
     } finally {
       setIsActionLoading(false);
     }

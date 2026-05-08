@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { z } from 'zod';
 
 import { useZodForm } from '@/hooks/useZodForm';
+import { logger } from '@/utils/logger';
 import styled, { keyframes } from 'styled-components';
 
 // ============================================================================
@@ -459,7 +460,7 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
       });
       onClose();
     } catch (error) {
-      console.error('Delegation failed:', error);
+      logger.error('Delegation failed', { component: 'DelegateTaskModal' }, error);
       setSubmitError('Delegation failed. Please try again.');
     }
   });

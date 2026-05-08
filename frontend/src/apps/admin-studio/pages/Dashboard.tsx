@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminClient } from '@/services/apiService';
 import { showAlert } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface Blueprint {
   id: string;
@@ -29,7 +30,7 @@ export const Dashboard: React.FC = () => {
       setBlueprints(response.data);
       setError(null);
     } catch (err) {
-      console.error('Error fetching blueprints:', err);
+      logger.error('Error fetching blueprints', { component: 'Dashboard' }, err);
       setError('Failed to load blueprints.');
     } finally {
       setLoading(false);

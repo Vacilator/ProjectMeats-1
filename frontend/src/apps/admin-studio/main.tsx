@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { initGlobalErrorHandlers } from '../../utils/globalErrorHandlers';
+import { logger } from '@/utils/logger';
 
 initGlobalErrorHandlers('admin-studio');
 
@@ -10,7 +11,7 @@ initGlobalErrorHandlers('admin-studio');
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
-  console.error('Root element not found - Studio app cannot mount');
+  logger.error('Root element not found - Studio app cannot mount', { component: 'AdminStudioMain' });
 } else {
   // Create React root and render the Studio app
   const root = ReactDOM.createRoot(rootElement);

@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-hot-toast';
+import { logger } from '@/utils/logger';
 import { Mail, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 
@@ -69,7 +70,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
 
       window.location.href = response.data.auth_url;
     } catch (error: any) {
-      console.error('[EmailConnection] OAuth initiation failed:', error);
+      logger.error('OAuth initiation failed', { component: 'EmailConnection' }, error);
       toast.error(error.response?.data?.error || 'Failed to initiate connection. Please try again.');
     } finally {
       setIsConnecting(false);

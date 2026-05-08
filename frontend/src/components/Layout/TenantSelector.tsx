@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Theme } from '../../config/theme';
 import { tenantService } from '../../services/tenantService';
+import { logger } from '@/utils/logger';
 
 interface Tenant {
   id: string;
@@ -144,7 +145,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
         const myTenants = await tenantService.getMyTenants();
         setTenants(myTenants);
       } catch (error) {
-        console.error('[TenantSelector] Failed to load tenants:', error);
+        logger.error('Failed to load tenants', { component: 'TenantSelector' }, error);
       } finally {
         setIsLoading(false);
       }
