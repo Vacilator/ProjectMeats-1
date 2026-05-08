@@ -84,7 +84,7 @@ const EntityBadge = styled.div<{ $type: DependencyType }>`
     switch ($type) {
       case 'supplier': return 'rgba(var(--color-info), 0.1)';
       case 'customer': return 'rgba(var(--color-success), 0.1)';
-      case 'contact': return 'rgba(139, 92, 246, 0.1)';
+      case 'contact': return 'rgba(var(--color-primary), 0.1)';
       case 'plant': return 'rgba(var(--color-warning), 0.1)';
     }
   }};
@@ -92,7 +92,7 @@ const EntityBadge = styled.div<{ $type: DependencyType }>`
     switch ($type) {
       case 'supplier': return 'rgb(var(--color-info))';
       case 'customer': return 'rgb(var(--color-success))';
-      case 'contact': return 'rgb(139, 92, 246)';
+      case 'contact': return 'rgb(var(--color-primary))';
       case 'plant': return 'rgb(var(--color-warning))';
     }
   }};
@@ -148,7 +148,7 @@ export const MissingDependencyQuickCreate: React.FC<MissingDependencyQuickCreate
     try {
       const tenantId = getValidTenantId();
       let endpoint = '';
-      let payload: Record<string, any> = {};
+      let payload: Record<string, string | undefined> = {};
 
       switch (entityType) {
         case 'supplier':
@@ -189,8 +189,10 @@ export const MissingDependencyQuickCreate: React.FC<MissingDependencyQuickCreate
       message.success(`${ENTITY_LABELS[entityType]} "${formData.name}" created`);
       onCreated?.(String(createdId), formData.name);
       onClose();
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || err?.message || 'Creation failed';
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail
+        || (err as { message?: string })?.message
+        || 'Creation failed';
       message.error(detail);
     } finally {
       setCreating(false);

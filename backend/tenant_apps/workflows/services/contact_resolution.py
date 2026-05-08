@@ -74,7 +74,7 @@ def resolve_rfq_recipient(
     if type_match:
         return _to_resolved(type_match, "type_match")
 
-    # 2. Match by department
+    # 2. Match by department (cascading: use preferred_contact_type as department name)
     dept_match = contacts.filter(department__iexact=preferred_contact_type).first()
     if dept_match:
         return _to_resolved(dept_match, "department_match")

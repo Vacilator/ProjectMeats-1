@@ -247,7 +247,7 @@ const MessageText = styled.span`
   min-width: 0;
 `;
 
-const RetryButton = styled.button`
+const RetryButton = styled.button.attrs({ type: 'button' })`
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -271,7 +271,7 @@ const RetryButton = styled.button`
   }
 `;
 
-const DismissButton = styled.button`
+const DismissButton = styled.button.attrs({ type: 'button' })`
   padding: 4px 8px;
   border: none;
   background: transparent;

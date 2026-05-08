@@ -66,7 +66,7 @@ interface UnifiedItem {
   contact_name?: string;
   department?: string;
   confidence?: number;
-  raw?: any;
+  raw?: unknown;
 }
 
 // ============================================================================
@@ -184,7 +184,7 @@ const CardList = styled.div`
   animation: ${fadeIn} 0.2s ease;
 `;
 
-const ItemCard = styled.div`
+const ItemCard = styled.div.attrs({ role: 'button', tabIndex: 0 })`
   display: flex;
   align-items: center;
   gap: 14px;
@@ -193,8 +193,14 @@ const ItemCard = styled.div`
   cursor: pointer;
   transition: background 0.1s ease;
 
-  &:hover {
+  &:hover,
+  &:focus-visible {
     background: rgba(var(--color-border), 0.25);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: -2px;
   }
 
   &:last-child {
@@ -547,8 +553,9 @@ const ProcessCockpitPage: React.FC = () => {
           .join(' • '),
         status: 'review',
         statusLabel: 'Needs Review',
-        timestamp: (review as any).created_on || (review as any).created_at || '',
-        confidence: (review as any).confidence_score,
+        timestamp: (review as PendingReviewItem & { created_on?: string; created_at?: string }).created_on
+          || (review as PendingReviewItem & { created_at?: string }).created_at || '',
+        confidence: (review as PendingReviewItem & { confidence_score?: number }).confidence_score,
         raw: review,
       });
     }
@@ -791,7 +798,12 @@ const ProcessCockpitPage: React.FC = () => {
       ) : (
         <CardList>
           {currentItems.map((item) => (
-            <ItemCard key={item.id} onClick={() => handleItemClick(item)}>
+            <ItemCard
+              key={item.id}
+              onClick={() => handleItemClick(item)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleItemClick(item); } }}
+              aria-label={`${item.title} – ${item.statusLabel}`}
+            >
               <ItemIcon $variant={getStatusVariant(item.status)}>
                 {getIconForSource(item.icon)}
               </ItemIcon>
