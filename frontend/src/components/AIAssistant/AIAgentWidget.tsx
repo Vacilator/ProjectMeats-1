@@ -820,8 +820,13 @@ export const AIAgentWidget: React.FC = () => {
   const aiEnabledRef = useRef(aiEnabled);
   useEffect(() => { aiEnabledRef.current = aiEnabled; }, [aiEnabled]);
 
+  // Connection lock: prevents overlapping async connect() calls
+  const connectingLockRef = useRef(false);
+
   useEffect(() => {
-    if (!aiEnabled || typeof window === 'undefined' || typeof WebSocket === 'undefined') {
+    // Use ref to avoid re-running when aiEnabled toggles from health polls.
+    // The effect runs once on mount; if AI is disabled, we simply skip connecting.
+    if (!aiEnabledRef.current || typeof window === 'undefined' || typeof WebSocket === 'undefined') {
       return;
     }
 
@@ -872,7 +877,7 @@ export const AIAgentWidget: React.FC = () => {
       const jitterFactor = 0.8 + Math.random() * 0.4;
       const delayMs = Math.round(baseDelayMs * jitterFactor);
 
-      if (IS_DEV) {
+      if (IS_DEV && attempt <= 3) {
         logger.debug(
           `WS: reconnect #${attempt}/${MAX_RECONNECT_ATTEMPTS} in ${delayMs}ms (refresh=${attemptRefresh})`,
           WS_LOG_CTX,
@@ -893,53 +898,65 @@ export const AIAgentWidget: React.FC = () => {
     const connect = async (attemptRefresh: boolean) => {
       if (disposed) return;
 
-      // Don't attempt to connect if there's already a healthy socket
-      const existingSocket = inboxSocketRef.current;
-      if (existingSocket && existingSocket.readyState === WebSocket.OPEN) {
-        return;
-      }
-      if (existingSocket && existingSocket.readyState === WebSocket.CONNECTING) {
-        return;
-      }
-
-      const tenantId = resolveAIInboxTenantId();
-      if (!tenantId) {
-        if (IS_DEV) logger.debug('WS: connect aborted — no tenant', WS_LOG_CTX);
-        setAiInboxRealtimeStatus('idle');
-        setAiInboxCount(0);
-        return;
-      }
-
-      // Only show "connecting" on first attempt to avoid UI jitter
-      if (inboxReconnectAttemptsRef.current <= 1) {
-        setAiInboxRealtimeStatus('connecting');
-      }
-
-      let accessToken = getAccessToken();
-      if (!accessToken && attemptRefresh) {
-        if (IS_DEV) logger.debug('WS: no token, attempting refresh', WS_LOG_CTX);
-        try {
-          accessToken = await refreshAccessToken();
-        } catch {
-          if (IS_DEV) logger.warn('WS: token refresh failed', WS_LOG_CTX);
-          accessToken = null;
-        }
-      }
-
-      if (!accessToken) {
-        setAiInboxRealtimeStatus('idle');
-        if (!attemptRefresh) {
-          scheduleReconnect(true);
-        }
-        return;
-      }
-
-      const wsUrl = deriveAIInboxSocketUrl(tenantId, accessToken);
-      if (!wsUrl) return;
-
-      closeSocket();
+      // Prevent overlapping async connect calls
+      if (connectingLockRef.current) return;
+      connectingLockRef.current = true;
 
       try {
+        // Don't attempt to connect if there's already a healthy socket
+        const existingSocket = inboxSocketRef.current;
+        if (existingSocket && existingSocket.readyState === WebSocket.OPEN) {
+          return;
+        }
+        if (existingSocket && existingSocket.readyState === WebSocket.CONNECTING) {
+          return;
+        }
+
+        // Re-check aiEnabled via ref (may have changed since mount)
+        if (!aiEnabledRef.current) {
+          setAiInboxRealtimeStatus('idle');
+          return;
+        }
+
+        const tenantId = resolveAIInboxTenantId();
+        if (!tenantId) {
+          if (IS_DEV) logger.debug('WS: connect aborted — no tenant', WS_LOG_CTX);
+          setAiInboxRealtimeStatus('idle');
+          setAiInboxCount(0);
+          return;
+        }
+
+        // Only show "connecting" on first attempt to avoid UI jitter
+        if (inboxReconnectAttemptsRef.current <= 1) {
+          setAiInboxRealtimeStatus('connecting');
+        }
+
+        let accessToken = getAccessToken();
+        if (!accessToken && attemptRefresh) {
+          if (IS_DEV) logger.debug('WS: no token, attempting refresh', WS_LOG_CTX);
+          try {
+            accessToken = await refreshAccessToken();
+          } catch {
+            // Silent — token refresh failure is expected when logged out
+            accessToken = null;
+          }
+        }
+
+        if (disposed) return; // Check again after async token refresh
+
+        if (!accessToken) {
+          setAiInboxRealtimeStatus('idle');
+          if (!attemptRefresh) {
+            scheduleReconnect(true);
+          }
+          return;
+        }
+
+        const wsUrl = deriveAIInboxSocketUrl(tenantId, accessToken);
+        if (!wsUrl) return;
+
+        closeSocket();
+
         const socket = new WebSocket(wsUrl, deriveAIInboxSocketProtocols(accessToken));
         inboxSocketRef.current = socket;
 
@@ -1022,7 +1039,9 @@ export const AIAgentWidget: React.FC = () => {
         };
 
         socket.onerror = () => {
-          // Suppress console spam — onclose owns retry logic
+          // Intentionally empty — onclose owns retry logic.
+          // The browser may still log a generic WebSocket error to console;
+          // that is unavoidable, but we do not add our own noise here.
         };
 
         socket.onclose = (event) => {
@@ -1037,7 +1056,8 @@ export const AIAgentWidget: React.FC = () => {
             return;
           }
 
-          if (IS_DEV) {
+          // Only log first close warning in dev to avoid console spam
+          if (IS_DEV && inboxReconnectAttemptsRef.current === 0) {
             logger.warn(
               `WS: closed code=${event.code} reason="${event.reason || 'none'}"`,
               WS_LOG_CTX,
@@ -1058,6 +1078,8 @@ export const AIAgentWidget: React.FC = () => {
         if (IS_DEV) logger.warn('WS: constructor threw', { ...WS_LOG_CTX, metadata: { err } });
         setAiInboxRealtimeStatus('degraded');
         scheduleReconnect(attemptRefresh);
+      } finally {
+        connectingLockRef.current = false;
       }
     };
 
@@ -1073,16 +1095,23 @@ export const AIAgentWidget: React.FC = () => {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    void connect(true);
+    // Debounce initial connection (300ms) to survive React strict mode double-mount
+    // and avoid immediate connection spam on page load
+    const initialConnectTimer = window.setTimeout(() => {
+      void connect(true);
+    }, 300);
 
     return () => {
       disposed = true;
+      window.clearTimeout(initialConnectTimer);
       clearReconnectTimer();
       closeSocket();
+      connectingLockRef.current = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+    // Mount-only: uses aiEnabledRef to avoid reconnect cycles from health poll toggles
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiEnabled]);
+  }, []);
 
   useEffect(() => {
     if (!expanded) return;
@@ -1217,7 +1246,7 @@ export const AIAgentWidget: React.FC = () => {
               variant: 'warn' as const,
             }
           : aiInboxRealtimeStatus === 'degraded'
-            ? { text: 'Inbox reconnecting', variant: 'info' as const }
+            ? { text: 'Inbox offline', variant: 'info' as const }
           : state === 'action_required'
             ? { text: 'Action required', variant: 'warn' as const }
           : { text: 'Idle', variant: 'ok' as const };
