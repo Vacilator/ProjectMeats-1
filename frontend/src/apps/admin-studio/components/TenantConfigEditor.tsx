@@ -5,6 +5,7 @@ import {
   ConfigByCategory,
 } from '../../../services/configService';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { logger } from '@/utils/logger';
 
 interface TenantConfigEditorProps {
   onClose?: () => void;
@@ -76,7 +77,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
       );
       setHasChanges(false);
     } catch (err) {
-      console.error('Error loading configs:', err);
+      logger.error('Error loading configs:', err);
       setError('Failed to load configurations');
     } finally {
       setLoading(false);
@@ -202,7 +203,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
         setSuccessMessage('Config deleted successfully');
         setTimeout(() => setSuccessMessage(null), 3000);
       } catch (err) {
-        console.error('Error deleting config:', err);
+        logger.error('Error deleting config:', err);
         setError('Failed to delete config');
         return;
       }
@@ -256,7 +257,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
       setTimeout(() => setSuccessMessage(null), 3000);
       setHasChanges(false);
     } catch (err) {
-      console.error('Error saving configs:', err);
+      logger.error('Error saving configs:', err);
       setError('Failed to save changes');
     } finally {
       setSaving(false);
@@ -330,7 +331,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
         setSuccessMessage(`Imported ${importedConfigs.length} configs`);
         setTimeout(() => setSuccessMessage(null), 3000);
       } catch (err) {
-        console.error('Import error:', err);
+        logger.error('Import error:', err);
         setError('Failed to parse import file');
       }
     };

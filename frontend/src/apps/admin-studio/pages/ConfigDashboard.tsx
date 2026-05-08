@@ -6,6 +6,7 @@ import {
   TenantConfig,
   ConfigByCategory,
 } from '../../../services/configService';
+import { logger } from '@/utils/logger';
 
 interface DashboardStats {
   choiceListCount: number;
@@ -62,7 +63,7 @@ export const ConfigDashboard: React.FC = () => {
         enabledFeatures: enabledCount,
       });
     } catch (err) {
-      console.error('Error loading config data:', err);
+      logger.error('Error loading config data:', err);
       setError('Failed to load configuration data. Please try again.');
     } finally {
       setLoading(false);
