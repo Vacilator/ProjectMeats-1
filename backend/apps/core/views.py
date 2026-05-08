@@ -444,7 +444,7 @@ class RankedSearchView(APIView):
                     try:
                         from dateutil import parser
                         last_activity = parser.parse(last_activity)
-                    except:
+                    except (ValueError, TypeError, OverflowError):
                         continue
                 
                 # Make cutoff_date timezone-aware if last_activity is

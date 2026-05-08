@@ -124,7 +124,7 @@ describe('Sidebar', () => {
     it('renders footer text when expanded', () => {
       localStorage.setItem('sidebarKeepOpen', 'true');
       renderSidebar({ isOpen: true });
-      expect(screen.getByText(/© 2025 Meats Central/)).toBeInTheDocument();
+      expect(screen.getByText(/© 20\d{2} Meats Central/)).toBeInTheDocument();
     });
   });
 

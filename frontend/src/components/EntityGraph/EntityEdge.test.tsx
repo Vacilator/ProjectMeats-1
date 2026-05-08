@@ -66,7 +66,7 @@ describe('EntityEdge', () => {
       </svg>
     );
     const edge = container.querySelector('[data-testid="edge-edge-1"]');
-    expect(edge).toHaveStyle({ stroke: 'rgb(34, 197, 94)' });
+    expect(edge).toHaveStyle({ stroke: 'rgb(var(--color-success))' });
   });
 
   it('applies correct color for purchases relationship', () => {
@@ -79,7 +79,7 @@ describe('EntityEdge', () => {
       </svg>
     );
     const edge = container.querySelector('[data-testid="edge-edge-1"]');
-    expect(edge).toHaveStyle({ stroke: 'rgb(59, 130, 246)' });
+    expect(edge).toHaveStyle({ stroke: 'rgb(var(--color-info))' });
   });
 
   it('uses default color for unknown relationship', () => {

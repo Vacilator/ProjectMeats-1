@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 *.so
 
+# Worktrees (Copilot agent scratch dirs)
+_worktrees/
+
 # Django
 *.log
 db.sqlite3

@@ -503,7 +503,7 @@ class EmailIngestionService:
         try:
             from dateutil import parser
             received_at = parser.parse(received_str)
-        except:
+        except (ValueError, TypeError, OverflowError):
             received_at = timezone.now()
 
         # Process attachments for text extraction
