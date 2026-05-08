@@ -15,8 +15,9 @@
  *     searchProducts,
  *   } = useCustomerProducts(customerId);
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isEqual } from 'lodash';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { logger } from '@/utils/logger';
@@ -77,8 +78,13 @@ export function useCustomerProducts(
 
   const [customerId, setCustomerId] = useState<string | number | undefined>(initialCustomerId);
 
+  const allProductsQueryKey = useMemo(
+    () => withTenantQueryKey('system', 'products', 'active'),
+    []
+  );
+
   const allProductsQuery = useQuery({
-    queryKey: withTenantQueryKey('system', 'products', { is_active: true }),
+    queryKey: allProductsQueryKey,
     queryFn: async () => {
       const response = await businessApi.get('system/products/', {
         params: { is_active: true, page_size: 500 },
@@ -107,10 +113,25 @@ export function useCustomerProducts(
     },
   });
 
-  const customerPreferences = customerQuery.data?.preferred_protein_types ?? [];
+  const rawPreferences = customerQuery.data?.preferred_protein_types ?? [];
+  const preferencesRef = useRef<string[]>([]);
+  if (!isEqual(preferencesRef.current, rawPreferences)) {
+    preferencesRef.current = rawPreferences;
+  }
+  const customerPreferences = preferencesRef.current;
+
+  const proteinSignature = useMemo(
+    () => customerPreferences.slice().sort().join(','),
+    [customerPreferences]
+  );
+
+  const suggestedProductsQueryKey = useMemo(
+    () => withTenantQueryKey('system', 'products', 'active', 'protein', proteinSignature),
+    [proteinSignature]
+  );
 
   const suggestedProductsQuery = useQuery({
-    queryKey: withTenantQueryKey('system', 'products', { is_active: true, protein: customerPreferences }),
+    queryKey: suggestedProductsQueryKey,
     enabled: customerPreferences.length > 0,
     queryFn: async () => {
       const normalizedProteins = customerPreferences

@@ -71,6 +71,7 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
   const shouldAutoOpenFlow = searchParams.get('viewProcessFlow') === '1';
   const requestedExecutionId = searchParams.get('executionId');
   const [selectedExecution, setSelectedExecution] = useState<WorkFormExecution | null>(null);
+  const [clickedNodeId, setClickedNodeId] = useState<string | null>(null);
 
   const queryOptions = useMemo(
     () => ({
@@ -130,10 +131,15 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 
   const closeProcessFlow = useCallback(() => {
     setSelectedExecution(null);
+    setClickedNodeId(null);
     if (shouldAutoOpenFlow || requestedExecutionId) {
       clearFlowSearchParams();
     }
   }, [clearFlowSearchParams, requestedExecutionId, shouldAutoOpenFlow]);
+
+  const handleFlowNodeClick = useCallback((_event: React.MouseEvent, node: { id: string; data?: Record<string, unknown> }) => {
+    setClickedNodeId(node.id);
+  }, []);
 
   const renderNodeStatuses = (execution: WorkFormExecution) => {
     const map = execution.node_statuses;
@@ -326,9 +332,46 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
                   readOnly
                   initialNodes={flowNodes as any}
                   initialEdges={flowEdges as any}
+                  onNodeClick={handleFlowNodeClick}
                 />
               </Suspense>
             </FlowEditorWrapper>
+            {clickedNodeId && (() => {
+              const node = flowNodes.find((n: { id: string }) => n.id === clickedNodeId) as { id: string; type?: string; data?: Record<string, unknown> } | undefined;
+              if (!node) return null;
+              const nodeStatuses = selectedExecution?.node_statuses as Record<string, string> | undefined;
+              const nodeLabels = selectedExecution?.node_labels as Record<string, string> | undefined;
+              return (
+                <div style={{ padding: '12px 16px', borderTop: '1px solid rgb(var(--color-border))', fontSize: 13 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <strong style={{ color: 'rgb(var(--color-text-primary))' }}>
+                      {nodeLabels?.[node.id] ?? String(node.data?.label || node.data?.name || node.id)}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => setClickedNodeId(null)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgb(var(--color-text-secondary))', fontSize: 12 }}
+                      aria-label="Close node details"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+                    Type: {String(node.type || 'unknown').replace(/([A-Z])/g, ' $1').trim()}
+                  </div>
+                  {nodeStatuses?.[node.id] && (
+                    <div style={{ marginTop: 4, color: 'rgb(var(--color-text-secondary))' }}>
+                      Status: <strong>{nodeStatuses[node.id]}</strong>
+                    </div>
+                  )}
+                  {typeof node.data?.description === 'string' && node.data.description && (
+                    <div style={{ marginTop: 4, color: 'rgb(var(--color-text-secondary))' }}>
+                      {node.data.description}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </FlowGrid>
         )}
       </Modal>

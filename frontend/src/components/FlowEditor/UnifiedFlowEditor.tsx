@@ -215,6 +215,7 @@ interface UnifiedFlowEditorProps {
   readOnly?: boolean;
   editorMode?: EditorMode;
   allowedNodeCategories?: string[]; // Phase 4.2: Filter nodes by permission
+  onNodeClick?: (event: React.MouseEvent, node: Node) => void;
 }
 
 type HistoryState = FlowHistoryState;
@@ -1783,6 +1784,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   readOnly = false,
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
+  onNodeClick: externalOnNodeClick,
 }) => {
   // Normalize nodes to ensure all have required properties (maxInputs, maxOutputs)
   const normalizedInitialNodes = useMemo(() => normalizeNodes(initialNodes), [initialNodes]);
@@ -7522,6 +7524,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onNodeDragStop={onNodeDragStop}
         onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handleCloseMenu}
+        onNodeClick={externalOnNodeClick}
         onPaneMouseMove={(event) => {
           if (!currentWorkflowId) return;
           if (!reactFlowInstance?.screenToFlowPosition) return;
