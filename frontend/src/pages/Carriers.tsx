@@ -17,6 +17,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '@/components/Onboarding';
 import { EntityFormSurface } from '@/components/Shared';
+import { StatCardGrid } from '@/components/Shared/StatCardGrid';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
@@ -56,32 +57,6 @@ const PageHeader = styled.div`
 `;
 
 const HeaderLeft = styled.div``;
-
-const StatsRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-`;
-
-const StatCard = styled(Card)`
-  .ant-card-body {
-    padding: 0.75rem 1rem;
-  }
-`;
-
-const StatValue = styled.div`
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary, 17 24 39));
-`;
-
-const StatLabel = styled.div`
-  font-size: 0.75rem;
-  color: rgb(var(--color-text-tertiary, 107 114 128));
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-`;
 
 const isInsuranceExpiringSoon = (expiry?: string): boolean => {
   if (!expiry) return false;
@@ -286,28 +261,12 @@ const Carriers: React.FC = () => {
         </Space>
       </PageHeader>
 
-      <StatsRow>
-        <StatCard size="small">
-          <StatValue>{stats.total}</StatValue>
-          <StatLabel>Total Carriers</StatLabel>
-        </StatCard>
-        <StatCard size="small">
-          <StatValue>{stats.active}</StatValue>
-          <StatLabel>Active</StatLabel>
-        </StatCard>
-        <StatCard size="small">
-          <StatValue style={{ color: stats.expiring > 0 ? 'rgb(var(--color-warning, 234 179 8))' : undefined }}>
-            {stats.expiring}
-          </StatValue>
-          <StatLabel>Insurance Expiring</StatLabel>
-        </StatCard>
-        <StatCard size="small">
-          <StatValue style={{ color: stats.expired > 0 ? 'rgb(var(--color-error, 239 68 68))' : undefined }}>
-            {stats.expired}
-          </StatValue>
-          <StatLabel>Insurance Expired</StatLabel>
-        </StatCard>
-      </StatsRow>
+      <StatCardGrid items={[
+        { value: stats.total, label: 'Total Carriers' },
+        { value: stats.active, label: 'Active' },
+        { value: stats.expiring, label: 'Insurance Expiring', alert: true },
+        { value: stats.expired, label: 'Insurance Expired', alert: true },
+      ]} />
 
       <Card size="small">
         {carriersQuery.isLoading ? (

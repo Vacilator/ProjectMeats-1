@@ -18,7 +18,6 @@ import styled, { keyframes } from 'styled-components';
 import {
   Badge,
   Button,
-  Card,
   Input,
   Modal,
   Segmented,
@@ -45,11 +44,15 @@ import {
   Sparkles,
   LayoutDashboard,
   Clock,
+  Boxes,
 } from 'lucide-react';
 
 import { TradePipelineTracker } from '../components/Trader/TradePipelineTracker';
 import { SmartTradeCreator } from '../components/Trader/SmartTradeCreator';
 import { AITradeProposals } from '../components/Trader/AITradeProposals';
+import { OperationsPanel } from '../components/Trader/OperationsPanel';
+import { StatCardGrid } from '../components/Shared/StatCardGrid';
+import { CockpitPanel } from '../components/Shared/CockpitPanel';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -113,68 +116,8 @@ const Subtitle = styled(Text)`
   margin-top: 2px;
 `;
 
-const StatsRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-`;
-
-const StatCard = styled.div<{ $accent?: string }>`
-  background: rgb(var(--color-bg-primary, 255 255 255));
-  border: 1px solid rgb(var(--color-border, 229 231 235));
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: rgb(var(--color-primary, 99 102 241) / 0.3);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-  }
-`;
-
-const StatValue = styled.div`
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: rgb(var(--color-text-primary, 17 24 39));
-  line-height: 1.2;
-`;
-
-const StatLabel = styled.div`
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: rgb(var(--color-text-tertiary, 107 114 128));
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-top: 0.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-`;
-
 const TabContainer = styled.div`
   margin-bottom: 1.25rem;
-`;
-
-const SectionCard = styled(Card)`
-  border-radius: 12px;
-  overflow: hidden;
-  animation: ${fadeIn} 0.25s ease-out;
-
-  .ant-card-head {
-    border-bottom: 1px solid rgb(var(--color-border, 229 231 235) / 0.6);
-    padding: 0.75rem 1.25rem;
-    min-height: auto;
-  }
-
-  .ant-card-body {
-    padding: 1rem 1.25rem;
-  }
 `;
 
 const WizardModal = styled(Modal)`
@@ -244,7 +187,7 @@ const STATUS_COLORS: Record<string, string> = {
   halted: 'red',
 };
 
-type CockpitTab = 'command' | 'pipeline' | 'history';
+type CockpitTab = 'command' | 'pipeline' | 'operations' | 'history';
 
 // ============================================================================
 // Component
@@ -422,27 +365,13 @@ const TraderCockpitPage: React.FC = () => {
         </HeaderActions>
       </PageHeader>
 
-      {/* Glanceable KPIs */}
-      <StatsRow>
-        <StatCard>
-          <StatValue>{stats.total}</StatValue>
-          <StatLabel><Activity size={11} /> Total Trades</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats.active}</StatValue>
-          <StatLabel><TrendingUp size={11} /> In Progress</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue style={{ color: stats.blocked > 0 ? 'rgb(239, 68, 68)' : undefined }}>
-            {stats.blocked}
-          </StatValue>
-          <StatLabel><AlertTriangle size={11} /> Blocked</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats.completedToday}</StatValue>
-          <StatLabel><CheckCircle2 size={11} /> Today</StatLabel>
-        </StatCard>
-      </StatsRow>
+      {/* Glanceable KPIs — using canonical StatCardGrid */}
+      <StatCardGrid items={[
+        { value: stats.total, label: 'Total Trades', icon: <Activity size={11} /> },
+        { value: stats.active, label: 'In Progress', icon: <TrendingUp size={11} /> },
+        { value: stats.blocked, label: 'Blocked', icon: <AlertTriangle size={11} />, alert: true },
+        { value: stats.completedToday, label: 'Today', icon: <CheckCircle2 size={11} /> },
+      ]} />
 
       {/* Quick Actions */}
       <QuickActionsRow>
@@ -474,7 +403,6 @@ const TraderCockpitPage: React.FC = () => {
                 <Space size={6}>
                   <Sparkles size={13} />
                   <span>Command Center</span>
-                  <Badge count={0} size="small" style={{ display: 'none' }} />
                 </Space>
               ),
               value: 'command',
@@ -488,6 +416,15 @@ const TraderCockpitPage: React.FC = () => {
                 </Space>
               ),
               value: 'pipeline',
+            },
+            {
+              label: (
+                <Space size={6}>
+                  <Boxes size={13} />
+                  <span>Operations</span>
+                </Space>
+              ),
+              value: 'operations',
             },
             {
               label: (
@@ -514,9 +451,8 @@ const TraderCockpitPage: React.FC = () => {
             }}
           />
           {stats.active > 0 && (
-            <SectionCard
-              size="small"
-              title={<Text strong style={{ fontSize: '0.85rem' }}>Needs Attention</Text>}
+            <CockpitPanel
+              title="Needs Attention"
               extra={
                 <Button type="link" size="small" onClick={() => setActiveTab('pipeline')}>
                   View all →
@@ -536,15 +472,14 @@ const TraderCockpitPage: React.FC = () => {
                 })}
                 locale={{ emptyText: <Text type="secondary">All clear — no trades need attention</Text> }}
               />
-            </SectionCard>
+            </CockpitPanel>
           )}
         </>
       )}
 
       {activeTab === 'pipeline' && (
-        <SectionCard
-          size="small"
-          title={<Text strong style={{ fontSize: '0.85rem' }}>Active Trades</Text>}
+        <CockpitPanel
+          title="Active Trades"
           extra={<Text type="secondary" style={{ fontSize: '0.72rem' }}>{filteredTrades.length} trades</Text>}
         >
           {tradesQuery.isLoading ? (
@@ -575,14 +510,17 @@ const TraderCockpitPage: React.FC = () => {
               </TransactionalEmptyStateGuidance>
             </TransactionalEmptyState>
           )}
-        </SectionCard>
+        </CockpitPanel>
+      )}
+
+      {activeTab === 'operations' && (
+        <CockpitPanel title="Operations Overview">
+          <OperationsPanel />
+        </CockpitPanel>
       )}
 
       {activeTab === 'history' && (
-        <SectionCard
-          size="small"
-          title={<Text strong style={{ fontSize: '0.85rem' }}>Completed Trades</Text>}
-        >
+        <CockpitPanel title="Completed Trades">
           {trades.filter((t) => t.status === 'completed').length > 0 ? (
             <Table
               rowKey="id"
@@ -598,7 +536,7 @@ const TraderCockpitPage: React.FC = () => {
           ) : (
             <Text type="secondary">No completed trades yet. They'll appear here once finished.</Text>
           )}
-        </SectionCard>
+        </CockpitPanel>
       )}
 
       {/* Smart Trade Creator Modal */}
