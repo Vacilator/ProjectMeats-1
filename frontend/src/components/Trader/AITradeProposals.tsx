@@ -29,8 +29,10 @@ import {
   message,
 } from 'antd';
 import {
+  AlertCircle,
   Lightbulb,
   Play,
+  RefreshCw,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
@@ -196,7 +198,21 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
   }
 
   if (proposalsQuery.isError) {
-    return null; // Silently degrade — non-critical feature
+    return (
+      <ProposalsContainer role="region" aria-label="AI Trade Proposals">
+        <Card size="small" title={<Space><Sparkles size={14} /> AI Proposals</Space>}>
+          <div style={{ textAlign: 'center', padding: '1rem' }}>
+            <AlertCircle size={20} style={{ color: 'rgb(var(--color-warning))', marginBottom: 8 }} />
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+              Unable to load AI proposals
+            </Typography.Text>
+            <Button size="small" onClick={() => proposalsQuery.refetch()} icon={<RefreshCw size={12} />}>
+              Retry
+            </Button>
+          </div>
+        </Card>
+      </ProposalsContainer>
+    );
   }
 
   if (proposals.length === 0) return null;

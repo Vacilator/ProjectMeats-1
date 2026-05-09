@@ -246,17 +246,20 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   /**
    * Fetch email logs from API
    */
   const fetchEmailLogs = async () => {
+    setFetchError(false);
     setLoading(true);
     try {
       const response = await businessApi.get<EmailLogsResponse>('/integrations/email/logs/?limit=5');
       setEmails(response.data.emails);
     } catch (error) {
       logger.error('Failed to fetch email logs:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -396,7 +399,16 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       </Header>
 
       <EmailList>
-        {loading ? (
+        {fetchError && !loading ? (
+          <EmptyState>
+            <AlertCircle />
+            <p>Failed to load email logs</p>
+            <p style={{ fontSize: 11, marginTop: 4 }}>Check your connection and retry</p>
+            <Button type="button" onClick={fetchEmailLogs} style={{ marginTop: 8 }}>
+              <RefreshCw size={12} /> Retry
+            </Button>
+          </EmptyState>
+        ) : loading ? (
           <LoadingState>
             <RefreshCw />
             <p>Loading emails...</p>

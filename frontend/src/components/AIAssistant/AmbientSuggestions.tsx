@@ -18,6 +18,8 @@ export const AmbientSuggestions: React.FC<AmbientSuggestionsProps> = ({
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<ContextualSuggestion[]>([]);
+  const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -30,6 +32,7 @@ export const AmbientSuggestions: React.FC<AmbientSuggestionsProps> = ({
     }
 
     const load = async () => {
+      setError(false);
       setLoading(true);
       try {
         const next = await ambientAiApi.getContextualSuggestions({
@@ -43,6 +46,7 @@ export const AmbientSuggestions: React.FC<AmbientSuggestionsProps> = ({
       } catch {
         if (mounted) {
           setSuggestions([]);
+          setError(true);
         }
       } finally {
         if (mounted) {
@@ -56,7 +60,7 @@ export const AmbientSuggestions: React.FC<AmbientSuggestionsProps> = ({
     return () => {
       mounted = false;
     };
-  }, [entityId, entityType]);
+  }, [entityId, entityType, retryCount]);
 
   const visibleSuggestions = useMemo(() => suggestions.slice(0, 3), [suggestions]);
 
@@ -85,6 +89,19 @@ export const AmbientSuggestions: React.FC<AmbientSuggestionsProps> = ({
     return (
       <div style={{ paddingTop: 12 }}>
         <Spin size="small" />
+      </div>
+    );
+  }
+
+  if (error && !loading && !visibleSuggestions.length) {
+    return (
+      <div style={{ marginTop: 12, padding: '8px 12px', borderRadius: 8, background: 'rgb(var(--color-warning) / 0.06)', border: '1px solid rgb(var(--color-warning) / 0.15)' }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          ⚠️ AI suggestions unavailable —{' '}
+          <Button type="link" size="small" onClick={() => { setRetryCount(c => c + 1); setError(false); }} style={{ padding: 0, fontSize: 12 }}>
+            retry
+          </Button>
+        </Text>
       </div>
     );
   }
