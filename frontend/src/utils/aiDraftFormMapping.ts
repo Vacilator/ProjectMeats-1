@@ -100,18 +100,43 @@ export const resolveDraftEntityType = (item: PendingReviewItem | null): string =
   if (['inquiry', 'quote'].includes(documentType)) {
     return 'inquiry';
   }
+  if (['sales_order', 'so', 'sales order'].includes(documentType)) {
+    return 'sales_order';
+  }
   if (['invoice'].includes(documentType)) {
     return 'invoice';
   }
   if (['new_customer', 'customer'].includes(documentType)) {
     return 'customer';
   }
-  if (['contact'].includes(documentType)) {
+  if (['contact', 'new_contact'].includes(documentType)) {
     return 'contact';
   }
-  if (['supplier'].includes(documentType)) {
+  if (['supplier', 'new_supplier', 'vendor'].includes(documentType)) {
     return 'supplier';
   }
+  if (['trade', 'deal', 'trade_intent', 'trade_session'].includes(documentType)) {
+    return 'inquiry';
+  }
+
+  // Fallback: infer from payload keys
+  const payload = asRecord(item?.original_extracted_data);
+  if (payload.order_number || payload.po_number || payload.purchase_order_number) {
+    return 'purchase_order';
+  }
+  if (payload.our_sales_order_num || payload.sales_order_number) {
+    return 'sales_order';
+  }
+  if (payload.bol_number || payload.carrier_name || payload.pickup_date || payload.pick_up_date) {
+    return 'carrier-pos';
+  }
+  if (payload.first_name && payload.last_name) {
+    return 'contact';
+  }
+  if (payload.entity_type === 'customer' || payload.entity_type === 'supplier') {
+    return 'inquiry';
+  }
+
   return '';
 };
 
@@ -196,6 +221,46 @@ export const mapDraftToInitialValues = (
         payload.valid_until ?? payload.due_date ?? payload.requested_by_date,
       ),
       notes: firstString(summary, payload.rationale),
+    };
+  }
+
+  if (entityType === 'sales_order') {
+    return {
+      our_sales_order_num: firstString(
+        payload.our_sales_order_num,
+        payload.sales_order_number,
+        payload.so_number,
+      ),
+      order_date: normalizeDate(payload.order_date) ?? todayIso(),
+      delivery_date: normalizeDate(payload.delivery_date),
+      customer_name: firstString(payload.customer_name, payload.customer_company),
+      supplier_name: firstString(payload.supplier_name, payload.vendor_name),
+      notes: summary,
+    };
+  }
+
+  if (entityType === 'contact') {
+    return {
+      first_name: firstString(payload.first_name, payload.contact_first_name),
+      last_name: firstString(payload.last_name, payload.contact_last_name),
+      email: firstString(payload.email, payload.contact_email, payload.from_email),
+      mobile_phone: firstString(payload.mobile_phone, payload.phone),
+      company: firstString(payload.company, payload.company_name),
+      notes: summary,
+    };
+  }
+
+  if (entityType === 'customer') {
+    return {
+      name: firstString(payload.name, payload.customer_name, payload.company_name),
+      notes: summary,
+    };
+  }
+
+  if (entityType === 'supplier') {
+    return {
+      name: firstString(payload.name, payload.supplier_name, payload.vendor_name, payload.company_name),
+      notes: summary,
     };
   }
 
