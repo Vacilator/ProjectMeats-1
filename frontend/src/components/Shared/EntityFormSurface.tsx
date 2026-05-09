@@ -15,7 +15,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Modal, Skeleton } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 
 import { getRuntimeConfigBoolean } from '@/config/runtime';
 import { useAuthState } from '@/contexts/AuthContext';

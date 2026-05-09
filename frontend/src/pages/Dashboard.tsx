@@ -97,8 +97,8 @@ const Dashboard: React.FC = () => {
       // Then, aggregate purchase order data by supplier
       purchaseOrdersData.forEach((order: PurchaseOrder) => {
         const supplierId = order.supplier;
-        if (supplierMap.has(supplierId)) {
-          const supplierData = supplierMap.get(supplierId)!;
+        const supplierData = supplierMap.get(supplierId);
+        if (supplierData) {
           supplierData.orders += 1;
           supplierData.revenue += Number(order.total_amount) || 0;
         }
@@ -143,9 +143,11 @@ const Dashboard: React.FC = () => {
           });
         }
 
-        const monthData = monthlyData.get(monthKey)!;
-        monthData.orders += 1;
-        monthData.value += Number(order.total_amount) || 0;
+        const monthData = monthlyData.get(monthKey);
+        if (monthData) {
+          monthData.orders += 1;
+          monthData.value += Number(order.total_amount) || 0;
+        }
       });
 
       // Convert to array, calculate average values, and sort by date

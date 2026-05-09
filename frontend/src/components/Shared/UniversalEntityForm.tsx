@@ -16,7 +16,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthState } from '@/contexts/AuthContext';
 import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';

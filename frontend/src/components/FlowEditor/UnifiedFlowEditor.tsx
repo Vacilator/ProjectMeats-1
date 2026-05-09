@@ -32,7 +32,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 import { showAlert } from '@/utils/uiDialogs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
