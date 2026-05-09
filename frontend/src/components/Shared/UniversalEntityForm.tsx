@@ -351,6 +351,7 @@ const shouldSkipField = (key: string): boolean => {
     'id',
     'uuid',
     'tenant',
+    'tenant_id',
     'custom_data',
     'created_at',
     'updated_at',
@@ -358,6 +359,8 @@ const shouldSkipField = (key: string): boolean => {
     'updated_on',
     'modified_on',
     'created_by',
+    'updated_by',
+    'status',
   ].includes(k);
 };
 
@@ -2243,9 +2246,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         'contact_phone',
         'valid_until',
       ],
-      sales_order: ['customer', 'order_date', 'delivery_date', 'status', 'notes'],
-      purchase_order: ['supplier', 'product', 'order_date', 'delivery_date', 'status', 'notes'],
-      invoice: ['customer', 'invoice_date', 'status', 'notes'],
+      sales_order: ['customer', 'order_date', 'delivery_date', 'notes'],
+      purchase_order: ['supplier', 'product', 'order_date', 'delivery_date', 'notes'],
+      invoice: ['customer', 'invoice_date', 'notes'],
       product: ['name', 'product_code', 'protein_type', 'packaging_type', 'weight_unit'],
     };
 

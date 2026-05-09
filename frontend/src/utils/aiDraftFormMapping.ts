@@ -157,6 +157,7 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'carrier-pos') {
     return {
+      status: 'draft',
       our_carrier_po_num: firstString(
         payload.our_carrier_po_num,
         payload.carrier_po_number,
@@ -176,6 +177,7 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'purchase_order') {
     return {
+      status: 'draft',
       order_number: firstString(
         payload.order_number,
         payload.po_number,
@@ -197,11 +199,13 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'inquiry') {
     return {
+      status: 'draft',
       entity_type: firstString(
         payload.entity_type,
         payload.inquiry_entity_type,
         payload.customer_name || payload.customer_company ? 'customer' : undefined,
         payload.supplier_name || payload.vendor_name ? 'supplier' : undefined,
+        'customer',
       ),
       contact_name: firstString(payload.contact_name, payload.sender_name, payload.sender),
       contact_email: firstString(payload.contact_email, payload.sender_email, payload.from_email),
@@ -226,6 +230,7 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'sales_order') {
     return {
+      status: 'draft',
       our_sales_order_num: firstString(
         payload.our_sales_order_num,
         payload.sales_order_number,
@@ -241,8 +246,8 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'contact') {
     return {
-      first_name: firstString(payload.first_name, payload.contact_first_name),
-      last_name: firstString(payload.last_name, payload.contact_last_name),
+      first_name: firstString(payload.first_name, payload.contact_first_name) || 'Unknown',
+      last_name: firstString(payload.last_name, payload.contact_last_name) || 'Contact',
       email: firstString(payload.email, payload.contact_email, payload.from_email),
       mobile_phone: firstString(payload.mobile_phone, payload.phone),
       company: firstString(payload.company, payload.company_name),
@@ -252,17 +257,32 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'customer') {
     return {
-      name: firstString(payload.name, payload.customer_name, payload.company_name),
+      name: firstString(payload.name, payload.customer_name, payload.company_name) || 'New Customer',
       notes: summary,
     };
   }
 
   if (entityType === 'supplier') {
     return {
-      name: firstString(payload.name, payload.supplier_name, payload.vendor_name, payload.company_name),
+      name: firstString(payload.name, payload.supplier_name, payload.vendor_name, payload.company_name) || 'New Supplier',
       notes: summary,
     };
   }
 
   return payload;
 };
+
+/**
+ * Fields that should be hidden from user-facing forms.
+ * These are auto-populated by the backend or AI and should not
+ * require manual entry.
+ */
+export const HIDDEN_FORM_FIELDS = new Set([
+  'status',
+  'tenant',
+  'tenant_id',
+  'created_at',
+  'updated_at',
+  'created_by',
+  'updated_by',
+]);
