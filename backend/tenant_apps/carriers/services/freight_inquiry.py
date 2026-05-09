@@ -6,7 +6,6 @@ freight inquiry emails, and records durable audit rows.
 
 from __future__ import annotations
 
-import base64
 import logging
 from dataclasses import dataclass, field
 
@@ -14,16 +13,13 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
 
+from tenant_apps.carriers.models import Carrier, CarrierFreightInquiry, CarrierFreightInquiryStatus
+from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
+
 from apps.integrations.models import ExternalAuthProvider
 from apps.integrations.providers.base import EmailProviderError, TokenExpiredError
 from apps.integrations.providers.microsoft import MicrosoftGraphProvider
 from apps.tenants.rls import set_current_tenant
-from tenant_apps.carriers.models import (
-    Carrier,
-    CarrierFreightInquiry,
-    CarrierFreightInquiryStatus,
-)
-from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
 
 logger = logging.getLogger(__name__)
 
@@ -272,9 +268,7 @@ def _send_single_inquiry(
         inquiry.origin_state = getattr(sales_order, "pick_up_state", "") or ""
         inquiry.destination_city = getattr(sales_order, "delivery_city", "") or ""
         inquiry.destination_state = getattr(sales_order, "delivery_state", "") or ""
-        inquiry.commodity = (
-            sales_order.product.product_code if getattr(sales_order, "product_id", None) else ""
-        )
+        inquiry.commodity = sales_order.product.product_code if getattr(sales_order, "product_id", None) else ""
         inquiry.weight = getattr(sales_order, "total_weight", None)
         inquiry.weight_unit = getattr(sales_order, "weight_unit", "lbs") or "lbs"
         inquiry.pickup_date = getattr(sales_order, "pick_up_date", None)
@@ -326,9 +320,7 @@ def _send_single_inquiry(
         inquiry.sent_at = timezone.now()
         inquiry.provider_message_id = getattr(send_result, "message_id", "") or ""
         inquiry.provider_thread_id = getattr(send_result, "thread_id", "") or ""
-        inquiry.provider_internet_message_id = (
-            getattr(send_result, "internet_message_id", "") or ""
-        )
+        inquiry.provider_internet_message_id = getattr(send_result, "internet_message_id", "") or ""
         inquiry.save()
 
         return {
@@ -379,13 +371,15 @@ def _build_body(*, sales_order: SalesOrder, carrier: Carrier, recipient_name: st
     if commodity:
         lines.append(f"  Commodity: {commodity}")
 
-    lines.extend([
-        "",
-        "Please reply with your rate and availability.",
-        "",
-        "Thank you,",
-        "ProjectMeats Logistics",
-    ])
+    lines.extend(
+        [
+            "",
+            "Please reply with your rate and availability.",
+            "",
+            "Thank you,",
+            "ProjectMeats Logistics",
+        ]
+    )
     return "\n".join(lines)
 
 

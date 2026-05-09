@@ -15,13 +15,12 @@ from __future__ import annotations
 import csv
 import io
 from datetime import date, datetime
-from typing import Any, Callable, Iterable, Iterator, List, Sequence, Tuple, Union
+from typing import Any, Callable, Iterator, Sequence, Tuple, Union
 
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 
 from apps.core.conversions import normalize_temporal_for_export
-
 
 CsvAccessor = Union[str, Callable[[Any], Any]]
 CsvColumn = Tuple[str, CsvAccessor]

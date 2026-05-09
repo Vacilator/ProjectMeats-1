@@ -12,7 +12,6 @@ Additive only — no existing services modified.
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any
 
 from django.utils import timezone
@@ -42,11 +41,7 @@ def infer_form_type(parsed_data: dict[str, Any]) -> str:
 
     line_items = parsed_data.get("line_items", [])
     if line_items:
-        has_prices = any(
-            item.get("unit_price") or item.get("price")
-            for item in line_items
-            if isinstance(item, dict)
-        )
+        has_prices = any(item.get("unit_price") or item.get("price") for item in line_items if isinstance(item, dict))
         if has_prices:
             return FORM_TYPE_BID
         return FORM_TYPE_INQUIRY
@@ -83,12 +78,14 @@ def build_form_data(parsed_data: dict[str, Any], form_type: str) -> dict[str, An
         form_data["line_items"] = []
         for item in line_items:
             if isinstance(item, dict):
-                form_data["line_items"].append({
-                    "product": item.get("product_description", ""),
-                    "quantity": item.get("quantity", ""),
-                    "uom": item.get("unit_of_measure", ""),
-                    "unit_price": item.get("unit_price", ""),
-                })
+                form_data["line_items"].append(
+                    {
+                        "product": item.get("product_description", ""),
+                        "quantity": item.get("quantity", ""),
+                        "uom": item.get("unit_of_measure", ""),
+                        "unit_price": item.get("unit_price", ""),
+                    }
+                )
 
     # Dates
     if parsed_data.get("delivery_date"):
@@ -214,10 +211,16 @@ def update_draft_status(
         draft.submitted_entity_type = submitted_entity_type
         draft.submitted_entity_id = submitted_entity_id
 
-    draft.save(update_fields=[
-        "status", "submitted_at", "submitted_by",
-        "submitted_entity_type", "submitted_entity_id", "modified_on",
-    ])
+    draft.save(
+        update_fields=[
+            "status",
+            "submitted_at",
+            "submitted_by",
+            "submitted_entity_type",
+            "submitted_entity_id",
+            "modified_on",
+        ]
+    )
 
     logger.info("Draft %s → %s", draft.pk, new_status)
     return draft

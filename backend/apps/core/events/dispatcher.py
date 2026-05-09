@@ -16,7 +16,6 @@ from collections import defaultdict
 from typing import Any, Callable
 
 from django.db import transaction
-from django.utils import timezone
 
 from .contracts import TradeEvent, TradeEventType
 
@@ -131,7 +130,6 @@ def get_trade_event_log(
 
     Returns event dicts ordered by timestamp descending.
     """
-    from tenant_apps.inquiries.models import TradeSession
 
     # Use the ExecutionEventLog or a simple JSON query on custom_data
     # For now, query TradeEventLog model
@@ -172,9 +170,7 @@ def _store_event(event: TradeEvent) -> None:
                 tenant_id=event.tenant_id,
                 event_id=event.event_id,
                 event_type=(
-                    event.event_type.value
-                    if isinstance(event.event_type, TradeEventType)
-                    else event.event_type
+                    event.event_type.value if isinstance(event.event_type, TradeEventType) else event.event_type
                 ),
                 trade_session_id=event.trade_session_id or None,
                 trade_id=event.trade_id,
@@ -200,6 +196,4 @@ def _dispatch(event: TradeEvent) -> None:
         try:
             handler(event)
         except Exception as exc:
-            logger.exception(
-                f"Handler {handler.__name__} failed for event {event.event_id}: {exc}"
-            )
+            logger.exception(f"Handler {handler.__name__} failed for event {event.event_id}: {exc}")
