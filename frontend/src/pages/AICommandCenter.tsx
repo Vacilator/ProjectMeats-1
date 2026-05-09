@@ -756,7 +756,7 @@ const AICommandCenter: React.FC = () => {
   // ============================================================================
 
   return (
-    <PageContainer>
+    <PageContainer role="main" aria-label="AI Command Center">
       {/* Header */}
       <PageHeader>
         <HeaderLeft>
@@ -775,6 +775,7 @@ const AICommandCenter: React.FC = () => {
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 220, borderRadius: 10 }}
             allowClear
+            aria-label="Search command center"
           />
           <Tooltip title="Refresh all">
             <Button
@@ -782,13 +783,14 @@ const AICommandCenter: React.FC = () => {
               onClick={handleRefreshAll}
               loading={tradesQuery.isFetching || reviewsQuery.isFetching}
               style={{ borderRadius: 10 }}
+              aria-label="Refresh all data"
             />
           </Tooltip>
         </HeaderActions>
       </PageHeader>
 
       {/* Quick Actions */}
-      <QuickActionsRow>
+      <QuickActionsRow role="toolbar" aria-label="Quick actions">
         <QuickActionButton
           type="primary"
           icon={<Plus size={15} />}
@@ -826,10 +828,11 @@ const AICommandCenter: React.FC = () => {
       </QuickActionsRow>
 
       {/* Tab Navigation */}
-      <TabContainer>
+      <TabContainer role="navigation" aria-label="Command center sections">
         <Segmented
           value={activeTab}
           onChange={(val) => setActiveTab(val as HubTab)}
+          aria-label="Select section"
           options={[
             {
               label: (
