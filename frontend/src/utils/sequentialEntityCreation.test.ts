@@ -180,6 +180,85 @@ describe('sequentialEntityCreation', () => {
       expect(result.errors[0].error).toContain('No API endpoint configured');
       expect(mockPost).not.toHaveBeenCalled();
     });
+
+    it('applies contact name splitting when only full name is provided', async () => {
+      mockPost.mockResolvedValueOnce({ data: { id: 50, first_name: 'Jane', last_name: 'Smith' } });
+
+      await createEntitiesSequentially([
+        makeDraft({
+          entity_type: 'contact',
+          proposed_data: { name: 'Jane Smith', email: 'jane@co.com' },
+          originalIndex: 0,
+        }),
+      ]);
+
+      const payload = mockPost.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.first_name).toBe('Jane');
+      expect(payload.last_name).toBe('Smith');
+    });
+
+    it('defaults contact first_name and last_name when missing entirely', async () => {
+      mockPost.mockResolvedValueOnce({ data: { id: 51 } });
+
+      await createEntitiesSequentially([
+        makeDraft({
+          entity_type: 'contact',
+          proposed_data: { email: 'noname@example.com' },
+          originalIndex: 0,
+        }),
+      ]);
+
+      const payload = mockPost.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.first_name).toBe('Unknown');
+      expect(payload.last_name).toBe('Contact');
+    });
+
+    it('defaults supplier/customer name from company_name', async () => {
+      mockPost.mockResolvedValueOnce({ data: { id: 60, name: 'Acme Inc' } });
+
+      await createEntitiesSequentially([
+        makeDraft({
+          entity_type: 'supplier',
+          proposed_data: { company_name: 'Acme Inc', city: 'NYC' },
+          originalIndex: 0,
+        }),
+      ]);
+
+      const payload = mockPost.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.name).toBe('Acme Inc');
+    });
+
+    it('defaults plant name from plant_name or location', async () => {
+      mockPost.mockResolvedValueOnce({ data: { id: 70, name: 'Chicago Plant' } });
+
+      await createEntitiesSequentially([
+        makeDraft({
+          entity_type: 'plant',
+          proposed_data: { location: 'Chicago Plant', address: '123 St' },
+          originalIndex: 0,
+        }),
+      ]);
+
+      const payload = mockPost.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.name).toBe('Chicago Plant');
+    });
+
+    it('applies order_date default to sales_order', async () => {
+      mockPost.mockResolvedValueOnce({ data: { id: 80, so_number: 'SO-001' } });
+
+      await createEntitiesSequentially([
+        makeDraft({
+          entity_type: 'sales_order',
+          proposed_data: { customer: 5 },
+          originalIndex: 0,
+        }),
+      ]);
+
+      const payload = mockPost.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.status).toBe('pending');
+      expect(payload.order_date).toBeDefined();
+      expect(typeof payload.order_date).toBe('string');
+    });
   });
 
   describe('getEntityRoute', () => {
