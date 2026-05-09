@@ -66,6 +66,7 @@ interface UnifiedItem {
   contact_name?: string;
   department?: string;
   confidence?: number;
+  intent_label?: string;
   raw?: unknown;
 }
 
@@ -565,6 +566,7 @@ const ProcessCockpitPage: React.FC = () => {
         statusLabel: 'Needs Review',
         timestamp: reviewAny.created_on || reviewAny.created_at || '',
         confidence: reviewAny.confidence_score,
+        intent_label: review.intent_label,
         raw: review,
       });
     }
@@ -882,7 +884,33 @@ const ProcessCockpitPage: React.FC = () => {
                   <StatusPill $variant={getStatusVariant(item.status)}>
                     {item.statusLabel}
                   </StatusPill>
-                  {item.subtitle && <span>{item.subtitle}</span>}
+                  {item.intent_label && (
+                    <span style={{ fontWeight: 500, color: 'rgb(var(--color-primary))' }}>
+                      🎯 {item.intent_label}
+                    </span>
+                  )}
+                  {item.confidence != null && (
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '1px 6px',
+                      borderRadius: 4,
+                      background: item.confidence >= 0.8
+                        ? 'rgba(var(--color-success), 0.1)'
+                        : item.confidence >= 0.5
+                          ? 'rgba(var(--color-warning), 0.1)'
+                          : 'rgba(var(--color-error), 0.1)',
+                      color: item.confidence >= 0.8
+                        ? 'rgb(var(--color-success))'
+                        : item.confidence >= 0.5
+                          ? 'rgb(var(--color-warning))'
+                          : 'rgb(var(--color-error))',
+                    }}>
+                      {Math.round(item.confidence * 100)}%
+                    </span>
+                  )}
+                  {item.subtitle && !item.intent_label && <span>{item.subtitle}</span>}
+                  {item.subtitle && item.intent_label && <span style={{ fontSize: 11 }}>{item.subtitle}</span>}
                   {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
                 </ItemMeta>
               </ItemContent>

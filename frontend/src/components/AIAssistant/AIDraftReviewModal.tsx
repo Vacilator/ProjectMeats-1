@@ -316,6 +316,34 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
     [closeOnResolved, item?.id, onClose, onResolved, setResolvingState],
   );
 
+  const handleRejected = useCallback(
+    async () => {
+      if (!item?.id) {
+        return;
+      }
+
+      setResolvingState(true);
+      try {
+        await aiStaffApi.resolvePendingReview(item.id, {
+          user_corrected_data: { _rejected: true },
+        });
+        message.info('Rejected all drafts from this review.');
+        onResolved?.(item.id);
+        if (closeOnResolved) {
+          onClose?.();
+        }
+      } catch (error: any) {
+        message.error(
+          error?.response?.data?.error ||
+            'Failed to reject the review item.',
+        );
+      } finally {
+        setResolvingState(false);
+      }
+    },
+    [closeOnResolved, item?.id, onClose, onResolved, setResolvingState],
+  );
+
   const handleSurfaceClose = useCallback(() => {
     if (resolvingAfterSaveRef.current) {
       return;
@@ -331,6 +359,33 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      {/* Intent Banner */}
+      {item.intent_label && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 14px',
+          borderRadius: 8,
+          background: 'rgba(var(--color-primary), 0.08)',
+          border: '1px solid rgba(var(--color-primary), 0.2)',
+          color: 'rgb(var(--color-text-primary))',
+          fontSize: 14,
+          fontWeight: 500,
+        }}>
+          <span style={{ fontSize: 16 }}>🎯</span>
+          <span>Intent: {item.intent_label}</span>
+          {typeof (item as any).confidence_score === 'number' && (
+            <Tag color={
+              (item as any).confidence_score >= 0.8 ? 'green' :
+              (item as any).confidence_score >= 0.5 ? 'orange' : 'red'
+            } style={{ marginLeft: 'auto' }}>
+              {Math.round((item as any).confidence_score * 100)}% confidence
+            </Tag>
+          )}
+        </div>
+      )}
+
       {/* Top-level batch actions */}
       <div style={{
         display: 'flex',
@@ -352,10 +407,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         </Button>
         <Button
           danger
-          onClick={() => {
-            message.info('Rejected all drafts from this review.');
-            onClose?.();
-          }}
+          onClick={() => void handleRejected()}
         >
           ✗ Reject All
         </Button>
