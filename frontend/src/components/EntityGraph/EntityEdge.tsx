@@ -50,7 +50,7 @@ const RELATIONSHIP_COLORS: Record<string, string> = {
   has_order: 'rgb(var(--color-warning))',     // warning yellow
   
   // Financial
-  invoiced: 'rgb(168, 85, 247)',     // purple
+  invoiced: 'rgb(var(--color-accent))',     // accent / purple
   payment: 'rgb(var(--color-success))',       // success green
   
   // Default
