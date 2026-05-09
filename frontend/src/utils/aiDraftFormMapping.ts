@@ -91,7 +91,7 @@ export const resolveDraftEntityType = (item: PendingReviewItem | null): string =
     return 'purchase_order';
   }
   if (
-    ['bill_of_lading', 'bol', 'shipment', 'carrier_purchase_order', 'carrier_po'].includes(
+    ['bill_of_lading', 'bol', 'shipment', 'carrier_purchase_order', 'carrier_po', 'carrier-pos'].includes(
       documentType,
     )
   ) {
