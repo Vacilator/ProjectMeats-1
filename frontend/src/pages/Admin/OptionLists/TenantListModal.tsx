@@ -139,9 +139,12 @@ export const TenantListModal: React.FC<TenantListModalProps> = ({
       message.success(isEdit ? 'Custom list updated' : 'Custom list created');
       onSaved();
       onClose();
-    } catch (err: any) {
-      if (err?.errorFields) return; // antd validation
-      message.error(err?.response?.data?.error || 'Failed to save custom list');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      if (errObj.errorFields) return; // antd validation
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      message.error((typeof data.error === 'string' ? data.error : '') || 'Failed to save custom list');
     } finally {
       setSaving(false);
     }

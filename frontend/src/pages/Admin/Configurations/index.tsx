@@ -295,9 +295,12 @@ const ConfigurationsPage: React.FC = () => {
       toast.success('Configuration created');
       setShowCreateModal(false);
       await loadConfigurations();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Failed to create configuration:', error);
-      toast.error(error?.response?.data?.error || 'Failed to create configuration');
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      toast.error((typeof data.error === 'string' ? data.error : '') || 'Failed to create configuration');
     } finally {
       setIsCreating(false);
     }
@@ -308,9 +311,12 @@ const ConfigurationsPage: React.FC = () => {
       await apiClient.post(`/configurations/${configId}/reset/`);
       toast.success('Reset to default');
       await loadConfigurations();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Failed to reset configuration:', error);
-      toast.error(error?.response?.data?.error || 'Failed to reset configuration');
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      toast.error((typeof data.error === 'string' ? data.error : '') || 'Failed to reset configuration');
     }
   };
 
@@ -334,9 +340,12 @@ const ConfigurationsPage: React.FC = () => {
       await apiClient.delete(`/configurations/${config.id}/`);
       toast.success('Configuration deleted');
       await loadConfigurations();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Failed to delete configuration:', error);
-      toast.error(error?.response?.data?.error || 'Failed to delete configuration');
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      toast.error((typeof data.error === 'string' ? data.error : '') || 'Failed to delete configuration');
     }
   };
 

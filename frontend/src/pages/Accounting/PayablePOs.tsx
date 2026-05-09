@@ -363,9 +363,12 @@ const PayablePOs: React.FC = () => {
         payment_status: order.payment_status || 'unpaid', // Default to unpaid if not provided
         outstanding_amount: order.outstanding_amount || order.total_amount,
       })));
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to fetch purchase orders:', err);
-      setError(err.response?.data?.message || 'Failed to load purchase orders');
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.message === 'string' ? data.message : '') || 'Failed to load purchase orders');
     } finally {
       setLoading(false);
     }
