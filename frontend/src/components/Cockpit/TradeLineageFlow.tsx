@@ -166,6 +166,7 @@ interface LineageNodeData {
   subtitle?: string;
   isActive: boolean;
   isEmpty: boolean;
+  aiSuggestion?: string;
   contactRoles?: Array<{
     role: string;
     roleLabel: string;
@@ -310,6 +311,16 @@ const UnassignedBadge = styled.div`
   font-style: italic;
 `;
 
+const AISuggestionHint = styled.div`
+  margin-top: 4px;
+  font-size: 10px;
+  color: rgb(var(--color-info));
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+`;
+
 const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => {
   const navigate = useNavigate();
   const color = getStatusColor(data.status);
@@ -370,9 +381,16 @@ const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => 
         </>
       )}
       {data.isEmpty && (
-        <NodeNumber style={{ fontStyle: 'italic', cursor: 'pointer', color: 'rgb(var(--color-primary))' }}>
-          ➕ Click to create
-        </NodeNumber>
+        <>
+          <NodeNumber style={{ fontStyle: 'italic', cursor: 'pointer', color: 'rgb(var(--color-primary))' }}>
+            ➕ Click to create
+          </NodeNumber>
+          {data.aiSuggestion && (
+            <AISuggestionHint>
+              💡 {data.aiSuggestion}
+            </AISuggestionHint>
+          )}
+        </>
       )}
     </NodeWrapper>
   );
@@ -395,6 +413,26 @@ function buildGraph(
   chain: LineageChain,
   currentStep: string
 ): { nodes: Node<LineageNodeData>[]; edges: Edge[] } {
+  // Generate contextual AI suggestions for empty nodes
+  const getSuggestion = (key: string): string | undefined => {
+    if (key === 'supplier_purchase_order' && !chain.supplier_purchase_order) {
+      const supplier = chain.inquiry?.supplier;
+      return supplier
+        ? `Create PO for ${supplier}`
+        : 'Create PO from inquiry details';
+    }
+    if (key === 'sales_order' && !chain.sales_order) {
+      const customer = chain.inquiry?.customer;
+      return customer
+        ? `Create SO for ${customer}`
+        : 'Create SO linking to inquiry';
+    }
+    if (key === 'carrier_purchase_order' && !chain.carrier_purchase_order) {
+      return 'Create Carrier PO for logistics';
+    }
+    return undefined;
+  };
+
   const entities = [
     { key: 'inquiry', data: chain.inquiry },
     { key: 'supplier_purchase_order', data: chain.supplier_purchase_order },
@@ -417,6 +455,7 @@ function buildGraph(
       subtitle: entity.data?.number ?? '',
       isActive: (currentStep ?? '').toLowerCase().includes(entity.key.replace('_', '')),
       isEmpty: entity.data === null,
+      aiSuggestion: getSuggestion(entity.key),
       contactRoles: Array.isArray(entity.data?.contact_roles)
         ? entity.data.contact_roles.map((role) => ({
             role: role.role,
