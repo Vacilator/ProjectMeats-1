@@ -8,7 +8,7 @@
  * - Entity colors are semantic (defined by backend)
  */
 import React, { memo } from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import styled from 'styled-components';
 
 // ============================================================================
@@ -16,6 +16,7 @@ import styled from 'styled-components';
 // ============================================================================
 
 export interface EntityNodeData {
+  [key: string]: unknown;
   label: string;
   entityType: string;
   entityId: number;
@@ -117,7 +118,7 @@ const getIconEmoji = (iconName: string): string => {
 // Component
 // ============================================================================
 
-export const EntityNode: React.FC<NodeProps<EntityNodeData>> = memo(({ data }) => {
+export const EntityNode: React.FC<NodeProps<Node<EntityNodeData>>> = memo(({ data }) => {
   const { label, entityType, icon, color, isRoot = false } = data;
 
   return (

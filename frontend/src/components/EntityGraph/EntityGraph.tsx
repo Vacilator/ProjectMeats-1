@@ -16,17 +16,18 @@
  * - Entity colors from backend configuration
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import ReactFlow, {
-  Node,
-  Edge,
+import {
+  ReactFlow,
+  type Node,
+  type Edge,
   Controls,
   Background,
   useNodesState,
   useEdgesState,
   MarkerType,
   ConnectionLineType,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import styled from 'styled-components';
 import { X, Edit2, ExternalLink, ChevronRight } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
@@ -356,8 +357,8 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
   onNodeEdit,
   className,
 }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<EntityNodeData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);

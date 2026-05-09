@@ -13,8 +13,8 @@ vi.mock('@/services/businessApi', () => ({
   },
 }));
 
-vi.mock('reactflow', () => ({
-  default: ({ nodes, nodeTypes, children }: any) => (
+vi.mock('@xyflow/react', () => ({
+  ReactFlow: ({ nodes, nodeTypes, children }: any) => (
     <div data-testid="reactflow">
       {nodes.map((node: any) => {
         const Component = nodeTypes[node.type];
