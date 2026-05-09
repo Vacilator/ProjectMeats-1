@@ -288,7 +288,7 @@ function resolveActionUrl(notification: Notification): string {
     return '/command-center?tab=pipeline';
   }
   if (url.startsWith('/ai-assistant') || url.includes('ai-assistant')) {
-    const params = new URLSearchParams({ tab: 'ai-inbox' });
+    const params = new URLSearchParams({ tab: 'action-required' });
     if (itemId) params.set('item', String(itemId));
     return `/command-center?${params.toString()}`;
   }

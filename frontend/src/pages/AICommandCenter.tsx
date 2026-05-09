@@ -594,12 +594,19 @@ const AICommandCenter: React.FC = () => {
 
   const handleItemClick = useCallback((item: UnifiedItem) => {
     if (item.source === 'ai-inbox' && item.raw) {
-      setDraftReviewItem(item.raw as PendingReviewItem);
+      const reviewItem = item.raw as PendingReviewItem;
+      setDraftReviewItem(reviewItem);
+      // Update URL for deep-linkable state
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('item', reviewItem.id);
+        return next;
+      });
     } else {
       setSelectedItem(item);
       setModalOpen(true);
     }
-  }, []);
+  }, [setSearchParams]);
 
   const handleModalClose = useCallback(() => {
     setModalOpen(false);
@@ -614,7 +621,14 @@ const AICommandCenter: React.FC = () => {
       next.delete('item');
       return next;
     });
+    // Invalidate AI reviews and related entity data (entities may have been created)
     queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-ai-reviews') });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-trades') });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('contacts') });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('suppliers') });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('customers') });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('inquiries') });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('purchase-orders') });
   }, [queryClient, setSearchParams]);
 
   // Deep link: ?item=xxx auto-opens that AI review item
