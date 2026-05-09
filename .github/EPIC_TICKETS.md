@@ -1389,7 +1389,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 ## Phase 22: Repo + CI/CD + Golden Pipeline Perfection
 
 - [x] **CICD-22.1 golden-files-full-audit-and-sync**
-  - **Status:** In Progress
+  - **Status:** Shipped (PR #5140)
   - **Why now:** Ensure zero drift between golden files and actual state. Audit GOLDEN_FILES.md, env.manifest.json, and all golden docs.
   - **Scope:** Run full audit against manifests/GOLDEN_FILES.md. Fix any drift. Add CI check that fails on golden file drift. Update all golden docs with current status.
   - **Primary domain:** CI/CD + docs
@@ -1403,7 +1403,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **CICD-22.2 archive-non-canonical-files**
-  - **Status:** Blocked
+  - **Status:** Shipped (PR #5140)
   - **Why now:** Clean repo of stale/duplicate documentation. Move non-canonical files to .archive/.
   - **Scope:** Identify files that duplicate or contradict canonical sources. Move to archived/ with git history preserved. Update any references.
   - **Primary domain:** docs

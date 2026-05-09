@@ -1154,7 +1154,7 @@ const ConditionBuilder = () => (
 
 ## 📝 Related Documentation
 
-- [React Flow Lessons Learned](./REACT_FLOW_LESSONS_LEARNED.md)
+- [React Flow Lessons Learned](../../archived/docs/workforms/REACT_FLOW_LESSONS_LEARNED.md) (archived)
 - [Design System](./DESIGN_SYSTEM.md)
 - [Frontend Standards](../.github/instructions/frontend.instructions.md)
 - [React Flow Official Docs](https://reactflow.dev)

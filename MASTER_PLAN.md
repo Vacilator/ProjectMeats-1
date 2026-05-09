@@ -1257,7 +1257,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - `.github/SDLC_PROTOCOLS.md` (normative delivery rules)
 - `.github/TECH_DEBT_REGISTER.md` (machine-readable debt inventory)
 - `GAP_ANALYSIS_REPORT.md` / `STRATEGIC_BLUEPRINT.md` (non-canonical synthesis snapshots)
-- `docs/prompts/last-25-prompts-2026-03-24.md` (prompt backlog inputs)
+- `docs/prompts/last-25-prompts-2026-03-24.md` (archived → `archived/docs/prompts/`)
 - Verification artifacts: `PHASE_VERIFICATION_COMPLETE.md`, `EXECUTION_SUMMARY.txt`
 
 ---
@@ -2282,7 +2282,7 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 - **Copilot Instructions**: `.github/copilot-instructions.md`
 - **Golden Pipeline**: `docs/reference/GOLDEN_PIPELINE.md`
 - **Migration Standards**: `docs/workforms/MIGRATION_STANDARDS.md`
-- **Handoff Document**: `docs/HANDOFF.md`
+- **Handoff Document**: `archived/docs/HANDOFF.md` (archived)
 
 ### Phase-Specific / Initiative Docs
 - Phase 3: `docs/PHASE3_QUICK_START.md`
