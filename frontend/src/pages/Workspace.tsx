@@ -441,9 +441,11 @@ export const WorkspacePage: React.FC = () => {
           setLayout(saved.layout);
           return;
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // 404 means no saved layout - fall through to localStorage
-        if (err.response?.status !== 404) {
+        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        if (typeof resp.status === 'number' && resp.status !== 404) {
           logger.error('Failed to load workspace layout from API:', err);
         }
       }

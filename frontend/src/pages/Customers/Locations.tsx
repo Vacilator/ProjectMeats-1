@@ -239,8 +239,10 @@ const CustomerLocations: React.FC = () => {
       let response;
       try {
         response = await apiClient.get('locations/', { params });
-      } catch (err: any) {
-        if (err.response?.status === 404) {
+      } catch (err: unknown) {
+        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        if (resp.status === 404) {
           // Try alternative endpoint
           response = await apiClient.get('api/v1/locations/', { params });
         } else {
@@ -314,7 +316,7 @@ const CustomerLocations: React.FC = () => {
       await apiClient.delete(`locations/${loc.id}/`);
       message.success('Location deleted successfully');
       loadLocations(contextCustomerId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error deleting location:', error);
       message.error('Failed to delete location');
     }

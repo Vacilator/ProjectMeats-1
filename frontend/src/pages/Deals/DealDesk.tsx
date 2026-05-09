@@ -236,9 +236,12 @@ const DealDesk: React.FC = () => {
         if (active) {
           setDeals(data);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (active) {
-          setError(err?.response?.data?.error || 'Failed to load Deal Desk');
+          const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+          const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+          const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+          setError((data.error as string) || 'Failed to load Deal Desk');
         }
       } finally {
         if (active) {
