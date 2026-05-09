@@ -154,11 +154,14 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
       if (response.data.workflow?.id) {
         window.location.href = `/workflows/${response.data.workflow.id}`;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Failed to import workflow:', error);
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
       
-      if (error.response?.data?.error) {
-        message.error(error.response.data.error);
+      if (typeof data.error === 'string') {
+        message.error(data.error);
       } else {
         message.error('Failed to import workflow. Please check the template format.');
       }

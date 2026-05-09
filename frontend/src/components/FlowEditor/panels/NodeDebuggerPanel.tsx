@@ -131,11 +131,14 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
         executionTime,
         warnings: output._warnings || [],
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errMsg = (error && typeof error === 'object' && 'message' in error)
+        ? (error as { message: string }).message
+        : 'Execution failed';
       setResult({
         success: false,
         output: null,
-        errors: [error.message || 'Execution failed'],
+        errors: [errMsg],
       });
     } finally {
       setIsExecuting(false);
