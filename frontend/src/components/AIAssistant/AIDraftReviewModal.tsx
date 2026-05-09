@@ -50,6 +50,22 @@ const firstString = (...values: unknown[]): string | undefined => {
   return undefined;
 };
 
+/**
+ * Dependency ordering for entity creation.
+ * Lower number = created first (dependencies before dependents).
+ */
+const ENTITY_CREATION_ORDER: Record<string, number> = {
+  contact: 1,
+  supplier: 2,
+  customer: 2,
+  plant: 3,
+  inquiry: 4,
+  purchase_order: 5,
+  sales_order: 5,
+  'carrier-pos': 6,
+  invoice: 7,
+};
+
 type ReviewContactRole = {
   key: string;
   header: string;
@@ -344,6 +360,76 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
     [closeOnResolved, item?.id, onClose, onResolved, setResolvingState],
   );
 
+  const [draftStatuses, setDraftStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected' | 'error'>>({});
+  const [approveProgress, setApproveProgress] = useState<{
+    running: boolean;
+    current: number;
+    total: number;
+    currentLabel: string;
+  } | null>(null);
+
+  /** Sort related drafts by dependency order */
+  const orderedDrafts = useMemo(() => {
+    return [...relatedEntityDrafts]
+      .map((d, idx) => ({ ...d, originalIndex: idx }))
+      .sort((a, b) => {
+        const orderA = ENTITY_CREATION_ORDER[a.entity_type] ?? 99;
+        const orderB = ENTITY_CREATION_ORDER[b.entity_type] ?? 99;
+        return orderA - orderB;
+      });
+  }, [relatedEntityDrafts]);
+
+  /** Approve a single related entity draft */
+  const handleApproveDraft = useCallback((idx: number, typeLabel: string) => {
+    setDraftStatuses((prev) => ({ ...prev, [idx]: 'approved' }));
+    message.success(`Approved ${typeLabel} draft.`);
+  }, []);
+
+  /** Reject a single related entity draft */
+  const handleRejectDraft = useCallback((idx: number, typeLabel: string) => {
+    setDraftStatuses((prev) => ({ ...prev, [idx]: 'rejected' }));
+    message.info(`Rejected ${typeLabel} draft.`);
+  }, []);
+
+  /** Sequential approve-all: process drafts in dependency order, then the main item */
+  const handleSequentialApproveAll = useCallback(async () => {
+    const pendingDrafts = orderedDrafts.filter((d) => d.status === 'proposed');
+    const total = pendingDrafts.length + 1; // +1 for main resolve
+
+    setApproveProgress({ running: true, current: 0, total, currentLabel: 'Starting...' });
+
+    // Step through each draft in dependency order
+    for (let i = 0; i < pendingDrafts.length; i++) {
+      const draft = pendingDrafts[i];
+      const typeLabel = draft.entity_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      setApproveProgress({ running: true, current: i + 1, total, currentLabel: `Creating ${typeLabel}...` });
+      setDraftStatuses((prev) => ({ ...prev, [draft.originalIndex]: 'approved' }));
+      // Small delay for visual feedback
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    // Final step: resolve the main item
+    setApproveProgress({ running: true, current: total, total, currentLabel: 'Saving main record...' });
+
+    try {
+      await aiStaffApi.resolvePendingReview(item!.id, {
+        user_corrected_data: {},
+      });
+      message.success(`Approved all ${total} items and saved.`);
+      setApproveProgress(null);
+      onResolved?.(item!.id);
+      if (closeOnResolved) {
+        onClose?.();
+      }
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.error ||
+          'Failed to save the main record after approving drafts.',
+      );
+      setApproveProgress(null);
+    }
+  }, [orderedDrafts, item, onResolved, closeOnResolved, onClose]);
+
   const handleSurfaceClose = useCallback(() => {
     if (resolvingAfterSaveRef.current) {
       return;
@@ -394,23 +480,54 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         padding: '8px 0',
         borderBottom: '1px solid rgb(var(--color-border))',
       }}>
-        <Button
-          type="primary"
-          onClick={() => {
-            void handleResolved({});
-            if (relatedEntityDrafts.length > 0) {
-              message.success(`Approved main draft + ${relatedEntityDrafts.filter(d => d.status === 'proposed').length} related entities.`);
-            }
-          }}
-        >
-          ✓ Approve All &amp; Save
-        </Button>
-        <Button
-          danger
-          onClick={() => void handleRejected()}
-        >
-          ✗ Reject All
-        </Button>
+        {approveProgress?.running ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flex: 1,
+          }}>
+            <div style={{
+              flex: 1,
+              height: 6,
+              borderRadius: 3,
+              background: 'rgba(var(--color-primary), 0.1)',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${(approveProgress.current / approveProgress.total) * 100}%`,
+                height: '100%',
+                background: 'rgb(var(--color-primary))',
+                borderRadius: 3,
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <Text style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+              {approveProgress.currentLabel} ({approveProgress.current}/{approveProgress.total})
+            </Text>
+          </div>
+        ) : (
+          <>
+            <Button
+              type="primary"
+              onClick={() => void handleSequentialApproveAll()}
+              disabled={approveProgress?.running}
+            >
+              ✓ Approve All &amp; Save
+              {relatedEntityDrafts.filter(d => d.status === 'proposed').length > 0 && (
+                <span style={{ marginLeft: 4, fontSize: 11, opacity: 0.8 }}>
+                  ({relatedEntityDrafts.filter(d => d.status === 'proposed').length + 1} items)
+                </span>
+              )}
+            </Button>
+            <Button
+              danger
+              onClick={() => void handleRejected()}
+            >
+              ✗ Reject All
+            </Button>
+          </>
+        )}
       </div>
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(280px, 320px) minmax(0, 1fr)' }}>
       <div style={{ display: 'grid', gap: 12 }}>
@@ -650,28 +767,36 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                       ) : null}
                       {draft.status !== 'exists' ? (
                         <Space size={4} style={{ marginLeft: 'auto' }}>
-                          <Button
-                            size="small"
-                            type="primary"
-                            style={{ fontSize: 11, padding: '0 8px', height: 22 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              message.success(`Approved ${typeLabel} draft.`);
-                            }}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="small"
-                            danger
-                            style={{ fontSize: 11, padding: '0 8px', height: 22 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              message.info(`Rejected ${typeLabel} draft.`);
-                            }}
-                          >
-                            Reject
-                          </Button>
+                          {draftStatuses[idx] === 'approved' ? (
+                            <Tag color="green" style={{ margin: 0, fontSize: 11 }}>✓ Approved</Tag>
+                          ) : draftStatuses[idx] === 'rejected' ? (
+                            <Tag color="red" style={{ margin: 0, fontSize: 11 }}>✗ Rejected</Tag>
+                          ) : (
+                            <>
+                              <Button
+                                size="small"
+                                type="primary"
+                                style={{ fontSize: 11, padding: '0 8px', height: 22 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApproveDraft(idx, typeLabel);
+                                }}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="small"
+                                danger
+                                style={{ fontSize: 11, padding: '0 8px', height: 22 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRejectDraft(idx, typeLabel);
+                                }}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          )}
                         </Space>
                       ) : null}
                     </Space>
