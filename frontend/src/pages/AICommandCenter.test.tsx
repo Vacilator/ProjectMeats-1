@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -453,5 +453,40 @@ describe('AICommandCenter', () => {
     await waitFor(() => {
       expect(screen.getByText('Retry')).toBeInTheDocument();
     });
+  });
+
+  // ---- Keyboard Shortcuts ----
+
+  it('opens trade wizard on "n" keypress', async () => {
+    render(<AICommandCenter />, { wrapper: createWrapper() });
+    await waitFor(() => expect(screen.getByText('⚡ Command Center')).toBeInTheDocument());
+
+    fireEvent.keyDown(document, { key: 'n' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+  });
+
+  it('focuses search input on "/" keypress', async () => {
+    render(<AICommandCenter />, { wrapper: createWrapper() });
+    await waitFor(() => expect(screen.getByText('⚡ Command Center')).toBeInTheDocument());
+
+    fireEvent.keyDown(document, { key: '/' });
+
+    const searchInput = screen.getByLabelText('Search command center');
+    expect(document.activeElement).toBe(searchInput);
+  });
+
+  it('renders keyboard shortcut hint bar', async () => {
+    render(<AICommandCenter />, { wrapper: createWrapper() });
+    await waitFor(() => expect(screen.getByText('⚡ Command Center')).toBeInTheDocument());
+
+    const hintBar = screen.getByLabelText('Keyboard shortcuts');
+    expect(hintBar).toBeInTheDocument();
+    expect(hintBar.textContent).toContain('Search');
+    expect(hintBar.textContent).toContain('New Trade');
+    expect(hintBar.textContent).toContain('Refresh');
+    expect(hintBar.textContent).toContain('Switch Tab');
   });
 });

@@ -31,6 +31,7 @@ import {
   Typography,
   message,
 } from 'antd';
+import type { InputRef } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -366,6 +367,40 @@ const DetailModalContent = styled.div`
   gap: 1rem;
 `;
 
+const ShortcutHintBar = styled.div`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 6px 16px;
+  background: rgba(var(--color-bg-elevated, 30, 30, 46), 0.92);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(var(--color-border, 200, 200, 220), 0.1);
+  font-size: 0.72rem;
+  color: rgba(var(--color-text-secondary, 160, 160, 180), 0.7);
+  z-index: 100;
+  pointer-events: none;
+
+  kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid rgba(var(--color-border, 200, 200, 220), 0.2);
+    background: rgba(var(--color-bg-surface, 50, 50, 70), 0.5);
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  .separator {
+    opacity: 0.4;
+  }
+`;
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -690,6 +725,63 @@ const AICommandCenter: React.FC = () => {
     reviewsQuery.refetch();
   }, [tradesQuery, reviewsQuery]);
 
+  // ---- Keyboard Shortcuts ----
+  const searchInputRef = useRef<InputRef>(null);
+
+  useEffect(() => {
+    const TAB_MAP: Record<string, HubTab> = {
+      '1': 'overview',
+      '2': 'action-required',
+      '3': 'pipeline',
+      '4': 'workflows',
+      '5': 'history',
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore when typing in inputs/textareas
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+        // Allow Escape to blur from search
+        if (e.key === 'Escape') {
+          (e.target as HTMLElement).blur();
+          e.preventDefault();
+        }
+        return;
+      }
+
+      // Alt+1 through Alt+5: Switch tabs
+      if (e.altKey && TAB_MAP[e.key]) {
+        e.preventDefault();
+        setActiveTab(TAB_MAP[e.key]);
+        return;
+      }
+
+      // n: New Trade
+      if (e.key === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        handleNewTrade();
+        return;
+      }
+
+      // r: Refresh
+      if (e.key === 'r' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        handleRefreshAll();
+        return;
+      }
+
+      // /: Focus search
+      if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [setActiveTab, handleNewTrade, handleRefreshAll]);
+
   // Advance trade mutation
   const advanceMutation = useMutation({
     mutationFn: (tradeSessionId: string) => traderService.advanceTrade(tradeSessionId),
@@ -801,7 +893,8 @@ const AICommandCenter: React.FC = () => {
         </HeaderLeft>
         <HeaderActions>
           <Input
-            placeholder="Search…"
+            ref={searchInputRef}
+            placeholder="Search… (press /)"
             prefix={<Search size={14} />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -809,7 +902,7 @@ const AICommandCenter: React.FC = () => {
             allowClear
             aria-label="Search command center"
           />
-          <Tooltip title="Refresh all">
+          <Tooltip title="Refresh all (R)">
             <Button
               icon={<RefreshCw size={14} />}
               onClick={handleRefreshAll}
@@ -823,13 +916,15 @@ const AICommandCenter: React.FC = () => {
 
       {/* Quick Actions */}
       <QuickActionsRow role="toolbar" aria-label="Quick actions">
-        <QuickActionButton
-          type="primary"
-          icon={<Plus size={15} />}
-          onClick={handleNewTrade}
-        >
-          New Trade
-        </QuickActionButton>
+        <Tooltip title="N">
+          <QuickActionButton
+            type="primary"
+            icon={<Plus size={15} />}
+            onClick={handleNewTrade}
+          >
+            New Trade
+          </QuickActionButton>
+        </Tooltip>
         <Tooltip title="AI will suggest the best next actions based on your pipeline">
           <QuickActionButton
             icon={<Sparkles size={15} />}
@@ -1376,6 +1471,17 @@ const AICommandCenter: React.FC = () => {
           onClose={() => setQuickCreateTarget(null)}
         />
       )}
+
+      {/* Keyboard shortcut hint bar */}
+      <ShortcutHintBar aria-label="Keyboard shortcuts">
+        <kbd>/</kbd> Search
+        <span className="separator">•</span>
+        <kbd>N</kbd> New Trade
+        <span className="separator">•</span>
+        <kbd>R</kbd> Refresh
+        <span className="separator">•</span>
+        <kbd>Alt+1‑5</kbd> Switch Tab
+      </ShortcutHintBar>
     </PageContainer>
   );
 };
