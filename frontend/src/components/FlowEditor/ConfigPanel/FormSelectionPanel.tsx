@@ -227,7 +227,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
         type: filterType,
       });
       setExistingForms(forms);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[FormSelectionPanel] Failed to load forms:', err);
       toast.error('Failed to load forms. Please refresh and try again.', {
         duration: 4000,
@@ -236,7 +236,10 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
       Sentry.captureException(err, {
         extra: { context: 'FormSelectionPanel.loadForms', filterType },
       });
-      setError(err.message || 'Failed to load forms');
+      const errMsg = (err && typeof err === 'object' && 'message' in err)
+        ? (err as { message: string }).message
+        : 'Failed to load forms';
+      setError(errMsg);
     } finally {
       setLoading(false);
     }

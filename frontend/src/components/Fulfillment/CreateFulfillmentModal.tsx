@@ -767,12 +767,20 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       resetForm();
       onSuccess(response.data);
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to create fulfillment:', err);
-      const errorDetail = err.response?.data?.detail
-        || err.response?.data?.message
-        || JSON.stringify(err.response?.data)
-        || 'Failed to create fulfillment. Please try again.';
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const respData = resp.data;
+      let errorDetail: string;
+      if (respData && typeof respData === 'object') {
+        const d = respData as Record<string, unknown>;
+        errorDetail = (typeof d.detail === 'string' ? d.detail : null)
+          || (typeof d.message === 'string' ? d.message : null)
+          || JSON.stringify(respData);
+      } else {
+        errorDetail = 'Failed to create fulfillment. Please try again.';
+      }
       setError(errorDetail);
     }
   });

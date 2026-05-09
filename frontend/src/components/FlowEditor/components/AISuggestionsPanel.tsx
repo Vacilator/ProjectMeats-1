@@ -321,14 +321,17 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         setIsCached(cached || false);
         setError(null);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error('Failed to fetch AI suggestions:', err);
 
         // Graceful degradation: Use local AI service
         const fallbackSuggestions = AINodeSuggestionService.getSuggestions(nodes, edges, selectedNodeId);
         setSuggestions(fallbackSuggestions);
         setMode('static');
-        setError(err.response?.data?.reason || 'Using static suggestions');
+        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+        setError((data.reason as string) || 'Using static suggestions');
       } finally {
         setIsLoading(false);
       }
