@@ -251,6 +251,9 @@ class AIFeedbackLog(TenantAwareModel):
             models.Index(fields=["tenant", "retraining_status", "created_on"], name="ai_fb_retrain_idx"),
         ]
 
+    def __str__(self) -> str:
+        return f"FeedbackLog {self.document_type}:{self.document_id} ({self.confidence_score:.0%})"
+
     def _calculate_precision_delta(self) -> float:
         orig = self.original_extracted_data or {}
         corr = self.user_corrected_data or {}
@@ -306,6 +309,9 @@ class AIFeedback(TenantAwareModel):
             models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_fb_item_entity_idx'),
         ]
 
+    def __str__(self) -> str:
+        return f"AIFeedback #{self.pk} ({self.entity_type or 'general'})"
+
 
 class VectorMemory(TenantAwareModel):
     """Tenant-scoped vector memory for PM-AS.
@@ -331,6 +337,9 @@ class VectorMemory(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'source_type'], name='ai_vec_tenant_src_idx'),
         ]
+
+    def __str__(self) -> str:
+        return f"VectorMemory {self.source_type}:{self.document_id or 'n/a'}"
 
 
 class TenantKnowledgeFact(TenantAwareModel):
@@ -363,6 +372,10 @@ class TenantKnowledgeFact(TenantAwareModel):
             models.Index(fields=['tenant', 'domain_category'], name='ai_kf_tenant_domain_idx'),
         ]
 
+    def __str__(self) -> str:
+        preview = (self.fact_text or '')[:60]
+        return f"Fact [{self.domain_category or 'general'}] {preview}"
+
 
 class TenantAIMemory(TenantAwareModel):
     """Tenant-scoped long-term memory for durable rules/preferences.
@@ -394,6 +407,9 @@ class TenantAIMemory(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'key'], name='ai_mem_tenant_key_idx'),
         ]
+
+    def __str__(self) -> str:
+        return f"Memory [{self.key}]"
 
 
 def aidocument_upload_to(instance: "AIDocument", filename: str) -> str:
@@ -465,6 +481,9 @@ class AIDocument(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'owner', 'created_on'], name='aidoc_tnt_owner_created_idx'),
         ]
+
+    def __str__(self) -> str:
+        return self.original_filename or f"AIDocument #{self.pk}"
 
 
 class AIDocumentSemanticChunk(TenantAwareModel):
@@ -605,6 +624,9 @@ class CommunicationLog(TenantAwareModel):
             models.Index(fields=['tenant', 'status', 'created_on'], name='ai_comms_tenant_status_idx'),
             models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_comms_tenant_entity_idx'),
         ]
+
+    def __str__(self) -> str:
+        return f"Comm→{self.to_email} ({self.status})"
 
 
 class AIRunStatus(models.TextChoices):
