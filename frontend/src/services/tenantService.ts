@@ -85,17 +85,20 @@ export class TenantService {
         },
       });
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : null) as Record<string, unknown> | null;
+      const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error';
       // Enhanced error handling with detailed messages
-      if (error.response) {
+      if (resp) {
         // Server responded with error
-        const status = error.response.status;
-        const data = error.response.data;
+        const status = resp.status as number;
+        const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
         
         if (status === 400) {
           // Validation error - extract specific message
           if (data.logo) {
-            throw new Error(`Logo validation failed: ${Array.isArray(data.logo) ? data.logo.join(', ') : data.logo}`);
+            throw new Error(`Logo validation failed: ${Array.isArray(data.logo) ? (data.logo as string[]).join(', ') : data.logo}`);
           } else if (data.detail) {
             throw new Error(`Upload failed: ${data.detail}`);
           } else {
@@ -108,12 +111,12 @@ export class TenantService {
         } else {
           throw new Error(`Upload failed with status ${status}: ${data.detail || 'Unknown error'}`);
         }
-      } else if (error.request) {
+      } else if (errObj.request) {
         // Request made but no response
         throw new Error('Network error: Unable to reach server. Please check your connection.');
       } else {
         // Error setting up request
-        throw new Error(`Upload error: ${error.message}`);
+        throw new Error(`Upload error: ${message}`);
       }
     }
   }
@@ -162,23 +165,28 @@ export class TenantService {
         }
       );
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : null) as Record<string, unknown> | null;
+      const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error';
       // Enhanced error handling
-      if (error.response) {
-        const status = error.response.status;
-        const data = error.response.data;
+      if (resp) {
+        const status = resp.status as number;
+        const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+        const headers = (resp.headers && typeof resp.headers === 'object' ? resp.headers : {}) as Record<string, unknown>;
         
         // Check if response is HTML instead of JSON (common issue)
-        const contentType = error.response.headers['content-type'];
-        if (contentType && contentType.includes('text/html')) {
+        const contentType = headers['content-type'];
+        if (typeof contentType === 'string' && contentType.includes('text/html')) {
+          const config = (errObj.config && typeof errObj.config === 'object' ? errObj.config : {}) as Record<string, unknown>;
           logger.error(
             'Received HTML response instead of JSON',
             {
               component: 'TenantService',
               metadata: {
                 status,
-                url: error.config?.url,
-                method: error.config?.method,
+                url: config.url,
+                method: config.method,
               },
             },
             error
@@ -205,10 +213,10 @@ export class TenantService {
         } else {
           throw new Error(`Settings update failed with status ${status}: ${data.detail || 'Unknown error'}`);
         }
-      } else if (error.request) {
+      } else if (errObj.request) {
         throw new Error('Network error: Unable to reach server. Please check your connection.');
       } else {
-        throw new Error(`Settings update error: ${error.message}`);
+        throw new Error(`Settings update error: ${message}`);
       }
     }
   }
@@ -237,11 +245,14 @@ export class TenantService {
 
       const response = await apiClient.post(`/tenants/${id}/update_theme/`, data);
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : null) as Record<string, unknown> | null;
+      const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error';
       // Enhanced error handling
-      if (error.response) {
-        const status = error.response.status;
-        const data = error.response.data;
+      if (resp) {
+        const status = resp.status as number;
+        const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
         
         if (status === 400) {
           // Validation error
@@ -257,10 +268,10 @@ export class TenantService {
         } else {
           throw new Error(`Theme update failed with status ${status}: ${data.detail || data.error || 'Unknown error'}`);
         }
-      } else if (error.request) {
+      } else if (errObj.request) {
         throw new Error('Network error: Unable to reach server. Please check your connection.');
       } else {
-        throw new Error(`Theme update error: ${error.message}`);
+        throw new Error(`Theme update error: ${message}`);
       }
     }
   }

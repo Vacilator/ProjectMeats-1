@@ -537,9 +537,12 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
       reset();
       onSuccess();
       onClose();
-    } catch (err: any) {
-      const apiMsg = err?.response?.data?.detail || err?.response?.data?.error || err?.message;
-      setError(typeof apiMsg === 'string' ? apiMsg : 'Failed to create inquiry. Please try again.');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const apiMsg = (typeof data.detail === 'string' ? data.detail : '') || (typeof data.error === 'string' ? data.error : '') || (typeof errObj.message === 'string' ? errObj.message : '');
+      setError(typeof apiMsg === 'string' && apiMsg ? apiMsg : 'Failed to create inquiry. Please try again.');
     } finally {
       setSubmitting(false);
     }

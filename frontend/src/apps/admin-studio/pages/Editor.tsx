@@ -97,11 +97,12 @@ const Editor: React.FC<EditorProps> = () => {
         content: 'Workflow published successfully.',
         type: 'success',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error publishing:', error);
+      const message = (error && typeof error === 'object' && 'message' in error) ? String((error as Record<string, unknown>).message) : 'Failed to publish workflow.';
       showAlert({
         title: 'Publish failed',
-        content: error?.message ?? 'Failed to publish workflow.',
+        content: message,
         type: 'error',
       });
     } finally {
@@ -141,11 +142,12 @@ const Editor: React.FC<EditorProps> = () => {
         content: 'Workflow unpublished successfully.',
         type: 'success',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error unpublishing:', error);
+      const message = (error && typeof error === 'object' && 'message' in error) ? String((error as Record<string, unknown>).message) : 'Failed to unpublish workflow.';
       showAlert({
         title: 'Unpublish failed',
-        content: error?.message ?? 'Failed to unpublish workflow.',
+        content: message,
         type: 'error',
       });
     } finally {

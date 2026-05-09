@@ -1325,10 +1325,11 @@ const SchemaEditor: React.FC = () => {
         setSaveStatus('saved');
         notify.success('Schema saved successfully');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error saving schema:', error);
       setSaveStatus('unsaved');
-      notify.error(`Failed to save schema: ${error.message || 'Unknown error'}`);
+      const message = (error && typeof error === 'object' && 'message' in error) ? String((error as Record<string, unknown>).message) : 'Unknown error';
+      notify.error(`Failed to save schema: ${message}`);
     }
   }, [fields, blueprintId]);
 

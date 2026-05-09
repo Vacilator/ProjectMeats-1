@@ -190,8 +190,11 @@ export class AuthService {
       }
 
       return normalizedUser;
-    } catch (error: any) {
-      const serverMessage = error?.response?.data?.error || error?.response?.data?.detail;
+    } catch (error: unknown) {
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const serverMessage = (typeof data.error === 'string' ? data.error : '') || (typeof data.detail === 'string' ? data.detail : '');
       throw new Error(serverMessage || 'Guest login failed');
     }
   }
@@ -239,13 +242,15 @@ export class AuthService {
       }
 
       return normalizedUser;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const serverData = (resp.data && typeof resp.data === 'object' ? resp.data : null) as Record<string, unknown> | null;
       // Enhanced error handling to capture validation errors
-      const serverData = error.response?.data;
       let errorMessage = 'Sign up failed';
       
       if (serverData) {
-          if (serverData.error) {
+          if (typeof serverData.error === 'string') {
               errorMessage = serverData.error;
           } else if (typeof serverData === 'object') {
               // Combine validation errors into a string
