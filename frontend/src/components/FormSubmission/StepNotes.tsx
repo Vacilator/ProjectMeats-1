@@ -8,6 +8,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
 import { logger } from '@/utils/logger';
+import { formatDateLocal } from '@/utils/formatters';
 
 interface Note {
   id: number;
@@ -292,21 +293,6 @@ export const StepNotes: React.FC<StepNotesProps> = ({
     }
   }, [newNote, isAdding, disabled, submissionId, stepId, stepName]);
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
-  };
-
   return (
     <NotesContainer>
       <NotesHeader onClick={() => setIsExpanded(prev => !prev)}>
@@ -337,7 +323,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
                   <NoteItem key={note.id} isPinned={note.is_pinned}>
                     <NoteHeader>
                       <NoteAuthor>{note.created_by_name || 'Unknown'}</NoteAuthor>
-                      <NoteTime>{formatDate(note.created_on)}</NoteTime>
+                      <NoteTime>{formatDateLocal(note.created_on)}</NoteTime>
                     </NoteHeader>
                     <NoteText>{note.content}</NoteText>
                   </NoteItem>

@@ -10,6 +10,7 @@ import {
   type PurchaseOrderReviewContext,
 } from '@/services/purchaseOrderReviewService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { formatDateLocal } from '@/utils/formatters';
 import { TradeLineageFlow } from '@/components/Cockpit/TradeLineageFlow';
 
 const { Paragraph, Text, Title } = Typography;
@@ -28,14 +29,6 @@ const formatMoney = (value: string | number | null | undefined): string => {
   }
   const numeric = Number(value);
   return Number.isFinite(numeric) ? `$${numeric.toFixed(2)}` : String(value);
-};
-
-const formatDate = (value?: string | null): string => {
-  if (!value) {
-    return '—';
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
 };
 
 const statusTone = (status?: string): 'blue' | 'gold' | 'green' | 'default' => {
@@ -170,7 +163,7 @@ export const PurchaseOrderReview: React.FC = () => {
               {
                 key: 'order-date',
                 label: 'Order Date',
-                children: formatDate(purchaseOrder.order_date),
+                children: formatDateLocal(purchaseOrder.order_date),
               },
               {
                 key: 'item',

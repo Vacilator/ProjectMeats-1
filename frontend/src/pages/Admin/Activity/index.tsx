@@ -24,6 +24,7 @@ import { AdminGuard, AdminPage, AdminSection, EmptyState, LoadingSkeleton } from
 import { Button } from '@/components/ui/Button';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { logger } from '@/utils/logger';
+import { formatToLocal } from '@/utils/formatters';
 
 interface ActivityLog {
   id: number;
@@ -214,28 +215,6 @@ const ActivityPage: React.FC = () => {
     loadLogs(1, false, appliedFilters);
   }, [canView]);
 
-  const formatDateTime = (isoString: string) => {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
-
   const getActionIcon = (action: string) => {
     if (action.includes('invite') || action.includes('create')) return <CheckCircle size={16} />;
     if (action.includes('deactivate') || action.includes('delete')) return <XCircle size={16} />;
@@ -392,7 +371,7 @@ const ActivityPage: React.FC = () => {
                         <ActionBadge $tone={tone}>{log.action_display}</ActionBadge>
                         <ActivityTime>
                           <Clock size={14} />
-                          {formatDateTime(log.created_at)}
+                          {formatToLocal(log.created_at)}
                         </ActivityTime>
                       </ActivityMeta>
 

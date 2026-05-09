@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import styled, { css, keyframes } from 'styled-components';
+import { formatDateLocal } from '@/utils/formatters';
 
 // ============================================================================
 // TYPES
@@ -359,16 +360,6 @@ const getStatusLabel = (status: TimelineStepStatus): string => {
   }
 };
 
-const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
 const getInitials = (name: string): string => {
   return name
     .split(' ')
@@ -431,7 +422,7 @@ export const WorkflowStatusTimeline: React.FC<WorkflowStatusTimelineProps> = ({
                 {step.completedAt && (
                   <MetaItem>
                     <MetaIcon>📅</MetaIcon>
-                    {formatDate(step.completedAt)}
+                    {formatDateLocal(step.completedAt)}
                   </MetaItem>
                 )}
 

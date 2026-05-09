@@ -11,6 +11,7 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { formatDateLocal } from '@/utils/formatters';
 import {
   Inquiry,
   InquiryProduct,
@@ -419,11 +420,6 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   const canQuote = inquiry.status === 'draft' || inquiry.status === 'pending';
   const canAcceptReject = inquiry.status === 'quoted';
 
-  const formatDate = (dateStr: string | undefined) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString();
-  };
-
   return (
     <>
       <InquiryModalOverlay $open={isOpen} onClick={onClose}>
@@ -434,7 +430,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 📋 {inquiry.inquiry_number}
               </ModalTitle>
               <HeaderMeta>
-                <span>Created {formatDate(inquiry.created_on)}</span>
+                <span>Created {formatDateLocal(inquiry.created_on)}</span>
                 {inquiry.created_by_name && <span>by {inquiry.created_by_name}</span>}
               </HeaderMeta>
             </HeaderLeft>
@@ -542,7 +538,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 <InfoItem>
                   <span className="label">Valid Until</span>
                   <span className="value" style={{ color: inquiry.is_expired ? 'rgb(var(--color-error))' : undefined }}>
-                    {formatDate(inquiry.valid_until)} {inquiry.is_expired && '(Expired)'}
+                    {formatDateLocal(inquiry.valid_until)} {inquiry.is_expired && '(Expired)'}
                   </span>
                 </InfoItem>
               </InfoGrid>

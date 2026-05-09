@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
 import { logger } from '@/utils/logger';
+import { formatDateLocal } from '@/utils/formatters';
 
 // ============================================================================
 // Types
@@ -429,11 +430,6 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
     }
   };
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString();
-  };
-
   const formatCurrency = (value: number | null) => {
     if (value === null || value === undefined) return '-';
     return new Intl.NumberFormat('en-US', {
@@ -537,19 +533,19 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
                 <InfoGrid>
                   <InfoItem>
                     <div className="label">Created</div>
-                    <div className="value">{formatDate(fulfillment.created_on)}</div>
+                    <div className="value">{formatDateLocal(fulfillment.created_on)}</div>
                   </InfoItem>
                   <InfoItem>
                     <div className="label">Ship Date</div>
-                    <div className="value">{formatDate(fulfillment.ship_date)}</div>
+                    <div className="value">{formatDateLocal(fulfillment.ship_date)}</div>
                   </InfoItem>
                   <InfoItem>
                     <div className="label">Expected Delivery</div>
-                    <div className="value">{formatDate(fulfillment.expected_delivery)}</div>
+                    <div className="value">{formatDateLocal(fulfillment.expected_delivery)}</div>
                   </InfoItem>
                   <InfoItem>
                     <div className="label">Actual Delivery</div>
-                    <div className="value">{formatDate(fulfillment.actual_delivery)}</div>
+                    <div className="value">{formatDateLocal(fulfillment.actual_delivery)}</div>
                   </InfoItem>
                 </InfoGrid>
               </Section>

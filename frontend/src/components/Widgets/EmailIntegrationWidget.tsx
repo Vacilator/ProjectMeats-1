@@ -13,6 +13,7 @@ import { Mail, CheckCircle, AlertTriangle, XCircle, Plus, Trash2, RefreshCw } fr
 import { apiClient } from '../../services/apiService';
 import { toApiErrorText } from '@/services/apiErrorPresentation';
 import { logger } from '@/utils/logger';
+import { formatDateLocal } from '@/utils/formatters';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 
 // ============================================================================
@@ -417,12 +418,6 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     }
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Never';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
   if (loading) {
     return (
       <Container>
@@ -512,11 +507,11 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
 
               <AccountMeta>
                 <MetaItem>
-                  Connected: {formatDate(account.created_at)}
+                  Connected: {formatDateLocal(account.created_at)}
                 </MetaItem>
                 {account.last_synced_at && (
                   <MetaItem>
-                    Last Sync: {formatDate(account.last_synced_at)}
+                    Last Sync: {formatDateLocal(account.last_synced_at)}
                   </MetaItem>
                 )}
               </AccountMeta>

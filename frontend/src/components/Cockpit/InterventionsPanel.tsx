@@ -15,6 +15,7 @@ import type {
   TradeExceptionQueueItem,
   TradeExceptionStatus,
 } from '@/services/tradeExceptionQueueService';
+import { formatToLocal } from '@/utils/formatters';
 
 const STATUS_LABELS: Record<TradeExceptionStatus, string> = {
   open: 'Open',
@@ -354,14 +355,6 @@ const CodeBlock = styled.pre`
   word-break: break-word;
 `;
 
-const formatDateTime = (value?: string | null): string => {
-  if (!value) {
-    return '—';
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-};
-
 const formatStepLabel = (value: string): string =>
   value
     .split('.')
@@ -568,7 +561,7 @@ export const InterventionsPanel: React.FC = () => {
                   <ItemMeta>
                     <span>{formatStepLabel(item.failed_step)}</span>
                     <span>{item.reason_code}</span>
-                    <span>{formatDateTime(item.created_on)}</span>
+                    <span>{formatToLocal(item.created_on)}</span>
                     {item.active_sibling_count > 0 ? (
                       <span>{item.active_sibling_count} other active exception(s)</span>
                     ) : null}
@@ -692,7 +685,7 @@ export const InterventionsPanel: React.FC = () => {
                   <MetaGrid>
                     {selectedDetail.recent_events.map((event) => (
                       <MetaCard key={event.event_id}>
-                        <MetaLabel>{formatDateTime(event.created_on)}</MetaLabel>
+                        <MetaLabel>{formatToLocal(event.created_on)}</MetaLabel>
                         <MetaValue>{event.event_type}</MetaValue>
                         <DetailText>
                           {event.entity_type || 'event'}

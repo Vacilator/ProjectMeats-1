@@ -14,6 +14,7 @@ import { PageContainer } from '../../components/ui/PageContainer';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { logger } from '@/utils/logger';
+import { formatToLocal } from '@/utils/formatters';
 
 
 interface WorkflowRun {
@@ -409,20 +410,6 @@ export const WorkflowMonitor: React.FC = () => {
     }
   };
 
-  const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
-  };
-
   const handleWorkflowClick = (runId: string) => {
     navigate(`/workflows/run/${runId}`);
   };
@@ -528,7 +515,7 @@ export const WorkflowMonitor: React.FC = () => {
                     <MetaInfo>
                       <MetaItem>
                         <Clock size={14} />
-                        Started {formatDate(run.created_on)}
+                        Started {formatToLocal(run.created_on)}
                       </MetaItem>
                       <MetaItem>
                         Run ID: {run.id.slice(0, 8)}...
@@ -550,7 +537,7 @@ export const WorkflowMonitor: React.FC = () => {
                     {run.status === 'COMPLETED' && (
                       <StatusMessage status="COMPLETED">
                         <CheckCircle size={16} />
-                        Completed {formatDate(run.modified_on)}
+                        Completed {formatToLocal(run.modified_on)}
                       </StatusMessage>
                     )}
 

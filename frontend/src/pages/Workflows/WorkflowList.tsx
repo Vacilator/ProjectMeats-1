@@ -16,6 +16,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/C
 import { Button } from '../../components/ui/Button';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import { logger } from '@/utils/logger';
+import { formatDateLocal } from '@/utils/formatters';
 
 interface Blueprint {
   id: string;
@@ -152,15 +153,6 @@ export const WorkflowList: React.FC = () => {
     startWorkflowMutation.mutate(slug);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   return (
     <PageContainer 
       title="Workflows" 
@@ -215,7 +207,7 @@ export const WorkflowList: React.FC = () => {
                   </div>
                   <BlueprintMeta>
                     <MetaItem>
-                      📅 Added {formatDate(blueprint.created_at)}
+                      📅 Added {formatDateLocal(blueprint.created_at)}
                     </MetaItem>
                   </BlueprintMeta>
                 </BlueprintCardContent>
