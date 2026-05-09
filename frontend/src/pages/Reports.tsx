@@ -72,9 +72,12 @@ const Reports: React.FC = () => {
       setSummary(s);
       setPoTrends(t.data || []);
       setTopSuppliers(ts.data || []);
-    } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.response?.data?.detail || err?.message;
-      setError(typeof msg === 'string' ? msg : 'Failed to load reports');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const msg = (typeof data.error === 'string' ? data.error : '') || (typeof data.detail === 'string' ? data.detail : '') || (typeof errObj.message === 'string' ? errObj.message : '');
+      setError(typeof msg === 'string' && msg ? msg : 'Failed to load reports');
     } finally {
       setLoading(false);
     }

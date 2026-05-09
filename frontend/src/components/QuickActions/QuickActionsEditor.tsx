@@ -97,14 +97,14 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
       await updateQuickActions(localActions);
       await refreshQuickActions();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Save failed', { component: 'QuickActionsEditor' }, err);
       // Extract detailed error from response
-      const errorMsg = err?.response?.data?.error ||
-                       err?.response?.data?.details ||
-                       err?.message ||
-                       'Failed to save quick actions';
-      const errorDetails = typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg;
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = data.error || data.details || errObj.message || 'Failed to save quick actions';
+      const errorDetails = typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : String(errorMsg);
       setError(errorDetails);
     } finally {
       setIsSaving(false);

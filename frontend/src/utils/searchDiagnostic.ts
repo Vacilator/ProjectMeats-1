@@ -39,17 +39,19 @@ export const searchDiagnostic = async (query: string = 'test') => {
       logger.error('❌ Invalid response format:', response);
     }
     
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
     logger.error('❌ Search failed:', error);
-    logger.error('   Status:', error.response?.status);
-    logger.error('   Message:', error.response?.data);
+    logger.error('   Status:', resp.status);
+    logger.error('   Message:', resp.data);
     logger.error('   Full error:', error);
     
-    if (error.response?.status === 401) {
+    if (resp.status === 401) {
       logger.error('   Issue: Not authenticated');
-    } else if (error.response?.status === 403) {
+    } else if (resp.status === 403) {
       logger.error('   Issue: Missing tenant context or permissions');
-    } else if (error.response?.status === 404) {
+    } else if (resp.status === 404) {
       logger.error('   Issue: Endpoint not found - check URL');
     }
   }

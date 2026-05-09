@@ -226,9 +226,10 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       if (anySucceeded) {
         setAvailableForms(combined);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to load quick actions:', err);
-      setError(err?.message || 'Failed to load quick actions');
+      const message = (err && typeof err === 'object' && 'message' in err) ? String((err as Record<string, unknown>).message) : 'Failed to load quick actions';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -259,9 +260,10 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       setError(null);
       const response = await quickActionsService.updateQuickActions(items);
       setQuickActions(response.items);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to update quick actions:', err);
-      setError(err.message || 'Failed to update quick actions');
+      const message = (err && typeof err === 'object' && 'message' in err) ? String((err as Record<string, unknown>).message) : 'Failed to update quick actions';
+      setError(message);
       throw err;
     }
   }, []);
@@ -337,7 +339,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       logger.debug('[QuickActions] Opening form modal for formId:', formId);
       const submission = await startFormSubmission(formId);
       logger.debug('[QuickActions] Form submission created:', submission?.id);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[QuickActions] Failed to start form submission:', err);
       const presentation = getApiErrorPresentation(err, { fallbackMessage: 'Failed to start form' });
       setError(presentation.friendlyMessage);

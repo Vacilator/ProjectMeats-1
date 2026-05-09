@@ -195,8 +195,10 @@ export const quickActionsService = {
       // Handle both paginated {results: []} and non-paginated [] responses
       const data = response.data;
       return Array.isArray(data) ? data : (data.results || []);
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const status = resp.status as number | undefined;
 
       // Circuit breaker: prevent app-wide remount loops on backend 5xx.
       if (typeof status === 'number' && status >= 500) {
@@ -304,24 +306,26 @@ export const formSubmissionService = {
       cancelTokenManager.remove(cancelKey);
       logger.debug('[autoSave] Success:', response.data);
       return response.data;
-    } catch (err: any) {
+    } catch (err: unknown) {
       cancelTokenManager.remove(cancelKey);
       
       if (axios.isCancel(err)) {
         logger.debug('[autoSave] Cancelled:', { submissionId, stepId, fieldKey });
         // Mark error with __CANCEL__ for easier detection
         const cancelError = new Error('Request cancelled');
-        (cancelError as any).__CANCEL__ = true;
+        (cancelError as unknown as Record<string, unknown>).__CANCEL__ = true;
         throw cancelError;
       }
       
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
       logger.error('[autoSave] Error:', {
         submissionId,
         stepId,
         fieldKey,
-        status: err?.response?.status,
-        data: err?.response?.data,
-        message: err?.message,
+        status: resp.status,
+        data: resp.data,
+        message: errObj.message,
       });
       throw err;
     }

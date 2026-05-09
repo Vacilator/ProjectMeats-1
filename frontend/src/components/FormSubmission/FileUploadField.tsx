@@ -300,13 +300,16 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
         size: file.size,
         type: file.type,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       setUploadProgress(prev => {
         const newProgress = { ...prev };
         delete newProgress[tempId];
         return newProgress;
       });
-      setError(err.response?.data?.error || 'Failed to upload file');
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.error === 'string' ? data.error : '') || 'Failed to upload file');
       return null;
     }
   };

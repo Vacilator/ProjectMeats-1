@@ -214,9 +214,13 @@ export async function loadTenantForm(tenantFormId: string): Promise<TenantForm> 
   try {
     const response = await adminClient.get(`/workflows/forms/${tenantFormId}/`);
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[TenantFormService] Load failed:', error);
-    throw new Error(`Failed to load form: ${error.response?.data?.detail || error.message}`);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+    const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+    const detail = typeof data.detail === 'string' ? data.detail : (typeof errObj.message === 'string' ? errObj.message : 'Unknown error');
+    throw new Error(`Failed to load form: ${detail}`);
   }
 }
 
@@ -230,9 +234,13 @@ export async function deleteTenantForm(tenantFormId: string): Promise<void> {
   
   try {
     await adminClient.delete(`/workflows/forms/${tenantFormId}/`);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[TenantFormService] Delete failed:', error);
-    throw new Error(`Failed to delete form: ${error.response?.data?.detail || error.message}`);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+    const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+    const detail = typeof data.detail === 'string' ? data.detail : (typeof errObj.message === 'string' ? errObj.message : 'Unknown error');
+    throw new Error(`Failed to delete form: ${detail}`);
   }
 }
 
@@ -247,9 +255,13 @@ export async function listTenantForms(): Promise<TenantForm[]> {
   try {
     const response = await adminClient.get('/workflows/forms/');
     return response.data.results || response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[TenantFormService] List failed:', error);
-    throw new Error(`Failed to list forms: ${error.response?.data?.detail || error.message}`);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+    const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+    const detail = typeof data.detail === 'string' ? data.detail : (typeof errObj.message === 'string' ? errObj.message : 'Unknown error');
+    throw new Error(`Failed to list forms: ${detail}`);
   }
 }
 
