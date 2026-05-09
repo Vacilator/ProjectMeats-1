@@ -534,7 +534,7 @@ const AICommandCenter: React.FC = () => {
         id: `ai-${review.id}`,
         source: 'ai-inbox' as const,
         icon: 'mail' as const,
-        title: review.source_subject || (review as any).source_document_name || 'Email Review',
+        title: review.source_subject || review.source_document_name || 'Email Review',
         subtitle: [
           review.sender && `From: ${review.sender}`,
           review.intent_label && `Intent: ${review.intent_label}`,
@@ -984,7 +984,7 @@ const AICommandCenter: React.FC = () => {
             <Alert
               type="error"
               message="Failed to load AI inbox items"
-              description={String((reviewsQuery.error as any)?.message || 'Unknown error')}
+              description={reviewsQuery.error instanceof Error ? reviewsQuery.error.message : 'Unknown error'}
               showIcon
               action={<Button size="small" onClick={() => reviewsQuery.refetch()}>Retry</Button>}
             />
@@ -1062,7 +1062,7 @@ const AICommandCenter: React.FC = () => {
             <Alert
               type="error"
               message="Failed to load trades"
-              description={String((tradesQuery.error as any)?.message || 'Unknown error')}
+              description={tradesQuery.error instanceof Error ? tradesQuery.error.message : 'Unknown error'}
               showIcon
               action={<Button size="small" onClick={() => tradesQuery.refetch()}>Retry</Button>}
             />
