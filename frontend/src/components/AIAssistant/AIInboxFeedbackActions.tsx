@@ -95,8 +95,12 @@ export const AIInboxFeedbackActions: React.FC<AIInboxFeedbackActionsProps> = ({
           retrainingStatus: response.retraining_status,
           retrainingQueuedAt: response.retraining_queued_at,
         });
-      } catch (error: any) {
-        message.error(error?.response?.data?.feedback_comment?.[0] || 'Unable to save AI Inbox feedback.');
+      } catch (error: unknown) {
+        const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+        const feedbackErr = Array.isArray(data.feedback_comment) ? (data.feedback_comment[0] as string) : null;
+        message.error(feedbackErr || 'Unable to save AI Inbox feedback.');
       } finally {
         setSubmittingSignal(null);
       }

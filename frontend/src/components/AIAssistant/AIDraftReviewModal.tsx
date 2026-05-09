@@ -14,20 +14,9 @@ import {
   resolveDraftEntityType,
 } from '@/utils/aiDraftFormMapping';
 import { buildReviewDetailsPathFromItem } from '@/utils/reviewDetailsPath';
+import { getErrorMessage } from '@/utils/errorHelpers';
 
 const { Paragraph, Text, Title } = Typography;
-
-/** Safely extract error message from axios-like error objects. */
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (error && typeof error === 'object') {
-    const e = error as Record<string, unknown>;
-    const resp = e.response as Record<string, unknown> | undefined;
-    const data = resp?.data as Record<string, unknown> | undefined;
-    if (typeof data?.error === 'string') return data.error;
-    if (typeof (e as { message?: string }).message === 'string') return (e as { message?: string }).message!;
-  }
-  return fallback;
-};
 
 type AIDraftReviewModalProps = {
   open: boolean;

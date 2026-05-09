@@ -552,11 +552,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
       setResults(grouped);
       setResultCounts(response.counts);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const response = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
       logger.error('[SmartSearch] Search failed', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
+        message: (errObj as { message?: string }).message,
+        response: response.data,
+        status: response.status,
       });
       setResults({});
       setResultCounts({});

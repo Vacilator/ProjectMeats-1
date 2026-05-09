@@ -370,12 +370,12 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
   });
 
   const customerOptions = useMemo(
-    () => (customersQuery.data || []).map((c: any) => ({ value: c.id, label: c.name || c.company_name || c.id })),
+    () => (customersQuery.data || []).map((c: Record<string, string>) => ({ value: c.id, label: c.name || c.company_name || c.id })),
     [customersQuery.data]
   );
 
   const supplierOptions = useMemo(
-    () => (suppliersQuery.data || []).map((s: any) => ({ value: s.id, label: s.name || s.company_name || s.id })),
+    () => (suppliersQuery.data || []).map((s: Record<string, string>) => ({ value: s.id, label: s.name || s.company_name || s.id })),
     [suppliersQuery.data]
   );
 
