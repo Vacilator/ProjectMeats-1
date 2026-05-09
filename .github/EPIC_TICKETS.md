@@ -43,12 +43,12 @@
 | Shipped | AMB-01.2 contextual-suggestions-endpoint-and-service | Phase 19 | backend/ai |
 | Shipped | AMB-02.1 ambient-suggestions-component-and-service-hook | Phase 19 | frontend |
 | Shipped | AMB-02.2 record-page-header-integration-and-action-wiring | Phase 19 | frontend |
-| **P0 (Now)** | AMB-03.1 product-anomaly-baseline-service-and-threshold-contract | Phase 19 | backend/data |
-| P1 | RT-04.3 quick-master-data-creation-in-context | Phase 17 | full-stack |
-| P2 | RT-05 (editor stabilization) | Phase 17 | frontend |
-| P3 | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
-| P4 | RT-10 (template library) | Phase 18 | full-stack |
-| P5 | AMB-01–04 (ambient AI) | Phase 19 | full-stack |
+| Shipped | AMB-03.1 product-anomaly-baseline-service-and-threshold-contract | Phase 19 | backend/data |
+| Shipped | RT-04.3 quick-master-data-creation-in-context | Phase 17 | full-stack |
+| Shipped | RT-05 (editor stabilization) | Phase 17 | frontend |
+| Shipped | RT-06–09 (scale & analytics) | Phase 18 | full-stack |
+| Shipped | RT-10 (template library) | Phase 18 | full-stack |
+| Shipped | AMB-01–04 (ambient AI) | Phase 19 | full-stack |
 
 ## Dependency Graph
 
@@ -567,7 +567,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ### Epic AMB-03 - Predictive anomaly detection
 
 - [x] **AMB-03.1 product-anomaly-baseline-service-and-threshold-contract**
-  - **Status:** Ready
+  - **Status:** Shipped
   - **Why now:** Form-level anomaly warnings need one canonical baseline/threshold service before any UI can warn operators about suspicious values.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-03
   - **Scope:** Define and implement the 90-day historical baseline service for price/weight/value outliers, including per-product aggregation rules, threshold semantics, and tenant-safe access patterns.
@@ -585,7 +585,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **AMB-03.2 universal-form-soft-warning-anomaly-flow**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Operators need anomaly feedback inside the save flow instead of discovering suspect values after records are committed.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-03
   - **Scope:** Hook anomaly checks into `UniversalEntityForm` save/validation flow, render a soft confirmation warning when values exceed thresholds, and preserve explicit operator override behavior.
@@ -605,7 +605,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ### Epic AMB-04 - Contextual email drafting
 
 - [x] **AMB-04.1 contextual-email-draft-service-and-outlook-contract**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Supplier/customer pages cannot offer hyper-personalized draft actions until one canonical backend service can summarize recent order, balance, and delay context into a safe email draft payload.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-04
   - **Scope:** Build the contextual email-draft service/contract that reads the last five orders, outstanding balances, and recent delays, then generates an Outlook-ready draft payload with reviewable subject/body metadata.
@@ -623,7 +623,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **AMB-04.2 supplier-customer-ambient-draft-actions**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** The final operator value is the one-click ambient action on supplier/customer records that opens a ready-to-review draft.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 19 / Epic AMB-04
   - **Scope:** Add ambient draft-email actions on Supplier and Customer detail pages, wire them to the contextual draft service, and hand the generated payload into the existing Outlook review/send flow.
@@ -839,7 +839,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-04.3 quick-master-data-creation-in-context**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Operators must be able to create missing dependencies without leaving the process context.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-04
   - **Scope:** Add quick master-data creation flows (Supplier, Customer, Contact, Plant) inside AI Inbox review panels and form nodes when missing dependencies are detected during parsing or execution.
@@ -857,7 +857,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-05.1 editor-visual-support-for-complex-nodes**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** The editor must render FormProcess groups, ForEach/DoUntil nodes, conditional fields, and multi-selects for the EndToEndInquiryToPOProcess template.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-05
   - **Scope:** Add visual rendering support in the Workform Editor for FormProcess group containers, ForEach/DoUntil loop nodes, conditional field visibility, and multi-select configuration panels.
@@ -875,7 +875,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-05.2 create-variant-workflow**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Operators need to create process variants without rebuilding from scratch.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 17 / Epic RT-05
   - **Scope:** Add "Create Variant" action in the editor that clones an existing process template into a new editable version with variant metadata, preserving lineage to the source template.
@@ -900,7 +900,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 > **Canonical reference:** `MASTER_PLAN.md` → Phase 18
 
 - [x] **RT-06.1 in-app-email-notification-service**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Operators need real-time awareness of process events without polling the cockpit.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
   - **Scope:** Build a tenant-scoped notification service that emits in-app and email notifications for every major EndToEndInquiryToPOProcess event (new bid received, due date approaching, PO received, approval needed, process failure). Route notifications using Plant Contact Type + Responsibilities from the enriched contact model.
@@ -918,7 +918,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-06.2 quick-action-center-panel**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Operators need one-click access to common actions without navigating through forms.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
   - **Scope:** Create a persistent "Quick Actions" panel component rendered in the Process Cockpit sidebar and on every entity detail page. Actions include: Approve Bid, Send RFQ, Generate SO, Reject PO, Escalate, etc. Actions are context-aware (only show relevant actions for current entity state).
@@ -936,7 +936,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-06.3 notification-user-preferences**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Users must control notification frequency to prevent overload.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
   - **Scope:** Add user preference settings for notification frequency: realtime (immediate), daily digest, weekly digest, or off per event category. Store preferences in existing UserPreferences model. Add preferences UI in user settings page.
@@ -954,7 +954,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-06.4 notification-contact-routing-intelligence**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Notifications must reach the right person based on their role in the process.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-06
   - **Scope:** Enhance notification routing to resolve recipients from Plant Contact Type + "Responsible For" multi-selects. Financial events → Accounting contacts; QA events → QA contacts; Procurement events → Procurement contacts. Fallback to process owner when no matching contact found.
@@ -972,7 +972,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-07.1 approval-gate-node-type**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Configurable approval steps are critical for governance in the trading process.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
   - **Scope:** Introduce a new `ApprovalGate` node type that can be inserted into FormProcess groups or after BidSelection. The node pauses process execution until an authorized approver acts. Support approval rules based on: margin threshold, credit limit, supplier risk score, order value, and custom field conditions.
@@ -990,7 +990,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-07.2 cockpit-approval-panel**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Pending approvals must be visible and actionable from the Process Cockpit.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
   - **Scope:** Surface pending approvals in the Process Cockpit with React Flow visualization (approval gate node highlighted amber), one-click approve/reject buttons, approval history, and delegation option. Integrate with contact types so correct department is shown.
@@ -1008,7 +1008,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-07.3 approval-gate-template-example**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** The EndToEndInquiryToPOProcess template should demonstrate the approval pattern.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-07
   - **Scope:** Add an example ApprovalGate to the EndToEndInquiryToPOProcess template after BidSelection with rules: margin < 5% requires manager approval, order value > $50k requires finance approval. Keep existing template paths unchanged (gate is additive).
@@ -1026,7 +1026,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-08.1 financial-calculated-fields-service**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Traders need real-time financial visibility without manual calculation.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
   - **Scope:** Add background Celery job that computes and caches: Outstanding Amount, Margin %, Payment Status for Sales Orders and Purchase Orders. Store in existing `custom_data` JSONField (no schema changes). Refresh within 5 minutes of SO/PO status change.
@@ -1044,7 +1044,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-08.2 auto-invoice-generation**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Manual invoice creation is error-prone and delays payment cycles.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
   - **Scope:** Auto-generate invoice records when final PO status transitions to "received". Attach invoice PDF to entity record. Route invoice notification to Accounting department contact (Plant Contact Type). No schema changes — use existing Invoice model if present or create additive model.
@@ -1062,7 +1062,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-08.3 cockpit-financials-tab**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Traders need aggregated financial views within the process context.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-08
   - **Scope:** Add a "Financials" tab inside the Process Cockpit showing per-trade financial summary (margin, outstanding, payment status) and aggregated portfolio view (total outstanding, average margin, overdue count). Use computed fields from RT-08.1.
@@ -1088,7 +1088,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-09.1 analytics-service-and-dashboard**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Traders need data-driven insights into their process performance.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-09
   - **Scope:** Create analytics backend service that aggregates telemetry events into: win-rate by supplier, average margin trend, process cycle time, top contacts by activity. Build "Analytics" view in Process Cockpit with interactive charts. Filter by date range, trader, or specific Workform run.
@@ -1106,7 +1106,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-09.2 analytics-export-and-metrics-surface**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Key metrics should be accessible outside the dedicated analytics page.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-09
   - **Scope:** Add CSV/PDF export for all analytics views. Surface key metrics (win-rate, avg margin, cycle time) on the main dashboard widget and per-entity React Flow header. Define analytics event standards in WORKFORMS_DEVELOPER_GUIDE.md.
@@ -1124,7 +1124,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-10.1 template-library-page**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Self-service template discovery reduces dependency on developers.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-10
   - **Scope:** Create a "Template Library" page showing the official EndToEndInquiryToPOProcess template plus published variants. Include search, category filters, version badges, and usage statistics. "Create New from Main Process" button clones the core template into an editable variant with restricted modification zones (locked nodes, required connections).
@@ -1150,7 +1150,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **RT-10.2 template-version-history-and-publish**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Operators need confidence that published templates are stable and reversible.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 18 / Epic RT-10
   - **Scope:** Add version history tracking for templates (every save creates a version). Add one-click "Publish" action that promotes a draft version to active. Add "Revert to Version" for rollback. Show version diff in editor.
@@ -1219,7 +1219,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 ### Gap 1: Cross-Phase — Test Infrastructure (High ROI, Low Risk)
 
 - [x] **INFRA-01.1 backend-test-fixtures-factory-library**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Every Phase 16–18 ticket requires tenant-scoped test data. A factory library (factory_boy) eliminates repetitive fixture creation and reduces test setup from ~30 lines to ~3 lines per test.
   - **Scope:** Create `backend/apps/core/tests/factories.py` with TenantFactory, UserFactory, InquiryFactory, SupplierFactory, PurchaseOrderFactory, SalesOrderFactory, ContactFactory, PlantFactory. All factories auto-create tenant hierarchy.
   - **Primary domain:** backend/testing
@@ -1233,7 +1233,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [x] **INFRA-01.2 frontend-msw-mock-service-worker-setup**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Frontend tests that hit real APIs are flaky. MSW provides deterministic API mocking that works with Vitest and matches OpenAPI contracts.
   - **Scope:** Add MSW (Mock Service Worker) setup to frontend test infrastructure. Create handlers for core API endpoints (auth, tenants, workflows, entities). Integrate with existing Vitest config.
   - **Primary domain:** frontend/testing
@@ -1249,7 +1249,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 ### Gap 2: Phase 16 — Observability Bridge (High Impact)
 
 - [x] **CTE-04.6 structured-logging-and-trace-ids-for-trading-pipeline**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** The trading pipeline (CTE-01 through CTE-04) has no structured logging. When processes fail in production, debugging requires manual log correlation. Adding trace IDs now (while the pipeline is fresh) is 10x cheaper than retrofitting later.
   - **Scope:** Add a `trade_trace_id` UUID that propagates through all CTE services (inquiry → RFQ → reply → PO → SO). Emit structured JSON logs at each service boundary with trace_id, tenant_id, entity_id, step_name, duration_ms. Wire into existing Sentry transaction tracing.
   - **Primary domain:** backend
@@ -1265,7 +1265,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 ### Gap 3: Phase 17 — API Contract Safety (High ROI)
 
 - [x] **RT-00.1 openapi-schema-snapshot-regression-gate**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Phase 17–18 adds many new API endpoints. Without a schema regression gate, breaking changes can slip into production. This is a one-time CI addition that protects all future work.
   - **Scope:** Add CI step that generates OpenAPI schema and diffs against committed snapshot. Fail PR if schema changes without explicit `--update-schema` flag. Protects against accidental field removal, type changes, or endpoint deletion.
   - **Primary domain:** CI/CD + backend
@@ -1281,7 +1281,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 ### Gap 4: Cross-Phase — Performance Baseline (Medium Impact)
 
 - [x] **INFRA-02.1 lighthouse-ci-budget-for-critical-pages**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** Phase 17 (Process Cockpit) and Phase 18 (Analytics Dashboard) add heavy React Flow + chart components. Without a performance budget, page load can degrade silently. Adding Lighthouse CI now sets the baseline before new pages ship.
   - **Scope:** Add Lighthouse CI to PR pipeline for 5 critical pages: Dashboard, Process Cockpit, Entity Detail, Workflow Editor, Template Library. Set budgets: FCP < 2s, TTI < 4s, Bundle size < 500KB per route.
   - **Primary domain:** CI/CD + frontend
@@ -1297,7 +1297,7 @@ Packages 12+13+14 verified ──▶ Package 15 (RT-10.1 + RT-10.2)
 ### Gap 5: Phase 18 — Data Integrity Safety Net (High Impact)
 
 - [x] **RT-08.0 financial-calculation-reconciliation-job**
-  - **Status:** Blocked
+  - **Status:** Shipped
   - **Why now:** RT-08.1 introduces computed financial fields. If calculations drift from source data (e.g., due to missed events), financial reports become unreliable. A reconciliation job catches drift within 24h.
   - **Scope:** Background Celery job (daily) that recomputes all financial fields from source records and flags any drift > 0.01%. Emit alert to operations team. Auto-correct if drift is below threshold.
   - **Primary domain:** backend/celery
