@@ -4,11 +4,7 @@ Covers: enforce_idempotency programmatic API, duplicate detection,
 race condition handling, operation key generation, and error recovery.
 """
 
-import uuid
-from unittest.mock import patch, MagicMock
-
 from django.test import TestCase
-from django.utils import timezone
 
 from apps.core.models import IdempotencyKey
 from apps.core.services.idempotency_enforcement import (

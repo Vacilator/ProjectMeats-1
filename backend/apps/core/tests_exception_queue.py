@@ -1,7 +1,6 @@
 """Tests for CTE-08.1: Exception queue / dead-letter model."""
 
 import uuid
-from unittest.mock import patch
 
 from django.test import TestCase
 

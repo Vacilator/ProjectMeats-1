@@ -13,7 +13,6 @@ from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
     Inquiry,
     InquiryStatusChoices,
-    TradeSession,
     TradeSessionStatus,
 )
 from tenant_apps.inquiries.services.trade_session import (

@@ -11,13 +11,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from apps.core.utils.services import ServiceResult, TenantService
 from apps.core.utils.signals import safe_signal_handler
 from apps.core.utils.tasks import TenantTask
-from apps.core.utils.viewsets import OptimizedQuerysetMixin, StructuredErrorMixin
+from apps.core.utils.viewsets import StructuredErrorMixin
 
 
 class ServiceResultTest(TestCase):

@@ -6,9 +6,7 @@ JSONTradeFormatter, and log_trade_step utility.
 
 import json
 import logging
-import uuid
 from io import StringIO
-from unittest.mock import patch
 
 from django.test import TestCase
 

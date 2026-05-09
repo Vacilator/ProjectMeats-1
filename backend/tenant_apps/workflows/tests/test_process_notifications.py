@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from tenant_apps.workflows.services.process_notifications import (
     EVENT_CONFIG,

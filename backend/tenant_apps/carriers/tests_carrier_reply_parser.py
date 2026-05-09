@@ -1,7 +1,7 @@
 """Tests for the carrier reply parser service (CTE-04.4)."""
 
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -15,7 +15,6 @@ from tenant_apps.carriers.models import (
     CarrierFreightInquiryStatus,
 )
 from tenant_apps.carriers.services.carrier_reply_parser import (
-    CarrierReplyParseResult,
     parse_carrier_reply,
     _correlate_inquiry,
     _extract_so_references,

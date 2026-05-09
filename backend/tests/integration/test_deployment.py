@@ -18,13 +18,9 @@ Usage:
 
 import os
 import sys
-import json
-import requests
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 import argparse
-import time
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))

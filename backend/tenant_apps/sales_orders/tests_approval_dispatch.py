@@ -3,7 +3,7 @@
 import uuid
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.tenants.models import Tenant, TenantUser

@@ -10,7 +10,6 @@ Tests cover:
 - Auto-creation of stub suppliers
 """
 
-from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
