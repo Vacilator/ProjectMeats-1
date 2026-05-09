@@ -1,16 +1,17 @@
 import React, { useCallback } from 'react';
-import ReactFlow, {
-  Node,
-  Edge,
+import {
+  ReactFlow,
+  type Node,
+  type Edge,
   addEdge,
-  Connection,
+  type Connection,
   useNodesState,
   useEdgesState,
   MiniMap,
   Controls,
   Background,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import styled from 'styled-components';
 
 export interface WorkflowStage {

@@ -54,7 +54,6 @@
     "react-router-dom": "^7.14.2",
     "react-select": "^5.10.2",
     "react-window": "^2.2.7",
-    "reactflow": "^11.11.4",
     "recharts": "^3.8.1",
     "styled-components": "^6.4.1",
     "use-undo": "^1.2.0",

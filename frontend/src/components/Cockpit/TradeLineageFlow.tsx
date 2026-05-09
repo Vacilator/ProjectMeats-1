@@ -8,15 +8,16 @@
  * Theme Compliance: CSS custom properties only.
  */
 import React, { useMemo } from 'react';
-import ReactFlow, {
-  Node,
-  Edge,
+import {
+  ReactFlow,
+  type Node,
+  type Edge,
   Controls,
   Background,
   MarkerType,
   Position,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -156,6 +157,7 @@ const EmptyContainer = styled.div`
 // ============================================================================
 
 interface LineageNodeData {
+  [key: string]: unknown;
   label: string;
   entityType: string;
   entityId: string;

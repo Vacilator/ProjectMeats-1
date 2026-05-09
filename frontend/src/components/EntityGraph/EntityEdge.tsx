@@ -14,11 +14,12 @@
  */
 import React, { FC, memo } from 'react';
 import {
-  EdgeProps,
+  type EdgeProps,
+  type Edge,
   getBezierPath,
   EdgeLabelRenderer,
   BaseEdge,
-} from 'reactflow';
+} from '@xyflow/react';
 import styled from 'styled-components';
 
 // ============================================================================
@@ -26,6 +27,7 @@ import styled from 'styled-components';
 // ============================================================================
 
 export interface EntityEdgeData {
+  [key: string]: unknown;
   label?: string;
   relationship?: string;
   animated?: boolean;
@@ -82,7 +84,7 @@ const EdgeLabel = styled.div<{ $color: string }>`
 // Component
 // ============================================================================
 
-const EntityEdge: FC<EdgeProps<EntityEdgeData>> = ({
+const EntityEdge: FC<EdgeProps<Edge<EntityEdgeData>>> = ({
   id,
   sourceX,
   sourceY,
