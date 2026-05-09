@@ -1,6 +1,6 @@
 /**
  * DelegateTaskModal Component
- * 
+ *
  * Modal for delegating a task/form step to another user.
  * Allows selecting a delegate, setting due date, and adding notes.
  */
@@ -128,7 +128,7 @@ const CloseButton = styled.button`
   cursor: pointer;
   padding: 4px;
   line-height: 1;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary, 44 62 80));
   }
@@ -176,7 +176,7 @@ const SearchInput = styled.input`
   border: 1px solid rgb(var(--color-border, 224 224 224));
   border-radius: 8px;
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -203,11 +203,11 @@ const UserOption = styled.div<{ $selected: boolean }>`
     ? 'rgba(var(--color-primary), 0.1)'
     : 'transparent'};
   border-bottom: 1px solid rgb(var(--color-border, 224 224 224));
-  
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   &:hover {
     background: ${props => props.$selected
       ? 'rgba(var(--color-primary), 0.15)'
@@ -220,7 +220,7 @@ const UserAvatar = styled.div<{ $hasImage: boolean }>`
   height: 40px;
   border-radius: 50%;
   background: ${props => props.$hasImage ? 'transparent' : 'rgb(var(--color-primary, 102 126 234))'};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -228,7 +228,7 @@ const UserAvatar = styled.div<{ $hasImage: boolean }>`
   font-size: 14px;
   flex-shrink: 0;
   overflow: hidden;
-  
+
   img {
     width: 100%;
     height: 100%;
@@ -261,7 +261,7 @@ const SelectedBadge = styled.span`
   padding: 2px 8px;
   border-radius: 4px;
   background: rgb(var(--color-primary, 102 126 234));
-  color: white;
+  color: rgb(var(--color-text-inverse));
 `;
 
 const TextArea = styled.textarea`
@@ -273,7 +273,7 @@ const TextArea = styled.textarea`
   font-family: inherit;
   resize: vertical;
   min-height: 80px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -287,7 +287,7 @@ const DateInput = styled.input`
   border: 1px solid rgb(var(--color-border, 224 224 224));
   border-radius: 8px;
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -306,7 +306,7 @@ const CheckboxLabel = styled.label`
   align-items: flex-start;
   gap: 10px;
   cursor: pointer;
-  
+
   input {
     margin-top: 2px;
   }
@@ -342,19 +342,19 @@ const Button = styled.button<{ $variant: 'primary' | 'secondary' }>`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   ${props => props.$variant === 'primary' ? `
     background: rgb(var(--color-primary, 102 126 234));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     border: none;
-    
+
     &:hover:not(:disabled) { opacity: 0.9; }
     &:disabled { opacity: 0.5; cursor: not-allowed; }
   ` : `
     background: rgb(var(--color-background, 248 249 250));
     color: rgb(var(--color-text-primary, 44 62 80));
     border: 1px solid rgb(var(--color-border, 224 224 224));
-    
+
     &:hover { background: rgb(var(--color-border, 224 224 224)); }
   `}
 `;
@@ -480,7 +480,7 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
           <Title id="delegate-modal-title">Delegate Task</Title>
           <CloseButton onClick={onClose} aria-label="Close modal">×</CloseButton>
         </Header>
-        
+
         <form onSubmit={handleSubmit}>
           <Body>
             <TaskInfo>

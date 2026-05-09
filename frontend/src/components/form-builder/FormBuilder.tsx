@@ -1,9 +1,9 @@
 /**
  * Form Builder Component
- * 
+ *
  * Main FormBuilder modal with tabs for Steps, Settings, and Preview.
  * Manages form creation and editing with Zustand store.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 4 - FormBuilder Suite
  */
@@ -42,7 +42,7 @@ const Overlay = styled.div<{ isOpen: boolean }>`
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.2s ease-in-out;
-  
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -59,7 +59,7 @@ const Modal = styled.div`
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease-out;
-  
+
   @keyframes slideUp {
     from {
       opacity: 0;
@@ -117,13 +117,13 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'ghost' }>`
   align-items: center;
   gap: 8px;
   border: none;
-  
+
   ${props => {
     if (props.variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
-        
+        color: rgb(var(--color-text-inverse));
+
         &:hover {
           opacity: 0.9;
         }
@@ -132,7 +132,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'ghost' }>`
       return `
         background: transparent;
         color: rgb(var(--color-text-secondary));
-        
+
         &:hover {
           background: rgb(var(--color-surface-hover));
         }
@@ -142,14 +142,14 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'ghost' }>`
         background: rgb(var(--color-surface-hover));
         color: rgb(var(--color-text-primary));
         border: 1px solid rgb(var(--color-border));
-        
+
         &:hover {
           background: rgb(var(--color-surface-active));
         }
       `;
     }
   }}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -177,7 +177,7 @@ const Tab = styled.button<{ active: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   &:hover {
     color: rgb(var(--color-primary));
   }
@@ -205,7 +205,7 @@ const AddStepButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
@@ -221,21 +221,21 @@ const EmptyState = styled.div`
   padding: 60px 20px;
   text-align: center;
   color: rgb(var(--color-text-secondary));
-  
+
   svg {
     width: 48px;
     height: 48px;
     margin-bottom: 16px;
     opacity: 0.5;
   }
-  
+
   h3 {
     font-size: 18px;
     font-weight: 600;
     margin: 0 0 8px 0;
     color: rgb(var(--color-text-primary));
   }
-  
+
   p {
     font-size: 14px;
     margin: 0;
@@ -244,7 +244,7 @@ const EmptyState = styled.div`
 
 const SettingsContent = styled.div`
   max-width: 600px;
-  
+
   label {
     display: block;
     font-size: 14px;
@@ -252,7 +252,7 @@ const SettingsContent = styled.div`
     color: rgb(var(--color-text-primary));
     margin-bottom: 8px;
   }
-  
+
   input, textarea {
     width: 100%;
     padding: 10px 12px;
@@ -262,13 +262,13 @@ const SettingsContent = styled.div`
     color: rgb(var(--color-text-primary));
     font-size: 14px;
     margin-bottom: 20px;
-    
+
     &:focus {
       outline: none;
       border-color: rgb(var(--color-primary));
     }
   }
-  
+
   textarea {
     min-height: 100px;
     resize: vertical;
@@ -300,7 +300,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
     getFormData,
     openPreviewModal
   } = useFormBuilderStore();
-  
+
   // Load initial data when modal opens
   useEffect(() => {
     if (isOpen && initialData) {
@@ -309,14 +309,14 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
       resetForm();
     }
   }, [isOpen, initialData, loadForm, resetForm]);
-  
+
   // Handle save
   const handleSave = () => {
     const formData = getFormData();
     onSave(formData);
     onClose();
   };
-  
+
   // Handle close with unsaved changes
   const handleClose = () => {
     void (async () => {
@@ -333,7 +333,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
       onClose();
     })();
   };
-  
+
   // Render tab content
   const renderTabContent = () => {
     switch (activeTab) {
@@ -348,7 +348,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
             </AddStepButton>
           </StepsContainer>
         );
-        
+
       case 'settings':
         return (
           <SettingsContent>
@@ -362,7 +362,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
                 placeholder="Enter form name..."
               />
             </div>
-            
+
             <div>
               <label htmlFor="form-description">Description</label>
               <textarea
@@ -374,7 +374,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
             </div>
           </SettingsContent>
         );
-        
+
       case 'preview':
         return (
           <EmptyState>
@@ -391,12 +391,12 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
             </Button>
           </EmptyState>
         );
-        
+
       default:
         return null;
     }
   };
-  
+
   return (
     <>
       <Overlay isOpen={isOpen} onClick={handleClose}>
@@ -405,11 +405,11 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
             <HeaderLeft>
               <Title>{formName || 'Untitled Form'}</Title>
               <Subtitle>
-                {steps.length} step{steps.length !== 1 ? 's' : ''} • 
+                {steps.length} step{steps.length !== 1 ? 's' : ''} •
                 {' '}{steps.reduce((sum, step) => sum + step.fields.length, 0)} fields
               </Subtitle>
             </HeaderLeft>
-            
+
             <HeaderRight>
               <Button variant="secondary" onClick={openPreviewModal}>
                 <Eye size={16} />
@@ -424,7 +424,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
               </Button>
             </HeaderRight>
           </Header>
-          
+
           <Tabs>
             <Tab active={activeTab === 'steps'} onClick={() => setActiveTab('steps')}>
               <Layers size={16} />
@@ -439,13 +439,13 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
               Preview
             </Tab>
           </Tabs>
-          
+
           <Content>
             {renderTabContent()}
           </Content>
         </Modal>
       </Overlay>
-      
+
       {/* Modals */}
       <FieldConfigModal />
       <RuleBuilderModal />

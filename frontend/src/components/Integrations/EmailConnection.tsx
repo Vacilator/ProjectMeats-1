@@ -1,6 +1,6 @@
 /**
  * EmailConnection Component
- * 
+ *
  * Displays connection status and provides OAuth flow for email providers.
  * Supports Microsoft Outlook (primary) and Gmail (future).
  */
@@ -104,7 +104,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
               </>
             )}
           </StatusBadge>
-          
+
           <ConnectionInfo>
             {connectedName && <InfoRow><strong>{connectedName}</strong></InfoRow>}
             <InfoRow>{connectedEmail || 'Mailbox connected (email unavailable)'}</InfoRow>
@@ -137,8 +137,8 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
           {isComingSoon ? (
             <ComingSoonBadge>Coming Soon</ComingSoonBadge>
           ) : (
-            <ConnectButton 
-              onClick={handleConnect} 
+            <ConnectButton
+              onClick={handleConnect}
               disabled={isConnecting}
               color={config.color}
             >
@@ -167,7 +167,7 @@ const ConnectionCard = styled.div<{ color: string }>`
   border-radius: 12px;
   padding: 24px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     border-color: ${props => props.color}33;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -190,7 +190,7 @@ const LogoContainer = styled.div<{ color: string }>`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  
+
   svg {
     color: ${props => props.color};
   }
@@ -235,12 +235,12 @@ const StatusBadge = styled.div<{ status: 'success' | 'warning' | 'danger' }>`
   font-size: 13px;
   font-weight: 500;
   width: fit-content;
-  
+
   ${props => props.status === 'success' && `
     background: rgba(var(--color-success), 0.1);
     color: rgb(var(--color-success));
   `}
-  
+
   ${props => props.status === 'warning' && `
     background: rgba(var(--color-warning), 0.1);
     color: rgb(var(--color-warning));
@@ -250,7 +250,7 @@ const StatusBadge = styled.div<{ status: 'success' | 'warning' | 'danger' }>`
     background: rgba(var(--color-error), 0.1);
     color: rgb(var(--color-error));
   `}
-  
+
   svg {
     flex-shrink: 0;
   }
@@ -281,7 +281,7 @@ const InfoRow = styled.div`
   font-size: 14px;
   color: rgb(var(--color-text-primary));
   line-height: 1.5;
-  
+
   strong {
     font-weight: 600;
   }
@@ -294,29 +294,29 @@ const ConnectButton = styled.button<{ color: string }>`
   gap: 8px;
   padding: 12px 20px;
   background: ${props => props.color};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover:not(:disabled) {
     background: ${props => props.color}dd;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px ${props => props.color}40;
   }
-  
+
   &:active:not(:disabled) {
     transform: translateY(0);
   }
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
-  
+
   svg {
     flex-shrink: 0;
   }
@@ -341,11 +341,11 @@ const Spinner = styled.div`
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border-top-color: rgb(var(--color-text-inverse));
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
-  
+
   @keyframes spin {
     to { transform: rotate(360deg); }
   }

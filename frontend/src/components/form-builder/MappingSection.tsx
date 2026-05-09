@@ -1,9 +1,9 @@
 /**
  * Mapping Section Component
- * 
+ *
  * Manages field mappings for data inheritance.
  * Provides Auto-Map functionality with smart matching.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 4 - FormBuilder Suite
  * Updated: Phase 5 - Auto-Map Integration
@@ -72,7 +72,7 @@ const AutoMapButton = styled.button`
   width: 100%;
   padding: 12px 16px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -83,11 +83,11 @@ const AutoMapButton = styled.button`
   justify-content: center;
   gap: 8px;
   margin-bottom: 20px;
-  
+
   &:hover {
     opacity: 0.9;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -171,7 +171,7 @@ const TransformSelect = styled.select`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -181,7 +181,7 @@ const TransformSelect = styled.select`
 const ApplyButton = styled.button`
   padding: 8px 12px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   font-size: 12px;
@@ -191,7 +191,7 @@ const ApplyButton = styled.button`
   display: flex;
   align-items: center;
   gap: 6px;
-  
+
   &:hover {
     opacity: 0.9;
   }
@@ -225,12 +225,12 @@ export const MappingSection: React.FC = () => {
   }>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedTransformations, setSelectedTransformations] = useState<Record<string, TransformationType>>({});
-  
+
   const handleAutoMap = () => {
     if (!activeStepId) return;
-    
+
     setIsProcessing(true);
-    
+
     // Mock available variables (in real implementation, get from upstream nodes)
     const mockVariables: Variable[] = [
       {
@@ -278,23 +278,23 @@ export const MappingSection: React.FC = () => {
         sampleValue: 'Acme Corp'
       }
     ];
-    
+
     // Get current step fields
     const currentStep = steps.find(s => s.id === activeStepId);
     if (!currentStep) {
       setIsProcessing(false);
       return;
     }
-    
+
     // Run auto-map algorithm
     const suggestions = autoMapFields(mockVariables, currentStep.fields, 60);
     setMappingSuggestions(suggestions);
     setIsProcessing(false);
   };
-  
+
   const handleApplyMapping = (mapping: any) => {
     if (!activeStepId) return;
-    
+
     saveMapping(activeStepId, {
       id: `mapping-${Date.now()}`,
       sourceStep: mapping.sourceVariable.nodeId,
@@ -302,13 +302,13 @@ export const MappingSection: React.FC = () => {
       targetField: mapping.targetField.id,
       autoMapped: true
     });
-    
+
     // Remove from suggestions
-    setMappingSuggestions(prev => 
+    setMappingSuggestions(prev =>
       prev.filter(s => s.targetField.id !== mapping.targetField.id)
     );
   };
-  
+
   return (
     <Overlay isOpen={isMappingModalOpen} onClick={closeMappingModal}>
       <Modal onClick={(e) => e.stopPropagation()}>
@@ -318,13 +318,13 @@ export const MappingSection: React.FC = () => {
             <X size={20} />
           </button>
         </Header>
-        
+
         <Content>
           <AutoMapButton onClick={handleAutoMap} disabled={isProcessing}>
             <Zap size={16} />
             {isProcessing ? 'Analyzing...' : 'Auto-Map Fields'}
           </AutoMapButton>
-          
+
           {mappingSuggestions.length > 0 ? (
             <MappingList>
               {mappingSuggestions.map((mapping, index) => (
@@ -339,11 +339,11 @@ export const MappingSection: React.FC = () => {
                       {mapping.confidence}
                     </ConfidenceBadge>
                   </MappingHeader>
-                  
+
                   <MappingScore>
                     Match score: {mapping.score}%
                   </MappingScore>
-                  
+
                   <TransformSection>
                     <TransformLabel>
                       <Settings size={10} />
@@ -367,7 +367,7 @@ export const MappingSection: React.FC = () => {
                       ))}
                     </TransformSelect>
                   </TransformSection>
-                  
+
                   <ApplyButton onClick={() => handleApplyMapping(mapping)}>
                     <Check size={14} />
                     Apply Mapping
@@ -377,13 +377,13 @@ export const MappingSection: React.FC = () => {
             </MappingList>
           ) : (
             <EmptyMessage>
-              {isProcessing 
-                ? 'Analyzing field relationships...' 
+              {isProcessing
+                ? 'Analyzing field relationships...'
                 : 'Click "Auto-Map Fields" to find intelligent field mappings based on name similarity and type compatibility.'}
             </EmptyMessage>
           )}
         </Content>
-        
+
         <Footer>
           <Button onClick={closeMappingModal}>Close</Button>
         </Footer>

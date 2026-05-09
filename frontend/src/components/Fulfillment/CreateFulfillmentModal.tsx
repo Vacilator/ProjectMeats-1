@@ -1,6 +1,6 @@
 /**
  * Create Fulfillment Modal
- * 
+ *
  * Modal for creating fulfillments from accepted inquiries.
  * Features:
  * - Smart supplier filtering (only suppliers with selected products)
@@ -16,7 +16,7 @@ import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
 import { logger } from '@/utils/logger';
-import { 
+import {
   Fulfillment,
   Inquiry,
   InquiryProduct,
@@ -140,7 +140,7 @@ const CloseButton = styled.button`
   line-height: 1;
   padding: 0.25rem;
   border-radius: var(--radius-md);
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
     background: rgba(var(--color-text-primary), 0.1);
@@ -191,13 +191,13 @@ const Input = styled.input`
   font-size: 0.875rem;
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &:disabled {
     background: rgba(var(--color-text-secondary), 0.1);
     cursor: not-allowed;
@@ -213,13 +213,13 @@ const Select = styled.select`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &:disabled {
     background: rgba(var(--color-text-secondary), 0.1);
     cursor: not-allowed;
@@ -236,7 +236,7 @@ const TextArea = styled.textarea`
   color: rgb(var(--color-text-primary));
   min-height: 80px;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -262,14 +262,14 @@ const InquiryInfoItem = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
-  
+
   .label {
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
     text-transform: uppercase;
     letter-spacing: 0.025em;
   }
-  
+
   .value {
     font-size: 0.875rem;
     color: rgb(var(--color-text-primary));
@@ -304,11 +304,11 @@ const ProductRow = styled.div<{ selected?: boolean }>`
   border-bottom: 1px solid rgb(var(--color-border));
   align-items: center;
   background: ${props => props.selected ? 'rgba(var(--color-primary), 0.05)' : 'transparent'};
-  
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
@@ -346,7 +346,7 @@ const ModalFooter = styled.div`
 const FooterInfo = styled.div`
   font-size: 0.875rem;
   color: rgb(var(--color-text-secondary));
-  
+
   .highlight {
     color: rgb(var(--color-primary));
     font-weight: 600;
@@ -367,7 +367,7 @@ const CancelButton = styled.button`
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-text-primary), 0.05);
   }
@@ -378,18 +378,18 @@ const SubmitButton = styled.button`
   border: none;
   border-radius: var(--radius-md);
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  
+
   &:hover:not(:disabled) {
     opacity: 0.9;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -638,15 +638,15 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         params: { products__id__in: productIds.join(','), page_size: 100 }
       });
       const data = response.data.results || response.data;
-      
+
       const options: SupplierOption[] = data.map((s: any) => ({
         id: s.id,
         name: s.name,
         productIds: s.products || [],
       }));
-      
+
       setSupplierOptions(options);
-      
+
       // Auto-select if only one supplier
       if (options.length === 1) {
         form.setValue('supplierId', options[0].id, { shouldValidate: true, shouldDirty: true });
@@ -664,7 +664,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     try {
       const response = await apiClient.get('carriers/', { params: { is_active: true, page_size: 100 } });
       const data = response.data.results || response.data;
-      
+
       setCarrierOptions(data.map((c: any) => ({
         id: c.id,
         name: c.name,
@@ -679,34 +679,34 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   };
 
   const toggleLineItem = useCallback((inquiryProductId: string) => {
-    setLineItems(prev => prev.map(item => 
-      item.inquiryProductId === inquiryProductId 
+    setLineItems(prev => prev.map(item =>
+      item.inquiryProductId === inquiryProductId
         ? { ...item, selected: !item.selected }
         : item
     ));
   }, []);
 
   const updateQuantity = useCallback((inquiryProductId: string, quantity: number) => {
-    setLineItems(prev => prev.map(item => 
-      item.inquiryProductId === inquiryProductId 
+    setLineItems(prev => prev.map(item =>
+      item.inquiryProductId === inquiryProductId
         ? { ...item, quantityToFulfill: Math.min(quantity, item.quantityOrdered) }
         : item
     ));
   }, []);
 
-  const selectedItems = useMemo(() => 
+  const selectedItems = useMemo(() =>
     lineItems.filter(item => item.selected && item.quantityToFulfill > 0),
     [lineItems]
   );
 
-  const isPartialFulfillment = useMemo(() => 
-    selectedItems.length < lineItems.length || 
+  const isPartialFulfillment = useMemo(() =>
+    selectedItems.length < lineItems.length ||
     selectedItems.some(item => item.quantityToFulfill < item.quantityOrdered),
     [selectedItems, lineItems]
   );
 
-  const totalValue = useMemo(() => 
-    selectedItems.reduce((sum, item) => 
+  const totalValue = useMemo(() =>
+    selectedItems.reduce((sum, item) =>
       sum + (item.unitPrice || 0) * item.quantityToFulfill, 0
     ),
     [selectedItems]
@@ -960,7 +960,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                   <span>Unit Price</span>
                   <span>Line Total</span>
                 </ProductsHeader>
-                
+
                 {lineItems.map((item) => (
                   <ProductRow key={item.inquiryProductId} selected={item.selected}>
                     <Checkbox
@@ -969,16 +969,16 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                       onChange={() => toggleLineItem(item.inquiryProductId)}
                       disabled={submitting}
                     />
-                    
+
                     <div>
                       <div style={{ fontWeight: 500 }}>{item.productCode}</div>
                       <div style={{ fontSize: '0.75rem', color: 'rgb(var(--color-text-secondary))' }}>
                         {item.productDescription}
                       </div>
                     </div>
-                    
+
                     <div>{item.quantityOrdered}</div>
-                    
+
                     <ProductInput
                       type="number"
                       min="0"
@@ -987,9 +987,9 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                       onChange={(e) => updateQuantity(item.inquiryProductId, parseInt(e.target.value) || 0)}
                       disabled={submitting || !item.selected}
                     />
-                    
+
                     <div>${item.unitPrice?.toFixed(2) || '0.00'}</div>
-                    
+
                     <div style={{ fontWeight: 500 }}>
                       ${((item.unitPrice || 0) * (item.selected ? item.quantityToFulfill : 0)).toFixed(2)}
                     </div>

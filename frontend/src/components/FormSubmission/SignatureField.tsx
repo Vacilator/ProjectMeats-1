@@ -19,11 +19,11 @@ const CanvasWrapper = styled.div<{ $hasError?: boolean; $hasSignature: boolean }
   background: ${props => props.$hasSignature ? 'rgb(var(--color-surface))' : 'rgb(var(--color-surface))'};
   overflow: hidden;
   transition: border-color 0.2s ease, background 0.2s ease;
-  
+
   &:hover {
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-muted))'};
   }
-  
+
   &:focus-within {
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
@@ -71,22 +71,22 @@ const ActionButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover:not(:disabled) {
     background: rgb(var(--color-surface-hover));
     border-color: rgb(var(--color-text-muted));
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &.primary {
     background: rgb(var(--color-primary));
     border-color: rgb(var(--color-primary));
-    color: white;
-    
+    color: rgb(var(--color-text-inverse));
+
     &:hover:not(:disabled) {
       background: rgb(var(--color-primary));
     }
@@ -124,22 +124,22 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     // Set canvas size to match display size
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width * window.devicePixelRatio;
     canvas.height = rect.height * window.devicePixelRatio;
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    
+
     // Style
     ctx.strokeStyle = 'rgb(var(--color-text-primary))';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    
+
     // Load existing signature if present
     if (value && value.startsWith('data:image')) {
       const img = new Image();
@@ -153,16 +153,16 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
   const getPosition = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-    
+
     const rect = canvas.getBoundingClientRect();
-    
+
     if ('touches' in e) {
       return {
         x: e.touches[0].clientX - rect.left,
         y: e.touches[0].clientY - rect.top,
       };
     }
-    
+
     return {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
@@ -172,7 +172,7 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
   const startDrawing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (disabled) return;
     e.preventDefault();
-    
+
     const pos = getPosition(e);
     lastPos.current = pos;
     setIsDrawing(true);
@@ -181,18 +181,18 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
   const draw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing || disabled) return;
     e.preventDefault();
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !canvas) return;
-    
+
     const pos = getPosition(e);
-    
+
     ctx.beginPath();
     ctx.moveTo(lastPos.current.x, lastPos.current.y);
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
-    
+
     lastPos.current = pos;
     setHasSignature(true);
   }, [isDrawing, disabled, getPosition]);
@@ -200,7 +200,7 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
   const stopDrawing = useCallback(() => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    
+
     // Save signature
     const canvas = canvasRef.current;
     if (canvas && hasSignature) {
@@ -213,7 +213,7 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !canvas) return;
-    
+
     const rect = canvas.getBoundingClientRect();
     ctx.clearRect(0, 0, rect.width, rect.height);
     setHasSignature(false);
@@ -253,7 +253,7 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
           </Placeholder>
         )}
       </CanvasWrapper>
-      
+
       <ButtonRow>
         <ActionButton
           type="button"

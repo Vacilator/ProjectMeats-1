@@ -543,7 +543,7 @@ const Actions = styled.div`
 
 const ResetButton = styled.button`
   background: rgb(var(--color-text-secondary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
@@ -564,7 +564,7 @@ const ResetButton = styled.button`
 
 const SaveButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 12px 24px;
   border-radius: 8px;

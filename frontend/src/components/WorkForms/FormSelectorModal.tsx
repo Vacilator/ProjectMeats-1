@@ -1,9 +1,9 @@
 /**
  * Form Selector Modal
- * 
+ *
  * Modal for selecting a form from the library to reference in workflows.
  * Used by FormReference nodes.
- * 
+ *
  * Created: 2026-02-05 - Phase 3 Task 3.3
  * Part of: WORKFORMS_NAVIGATION_FIX_PLAN Phase 3
  */
@@ -40,7 +40,7 @@ const Overlay = styled.div<{ $isOpen: boolean }>`
   justify-content: center;
   z-index: 1000;
   animation: fadeIn 0.2s;
-  
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -57,7 +57,7 @@ const Modal = styled.div`
   flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1), 0 10px 10px -5px rgba(var(--color-overlay), 0.04);
   animation: slideUp 0.3s;
-  
+
   @keyframes slideUp {
     from {
       opacity: 0;
@@ -97,7 +97,7 @@ const CloseButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgba(var(--color-error), 0.1);
     color: rgb(var(--color-error));
@@ -130,7 +130,7 @@ const SearchInput = styled.input`
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -160,7 +160,7 @@ const FormCard = styled.div<{ $selected?: boolean }>`
   background: ${props => props.$selected ? 'rgba(var(--color-primary), 0.05)' : 'rgb(var(--color-background))'};
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.03);
@@ -224,7 +224,7 @@ const SelectIndicator = styled.div`
   height: 24px;
   border-radius: 50%;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   flex-shrink: 0;
 `;
 
@@ -274,12 +274,12 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   ${props => {
     if (props.$variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
-        color: white;
+        color: rgb(var(--color-text-inverse));
         &:hover { opacity: 0.9; }
         &:disabled {
           opacity: 0.5;
@@ -312,7 +312,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>(currentFormId);
-  
+
   // Fetch forms from API
   const { data: forms = [], isLoading } = useQuery({
     queryKey: withTenantQueryKey('forms', 'library'),
@@ -325,18 +325,18 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
     },
     enabled: isOpen,
   });
-  
+
   // Filter forms based on search
   const filteredForms = React.useMemo(() => {
     if (!searchQuery) return forms;
-    
+
     const query = searchQuery.toLowerCase();
     return forms.filter((form: any) =>
       form.name?.toLowerCase().includes(query) ||
       form.description?.toLowerCase().includes(query)
     );
   }, [forms, searchQuery]);
-  
+
   const handleSelect = () => {
     const selectedForm = forms.find((f: any) => f.id === selectedFormId);
     if (selectedForm) {
@@ -355,9 +355,9 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
       onClose();
     }
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
     <Overlay $isOpen={isOpen} onClick={onClose}>
       <Modal onClick={(e) => e.stopPropagation()}>
@@ -367,7 +367,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
             <X size={20} />
           </CloseButton>
         </Header>
-        
+
         <SearchContainer>
           <SearchWrapper>
             <SearchIcon>
@@ -382,7 +382,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
             />
           </SearchWrapper>
         </SearchContainer>
-        
+
         <Content>
           {isLoading ? (
             <LoadingState>{t('forms.loadingForms')}</LoadingState>
@@ -432,7 +432,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
             </FormList>
           )}
         </Content>
-        
+
         <Footer>
           <Button onClick={onClose}>{t('common.cancel')}</Button>
           <Button

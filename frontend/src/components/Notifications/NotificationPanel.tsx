@@ -1,6 +1,6 @@
 /**
  * NotificationPanel component - displays list of notifications with actions.
- * 
+ *
  * Features:
  * - Grouped by time (Today, Yesterday, Earlier)
  * - Mark as read/dismiss
@@ -11,8 +11,8 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Bell, Check, CheckCheck, X, Clock, AlertCircle, 
+import {
+  Bell, Check, CheckCheck, X, Clock, AlertCircle,
   CheckCircle, MessageSquare, FileText, Workflow, Info
 } from 'lucide-react';
 import { useNotifications, Notification, NotificationType } from '../../contexts/NotificationsContext';
@@ -54,7 +54,7 @@ const Title = styled.h3`
 
 const UnreadBadge = styled.span`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
@@ -77,11 +77,11 @@ const HeaderButton = styled.button`
   display: flex;
   align-items: center;
   gap: 4px;
-  
+
   &:hover {
     background: rgb(var(--color-primary) / 0.1);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -98,7 +98,7 @@ const CloseButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
     color: rgb(var(--color-text-primary));
@@ -127,15 +127,15 @@ const NotificationItem = styled.div<{ $isUnread: boolean; $priority: string }>`
   gap: 12px;
   cursor: pointer;
   transition: background-color 0.15s ease;
-  border-left: 3px solid ${({ $priority }) => 
+  border-left: 3px solid ${({ $priority }) =>
     $priority === 'urgent' ? 'rgb(var(--color-error))' :
     $priority === 'high' ? 'rgb(var(--color-warning))' :
     'transparent'
   };
-  background-color: ${({ $isUnread }) => 
+  background-color: ${({ $isUnread }) =>
     $isUnread ? 'rgb(var(--color-primary) / 0.05)' : 'transparent'
   };
-  
+
   &:hover {
     background-color: rgb(var(--color-surface-hover));
   }
@@ -191,7 +191,7 @@ const NotificationActions = styled.div`
   gap: 4px;
   opacity: 0;
   transition: opacity 0.15s ease;
-  
+
   ${NotificationItem}:hover & {
     opacity: 1;
   }
@@ -207,7 +207,7 @@ const ActionButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
     color: rgb(var(--color-text-primary));
@@ -331,22 +331,22 @@ function groupNotificationsByTime(notifications: Notification[]): Record<string,
     'Yesterday': [],
     'Earlier': [],
   };
-  
+
   // Defensive check: ensure notifications is an array
   if (!Array.isArray(notifications)) {
     logger.warn('[NotificationPanel] Expected array, got:', typeof notifications);
     return groups;
   }
-  
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   notifications.forEach(notification => {
     const date = new Date(notification.created_at);
     const notifDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    
+
     if (notifDate.getTime() === today.getTime()) {
       groups['Today'].push(notification);
     } else if (notifDate.getTime() === yesterday.getTime()) {
@@ -355,7 +355,7 @@ function groupNotificationsByTime(notifications: Notification[]): Record<string,
       groups['Earlier'].push(notification);
     }
   });
-  
+
   return groups;
 }
 
@@ -369,18 +369,18 @@ interface NotificationPanelProps {
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
   const navigate = useNavigate();
-  const { 
-    notifications, 
-    unreadCount, 
-    loading, 
-    markAsRead, 
-    markAllAsRead, 
-    dismissNotification 
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    markAsRead,
+    markAllAsRead,
+    dismissNotification
   } = useNotifications();
-  
+
   const groupedNotifications = groupNotificationsByTime(notifications);
   const hasNotifications = notifications.length > 0;
-  
+
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.is_read) {
       try {
@@ -395,17 +395,17 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
       onClose();
     }
   };
-  
+
   const handleMarkAsRead = (e: React.MouseEvent, notification: Notification) => {
     e.stopPropagation();
     markAsRead(notification.id);
   };
-  
+
   const handleDismiss = (e: React.MouseEvent, notification: Notification) => {
     e.stopPropagation();
     dismissNotification(notification.id);
   };
-  
+
   return (
     <Panel data-testid="notification-panel">
       <Header>
@@ -426,7 +426,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
           </CloseButton>
         </HeaderActions>
       </Header>
-      
+
       <Content>
         {loading ? (
           <LoadingState>Loading notifications...</LoadingState>
@@ -439,7 +439,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
             <EmptyMessage>You're all caught up!</EmptyMessage>
           </EmptyState>
         ) : (
-          Object.entries(groupedNotifications).map(([group, items]) => 
+          Object.entries(groupedNotifications).map(([group, items]) =>
             items.length > 0 && (
               <React.Fragment key={group}>
                 <GroupHeader>{group}</GroupHeader>
@@ -474,14 +474,14 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
                       </NotificationContent>
                       <NotificationActions>
                         {!notification.is_read && (
-                          <ActionButton 
+                          <ActionButton
                             onClick={(e) => handleMarkAsRead(e, notification)}
                             title="Mark as read"
                           >
                             <Check size={14} />
                           </ActionButton>
                         )}
-                        <ActionButton 
+                        <ActionButton
                           onClick={(e) => handleDismiss(e, notification)}
                           title="Dismiss"
                         >

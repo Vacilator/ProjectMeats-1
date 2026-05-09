@@ -171,7 +171,7 @@ const TabBadge = styled.span`
   font-size: 10px;
   font-weight: 700;
   background: rgb(var(--color-error));
-  color: white;
+  color: rgb(var(--color-text-inverse));
 `;
 
 const CardList = styled.div`

@@ -390,7 +390,7 @@ const DragOverlay = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   z-index: 10;
   animation: fadeIn 0.2s ease-out;
 
@@ -573,7 +573,7 @@ const SendButton = styled.button`
   border-radius: 8px;
   border: none;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -606,7 +606,7 @@ const LoadingSpinner = styled.div`
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  border-top-color: white;
+  border-top-color: rgb(var(--color-text-inverse));
   animation: spin 1s linear infinite;
 
   @keyframes spin {

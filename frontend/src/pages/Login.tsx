@@ -262,7 +262,7 @@ const Input = styled.input`
 const LoginButton = styled.button`
   width: 100%;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 14px 24px;
   border-radius: 8px;

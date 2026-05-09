@@ -825,7 +825,7 @@ const RemoveLogoButton = styled.button`
   border-radius: var(--radius-full);
   border: none;
   background: rgb(var(--color-danger));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -900,7 +900,7 @@ const PreviewButton = styled.div`
   gap: 10px;
   padding: 14px 18px;
   border-radius: var(--radius-lg);
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-weight: 700;
   box-shadow: var(--shadow-md);
 `;

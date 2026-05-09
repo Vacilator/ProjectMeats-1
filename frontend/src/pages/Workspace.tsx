@@ -1,30 +1,30 @@
 /**
  * Workspace Page (formerly Cockpit)
- * 
+ *
  * Main dashboard with customizable widget grid.
  * Implements the Cockpit Command Center from Master Plan v3.
- * 
+ *
  * Features:
  * - Draggable, resizable widgets
  * - Layout persistence
  * - Edit mode toggle
  * - Widget catalog
  * - CommandBar for universal search (⌘K)
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
- * 
+ *
  * Updated: 2026-02-03 - Added CommandBar integration
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
-import { 
-  LayoutGrid, Settings, Lock, Unlock, Plus, 
-  RotateCcw, X 
+import {
+  LayoutGrid, Settings, Lock, Unlock, Plus,
+  RotateCcw, X
 } from 'lucide-react';
-import { 
-  WidgetGrid, 
-  WidgetConfig, 
+import {
+  WidgetGrid,
+  WidgetConfig,
   WidgetLayout,
   QuickStatsWidget,
   RecentActivityWidget,
@@ -81,51 +81,51 @@ const DEFAULT_LAYOUT: WidgetLayout[] = [
 
 // Widget catalog for adding new widgets - organized by category
 const WIDGET_CATALOG = [
-  { 
-    type: 'TodaysNumbersWidget', 
-    title: "Today's Numbers", 
+  {
+    type: 'TodaysNumbersWidget',
+    title: "Today's Numbers",
     description: 'Detailed KPI dashboard with trends',
     category: 'metrics',
     icon: '📊',
   },
-  { 
-    type: 'MyTasksWidget', 
-    title: 'My Tasks', 
+  {
+    type: 'MyTasksWidget',
+    title: 'My Tasks',
     description: 'Your assigned tasks and deadlines',
     category: 'productivity',
     icon: '✅',
   },
-  { 
-    type: 'QuickStatsWidget', 
-    title: 'Quick Stats', 
+  {
+    type: 'QuickStatsWidget',
+    title: 'Quick Stats',
     description: 'Key metrics and KPIs',
     category: 'metrics',
     icon: '📈',
   },
-  { 
-    type: 'RecentActivityWidget', 
-    title: 'Recent Activity', 
+  {
+    type: 'RecentActivityWidget',
+    title: 'Recent Activity',
     description: 'Activity feed',
     category: 'information',
     icon: '📰',
   },
-  { 
-    type: 'UpcomingCallsWidget', 
-    title: 'Upcoming Calls', 
+  {
+    type: 'UpcomingCallsWidget',
+    title: 'Upcoming Calls',
     description: 'Scheduled callbacks',
     category: 'productivity',
     icon: '📞',
   },
-  { 
-    type: 'QuickActionsWidget', 
-    title: 'Quick Actions', 
+  {
+    type: 'QuickActionsWidget',
+    title: 'Quick Actions',
     description: 'Common shortcuts',
     category: 'productivity',
     icon: '⚡',
   },
-  { 
-    type: 'EntityExplorerWidget', 
-    title: 'Entity Explorer', 
+  {
+    type: 'EntityExplorerWidget',
+    title: 'Entity Explorer',
     description: 'Browse and explore entities',
     category: 'information',
     icon: '🔍',
@@ -198,7 +198,7 @@ const HeaderCenter = styled.div`
   justify-content: center;
   padding: 0 24px;
   max-width: 500px;
-  
+
   @media (max-width: 768px) {
     display: none;
   }
@@ -214,20 +214,20 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'dange
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   ${props => {
     switch (props.$variant) {
       case 'primary':
         return `
           background: rgb(var(--color-primary));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { opacity: 0.9; }
         `;
       case 'danger':
         return `
           background: rgb(var(--color-error));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { opacity: 0.9; }
         `;
@@ -248,7 +248,7 @@ const EditBadge = styled.span`
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   background: rgb(var(--color-warning));
-  color: black;
+  color: rgb(var(--color-text-primary));
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -332,7 +332,7 @@ const ModalClose = styled.button`
   border-radius: var(--radius-sm);
   color: rgb(var(--color-text-tertiary));
   cursor: pointer;
-  
+
   &:hover {
     background: rgb(var(--color-border));
     color: rgb(var(--color-text-primary));
@@ -403,7 +403,7 @@ const CategoryHeader = styled.div`
   padding: 8px 0;
   margin-top: 16px;
   border-bottom: 1px solid rgb(var(--color-border));
-  
+
   &:first-child {
     margin-top: 0;
   }
@@ -425,7 +425,7 @@ export const WorkspacePage: React.FC = () => {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // CommandPalette hook for universal search
   const { isOpen: isPaletteOpen, open: openPalette, close: closePalette } = useCommandPalette();
 
@@ -522,7 +522,7 @@ export const WorkspacePage: React.FC = () => {
     setWidgets(DEFAULT_WIDGETS);
     setLayout(DEFAULT_LAYOUT);
     localStorage.removeItem(STORAGE_KEY);
-    
+
     // Also delete from backend
     try {
       await apiClient.delete('cockpit/workspace-layout/');
@@ -532,7 +532,7 @@ export const WorkspacePage: React.FC = () => {
         logger.error('Failed to reset workspace layout in API:', err);
       }
     }
-    
+
     setIsEditing(false);
   }, []);
 
@@ -541,7 +541,7 @@ export const WorkspacePage: React.FC = () => {
     const id = `${type.toLowerCase()}-${Date.now()}`;
     const newWidget: WidgetConfig = { id, type, title };
     const newLayoutItem: WidgetLayout = { i: id, x: 0, y: Infinity, w: 4, h: 3 };
-    
+
     setWidgets(prev => [...prev, newWidget]);
     setLayout(prev => [...prev, newLayoutItem]);
     setIsCatalogOpen(false);
@@ -588,18 +588,18 @@ export const WorkspacePage: React.FC = () => {
           </div>
           {isEditing && <EditBadge>Editing</EditBadge>}
         </HeaderLeft>
-        
+
         {/* Universal Search CommandBar - Hidden in edit mode */}
         {!isEditing && (
           <HeaderCenter>
-            <CommandBar 
+            <CommandBar
               onOpenPalette={openPalette}
               isPaletteOpen={isPaletteOpen}
               placeholder="Search suppliers, customers, orders..."
             />
           </HeaderCenter>
         )}
-        
+
         <HeaderActions>
           {isEditing ? (
             <>
@@ -624,7 +624,7 @@ export const WorkspacePage: React.FC = () => {
           )}
         </HeaderActions>
       </Header>
-      
+
       {/* Command Palette Modal */}
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
@@ -667,12 +667,12 @@ export const WorkspacePage: React.FC = () => {
             {Object.entries(WIDGET_CATEGORIES).map(([category, label]) => {
               const categoryWidgets = WIDGET_CATALOG.filter(w => w.category === category);
               if (categoryWidgets.length === 0) return null;
-              
+
               return (
                 <div key={category}>
                   <CategoryHeader>{label}</CategoryHeader>
                   {categoryWidgets.map(item => (
-                    <WidgetOption 
+                    <WidgetOption
                       key={item.type}
                       onClick={() => handleAddWidget(item.type, item.title)}
                     >

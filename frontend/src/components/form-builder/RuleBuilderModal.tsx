@@ -1,9 +1,9 @@
 /**
  * Rule Builder Modal
- * 
+ *
  * Modal for creating conditional rules with when/then logic.
  * Supports multiple conditions (AND/OR) and actions.
- * 
+ *
  * Created: 2026-02-21
  * Phase: 4 - FormBuilder Suite
  */
@@ -71,7 +71,7 @@ const Input = styled.input`
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -91,7 +91,7 @@ const Select = styled.select`
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -106,7 +106,7 @@ const IconButton = styled.button`
   cursor: pointer;
   border-radius: 6px;
   display: flex;
-  
+
   &:hover {
     background: rgba(var(--color-error), 0.1);
   }
@@ -123,7 +123,7 @@ const AddButton = styled.button`
   display: flex;
   align-items: center;
   gap: 6px;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.05);
     border-color: rgb(var(--color-primary));
@@ -147,10 +147,10 @@ const Button = styled.button<{ variant?: 'primary' }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   ${props => props.variant === 'primary' ? `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
   ` : `
     background: rgb(var(--color-surface-hover));
     color: rgb(var(--color-text-primary));
@@ -177,7 +177,7 @@ const generateId = () => `rule-${Date.now()}-${Math.random().toString(36).substr
 
 export const RuleBuilderModal: React.FC = () => {
   const { isRuleModalOpen, activeStepId, editingRule, closeRuleModal, saveRule } = useFormBuilderStore();
-  
+
   const [ruleData, setRuleData] = useState<FormRule>({
     id: generateId(),
     name: '',
@@ -185,7 +185,7 @@ export const RuleBuilderModal: React.FC = () => {
     conditions: [],
     actions: []
   });
-  
+
   useEffect(() => {
     if (editingRule) {
       setRuleData(editingRule);
@@ -199,7 +199,7 @@ export const RuleBuilderModal: React.FC = () => {
       });
     }
   }, [editingRule, isRuleModalOpen]);
-  
+
   const addCondition = () => {
     setRuleData(prev => ({
       ...prev,
@@ -211,14 +211,14 @@ export const RuleBuilderModal: React.FC = () => {
       }]
     }));
   };
-  
+
   const removeCondition = (id: string) => {
     setRuleData(prev => ({
       ...prev,
       conditions: prev.conditions.filter(c => c.id !== id)
     }));
   };
-  
+
   const addAction = () => {
     setRuleData(prev => ({
       ...prev,
@@ -229,14 +229,14 @@ export const RuleBuilderModal: React.FC = () => {
       }]
     }));
   };
-  
+
   const removeAction = (id: string) => {
     setRuleData(prev => ({
       ...prev,
       actions: prev.actions.filter(a => a.id !== id)
     }));
   };
-  
+
   const handleSave = () => {
     if (!activeStepId || !ruleData.name.trim()) {
       showAlert({ type: 'warning', title: 'Validation', content: 'Rule name is required' });
@@ -244,7 +244,7 @@ export const RuleBuilderModal: React.FC = () => {
     }
     saveRule(activeStepId, ruleData);
   };
-  
+
   return (
     <Overlay isOpen={isRuleModalOpen} onClick={closeRuleModal}>
       <Modal onClick={(e) => e.stopPropagation()}>
@@ -254,7 +254,7 @@ export const RuleBuilderModal: React.FC = () => {
             <X size={20} />
           </IconButton>
         </Header>
-        
+
         <Content>
           <Section>
             <Input
@@ -264,7 +264,7 @@ export const RuleBuilderModal: React.FC = () => {
               onChange={(e) => setRuleData(prev => ({ ...prev, name: e.target.value }))}
             />
           </Section>
-          
+
           <Section>
             <SectionTitle>When (Conditions)</SectionTitle>
             {ruleData.conditions.map(condition => (
@@ -305,7 +305,7 @@ export const RuleBuilderModal: React.FC = () => {
               Add Condition
             </AddButton>
           </Section>
-          
+
           <Section>
             <SectionTitle>Then (Actions)</SectionTitle>
             {ruleData.actions.map(action => (
@@ -340,7 +340,7 @@ export const RuleBuilderModal: React.FC = () => {
             </AddButton>
           </Section>
         </Content>
-        
+
         <Footer>
           <Button onClick={closeRuleModal}>Cancel</Button>
           <Button variant="primary" onClick={handleSave}>

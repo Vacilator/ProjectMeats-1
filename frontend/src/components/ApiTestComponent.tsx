@@ -5,7 +5,7 @@ import { logger } from '@/utils/logger';
 
 const TestButton = styled.button`
   background-color: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   padding: 10px 20px;
   border: none;
   border-radius: 4px;

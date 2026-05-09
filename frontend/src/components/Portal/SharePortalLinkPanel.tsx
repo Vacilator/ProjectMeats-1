@@ -157,7 +157,7 @@ const PrimaryButton = styled.button`
   border: none;
   border-radius: var(--radius-md);
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   padding: 0.7rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;

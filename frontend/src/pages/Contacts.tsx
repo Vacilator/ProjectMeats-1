@@ -30,7 +30,7 @@ const Title = styled.h1`
 
 const AddButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
@@ -146,7 +146,7 @@ const TableCell = styled.td`
 
 const ActionButton = styled.button`
   background: rgb(var(--color-success));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
@@ -162,7 +162,7 @@ const ActionButton = styled.button`
 
 const DeleteButton = styled.button`
   background: rgb(var(--color-error));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
@@ -269,9 +269,9 @@ const Contacts: React.FC = () => {
       } catch (error: unknown) {
         logger.error('[Contacts] Error deleting contact:', error);
         const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail 
-          || err?.response?.data?.message 
-          || err?.message 
+        const errorMessage = err?.response?.data?.detail
+          || err?.response?.data?.message
+          || err?.message
           || 'Failed to delete contact';
         alert(`Error: ${errorMessage}`);
       }

@@ -135,7 +135,7 @@ const CreateBtn = styled.button<{ $resolved?: boolean }>`
   `
       : `
     background: rgb(var(--color-info));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     &:hover { background: rgb(var(--color-info)); opacity: 0.9; }
   `}
 `;

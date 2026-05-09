@@ -1,16 +1,16 @@
 /**
  * AI Verification Card
- * 
+ *
  * Phase 4: Hybrid Task Renderer
  * Interaction card for AI-powered verification workflow nodes.
- * 
+ *
  * Features:
  * - Processing animation
  * - Polls backend for AI results
  * - Shows confidence score
  * - Manual override option
  * - Auto-advances on completion
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Hybrid Task Renderer Implementation
  */
 
@@ -87,7 +87,7 @@ const CardIcon = styled.div<{ $status: 'processing' | 'success' | 'failure' }>`
     if (props.$status === 'failure') return 'rgb(var(--color-error))';
     return 'rgb(var(--color-primary))';
   }};
-  
+
   svg {
     width: 24px;
     height: 24px;
@@ -137,7 +137,7 @@ const StatusIcon = styled.div<{ $status: 'processing' | 'success' | 'failure' }>
     if (props.$status === 'failure') return 'rgb(var(--color-error))';
     return 'rgb(var(--color-primary))';
   }};
-  
+
   svg {
     width: 32px;
     height: 32px;
@@ -194,7 +194,7 @@ const ConfidenceFill = styled.div<{ $score: number }>`
 const ConfidenceText = styled.div`
   font-size: 14px;
   font-weight: 600;
-  color: white;
+  color: rgb(var(--color-text-inverse));
 `;
 
 const DetailsSection = styled.div`
@@ -252,27 +252,27 @@ const OverrideButton = styled.button<{ $variant: 'approve' | 'reject' }>`
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: ${props => 
+  color: ${props =>
     props.$variant === 'approve'
       ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-error))'
   };
   font-size: 14px;
   font-weight: 600;
-  
+
   &:hover {
-    border-color: ${props => 
+    border-color: ${props =>
       props.$variant === 'approve'
         ? 'rgb(var(--color-success))'
         : 'rgb(var(--color-error))'
     };
-    background: ${props => 
+    background: ${props =>
       props.$variant === 'approve'
         ? 'rgb(var(--color-success) / 0.05)'
         : 'rgb(var(--color-error) / 0.05)'
     };
   }
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -306,19 +306,19 @@ export const AIVerificationCard: React.FC<InteractionCardProps> = ({
       // Simulate random AI result
       const confidence = Math.floor(Math.random() * 100);
       const passed = confidence >= confidenceThreshold;
-      
+
       const verificationResult: VerificationResult = {
         confidence_score: confidence,
         verification_result: passed ? 'pass' : 'fail',
-        details: passed 
+        details: passed
           ? 'All verification checks passed successfully.'
           : 'Some verification checks failed. Manual review recommended.',
         timestamp: new Date().toISOString(),
       };
-      
+
       setResult(verificationResult);
       setStatus(passed ? 'success' : 'failure');
-      
+
       // Auto-complete if passed
       if (passed) {
         onComplete({
@@ -329,7 +329,7 @@ export const AIVerificationCard: React.FC<InteractionCardProps> = ({
         setShowOverride(true);
       }
     }, 3000);
-    
+
     return () => clearTimeout(timeout);
   }, [confidenceThreshold, onComplete]);
 
@@ -354,7 +354,7 @@ export const AIVerificationCard: React.FC<InteractionCardProps> = ({
         </CardIcon>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      
+
       <StatusSection $status={status}>
         <StatusIcon $status={status}>
           {status === 'processing' && <Cpu />}
@@ -372,7 +372,7 @@ export const AIVerificationCard: React.FC<InteractionCardProps> = ({
           {status === 'failure' && 'Manual review required'}
         </StatusSubtext>
       </StatusSection>
-      
+
       {result && (
         <>
           <ConfidenceSection>
@@ -383,14 +383,14 @@ export const AIVerificationCard: React.FC<InteractionCardProps> = ({
               </ConfidenceFill>
             </ConfidenceBar>
           </ConfidenceSection>
-          
+
           {result.details && (
             <DetailsSection>
               <DetailsLabel>Details</DetailsLabel>
               <DetailsText>{result.details}</DetailsText>
             </DetailsSection>
           )}
-          
+
           {showOverride && !readOnly && (
             <OverrideSection>
               <OverrideLabel>Manual Override Required</OverrideLabel>

@@ -1,15 +1,15 @@
 /**
  * Invoices Page (Receivables)
- * 
+ *
  * Customer invoice management with payment tracking and activity logging.
- * 
+ *
  * Features:
  * - View all customer invoices with status filtering
  * - Filter by status: Draft | Sent | Paid | Overdue | Cancelled
  * - Side panel with invoice details and activity feed
  * - Payment tracking with outstanding amounts
  * - Theme-compliant styling (32px headers, color variables)
- * 
+ *
  * Pattern: Follows Claims.tsx/SalesOrders.tsx architecture for consistency
  */
 import React, { useState, useEffect } from 'react';
@@ -96,7 +96,7 @@ const HeaderActions = styled.div`
 const PrimaryButton = styled.button`
   padding: 0.75rem 1.5rem;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: var(--radius-md);
   font-size: 0.875rem;
@@ -121,7 +121,7 @@ const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
   transition: grid-template-columns 0.3s ease;
   flex: 1;
   overflow: hidden;
-  
+
   /* Stack layout on tablets and mobile */
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -216,12 +216,12 @@ const TableWrapper = styled.div`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  
+
   /* Reduce minimum width on smaller screens */
   @media (min-width: 769px) {
     min-width: 800px;
   }
-  
+
   @media (max-width: 768px) {
     min-width: 600px;
   }
@@ -337,7 +337,7 @@ const CloseButton = styled.button`
   font-size: 1.5rem;
   line-height: 1;
   padding: 0;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -353,12 +353,12 @@ const RecordPaymentButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(var(--color-success), 0.15);
     border-color: rgba(var(--color-success), 0.5);
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -427,22 +427,22 @@ const Invoices: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params: any = {};
       if (statusFilter !== 'all') {
         params.status = statusFilter;
       }
-      
+
       const response = await apiClient.get('accounting/invoices/', { params });
       const invoicesData = response.data.results || response.data;
-      
+
       // Calculate outstanding amounts (mocked for now - backend enhancement needed)
       const invoicesWithOutstanding = invoicesData.map((invoice: Invoice) => ({
         ...invoice,
-        outstanding_amount: invoice.outstanding_amount || 
+        outstanding_amount: invoice.outstanding_amount ||
                           (invoice.status === 'paid' ? '0.00' : invoice.total_amount),
       }));
-      
+
       setInvoices(invoicesWithOutstanding);
     } catch (err: any) {
       logger.error('Failed to fetch invoices:', err);
@@ -480,7 +480,7 @@ const Invoices: React.FC = () => {
   // Filter invoices by search query
   const filteredInvoices = invoices.filter(invoice => {
     if (!searchQuery) return true;
-    
+
     const query = searchQuery.toLowerCase();
     return (
       invoice.invoice_number.toLowerCase().includes(query) ||

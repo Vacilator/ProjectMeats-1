@@ -1,15 +1,15 @@
 /**
  * Widget Grid Component
- * 
+ *
  * Draggable, resizable grid layout for dashboard widgets.
  * Uses react-grid-layout for drag-and-drop functionality.
- * 
+ *
  * Features:
  * - Drag and drop widget positioning
  * - Resizable widgets
  * - Responsive breakpoints
  * - Layout persistence
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */
@@ -55,7 +55,7 @@ const GridContainer = styled.div<{ $isEditing: boolean }>`
   .react-grid-item {
     transition: all 200ms ease;
     transition-property: left, top;
-    
+
     &.react-grid-item.cssTransforms {
       transition-property: transform;
     }
@@ -86,7 +86,7 @@ const GridContainer = styled.div<{ $isEditing: boolean }>`
       bottom: 0;
       right: 0;
       cursor: se-resize;
-      
+
       &::after {
         content: '';
         position: absolute;
@@ -106,10 +106,10 @@ const WidgetWrapper = styled.div<{ $isEditing: boolean }>`
   border-radius: var(--radius-lg);
   overflow: hidden;
   position: relative;
-  
+
   ${props => props.$isEditing && `
     cursor: move;
-    
+
     &:hover {
       box-shadow: 0 0 0 2px rgb(var(--color-primary) / 0.3);
     }
@@ -126,7 +126,7 @@ const RemoveButton = styled.button`
   align-items: center;
   justify-content: center;
   background: rgb(var(--color-error));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 50%;
   cursor: pointer;

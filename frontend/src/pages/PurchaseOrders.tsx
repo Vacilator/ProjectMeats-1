@@ -200,7 +200,7 @@ const TableCell = styled.td`
 
 const StatusBadge = styled.span<{ $color: string }>`
   background: ${(props) => props.$color};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
@@ -225,7 +225,7 @@ const ActionButton = styled.button`
 
 const DeleteButton = styled.button`
   background: rgb(var(--color-error));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
