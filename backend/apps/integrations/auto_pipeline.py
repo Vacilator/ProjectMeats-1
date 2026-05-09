@@ -8,6 +8,7 @@ and respects tenant RLS isolation.
 
 AUTO-21.1 – Phase 21: Full End-to-End Automation
 """
+
 import logging
 from decimal import Decimal
 
@@ -281,7 +282,7 @@ def generate_sales_order_from_po(self, po_id: int | None, tenant_id: str):
                 )
                 return existing_inquiry.sales_order.id
 
-            tenant = Tenant.objects.get(id=tenant_id)
+            Tenant.objects.get(id=tenant_id)  # validate tenant exists
 
             with transaction.atomic():
                 # Generate SO number

@@ -3783,7 +3783,7 @@ class FormImportAPIView(APIView):
             return Response(
                 {
                     "status": "success",
-                    "message": f"Form imported successfully",
+                    "message": "Form imported successfully",
                     "form": {
                         "id": str(form.id),
                         "name": form.name,
@@ -3829,7 +3829,7 @@ class FormDuplicateAPIView(APIView):
             return Response(
                 {
                     "status": "success",
-                    "message": f"Form duplicated successfully",
+                    "message": "Form duplicated successfully",
                     "form": {
                         "id": str(new_form.id),
                         "name": new_form.name,
