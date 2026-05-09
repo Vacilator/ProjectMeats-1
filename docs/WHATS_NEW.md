@@ -256,9 +256,7 @@ OrderMethodsMixin (shared behavior)
 
 **Short Answer**: Most of the work is infrastructure that enables future features. The UI changes are intentionally subtle to maintain backward compatibility.
 
-**Detailed Explanation**: 
-- 📄 **Quick Reference**: [WAVE_2_QUICK_REFERENCE.md](./implementation-history/WAVE_2_QUICK_REFERENCE.md) - Print-friendly one-pager
-- 📖 **Deep Dive**: [WAVE_2_COMPLETION_EXPLAINED.md](./implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) - Complete technical breakdown
+**Detailed Explanation**: Most Wave 2 work was infrastructure (APIs, data models, multi-tenancy) that enables future features while maintaining backward compatibility.
 
 **What you'll learn**:
 - Complete breakdown of all 48 completed tasks
@@ -305,7 +303,7 @@ OrderMethodsMixin (shared behavior)
 - **Wave M**: Mobile - React Native app with offline support
 - **Wave I**: Infrastructure - Monitoring, scaling, security hardening
 
-**See the complete timeline**: [PROJECTMEATS_V2_MASTER_PLAN.md](./plans/PROJECTMEATS_V2_MASTER_PLAN.md)
+**See the complete timeline**: repo-root `MASTER_PLAN.md` (canonical)
 
 ---
 
@@ -420,14 +418,14 @@ ProjectMeats uses **wave-based delivery** instead of "big bang" releases:
 
 ### Quick Start
 
-1. **Read**: [WAVE_2_COMPLETION_EXPLAINED.md](./implementation-history/WAVE_2_COMPLETION_EXPLAINED.md)
+1. **Read**: repo-root `MASTER_PLAN.md` for current priorities and status
 2. **Try**: Open `/workspace` and rearrange widgets
 3. **Explore**: Press `⌘K` and search across entities
 4. **Experiment**: Add/remove widgets from the catalog
 
 ### Deep Dive
 
-- **Master Plan**: [PROJECTMEATS_V2_MASTER_PLAN.md](./plans/PROJECTMEATS_V2_MASTER_PLAN.md) (84.8 KB)
+- **Master Plan**: repo-root `MASTER_PLAN.md` (canonical)
 - **Roadmap**: [ROADMAP.md](./ROADMAP.md)
 - **Changelog**: [CHANGELOG.md](./reference/CHANGELOG.md)
 - **Architecture**: [/docs/architecture/](./architecture/)
@@ -445,7 +443,7 @@ ProjectMeats uses **wave-based delivery** instead of "big bang" releases:
 
 ### Why are the changes so subtle?
 
-Wave 2 was 90% infrastructure and 10% UI. Most work is backend APIs and data models that enable future features. See the [detailed explanation](./implementation-history/WAVE_2_COMPLETION_EXPLAINED.md#why-the-changes-feel-subtle).
+Wave 2 was 90% infrastructure and 10% UI. Most work is backend APIs and data models that enable future features.
 
 ### When will I see dramatic changes?
 
@@ -480,8 +478,6 @@ Three channels:
 | Document | Purpose | Size |
 |----------|---------|------|
 | [WHATS_NEW.md](./WHATS_NEW.md) | This file - latest changes summary | 5 KB |
-| [WAVE_2_COMPLETION_EXPLAINED.md](./implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) | Detailed Wave 2 explanation | 19 KB |
-| [PROJECTMEATS_V2_MASTER_PLAN.md](./plans/PROJECTMEATS_V2_MASTER_PLAN.md) | Complete v2.0 plan | 85 KB |
 | [ROADMAP.md](./ROADMAP.md) | Development roadmap | 17 KB |
 | [CHANGELOG.md](./reference/CHANGELOG.md) | Version history | 3 KB |
 

@@ -208,8 +208,7 @@ Press `?` to show the full keyboard shortcuts help modal.
 ## Support
 
 For issues, questions, or feature requests:
-- Check the [Implementation Plan](./plans/MULTI_STEP_CONTAINER_IMPLEMENTATION_PLAN.md) for technical details
-- Review the [Quick Reference Guide](./plans/MULTI_STEP_CONTAINER_QUICK_REFERENCE.md) for developer info
+- Review the [Architecture docs](./architecture/) for technical details
 - Contact the ProjectMeats development team
 
 ---
