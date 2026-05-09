@@ -461,6 +461,9 @@ class InquirySupplierRFQ(TenantAwareModel):
             ),
         ]
 
+    def __str__(self) -> str:
+        return f"RFQ {self.inquiry_id}→{self.recipient_email} ({self.status})"
+
 
 class InquiryProduct(TenantAwareModel):
     """
