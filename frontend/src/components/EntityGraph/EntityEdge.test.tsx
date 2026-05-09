@@ -6,8 +6,8 @@ import { render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import EntityEdge from './EntityEdge';
 
-// Mock reactflow with all needed exports
-vi.mock('reactflow', () => ({
+// Mock @xyflow/react with all needed exports
+vi.mock('@xyflow/react', () => ({
   getBezierPath: vi.fn(() => ['M 0 0 C 50 0, 50 100, 100 100', 50, 50]),
   EdgeLabelRenderer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   BaseEdge: ({ id, path, style }: any) => (
