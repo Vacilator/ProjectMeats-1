@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Input, Result, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -256,6 +256,14 @@ const Customers: React.FC = () => {
       </HeaderRow>
 
       <TableContainer data-testid="customers-table-container">
+        {customersQuery.isError ? (
+          <Result
+            status="error"
+            title="Failed to load customers"
+            subTitle="Something went wrong. Please try again."
+            extra={<Button type="primary" onClick={() => void customersQuery.refetch()}>Retry</Button>}
+          />
+        ) : (
         <Table<CustomerListRow>
           rowKey={(row) => String(row.id ?? '')}
           columns={columns}
@@ -309,6 +317,7 @@ const Customers: React.FC = () => {
             },
           }}
         />
+        )}
       </TableContainer>
 
       <EntityFormSurface

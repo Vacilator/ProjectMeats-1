@@ -82,6 +82,26 @@ const LoadingMessage = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const ErrorMessage = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const RetryButton = styled.button`
+  margin-top: 12px;
+  padding: 8px 20px;
+  background: rgb(var(--color-primary));
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  &:hover {
+    opacity: 0.85;
+  }
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;
@@ -286,6 +306,18 @@ const Contacts: React.FC = () => {
     return (
       <Container>
         <LoadingMessage>Loading contacts...</LoadingMessage>
+      </Container>
+    );
+  }
+
+  if (contactsQuery.isError) {
+    return (
+      <Container>
+        <ErrorMessage>
+          <p style={{ fontSize: 18 }}>Failed to load contacts</p>
+          <p>Something went wrong. Please try again.</p>
+          <RetryButton onClick={() => void contactsQuery.refetch()}>Retry</RetryButton>
+        </ErrorMessage>
       </Container>
     );
   }

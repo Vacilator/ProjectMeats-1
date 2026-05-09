@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Space, Table, Tag, Typography } from 'antd';
+import { Button, Input, Result, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -192,6 +192,14 @@ const Suppliers: React.FC = () => {
         </Space>
       </div>
 
+      {suppliersQuery.isError ? (
+        <Result
+          status="error"
+          title="Failed to load suppliers"
+          subTitle="Something went wrong. Please try again."
+          extra={<Button type="primary" onClick={() => void suppliersQuery.refetch()}>Retry</Button>}
+        />
+      ) : (
       <Table<SupplierListRow>
         rowKey={(row) => String(row.id ?? '')}
         columns={columns}
@@ -244,6 +252,7 @@ const Suppliers: React.FC = () => {
           },
         }}
       />
+      )}
 
       <EntityFormSurface
         entityType="supplier"
