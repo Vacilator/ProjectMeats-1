@@ -17,6 +17,18 @@ import { buildReviewDetailsPathFromItem } from '@/utils/reviewDetailsPath';
 
 const { Paragraph, Text, Title } = Typography;
 
+/** Safely extract error message from axios-like error objects. */
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error && typeof error === 'object') {
+    const e = error as Record<string, unknown>;
+    const resp = e.response as Record<string, unknown> | undefined;
+    const data = resp?.data as Record<string, unknown> | undefined;
+    if (typeof data?.error === 'string') return data.error;
+    if (typeof (e as { message?: string }).message === 'string') return (e as { message?: string }).message!;
+  }
+  return fallback;
+};
+
 type AIDraftReviewModalProps = {
   open: boolean;
   item: PendingReviewItem | null;
@@ -319,10 +331,9 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         if (closeOnResolved) {
           onClose?.();
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         message.error(
-          error?.response?.data?.error ||
-            'The draft saved, but the AI review queue could not be updated.',
+          getErrorMessage(error, 'The draft saved, but the AI review queue could not be updated.'),
         );
       } finally {
         resolvingAfterSaveRef.current = false;
@@ -348,10 +359,9 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         if (closeOnResolved) {
           onClose?.();
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         message.error(
-          error?.response?.data?.error ||
-            'Failed to reject the review item.',
+          getErrorMessage(error, 'Failed to reject the review item.'),
         );
       } finally {
         setResolvingState(false);
@@ -427,7 +437,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           approved_drafts: approvedDraftsData,
         },
       });
-      const createdId = (result as any)?.created_id || (result as any)?.id || '';
+      const createdId = String((result as Record<string, unknown>)?.created_id || (result as Record<string, unknown>)?.id || '');
       if (createdId) {
         setCreatedRecords((prev) => ({
           ...prev,
@@ -440,10 +450,9 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
       if (closeOnResolved) {
         onClose?.();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(
-        error?.response?.data?.error ||
-          'Failed to save the main record after approving drafts.',
+        getErrorMessage(error, 'Failed to save the main record after approving drafts.'),
       );
       setApproveProgress(null);
     }
@@ -480,12 +489,12 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         }}>
           <span style={{ fontSize: 16 }}>🎯</span>
           <span>Intent: {item.intent_label}</span>
-          {typeof (item as any).confidence_score === 'number' && (
+          {typeof item.confidence_score === 'number' && (
             <Tag color={
-              (item as any).confidence_score >= 0.8 ? 'green' :
-              (item as any).confidence_score >= 0.5 ? 'orange' : 'red'
+              item.confidence_score >= 0.8 ? 'green' :
+              item.confidence_score >= 0.5 ? 'orange' : 'red'
             } style={{ marginLeft: 'auto' }}>
-              {Math.round((item as any).confidence_score * 100)}% confidence
+              {Math.round(item.confidence_score * 100)}% confidence
             </Tag>
           )}
         </div>
