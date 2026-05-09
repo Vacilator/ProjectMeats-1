@@ -325,7 +325,7 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
       if (e.target === e.currentTarget) {
         onClose();
       }
-    }}>
+    }} role="dialog" aria-modal="true" aria-label={form.name}>
       <Modal onClick={(e) => e.stopPropagation()}>
         <Header>
           <FormIcon>{form.icon || '📋'}</FormIcon>
@@ -334,7 +334,7 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
             {form.description && <FormDescription>{form.description}</FormDescription>}
             <StatusBadge $status={form.status}>{form.status}</StatusBadge>
           </HeaderContent>
-          <CloseButton onClick={onClose}><X size={20} /></CloseButton>
+          <CloseButton onClick={onClose} aria-label="Close"><X size={20} /></CloseButton>
         </Header>
         <Content>
           <InfoGrid>
