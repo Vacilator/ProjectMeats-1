@@ -356,7 +356,7 @@ const App: React.FC = () => {
                 <Route path="call-log" element={<Navigate to="/cockpit/calls" replace />} />
                 <Route path="processes" element={<Navigate to="/workforms/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
-                <Route path="activity" element={<Navigate to="/process-cockpit" replace />} />
+                <Route path="activity" element={<Navigate to="/command-center?tab=action-required" replace />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/email-integrations" element={<Settings />} />
@@ -460,17 +460,11 @@ const App: React.FC = () => {
 
                 <Route
                   path="process-cockpit"
-                  element={
-                    <Suspense fallback={<Skeleton active />}>
-                      <CockpitPage />
-                    </Suspense>
-                  }
-                >
-                  <Route index element={<ProcessCockpitPage />} />
-                </Route>
+                  element={<Navigate to="/command-center?tab=action-required" replace />}
+                />
                 <Route
                   path="cockpit/interventions"
-                  element={<Navigate to="/process-cockpit?view=action-required" replace />}
+                  element={<Navigate to="/command-center?tab=action-required" replace />}
                 />
                 
                 {/* Backward compatibility redirect */}
@@ -487,7 +481,7 @@ const App: React.FC = () => {
                 >
                   <Route index element={<Navigate to="/cockpit/dashboard" replace />} />
                   <Route path="dashboard" element={<CockpitDashboard />} />
-                  <Route path="process-monitor" element={<Navigate to="/process-cockpit" replace />} />
+                  <Route path="process-monitor" element={<Navigate to="/command-center?tab=action-required" replace />} />
                   <Route path="calls" element={<CallLog />} />
                   <Route path="entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
                 </Route>

@@ -108,13 +108,29 @@ describe('mapDraftToInitialValues', () => {
     expect(result.name).toBe('New Customer');
   });
 
+  it('sets status=active for customer', () => {
+    const result = mapDraftToInitialValues(makeItem('customer', {}));
+    expect(result.status).toBe('active');
+  });
+
   it('defaults supplier name when missing', () => {
     const result = mapDraftToInitialValues(makeItem('supplier', {}));
     expect(result.name).toBe('New Supplier');
   });
 
-  it('returns raw payload for unknown entity types', () => {
+  it('sets status=active for supplier', () => {
+    const result = mapDraftToInitialValues(makeItem('supplier', {}));
+    expect(result.status).toBe('active');
+  });
+
+  it('sets status=active for contact', () => {
+    const result = mapDraftToInitialValues(makeItem('contact', {}));
+    expect(result.status).toBe('active');
+  });
+
+  it('sets status=draft as fallback for unknown entity types', () => {
     const result = mapDraftToInitialValues(makeItem('', { some: 'data' }));
+    expect(result.status).toBe('draft');
     expect(result.some).toBe('data');
   });
 });
