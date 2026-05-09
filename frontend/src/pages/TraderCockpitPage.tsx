@@ -551,7 +551,7 @@ const TraderCockpitPage: React.FC = () => {
         title={null}
         footer={null}
         width={680}
-        destroyOnClose
+        destroyOnHidden
       >
         <SmartTradeCreator
           onTradeCreated={() => {

@@ -306,7 +306,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
         okText="Submit Feedback"
         onOk={submitNegativeFeedback}
         confirmLoading={feedbackMutation.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           Your feedback helps the AI learn. What should be different?

@@ -471,7 +471,7 @@ const ColdStorage: React.FC = () => {
             Create Lot
           </Button>,
         ]}
-        destroyOnClose
+        destroyOnHidden
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
           Create a new cold storage lot. Assign it to a facility and specify product details.

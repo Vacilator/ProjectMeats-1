@@ -136,7 +136,7 @@ export const TemplateVariantCreator: React.FC<TemplateVariantCreatorProps> = ({
       okText="Create Variant"
       onOk={handleCreate}
       confirmLoading={creating}
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       <FormGrid>
