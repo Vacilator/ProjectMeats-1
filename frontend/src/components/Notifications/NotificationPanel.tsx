@@ -517,7 +517,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
         </HeaderActions>
       </Header>
 
-      <Content>
+      <Content role="list" aria-label="Notifications" aria-live="polite">
         {loading ? (
           <LoadingState>Loading notifications...</LoadingState>
         ) : !hasNotifications ? (
@@ -541,6 +541,8 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
                       data-testid={`notification-item-${notification.id}`}
                       $isUnread={!notification.is_read}
                       $priority={notification.priority}
+                      role="listitem"
+                      aria-label={`${notification.is_read ? '' : 'Unread: '}${notification.title}`}
                       onClick={() => void handleNotificationClick(notification)}
                     >
                       <IconContainer $type={notification.notification_type}>
