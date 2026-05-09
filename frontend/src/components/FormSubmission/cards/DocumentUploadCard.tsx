@@ -17,7 +17,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import styled from 'styled-components';
-import { FileUp, Check, X, File, Image, FileText, AlertCircle } from 'lucide-react';
+import { FileUp, Check, X, AlertCircle } from 'lucide-react';
 
 import { documentsApi } from '@/services/aiService';
 
@@ -264,19 +264,13 @@ function formatFileSize(bytes: number): string {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-function getFileIcon(type: string) {
-  if (type.startsWith('image/')) return <Image />;
-  if (type.includes('pdf')) return <FileText />;
-  return <File />;
-}
-
 // ============================================================================
 // Component
 // ============================================================================
 
 export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
   node,
-  context,
+  context: _context,
   onComplete,
   onWait,
   readOnly = false,

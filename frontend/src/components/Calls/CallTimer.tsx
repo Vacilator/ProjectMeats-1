@@ -253,12 +253,6 @@ export const CallTimer: React.FC<CallTimerProps> = ({
     setIsPaused(false);
   }, []);
 
-  const handleReset = useCallback(() => {
-    setSeconds(initialSeconds);
-    accumulatedRef.current = initialSeconds;
-    startTimeRef.current = null;
-  }, [initialSeconds]);
-
   // Compact mode - just shows time and pulsing indicator
   if (mode === 'compact') {
     return (

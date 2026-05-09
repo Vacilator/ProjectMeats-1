@@ -10,7 +10,7 @@
 import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { Modal, Input, Select, message } from 'antd';
-import { Plus, Building2, User, MapPin, Factory } from 'lucide-react';
+import { Plus, Building2, User, Factory } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { getValidTenantId } from '../../utils/tenantId';
 

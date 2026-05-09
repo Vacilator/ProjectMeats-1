@@ -1481,7 +1481,7 @@ const AICommandCenter: React.FC = () => {
           open
           entityType={quickCreateTarget.entityType}
           suggestedName={quickCreateTarget.suggestedName}
-          onCreated={(entityId, entityName) => {
+          onCreated={(_entityId, entityName) => {
             message.success(`Created ${quickCreateTarget.entityType}: ${entityName}`);
             setQuickCreateTarget(null);
             // Refresh lineage + entities

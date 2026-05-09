@@ -283,7 +283,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
   onClose,
   onSave,
   initialData,
-  nodeId
+  nodeId: _nodeId
 }) => {
   const {
     formName,

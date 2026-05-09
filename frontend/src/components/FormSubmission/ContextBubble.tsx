@@ -28,7 +28,6 @@ import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
 import { 
   Database, 
-  Search, 
   ChevronDown, 
   ChevronRight, 
   ChevronUp,
@@ -36,12 +35,11 @@ import {
   CheckCircle,
   Type,
   Hash,
-  Calendar,
   ToggleLeft,
   List,
   FileText,
 } from 'lucide-react';
-import { WorkflowContext, AvailableDataNode } from './hooks/useWorkflowContext';
+import { WorkflowContext } from './hooks/useWorkflowContext';
 
 // ============================================================================
 // TypeScript Interfaces

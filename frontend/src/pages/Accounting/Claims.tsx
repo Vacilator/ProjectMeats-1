@@ -277,14 +277,6 @@ const StatusBadge = styled.span<{ status: ClaimStatus }>`
   }}
 `;
 
-const LoadingState = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
-  color: rgb(var(--color-text-secondary));
-  font-size: 0.875rem;
-`;
 
 const ErrorState = styled.div`
   padding: 1rem 1.5rem;

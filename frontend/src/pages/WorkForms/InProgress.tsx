@@ -21,7 +21,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
-import { Play, Clock, Filter, RefreshCw, FileText, X, Eye } from 'lucide-react';
+import { Play, Clock, RefreshCw, FileText, X, Eye } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
@@ -130,28 +130,6 @@ const SearchInput = styled.input`
   }
 `;
 
-const FilterButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md, 8px);
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-secondary));
-  font-size: 14px;
-  cursor: pointer;
-  
-  &:hover {
-    border-color: rgb(var(--color-primary));
-    color: rgb(var(--color-text-primary));
-  }
-  
-  &:focus-visible {
-    outline: 2px solid rgb(var(--color-primary));
-    outline-offset: 2px;
-  }
-`;
 
 const RefreshButton = styled.button`
   display: flex;

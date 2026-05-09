@@ -1030,7 +1030,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           suggestedName={quickCreateTarget.suggestedName}
           suggestedEmail={quickCreateTarget.suggestedEmail}
           onClose={() => setQuickCreateTarget(null)}
-          onCreated={(entityId, entityName) => {
+          onCreated={(_entityId, entityName) => {
             message.success(`Created ${quickCreateTarget.entityType}: ${entityName}`);
             setQuickCreateTarget(null);
           }}

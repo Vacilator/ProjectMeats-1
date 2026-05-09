@@ -15,7 +15,7 @@
  * Created: 2026-02-24 - Cockpit Search Enhancement
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { logger } from '../../utils/logger';
 import {
@@ -31,10 +31,10 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Building2, Users, ShoppingCart, Receipt, Package,
-  Truck, User, FileText, Phone, Loader, ChevronRight,
+  Truck, User, FileText, Phone, Loader,
   Plus, X
 } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
@@ -253,7 +253,7 @@ const LoadingOverlay = styled.div`
 const calculateTreeLayout = (
   nodes: MindMapNode[],
   nodeWidth: number = 200,
-  nodeHeight: number = 80,
+  _nodeHeight: number = 80,
   levelGap: number = 250,
   siblingGap: number = 100
 ): Record<string, { x: number; y: number }> => {
@@ -437,7 +437,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
   }, []);
 
   const handleNodeClick = useCallback(
-    (event: React.MouseEvent, node: Node) => {
+    (_event: React.MouseEvent, node: Node) => {
       const data = node.data as unknown as MindMapNode;
       if (onEntityClick) {
         onEntityClick(data.entityType, data.entityId, data.name);

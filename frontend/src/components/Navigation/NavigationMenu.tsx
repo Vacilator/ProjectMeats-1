@@ -455,16 +455,6 @@ const AccordionHeader = styled.div<{ $theme: Theme; $level: number; $active: boo
   `}
 `;
 
-const AccordionNavLink = styled(NavLink)<{ $level: number }>`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  color: inherit;
-  text-decoration: none;
-  min-height: inherit;
-`;
-
 // Container for accordion header with NavLink and ExpandButton as siblings
 const AccordionHeaderContainer = styled.div<{
   $level: number;

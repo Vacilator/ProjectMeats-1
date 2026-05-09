@@ -5,7 +5,7 @@
  * Prevents entire app from crashing when admin pages encounter errors.
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import styled from 'styled-components';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { logger } from '../../utils/logger';
@@ -88,7 +88,7 @@ Component Stack: ${errorInfo?.componentStack || 'No component stack'}
   };
 
   render() {
-    const { hasError, error, errorInfo, errorCount } = this.state;
+    const { hasError, error, errorInfo: _errorInfo, errorCount } = this.state;
     const { children, fallbackTitle, showDetails } = this.props;
 
     if (hasError) {

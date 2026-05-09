@@ -17,7 +17,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { 
-  Activity, TrendingUp, TrendingDown, Package, 
+  Activity, Package, 
   CheckCircle, Clock, Users 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

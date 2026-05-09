@@ -15,7 +15,6 @@ import {
   PercentageOutlined,
   WarningOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
 
@@ -51,17 +50,6 @@ interface PortfolioSummary {
 // -------------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------------
-
-function riskColor(level: string): string {
-  switch (level) {
-    case 'high':
-      return 'rgb(var(--color-error))';
-    case 'medium':
-      return 'rgb(var(--color-warning))';
-    default:
-      return 'rgb(var(--color-success))';
-  }
-}
 
 function riskTag(level: string): React.ReactNode {
   const color = level === 'high' ? 'red' : level === 'medium' ? 'orange' : 'green';

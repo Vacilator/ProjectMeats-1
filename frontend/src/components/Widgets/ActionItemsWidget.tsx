@@ -16,7 +16,7 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { 
-  CheckSquare, Clock, AlertCircle, ChevronRight 
+  CheckSquare, Clock, ChevronRight 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';

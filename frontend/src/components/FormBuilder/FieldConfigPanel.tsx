@@ -461,7 +461,7 @@ export const FieldConfigPanel: React.FC<FieldConfigPanelProps> = ({
   onChange,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'basic' | 'validation' | 'advanced'>('basic');
+  const [_activeTab, _setActiveTab] = useState<'basic' | 'validation' | 'advanced'>('basic');
   
   const updateField = useCallback((updates: Partial<FieldConfig>) => {
     onChange({ ...field, ...updates });

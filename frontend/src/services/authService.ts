@@ -7,7 +7,6 @@
  * - Falls back to legacy token auth for backward compatibility
  */
 import { apiClient } from './apiService';
-import { config } from '../config/runtime';
 import { UserProfile } from '../types';
 import { logger } from '../utils/logger';
 
@@ -36,11 +35,8 @@ import {
   storeTokens,
   clearTokens,
   getAccessToken,
-  migrateLegacyToken,
   isUsingJwt,
 } from './jwtService';
-
-const API_BASE_URL = config.API_BASE_URL;
 
 export interface LoginCredentials {
   username: string;

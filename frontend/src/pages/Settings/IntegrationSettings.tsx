@@ -191,7 +191,7 @@ interface EmailProviderCardProps {
 }
 
 const EmailProviderCard: React.FC<EmailProviderCardProps> = ({
-  provider,
+  provider: _provider,
   name,
   description,
   icon,

@@ -22,8 +22,8 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { showAlert } from '@/utils/uiDialogs';
 import { 
   CheckCircle, XCircle, Calendar, Search, Download, 
-  Eye, Filter, RefreshCw, FileText, ChevronRight, ChevronDown,
-  Clock, AlertCircle
+  Eye, RefreshCw, FileText, ChevronRight, ChevronDown,
+  AlertCircle
 } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { workformExecutionService, WorkFormExecution } from '@/services/workformExecutionService';
@@ -392,89 +392,6 @@ const ExpandedContent = styled.td`
   background: rgb(var(--color-background));
 `;
 
-const Timeline = styled.div`
-  position: relative;
-  padding-left: 30px;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    left: 8px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: rgb(var(--color-border));
-  }
-`;
-
-const TimelineItem = styled.div`
-  position: relative;
-  padding-bottom: 20px;
-  
-  &:last-child {
-    padding-bottom: 0;
-  }
-`;
-
-const TimelineDot = styled.div<{ $status: string }>`
-  position: absolute;
-  left: -26px;
-  top: 4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid ${({ $status }) => {
-    switch ($status) {
-      case 'completed': return 'rgb(var(--color-success))';
-      case 'failed': return 'rgb(var(--color-error))';
-      case 'skipped': return 'rgb(var(--color-text-secondary))';
-      default: return 'rgb(var(--color-info))';
-    }
-  }};
-  background: rgb(var(--color-surface));
-`;
-
-const TimelineContent = styled.div`
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md, 8px);
-  padding: 12px 16px;
-`;
-
-const TimelineHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-`;
-
-const TimelineTitle = styled.div`
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
-
-const TimelineTime = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-tertiary));
-`;
-
-const TimelineMeta = styled.div`
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const DurationBadge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 12px;
-  background: rgb(var(--color-primary) / 0.10);
-  color: rgb(var(--color-primary));
-  margin-left: 8px;
-`;
 
 // ============================================================================
 // Component
@@ -625,15 +542,6 @@ const FormsFlowsHistory: React.FC = () => {
     if (diffMins < 60) return `${diffMins}m`;
     if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m`;
     return `${diffDays}d ${diffHours % 24}h`;
-  };
-  
-  // Format seconds to readable duration
-  const formatSeconds = (seconds?: number) => {
-    if (!seconds) return '-';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (mins === 0) return `${secs}s`;
-    return `${mins}m ${secs}s`;
   };
   
   // Handle view details

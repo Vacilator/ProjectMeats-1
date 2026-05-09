@@ -266,13 +266,6 @@ const Container = styled.div`
   padding: 20px;
 `;
 
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 40px;
-  font-size: 18px;
-  color: rgb(var(--color-text-secondary));
-`;
-
 const Header = styled.div`
   margin-bottom: 30px;
 `;

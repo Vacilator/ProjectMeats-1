@@ -80,7 +80,7 @@ const tenantHandlers = [
 // -------------------------------------------------------------------
 
 const entityHandlers = [
-  http.get(`${BASE_URL}/entities/:entityType/`, ({ params }) => {
+  http.get(`${BASE_URL}/entities/:entityType/`, ({ params: _params }) => {
     return HttpResponse.json({
       results: [],
       count: 0,

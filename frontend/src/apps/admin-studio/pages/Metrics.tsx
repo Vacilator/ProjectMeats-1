@@ -12,9 +12,8 @@
  *
  * Created: 2026-02-26 - Gap Analysis Phase 4.2
  */
-import React, { useState } from 'react';
+import React from 'react';
 import styled from 'styled-components';
-import { useQuery } from '@tanstack/react-query';
 import {
   LineChart,
   Line,

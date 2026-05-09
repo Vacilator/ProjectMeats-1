@@ -15,14 +15,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import styled, { keyframes } from 'styled-components';
 import {
   ShieldCheck,
-  ShieldX,
   ShieldAlert,
   CheckCircle2,
   XCircle,
-  MessageSquare,
   Clock,
   AlertTriangle,
-  User,
   Building2,
   ChevronDown,
   ChevronRight,
@@ -258,20 +255,6 @@ const EmptyState = styled.div`
   color: rgb(var(--color-text-secondary));
   font-size: 14px;
   gap: 8px;
-`;
-
-const BadgeCount = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  background: rgba(var(--color-warning), 0.15);
-  color: rgb(161, 98, 7);
 `;
 
 // ============================================================================

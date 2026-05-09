@@ -12,7 +12,7 @@
  */
 import React from 'react';
 import styled, { css, keyframes } from 'styled-components';
-import { Button, Result, Skeleton, Typography } from 'antd';
+import { Button, Skeleton, Typography } from 'antd';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 const { Text } = Typography;
@@ -115,7 +115,7 @@ interface QueryFallbackProps {
 }
 
 export const QueryFallback: React.FC<QueryFallbackProps> = ({
-  error,
+  error: _error,
   onRetry,
   message = 'Something went wrong loading this data.',
 }) => (

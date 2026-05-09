@@ -19,8 +19,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import {
-  Plus, Edit2, Trash2, Save, X, GripVertical, Eye, EyeOff,
-  Settings, Search, Filter, ChevronDown, ChevronRight
+  Plus, Edit2, Trash2, Save, GripVertical, Eye, EyeOff,
+  Search, Filter
 } from 'lucide-react';
 import { Modal as AntModal } from 'antd';
 import { apiClient } from '../../services/apiService';

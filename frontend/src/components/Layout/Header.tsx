@@ -27,7 +27,7 @@ const Header: React.FC<HeaderProps> = () => {
   const [showOnboardingMenu, setShowOnboardingMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [_isEditMode, _setIsEditMode] = useState(false);
   const [showFormsSubmenu, setShowFormsSubmenu] = useState(false);
   const quickMenuRef = useRef<HTMLDivElement>(null);
   const onboardingMenuRef = useRef<HTMLDivElement>(null);

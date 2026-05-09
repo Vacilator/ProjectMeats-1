@@ -358,7 +358,7 @@ export const WorkflowProgressCard: React.FC<WorkflowProgressCardProps> = ({
   steps,
   currentStepIndex,
   status,
-  createdAt,
+  createdAt: _createdAt,
   updatedAt,
   onClick,
   compact = false,

@@ -14,7 +14,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
-import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2, Package, Truck } from 'lucide-react';
+import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
@@ -671,8 +671,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   };
 
   const displayItems = query.length >= 2 ? results : recentItems;
-  const showRecent = query.length < 2 && recentItems.length > 0;
-  const showQuickActions = query.length < 2;
 
   return (
     <Overlay $isOpen={isOpen} onClick={onClose}>

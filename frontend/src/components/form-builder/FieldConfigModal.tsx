@@ -12,7 +12,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { showAlert } from '@/utils/uiDialogs';
 import { X, Save, Sparkles, TrendingUp } from 'lucide-react';
-import { FormField, FieldType, ValidationType, AutoPopulateSuggestion } from './types';
+import { FormField, FieldType, AutoPopulateSuggestion } from './types';
 import { useFormBuilderStore } from './store';
 import { generateAutoPopulateSuggestions } from '../FlowEditor/utils/autoPopulateEngine';
 import { Variable } from '../FlowEditor/components/VariablePicker';
@@ -155,12 +155,6 @@ const CheckboxLabel = styled.label`
   font-size: 14px;
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-`;
-
-const HelpText = styled.p`
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-  margin: 6px 0 0 0;
 `;
 
 const SuggestionBox = styled.div`
@@ -312,7 +306,6 @@ export const FieldConfigModal: React.FC = () => {
     editingField,
     closeFieldModal,
     saveField,
-    steps
   } = useFormBuilderStore();
 
   // Field state

@@ -10,11 +10,7 @@ import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { Tooltip } from 'antd';
 import {
-  FileText,
   CheckCircle2,
-  Truck,
-  ShoppingCart,
-  Package,
   CircleDot,
   Clock,
 } from 'lucide-react';

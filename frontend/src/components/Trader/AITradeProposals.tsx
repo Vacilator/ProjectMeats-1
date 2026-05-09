@@ -19,7 +19,6 @@ import {
   Badge,
   Button,
   Card,
-  Empty,
   Input,
   Modal,
   Skeleton,
@@ -30,13 +29,11 @@ import {
   message,
 } from 'antd';
 import {
-  CheckCircle2,
   Lightbulb,
   Play,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
-  X,
   Zap,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -44,11 +41,10 @@ import styled from 'styled-components';
 
 import {
   traderService,
-  type TradeProposal,
 } from '@/services/traderService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 // ============================================================================
 // Styled Components

@@ -267,7 +267,7 @@ export class AINodeSuggestionService {
   private static getContextualSuggestions(
     selectedNode: Node,
     nodes: Node[],
-    edges: Edge[]
+    _edges: Edge[]
   ): NodeSuggestion[] {
     const suggestions: NodeSuggestion[] = [];
     const nodeType = canonicalizeNodeTypeId(selectedNode.type || 'default');
@@ -323,7 +323,7 @@ export class AINodeSuggestionService {
   /**
    * Get suggestions for missing workflow components
    */
-  private static getGapSuggestions(nodes: Node[], edges: Edge[]): NodeSuggestion[] {
+  private static getGapSuggestions(nodes: Node[], _edges: Edge[]): NodeSuggestion[] {
     const suggestions: NodeSuggestion[] = [];
     
     const canonicalTypes = nodes.map((n) => canonicalizeNodeTypeId(n.type || ''));

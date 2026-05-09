@@ -1,7 +1,7 @@
 import React from 'react';
 
 import SearchableSelect, { type SearchableSelectProps } from './SearchableSelect';
-import { type MultiSelectOption, type MultiSelectProps } from './MultiSelectImpl';
+import { type MultiSelectProps } from './MultiSelectImpl';
 
 export type { MultiSelectOption, MultiSelectProps } from './MultiSelectImpl';
 

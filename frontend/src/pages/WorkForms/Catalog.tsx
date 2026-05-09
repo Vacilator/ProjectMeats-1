@@ -32,7 +32,6 @@ import {
   Search,
   Grid,
   List,
-  Filter,
   Sparkles,
   FileText,
   Workflow,
@@ -46,7 +45,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { PageContainer } from '../../components/ui/PageContainer';
-import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { TemplateSelector } from '../../components/FlowEditor/templates/TemplateSelector';
 import { FLOW_TEMPLATES, FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';

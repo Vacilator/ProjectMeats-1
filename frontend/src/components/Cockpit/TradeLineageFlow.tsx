@@ -30,8 +30,6 @@ import {
   Package,
   Truck,
   AlertCircle,
-  CheckCircle2,
-  Clock,
   Loader2,
   UserX,
 } from 'lucide-react';

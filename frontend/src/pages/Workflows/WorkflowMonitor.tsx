@@ -347,18 +347,6 @@ const LoadingState = styled.div`
   gap: 1rem;
 `;
 
-const Spinner = styled.div`
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgb(var(--color-border));
-  border-top-color: rgb(var(--color-primary));
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-`;
 
 /* === Main Component === */
 

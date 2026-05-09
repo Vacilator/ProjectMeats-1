@@ -384,13 +384,6 @@ const DetailValue = styled.div`
   color: rgb(var(--color-text-primary));
 `;
 
-const LoadingMessage = styled.div`
-  padding: 3rem;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-  font-size: 0.875rem;
-`;
-
 const ErrorMessage = styled.div`
   padding: 3rem;
   text-align: center;
