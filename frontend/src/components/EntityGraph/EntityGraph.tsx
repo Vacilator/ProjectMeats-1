@@ -414,9 +414,12 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
       }
 
       setTruncated(isTruncated);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to fetch entity graph:', err);
-      setError(err.response?.data?.error || 'Failed to load entity graph');
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((data.error as string) || 'Failed to load entity graph');
     } finally {
       setLoading(false);
       setExpandingNode(null);
