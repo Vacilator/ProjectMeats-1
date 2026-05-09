@@ -154,9 +154,30 @@ function applyDefaults(entityType: string, data: Record<string, unknown>): Recor
     result.entity_type = 'general';
   }
 
-  // Ensure order_date for POs
-  if (entityType === 'purchase_order' && !result.order_date) {
+  // Ensure order_date for POs and SOs
+  if ((entityType === 'purchase_order' || entityType === 'sales_order') && !result.order_date) {
     result.order_date = new Date().toISOString().split('T')[0];
+  }
+
+  // Contact: ensure first_name and last_name (extract from full name if possible)
+  if (entityType === 'contact') {
+    if (!result.first_name && !result.last_name && result.name) {
+      const parts = String(result.name).trim().split(/\s+/);
+      result.first_name = parts[0] || 'Unknown';
+      result.last_name = parts.slice(1).join(' ') || 'Contact';
+    }
+    if (!result.first_name) result.first_name = 'Unknown';
+    if (!result.last_name) result.last_name = 'Contact';
+  }
+
+  // Supplier/Customer: ensure name field
+  if ((entityType === 'supplier' || entityType === 'customer') && !result.name) {
+    result.name = String(result.company_name || result.company || `New ${entityType}`);
+  }
+
+  // Plant: ensure name field
+  if (entityType === 'plant' && !result.name) {
+    result.name = String(result.plant_name || result.location || 'New Plant');
   }
 
   return result;
