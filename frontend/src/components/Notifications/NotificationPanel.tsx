@@ -270,7 +270,7 @@ function isActionRequired(notification: Notification): boolean {
  * Map a notification's action_url to the new Command Center route
  * when it pointed to old fragmented pages.
  */
-function resolveActionUrl(notification: Notification): string {
+export function resolveActionUrl(notification: Pick<Notification, 'action_url' | 'metadata'>): string {
   const url = notification.action_url;
   if (!url) return '';
 
