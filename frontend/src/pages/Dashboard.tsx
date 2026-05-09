@@ -8,6 +8,7 @@ import { Theme } from '../config/theme';
 import SupplierPerformanceChart from '../components/Visualization/SupplierPerformanceChart';
 import PurchaseOrderTrends from '../components/Visualization/PurchaseOrderTrends';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface DashboardStats {
   suppliers: number;
@@ -38,6 +39,7 @@ interface PurchaseOrderTrendData {
 }
 
 const Dashboard: React.FC = () => {
+  useDocumentTitle('Dashboard');
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [stats, setStats] = useState<DashboardStats>({

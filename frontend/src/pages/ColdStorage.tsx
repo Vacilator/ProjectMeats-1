@@ -19,6 +19,7 @@ import {
 import { StatCardGrid } from '@/components/Shared/StatCardGrid';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { Text, Title } = Typography;
 
@@ -125,6 +126,7 @@ const getDaysUntilExpiry = (expiryDate?: string): number | null => {
 };
 
 const ColdStorage: React.FC = () => {
+  useDocumentTitle('Cold Storage');
   const [searchText, setSearchText] = useState('');
   const [selectedLot, setSelectedLot] = useState<ColdStorageLot | null>(null);
   const [newLotOpen, setNewLotOpen] = useState(false);

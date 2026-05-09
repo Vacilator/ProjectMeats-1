@@ -4,8 +4,10 @@ import { Skeleton } from 'antd';
 import { useAuth } from '../contexts/AuthContext';
 import styled from 'styled-components';
 import UserAvatar from '../components/Profile/UserAvatar';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const Profile: React.FC = () => {
+  useDocumentTitle('Profile');
   const { user, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);

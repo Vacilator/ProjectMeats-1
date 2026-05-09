@@ -24,6 +24,7 @@ import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
 import { UnifiedForm } from '../components/UnifiedForm';
 import { inquiryService } from '../services/inquiryService';
 import { formatDateLocal } from '@/utils/formatters';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // Styled Components
@@ -455,6 +456,7 @@ const PaginationButton = styled.button`
 // ============================================================================
 
 const Inquiries: React.FC = () => {
+  useDocumentTitle('Inquiries');
   const navigate = useNavigate();
   const location = useLocation();
   const didInitFromStateRef = useRef(false);

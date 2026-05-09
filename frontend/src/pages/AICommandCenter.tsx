@@ -80,6 +80,7 @@ import {
 import { aiStaffApi, type PendingReviewItem } from '../services/aiService';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { entityListPath } from '../utils/entityTypeRegistry';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { Text, Title } = Typography;
 
@@ -509,6 +510,7 @@ function formatTimeAgo(timestamp: string): string {
 // ============================================================================
 
 const AICommandCenter: React.FC = () => {
+  useDocumentTitle('Command Center');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();

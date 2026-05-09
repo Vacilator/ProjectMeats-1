@@ -16,6 +16,7 @@ import { FulfillmentListItem, FulfillmentStatus } from '../types';
 import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
 import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // Styled Components
@@ -322,6 +323,7 @@ const PartialBadge = styled.span`
 // ============================================================================
 
 const Fulfillments: React.FC = () => {
+  useDocumentTitle('Fulfillments');
   const [fulfillments, setFulfillments] = useState<FulfillmentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

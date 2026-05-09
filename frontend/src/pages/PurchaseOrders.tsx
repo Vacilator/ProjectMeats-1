@@ -15,6 +15,7 @@ import { UnifiedForm } from '../components/UnifiedForm';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { formatTradeDate } from '@/utils/trade';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Styled Components
 const Header = styled.div`
@@ -239,6 +240,7 @@ const DeleteButton = styled.button`
 `;
 
 const PurchaseOrders: React.FC = () => {
+  useDocumentTitle('Purchase Orders');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();

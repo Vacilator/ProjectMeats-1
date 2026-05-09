@@ -44,6 +44,7 @@ import type { ActionItem } from '../../contexts/NotificationsContext';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import { getValidTenantId } from '../../utils/tenantId';
 import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewModal';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // Types
@@ -424,6 +425,7 @@ function formatTimeAgo(dateStr: string | undefined): string {
 // ============================================================================
 
 const ProcessCockpitPage: React.FC = () => {
+  useDocumentTitle('Process Cockpit');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

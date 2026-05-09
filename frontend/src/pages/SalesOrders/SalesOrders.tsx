@@ -29,6 +29,7 @@ import { formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
 import { formatTradeDate, formatTradeDateTime, formatTradeWeight } from '../../utils/trade';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -533,6 +534,7 @@ const DetailAmount = styled.div`
 // ============================================================================
 
 export const SalesOrdersPage: React.FC = () => {
+  useDocumentTitle('Sales Orders');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();

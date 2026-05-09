@@ -7,6 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { apiClient, apiService, type Supplier } from '../services/apiService';
 import { withTenantQueryKey } from '../utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type SupplierProduct = {
   id: string | number;
@@ -20,6 +21,7 @@ type SupplierListRow = Supplier & {
 };
 
 const Suppliers: React.FC = () => {
+  useDocumentTitle('Suppliers');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 

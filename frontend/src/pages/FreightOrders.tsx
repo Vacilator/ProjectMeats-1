@@ -18,6 +18,7 @@ import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import type { TradeTimelinePayload, TradeWeightPayload } from '@/utils/trade';
 import { formatTradeDate, formatTradeWeight } from '@/utils/trade';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { Text, Title } = Typography;
 
@@ -45,6 +46,7 @@ const formatStatus = (value?: string): string =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const FreightOrders: React.FC = () => {
+  useDocumentTitle('Freight Orders');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<FreightOrder | null>(null);
