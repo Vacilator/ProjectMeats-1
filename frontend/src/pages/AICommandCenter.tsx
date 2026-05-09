@@ -607,10 +607,10 @@ const AICommandCenter: React.FC = () => {
     const term = searchText.toLowerCase();
     return trades.filter(
       (t) =>
-        t.trade_id.toLowerCase().includes(term) ||
+        (t.trade_id || '').toLowerCase().includes(term) ||
         t.customer_name?.toLowerCase().includes(term) ||
-        t.source_email_subject.toLowerCase().includes(term) ||
-        t.current_step.toLowerCase().includes(term),
+        (t.source_email_subject || '').toLowerCase().includes(term) ||
+        (t.current_step || '').toLowerCase().includes(term),
     );
   }, [trades, searchText]);
 
@@ -620,8 +620,8 @@ const AICommandCenter: React.FC = () => {
     const q = searchText.toLowerCase();
     return aiInboxItems.filter(
       (item) =>
-        item.title.toLowerCase().includes(q) ||
-        item.subtitle.toLowerCase().includes(q) ||
+        (item.title || '').toLowerCase().includes(q) ||
+        (item.subtitle || '').toLowerCase().includes(q) ||
         item.intent_label?.toLowerCase().includes(q),
     );
   }, [aiInboxItems, searchText]);

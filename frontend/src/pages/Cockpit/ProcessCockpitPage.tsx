@@ -585,7 +585,7 @@ const ProcessCockpitPage: React.FC = () => {
           .filter(Boolean)
           .join(' • '),
         status: task.is_overdue ? 'overdue' : task.status,
-        statusLabel: task.is_overdue ? 'Overdue' : task.status.replace(/_/g, ' '),
+        statusLabel: task.is_overdue ? 'Overdue' : (task.status || '').replace(/_/g, ' '),
         timestamp: task.assigned_at || '',
         entity_type: task.entity_type,
         entity_id: task.entity_id || task.submission_id,
@@ -752,9 +752,9 @@ const ProcessCockpitPage: React.FC = () => {
       const q = searchQuery.toLowerCase();
       return items.filter(
         (item) =>
-          item.title.toLowerCase().includes(q) ||
-          item.subtitle.toLowerCase().includes(q) ||
-          item.statusLabel.toLowerCase().includes(q) ||
+          (item.title || '').toLowerCase().includes(q) ||
+          (item.subtitle || '').toLowerCase().includes(q) ||
+          (item.statusLabel || '').toLowerCase().includes(q) ||
           item.contact_name?.toLowerCase().includes(q),
       );
     },
