@@ -129,7 +129,7 @@ const CockpitPage: React.FC = () => {
   const handleTabChange = React.useCallback(
     (key: string) => {
       if (key === 'process-monitor') {
-        navigate('/process-cockpit');
+        navigate('/command-center?tab=action-required');
         return;
       }
       navigate(`/cockpit/${key}`);
