@@ -99,8 +99,10 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
         onEmitChatMessage?.('✅ Confirmed. I saved your corrections and will use them to improve future extractions.');
         onSubmitted?.();
         return;
-      } catch (e: any) {
-        const code = e?.response?.status;
+      } catch (e: unknown) {
+        const errObj = (e && typeof e === 'object' ? e : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const code = typeof resp.status === 'number' ? resp.status : 0;
         // Backward-compatible fallback for older deployments.
         if (![404, 405].includes(code)) throw e;
       }
@@ -118,8 +120,11 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
       message.success('Thanks — saved your corrections and queued them for learning.');
       onEmitChatMessage?.('✅ Confirmed. I saved your corrections and will use them to improve future extractions.');
       onSubmitted?.();
-    } catch (e: any) {
-      message.error(e?.response?.data?.error || 'Failed to submit corrections');
+    } catch (e: unknown) {
+      const errObj = (e && typeof e === 'object' ? e : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      message.error((data.error as string) || 'Failed to submit corrections');
     } finally {
       setSubmitting(false);
     }

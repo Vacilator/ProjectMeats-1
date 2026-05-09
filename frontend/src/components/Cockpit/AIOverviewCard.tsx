@@ -151,8 +151,10 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
       }
 
       setState({ status: 'ready', text });
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const response = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const status = typeof response.status === 'number' ? response.status : 0;
 
       // Common case in dev: endpoint not implemented yet.
       if (status === 404 || status === 501) {

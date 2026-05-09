@@ -197,8 +197,11 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
 
       emitAIInboxRefreshEvent('manual');
       refetchAll();
-    } catch (error: any) {
-      const code = getEmailSyncErrorCode(error?.response?.data);
+    } catch (error: unknown) {
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const response = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = response.data as Record<string, unknown> | undefined;
+      const code = getEmailSyncErrorCode(data);
 
       if (emailSyncNeedsReconnect(code)) {
         message.error({
@@ -212,7 +215,8 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
         return;
       }
 
-      message.error(error?.response?.data?.error || 'Failed to start email sync');
+      const errMsg = (data?.error as string) || 'Failed to start email sync';
+      message.error(errMsg);
     } finally {
       setSyncing(false);
     }
