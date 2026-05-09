@@ -20,7 +20,6 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.tenants.rls import tenant_rls
 from tenant_apps.inquiries.models import (
     Inquiry,
     InquiryRouteDecisionChoices,
@@ -34,12 +33,10 @@ from tenant_apps.inquiries.services.happy_path_orchestrator import (
     get_lineage_chain,
     get_orchestrator_state,
 )
-from tenant_apps.inquiries.services.trade_dependency_checker import (
-    check_trade_dependencies,
-)
-from tenant_apps.inquiries.services.trade_session import (
-    get_or_create_trade_session,
-)
+from tenant_apps.inquiries.services.trade_dependency_checker import check_trade_dependencies
+from tenant_apps.inquiries.services.trade_session import get_or_create_trade_session
+
+from apps.tenants.rls import tenant_rls
 
 logger = logging.getLogger(__name__)
 
@@ -60,36 +57,47 @@ class TradePipelineViewSet(viewsets.ViewSet):
         dependency status, and key metadata.
         """
         tenant = request.tenant
-        sessions = TradeSession.objects.filter(
-            tenant=tenant,
-        ).exclude(
-            status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED],
-        ).select_related("inquiry").order_by("-initiated_at")[:50]
+        sessions = (
+            TradeSession.objects.filter(
+                tenant=tenant,
+            )
+            .exclude(
+                status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED],
+            )
+            .select_related("inquiry")
+            .order_by("-initiated_at")[:50]
+        )
 
         trades = []
         for session in sessions:
             inquiry = session.inquiry
-            current_step = get_orchestrator_state(
-                tenant=tenant, inquiry=inquiry
+            current_step = get_orchestrator_state(tenant=tenant, inquiry=inquiry)
+
+            trades.append(
+                {
+                    "id": str(session.id),
+                    "trade_id": session.trade_id,
+                    "status": session.status,
+                    "route": session.route_decision or inquiry.route_decision or "",
+                    "current_step": current_step.value,
+                    "inquiry_id": str(inquiry.id),
+                    "customer_name": getattr(inquiry.customer, "name", None)
+                    if hasattr(inquiry, "customer") and inquiry.customer_id
+                    else None,
+                    "source_email_subject": session.source_email_subject or "",
+                    "initiated_at": session.initiated_at.isoformat() if session.initiated_at else None,
+                    "updated_at": session.updated_at.isoformat()
+                    if hasattr(session, "updated_at") and session.updated_at
+                    else None,
+                }
             )
 
-            trades.append({
-                "id": str(session.id),
-                "trade_id": session.trade_id,
-                "status": session.status,
-                "route": session.route_decision or inquiry.route_decision or "",
-                "current_step": current_step.value,
-                "inquiry_id": str(inquiry.id),
-                "customer_name": getattr(inquiry.customer, "name", None) if hasattr(inquiry, "customer") and inquiry.customer_id else None,
-                "source_email_subject": session.source_email_subject or "",
-                "initiated_at": session.initiated_at.isoformat() if session.initiated_at else None,
-                "updated_at": session.updated_at.isoformat() if hasattr(session, "updated_at") and session.updated_at else None,
-            })
-
-        return Response({
-            "count": len(trades),
-            "results": trades,
-        })
+        return Response(
+            {
+                "count": len(trades),
+                "results": trades,
+            }
+        )
 
     @action(detail=False, methods=["post"], url_path="initiate")
     def initiate(self, request):
@@ -131,14 +139,10 @@ class TradePipelineViewSet(viewsets.ViewSet):
             )
 
             # Create trade session
-            trade_session, _ = get_or_create_trade_session(
-                tenant=tenant, inquiry=inquiry
-            )
+            trade_session, _ = get_or_create_trade_session(tenant=tenant, inquiry=inquiry)
 
             # Check dependencies
-            dep_result = check_trade_dependencies(
-                tenant=tenant, inquiry=inquiry
-            )
+            dep_result = check_trade_dependencies(tenant=tenant, inquiry=inquiry)
 
         logger.info(
             "Telemetry: trade.initiated",
@@ -152,13 +156,16 @@ class TradePipelineViewSet(viewsets.ViewSet):
             },
         )
 
-        return Response({
-            "trade_id": trade_session.trade_id,
-            "trade_session_id": str(trade_session.id),
-            "inquiry_id": str(inquiry.id),
-            "route": route,
-            "dependencies": dep_result.to_dict(),
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "trade_id": trade_session.trade_id,
+                "trade_session_id": str(trade_session.id),
+                "inquiry_id": str(inquiry.id),
+                "route": route,
+                "dependencies": dep_result.to_dict(),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=False, methods=["post"], url_path="smart-initiate")
     def smart_initiate(self, request):
@@ -200,39 +207,48 @@ class TradePipelineViewSet(viewsets.ViewSet):
         if customer_id:
             try:
                 from tenant_apps.customers.models import Customer
-                customer = Customer.objects.filter(
-                    tenant=tenant, id=customer_id
-                ).first()
+
+                customer = Customer.objects.filter(tenant=tenant, id=customer_id).first()
                 if customer:
                     if hasattr(customer, "billing_address") and customer.billing_address:
-                        context_suggestions.append({
-                            "field": "billing_address",
-                            "value": customer.billing_address,
-                            "confidence": 0.9,
-                            "source": "linked_entity",
-                            "reason": f"Billing address from {customer.name}",
-                        })
+                        context_suggestions.append(
+                            {
+                                "field": "billing_address",
+                                "value": customer.billing_address,
+                                "confidence": 0.9,
+                                "source": "linked_entity",
+                                "reason": f"Billing address from {customer.name}",
+                            }
+                        )
             except Exception:
-                pass
+                logger.warning("Failed to fetch customer context for trade creation", exc_info=True)
 
         # Protein type inference from recent trades
         protein = data.get("type_of_protein", "")
         if not protein and customer_id:
             try:
-                recent_inquiry = Inquiry.objects.filter(
-                    tenant=tenant, customer_id=customer_id,
-                ).exclude(type_of_protein="").order_by("-created_at").first()
+                recent_inquiry = (
+                    Inquiry.objects.filter(
+                        tenant=tenant,
+                        customer_id=customer_id,
+                    )
+                    .exclude(type_of_protein="")
+                    .order_by("-created_at")
+                    .first()
+                )
                 if recent_inquiry and recent_inquiry.type_of_protein:
-                    context_suggestions.append({
-                        "field": "type_of_protein",
-                        "value": recent_inquiry.type_of_protein,
-                        "confidence": 0.7,
-                        "source": "history",
-                        "reason": f"Most recent protein for this customer",
-                    })
+                    context_suggestions.append(
+                        {
+                            "field": "type_of_protein",
+                            "value": recent_inquiry.type_of_protein,
+                            "confidence": 0.7,
+                            "source": "history",
+                            "reason": f"Most recent protein for this customer",
+                        }
+                    )
                     protein = recent_inquiry.type_of_protein
             except Exception:
-                pass
+                logger.warning("Failed to infer protein type from trade history", exc_info=True)
 
         with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
             inquiry = Inquiry.objects.create(
@@ -246,13 +262,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 created_by=user,
             )
 
-            trade_session, _ = get_or_create_trade_session(
-                tenant=tenant, inquiry=inquiry
-            )
+            trade_session, _ = get_or_create_trade_session(tenant=tenant, inquiry=inquiry)
 
-            dep_result = check_trade_dependencies(
-                tenant=tenant, inquiry=inquiry
-            )
+            dep_result = check_trade_dependencies(tenant=tenant, inquiry=inquiry)
 
         logger.info(
             "Telemetry: trade.smart_initiated",
@@ -267,14 +279,17 @@ class TradePipelineViewSet(viewsets.ViewSet):
             },
         )
 
-        return Response({
-            "trade_id": trade_session.trade_id,
-            "trade_session_id": str(trade_session.id),
-            "inquiry_id": str(inquiry.id),
-            "route": route,
-            "dependencies": dep_result.to_dict(),
-            "context_suggestions": context_suggestions,
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "trade_id": trade_session.trade_id,
+                "trade_session_id": str(trade_session.id),
+                "inquiry_id": str(inquiry.id),
+                "route": route,
+                "dependencies": dep_result.to_dict(),
+                "context_suggestions": context_suggestions,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["post"], url_path="advance")
     def advance(self, request, pk=None):
@@ -290,7 +305,8 @@ class TradePipelineViewSet(viewsets.ViewSet):
 
         try:
             trade_session = TradeSession.objects.select_related("inquiry").get(
-                tenant=tenant, id=pk,
+                tenant=tenant,
+                id=pk,
             )
         except TradeSession.DoesNotExist:
             return Response(
@@ -303,10 +319,13 @@ class TradePipelineViewSet(viewsets.ViewSet):
         # Pre-check dependencies
         dep_result = check_trade_dependencies(tenant=tenant, inquiry=inquiry)
         if not dep_result.all_satisfied:
-            return Response({
-                "detail": "Cannot advance: missing required dependencies.",
-                "dependencies": dep_result.to_dict(),
-            }, status=status.HTTP_409_CONFLICT)
+            return Response(
+                {
+                    "detail": "Cannot advance: missing required dependencies.",
+                    "dependencies": dep_result.to_dict(),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # Advance orchestrator
         advance_through = request.data.get("advance_through")
@@ -327,25 +346,27 @@ class TradePipelineViewSet(viewsets.ViewSet):
             user=user,
         )
 
-        return Response({
-            "trade_id": trade_session.trade_id,
-            "inquiry_id": str(inquiry.id),
-            "route": result.route,
-            "current_step": result.current_step.value,
-            "completed": result.completed,
-            "blocked": result.blocked,
-            "blocked_reason": result.blocked_reason,
-            "steps_executed": [
-                {
-                    "step": s.step.value,
-                    "success": s.success,
-                    "message": s.message,
-                    "entity_id": s.entity_id,
-                    "entity_type": s.entity_type,
-                }
-                for s in result.steps_executed
-            ],
-        })
+        return Response(
+            {
+                "trade_id": trade_session.trade_id,
+                "inquiry_id": str(inquiry.id),
+                "route": result.route,
+                "current_step": result.current_step.value,
+                "completed": result.completed,
+                "blocked": result.blocked,
+                "blocked_reason": result.blocked_reason,
+                "steps_executed": [
+                    {
+                        "step": s.step.value,
+                        "success": s.success,
+                        "message": s.message,
+                        "entity_id": s.entity_id,
+                        "entity_type": s.entity_type,
+                    }
+                    for s in result.steps_executed
+                ],
+            }
+        )
 
     @action(detail=True, methods=["get"], url_path="status")
     def trade_status(self, request, pk=None):
@@ -357,7 +378,8 @@ class TradePipelineViewSet(viewsets.ViewSet):
 
         try:
             trade_session = TradeSession.objects.select_related("inquiry").get(
-                tenant=tenant, id=pk,
+                tenant=tenant,
+                id=pk,
             )
         except TradeSession.DoesNotExist:
             return Response(
@@ -370,18 +392,22 @@ class TradePipelineViewSet(viewsets.ViewSet):
         lineage = get_lineage_chain(tenant=tenant, inquiry=inquiry)
         dep_result = check_trade_dependencies(tenant=tenant, inquiry=inquiry)
 
-        return Response({
-            "trade_id": trade_session.trade_id,
-            "trade_session_id": str(trade_session.id),
-            "status": trade_session.status,
-            "route": trade_session.route_decision or inquiry.route_decision or "",
-            "current_step": current_step.value,
-            "initiated_at": trade_session.initiated_at.isoformat() if trade_session.initiated_at else None,
-            "inquiry_id": str(inquiry.id),
-            "customer_name": getattr(inquiry.customer, "name", None) if hasattr(inquiry, "customer") and inquiry.customer_id else None,
-            "lineage": lineage,
-            "dependencies": dep_result.to_dict(),
-        })
+        return Response(
+            {
+                "trade_id": trade_session.trade_id,
+                "trade_session_id": str(trade_session.id),
+                "status": trade_session.status,
+                "route": trade_session.route_decision or inquiry.route_decision or "",
+                "current_step": current_step.value,
+                "initiated_at": trade_session.initiated_at.isoformat() if trade_session.initiated_at else None,
+                "inquiry_id": str(inquiry.id),
+                "customer_name": getattr(inquiry.customer, "name", None)
+                if hasattr(inquiry, "customer") and inquiry.customer_id
+                else None,
+                "lineage": lineage,
+                "dependencies": dep_result.to_dict(),
+            }
+        )
 
     @action(detail=False, methods=["get"], url_path="proposals")
     def proposals(self, request):
@@ -394,16 +420,22 @@ class TradePipelineViewSet(viewsets.ViewSet):
         proposals = []
 
         # Generate proposals from recent draft inquiries without active trade sessions
-        draft_inquiries = Inquiry.objects.filter(
-            tenant=tenant,
-            status=InquiryStatusChoices.DRAFT,
-        ).select_related("customer").order_by("-created_at")[:10]
+        draft_inquiries = (
+            Inquiry.objects.filter(
+                tenant=tenant,
+                status=InquiryStatusChoices.DRAFT,
+            )
+            .select_related("customer")
+            .order_by("-created_at")[:10]
+        )
 
         for inquiry in draft_inquiries:
             # Check if this inquiry already has an active trade session
-            existing = TradeSession.objects.filter(
-                tenant=tenant, inquiry=inquiry
-            ).exclude(status=TradeSessionStatus.CANCELLED).first()
+            existing = (
+                TradeSession.objects.filter(tenant=tenant, inquiry=inquiry)
+                .exclude(status=TradeSessionStatus.CANCELLED)
+                .first()
+            )
             if existing:
                 continue
 
@@ -419,24 +451,32 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 confidence += 0.1
 
             source = "email" if inquiry.source_email_subject else "history"
-            title = inquiry.source_email_subject or inquiry.description or f"Trade for {inquiry.type_of_protein or 'unknown protein'}"
+            title = (
+                inquiry.source_email_subject
+                or inquiry.description
+                or f"Trade for {inquiry.type_of_protein or 'unknown protein'}"
+            )
 
-            proposals.append({
-                "id": str(inquiry.id),
-                "title": title[:80],
-                "confidence": round(min(confidence, 0.99), 2),
-                "source": source,
-                "route": inquiry.route_decision or "FULFILL",
-                "customer_name": getattr(inquiry.customer, "name", None) if inquiry.customer_id else None,
-                "supplier_name": None,
-                "type_of_protein": inquiry.type_of_protein or None,
-                "weight": None,
-                "delivery_context": None,
-                "suggested_fields": [],
-                "created_at": inquiry.created_at.isoformat() if hasattr(inquiry, "created_at") and inquiry.created_at else None,
-                "expires_at": None,
-                "status": "pending",
-            })
+            proposals.append(
+                {
+                    "id": str(inquiry.id),
+                    "title": title[:80],
+                    "confidence": round(min(confidence, 0.99), 2),
+                    "source": source,
+                    "route": inquiry.route_decision or "FULFILL",
+                    "customer_name": getattr(inquiry.customer, "name", None) if inquiry.customer_id else None,
+                    "supplier_name": None,
+                    "type_of_protein": inquiry.type_of_protein or None,
+                    "weight": None,
+                    "delivery_context": None,
+                    "suggested_fields": [],
+                    "created_at": inquiry.created_at.isoformat()
+                    if hasattr(inquiry, "created_at") and inquiry.created_at
+                    else None,
+                    "expires_at": None,
+                    "status": "pending",
+                }
+            )
 
         return Response({"results": proposals})
 
@@ -464,9 +504,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
             inquiry.status = InquiryStatusChoices.PENDING
             inquiry.save(update_fields=["status"])
 
-            trade_session, _ = get_or_create_trade_session(
-                tenant=tenant, inquiry=inquiry
-            )
+            trade_session, _ = get_or_create_trade_session(tenant=tenant, inquiry=inquiry)
             dep_result = check_trade_dependencies(tenant=tenant, inquiry=inquiry)
 
         logger.info(
@@ -479,13 +517,16 @@ class TradePipelineViewSet(viewsets.ViewSet):
             },
         )
 
-        return Response({
-            "trade_id": trade_session.trade_id,
-            "trade_session_id": str(trade_session.id),
-            "inquiry_id": str(inquiry.id),
-            "route": route,
-            "dependencies": dep_result.to_dict(),
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "trade_id": trade_session.trade_id,
+                "trade_session_id": str(trade_session.id),
+                "inquiry_id": str(inquiry.id),
+                "route": route,
+                "dependencies": dep_result.to_dict(),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["post"], url_path="proposal-feedback")
     def proposal_feedback(self, request, pk=None):
