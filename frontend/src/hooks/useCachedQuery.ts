@@ -39,8 +39,9 @@ export const useCachedQuery = <T>(
 
       const response = await businessApi.get(endpoint, { params });
       setData(response.data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch data');
+    } catch (err: unknown) {
+      const message = (err && typeof err === 'object' && 'message' in err) ? String((err as Record<string, unknown>).message) : 'Failed to fetch data';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -83,8 +84,9 @@ export const useParallelCachedQueries = <T>(endpoints: string[]) => {
         });
 
         setData(dataMap);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch data');
+      } catch (err: unknown) {
+        const message = (err && typeof err === 'object' && 'message' in err) ? String((err as Record<string, unknown>).message) : 'Failed to fetch data';
+        setError(message);
       } finally {
         setLoading(false);
       }

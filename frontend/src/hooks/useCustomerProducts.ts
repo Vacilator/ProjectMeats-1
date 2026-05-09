@@ -209,7 +209,7 @@ export function useCustomerProducts(
       });
       const data = Array.isArray(response.data) ? response.data : response.data.results;
       return Array.isArray(data) ? data : [];
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to search products', { component: 'useCustomerProducts' }, err);
       return [];
     }

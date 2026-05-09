@@ -79,9 +79,12 @@ export function useActionItemCounts(
         setError(null);
         errorCountRef.current = 0; // Reset backoff on success
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (mountedRef.current) {
-        const status = err.response?.status;
+        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const status = resp.status as number | undefined;
+        const message = (errObj.message as string) || 'Failed to fetch action item counts';
         errorCountRef.current += 1;
         
         // Handle authentication failure - stop all polling immediately
@@ -100,8 +103,8 @@ export function useActionItemCounts(
           setError(null);
         } else {
           // Only log unexpected errors
-          logger.warn('Action item counts fetch error', { component: 'useActionItemCounts', metadata: { message: err.message, status } });
-          setError(err.message || 'Failed to fetch action item counts');
+          logger.warn('Action item counts fetch error', { component: 'useActionItemCounts', metadata: { message, status } });
+          setError(message);
         }
         
         // Reset to defaults on error

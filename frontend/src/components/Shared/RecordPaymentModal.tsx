@@ -314,9 +314,12 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
       // Success!
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to record payment:', err);
-      setError(err.response?.data?.message || 'Failed to record payment');
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.message === 'string' ? data.message : '') || 'Failed to record payment');
     } finally {
       setLoading(false);
     }

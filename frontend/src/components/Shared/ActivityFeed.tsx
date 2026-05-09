@@ -372,8 +372,11 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
         limit,
       });
       setItems(response.results || []);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to load activity.');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.detail === 'string' ? data.detail : '') || (typeof data.error === 'string' ? data.error : '') || 'Failed to load activity.');
     } finally {
       setLoading(false);
     }
@@ -401,8 +404,11 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
       setItems((currentItems) => [mapNoteToFeedItem(createdNote), ...currentItems]);
       setCreateState({ title: '', content: '' });
       setShowNoteForm(false);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save note.');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.detail === 'string' ? data.detail : '') || (typeof data.error === 'string' ? data.error : '') || 'Failed to save note.');
     } finally {
       setSubmitting(false);
     }
@@ -439,8 +445,11 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
         )
       );
       cancelEdit();
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to update note.');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.detail === 'string' ? data.detail : '') || (typeof data.error === 'string' ? data.error : '') || 'Failed to update note.');
     } finally {
       setSavingEdit(false);
     }

@@ -519,11 +519,14 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
       resetForm();
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error(`Failed to ${isEditMode ? 'update' : 'schedule'} call:`, err);
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
       setError(
-        err.response?.data?.detail ||
-          err.response?.data?.message ||
+        (typeof data.detail === 'string' ? data.detail : '') ||
+          (typeof data.message === 'string' ? data.message : '') ||
           `Failed to ${isEditMode ? 'update' : 'schedule'} call. Please try again.`
       );
     }

@@ -715,9 +715,12 @@ export const CallLog: React.FC = () => {
       );
 
       setCalls(callsData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to fetch scheduled calls:', err);
-      setError(err.response?.data?.detail || 'Failed to load scheduled calls');
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.detail === 'string' ? data.detail : '') || 'Failed to load scheduled calls');
     } finally {
       setLoading(false);
     }
@@ -744,7 +747,7 @@ export const CallLog: React.FC = () => {
       setCalls(calls.map(c =>
         c.id === callId ? { ...c, is_completed: true } : c
       ));
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to complete call:', err);
       showAlert({
         type: 'error',
@@ -794,7 +797,7 @@ export const CallLog: React.FC = () => {
     try {
       await businessApi.delete(`/workspace/scheduled-calls/${callId}/`);
       await fetchScheduledCalls();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to delete call:', err);
       showAlert({
         type: 'error',
@@ -920,7 +923,7 @@ export const CallLog: React.FC = () => {
       ));
 
       setDraggedCall(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to reschedule call:', err);
       showAlert({
         type: 'error',

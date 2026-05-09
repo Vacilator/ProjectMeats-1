@@ -83,8 +83,11 @@ export const useFieldValidation = (fieldId: string) => {
       );
       
       return response.data;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Validation failed';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Validation failed';
       setError(errorMsg);
       
       // Return error state
@@ -111,8 +114,11 @@ export const useFieldValidation = (fieldId: string) => {
       );
       
       return response.data.computed_validation;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to sync validation';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Failed to sync validation';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
@@ -134,8 +140,11 @@ export const useFieldValidation = (fieldId: string) => {
       );
       
       return response.data;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to get validation rules';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Failed to get validation rules';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
