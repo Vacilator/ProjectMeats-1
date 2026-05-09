@@ -2025,7 +2025,7 @@ export const AIAgentWidget: React.FC = () => {
                             const label = originalFilename ?? m.content;
 
                             return fileUrl ? (
-                              <a href={fileUrl} target="_blank" rel="noreferrer">
+                              <a href={fileUrl} target="_blank" rel="noopener noreferrer">
                                 {label}
                               </a>
                             ) : (

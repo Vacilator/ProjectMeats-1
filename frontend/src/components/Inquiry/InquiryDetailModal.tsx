@@ -675,7 +675,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 variant="secondary"
                 onClick={() => {
                   // Download PDF quote
-                  window.open(`/api/v1/inquiries/${inquiry.id}/download-quote/`, '_blank');
+                  window.open(`/api/v1/inquiries/${inquiry.id}/download-quote/`, '_blank', 'noopener,noreferrer');
                 }}
               >
                 📄 Download Quote
