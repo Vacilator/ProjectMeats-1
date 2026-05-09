@@ -8,9 +8,8 @@ Provides REST API endpoints for Forms, Workflows, and Lists.
 import logging
 from datetime import timedelta
 
-from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Exists, F, Max, OuterRef, Prefetch, Q
+from django.db.models import Count, F, Max, Prefetch, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import mixins, serializers, status, viewsets
@@ -47,12 +46,7 @@ from .models import (
     WorkflowExecutionLog,
     WorkflowStatus,
 )
-from .permissions import (
-    CanEditWorkForm,
-    CanPublishWorkForm,
-    IsTenantAdminOrOwnerOrReadOnly,
-    WorkFormPermissionHelper,
-)
+from .permissions import CanEditWorkForm, CanPublishWorkForm, IsTenantAdminOrOwnerOrReadOnly, WorkFormPermissionHelper
 from .serializers import (
     EntityOptionsResponseSerializer,
     QuickCreateCreateResponseSerializer,
@@ -89,19 +83,19 @@ def _get_request_tenant(request):
     late resolution from the X-Tenant-ID header with membership validation.
     """
 
-    django_request = getattr(request, '_request', None)
-    tenant = getattr(request, 'tenant', None) or getattr(django_request, 'tenant', None)
+    django_request = getattr(request, "_request", None)
+    tenant = getattr(request, "tenant", None) or getattr(django_request, "tenant", None)
     if tenant:
         return tenant
 
     tenant_id = None
-    if hasattr(request, 'headers'):
-        tenant_id = request.headers.get('X-Tenant-ID')
-    if not tenant_id and django_request is not None and hasattr(django_request, 'headers'):
-        tenant_id = django_request.headers.get('X-Tenant-ID')
+    if hasattr(request, "headers"):
+        tenant_id = request.headers.get("X-Tenant-ID")
+    if not tenant_id and django_request is not None and hasattr(django_request, "headers"):
+        tenant_id = django_request.headers.get("X-Tenant-ID")
 
-    user = getattr(request, 'user', None) or getattr(django_request, 'user', None)
-    if not tenant_id or not user or not getattr(user, 'is_authenticated', False):
+    user = getattr(request, "user", None) or getattr(django_request, "user", None)
+    if not tenant_id or not user or not getattr(user, "is_authenticated", False):
         return None
 
     try:
@@ -109,19 +103,19 @@ def _get_request_tenant(request):
     except (Tenant.DoesNotExist, ValueError):
         return None
 
-    is_global_admin = user.groups.filter(name='Global System Admins').exists()
+    is_global_admin = user.groups.filter(name="Global System Admins").exists()
     if not (user.is_superuser or is_global_admin):
         if not TenantUser.objects.filter(user=user, tenant=tenant, is_active=True).exists():
             return None
 
     # Cache for later uses during this request lifecycle.
     try:
-        setattr(request, 'tenant', tenant)
+        setattr(request, "tenant", tenant)
     except Exception:
         pass
     try:
         if django_request is not None:
-            setattr(django_request, 'tenant', tenant)
+            setattr(django_request, "tenant", tenant)
     except Exception:
         pass
 
@@ -132,7 +126,7 @@ def _require_tenant(request):
     tenant = _get_request_tenant(request)
     if not tenant:
         return None, Response(
-            {'error': 'Tenant context is required (X-Tenant-ID header).'},
+            {"error": "Tenant context is required (X-Tenant-ID header)."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     return tenant, None
@@ -1092,14 +1086,14 @@ class TenantListViewSet(TenantFilteredModelViewSet):
 
         This prevents NOT NULL/unique/RLS failures surfacing as 500s.
         """
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
 
         self._ensure_rls_session_vars(str(tenant.id))
 
-        user = getattr(self.request, 'user', None)
-        if user and getattr(user, 'is_authenticated', False):
+        user = getattr(self.request, "user", None)
+        if user and getattr(user, "is_authenticated", False):
             serializer.save(tenant=tenant, created_by=user)
         else:
             serializer.save(tenant=tenant)
@@ -1107,7 +1101,7 @@ class TenantListViewSet(TenantFilteredModelViewSet):
     def create(self, request, *args, **kwargs):
         """Create list with a friendly error instead of 500 on IntegrityError."""
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if tenant:
             # Assert RLS vars before DRF validation/save (defense-in-depth).
             self._ensure_rls_session_vars(str(tenant.id))
@@ -1321,190 +1315,168 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
     def perform_create(self, serializer):
         """
         Override create to sync FormProcessGroup nodes if flow_data is provided.
-        
+
         Agent B: FormProcessGroup Persistence
         """
         form = serializer.save(tenant=self.request.tenant, created_by=self.request.user)
-        
+
         # Check if flow_data contains FormProcessGroup nodes
         flow_data = form.flow_data
-        if flow_data and flow_data.get('nodes'):
+        if flow_data and flow_data.get("nodes"):
             try:
-                service = FormProcessPersistenceService(
-                    tenant=self.request.tenant,
-                    user=self.request.user
-                )
+                service = FormProcessPersistenceService(tenant=self.request.tenant, user=self.request.user)
                 result = service.sync_from_workflow(flow_data)
-                
-                if not result['success']:
+
+                if not result["success"]:
                     logger.warning(f"FormProcessGroup sync had errors: {result['errors']}")
             except Exception as e:
                 logger.error(f"Failed to sync FormProcessGroup nodes: {e}", exc_info=True)
-    
+
     def perform_update(self, serializer):
         """
         Override update to sync FormProcessGroup nodes if flow_data is provided.
-        
+
         Agent B: FormProcessGroup Persistence
         """
         form = serializer.save()
-        
+
         # Check if flow_data contains FormProcessGroup nodes
         flow_data = form.flow_data
-        if flow_data and flow_data.get('nodes'):
+        if flow_data and flow_data.get("nodes"):
             try:
-                service = FormProcessPersistenceService(
-                    tenant=self.request.tenant,
-                    user=self.request.user
-                )
+                service = FormProcessPersistenceService(tenant=self.request.tenant, user=self.request.user)
                 result = service.sync_from_workflow(flow_data)
-                
-                if not result['success']:
+
+                if not result["success"]:
                     logger.warning(f"FormProcessGroup sync had errors: {result['errors']}")
             except Exception as e:
                 logger.error(f"Failed to sync FormProcessGroup nodes: {e}", exc_info=True)
-    
-    @action(detail=True, methods=['post'], url_path='enable-versioning')
+
+    @action(detail=True, methods=["post"], url_path="enable-versioning")
     def enable_versioning(self, request, pk=None):
         """
         Enable version control for a form (Phase 2.4).
-        
+
         Creates initial version snapshot.
-        
+
         POST /api/v1/forms/{form_id}/enable-versioning/
-        
+
         Returns:
             200: {"version_number": 1, "message": "Versioning enabled"}
             400: {"error": "Versioning already enabled"}
         """
         from tenant_apps.workflows.services.versioning import FormVersionService
-        
+
         form = self.get_object()
-        
+
         try:
             version = FormVersionService.enable_versioning(form, user=request.user)
-            return Response({
-                'version_number': version.version_number,
-                'message': 'Versioning enabled successfully'
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {"version_number": version.version_number, "message": "Versioning enabled successfully"},
+                status=status.HTTP_200_OK,
+            )
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['post'], url_path='create-version')
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"], url_path="create-version")
     def create_version(self, request, pk=None):
         """
         Create a new version snapshot (Phase 2.4).
-        
+
         POST /api/v1/forms/{form_id}/create-version/
         Body: {"change_summary": "Added email notification field"}
-        
+
         Returns:
             200: {"version_number": 2, "message": "Version created"}
             400: {"error": "Versioning not enabled"}
         """
         from tenant_apps.workflows.services.versioning import FormVersionService
-        
+
         form = self.get_object()
-        change_summary = request.data.get('change_summary', '')
-        
+        change_summary = request.data.get("change_summary", "")
+
         try:
-            version = FormVersionService.create_version(
-                form=form,
-                change_summary=change_summary,
-                user=request.user
+            version = FormVersionService.create_version(form=form, change_summary=change_summary, user=request.user)
+            return Response(
+                {"version_number": version.version_number, "message": "Version created successfully"},
+                status=status.HTTP_200_OK,
             )
-            return Response({
-                'version_number': version.version_number,
-                'message': 'Version created successfully'
-            }, status=status.HTTP_200_OK)
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['post'], url_path='rollback')
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"], url_path="rollback")
     def rollback(self, request, pk=None):
         """
         Rollback form to a previous version (Phase 2.4).
-        
+
         POST /api/v1/forms/{form_id}/rollback/
         Body: {"version_number": 3}
-        
+
         Returns:
             200: {"version_number": 5, "message": "Rolled back to version 3"}
             400: {"error": "Version not found"}
         """
         from tenant_apps.workflows.services.versioning import FormVersionService
-        
+
         form = self.get_object()
-        version_number = request.data.get('version_number')
-        
+        version_number = request.data.get("version_number")
+
         if not version_number:
-            return Response(
-                {'error': 'version_number is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "version_number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             new_version = FormVersionService.rollback_to_version(
-                form=form,
-                version_number=int(version_number),
-                user=request.user
+                form=form, version_number=int(version_number), user=request.user
             )
-            return Response({
-                'version_number': new_version.version_number,
-                'message': f'Rolled back to version {version_number}'
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {"version_number": new_version.version_number, "message": f"Rolled back to version {version_number}"},
+                status=status.HTTP_200_OK,
+            )
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['get'], url_path='version-history')
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["get"], url_path="version-history")
     def version_history(self, request, pk=None):
         """
         Get version history for a form (Phase 2.4).
-        
+
         GET /api/v1/forms/{form_id}/version-history/
-        
+
         Returns:
             200: [{"version_number": 3, "change_summary": "...", ...}, ...]
         """
         from tenant_apps.workflows.services.versioning import FormVersionService
-        
+
         form = self.get_object()
         history = FormVersionService.get_version_history(form)
-        
+
         return Response(history, status=status.HTTP_200_OK)
-    
-    @action(detail=True, methods=['get'], url_path='compare-versions')
+
+    @action(detail=True, methods=["get"], url_path="compare-versions")
     def compare_versions(self, request, pk=None):
         """
         Compare two versions (Phase 2.4).
-        
+
         GET /api/v1/forms/{form_id}/compare-versions/?version_a=1&version_b=3
-        
+
         Returns:
             200: {"name": {"old": "...", "new": "..."}, ...}
             400: {"error": "Missing parameters"}
         """
         from tenant_apps.workflows.services.versioning import FormVersionService
-        
+
         form = self.get_object()
-        version_a = request.query_params.get('version_a')
-        version_b = request.query_params.get('version_b')
-        
+        version_a = request.query_params.get("version_a")
+        version_b = request.query_params.get("version_b")
+
         if not version_a or not version_b:
-            return Response(
-                {'error': 'version_a and version_b are required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "version_a and version_b are required"}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            diff = FormVersionService.compare_versions(
-                form=form,
-                version_a=int(version_a),
-                version_b=int(version_b)
-            )
+            diff = FormVersionService.compare_versions(form=form, version_a=int(version_a), version_b=int(version_b))
             return Response(diff, status=status.HTTP_200_OK)
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TenantFormEntityViewSet(viewsets.ModelViewSet):
@@ -1542,11 +1514,11 @@ class TenantFormEntityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         tenant = _get_request_tenant(self.request)
         if not tenant:
-            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
 
-        form = serializer.validated_data.get('form')
-        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
-            raise ValidationError({'form': 'Form must belong to the current tenant.'})
+        form = serializer.validated_data.get("form")
+        if form is not None and getattr(form, "tenant_id", None) != tenant.id:
+            raise ValidationError({"form": "Form must belong to the current tenant."})
 
         serializer.save(tenant=tenant)
 
@@ -1595,28 +1567,28 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         tenant = _get_request_tenant(self.request)
         if not tenant:
-            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
 
-        entity = serializer.validated_data.get('form_entity')
-        form = getattr(entity, 'form', None) if entity is not None else None
-        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
-            raise ValidationError({'form_entity': 'Form entity must belong to the current tenant.'})
+        entity = serializer.validated_data.get("form_entity")
+        form = getattr(entity, "form", None) if entity is not None else None
+        if form is not None and getattr(form, "tenant_id", None) != tenant.id:
+            raise ValidationError({"form_entity": "Form entity must belong to the current tenant."})
 
         serializer.save(tenant=tenant)
 
-    @action(detail=True, methods=['get'], url_path='cascade-options')
+    @action(detail=True, methods=["get"], url_path="cascade-options")
     def cascade_options(self, request, pk=None):
         """
         Get cascaded options for a field based on parent field value.
-        
+
         Phase 2.3: Entity Cascading
-        
+
         Query Parameters:
             parent_value: Value selected in parent field
-            
+
         Example:
             GET /api/v1/form-fields/{field_id}/cascade-options/?parent_value=Beef
-            
+
         Returns:
             200: [{"value": "...", "label": "..."}, ...]
             400: {"error": "Missing parent_value parameter"}
@@ -1632,32 +1604,23 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             )
 
         field = self.get_object()
-        parent_value = request.query_params.get('parent_value')
-        
+        parent_value = request.query_params.get("parent_value")
+
         if not parent_value:
-            return Response(
-                {"error": "Missing required parameter: parent_value"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "Missing required parameter: parent_value"}, status=status.HTTP_400_BAD_REQUEST)
+
         if not field.cascade_enabled:
             return Response(
-                {"error": f"Field {field.field_key} does not have cascading enabled"},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": f"Field {field.field_key} does not have cascading enabled"}, status=status.HTTP_404_NOT_FOUND
             )
-        
+
         try:
             options = CascadingFieldService.get_cascaded_options(
-                field=field,
-                parent_value=parent_value,
-                tenant_id=str(tenant.id)
+                field=field, parent_value=parent_value, tenant_id=str(tenant.id)
             )
             return Response(options, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class TenantFormRuleViewSet(viewsets.ModelViewSet):
@@ -1693,11 +1656,11 @@ class TenantFormRuleViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         tenant = _get_request_tenant(self.request)
         if not tenant:
-            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
 
-        form = serializer.validated_data.get('form')
-        if form is not None and getattr(form, 'tenant_id', None) != tenant.id:
-            raise ValidationError({'form': 'Form must belong to the current tenant.'})
+        form = serializer.validated_data.get("form")
+        if form is not None and getattr(form, "tenant_id", None) != tenant.id:
+            raise ValidationError({"form": "Form must belong to the current tenant."})
 
         serializer.save(tenant=tenant)
 
@@ -1902,171 +1865,166 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
     def analytics(self, request, pk=None):
         """
         Get comprehensive analytics for a workflow.
-        
+
         Query params:
         - timeframe: '7d', '30d', '90d' (default: 30d)
         - start_date: ISO 8601 datetime
         - end_date: ISO 8601 datetime
         """
         from datetime import timedelta
+
         from django.db.models import Avg, Count, Q
         from django.db.models.functions import TruncDate, TruncHour
         from django.utils import timezone
-        
+
         workflow = self.get_object()
-        
+
         # Parse date range
-        timeframe = request.query_params.get('timeframe', '30d')
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        
+        timeframe = request.query_params.get("timeframe", "30d")
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
         if start_date and end_date:
             from dateutil import parser
+
             start = parser.isoparse(start_date)
             end = parser.isoparse(end_date)
         else:
-            days_map = {'7d': 7, '30d': 30, '90d': 90}
+            days_map = {"7d": 7, "30d": 30, "90d": 90}
             days = days_map.get(timeframe, 30)
             end = timezone.now()
             start = end - timedelta(days=days)
-        
+
         # Base queryset
-        logs = WorkflowExecutionLog.objects.filter(
-            workflow=workflow,
-            started_at__gte=start,
-            started_at__lte=end
-        )
-        
+        logs = WorkflowExecutionLog.objects.filter(workflow=workflow, started_at__gte=start, started_at__lte=end)
+
         # Aggregate metrics
         total_executions = logs.count()
-        successful = logs.filter(status='success').count()
-        failed = logs.filter(status='failed').count()
-        avg_duration = logs.filter(
-            completed_at__isnull=False
-        ).aggregate(
-            avg_duration=Avg(
-                (F('completed_at') - F('started_at'))
-            )
-        )['avg_duration']
-        
+        successful = logs.filter(status="success").count()
+        failed = logs.filter(status="failed").count()
+        avg_duration = logs.filter(completed_at__isnull=False).aggregate(
+            avg_duration=Avg((F("completed_at") - F("started_at")))
+        )["avg_duration"]
+
         # Convert avg_duration to seconds
         avg_duration_seconds = 0
         if avg_duration:
             avg_duration_seconds = avg_duration.total_seconds()
-        
+
         # Success rate
         success_rate = (successful / total_executions * 100) if total_executions > 0 else 0
-        
+
         # Executions by day
-        executions_by_day = logs.annotate(
-            date=TruncDate('started_at')
-        ).values('date').annotate(
-            count=Count('id'),
-            successful=Count('id', filter=Q(status='success')),
-            failed=Count('id', filter=Q(status='failed'))
-        ).order_by('date')
-        
+        executions_by_day = (
+            logs.annotate(date=TruncDate("started_at"))
+            .values("date")
+            .annotate(
+                count=Count("id"),
+                successful=Count("id", filter=Q(status="success")),
+                failed=Count("id", filter=Q(status="failed")),
+            )
+            .order_by("date")
+        )
+
         # Executions by hour
-        executions_by_hour = logs.annotate(
-            hour=TruncHour('started_at')
-        ).values('hour').annotate(
-            count=Count('id')
-        ).order_by('hour')[:24]
-        
+        executions_by_hour = (
+            logs.annotate(hour=TruncHour("started_at")).values("hour").annotate(count=Count("id")).order_by("hour")[:24]
+        )
+
         # Action performance (mock data for now - would need action-level tracking)
         action_performance = []
         for action in workflow.actions.all()[:10]:
-            action_performance.append({
-                'action_type': action.action_type,
-                'count': total_executions,  # Would track per-action
-                'avg_duration': avg_duration_seconds / workflow.actions.count() if workflow.actions.exists() else 0,
-                'success_rate': success_rate
-            })
-        
+            action_performance.append(
+                {
+                    "action_type": action.action_type,
+                    "count": total_executions,  # Would track per-action
+                    "avg_duration": avg_duration_seconds / workflow.actions.count() if workflow.actions.exists() else 0,
+                    "success_rate": success_rate,
+                }
+            )
+
         # Error breakdown
-        error_breakdown = logs.filter(
-            status='failed'
-        ).values('error_message').annotate(
-            count=Count('id')
-        ).order_by('-count')[:5]
-        
-        total_errors = sum(e['count'] for e in error_breakdown)
+        error_breakdown = (
+            logs.filter(status="failed").values("error_message").annotate(count=Count("id")).order_by("-count")[:5]
+        )
+
+        total_errors = sum(e["count"] for e in error_breakdown)
         for error in error_breakdown:
-            error['error_type'] = error.pop('error_message') or 'Unknown Error'
-            error['percentage'] = (error['count'] / total_errors * 100) if total_errors > 0 else 0
-        
-        return Response({
-            'total_executions': total_executions,
-            'successful_executions': successful,
-            'failed_executions': failed,
-            'avg_duration_seconds': avg_duration_seconds,
-            'success_rate': success_rate,
-            'executions_by_day': list(executions_by_day),
-            'executions_by_hour': [
-                {'hour': h['hour'].hour, 'count': h['count']}
-                for h in executions_by_hour
-            ],
-            'action_performance': action_performance,
-            'error_breakdown': list(error_breakdown)
-        })
-    
+            error["error_type"] = error.pop("error_message") or "Unknown Error"
+            error["percentage"] = (error["count"] / total_errors * 100) if total_errors > 0 else 0
+
+        return Response(
+            {
+                "total_executions": total_executions,
+                "successful_executions": successful,
+                "failed_executions": failed,
+                "avg_duration_seconds": avg_duration_seconds,
+                "success_rate": success_rate,
+                "executions_by_day": list(executions_by_day),
+                "executions_by_hour": [{"hour": h["hour"].hour, "count": h["count"]} for h in executions_by_hour],
+                "action_performance": action_performance,
+                "error_breakdown": list(error_breakdown),
+            }
+        )
+
     @action(detail=True, methods=["post"])
     def export_template(self, request, pk=None):
         """
         Export workflow as a reusable template.
-        
+
         Returns JSON template that can be imported by other tenants.
         """
-        
+
         workflow = self.get_object()
-        
+
         # Build template structure
         template = {
-            'name': workflow.name,
-            'description': workflow.description,
-            'trigger_type': workflow.trigger_type,
-            'entity_type': workflow.entity_type,
-            'nodes': [],
-            'edges': [],
-            'variables': workflow.variables or {},
-            'metadata': {
-                'exported_at': timezone.now().isoformat(),
-                'version': '1.0',
-                'author': request.user.email if request.user else 'system'
-            }
+            "name": workflow.name,
+            "description": workflow.description,
+            "trigger_type": workflow.trigger_type,
+            "entity_type": workflow.entity_type,
+            "nodes": [],
+            "edges": [],
+            "variables": workflow.variables or {},
+            "metadata": {
+                "exported_at": timezone.now().isoformat(),
+                "version": "1.0",
+                "author": request.user.email if request.user else "system",
+            },
         }
-        
+
         # Add conditions
         for condition in workflow.conditions.all():
-            template['nodes'].append({
-                'id': f'condition-{condition.id}',
-                'type': 'condition',
-                'data': {
-                    'field': condition.field,
-                    'operator': condition.operator,
-                    'value': condition.value,
-                    'logic': condition.logic
+            template["nodes"].append(
+                {
+                    "id": f"condition-{condition.id}",
+                    "type": "condition",
+                    "data": {
+                        "field": condition.field,
+                        "operator": condition.operator,
+                        "value": condition.value,
+                        "logic": condition.logic,
+                    },
                 }
-            })
-        
+            )
+
         # Add actions
         for action in workflow.actions.all():
-            template['nodes'].append({
-                'id': f'action-{action.id}',
-                'type': action.action_type,
-                'data': {
-                    'config': action.config,
-                    'order': action.order
+            template["nodes"].append(
+                {
+                    "id": f"action-{action.id}",
+                    "type": action.action_type,
+                    "data": {"config": action.config, "order": action.order},
                 }
-            })
-        
+            )
+
         return Response(template)
-    
+
     @action(detail=False, methods=["post"])
     def import_template(self, request):
         """
         Import a workflow from a template.
-        
+
         Expected JSON body:
         {
             "template": {...},  # Template from export_template
@@ -2074,63 +2032,59 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
             "activate": false  # Whether to activate immediately
         }
         """
-        
-        template = request.data.get('template')
-        name_override = request.data.get('name')
-        activate = request.data.get('activate', False)
-        
+
+        template = request.data.get("template")
+        name_override = request.data.get("name")
+        activate = request.data.get("activate", False)
+
         if not template:
-            return Response(
-                {'error': 'Template is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({"error": "Template is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         # Create workflow
         workflow_data = {
-            'name': name_override or template.get('name', 'Imported Workflow'),
-            'description': template.get('description', ''),
-            'trigger_type': template.get('trigger_type'),
-            'entity_type': template.get('entity_type'),
-            'variables': template.get('variables', {}),
-            'status': WorkflowStatus.ACTIVE if activate else WorkflowStatus.DRAFT,
-            'tenant': request.tenant
+            "name": name_override or template.get("name", "Imported Workflow"),
+            "description": template.get("description", ""),
+            "trigger_type": template.get("trigger_type"),
+            "entity_type": template.get("entity_type"),
+            "variables": template.get("variables", {}),
+            "status": WorkflowStatus.ACTIVE if activate else WorkflowStatus.DRAFT,
+            "tenant": request.tenant,
         }
-        
+
         with transaction.atomic():
             workflow = TenantWorkflow.objects.create(**workflow_data)
-            
+
             # Import nodes
             node_mapping = {}  # Map template IDs to new IDs
-            
-            for node in template.get('nodes', []):
-                node_type = node.get('type')
-                node_data = node.get('data', {})
-                
-                if node_type == 'condition':
+
+            for node in template.get("nodes", []):
+                node_type = node.get("type")
+                node_data = node.get("data", {})
+
+                if node_type == "condition":
                     condition = TenantWorkflowCondition.objects.create(
                         workflow=workflow,
-                        field=node_data.get('field'),
-                        operator=node_data.get('operator'),
-                        value=node_data.get('value'),
-                        logic=node_data.get('logic', 'AND')
+                        field=node_data.get("field"),
+                        operator=node_data.get("operator"),
+                        value=node_data.get("value"),
+                        logic=node_data.get("logic", "AND"),
                     )
-                    node_mapping[node['id']] = f'condition-{condition.id}'
-                    
-                elif node_type in ['email', 'webhook', 'update_record', 'create_record']:
+                    node_mapping[node["id"]] = f"condition-{condition.id}"
+
+                elif node_type in ["email", "webhook", "update_record", "create_record"]:
                     action = TenantWorkflowAction.objects.create(
                         workflow=workflow,
                         action_type=node_type,
-                        config=node_data.get('config', {}),
-                        order=node_data.get('order', 0)
+                        config=node_data.get("config", {}),
+                        order=node_data.get("order", 0),
                     )
-                    node_mapping[node['id']] = f'action-{action.id}'
-        
+                    node_mapping[node["id"]] = f"action-{action.id}"
+
         serializer = self.get_serializer(workflow)
-        return Response({
-            'workflow': serializer.data,
-            'node_mapping': node_mapping,
-            'message': 'Workflow imported successfully'
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {"workflow": serializer.data, "node_mapping": node_mapping, "message": "Workflow imported successfully"},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
@@ -2165,11 +2119,11 @@ class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         tenant = _get_request_tenant(self.request)
         if not tenant:
-            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
 
-        workflow = serializer.validated_data.get('workflow')
-        if workflow is not None and getattr(workflow, 'tenant_id', None) != tenant.id:
-            raise ValidationError({'workflow': 'Workflow must belong to the current tenant.'})
+        workflow = serializer.validated_data.get("workflow")
+        if workflow is not None and getattr(workflow, "tenant_id", None) != tenant.id:
+            raise ValidationError({"workflow": "Workflow must belong to the current tenant."})
 
         serializer.save(tenant=tenant)
 
@@ -2206,11 +2160,11 @@ class TenantWorkflowActionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         tenant = _get_request_tenant(self.request)
         if not tenant:
-            raise ValidationError({'tenant': 'Tenant context is required (X-Tenant-ID header).'})
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
 
-        workflow = serializer.validated_data.get('workflow')
-        if workflow is not None and getattr(workflow, 'tenant_id', None) != tenant.id:
-            raise ValidationError({'workflow': 'Workflow must belong to the current tenant.'})
+        workflow = serializer.validated_data.get("workflow")
+        if workflow is not None and getattr(workflow, "tenant_id", None) != tenant.id:
+            raise ValidationError({"workflow": "Workflow must belong to the current tenant."})
 
         serializer.save(tenant=tenant)
 
@@ -2278,20 +2232,20 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         from .models import TenantWorkFormExecution
 
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             return TenantWorkFormExecution.objects.none()
 
-        qs = TenantWorkFormExecution.objects.select_related('workform', 'started_by', 'tenant').filter(tenant=tenant)
+        qs = TenantWorkFormExecution.objects.select_related("workform", "started_by", "tenant").filter(tenant=tenant)
 
-        workform_id = (self.request.query_params.get('workform') or '').strip()
+        workform_id = (self.request.query_params.get("workform") or "").strip()
         if workform_id:
             qs = qs.filter(workform_id=workform_id)
 
-        started_by = (self.request.query_params.get('started_by') or '').strip()
+        started_by = (self.request.query_params.get("started_by") or "").strip()
         if started_by:
             # Prevent user-id enumeration: allow started_by=me for all users; allow arbitrary IDs only for tenant admins.
-            if started_by == 'me':
+            if started_by == "me":
                 qs = qs.filter(started_by=self.request.user)
             else:
                 from apps.tenants.models import TenantUser
@@ -2300,18 +2254,18 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
                     tenant=tenant,
                     user=self.request.user,
                     is_active=True,
-                    role__in=['owner', 'admin'],
+                    role__in=["owner", "admin"],
                 ).exists()
                 if not is_tenant_admin:
                     return TenantWorkFormExecution.objects.none()
 
                 qs = qs.filter(started_by_id=started_by)
 
-        entity_type = (self.request.query_params.get('entity_type') or '').strip()
+        entity_type = (self.request.query_params.get("entity_type") or "").strip()
         if entity_type:
             qs = qs.filter(initial_data__entity_type=entity_type)
 
-        entity_id = (self.request.query_params.get('entity_id') or '').strip()
+        entity_id = (self.request.query_params.get("entity_id") or "").strip()
         if entity_id:
             # initial_data is a JSONField; entity_id may be persisted as either a JSON string
             # ("1") or a JSON number (1) depending on the caller payload.
@@ -2323,18 +2277,18 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
                 pass
             qs = qs.filter(entity_id_filter)
 
-        status_param = self.request.query_params.get('status')
+        status_param = self.request.query_params.get("status")
         if status_param:
-            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            statuses = [s.strip() for s in status_param.split(",") if s.strip()]
             if statuses:
                 qs = qs.filter(status__in=statuses)
 
-        search = (self.request.query_params.get('search') or '').strip()
+        search = (self.request.query_params.get("search") or "").strip()
         if search:
             qs = qs.filter(workform__name__icontains=search)
 
-        start_date = self.request.query_params.get('start_date')
-        end_date = self.request.query_params.get('end_date')
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
 
         sd = parse_date(start_date) if start_date else None
         ed = parse_date(end_date) if end_date else None
@@ -2343,39 +2297,39 @@ class TenantWorkFormExecutionViewSet(viewsets.ReadOnlyModelViewSet):
         if ed:
             qs = qs.filter(created_on__date__lte=ed)
 
-        return qs.order_by('-created_on')
+        return qs.order_by("-created_on")
 
-    @action(detail=False, methods=['get'], url_path='analytics')
+    @action(detail=False, methods=["get"], url_path="analytics")
     def analytics(self, request):
         try:
-            days = max(int(request.query_params.get('days', 30) or 30), 1)
+            days = max(int(request.query_params.get("days", 30) or 30), 1)
         except (TypeError, ValueError):
             days = 30
 
         try:
-            limit = max(int(request.query_params.get('limit', 5) or 5), 1)
+            limit = max(int(request.query_params.get("limit", 5) or 5), 1)
         except (TypeError, ValueError):
             limit = 5
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
             return Response(
                 {
-                    'window_days': days,
-                    'generated_at': timezone.now().isoformat(),
-                    'summary': {
-                        'total_runs': 0,
-                        'active_runs': 0,
-                        'completed_runs': 0,
-                        'failed_runs': 0,
-                        'suspended_runs': 0,
-                        'success_rate': 0.0,
-                        'avg_duration_ms': None,
+                    "window_days": days,
+                    "generated_at": timezone.now().isoformat(),
+                    "summary": {
+                        "total_runs": 0,
+                        "active_runs": 0,
+                        "completed_runs": 0,
+                        "failed_runs": 0,
+                        "suspended_runs": 0,
+                        "success_rate": 0.0,
+                        "avg_duration_ms": None,
                     },
-                    'status_counts': {},
-                    'top_workforms': [],
-                    'top_failed_nodes': [],
-                    'slowest_actions': [],
+                    "status_counts": {},
+                    "top_workforms": [],
+                    "top_failed_nodes": [],
+                    "slowest_actions": [],
                 }
             )
 
@@ -2411,22 +2365,18 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             return super().list(request, *args, **kwargs)
         except Exception as e:
             # Catch any serialization or database errors
-            logger.error(f'[FormSubmission] Failed to list submissions: {str(e)}', exc_info=True)
-            
+            logger.error(f"[FormSubmission] Failed to list submissions: {str(e)}", exc_info=True)
+
             # Send to Sentry if configured
             try:
                 import sentry_sdk
+
                 sentry_sdk.capture_exception(e)
             except ImportError:
                 pass  # Sentry not configured
-            
+
             # Return empty list to prevent 500 error
-            return Response({
-                "count": 0,
-                "next": None,
-                "previous": None,
-                "results": []
-            }, status=status.HTTP_200_OK)
+            return Response({"count": 0, "next": None, "previous": None, "results": []}, status=status.HTTP_200_OK)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -2462,7 +2412,7 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         Returns empty queryset on any database/RLS errors to prevent 500 responses.
         """
         try:
-            tenant = getattr(self.request, 'tenant', None)
+            tenant = getattr(self.request, "tenant", None)
             if not tenant:
                 return FormSubmission.objects.none()
 
@@ -2471,7 +2421,7 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             # ------------------------------------------------------------------
             # Visibility / assignment filtering
             # ------------------------------------------------------------------
-            assigned_to = (self.request.query_params.get("assigned_to") or '').strip()
+            assigned_to = (self.request.query_params.get("assigned_to") or "").strip()
 
             # Tenant role (used for admin checks + role-based assignments)
             try:
@@ -2484,25 +2434,25 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
 
             # Preserve legacy behavior: staff users (admin UI) can see tenant submissions without requiring TenantUser.
             is_tenant_admin = bool(
-                self.request.user.is_superuser
-                or self.request.user.is_staff
-                or tenant_role in ['owner', 'admin']
+                self.request.user.is_superuser or self.request.user.is_staff or tenant_role in ["owner", "admin"]
             )
 
             # Determine whether a submission is assigned to the current user.
             # Back-compat: legacy submissions may have current_step=NULL; in that case, treat assignments as
             # "assigned anywhere in the form" (this matches existing tests + production behavior).
-            assigned_to_me_q = Q(form__step_assignments__assignment_type='user', form__step_assignments__assigned_user=self.request.user)
+            assigned_to_me_q = Q(
+                form__step_assignments__assignment_type="user", form__step_assignments__assigned_user=self.request.user
+            )
             if tenant_role:
                 assigned_to_me_q |= Q(
-                    form__step_assignments__assignment_type__in=['role', 'team'],
+                    form__step_assignments__assignment_type__in=["role", "team"],
                     form__step_assignments__assigned_role=tenant_role,
                 )
-            assigned_to_me_q |= Q(form__step_assignments__assignment_type='pool')
+            assigned_to_me_q |= Q(form__step_assignments__assignment_type="pool")
 
             if assigned_to:
                 # Security: allow assigned_to=me for everyone; allow arbitrary IDs only for tenant admins.
-                if assigned_to == 'me':
+                if assigned_to == "me":
                     qs = qs.filter(assigned_to_me_q).distinct()
                 else:
                     if not is_tenant_admin:
@@ -2513,7 +2463,10 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
                         except (TypeError, ValueError):
                             qs = qs.none()
                         else:
-                            qs = qs.filter(form__step_assignments__assignment_type='user', form__step_assignments__assigned_user_id=target_user_id).distinct()
+                            qs = qs.filter(
+                                form__step_assignments__assignment_type="user",
+                                form__step_assignments__assigned_user_id=target_user_id,
+                            ).distinct()
             else:
                 # Default visibility: non-admin users should see what they started + what is assigned to them.
                 if not is_tenant_admin:
@@ -2522,7 +2475,7 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             # Filter by status (support comma-separated list)
             status_filter = self.request.query_params.get("status")
             if status_filter:
-                statuses = [s.strip() for s in str(status_filter).split(',') if s.strip()]
+                statuses = [s.strip() for s in str(status_filter).split(",") if s.strip()]
                 if statuses:
                     qs = qs.filter(status__in=statuses)
 
@@ -2537,11 +2490,12 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             # Catch any database errors (RLS failures, missing tables, connection issues)
-            logger.error(f'[FormSubmission] Failed to fetch queryset: {str(e)}', exc_info=True)
+            logger.error(f"[FormSubmission] Failed to fetch queryset: {str(e)}", exc_info=True)
 
             # Send to Sentry if configured
             try:
                 import sentry_sdk
+
                 sentry_sdk.capture_exception(e)
             except ImportError:
                 pass  # Sentry not configured
@@ -2592,9 +2546,7 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
                             "assignment_type": a.assignment_type,
                             "assigned_user_id": a.assigned_user_id,
                             "assigned_user_name": (
-                                a.assigned_user.get_full_name() or a.assigned_user.username
-                                if a.assigned_user
-                                else None
+                                a.assigned_user.get_full_name() or a.assigned_user.username if a.assigned_user else None
                             ),
                             "assigned_role": a.assigned_role,
                             "due_days": a.due_days,
@@ -2644,16 +2596,12 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
                         "status": s.status,
                         "created_by": s.created_by_id,
                         "created_by_name": (
-                            s.created_by.get_full_name() or s.created_by.username
-                            if s.created_by
-                            else None
+                            s.created_by.get_full_name() or s.created_by.username if s.created_by else None
                         ),
                         "created_at": s.created_at.isoformat() if s.created_at else None,
                         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
                         "current_step_id": str(s.current_step_id) if s.current_step_id else None,
-                        "current_step_name": (
-                            s.current_step.step_name if s.current_step else None
-                        ),
+                        "current_step_name": (s.current_step.step_name if s.current_step else None),
                         "current_step_order": (s.current_step.order if s.current_step else None),
                         "current_step_entity_type": (s.current_step.entity_type if s.current_step else None),
                         "current_step_status": (step_sub.status if step_sub else None),
@@ -2672,7 +2620,7 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             return Response({"count": len(results), "results": results})
 
         except Exception:
-            logger.error('[process_monitor] Failed to build results', exc_info=True)
+            logger.error("[process_monitor] Failed to build results", exc_info=True)
             return Response({"count": 0, "results": []})
 
     @action(detail=True, methods=["post"])
@@ -2976,12 +2924,10 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         if not tenant:
             return TenantForm.objects.none()
 
-        return (
-            TenantForm.objects.filter(
-                tenant=tenant,
-                status__in=['active', 'draft'],
-            ).order_by('-created_at')
-        )
+        return TenantForm.objects.filter(
+            tenant=tenant,
+            status__in=["active", "draft"],
+        ).order_by("-created_at")
 
     def _get_workforms(self, request):
         """Tenant-scoped WorkForms for Quick Actions."""
@@ -2991,7 +2937,7 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
         if not tenant:
             return TenantWorkForm.objects.none()
 
-        return TenantWorkForm.objects.filter(tenant=tenant, status__in=['active', 'draft']).order_by('-updated_at')
+        return TenantWorkForm.objects.filter(tenant=tenant, status__in=["active", "draft"]).order_by("-updated_at")
 
     @extend_schema(responses={200: AvailableQuickActionTargetSerializer(many=True)})
     def list(self, request, *args, **kwargs):
@@ -3010,27 +2956,27 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Absolute safety net: UI surfaces expect this endpoint to be resilient.
         try:
-            entity_type = (request.query_params.get('entity_type') or '').strip().lower()
-            entity_id_raw = (request.query_params.get('entity_id') or '').strip()
+            entity_type = (request.query_params.get("entity_type") or "").strip().lower()
+            entity_id_raw = (request.query_params.get("entity_id") or "").strip()
 
             if entity_type or entity_id_raw:
                 if not (entity_type and entity_id_raw):
                     return Response(
-                        {'error': 'Both entity_type and entity_id are required when providing entity context.'},
+                        {"error": "Both entity_type and entity_id are required when providing entity context."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                allowed = {'supplier', 'customer', 'plant', 'location'}
+                allowed = {"supplier", "customer", "plant", "location"}
                 if entity_type not in allowed:
                     return Response(
-                        {'error': f'Unsupported entity_type: {entity_type}.'},
+                        {"error": f"Unsupported entity_type: {entity_type}."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
                 tenant = _get_request_tenant(request)
                 if not tenant:
                     return Response(
-                        {'error': 'Tenant context is required (X-Tenant-ID header) when providing entity context.'},
+                        {"error": "Tenant context is required (X-Tenant-ID header) when providing entity context."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
@@ -3038,48 +2984,48 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
                     entity_pk = int(entity_id_raw)
                 except (TypeError, ValueError):
                     return Response(
-                        {'error': f'Invalid entity_id for {entity_type}: {entity_id_raw}.'},
+                        {"error": f"Invalid entity_id for {entity_type}: {entity_id_raw}."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
                 try:
-                    if entity_type == 'supplier':
+                    if entity_type == "supplier":
                         from tenant_apps.suppliers.models import Supplier
 
                         Supplier.objects.get(pk=entity_pk, tenant=tenant)
-                    elif entity_type == 'customer':
+                    elif entity_type == "customer":
                         from tenant_apps.customers.models import Customer
 
                         Customer.objects.get(pk=entity_pk, tenant=tenant)
-                    elif entity_type == 'plant':
+                    elif entity_type == "plant":
                         from tenant_apps.plants.models import Plant
 
                         Plant.objects.get(pk=entity_pk, tenant=tenant)
-                    elif entity_type == 'location':
+                    elif entity_type == "location":
                         from tenant_apps.locations.models import Location
 
                         Location.objects.get(pk=entity_pk, tenant=tenant)
                 except Exception as exc:
                     logger.warning(
-                        'available-forms: invalid entity context',
+                        "available-forms: invalid entity context",
                         extra={
-                            'entity_type': entity_type,
-                            'entity_id': entity_id_raw,
-                            'tenant_id': str(getattr(tenant, 'id', '')),
-                            'error': str(exc),
+                            "entity_type": entity_type,
+                            "entity_id": entity_id_raw,
+                            "tenant_id": str(getattr(tenant, "id", "")),
+                            "error": str(exc),
                         },
                     )
                     return Response(
-                        {'error': 'Invalid entity context.'},
+                        {"error": "Invalid entity context."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
             try:
                 forms_qs = self.filter_queryset(self.get_queryset())
             except Exception as exc:
-                logger.warning('available-forms: invalid filters', extra={'error': str(exc)})
+                logger.warning("available-forms: invalid filters", extra={"error": str(exc)})
                 return Response(
-                    {'error': 'Invalid query parameters.'},
+                    {"error": "Invalid query parameters."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -3087,52 +3033,52 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
             for form in forms_qs:
                 try:
                     row = AvailableFormSerializer(form).data
-                    row['type'] = 'form'
-                    row['node_count'] = None
+                    row["type"] = "form"
+                    row["node_count"] = None
                     forms_data.append(row)
                 except Exception as exc:
                     logger.exception(
-                        'available-forms: form serialization failed; skipping',
-                        extra={'form_id': str(getattr(form, 'id', '')), 'error': str(exc)},
+                        "available-forms: form serialization failed; skipping",
+                        extra={"form_id": str(getattr(form, "id", "")), "error": str(exc)},
                     )
 
             workforms_data = []
             for wf in self._get_workforms(request):
                 try:
                     try:
-                        node_count = wf.get_node_count() if hasattr(wf, 'get_node_count') else None
+                        node_count = wf.get_node_count() if hasattr(wf, "get_node_count") else None
                     except Exception as exc:
                         logger.warning(
-                            'available-forms: node_count failed; defaulting to 0',
-                            extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                            "available-forms: node_count failed; defaulting to 0",
+                            extra={"workform_id": str(getattr(wf, "id", "")), "error": str(exc)},
                         )
                         node_count = 0
 
                     workforms_data.append(
                         {
-                            'id': str(wf.id),
-                            'type': 'workflow',
-                            'name': wf.name,
-                            'description': wf.description or '',
-                            'icon': 'workflow',
-                            'status': wf.status,
-                            'is_default': False,
-                            'is_quick_action_enabled': True,
-                            'step_count': None,
-                            'node_count': node_count,
+                            "id": str(wf.id),
+                            "type": "workflow",
+                            "name": wf.name,
+                            "description": wf.description or "",
+                            "icon": "workflow",
+                            "status": wf.status,
+                            "is_default": False,
+                            "is_quick_action_enabled": True,
+                            "step_count": None,
+                            "node_count": node_count,
                         }
                     )
                 except Exception as exc:
                     logger.exception(
-                        'available-forms: workform serialization failed; skipping',
-                        extra={'workform_id': str(getattr(wf, 'id', '')), 'error': str(exc)},
+                        "available-forms: workform serialization failed; skipping",
+                        extra={"workform_id": str(getattr(wf, "id", "")), "error": str(exc)},
                     )
 
             data = forms_data + workforms_data
-            data.sort(key=lambda r: str(r.get('name') or '').lower())
+            data.sort(key=lambda r: str(r.get("name") or "").lower())
             return Response(data)
         except Exception as exc:
-            logger.exception('available-forms: internal error; returning empty list', extra={'error': str(exc)})
+            logger.exception("available-forms: internal error; returning empty list", extra={"error": str(exc)})
             return Response([])
 
 
@@ -3171,9 +3117,7 @@ class QuickActionsAPIView(APIView):
             if error:
                 return error
 
-            logger.info(
-                f"Request tenant: {tenant}, User: {request.user}, Is superuser: {request.user.is_superuser}"
-            )
+            logger.info(f"Request tenant: {tenant}, User: {request.user}, Is superuser: {request.user.is_superuser}")
 
             serializer = QuickActionsSerializer(data=request.data)
             if not serializer.is_valid():
@@ -3205,7 +3149,7 @@ class QuickActionsAPIView(APIView):
                     wf = TenantWorkForm.objects.filter(
                         tenant=tenant,
                         id=item["workflow_id"],
-                        status__in=['draft', 'active'],
+                        status__in=["draft", "active"],
                     ).first()
 
                     if not wf:
@@ -3213,7 +3157,6 @@ class QuickActionsAPIView(APIView):
                             {"error": f'WorkForm {item["workflow_id"]} not found'},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
-
 
             # Update preferences
             from apps.core.models import UserPreferences
@@ -3377,13 +3320,15 @@ class EntityOptionsAPIView(APIView):
                 except Exception:
                     return False
 
-            is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+            is_global_admin = request.user.groups.filter(name="Global System Admins").exists()
 
             if entity_type == "product":
                 # Products are system-wide; only superusers/global admins should create them.
                 can_create = bool(getattr(request.user, "is_superuser", False)) or is_global_admin
             elif entity_type in QUICK_CREATE_MEMBER_ENTITY_TYPES:
-                can_create = bool(getattr(request.user, "is_superuser", False)) or is_global_admin or _is_active_tenant_member()
+                can_create = (
+                    bool(getattr(request.user, "is_superuser", False)) or is_global_admin or _is_active_tenant_member()
+                )
             else:
                 can_create = request.user.has_perm(f"{model._meta.app_label}.add_{model._meta.model_name}")
 
@@ -3538,8 +3483,8 @@ class QuickCreateEntityAPIView(APIView):
 
         # Customer/Supplier UX: we collect mobile + office + extension explicitly.
         # Hide the legacy single phone field from quick-create to avoid confusion.
-        if entity_type in {'customer', 'supplier'}:
-            allow_order = [k for k in allow_order if k != 'phone']
+        if entity_type in {"customer", "supplier"}:
+            allow_order = [k for k in allow_order if k != "phone"]
 
         for key in allow_order:
             if key in excluded or key in already:
@@ -3622,7 +3567,7 @@ class QuickCreateEntityAPIView(APIView):
             except Exception:
                 return False
 
-        is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+        is_global_admin = request.user.groups.filter(name="Global System Admins").exists()
 
         if entity_type == "product":
             # Products are system-wide master data.
@@ -3656,7 +3601,9 @@ class QuickCreateEntityAPIView(APIView):
                         continue
 
                     # If it's a ForeignKey/relation, assign via _id to accept string UUIDs
-                    if field.is_relation and (getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False)):
+                    if field.is_relation and (
+                        getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False)
+                    ):
                         create_kwargs[f"{field.name}_id"] = data[field.name]
                     else:
                         create_kwargs[field.name] = data[field.name]
@@ -3666,26 +3613,26 @@ class QuickCreateEntityAPIView(APIView):
                 create_kwargs["tenant"] = tenant
 
             # Customer/Supplier quick-create: sync legacy phone fields for backward compatibility.
-            if entity_type in {'customer', 'supplier'}:
-                mobile = str(create_kwargs.get('phone_mobile') or '').strip()
-                office = str(create_kwargs.get('phone_office') or '').strip()
-                legacy_phone = str(create_kwargs.get('phone') or '').strip()
+            if entity_type in {"customer", "supplier"}:
+                mobile = str(create_kwargs.get("phone_mobile") or "").strip()
+                office = str(create_kwargs.get("phone_office") or "").strip()
+                legacy_phone = str(create_kwargs.get("phone") or "").strip()
 
                 # If new fields provided but legacy isn't, derive legacy.
                 if (mobile or office) and not legacy_phone:
                     if office:
-                        create_kwargs['phone'] = office
-                        create_kwargs['phone_type'] = 'office'
+                        create_kwargs["phone"] = office
+                        create_kwargs["phone_type"] = "office"
                     else:
-                        create_kwargs['phone'] = mobile
-                        create_kwargs['phone_type'] = 'mobile'
+                        create_kwargs["phone"] = mobile
+                        create_kwargs["phone_type"] = "mobile"
 
                 # If an older client sends legacy only, populate new slots.
                 if legacy_phone and not (mobile or office):
-                    if str(create_kwargs.get('phone_type') or '').strip() == 'mobile':
-                        create_kwargs['phone_mobile'] = legacy_phone
+                    if str(create_kwargs.get("phone_type") or "").strip() == "mobile":
+                        create_kwargs["phone_mobile"] = legacy_phone
                     else:
-                        create_kwargs['phone_office'] = legacy_phone
+                        create_kwargs["phone_office"] = legacy_phone
 
             # Add created_by if model has it
             if hasattr(model, "created_by"):
@@ -3720,7 +3667,9 @@ class QuickCreateEntityAPIView(APIView):
         except Exception as e:
             from apps.core.utils.logging import capture_exception
 
-            capture_exception(e, request=request, extra={"endpoint": "workflows/quick-create", "entity_type": entity_type})
+            capture_exception(
+                e, request=request, extra={"endpoint": "workflows/quick-create", "entity_type": entity_type}
+            )
             logger.exception(f"Error quick-creating entity: {e}")
             return Response({"error": f"Failed to create {entity_type}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -4052,26 +4001,25 @@ class FormStatusHistoryViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, v
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             return FormStatusHistory.objects.none()
 
-        submission_id = self.kwargs.get('submission_id')
-        return (
-            FormStatusHistory.objects.filter(submission_id=submission_id, submission__tenant=tenant)
-            .select_related('changed_by', 'submission')
+        submission_id = self.kwargs.get("submission_id")
+        return FormStatusHistory.objects.filter(submission_id=submission_id, submission__tenant=tenant).select_related(
+            "changed_by", "submission"
         )
 
     def perform_create(self, serializer):
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
-            raise serializers.ValidationError('Tenant context is required (X-Tenant-ID header).')
+            raise serializers.ValidationError("Tenant context is required (X-Tenant-ID header).")
 
-        submission_id = self.kwargs.get('submission_id')
+        submission_id = self.kwargs.get("submission_id")
         try:
             submission = FormSubmission.objects.get(pk=submission_id, tenant=tenant)
         except FormSubmission.DoesNotExist:
-            raise serializers.ValidationError('Submission not found')
+            raise serializers.ValidationError("Submission not found")
 
         # Get current status before change
         from_status = submission.status
@@ -4212,7 +4160,7 @@ class UserNotificationPreferencesView(APIView):
 
     def get(self, request):
         """Get or create notification preferences for current user."""
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
             return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -4239,7 +4187,7 @@ class UserNotificationPreferencesView(APIView):
 
     def put(self, request):
         """Update notification preferences."""
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
             return Response({"error": "Tenant context required"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -4286,6 +4234,7 @@ class ActionItemsAPIView(APIView):
         from datetime import timedelta
 
         from django.utils import timezone
+
         from tenant_apps.deals.models import DealActionItem, DealActionItemStatus
 
         user = request.user
@@ -4437,21 +4386,25 @@ class ActionItemCountsAPIView(APIView):
         from datetime import timedelta
 
         from django.utils import timezone
+
         from tenant_apps.deals.models import DealActionItem, DealActionItemStatus
+
         user = request.user
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
 
         # Graceful fallback if tenant not available
         if not tenant:
-            logger.warning('[ActionItemCounts] No tenant found in request')
-            return Response({
-                "total": 0,
-                "overdue": 0,
-                "due_today": 0,
-                "due_this_week": 0,
-                "by_priority": {},
-                "by_form": [],
-            })
+            logger.warning("[ActionItemCounts] No tenant found in request")
+            return Response(
+                {
+                    "total": 0,
+                    "overdue": 0,
+                    "due_today": 0,
+                    "due_this_week": 0,
+                    "by_priority": {},
+                    "by_form": [],
+                }
+            )
 
         try:
             now = timezone.now()
@@ -4546,24 +4499,28 @@ class ActionItemCountsAPIView(APIView):
 
         except Exception as e:
             # Log error to Sentry if available
-            logger.error(f'[ActionItemCounts] Failed to fetch counts: {str(e)}', exc_info=True)
-            
+            logger.error(f"[ActionItemCounts] Failed to fetch counts: {str(e)}", exc_info=True)
+
             # Send to Sentry if configured
             try:
                 import sentry_sdk
+
                 sentry_sdk.capture_exception(e)
             except ImportError:
                 pass  # Sentry not configured
-            
+
             # Return graceful empty response
-            return Response({
-                "total": 0,
-                "overdue": 0,
-                "due_today": 0,
-                "due_this_week": 0,
-                "by_priority": {},
-                "by_form": [],
-            }, status=status.HTTP_200_OK)  # Return 200 with empty data, not 500
+            return Response(
+                {
+                    "total": 0,
+                    "overdue": 0,
+                    "due_today": 0,
+                    "due_this_week": 0,
+                    "by_priority": {},
+                    "by_form": [],
+                },
+                status=status.HTTP_200_OK,
+            )  # Return 200 with empty data, not 500
 
 
 # =============================================================================
@@ -4619,19 +4576,19 @@ class WorkFormPermissionsAPIView(APIView):
 class SuggestNodesView(APIView):
     """
     API endpoint for AI-powered workflow node suggestions.
-    
+
     Phase 2.1: AI Field Suggestions with graceful degradation.
     Uses OpenAI to suggest next workflow steps based on context.
     Falls back to static templates if AI is unavailable.
-    
+
     POST /api/v1/workflows/suggest-nodes/
-    
+
     Request:
         {
             'current_flow': {...},  # Current workflow state
             'context': {...}        # Additional context
         }
-    
+
     Response:
         {
             'suggestions': [{type, label, description, reasoning, priority}],
@@ -4639,127 +4596,121 @@ class SuggestNodesView(APIView):
             'mode': 'ai' | 'static'
         }
     """
-    
+
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request):
         """Generate workflow node suggestions."""
-        from .services.prompter import AIPrompter
-        from django.core.cache import cache
         import hashlib
         import json
-        
+
+        from django.core.cache import cache
+
+        from .services.prompter import AIPrompter
+
         try:
             prompter = AIPrompter()
-            tenant = getattr(request, 'tenant', None)
-            
+            tenant = getattr(request, "tenant", None)
+
             if not tenant:
-                return Response(
-                    {"error": "No tenant context available"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            current_flow = request.data.get('current_flow', {})
-            context = request.data.get('context', {})
-            
+                return Response({"error": "No tenant context available"}, status=status.HTTP_400_BAD_REQUEST)
+
+            current_flow = request.data.get("current_flow", {})
+            context = request.data.get("context", {})
+
             # Generate cache key based on flow state + context
-            cache_input = json.dumps({
-                'tenant_id': str(tenant.id),
-                'flow': current_flow,
-                'context': context
-            }, sort_keys=True)
+            cache_input = json.dumps(
+                {"tenant_id": str(tenant.id), "flow": current_flow, "context": context}, sort_keys=True
+            )
             cache_key = f"ai_suggestions_{hashlib.md5(cache_input.encode()).hexdigest()}"
-            
+
             # Check Redis cache (10 minute TTL)
             cached_result = cache.get(cache_key)
             if cached_result:
                 logger.debug(f"Returning cached AI suggestions for tenant {tenant.id}")
-                cached_result['cached'] = True
+                cached_result["cached"] = True
                 return Response(cached_result)
-            
+
             # Try AI-powered suggestions
             try:
                 import os
+
                 from openai import OpenAI
-                
-                openai_key = os.environ.get('OPENAI_API_KEY')
-                
+
+                openai_key = os.environ.get("OPENAI_API_KEY")
+
                 if not openai_key:
                     raise ValueError("OpenAI API key not configured")
-                
+
                 # Build prompt with context
                 prompt = prompter.build_suggestion_prompt(
-                    tenant=tenant,
-                    current_flow=current_flow,
-                    additional_context=context
+                    tenant=tenant, current_flow=current_flow, additional_context=context
                 )
-                
+
                 # Call OpenAI API
                 client = OpenAI(api_key=openai_key)
-                
+
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",  # Fast, cost-effective model
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a workflow automation expert. Suggest the next logical steps in a workflow."
+                            "content": "You are a workflow automation expert. Suggest the next logical steps in a workflow.",
                         },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
+                        {"role": "user", "content": prompt},
                     ],
                     temperature=0.7,
                     max_tokens=500,
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
                 )
-                
+
                 # Parse AI response
                 ai_result = json.loads(response.choices[0].message.content)
-                
+
                 result = {
-                    'suggestions': ai_result.get('suggestions', []),
-                    'confidence': ai_result.get('confidence', 0.8),
-                    'mode': 'ai',
-                    'reasoning': ai_result.get('reasoning', ''),
-                    'cached': False
+                    "suggestions": ai_result.get("suggestions", []),
+                    "confidence": ai_result.get("confidence", 0.8),
+                    "mode": "ai",
+                    "reasoning": ai_result.get("reasoning", ""),
+                    "cached": False,
                 }
-                
+
                 # Cache for 10 minutes
                 cache.set(cache_key, result, 600)
-                
+
                 logger.info(f"AI suggestions generated for tenant {tenant.id}")
                 return Response(result)
-                
+
             except (ValueError, ImportError) as e:
                 # Service not configured - graceful degradation
                 logger.info(f"AI suggestions unavailable ({e}), using static fallback")
                 fallback = prompter.get_fallback_suggestions(tenant, current_flow)
-                
-                return Response({
-                    'suggestions': fallback['suggestions'],
-                    'confidence': fallback['confidence'],
-                    'mode': fallback['mode'],
-                    'reason': 'AI unavailable - using static templates',
-                    'cached': False
-                })
-            
+
+                return Response(
+                    {
+                        "suggestions": fallback["suggestions"],
+                        "confidence": fallback["confidence"],
+                        "mode": fallback["mode"],
+                        "reason": "AI unavailable - using static templates",
+                        "cached": False,
+                    }
+                )
+
             except Exception as e:
                 # AI call failed - graceful degradation
                 logger.warning(f"AI call failed ({e}), using static fallback")
                 fallback = prompter.get_fallback_suggestions(tenant, current_flow)
-                
-                return Response({
-                    'suggestions': fallback['suggestions'],
-                    'confidence': fallback['confidence'],
-                    'mode': fallback['mode'],
-                    'reason': f'AI error: {str(e)[:100]}',
-                    'cached': False
-                })
-                
+
+                return Response(
+                    {
+                        "suggestions": fallback["suggestions"],
+                        "confidence": fallback["confidence"],
+                        "mode": fallback["mode"],
+                        "reason": f"AI error: {str(e)[:100]}",
+                        "cached": False,
+                    }
+                )
+
         except Exception as e:
             logger.error(f"Suggestion generation failed: {e}")
-            return Response(
-                {"error": "Failed to generate suggestions"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": "Failed to generate suggestions"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

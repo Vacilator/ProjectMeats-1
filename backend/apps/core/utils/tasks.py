@@ -27,8 +27,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from functools import wraps
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 
 from celery import Task, shared_task
 
@@ -64,17 +63,17 @@ class TenantTask(Task):
             rls = set_current_tenant(str(self._tenant_id))
             if not rls.ok:
                 logger.warning(
-                    '[Task:%s] RLS set failed tenant=%s error=%s',
+                    "[Task:%s] RLS set failed tenant=%s error=%s",
                     self.name,
                     self._tenant_id,
                     rls.error,
                 )
 
-        attempt = getattr(self.request, 'retries', 0) + 1
+        attempt = getattr(self.request, "retries", 0) + 1
         logger.info(
-            '[Task:%s] started tenant=%s attempt=%d task_id=%s',
+            "[Task:%s] started tenant=%s attempt=%d task_id=%s",
             self.name,
-            self._tenant_id or 'N/A',
+            self._tenant_id or "N/A",
             attempt,
             task_id,
         )
@@ -85,33 +84,33 @@ class TenantTask(Task):
 
         reset_current_tenant()
 
-        elapsed = time.monotonic() - getattr(self, '_start_time', time.monotonic())
+        elapsed = time.monotonic() - getattr(self, "_start_time", time.monotonic())
         logger.info(
-            '[Task:%s] finished status=%s tenant=%s elapsed=%.2fs task_id=%s',
+            "[Task:%s] finished status=%s tenant=%s elapsed=%.2fs task_id=%s",
             self.name,
             status,
-            getattr(self, '_tenant_id', 'N/A'),
+            getattr(self, "_tenant_id", "N/A"),
             elapsed,
             task_id,
         )
 
     def on_retry(self, exc: Exception, task_id: str, args: tuple, kwargs: dict, einfo: Any) -> None:
         """Log retry with structured context."""
-        attempt = getattr(self.request, 'retries', 0)
+        attempt = getattr(self.request, "retries", 0)
         logger.warning(
-            '[Task:%s] retrying attempt=%d tenant=%s error=%s',
+            "[Task:%s] retrying attempt=%d tenant=%s error=%s",
             self.name,
             attempt,
-            getattr(self, '_tenant_id', 'N/A'),
+            getattr(self, "_tenant_id", "N/A"),
             str(exc)[:200],
         )
 
     def on_failure(self, exc: Exception, task_id: str, args: tuple, kwargs: dict, einfo: Any) -> None:
         """Log final failure."""
         logger.error(
-            '[Task:%s] FAILED tenant=%s error=%s task_id=%s',
+            "[Task:%s] FAILED tenant=%s error=%s task_id=%s",
             self.name,
-            getattr(self, '_tenant_id', 'N/A'),
+            getattr(self, "_tenant_id", "N/A"),
             str(exc)[:500],
             task_id,
             exc_info=True,
@@ -119,9 +118,9 @@ class TenantTask(Task):
 
     def retry_with_backoff(self, exc: Exception | None = None, **kwargs) -> None:
         """Retry with exponential backoff + jitter."""
-        attempt = getattr(self.request, 'retries', 0)
+        attempt = getattr(self.request, "retries", 0)
         base_delay = min(
-            self.retry_backoff_base * (2 ** attempt),
+            self.retry_backoff_base * (2**attempt),
             self.retry_backoff_max,
         )
         jitter = random.uniform(0, base_delay * 0.2)
@@ -132,8 +131,8 @@ class TenantTask(Task):
     @staticmethod
     def _extract_tenant_id(args: tuple, kwargs: dict) -> str | None:
         """Extract tenant_id from task arguments (convention: first positional or kwarg)."""
-        if kwargs.get('tenant_id'):
-            return str(kwargs['tenant_id'])
+        if kwargs.get("tenant_id"):
+            return str(kwargs["tenant_id"])
         if args:
             return str(args[0])
         return None
@@ -160,7 +159,7 @@ def tenant_task(
     """
 
     def decorator(func: Callable) -> Callable:
-        task_name = name or f'{func.__module__}.{func.__qualname__}'
+        task_name = name or f"{func.__module__}.{func.__qualname__}"
         return shared_task(
             bind=True,
             base=TenantTask,

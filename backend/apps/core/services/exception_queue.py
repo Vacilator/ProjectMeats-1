@@ -38,7 +38,7 @@ import logging
 import traceback
 from typing import Any
 
-from django.db import models, transaction
+from django.db import transaction
 from django.utils import timezone
 
 logger = logging.getLogger("trade.exceptions")
@@ -206,9 +206,7 @@ def resolve_exception(
 
     with transaction.atomic():
         entry = (
-            TradeExceptionQueue.objects.select_for_update()
-            .filter(tenant_id=resolved_tenant_id)
-            .get(pk=exception_id)
+            TradeExceptionQueue.objects.select_for_update().filter(tenant_id=resolved_tenant_id).get(pk=exception_id)
         )
 
         if entry.trade_session_id:
@@ -224,17 +222,12 @@ def resolve_exception(
         entry.resolved_by = resolved_by
         entry.resolved_at = timezone.now()
         entry.resolution_notes = resolution_notes
-        entry.save(update_fields=[
-            "status", "resolved_by", "resolved_at", "resolution_notes", "modified_on"
-        ])
+        entry.save(update_fields=["status", "resolved_by", "resolved_at", "resolution_notes", "modified_on"])
 
-        has_active_siblings = (
-            entry.trade_session_id
-            and _has_active_trade_exceptions(
-                tenant_id=resolved_tenant_id,
-                trade_session_id=entry.trade_session_id,
-                exclude_exception_id=entry.pk,
-            )
+        has_active_siblings = entry.trade_session_id and _has_active_trade_exceptions(
+            tenant_id=resolved_tenant_id,
+            trade_session_id=entry.trade_session_id,
+            exclude_exception_id=entry.pk,
         )
 
         if resume_trade and entry.trade_session_id and not has_active_siblings:
@@ -333,20 +326,14 @@ def get_open_exceptions(
 # ---------------------------------------------------------------------------
 
 
-def _halt_trade_session(
-    *, tenant_id: str, trade_session_id: int, exception_id: int
-) -> None:
+def _halt_trade_session(*, tenant_id: str, trade_session_id: int, exception_id: int) -> None:
     """Halt a trade session due to an exception."""
     try:
         from tenant_apps.inquiries.models import TradeSession
 
-        TradeSession.objects.filter(
-            tenant_id=tenant_id, pk=trade_session_id
-        ).update(status="halted")
+        TradeSession.objects.filter(tenant_id=tenant_id, pk=trade_session_id).update(status="halted")
 
-        logger.info(
-            f"Trade session {trade_session_id} halted (exception {exception_id})"
-        )
+        logger.info(f"Trade session {trade_session_id} halted (exception {exception_id})")
     except Exception as exc:
         logger.warning(f"Failed to halt trade session {trade_session_id}: {exc}")
 
@@ -358,9 +345,9 @@ def _resume_trade_session(*, tenant_id: str, trade_session_id: int) -> None:
 
         # Only resume if currently halted (don't override completed/cancelled)
         # Resume to "sourcing" as the default safe state
-        updated = TradeSession.objects.filter(
-            tenant_id=tenant_id, pk=trade_session_id, status="halted"
-        ).update(status="sourcing")
+        updated = TradeSession.objects.filter(tenant_id=tenant_id, pk=trade_session_id, status="halted").update(
+            status="sourcing"
+        )
 
         if updated:
             logger.info(f"Trade session {trade_session_id} resumed")

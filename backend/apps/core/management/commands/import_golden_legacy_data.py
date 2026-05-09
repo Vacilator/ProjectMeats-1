@@ -15,7 +15,6 @@ from apps.core.services.etl import (
     GOLDEN_ETL_CONTRACT_VERSION,
     LINE_ITEM_PARENT_MAP,
     MASTER_ENTITY_ORDER,
-    REQUIRED_SUPPRESSED_SIDE_EFFECTS,
     TRANSACTION_ENTITY_ORDER,
     etl_side_effect_guard,
     validate_source_manifest,
@@ -61,12 +60,8 @@ class Command(BaseCommand):
                 self.stdout.write(f"Mode: {policy.mode}")
                 self.stdout.write(f"Tenant: {tenant.slug} ({tenant.id})")
                 self.stdout.write(f"Batch key: {manifest.batch_key}")
-                self.stdout.write(
-                    f"Manifest checksum: {hashlib.sha256(manifest_path.read_bytes()).hexdigest()}"
-                )
-                self.stdout.write(
-                    f"Suppressed side effects: {', '.join(policy.suppressed_side_effects)}"
-                )
+                self.stdout.write(f"Manifest checksum: {hashlib.sha256(manifest_path.read_bytes()).hexdigest()}")
+                self.stdout.write(f"Suppressed side effects: {', '.join(policy.suppressed_side_effects)}")
                 self.stdout.write(f"Manifest files: {len(manifest.files)}")
 
                 for source_file in manifest.files:
@@ -78,12 +73,8 @@ class Command(BaseCommand):
                         descriptor += f" [line_items={source_file.line_item_entity}]"
                     self.stdout.write(descriptor)
 
-                self.stdout.write(
-                    "Master entity order: " + " -> ".join(MASTER_ENTITY_ORDER)
-                )
-                self.stdout.write(
-                    "Transaction header order: " + " -> ".join(TRANSACTION_ENTITY_ORDER)
-                )
+                self.stdout.write("Master entity order: " + " -> ".join(MASTER_ENTITY_ORDER))
+                self.stdout.write("Transaction header order: " + " -> ".join(TRANSACTION_ENTITY_ORDER))
 
                 for header_entity, line_item_details in LINE_ITEM_PARENT_MAP.items():
                     self.stdout.write(
@@ -149,10 +140,6 @@ class Command(BaseCommand):
                 raise CommandError("Manifest tenant_id is not a valid UUID.") from exc
 
             if tenant.id.hex != manifest_tenant_uuid.hex:
-                raise CommandError(
-                    "Manifest tenant_id does not match the explicitly requested tenant."
-                )
+                raise CommandError("Manifest tenant_id does not match the explicitly requested tenant.")
         if manifest_tenant_slug and tenant.slug != manifest_tenant_slug:
-            raise CommandError(
-                "Manifest tenant_slug does not match the explicitly requested tenant."
-            )
+            raise CommandError("Manifest tenant_slug does not match the explicitly requested tenant.")

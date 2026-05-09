@@ -15,9 +15,7 @@ Design:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, timedelta
 from typing import Optional
-
 
 # -------------------------------------------------------------------
 # Contract Types
@@ -192,9 +190,7 @@ def _format_balance_context(balance: Optional[BalanceSummary]) -> str:
     if not balance or balance.total_outstanding <= 0:
         return ""
 
-    parts = [
-        f"Current outstanding balance: {balance.currency} {balance.total_outstanding:,.2f}"
-    ]
+    parts = [f"Current outstanding balance: {balance.currency} {balance.total_outstanding:,.2f}"]
     if balance.overdue_count > 0:
         parts.append(
             f" ({balance.overdue_count} overdue invoice{'s' if balance.overdue_count > 1 else ''}, "

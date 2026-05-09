@@ -5,8 +5,8 @@ Provides endpoints for monitoring application health and status.
 Updated: 2026-02-06 - Force backend container restart for entity_views deployment
 """
 
-import psutil
 import shutil
+
 from django.conf import settings
 from django.db import connection
 from django.http import JsonResponse
@@ -14,6 +14,9 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest_framework import status
+
+import psutil
+
 from apps.core.utils.health import check_all_services, semantic_index_readiness_required
 
 
@@ -93,7 +96,11 @@ def health_check(request):
                 "message": "Channel layer is using in-memory fallback. Cross-process realtime features are degraded.",
             }
         )
-    if redis_guardrails.get("configured") and redis_guardrails.get("available") and not redis_guardrails.get("policy_ok"):
+    if (
+        redis_guardrails.get("configured")
+        and redis_guardrails.get("available")
+        and not redis_guardrails.get("policy_ok")
+    ):
         integration_warnings.append(
             {
                 "code": "redis_policy_mismatch",
@@ -292,9 +299,7 @@ def health_detailed(request):
                 system_healthy = False
                 system_issues.append("disk_usage_high")
 
-            if memory_usage["available"] / (1024 * 1024) < settings.HEALTH_CHECK.get(
-                "MEMORY_MIN", 100
-            ):
+            if memory_usage["available"] / (1024 * 1024) < settings.HEALTH_CHECK.get("MEMORY_MIN", 100):
                 system_healthy = False
                 system_issues.append("memory_low")
 
@@ -326,9 +331,7 @@ def health_detailed(request):
             "issues": system_issues,
             "debug": settings.DEBUG,
         },
-        status=status.HTTP_200_OK
-        if overall_status == "healthy"
-        else status.HTTP_503_SERVICE_UNAVAILABLE,
+        status=status.HTTP_200_OK if overall_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE,
     )
 
 
@@ -438,16 +441,15 @@ def health_workforms(request):
     Validates entity API endpoints are functional.
     Added: 2026-02-06 - Phase F: Backend Verification
     """
-    from apps.core import entity_views
     from django.apps import apps
-    
+
     checks = {
         "entity_registry": "unknown",
         "entity_schema": "unknown",
         "entity_lookup": "unknown",
     }
     issues = []
-    
+
     try:
         # Check 1: Entity registry responds
         try:
@@ -459,7 +461,7 @@ def health_workforms(request):
                     continue
                 # Count available models
                 entities.append(model.__name__)
-            
+
             if len(entities) > 0:
                 checks["entity_registry"] = "healthy"
             else:
@@ -468,14 +470,15 @@ def health_workforms(request):
         except Exception as e:
             checks["entity_registry"] = "unhealthy"
             issues.append(f"Entity registry error: {str(e)}")
-        
+
         # Check 2: Schema extraction works
         try:
             # Test with User model (should always exist)
             from django.contrib.auth import get_user_model
+
             User = get_user_model()
             fields = User._meta.get_fields()
-            
+
             if len(fields) > 0:
                 checks["entity_schema"] = "healthy"
             else:
@@ -484,10 +487,11 @@ def health_workforms(request):
         except Exception as e:
             checks["entity_schema"] = "unhealthy"
             issues.append(f"Schema extraction error: {str(e)}")
-        
+
         # Check 3: Lookup queries work
         try:
             from django.contrib.auth import get_user_model
+
             User = get_user_model()
             # Test query
             count = User.objects.count()
@@ -495,7 +499,7 @@ def health_workforms(request):
         except Exception as e:
             checks["entity_lookup"] = "unhealthy"
             issues.append(f"Lookup query error: {str(e)}")
-        
+
         # Overall status
         if "unhealthy" in checks.values():
             overall_status = "unhealthy"
@@ -506,7 +510,7 @@ def health_workforms(request):
         else:
             overall_status = "healthy"
             http_status = status.HTTP_200_OK
-        
+
         return JsonResponse(
             {
                 "status": overall_status,
@@ -518,11 +522,11 @@ def health_workforms(request):
                     "registry": "/api/v1/entities/",
                     "schema": "/api/v1/entities/{type}/schema/",
                     "lookup": "/api/v1/entities/{type}/lookup/",
-                }
+                },
             },
             status=http_status,
         )
-        
+
     except Exception as e:
         return JsonResponse(
             {
