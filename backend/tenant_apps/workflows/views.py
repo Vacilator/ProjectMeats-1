@@ -1619,8 +1619,9 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
                 field=field, parent_value=parent_value, tenant_id=str(tenant.id)
             )
             return Response(options, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception("Cascaded options lookup failed")
+            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class TenantFormRuleViewSet(viewsets.ModelViewSet):
@@ -3795,8 +3796,9 @@ class FormImportAPIView(APIView):
 
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({"error": f"Import failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception("Form import failed")
+            return Response({"error": "Import failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class FormDuplicateAPIView(APIView):
@@ -3839,8 +3841,9 @@ class FormDuplicateAPIView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
-        except Exception as e:
-            return Response({"error": f"Duplication failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception("Form duplication failed")
+            return Response({"error": "Duplication failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # =============================================================================
@@ -4180,7 +4183,7 @@ class UserNotificationPreferencesView(APIView):
 
         except Exception as e:
             logger.error(f"[NotificationPreferences] get_or_create failed: {e}", exc_info=True)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         serializer = UserNotificationPreferencesSerializer(prefs)
         return Response(serializer.data)
@@ -4206,7 +4209,7 @@ class UserNotificationPreferencesView(APIView):
 
         except Exception as e:
             logger.error(f"[NotificationPreferences] get_or_create failed: {e}", exc_info=True)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         serializer = UserNotificationPreferencesSerializer(prefs, data=request.data, partial=True)
         if serializer.is_valid():
