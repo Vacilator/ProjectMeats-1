@@ -81,14 +81,18 @@ class TradePipelineViewSet(viewsets.ViewSet):
                     "route": session.route_decision or inquiry.route_decision or "",
                     "current_step": current_step.value,
                     "inquiry_id": str(inquiry.id),
-                    "customer_name": getattr(inquiry.customer, "name", None)
-                    if hasattr(inquiry, "customer") and inquiry.customer_id
-                    else None,
+                    "customer_name": (
+                        getattr(inquiry.customer, "name", None)
+                        if hasattr(inquiry, "customer") and inquiry.customer_id
+                        else None
+                    ),
                     "source_email_subject": session.source_email_subject or "",
                     "initiated_at": session.initiated_at.isoformat() if session.initiated_at else None,
-                    "updated_at": session.updated_at.isoformat()
-                    if hasattr(session, "updated_at") and session.updated_at
-                    else None,
+                    "updated_at": (
+                        session.updated_at.isoformat()
+                        if hasattr(session, "updated_at") and session.updated_at
+                        else None
+                    ),
                 }
             )
 
@@ -243,7 +247,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
                             "value": recent_inquiry.type_of_protein,
                             "confidence": 0.7,
                             "source": "history",
-                            "reason": f"Most recent protein for this customer",
+                            "reason": "Most recent protein for this customer",
                         }
                     )
                     protein = recent_inquiry.type_of_protein
@@ -401,9 +405,11 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 "current_step": current_step.value,
                 "initiated_at": trade_session.initiated_at.isoformat() if trade_session.initiated_at else None,
                 "inquiry_id": str(inquiry.id),
-                "customer_name": getattr(inquiry.customer, "name", None)
-                if hasattr(inquiry, "customer") and inquiry.customer_id
-                else None,
+                "customer_name": (
+                    getattr(inquiry.customer, "name", None)
+                    if hasattr(inquiry, "customer") and inquiry.customer_id
+                    else None
+                ),
                 "lineage": lineage,
                 "dependencies": dep_result.to_dict(),
             }
@@ -470,9 +476,11 @@ class TradePipelineViewSet(viewsets.ViewSet):
                     "weight": None,
                     "delivery_context": None,
                     "suggested_fields": [],
-                    "created_at": inquiry.created_at.isoformat()
-                    if hasattr(inquiry, "created_at") and inquiry.created_at
-                    else None,
+                    "created_at": (
+                        inquiry.created_at.isoformat()
+                        if hasattr(inquiry, "created_at") and inquiry.created_at
+                        else None
+                    ),
                     "expires_at": None,
                     "status": "pending",
                 }
@@ -488,7 +496,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
         and dependency check, identical to smart-initiate but from existing inquiry.
         """
         tenant = request.tenant
-        user = request.user
+        request.user
 
         try:
             inquiry = Inquiry.objects.get(tenant=tenant, id=pk)

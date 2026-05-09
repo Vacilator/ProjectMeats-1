@@ -494,7 +494,7 @@ def health_workforms(request):
 
             User = get_user_model()
             # Test query
-            count = User.objects.count()
+            User.objects.count()
             checks["entity_lookup"] = "healthy"
         except Exception as e:
             checks["entity_lookup"] = "unhealthy"

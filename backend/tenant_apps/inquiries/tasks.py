@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import logging
 
-from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +164,7 @@ def _saga_inquiry_routed(event_log) -> dict:
     BROKER path: Send supplier RFQs
     """
     route = event_log.route_decision
-    payload = event_log.payload or {}
+    event_log.payload or {}
     inquiry_id = event_log.entity_id
 
     if not inquiry_id:
@@ -184,9 +185,7 @@ def _saga_supplier_rfq_replied(event_log) -> dict:
     payload = event_log.payload or {}
     inquiry_id = payload.get("inquiry_id", event_log.entity_id)
 
-    logger.info(
-        f"Supplier RFQ replied for inquiry {inquiry_id} — PO draft will be created"
-    )
+    logger.info(f"Supplier RFQ replied for inquiry {inquiry_id} — PO draft will be created")
     return {"action": "po_draft_triggered", "inquiry_id": inquiry_id}
 
 
@@ -195,7 +194,7 @@ def _saga_supplier_po_approved(event_log) -> dict:
 
     This is the key handoff from procurement to sales.
     """
-    payload = event_log.payload or {}
+    event_log.payload or {}
     po_id = event_log.entity_id
     tenant_id = str(event_log.tenant_id)
 
@@ -215,7 +214,7 @@ def _saga_supplier_po_approved(event_log) -> dict:
 
 def _saga_sales_order_drafted(event_log) -> dict:
     """When a sales order is drafted, notify for approval."""
-    payload = event_log.payload or {}
+    event_log.payload or {}
     so_id = event_log.entity_id
 
     logger.info(f"Sales order {so_id} drafted — pending approval")
@@ -227,7 +226,7 @@ def _saga_sales_order_approved(event_log) -> dict:
 
     Also triggers carrier freight inquiry if logistics required.
     """
-    payload = event_log.payload or {}
+    event_log.payload or {}
     so_id = event_log.entity_id
     route = event_log.route_decision
 
@@ -253,13 +252,13 @@ def _saga_carrier_inquiry_replied(event_log) -> dict:
     payload = event_log.payload or {}
     carrier_id = payload.get("carrier_id", "")
 
-    logger.info(f"Carrier replied — drafting carrier PO")
+    logger.info("Carrier replied — drafting carrier PO")
     return {"action": "carrier_po_draft_triggered", "carrier_id": carrier_id}
 
 
 def _saga_carrier_po_approved(event_log) -> dict:
     """When carrier PO is approved, advance toward trade completion."""
-    payload = event_log.payload or {}
+    event_log.payload or {}
     po_id = event_log.entity_id
 
     logger.info(f"Carrier PO {po_id} approved — trade nearing completion")

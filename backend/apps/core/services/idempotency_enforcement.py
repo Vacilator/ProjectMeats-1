@@ -90,9 +90,7 @@ def enforce_idempotency(
                 defaults={
                     "request_method": "PROG",
                     "request_path": operation_key.split(":")[0] if ":" in operation_key else "unknown",
-                    "request_fingerprint": hashlib.sha256(
-                        operation_key.encode()
-                    ).hexdigest(),
+                    "request_fingerprint": hashlib.sha256(operation_key.encode()).hexdigest(),
                     "locked_until": now + timezone.timedelta(seconds=ttl_seconds),
                 },
             )
@@ -143,7 +141,7 @@ def enforce_idempotency(
             "operation_key": operation_key,
         }
 
-    except Exception as exc:
+    except Exception:
         # Creation failed — release the key so it can be retried
         try:
             record.delete()
@@ -181,13 +179,14 @@ def idempotent_create(
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def wrapper(self, request, *args, **kwargs):
+            from rest_framework.response import Response
+
             from apps.core.services.idempotency import (
                 get_idempotency_key,
                 release_idempotency_key,
                 reserve_idempotency_key,
                 store_idempotency_response,
             )
-            from rest_framework.response import Response
 
             # Get idempotency key from header
             idem_key = get_idempotency_key(request)
@@ -238,9 +237,7 @@ def idempotent_create(
                 # Cache the response
                 if reservation.record:
                     try:
-                        store_idempotency_response(
-                            record=reservation.record, response=response
-                        )
+                        store_idempotency_response(record=reservation.record, response=response)
                     except Exception:
                         pass
 
