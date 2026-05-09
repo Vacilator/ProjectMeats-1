@@ -72,7 +72,7 @@ interface FieldData {
   step?: number;
   rows?: number;
   choices?: { value: string; label: string }[];
-  validation_rules?: Record<string, any>;
+  validation_rules?: Record<string, unknown>;
   auto_populate?: {
     source_step_id?: string;
     source_field?: string;
@@ -90,14 +90,58 @@ interface FieldData {
 interface RuleData {
   id: string;
   step_id?: string;
-  conditions: { field: string; operator: string; value: any }[];
+  conditions: { field: string; operator: string; value: unknown }[];
   condition_logic: 'and' | 'or';
-  actions: { action: string; params: any }[];
+  actions: { action: string; params: Record<string, unknown> }[];
   is_active: boolean;
   affected_fields?: string[];
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+/** Raw step shape from form_snapshot JSON */
+interface SnapshotStep {
+  id: string;
+  name: string;
+  order: number;
+  entity_type?: string;
+  fields?: SnapshotField[];
+}
+
+/** Raw field shape from form_snapshot JSON */
+interface SnapshotField {
+  key: string;
+  label?: string;
+  type?: string;
+  required?: boolean;
+  placeholder?: string;
+  help_text?: string;
+  options?: string[] | { value: string; label: string }[];
+  related_entity_type?: string;
+  max_length?: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  rows?: number;
+  choices?: { value: string; label: string }[];
+  validation_rules?: Record<string, unknown>;
+  config?: {
+    custom_label?: string;
+    custom_help_text?: string;
+    is_required?: boolean;
+    auto_populate?: { source_step?: string };
+    unit?: string;
+  };
+  order?: number;
+}
+
+/** Result shape from save promise */
+interface SaveResult {
+  success: boolean;
+  stepId: string;
+  fieldKey: string;
+  error?: unknown;
+}
 
 // ============== Styled Components ==============
 const ModalOverlay = styled.div`
@@ -911,15 +955,15 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const steps: StepData[] = useMemo(() => {
     if (!submission?.form_snapshot?.steps) return [];
     return submission.form_snapshot.steps
-      .sort((a: any, b: any) => a.order - b.order)
-      .map((step: any) => ({
+      .sort((a: SnapshotStep, b: SnapshotStep) => a.order - b.order)
+      .map((step: SnapshotStep) => ({
         id: step.id,
         name: step.name,
         order: step.order,
         entity_type: step.entity_type,
         fields: (step.fields || [])
-          .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))  // Sort fields by order
-          .map((f: any) => ({
+          .sort((a: SnapshotField, b: SnapshotField) => (a.order ?? 0) - (b.order ?? 0))  // Sort fields by order
+          .map((f: SnapshotField) => ({
             key: f.key,
             label: f.config?.custom_label || f.label || f.key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
             type: f.type || 'text',
@@ -944,7 +988,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Parse rules
   const rules: RuleData[] = useMemo(() => {
     if (!submission?.form_snapshot?.rules) return [];
-    return submission.form_snapshot.rules.filter((r: any) => r.is_active !== false);
+    return submission.form_snapshot.rules.filter((r: RuleData) => r.is_active !== false);
   }, [submission?.form_snapshot]);
 
   const currentStep = steps[currentStepIndex];
@@ -1084,8 +1128,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
       if (conditionsMet) {
         for (const action of rule.actions) {
-          if (action.action === 'hide_fields' && action.params?.fields) {
-            action.params.fields.forEach((f: string) => newHiddenFields.add(f));
+          if (action.action === 'hide_fields' && Array.isArray(action.params?.fields)) {
+            (action.params.fields as string[]).forEach((f: string) => newHiddenFields.add(f));
           }
         }
       }
@@ -1117,9 +1161,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   // Evaluate conditions
   const evaluateConditions = (
-    conditions: { field: string; operator: string; value: any }[],
+    conditions: { field: string; operator: string; value: unknown }[],
     logic: 'and' | 'or',
-    data: Record<string, Record<string, any>>
+    data: Record<string, Record<string, unknown>>
   ): boolean => {
     if (!conditions || conditions.length === 0) return false;
 
@@ -1152,12 +1196,12 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     return rules.some(rule =>
       rule.step_id === stepId ||
       rule.affected_fields?.includes(fieldKey) ||
-      rule.actions.some(a => a.params?.fields?.includes(fieldKey))
+      rule.actions.some(a => Array.isArray(a.params?.fields) && (a.params.fields as string[]).includes(fieldKey))
     );
   };
 
   // Auto-save field value
-  const autoSaveField = useCallback(async (stepId: string, fieldKey: string, value: any) => {
+  const autoSaveField = useCallback(async (stepId: string, fieldKey: string, value: unknown) => {
     const saveKey = `${stepId}-${fieldKey}`;
 
     if (saveTimeoutRef.current[saveKey]) {
@@ -1176,20 +1220,21 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       setTimeout(() => {
         setSaveStatus(prev => ({ ...prev, [saveKey]: 'idle' }));
       }, 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Check if this is an axios cancel
-      const isCanceled = err?.message?.includes('cancelled') || err?.message?.includes('canceled') || err?.__CANCEL__;
+      const axiosErr = err as { message?: string; __CANCEL__?: boolean; response?: { status?: number; data?: { error?: string } } };
+      const isCanceled = axiosErr?.message?.includes('cancelled') || axiosErr?.message?.includes('canceled') || axiosErr?.__CANCEL__;
 
       if (!isCanceled) {
-        logger.error('[AutoSave] Failed:', { stepId, fieldKey, error: err?.response?.data || err?.message || err });
+        logger.error('[AutoSave] Failed:', { stepId, fieldKey, error: axiosErr?.response?.data || axiosErr?.message || err });
         setSaveStatus(prev => ({ ...prev, [saveKey]: 'error' }));
 
         // Show user-friendly error for non-network issues
-        if (err?.response?.status === 403) {
+        if (axiosErr?.response?.status === 403) {
           notify.error('Access denied - please refresh and try again');
-        } else if (err?.response?.status === 400) {
-          notify.error(`Save failed: ${err?.response?.data?.error || 'Invalid data'}`);
-        } else if (err?.response?.status >= 500) {
+        } else if (axiosErr?.response?.status === 400) {
+          notify.error(`Save failed: ${axiosErr?.response?.data?.error || 'Invalid data'}`);
+        } else if (axiosErr?.response?.status && axiosErr.response.status >= 500) {
           notify.error('Server error - please try again later');
         }
         // For network errors, don't spam notifications - just mark as error status
@@ -1198,7 +1243,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   }, [submission.id]);
 
   // Handle field change - with real-time validation for touched fields
-  const handleChange = useCallback((stepId: string, key: string, value: any) => {
+  const handleChange = useCallback((stepId: string, key: string, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       [stepId]: { ...(prev[stepId] || {}), [key]: value },
@@ -1327,8 +1372,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Save and exit
   const handleSaveAndExit = useCallback(async () => {
     // Collect all field values to save
-    const savePromises: Promise<any>[] = [];
-    const fieldsToSave: Array<{stepId: string; fieldKey: string; value: any}> = [];
+    const savePromises: Promise<SaveResult>[] = [];
+    const fieldsToSave: Array<{stepId: string; fieldKey: string; value: unknown}> = [];
 
     Object.entries(formData).forEach(([stepId, fields]) => {
       Object.entries(fields).forEach(([fieldKey, value]) => {
@@ -1358,7 +1403,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
     try {
       const results = await Promise.all(savePromises);
-      const failures = results.filter((r: any) => !r.success);
+      const failures = results.filter((r: SaveResult) => !r.success);
 
       if (failures.length === 0) {
         notify.success('Progress saved successfully');
@@ -1374,7 +1419,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         notify.error('Failed to save progress. Please try again.');
         logger.error('[SaveAndExit] All saves failed:', failures);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[SaveAndExit] Unexpected error:', err);
       notify.error('Failed to save progress');
     }
@@ -1417,7 +1462,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       await formSubmissionService.submit(submission.id);
       notify.success('Form submitted successfully!');
       setTimeout(onClose, 500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       notify.handleApiError(err, 'Failed to submit form');
     } finally {
       setIsSubmitting(false);
