@@ -6,6 +6,7 @@ import { logger } from '@/utils/logger';
 import { apiService, Contact } from '../services/apiService';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { withTenantQueryKey } from '../utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Styled Components
 const Container = styled.div`
@@ -177,6 +178,7 @@ const DeleteButton = styled.button`
 
 
 const Contacts: React.FC = () => {
+  useDocumentTitle('Contacts');
   const { supplierId, customerId } = useParams<{ supplierId?: string; customerId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 

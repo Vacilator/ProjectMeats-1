@@ -20,6 +20,7 @@ import { EntityFormSurface } from '@/components/Shared';
 import { StatCardGrid } from '@/components/Shared/StatCardGrid';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { Text, Title } = Typography;
 
@@ -72,6 +73,7 @@ const isInsuranceExpired = (expiry?: string): boolean => {
 };
 
 const Carriers: React.FC = () => {
+  useDocumentTitle('Carriers');
   const [searchText, setSearchText] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCarrierId, setEditingCarrierId] = useState<string | null>(null);

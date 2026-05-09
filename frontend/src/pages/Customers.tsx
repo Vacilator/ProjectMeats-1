@@ -8,6 +8,7 @@ import styled from 'styled-components';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { apiClient, apiService, type Customer } from '../services/apiService';
 import { withTenantQueryKey } from '../utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type CustomerProduct = {
   id: string | number;
@@ -78,6 +79,7 @@ const TableContainer = styled.div`
 `;
 
 const Customers: React.FC = () => {
+  useDocumentTitle('Customers');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 

@@ -12,12 +12,14 @@ import {
   type ReportsSummaryResponse,
   type SupplierPerformancePoint,
 } from '../services/reportsService';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { RangePicker } = DatePicker;
 
 type RangePreset = '30d' | '90d' | 'ytd' | 'custom';
 
 const Reports: React.FC = () => {
+  useDocumentTitle('Reports');
   const [preset, setPreset] = useState<RangePreset>('30d');
   const [customRange, setCustomRange] = useState<[string, string] | null>(null);
 

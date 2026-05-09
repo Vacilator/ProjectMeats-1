@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import styled from 'styled-components';
 import { IntegrationsSection } from '../components/Integrations/IntegrationsSection';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Renamed to avoid collision with component name (ESLint no-redeclare warning)
 interface UserSettings {
@@ -27,6 +28,7 @@ interface UserSettings {
 }
 
 const Settings: React.FC = () => {
+  useDocumentTitle('Settings');
   const { user } = useAuth();
   const [settings, setSettings] = useState<UserSettings>({
     notifications: {
