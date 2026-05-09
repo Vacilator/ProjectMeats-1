@@ -158,7 +158,7 @@ const SuggestionChip = styled.button<{ $confidence: number }>`
 
   &:hover {
     transform: scale(1.02);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--shadow-sm);
   }
 
   &:focus-visible {

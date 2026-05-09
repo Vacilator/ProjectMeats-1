@@ -54,7 +54,7 @@ import Payables from './pages/Payables';
 import ColdStorage from './pages/ColdStorage';
 import Contacts from './pages/Contacts';
 import Plants from './pages/Suppliers/Plants';
-const TraderCockpitPage = React.lazy(() => import('./pages/TraderCockpitPage'));
+// TraderCockpitPage now redirected to /command-center — import removed
 const AICommandCenter = React.lazy(() => import('./pages/AICommandCenter'));
 import SupplierProducts from './pages/Suppliers/Products';
 import CustomerLocations from './pages/Customers/Locations';
@@ -111,7 +111,7 @@ import { lazyWithChunkRecovery } from './utils/chunkLoadRecovery';
 import { getValidTenantId } from './utils/tenantId';
 const CockpitPage = lazyWithChunkRecovery(() => import('./pages/Cockpit'), 'App.CockpitPage');
 import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
-import ProcessCockpitPage from './pages/Cockpit/ProcessCockpitPage';
+// ProcessCockpitPage now redirected to /command-center — import removed
 import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
