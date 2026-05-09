@@ -65,7 +65,7 @@ urlpatterns = [
     path('diagnostics/recent-errors/', RecentErrorsAPIView.as_view(), name='ai-diagnostics-recent-errors'),
 
     # Supporting endpoints
-    path('review/<uuid:feedback_id>/resolve/', PendingReviewResolveAPIView.as_view(), name='ai-review-resolve'),
+    path('review/<int:feedback_id>/resolve/', PendingReviewResolveAPIView.as_view(), name='ai-review-resolve'),
     path('review/batch-resolve/', BatchResolveAPIView.as_view(), name='ai-review-batch-resolve'),
     path('swarm/invoke/', SwarmInvokeAPIView.as_view(), name='ai-swarm-invoke'),
 

@@ -109,14 +109,20 @@ export const resolveDraftEntityType = (item: PendingReviewItem | null): string =
   if (['new_customer', 'customer'].includes(documentType)) {
     return 'customer';
   }
-  if (['contact', 'new_contact'].includes(documentType)) {
+  if (['contact', 'new_contact', 'contact_update'].includes(documentType)) {
     return 'contact';
   }
-  if (['supplier', 'new_supplier', 'vendor'].includes(documentType)) {
+  if (['supplier', 'new_supplier', 'vendor', 'supplier_note'].includes(documentType)) {
     return 'supplier';
   }
   if (['trade', 'deal', 'trade_intent', 'trade_session'].includes(documentType)) {
     return 'inquiry';
+  }
+  if (['pricing_sheet', 'price_list'].includes(documentType)) {
+    return 'inquiry';
+  }
+  if (['payment', 'payment_notice', 'remittance'].includes(documentType)) {
+    return 'invoice';
   }
 
   // Fallback: infer from payload keys
@@ -133,8 +139,19 @@ export const resolveDraftEntityType = (item: PendingReviewItem | null): string =
   if (payload.first_name && payload.last_name) {
     return 'contact';
   }
+  if (payload.total_amount || payload.payment_amount || payload.invoice_number) {
+    return 'invoice';
+  }
   if (payload.entity_type === 'customer' || payload.entity_type === 'supplier') {
     return 'inquiry';
+  }
+
+  // Last resort: if contact_name or contact_company exist in the item metadata,
+  // treat as a contact draft rather than showing "unsupported"
+  const contactName = firstString((item as Record<string, unknown>)?.contact_name);
+  const contactCompany = firstString((item as Record<string, unknown>)?.contact_company);
+  if (contactName || contactCompany) {
+    return 'contact';
   }
 
   return '';
@@ -246,19 +263,19 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'contact') {
     return {
-      status: 'active',
+      status: 'draft',
       first_name: firstString(payload.first_name, payload.contact_first_name) || 'Unknown',
       last_name: firstString(payload.last_name, payload.contact_last_name) || 'Contact',
       email: firstString(payload.email, payload.contact_email, payload.from_email),
       mobile_phone: firstString(payload.mobile_phone, payload.phone),
-      company: firstString(payload.company, payload.company_name),
+      company: firstString(payload.company, payload.company_name, payload.contact_company),
       notes: summary,
     };
   }
 
   if (entityType === 'customer') {
     return {
-      status: 'active',
+      status: 'draft',
       name: firstString(payload.name, payload.customer_name, payload.company_name) || 'New Customer',
       notes: summary,
     };
@@ -266,8 +283,18 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'supplier') {
     return {
-      status: 'active',
+      status: 'draft',
       name: firstString(payload.name, payload.supplier_name, payload.vendor_name, payload.company_name) || 'New Supplier',
+      notes: summary,
+    };
+  }
+
+  if (entityType === 'invoice') {
+    return {
+      status: 'draft',
+      invoice_number: firstString(payload.invoice_number, payload.po_number),
+      total_amount: firstString(payload.total_amount, payload.amount),
+      vendor_name: firstString(payload.vendor_name, payload.supplier_name, payload.contact_company),
       notes: summary,
     };
   }
