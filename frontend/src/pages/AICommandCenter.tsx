@@ -1323,12 +1323,30 @@ const AICommandCenter: React.FC = () => {
                 </Text>
               )}
             </Space>
+            {selectedTrade.source_email_subject && (
+              <Text type="secondary" style={{ fontSize: '0.75rem', display: 'block', marginTop: 4 }}>
+                Source: {selectedTrade.source_email_subject}
+              </Text>
+            )}
             <Text type="secondary" style={{ fontSize: '0.75rem' }}>
               Current Step: <strong>{STEP_LABELS[selectedTrade.current_step] || selectedTrade.current_step}</strong>
               {selectedTrade.initiated_at && (
                 <> · Started {new Date(selectedTrade.initiated_at).toLocaleDateString()}</>
               )}
             </Text>
+            {selectedTrade.inquiry_id && (
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0, marginTop: 4, fontSize: '0.8rem' }}
+                onClick={() => {
+                  setSelectedTrade(null);
+                  navigate(`/inquiries/${selectedTrade.inquiry_id}`);
+                }}
+              >
+                View Related Inquiry →
+              </Button>
+            )}
           </DetailModalContent>
         )}
       </Modal>
