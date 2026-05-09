@@ -77,6 +77,7 @@ import {
 } from '../services/traderService';
 import { aiStaffApi, type PendingReviewItem } from '../services/aiService';
 import { withTenantQueryKey } from '../utils/queryKeys';
+import { entityListPath } from '../utils/entityTypeRegistry';
 
 const { Text, Title } = Typography;
 
@@ -638,33 +639,18 @@ const AICommandCenter: React.FC = () => {
   }, [selectedItem, navigate, handleModalClose]);
 
   const handleFlowNodeClick = useCallback((entityType: string, entityId: string) => {
+    const route = entityListPath(entityType);
+    if (!route) return;
+
     if (!entityId) {
       // Empty node — navigate to creation page
-      const createRoute = entityType === 'inquiry'
-        ? '/inquiries'
-        : entityType === 'supplier_purchase_order'
-          ? '/purchase-orders'
-          : entityType === 'sales_order'
-            ? '/sales-orders'
-            : null;
-      if (createRoute) {
-        navigate(`${createRoute}?action=create`);
-        handleModalClose();
-      }
+      navigate(`${route}?action=create`);
+      handleModalClose();
       return;
     }
     // Existing entity — navigate to record
-    const route = entityType === 'inquiry'
-      ? `/inquiries`
-      : entityType === 'supplier_purchase_order' || entityType === 'carrier_purchase_order'
-        ? `/purchase-orders`
-        : entityType === 'sales_order'
-          ? `/sales-orders`
-          : null;
-    if (route) {
-      navigate(`${route}?highlight=${entityId}`);
-      handleModalClose();
-    }
+    navigate(`${route}?highlight=${entityId}`);
+    handleModalClose();
   }, [navigate, handleModalClose]);
 
   const handleRefreshAll = useCallback(() => {

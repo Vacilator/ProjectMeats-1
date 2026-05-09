@@ -23,6 +23,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { businessApi } from '../../services/businessApi';
 import { withTenantQueryKey } from '../../utils/queryKeys';
+import { entityListPath } from '../../utils/entityTypeRegistry';
 import {
   FileText,
   ShoppingCart,
@@ -484,17 +485,15 @@ export const TradeLineageFlow: React.FC<TradeLineageFlowProps> = ({
     }
     // Default behavior: navigate to entity record if it exists
     if (!node.data.isEmpty && node.data.entityId) {
-      const entityRoute = node.data.entityType === 'inquiry'
-        ? `/inquiries`
-        : node.data.entityType === 'supplier_purchase_order'
-          ? `/purchase-orders`
-          : node.data.entityType === 'sales_order'
-            ? `/sales-orders`
-            : node.data.entityType === 'carrier_purchase_order'
-              ? `/purchase-orders`
-              : null;
+      const entityRoute = entityListPath(node.data.entityType);
       if (entityRoute) {
         navigate(`${entityRoute}?highlight=${node.data.entityId}`);
+      }
+    } else if (node.data.isEmpty) {
+      // Empty node — navigate to creation page
+      const createRoute = entityListPath(node.data.entityType);
+      if (createRoute) {
+        navigate(`${createRoute}?action=create`);
       }
     }
   };
