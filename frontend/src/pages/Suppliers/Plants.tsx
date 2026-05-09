@@ -286,7 +286,7 @@ const Plants: React.FC = () => {
   const handleModalSuccess = useCallback(() => {
     setShowModal(false);
     void loadPlants(contextSupplierId);
-  }, [contextSupplierId]);
+  }, [contextSupplierId, loadPlants]);
 
   const handleEdit = useCallback((plant: Plant) => {
     const nextSupplierId = contextSupplierId ?? plant.supplier ?? null;
