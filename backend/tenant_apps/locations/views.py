@@ -28,21 +28,25 @@ class LocationViewSet(viewsets.ModelViewSet):
         - location_type=<value>
         """
 
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
             return Location.objects.none()
 
-        qs = Location.objects.filter(tenant=tenant)
+        qs = Location.objects.filter(tenant=tenant).select_related(
+            "supplier",
+            "customer",
+            "created_by",
+        )
 
-        supplier_id = self.request.query_params.get('supplier')
+        supplier_id = self.request.query_params.get("supplier")
         if supplier_id:
             qs = qs.filter(supplier_id=supplier_id)
 
-        customer_id = self.request.query_params.get('customer')
+        customer_id = self.request.query_params.get("customer")
         if customer_id:
             qs = qs.filter(customer_id=customer_id)
 
-        location_type = self.request.query_params.get('location_type')
+        location_type = self.request.query_params.get("location_type")
         if location_type:
             qs = qs.filter(location_type=location_type)
 
@@ -51,31 +55,31 @@ class LocationViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         """Use lightweight serializer for list actions."""
 
-        if self.action == 'list':
+        if self.action == "list":
             return LocationListSerializer
         return LocationSerializer
 
     def perform_create(self, serializer):
         """Assign tenant automatically on creation."""
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = getattr(self.request, "tenant", None)
         if not tenant:
-            raise DRFValidationError('Tenant context is required to create a location.')
+            raise DRFValidationError("Tenant context is required to create a location.")
 
         serializer.save(tenant=tenant)
 
-    @action(detail=True, methods=['get'], url_path='available-products')
+    @action(detail=True, methods=["get"], url_path="available-products")
     def available_products(self, request, pk=None):
         """List all system products associated with this location."""
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
-            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         location = self.get_object()
         links = LocationAssociatedProduct.objects.filter(
             tenant=tenant,
             location=location,
-        ).select_related('product')
+        ).select_related("product")
         products = [link.product for link in links]
         serializer = SystemProductSerializer(products, many=True)
         return Response(serializer.data)
@@ -84,19 +88,19 @@ class LocationViewSet(viewsets.ModelViewSet):
     def add_available_product(self, request, pk=None):
         """Add a system product to this location's associated products."""
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
-            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         location = self.get_object()
-        product_id = request.data.get('product')
+        product_id = request.data.get("product")
         if not product_id:
-            return Response({'error': 'product is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "product is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             product = Product.objects.get(id=product_id, is_active=True)
         except Product.DoesNotExist:
-            return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
 
         _, created = LocationAssociatedProduct.objects.get_or_create(
             tenant=tenant,
@@ -106,13 +110,13 @@ class LocationViewSet(viewsets.ModelViewSet):
         serializer = SystemProductSerializer(product)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
-    @action(detail=True, methods=['delete'], url_path='available-products/(?P<product_id>[^/.]+)')
+    @action(detail=True, methods=["delete"], url_path="available-products/(?P<product_id>[^/.]+)")
     def remove_available_product(self, request, pk=None, product_id=None):
         """Remove a system product from this location's associated products."""
 
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
-            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         location = self.get_object()
         deleted, _ = LocationAssociatedProduct.objects.filter(
@@ -121,4 +125,4 @@ class LocationViewSet(viewsets.ModelViewSet):
             product_id=product_id,
         ).delete()
 
-        return Response({'deleted': bool(deleted)})
+        return Response({"deleted": bool(deleted)})

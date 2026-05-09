@@ -29,8 +29,8 @@ Email → Order → Fulfillment with AI-powered automation. Hands-free meat trad
 
 | Environment | URL | Credentials |
 |-------------|-----|-------------|
-| **Development** | https://dev.meatscentral.com | `admin_test_development_1` / `password123!` |
-| **UAT** | https://uat.meatscentral.com | (same pattern) |
+| **Development** | https://dev.meatscentral.com | See internal runbook |
+| **UAT** | https://uat.meatscentral.com | See internal runbook |
 
 ### Investor Demo Flow (5 minutes)
 
