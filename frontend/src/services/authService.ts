@@ -119,14 +119,15 @@ export class AuthService {
       }
       
       throw new Error('Invalid JWT response');
-    } catch (jwtError: any) {
+    } catch (jwtError: unknown) {
       // If JWT fails with 404 (endpoint not available), fall back to legacy
-      if (jwtError.response?.status === 404) {
+      const axiosErr = jwtError as { response?: { status?: number; data?: { detail?: string; error?: string } } };
+      if (axiosErr.response?.status === 404) {
         logger.debug('JWT endpoint not available, using legacy login', { component: 'AuthService' });
         return this.legacyLogin(credentials);
       }
       
-      throw new Error(jwtError.response?.data?.detail || jwtError.response?.data?.error || 'Login failed');
+      throw new Error(axiosErr.response?.data?.detail || axiosErr.response?.data?.error || 'Login failed');
     }
   }
 

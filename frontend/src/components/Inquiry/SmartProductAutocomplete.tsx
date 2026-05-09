@@ -13,7 +13,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 import { businessApi } from '../../services/businessApi';
 import { Product } from '../../types';
 import { Search as SearchIcon, Star, Package, DollarSign, X } from 'lucide-react';

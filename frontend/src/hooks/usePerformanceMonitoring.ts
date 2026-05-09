@@ -111,7 +111,7 @@ export function useMemoryMonitoring(intervalMs = 30000) {
     }
 
     const checkMemory = () => {
-      const memory = (performance as any).memory;
+      const memory = (performance as Performance & { memory: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
       const usedMB = memory.usedJSHeapSize / 1024 / 1024;
       
       setMemoryUsage(usedMB);
@@ -234,7 +234,7 @@ export function useLCP() {
             {
               metadata: {
                 lcp: lcpValue.toFixed(2),
-                element: (lastEntry as any).element
+                element: (lastEntry as PerformanceEntry & { element?: Element }).element
               }
             }
           );
@@ -264,7 +264,8 @@ export function useFID() {
       const firstInput = entries[0];
       
       if (firstInput) {
-        const fidValue = (firstInput as any).processingStart - firstInput.startTime;
+        const eventEntry = firstInput as PerformanceEntry & { processingStart?: number; name?: string };
+        const fidValue = (eventEntry.processingStart ?? firstInput.startTime) - firstInput.startTime;
         setFID(fidValue);
         
         // Log if FID is poor (> 100ms)
@@ -274,7 +275,7 @@ export function useFID() {
             {
               metadata: {
                 fid: fidValue.toFixed(2),
-                eventType: (firstInput as any).name
+                eventType: eventEntry.name
               }
             }
           );

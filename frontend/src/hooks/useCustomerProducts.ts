@@ -17,7 +17,7 @@
  */
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { logger } from '@/utils/logger';
