@@ -43,6 +43,7 @@ import {
   SmartSearch,
   BreadcrumbBar,
 } from '../../components/Cockpit';
+import type { SearchEntity } from '../../components/Cockpit/SmartSearch';
 import { AILearningMetricsWidget } from '../../components/Cockpit/AILearningMetricsWidget';
 import { EmptyState } from '../../components/Admin';
 import { CockpitWelcomeEmptyState, useOnboarding } from '../../components/Onboarding';
@@ -444,7 +445,7 @@ const WidgetIcon = styled.span`
 type InlineActionState = {
   action: 'create' | 'edit' | 'view';
   entityType: string;
-  contextData: any;
+  contextData: Record<string, string>;
 } | null;
 
 export const CockpitDashboard: React.FC = () => {
@@ -539,14 +540,14 @@ export const CockpitDashboard: React.FC = () => {
     }
   }, [cockpitQuery, inlineAction, navigation]);
 
-  const generateSmartContext = useCallback((sourceEntity: any, targetType: string) => {
+  const generateSmartContext = useCallback((sourceEntity: SearchEntity, targetType: string) => {
     if (!sourceEntity) return {};
 
-    const sourceType = String(sourceEntity.entityType ?? sourceEntity.type ?? '').toLowerCase();
-    const sourceId = String(sourceEntity.id ?? sourceEntity.entityId ?? '').trim();
+    const sourceType = sourceEntity.type.toLowerCase();
+    const sourceId = sourceEntity.id.trim();
     if (!sourceType || !sourceId) return {};
 
-    const context: any = {};
+    const context: Record<string, string> = {};
 
     if (sourceType === 'customer' && (targetType === 'sales_order' || targetType === 'inquiry' || targetType === 'invoice')) {
       context.customer = sourceId;
@@ -560,7 +561,7 @@ export const CockpitDashboard: React.FC = () => {
   }, []);
 
   const openInlineCreate = useCallback(
-    (targetType: string, currentRecord: any) => {
+    (targetType: string, currentRecord: SearchEntity) => {
       setInlineAction({
         action: 'create',
         entityType: targetType,
@@ -591,9 +592,9 @@ export const CockpitDashboard: React.FC = () => {
             setLayout(saved.layout);
             return;
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           // 404 means no saved layout - fall through to localStorage
-          if (err.response?.status !== 404) {
+          if (err && typeof err === 'object' && 'response' in err && (err as { response?: { status?: number } }).response?.status !== 404) {
             logger.error(
               'Failed to load cockpit layout from API',
               { component: 'CockpitDashboard' },
@@ -697,7 +698,7 @@ export const CockpitDashboard: React.FC = () => {
       } catch (err) {
         // Silently ignore 404 (expected when no saved layout exists)
         // Only log other errors
-        if ((err as any).response?.status !== 404) {
+        if (err && typeof err === 'object' && 'response' in err && (err as { response?: { status?: number } }).response?.status !== 404) {
           logger.error(
             'Failed to reset cockpit layout in API',
             { component: 'CockpitDashboard' },
@@ -828,7 +829,7 @@ export const CockpitDashboard: React.FC = () => {
             inlineAction={inlineAction}
             onInlineCancel={() => setInlineAction(null)}
             onInlineSuccess={(created) => {
-              const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
+              const row = (created && typeof created === 'object' ? created : {}) as Record<string, unknown>;
               const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
               const createdType = String(inlineAction?.entityType ?? '').trim();
 
