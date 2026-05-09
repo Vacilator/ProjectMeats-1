@@ -26,8 +26,8 @@ export const IngestionMonitor: React.FC = () => {
           </div>
         </Space>
 
-        <Button type="primary" onClick={() => navigate('/process-cockpit')}>
-          Open Process Cockpit
+        <Button type="primary" onClick={() => navigate('/command-center?tab=action-required')}>
+          Open Command Center
         </Button>
       </Space>
     </Card>

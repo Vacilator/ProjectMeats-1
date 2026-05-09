@@ -15,6 +15,11 @@ import {
 } from '@/utils/aiDraftFormMapping';
 import { buildReviewDetailsPathFromItem } from '@/utils/reviewDetailsPath';
 import { getErrorMessage } from '@/utils/errorHelpers';
+import {
+  createEntitiesSequentially,
+  getEntityRoute,
+  type EntityDraft,
+} from '@/utils/sequentialEntityCreation';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -378,11 +383,47 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
       });
   }, [relatedEntityDrafts]);
 
-  /** Approve a single related entity draft (local state — saved when main record is resolved) */
-  const handleApproveDraft = useCallback((idx: number, typeLabel: string) => {
+  /** Approve a single related entity draft — creates it via backend API */
+  const handleApproveDraft = useCallback(async (idx: number, typeLabel: string) => {
+    const draft = relatedEntityDrafts[idx];
+    if (!draft || draft.status === 'exists') {
+      setDraftStatuses((prev) => ({ ...prev, [idx]: 'approved' }));
+      message.success(`${typeLabel} already exists.`);
+      return;
+    }
+
     setDraftStatuses((prev) => ({ ...prev, [idx]: 'approved' }));
-    message.success(`Marked ${typeLabel} as approved. Save the main record to apply.`);
-  }, []);
+
+    // Attempt real creation via the sequential service (single entity)
+    try {
+      const result = await createEntitiesSequentially(
+        [{
+          entity_type: draft.entity_type,
+          status: draft.status,
+          existing_id: draft.existing_id,
+          proposed_data: draft.proposed_data,
+          confidence: draft.confidence,
+          source: draft.source,
+          originalIndex: idx,
+        }],
+      );
+
+      if (result.allSucceeded && result.created.length > 0) {
+        const created = result.created[0];
+        setCreatedRecords((prev) => ({
+          ...prev,
+          [idx]: { id: String(created.id), type: created.entity_type, label: created.label },
+        }));
+        message.success(`✅ ${typeLabel} created: ${created.label}`);
+      } else if (result.errors.length > 0) {
+        setDraftStatuses((prev) => ({ ...prev, [idx]: 'error' }));
+        message.error(`Failed to create ${typeLabel}: ${result.errors[0].error}`);
+      }
+    } catch (error: unknown) {
+      setDraftStatuses((prev) => ({ ...prev, [idx]: 'error' }));
+      message.error(getErrorMessage(error, `Failed to create ${typeLabel}`));
+    }
+  }, [relatedEntityDrafts]);
 
   /** Reject a single related entity draft (local state — excluded when main record is resolved) */
   const handleRejectDraft = useCallback((idx: number, typeLabel: string) => {
@@ -393,59 +434,108 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
   /** Created records from sequential approve — maps index to entity info */
   const [createdRecords, setCreatedRecords] = useState<Record<number, { id: string; type: string; label: string }>>({});
 
-  /** Sequential approve-all: mark all drafts as approved in order, then resolve main with combined data */
+  /**
+   * Sequential approve-all: create entities via backend APIs in dependency order,
+   * propagate FKs, then resolve the main review item.
+   */
   const handleSequentialApproveAll = useCallback(async () => {
+    if (!item?.id) return;
+
     const pendingDrafts = orderedDrafts.filter(
-      (d) => d.status === 'proposed' && draftStatuses[d.originalIndex] !== 'approved' && draftStatuses[d.originalIndex] !== 'rejected',
+      (d) => d.status === 'proposed' && draftStatuses[d.originalIndex] !== 'rejected',
     );
-    const total = pendingDrafts.length + 1; // +1 for main resolve
+    // Total steps = pending drafts + 1 final resolve
+    const total = pendingDrafts.length + 1;
 
     setApproveProgress({ running: true, current: 0, total, currentLabel: 'Starting...' });
 
-    // Step through each draft in dependency order — mark as approved with visual feedback
-    const approvedDraftsData: Record<string, unknown>[] = [];
-    for (let i = 0; i < pendingDrafts.length; i++) {
-      const draft = pendingDrafts[i];
-      const typeLabel = draft.entity_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-      setApproveProgress({ running: true, current: i + 1, total, currentLabel: `Approving ${typeLabel}...` });
-      setDraftStatuses((prev) => ({ ...prev, [draft.originalIndex]: 'approved' }));
-      approvedDraftsData.push({
-        entity_type: draft.entity_type,
-        ...asRecord(draft.proposed_data),
+    // Convert to EntityDraft format for the sequential creation service
+    const entityDrafts: EntityDraft[] = pendingDrafts.map((d) => ({
+      entity_type: d.entity_type,
+      status: d.status,
+      existing_id: d.existing_id,
+      proposed_data: d.proposed_data,
+      confidence: d.confidence,
+      source: d.source,
+      originalIndex: d.originalIndex,
+    }));
+
+    // Execute sequential entity creation with real backend calls
+    const result = await createEntitiesSequentially(entityDrafts, (step) => {
+      setApproveProgress({
+        running: true,
+        current: step.current,
+        total,
+        currentLabel: step.label,
       });
-      // Small delay for visual feedback
-      await new Promise((r) => setTimeout(r, 200));
+      // Mark each draft as approved in UI as it's processed
+      const matchingDraft = pendingDrafts.find(
+        (d) => d.entity_type === step.entity_type && draftStatuses[d.originalIndex] !== 'approved',
+      );
+      if (matchingDraft) {
+        setDraftStatuses((prev) => ({ ...prev, [matchingDraft.originalIndex]: 'approved' }));
+      }
+    });
+
+    // Update created records for success links
+    for (const created of result.created) {
+      setCreatedRecords((prev) => ({
+        ...prev,
+        [created.index]: { id: String(created.id), type: created.entity_type, label: created.label },
+      }));
+      setDraftStatuses((prev) => ({ ...prev, [created.index]: 'approved' }));
     }
 
-    // Final step: resolve the main item with all approved draft data
-    setApproveProgress({ running: true, current: total, total, currentLabel: 'Saving all records...' });
+    // Mark errors
+    for (const err of result.errors) {
+      setDraftStatuses((prev) => ({ ...prev, [err.index]: 'error' }));
+    }
+
+    // Show error summary if partial failure
+    if (result.errors.length > 0) {
+      const errorSummary = result.errors
+        .map((e) => `${e.entity_type}: ${e.error}`)
+        .join('; ');
+      message.warning(
+        `⚠️ ${result.created.length} created, ${result.errors.length} failed: ${errorSummary}`,
+        6,
+      );
+    }
+
+    // Final step: resolve the main review item in the AI queue
+    setApproveProgress({ running: true, current: total, total, currentLabel: 'Finalizing review...' });
 
     try {
-      const result = await aiStaffApi.resolvePendingReview(item!.id, {
+      const resolvePayload = {
         user_corrected_data: {
-          approved_drafts: approvedDraftsData,
+          approved_drafts: result.created.map((c) => ({
+            entity_type: c.entity_type,
+            created_id: c.id,
+            label: c.label,
+          })),
+          rejected_drafts: result.errors.map((e) => ({
+            entity_type: e.entity_type,
+            error: e.error,
+          })),
         },
-      });
-      const createdId = String((result as Record<string, unknown>)?.created_id || (result as Record<string, unknown>)?.id || '');
-      if (createdId) {
-        setCreatedRecords((prev) => ({
-          ...prev,
-          [-1]: { id: createdId, type: entityType || 'record', label: 'Main Record' },
-        }));
+      };
+      await aiStaffApi.resolvePendingReview(item.id, resolvePayload);
+
+      if (result.allSucceeded) {
+        message.success(`✅ All ${result.created.length} entities created successfully.`);
       }
-      message.success(`✅ All ${total} items approved and saved.`);
       setApproveProgress(null);
-      onResolved?.(item!.id);
+      onResolved?.(item.id);
       if (closeOnResolved) {
         onClose?.();
       }
     } catch (error: unknown) {
       message.error(
-        getErrorMessage(error, 'Failed to save the main record after approving drafts.'),
+        getErrorMessage(error, 'Entities were created but failed to mark the review as resolved.'),
       );
       setApproveProgress(null);
     }
-  }, [orderedDrafts, draftStatuses, item, entityType, onResolved, closeOnResolved, onClose]);
+  }, [orderedDrafts, draftStatuses, item, onResolved, closeOnResolved, onClose]);
 
   const handleSurfaceClose = useCallback(() => {
     if (resolvingAfterSaveRef.current) {
@@ -799,7 +889,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                         <Space size={4} style={{ marginLeft: 'auto' }}>
                           {draftStatuses[idx] === 'approved' ? (
                             <Space size={4}>
-                              <Tag color="green" style={{ margin: 0, fontSize: 11 }}>✓ Approved</Tag>
+                              <Tag color="green" style={{ margin: 0, fontSize: 11 }}>✓ Created</Tag>
                               {createdRecords[idx] ? (
                                 <Button
                                   type="link"
@@ -808,18 +898,15 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const rec = createdRecords[idx];
-                                    const route = rec.type === 'purchase_order' ? 'purchase-orders'
-                                      : rec.type === 'sales_order' ? 'sales-orders'
-                                      : rec.type === 'carrier-pos' ? 'purchase-orders'
-                                      : rec.type === 'inquiry' ? 'inquiries'
-                                      : `${rec.type}s`;
-                                    navigate(`/${route}/${rec.id}`);
+                                    navigate(getEntityRoute(rec.type, rec.id));
                                   }}
                                 >
                                   Open →
                                 </Button>
                               ) : null}
                             </Space>
+                          ) : draftStatuses[idx] === 'error' ? (
+                            <Tag color="red" style={{ margin: 0, fontSize: 11 }}>⚠ Failed</Tag>
                           ) : draftStatuses[idx] === 'rejected' ? (
                             <Tag color="red" style={{ margin: 0, fontSize: 11 }}>✗ Rejected</Tag>
                           ) : (
@@ -830,7 +917,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                                 style={{ fontSize: 11, padding: '0 8px', height: 22 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleApproveDraft(idx, typeLabel);
+                                  void handleApproveDraft(idx, typeLabel);
                                 }}
                               >
                                 Approve

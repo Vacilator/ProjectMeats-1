@@ -287,6 +287,14 @@ function resolveActionUrl(notification: Notification): string {
   if (url.startsWith('/trader-cockpit') || url.includes('trader-cockpit')) {
     return '/command-center?tab=pipeline';
   }
+  if (url.startsWith('/ai-assistant') || url.includes('ai-assistant')) {
+    const params = new URLSearchParams({ tab: 'ai-inbox' });
+    if (itemId) params.set('item', String(itemId));
+    return `/command-center?${params.toString()}`;
+  }
+  if (url.startsWith('/activity') || url.includes('/activity')) {
+    return '/command-center?tab=action-required';
+  }
 
   return url;
 }
