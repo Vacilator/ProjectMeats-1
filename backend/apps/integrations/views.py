@@ -6,7 +6,6 @@ OAuth integration views for external email providers.
 import logging
 import secrets
 from datetime import timedelta
-from urllib.parse import quote
 
 from django.core import signing
 from django.shortcuts import redirect
@@ -214,7 +213,8 @@ def oauth_callback(request, provider_type):
         try:
             provider = MicrosoftGraphProvider(tenant.id)
         except EmailProviderError as e:
-            return redirect(f"/settings?error=provider_not_configured&message={quote(str(e))}")
+            logger.warning("OAuth provider not configured: %s", e)
+            return redirect("/settings?error=provider_not_configured")
     else:
         return redirect("/settings?error=provider_not_supported")
 
@@ -251,7 +251,8 @@ def oauth_callback(request, provider_type):
         return redirect("/settings?success=connected")
 
     except (AuthenticationError, EmailProviderError) as e:
-        return redirect(f"/settings?error=exchange_failed&message={quote(str(e))}")
+        logger.warning("OAuth exchange failed: %s", e)
+        return redirect("/settings?error=exchange_failed")
     except Exception:
         logger.exception("Unexpected OAuth callback failure for provider=%s", provider_type)
         return redirect("/settings?error=exchange_failed")
