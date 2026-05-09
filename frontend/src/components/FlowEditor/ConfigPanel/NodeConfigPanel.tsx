@@ -1,16 +1,16 @@
 /**
  * Node Configuration Panel
- * 
+ *
  * Slide-in panel from right for configuring selected nodes.
  * Industry-inspired by: HubSpot Workflows, Make, n8n, Salesforce Flow
- * 
+ *
  * Features:
  * - Tabbed interface (Config, Data Mapping, Advanced, Test)
  * - Live validation with inline errors
  * - Field search for complex nodes
  * - Help tooltips with examples
  * - Test runner for individual nodes
- * 
+ *
  * Created: 2026-02-04 - Phase 2.2 Configuration Panels
  * Updated: 2026-02-05 - Task 1.5 Integrated FieldMappingPanel
  * Updated: 2026-02-05 - Task 2.1 Cascading Trigger Configuration
@@ -76,7 +76,7 @@ interface FormField {
   type: string;
   required: boolean;
   placeholder?: string;
-  defaultValue?: any;
+  defaultValue?: unknown;
   options?: string[];
 }
 
@@ -84,7 +84,27 @@ interface ConditionRule {
   id: string;
   field: string;
   operator: string;
-  value: any;
+  value: unknown;
+}
+
+/** Shape returned from the forms API for dropdown selection */
+interface FormListItem {
+  id: string;
+  title?: string;
+  display_name?: string;
+  displayName?: string;
+  name?: string;
+  created_at?: string;
+  is_multi_entity?: boolean;
+  entity_count?: number;
+}
+
+/** Shape returned from the form fields API */
+interface FormFieldItem {
+  id: string;
+  label: string;
+  type: string;
+  required?: boolean;
 }
 
 // ============================================================================
@@ -101,7 +121,7 @@ const PanelOverlay = styled.div<{ $isOpen: boolean }>`
   z-index: 1000;
   display: ${props => props.$isOpen ? 'block' : 'none'};
   animation: fadeIn 0.2s ease;
-  
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -159,7 +179,7 @@ const Tab = styled.button<{ $active: boolean }>`
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
-  
+
   &:hover {
     color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.05);
@@ -170,7 +190,7 @@ const Tab = styled.button<{ $active: boolean }>`
 
 const FormSection = styled.div`
   margin-bottom: 32px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -195,7 +215,7 @@ const SectionTitle = styled.h3`
 const HelpIcon = styled(HelpCircle)`
   color: rgb(var(--color-text-tertiary));
   cursor: help;
-  
+
   &:hover {
     color: rgb(var(--color-text-secondary));
   }
@@ -228,11 +248,11 @@ const ValidationMessage = styled.div<{ $severity: 'error' | 'warning' }>`
   border-radius: var(--radius-md);
   font-size: 12px;
   line-height: 1.5;
-  background: ${props => props.$severity === 'error' 
-    ? 'rgba(var(--color-error), 0.1)' 
+  background: ${props => props.$severity === 'error'
+    ? 'rgba(var(--color-error), 0.1)'
     : 'rgba(var(--color-warning), 0.1)'};
-  color: ${props => props.$severity === 'error' 
-    ? 'rgb(var(--color-error))' 
+  color: ${props => props.$severity === 'error'
+    ? 'rgb(var(--color-error))'
     : 'rgb(var(--color-warning))'};
 `;
 
@@ -248,18 +268,18 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   ${props => {
     if (props.$variant === 'primary') {
       return `
         background: rgb(var(--color-primary));
         color: rgb(var(--color-text-inverse));
         border: none;
-        
+
         &:hover {
           opacity: 0.9;
         }
-        
+
         &:disabled {
           opacity: 0.5;
           cursor: not-allowed;
@@ -270,7 +290,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
         background: rgb(var(--color-surface));
         color: rgb(var(--color-text-primary));
         border: 1px solid rgb(var(--color-border));
-        
+
         &:hover {
           background: rgb(var(--color-border));
         }
@@ -280,7 +300,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
         background: none;
         color: rgb(var(--color-text-secondary));
         border: none;
-        
+
         &:hover {
           color: rgb(var(--color-text-primary));
           background: rgba(var(--color-border), 0.5);
@@ -337,12 +357,12 @@ const IconButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-border));
     color: rgb(var(--color-text-primary));
   }
-  
+
   &:hover.delete {
     background: rgb(var(--color-error));
     color: rgb(var(--color-text-inverse));
@@ -372,7 +392,7 @@ const DragHandle = styled.div`
   cursor: grab;
   display: flex;
   align-items: center;
-  
+
   &:active {
     cursor: grabbing;
   }
@@ -386,7 +406,7 @@ const InlineInput = styled.input`
   font-size: 12px;
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -401,7 +421,7 @@ const InlineSelect = styled.select`
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -446,7 +466,7 @@ const FieldTemplate = styled.button`
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgb(var(--color-surface));
@@ -478,7 +498,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  
+
   // Cascading configuration state (Task 2.1)
   const [availableForms, setAvailableForms] = useState<any[]>([]);
   const [availableFormFields, setAvailableFormFields] = useState<any[]>([]);
@@ -497,7 +517,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
       setActiveTab('config');
     }
   }, [node?.id]); // Only reset when node ID changes
-  
+
   const isFormProcessTrigger = formData.triggerType === 'formSubmitted';
 
   // Fetch available forms when trigger type is form-related (Task 2.1)
@@ -518,11 +538,11 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           // For Form Submitted triggers, we want *saved FormProcess nodes*, which are multi-entity forms
           // persisted from FormProcess containers.
           const filtered = isFormProcessTrigger
-            ? list.filter((f: any) => Boolean(f?.is_multi_entity) || Number(f?.entity_count ?? 0) > 1)
+            ? list.filter((f: FormListItem) => Boolean(f?.is_multi_entity) || Number(f?.entity_count ?? 0) > 1)
             : list;
 
           // Sort newest first for quicker selection.
-          filtered.sort((a: any, b: any) => {
+          filtered.sort((a: FormListItem, b: FormListItem) => {
             const aT = new Date(a?.created_at || 0).getTime();
             const bT = new Date(b?.created_at || 0).getTime();
             return bT - aT;
@@ -549,7 +569,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
       setAvailableFormFields([]);
     }
   }, [formData.triggerType, isFormProcessTrigger]);
-  
+
   // Fetch form fields when a form is selected (Task 2.1)
   useEffect(() => {
     const formId = formData.selectedFormId || formData.formId;
@@ -585,7 +605,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
   const validate = (data: Record<string, any>): ValidationError[] => {
     const errors: ValidationError[] = [];
-    
+
     // Basic validation
     if (!data.label || data.label.trim() === '') {
       errors.push({
@@ -594,7 +614,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         severity: 'error',
       });
     }
-    
+
     // Node-specific validation
     if (node?.type === 'formStep') {
       if (!data.fields || data.fields.length === 0) {
@@ -605,7 +625,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         });
       }
     }
-    
+
     if (node?.type === 'action') {
       if (!data.actionType) {
         errors.push({
@@ -615,7 +635,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         });
       }
     }
-    
+
     return errors;
   };
 
@@ -623,11 +643,11 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   // Handlers
   // ============================================================================
 
-  const handleFieldChange = (field: string, value: any) => {
+  const handleFieldChange = (field: string, value: unknown) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
     setHasUnsavedChanges(true);
-    
+
     // Live validation
     const errors = validate(newData);
     setValidationErrors(errors);
@@ -718,7 +738,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   // ============================================================================
   // Field Templates
   // ============================================================================
-  
+
   const fieldTemplates = [
     { label: 'Email Address', type: 'email', required: true, placeholder: 'user@example.com' },
     { label: 'Phone Number', type: 'tel', required: false, placeholder: '(XXX)XXX-XXXX' },
@@ -729,7 +749,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     { label: 'Comments', type: 'textarea', required: false, placeholder: 'Enter your comments...' },
     { label: 'Agree to Terms', type: 'checkbox', required: true, placeholder: '' },
   ];
-  
+
   const addFieldFromTemplate = (template: typeof fieldTemplates[0]) => {
     const fields = formData.fields || [];
     const newField: FormField = {
@@ -770,7 +790,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
       <>
         <FormSection>
           <SectionTitle>Basic Settings</SectionTitle>
-          
+
           <FormField>
             <Label>
               Node Label <RequiredIndicator>*</RequiredIndicator>
@@ -824,11 +844,11 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
   const renderFormStepConfig = () => {
     const fields = (formData.fields || []) as FormField[];
-    
+
     // Safe entity type access with fallback
     const entityType = formData.entityType || '';
     const entityTypeDisplay = entityType.replace('_', ' ');
-    
+
     return (
       <>
         <FormSection>
@@ -843,10 +863,10 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             </Label>
 
             <EntityFieldPicker
-              selectedFields={((fields as any[]) || []).map((f: any, idx: number) => ({
+              selectedFields={(Array.isArray(fields) ? fields : []).map((f: FormField, idx: number) => ({
                 ...f,
-                fieldId: f.fieldId || f.name || f.id || `${idx}`
-              })) as SelectedField[]}
+                fieldId: f.id || `${idx}`
+              })) as unknown as SelectedField[]}
               onFieldsChange={(newFields: SelectedField[]) => {
                 handleFieldChange('fields', newFields);
                 handleFieldChange('selectedFields', newFields.map(f => f.name));
@@ -869,7 +889,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
         <FormSection>
           <SectionTitle>Form Fields</SectionTitle>
-          
+
           <FormField>
             <Label as="label">
               <Checkbox
@@ -891,7 +911,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
               All fields required
             </Label>
           </FormField>
-          
+
           {/* Field Templates */}
         {showTemplates && (
           <FormField>
@@ -911,14 +931,14 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             </TemplatesGrid>
           </FormField>
         )}
-        
+
         {/* Field list with inline editing */}
         {fields.length > 0 && (
           <FormField>
             <Label>Fields ({fields.length})</Label>
             {fields.map((field, index) => {
               const isEditing = editingFieldId === field.id;
-              
+
               return (
                 <EditableFieldItem key={field.id} $isEditing={isEditing}>
                   {isEditing ? (
@@ -965,9 +985,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                           <InlineLabel>Options (comma-separated)</InlineLabel>
                           <InlineInput
                             type="text"
-                            value={(field as any).options?.join(', ') || ''}
-                            onChange={(e) => handleUpdateField(field.id, { 
-                              options: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) 
+                            value={field.options?.join(', ') || ''}
+                            onChange={(e) => handleUpdateField(field.id, {
+                              options: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)
                             })}
                             placeholder="e.g., Option 1, Option 2, Option 3"
                           />
@@ -1014,14 +1034,14 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             })}
           </FormField>
         )}
-        
+
         <div style={{ display: 'flex', gap: '8px' }}>
           <Button $variant="secondary" onClick={handleAddField} style={{ flex: 1 }}>
             <Plus size={16} />
             Add Field
           </Button>
-          <Button 
-            $variant="ghost" 
+          <Button
+            $variant="ghost"
             onClick={() => setShowTemplates(!showTemplates)}
             title="Choose from templates"
           >
@@ -1037,7 +1057,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     return (
       <FormSection>
         <SectionTitle>Action Configuration</SectionTitle>
-        
+
         <FormField>
           <Label>
             Action Type <RequiredIndicator>*</RequiredIndicator>
@@ -1063,11 +1083,11 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
   const renderConditionConfig = () => {
     const rules = (formData.rules || []) as ConditionRule[];
-    
+
     return (
       <FormSection>
         <SectionTitle>Condition Rules</SectionTitle>
-        
+
         <FormField>
           <Label>
             Logical Operator
@@ -1080,14 +1100,14 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             <option value="OR">Any condition matches (OR)</option>
           </Select>
         </FormField>
-        
+
         {/* Rule list with inline editing */}
         {rules.length > 0 && (
           <FormField>
             <Label>Rules ({rules.length})</Label>
             {rules.map((rule) => {
               const isEditing = editingRuleId === rule.id;
-              
+
               return (
                 <EditableFieldItem key={rule.id} $isEditing={isEditing}>
                   {isEditing ? (
@@ -1115,7 +1135,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                         </InlineSelect>
                         <InlineInput
                           type="text"
-                          value={rule.value}
+                          value={String(rule.value ?? '')}
                           onChange={(e) => handleUpdateRule(rule.id, { value: e.target.value })}
                           placeholder="Value"
                           disabled={rule.operator === 'isEmpty' || rule.operator === 'isNotEmpty'}
@@ -1140,7 +1160,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                           {rule.field || 'Untitled Rule'}
                         </FieldItemLabel>
                         <FieldItemMeta>
-                          {rule.operator} {rule.value && `"${rule.value}"`}
+                          {rule.operator} {rule.value ? `"${String(rule.value)}"` : ''}
                         </FieldItemMeta>
                       </FieldItemContent>
                       <IconButton
@@ -1163,7 +1183,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             })}
           </FormField>
         )}
-        
+
         <Button $variant="secondary" onClick={handleAddRule}>
           <Plus size={16} />
           Add Rule
@@ -1176,7 +1196,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     return (
       <FormSection>
         <SectionTitle>Trigger Configuration</SectionTitle>
-        
+
         <FormField>
           <Label>
             Trigger Type <RequiredIndicator>*</RequiredIndicator>
@@ -1225,7 +1245,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             </HelpText>
           </FormField>
         )}
-        
+
         {/* Cascading Form Selection (Task 2.1) */}
         {(formData.triggerType === 'formSubmitted' || formData.triggerType === 'recordCreated' || formData.triggerType === 'recordUpdated') && (
           <>
@@ -1249,7 +1269,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                       ? 'Select a form process'
                       : 'Select a form'}
                 </option>
-                {availableForms.map((form: any) => {
+                {availableForms.map((form: FormListItem) => {
                   const title =
                     form?.title ||
                     form?.display_name ||
@@ -1278,7 +1298,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                   : 'Choose which form submission will trigger this workflow'}
               </HelpText>
             </FormField>
-            
+
             {/* Field Selection (appears after form is selected) */}
             {(formData.selectedFormId || formData.formId) && (
               <FormField>
@@ -1293,7 +1313,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                   <option value="">
                     {loadingFields ? 'Loading fields...' : availableFormFields.length === 0 ? 'No fields available' : 'Any field (trigger on any submission)'}
                   </option>
-                  {availableFormFields.map((field: any) => (
+                  {availableFormFields.map((field: FormFieldItem) => (
                     <option key={field.id} value={field.id}>
                       {field.label} ({field.type})
                       {field.required && ' *'}
@@ -1315,7 +1335,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     return (
       <FormSection>
         <SectionTitle>Wait Configuration</SectionTitle>
-        
+
         <FormField>
           <Label>
             Wait Type <RequiredIndicator>*</RequiredIndicator>
@@ -1375,7 +1395,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     return (
       <FormSection>
         <SectionTitle>Document Configuration</SectionTitle>
-        
+
         <FormField>
           <Label>
             Document Type <RequiredIndicator>*</RequiredIndicator>
@@ -1411,7 +1431,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     return (
       <FormSection>
         <SectionTitle>Utility Configuration</SectionTitle>
-        
+
         <FormField>
           <Label>
             Utility Type <RequiredIndicator>*</RequiredIndicator>
@@ -1448,7 +1468,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     return (
       <FormSection>
         <SectionTitle>Termination Configuration</SectionTitle>
-        
+
         <FormField>
           <Label>
             End Type <RequiredIndicator>*</RequiredIndicator>
@@ -1483,22 +1503,22 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
     // Get field mappings from node data
     const mappings: FieldMapping[] = formData.fieldMappings || [];
-    
+
     // Get available form fields from current node
-    const formFields = (formData.fields || []).map((field: any) => ({
+    const formFields = (formData.fields || []).map((field: FormFieldItem) => ({
       id: field.id,
       label: field.label,
       type: field.type,
     }));
-    
+
     // Determine target entity from node data or default to 'supplier'
     const targetEntity = formData.targetEntity || 'supplier';
-    
+
     // Handle mapping changes
     const handleMappingsChange = (updatedMappings: FieldMapping[]) => {
       handleFieldChange('fieldMappings', updatedMappings);
     };
-    
+
     // If no form fields, show message
     if (formFields.length === 0) {
       return (
@@ -1531,7 +1551,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     return (
       <FormSection>
         <SectionTitle>Advanced Settings</SectionTitle>
-        
+
         <FormField>
           <Label>
             Max Inputs
@@ -1639,8 +1659,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <Button $variant="ghost" onClick={handleClose}>
             Cancel
           </Button>
-          <Button 
-            $variant="primary" 
+          <Button
+            $variant="primary"
             onClick={handleSave}
             disabled={validationErrors.some(e => e.severity === 'error')}
           >
