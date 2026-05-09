@@ -287,9 +287,10 @@ const MySubmissions: React.FC = () => {
       const params = statusFilter ? { status: statusFilter } : undefined;
       const data = await formSubmissionService.list(params);
       setSubmissions(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to load submissions', { component: 'MySubmissions' }, err);
-      setError(err.message || 'Failed to load submissions');
+      const errMsg = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Failed to load submissions';
+      setError(errMsg);
     } finally {
       setIsLoading(false);
     }
@@ -316,12 +317,13 @@ const MySubmissions: React.FC = () => {
     try {
       await formSubmissionService.cancel(submissionId);
       loadSubmissions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to cancel submission', { component: 'MySubmissions' }, err);
+      const errMsg = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Failed to cancel submission';
       showAlert({
         type: 'error',
         title: 'Error',
-        content: err.message || 'Failed to cancel submission',
+        content: errMsg,
       });
     }
   }, [loadSubmissions]);
@@ -339,12 +341,13 @@ const MySubmissions: React.FC = () => {
     try {
       await formSubmissionService.delete(submissionId);
       loadSubmissions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to delete submission', { component: 'MySubmissions' }, err);
+      const errMsg = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Failed to delete submission';
       showAlert({
         type: 'error',
         title: 'Error',
-        content: err.message || 'Failed to delete submission',
+        content: errMsg,
       });
     }
   }, [loadSubmissions]);

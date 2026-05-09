@@ -315,7 +315,7 @@ const Plants: React.FC = () => {
       await apiClient.delete(`plants/${plant.id}/`);
       message.success('Plant deleted successfully');
       loadPlants(contextSupplierId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error deleting plant', { component: 'Plants', metadata: { error } });
       message.error('Failed to delete plant');
     }

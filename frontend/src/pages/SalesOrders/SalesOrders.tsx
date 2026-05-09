@@ -618,7 +618,7 @@ export const SalesOrdersPage: React.FC = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error exporting sales orders:', err);
       setError('Failed to export sales orders');
     } finally {
@@ -633,9 +633,12 @@ export const SalesOrdersPage: React.FC = () => {
 
       const response = await apiClient.get('sales-orders/');
       setOrders(response.data.results || response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to fetch sales orders:', err);
-      setError(err.response?.data?.detail || 'Failed to load sales orders');
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((data.detail as string) || 'Failed to load sales orders');
     } finally {
       setLoading(false);
     }

@@ -84,10 +84,12 @@ export const ExecuteWorkForm: React.FC = () => {
       try {
         const execution = await executeTenantWorkForm(id, initialData);
         return { kind: 'workform', execution };
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Backward compatibility is explicit only: older links may point at legacy form IDs.
         // Do NOT silently run legacy execution unless the caller opts in.
-        if (allowLegacyFallback && err?.response?.status === 404) {
+        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        if (allowLegacyFallback && resp.status === 404) {
           const submission = await createFormSubmission(id);
           return { kind: 'form', submissionId: submission.id };
         }
