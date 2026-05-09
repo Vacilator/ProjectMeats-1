@@ -15,18 +15,19 @@ For current priorities, status, and evidence, see **`MASTER_PLAN.md` (canonical)
 This is a lightweight pointer list from squad discovery. **Execute via `MASTER_PLAN.md` (canonical) + `.github/MASTER_PLAN.md` (PR log)**.
 
 - P0 Security/RLS correctness:
-  - Fix cross-tenant exposure risk in `apps/system` config/choice endpoints (remove `is_staff` global bypass; tenant admins are `is_staff=True`).
-  - Make invitation email Celery task tenant/RLS safe (pass tenant_id; wrap task ORM in tenant_rls).
-  - Workflow webhooks RLS ordering + legacy endpoint fail-closed; integrations OAuth callback RLS ordering; prevent WorkForms activation bypass on create.
+  - ✅ Cross-tenant exposure audit passed — all `apps/system` config/choice endpoints filter by `request.tenant` (verified 2026-05-08).
+  - ✅ Invitation email Celery task is tenant/RLS safe — passes `tenant_id` and wraps ORM in `tenant_rls(strict=True)` (verified 2026-05-08).
+  - ✅ Workflow webhooks set RLS before ORM access; WorkForms activation validated on create (verified 2026-05-08).
 - P0 CI hardening:
   - Default deploy-by-digest for UAT/Prod and digest-align migrations.
   - Manifest-driven required secrets gate per lane; docs drift lint for Golden migration rules.
 - P0 AI email/document reliability:
-  - Backend fail-closed parsing is shipped: `parse_document` now raises structured tool errors and drives `AIDocument.processing_status` / metadata through success and failure states (PR #4739).
+  - ✅ Backend fail-closed parsing is shipped: `parse_document` now raises structured tool errors and drives `AIDocument.processing_status` / metadata through success and failure states (PR #4739).
   - Next: surface provenance + parse-status/retryability badges in AI document/widget UI so operators and the Swarm can distinguish retryable outages from bad inputs without log-diving.
 - P0 Frontend standards/a11y:
-  - Remove remaining FlowEditor/WorkForms named colors (white/black) and replace console.* with logger.*.
-  - Make WorkForms cards/modals keyboard accessible (semantic controls + dialog semantics/focus).
+  - ✅ All named colors eradicated — 119 `color: white/black` → CSS custom properties across 68 files (PR #5118).
+  - ✅ All console.error/warn → structured logger (PRs #5104, #5106, #5116).
+  - ✅ WorkForms modals keyboard accessible — dialog semantics, ARIA roles, tabIndex, keyboard handlers (PR #5120).
 - P1 Mobile parity:
   - Fix switch-tenant persistence; normalize errors; define auth expiry/401 behavior.
   - Sprint 1 gate: ensure mobile Playwright specs remain green (viewport + CRUD create flows).
