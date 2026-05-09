@@ -580,7 +580,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                             }
                         )
                 except Exception:
-                    pass
+                    logger.warning("Failed to inject email context for AI assistant", exc_info=True)
 
                 # Include recent session message history (excluding this user message)
                 try:

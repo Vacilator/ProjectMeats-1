@@ -65,16 +65,11 @@ class DependencyCheckResult:
 
     @property
     def all_satisfied(self) -> bool:
-        return all(
-            item.satisfied for item in self.checklist if item.required
-        )
+        return all(item.satisfied for item in self.checklist if item.required)
 
     @property
     def missing_count(self) -> int:
-        return sum(
-            1 for item in self.checklist
-            if item.required and not item.satisfied
-        )
+        return sum(1 for item in self.checklist if item.required and not item.satisfied)
 
     @property
     def total_count(self) -> int:
@@ -130,21 +125,22 @@ def check_trade_dependencies(
     customer_id = getattr(inquiry, "customer_id", None)
     if customer_id:
         try:
-            customer = Customer.objects.filter(
-                tenant=tenant, id=customer_id
-            ).first()
+            customer = Customer.objects.filter(tenant=tenant, id=customer_id).first()
         except Exception:
+            logger.warning("Failed to look up customer for dependency check", exc_info=True)
             customer = None
 
-    result.checklist.append(DependencyItem(
-        entity_type="customer",
-        label="Customer",
-        required=True,
-        satisfied=customer is not None,
-        entity_id=str(customer.id) if customer else None,
-        entity_name=getattr(customer, "name", None),
-        hint="The buyer for this trade.",
-    ))
+    result.checklist.append(
+        DependencyItem(
+            entity_type="customer",
+            label="Customer",
+            required=True,
+            satisfied=customer is not None,
+            entity_id=str(customer.id) if customer else None,
+            entity_name=getattr(customer, "name", None),
+            hint="The buyer for this trade.",
+        )
+    )
 
     # 2. Supplier check (required for BROKER, optional for FULFILL)
     is_broker = route == InquiryRouteDecisionChoices.BROKER
@@ -152,88 +148,88 @@ def check_trade_dependencies(
     supplier_id = getattr(inquiry, "supplier_id", None)
     if supplier_id:
         try:
-            supplier = Supplier.objects.filter(
-                tenant=tenant, id=supplier_id
-            ).first()
+            supplier = Supplier.objects.filter(tenant=tenant, id=supplier_id).first()
         except Exception:
+            logger.warning("Failed to look up supplier for dependency check", exc_info=True)
             supplier = None
 
-    result.checklist.append(DependencyItem(
-        entity_type="supplier",
-        label="Supplier",
-        required=is_broker,
-        satisfied=supplier is not None,
-        entity_id=str(supplier.id) if supplier else None,
-        entity_name=getattr(supplier, "name", None),
-        hint="The source supplier (required for Broker route)." if is_broker else "Optional supplier for direct fulfillment.",
-    ))
+    result.checklist.append(
+        DependencyItem(
+            entity_type="supplier",
+            label="Supplier",
+            required=is_broker,
+            satisfied=supplier is not None,
+            entity_id=str(supplier.id) if supplier else None,
+            entity_name=getattr(supplier, "name", None),
+            hint="The source supplier (required for Broker route)."
+            if is_broker
+            else "Optional supplier for direct fulfillment.",
+        )
+    )
 
     # 3. Plant check (supplier's source facility)
     plant = None
     if supplier:
-        plant = Plant.objects.filter(
-            tenant=tenant, supplier=supplier, is_active=True
-        ).first()
+        plant = Plant.objects.filter(tenant=tenant, supplier=supplier, is_active=True).first()
 
-    result.checklist.append(DependencyItem(
-        entity_type="plant",
-        label="Supplier Plant",
-        required=is_broker,
-        satisfied=plant is not None,
-        entity_id=str(plant.id) if plant else None,
-        entity_name=getattr(plant, "name", None),
-        hint="Source facility for the supplier.",
-    ))
+    result.checklist.append(
+        DependencyItem(
+            entity_type="plant",
+            label="Supplier Plant",
+            required=is_broker,
+            satisfied=plant is not None,
+            entity_id=str(plant.id) if plant else None,
+            entity_name=getattr(plant, "name", None),
+            hint="Source facility for the supplier.",
+        )
+    )
 
     # 4. Customer Contact check (at least one active contact)
     customer_contact = None
     if customer:
-        customer_contact = Contact.objects.filter(
-            tenant=tenant, customer=customer, is_active=True
-        ).first()
+        customer_contact = Contact.objects.filter(tenant=tenant, customer=customer, is_active=True).first()
 
-    result.checklist.append(DependencyItem(
-        entity_type="contact",
-        label="Customer Contact",
-        required=True,
-        satisfied=customer_contact is not None,
-        entity_id=str(customer_contact.id) if customer_contact else None,
-        entity_name=(
-            f"{customer_contact.first_name} {customer_contact.last_name}"
-            if customer_contact else None
-        ),
-        hint="Primary contact at the customer for order communications.",
-    ))
+    result.checklist.append(
+        DependencyItem(
+            entity_type="contact",
+            label="Customer Contact",
+            required=True,
+            satisfied=customer_contact is not None,
+            entity_id=str(customer_contact.id) if customer_contact else None,
+            entity_name=(f"{customer_contact.first_name} {customer_contact.last_name}" if customer_contact else None),
+            hint="Primary contact at the customer for order communications.",
+        )
+    )
 
     # 5. Carrier check (at least one active carrier in tenant)
-    carrier = Carrier.objects.filter(
-        tenant=tenant, is_active=True
-    ).first()
+    carrier = Carrier.objects.filter(tenant=tenant, is_active=True).first()
 
-    result.checklist.append(DependencyItem(
-        entity_type="carrier",
-        label="Carrier",
-        required=False,
-        satisfied=carrier is not None,
-        entity_id=str(carrier.id) if carrier else None,
-        entity_name=getattr(carrier, "name", None),
-        hint="Freight carrier for logistics. Can be assigned later.",
-    ))
+    result.checklist.append(
+        DependencyItem(
+            entity_type="carrier",
+            label="Carrier",
+            required=False,
+            satisfied=carrier is not None,
+            entity_id=str(carrier.id) if carrier else None,
+            entity_name=getattr(carrier, "name", None),
+            hint="Freight carrier for logistics. Can be assigned later.",
+        )
+    )
 
     # 6. Warehouse/Location check (for cold storage allocation)
-    warehouse = Location.objects.filter(
-        tenant=tenant, is_active=True, location_type="warehouse"
-    ).first()
+    warehouse = Location.objects.filter(tenant=tenant, is_active=True, location_type="warehouse").first()
 
-    result.checklist.append(DependencyItem(
-        entity_type="location",
-        label="Warehouse / Cold Storage",
-        required=False,
-        satisfied=warehouse is not None,
-        entity_id=str(warehouse.id) if warehouse else None,
-        entity_name=getattr(warehouse, "name", None),
-        hint="Cold storage facility for receiving inventory.",
-    ))
+    result.checklist.append(
+        DependencyItem(
+            entity_type="location",
+            label="Warehouse / Cold Storage",
+            required=False,
+            satisfied=warehouse is not None,
+            entity_id=str(warehouse.id) if warehouse else None,
+            entity_name=getattr(warehouse, "name", None),
+            hint="Cold storage facility for receiving inventory.",
+        )
+    )
 
     logger.info(
         "Telemetry: trade_dependency_check",
