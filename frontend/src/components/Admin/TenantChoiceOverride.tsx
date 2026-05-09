@@ -269,9 +269,12 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
 
       toast.success('Saved customizations');
       await loadListData(selectedList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('[TenantChoiceOverride] Failed to save override:', error);
-      toast.error(error?.response?.data?.error || 'Failed to save customizations');
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      toast.error((typeof data.error === 'string' ? data.error : '') || 'Failed to save customizations');
     } finally {
       setIsSaving(false);
     }

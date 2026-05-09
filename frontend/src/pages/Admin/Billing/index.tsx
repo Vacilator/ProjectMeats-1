@@ -281,8 +281,9 @@ const BillingPage: React.FC = () => {
       await billingConfigsQuery.refetch();
       message.success('Plan updated.');
       setIsManagePlanOpen(false);
-    } catch (e: any) {
-      if (e?.errorFields) return; // antd validation
+    } catch (e: unknown) {
+      const errObj = (e && typeof e === 'object' ? e : {}) as Record<string, unknown>;
+      if (errObj.errorFields) return; // antd validation
       message.error('Failed to update plan.');
     } finally {
       setIsSavingPlan(false);
@@ -308,8 +309,9 @@ const BillingPage: React.FC = () => {
       await billingConfigsQuery.refetch();
       message.success('Billing portal saved.');
       setIsPaymentMethodOpen(false);
-    } catch (e: any) {
-      if (e?.errorFields) return;
+    } catch (e: unknown) {
+      const errObj = (e && typeof e === 'object' ? e : {}) as Record<string, unknown>;
+      if (errObj.errorFields) return;
       message.error('Failed to save billing portal.');
     } finally {
       setIsSavingPaymentMethod(false);

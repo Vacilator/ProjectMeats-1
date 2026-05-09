@@ -224,8 +224,11 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       const itemsData = Array.isArray(itemsResponse.data) ? itemsResponse.data : [];
       setItems(itemsData);
       setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load choice list');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.error === 'string' ? data.error : '') || 'Failed to load choice list');
       setItems([]); // Reset to empty array on error
     } finally {
       setLoading(false);
@@ -256,7 +259,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         `/system/choice-lists/${choiceListSlug}/reorder/`,
         { items: updates }
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Failed to reorder items');
       loadChoiceList(); // Reload to restore original order
     }
@@ -280,8 +283,11 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       setNewItem({ value: '', label: '' });
       setIsAddingItem(false);
       loadChoiceList();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add item');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.error === 'string' ? data.error : '') || 'Failed to add item');
     }
   };
 
@@ -298,7 +304,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       );
       setEditingItem(null);
       loadChoiceList();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Failed to update item');
     }
   };
@@ -317,7 +323,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     try {
       await apiClient.delete(`/system/choice-items/${item.id}/`);
       loadChoiceList();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Failed to delete item');
     }
   };
@@ -330,7 +336,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         is_active: !item.is_active,
       });
       loadChoiceList();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Failed to toggle visibility');
     }
   };

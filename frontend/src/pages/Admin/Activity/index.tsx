@@ -145,8 +145,11 @@ const ActivityPage: React.FC = () => {
 
       setHasMore(Boolean((response.data as any)?.next));
       setPage(pageNum);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load activity logs');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.detail === 'string' ? data.detail : '') || 'Failed to load activity logs');
       logger.error('Error loading activity logs:', err);
     } finally {
       setLoading(false);
@@ -198,7 +201,7 @@ const ActivityPage: React.FC = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Failed to export activity logs');
       logger.error('Error exporting logs:', err);
     } finally {

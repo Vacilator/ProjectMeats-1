@@ -488,9 +488,12 @@ export const Claims: React.FC = () => {
       });
 
       setClaims(response.data.results || response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to fetch claims:', err);
-      setError(err.response?.data?.detail || 'Failed to load claims');
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((typeof data.detail === 'string' ? data.detail : '') || 'Failed to load claims');
     } finally {
       setLoading(false);
     }
@@ -516,7 +519,7 @@ export const Claims: React.FC = () => {
       // Update local state
       setClaims(claims.map(c => c.id === claimId ? response.data : c));
       setSelectedClaim(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to update claim status:', err);
       showAlert({
         type: 'error',

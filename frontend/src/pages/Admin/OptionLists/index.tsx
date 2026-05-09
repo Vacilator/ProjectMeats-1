@@ -317,8 +317,11 @@ const OptionListsPage: React.FC = () => {
         (prev) => ({ ...(prev ?? {}), [pid]: created })
       );
       return true;
-    } catch (err: any) {
-      message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save product override');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      message.error((typeof data.detail === 'string' ? data.detail : '') || (typeof data.error === 'string' ? data.error : '') || 'Failed to save product override');
       return false;
     }
   };
@@ -355,8 +358,11 @@ const OptionListsPage: React.FC = () => {
         return next;
       });
       return true;
-    } catch (err: any) {
-      message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to remove product override');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      message.error((typeof data.detail === 'string' ? data.detail : '') || (typeof data.error === 'string' ? data.error : '') || 'Failed to remove product override');
       return false;
     }
   };
@@ -519,8 +525,11 @@ const OptionListsPage: React.FC = () => {
         await apiClient.delete(`/workflows/lists/${record.id}/`);
         message.success('Custom list deleted');
         await customListsQuery.refetch();
-      } catch (err: any) {
-        message.error(err?.response?.data?.error || 'Failed to delete custom list');
+      } catch (err: unknown) {
+        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+        message.error((typeof data.error === 'string' ? data.error : '') || 'Failed to delete custom list');
       }
     })();
   };
@@ -560,8 +569,11 @@ const OptionListsPage: React.FC = () => {
         if (permissions.tenant_id) {
           await productPreferencesQuery.refetch();
         }
-      } catch (err: any) {
-        message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to delete master product');
+      } catch (err: unknown) {
+        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+        message.error((typeof data.detail === 'string' ? data.detail : '') || (typeof data.error === 'string' ? data.error : '') || 'Failed to delete master product');
       }
     })();
   };
@@ -792,8 +804,11 @@ const OptionListsPage: React.FC = () => {
       setProductModalOpen(false);
       setEditingProduct(null);
       await masterProductsQuery.refetch();
-    } catch (err: any) {
-      message.error(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to save product');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      message.error((typeof data.detail === 'string' ? data.detail : '') || (typeof data.error === 'string' ? data.error : '') || 'Failed to save product');
     } finally {
       setSavingProduct(false);
     }

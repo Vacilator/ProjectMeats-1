@@ -161,17 +161,19 @@ const UsersPage: React.FC = () => {
     setInvitationTableKey((k) => k + 1);
   }, [normalizedQuery]);
 
-  const getApiErrorMessage = (error: any): string => {
-    const data = error?.response?.data;
+  const getApiErrorMessage = (error: unknown): string => {
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+    const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
 
     const message =
-      data?.message ||
-      data?.error ||
-      data?.detail ||
-      error?.message ||
+      (typeof data.message === 'string' ? data.message : '') ||
+      (typeof data.error === 'string' ? data.error : '') ||
+      (typeof data.detail === 'string' ? data.detail : '') ||
+      (typeof errObj.message === 'string' ? errObj.message : '') ||
       'Request failed';
 
-    const code = data?.error_code ? ` (${String(data.error_code)})` : '';
+    const code = (typeof data.error_code === 'string' || typeof data.error_code === 'number') ? ` (${String(data.error_code)})` : '';
     return `${String(message)}${code}`;
   };
 
@@ -268,7 +270,7 @@ const UsersPage: React.FC = () => {
         try {
           await apiClient.post(`/invitations/${id}/resend/`);
           succeeded.push(id);
-        } catch (error: any) {
+        } catch (error: unknown) {
           failed.push({ id, message: getApiErrorMessage(error) });
         }
       }
@@ -296,7 +298,7 @@ const UsersPage: React.FC = () => {
 
       toast.error(result.failed[0]?.message || 'Failed to resend invitations');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error) || 'Failed to resend invitations');
     },
   });
@@ -310,7 +312,7 @@ const UsersPage: React.FC = () => {
         try {
           await apiClient.post(`/invitations/${id}/revoke/`);
           succeeded.push(id);
-        } catch (error: any) {
+        } catch (error: unknown) {
           failed.push({ id, message: getApiErrorMessage(error) });
         }
       }
@@ -339,7 +341,7 @@ const UsersPage: React.FC = () => {
 
       toast.error(result.failed[0]?.message || 'Failed to revoke invitations');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error) || 'Failed to revoke invitations');
     },
   });
