@@ -182,4 +182,67 @@ describe('AIDraftReviewModal', () => {
     expect(screen.getByText('Spec Sheets')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Open contact/i })).toBeInTheDocument();
   });
+
+  it('reject all calls resolvePendingReview with _rejected data', async () => {
+    const onClose = vi.fn();
+    const onResolved = vi.fn();
+    mockResolvePendingReview.mockResolvedValueOnce({});
+
+    render(
+      <MemoryRouter>
+        <AIDraftReviewModal
+          open
+          onClose={onClose}
+          onResolved={onResolved}
+          item={{
+            id: 'draft-rej',
+            document_id: 'doc-rej',
+            document_type: 'purchase_order',
+            confidence_score: 0.5,
+            precision_delta: 0,
+            created_on: new Date().toISOString(),
+            intent_label: 'PO',
+            review_entity_type: 'purchase_order',
+            original_extracted_data: { order_number: 'PO-REJ' },
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    const rejectBtn = screen.getByRole('button', { name: /Reject All/i });
+    await userEvent.click(rejectBtn);
+
+    await waitFor(() => {
+      expect(mockResolvePendingReview).toHaveBeenCalledWith('draft-rej', {
+        user_corrected_data: { _rejected: true },
+      });
+    });
+    expect(onResolved).toHaveBeenCalledWith('draft-rej');
+  });
+
+  it('displays intent banner with confidence badge', async () => {
+    render(
+      <MemoryRouter>
+        <AIDraftReviewModal
+          open
+          onClose={() => {}}
+          item={{
+            id: 'draft-intent',
+            document_id: 'doc-intent',
+            document_type: 'sales_order',
+            confidence_score: 0.92,
+            precision_delta: 0,
+            created_on: new Date().toISOString(),
+            intent_label: 'New Sales Order for Beef Trim',
+            review_entity_type: 'sales_order',
+            original_extracted_data: { summary: 'Sales order request' },
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    const intentTexts = screen.getAllByText(/New Sales Order for Beef Trim/i);
+    expect(intentTexts.length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/92%/i).length).toBeGreaterThan(0);
+  });
 });
