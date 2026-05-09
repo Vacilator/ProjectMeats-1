@@ -78,3 +78,29 @@ export const entityTypeDisplayName = (raw: string): string => {
 /** Build the canonical record detail path for a given entity. */
 export const entityRecordPath = (entityType: string, id: string): string =>
   `/records/${encodeURIComponent(normalizeEntityType(entityType))}/${encodeURIComponent(id)}`;
+
+const LIST_PATHS: Record<string, string> = {
+  inquiry: '/inquiries',
+  supplier: '/suppliers',
+  customer: '/customers',
+  contact: '/contacts',
+  plant: '/suppliers/plants',
+  location: '/customers/locations',
+  purchase_order: '/purchase-orders',
+  supplier_purchase_order: '/purchase-orders',
+  sales_order: '/sales-orders',
+  'carrier-pos': '/purchase-orders',
+  carrier_purchase_order: '/purchase-orders',
+  invoice: '/accounting/receivables/invoices',
+  claim: '/accounting/claims',
+  carrier: '/carriers',
+};
+
+/**
+ * Get the list/index page path for an entity type.
+ * Returns null for unrecognized types.
+ */
+export const entityListPath = (raw: string): string | null => {
+  const key = normalizeEntityType(raw);
+  return LIST_PATHS[key] ?? LIST_PATHS[raw] ?? null;
+};
