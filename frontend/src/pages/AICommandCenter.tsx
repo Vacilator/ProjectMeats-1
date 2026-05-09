@@ -1134,7 +1134,7 @@ const AICommandCenter: React.FC = () => {
         title={null}
         footer={null}
         width={680}
-        destroyOnClose
+        destroyOnHidden
       >
         <SmartTradeCreator
           onTradeCreated={() => {
@@ -1212,7 +1212,7 @@ const AICommandCenter: React.FC = () => {
         onCancel={handleModalClose}
         footer={null}
         width={1100}
-        destroyOnClose
+        destroyOnHidden
         styles={{ body: { padding: '24px' } }}
       >
         {selectedItem && (

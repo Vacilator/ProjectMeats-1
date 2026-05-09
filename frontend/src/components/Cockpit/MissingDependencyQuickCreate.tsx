@@ -212,7 +212,7 @@ export const MissingDependencyQuickCreate: React.FC<MissingDependencyQuickCreate
       okText={`Create ${ENTITY_LABELS[entityType]}`}
       onOk={handleCreate}
       confirmLoading={creating}
-      destroyOnClose
+      destroyOnHidden
       width={440}
     >
       <FormGrid>

@@ -111,7 +111,7 @@ export const ViewProcessFlowButton: React.FC<ViewProcessFlowButtonProps> = ({
             Trade Process Flow
           </ModalTitle>
         }
-        destroyOnClose
+        destroyOnHidden
       >
         <TradeLineageFlow
           inquiryId={inquiryId}
