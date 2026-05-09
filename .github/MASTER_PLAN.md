@@ -2014,3 +2014,17 @@ Deliverables:
 - Added regression coverage in `backend/tenant_apps/ai_assistant/tests/test_semantic_cache.py` and `backend/tenant_apps/ai_assistant/tests/test_models.py` for tenant isolation, threshold enforcement, and cache-hit bypass behavior.
 - Validation: `cd backend && python manage.py makemigrations --check`; `cd backend && python manage.py test tenant_apps.ai_assistant.tests.test_semantic_cache tenant_apps.ai_assistant.tests.test_models`; `cd backend && python manage.py test tenant_apps.ai_assistant apps.core.tests.test_viewset_permissions`; `cd backend && ruff check projectmeats/settings/base.py tenant_apps/ai_assistant/views.py tenant_apps/ai_assistant/services/semantic_cache.py tenant_apps/ai_assistant/tests/test_semantic_cache.py tenant_apps/ai_assistant/tests/test_models.py`.
 - PR: #4894.
+
+### 2026-07-18 — Quality hardening: dependency cleanup, React Flow migration, security fixes (PRs #5142–#5150)
+- Removed 6 dead npm packages: `react-table`, `@types/react-table`, `react-autosuggest`, `@types/react-autosuggest`, `react-color`, `@types/react-color` (43 transitive deps eliminated).
+- Migrated 5 files from legacy `reactflow` v11 → `@xyflow/react` v12 (named exports, typed state hooks, data interface index signatures). Removed `reactflow` from package.json (26 transitive packages removed).
+- Removed all unused backend imports (F401): 47 imports across 28 test files cleaned.
+- Fixed 33 broken documentation links across 13 files in `docs/`.
+- PRs: #5142, #5143, #5144, #5145, #5146, #5147, #5148, #5149.
+
+### 2026-07-18 — Security hardening: XSS sanitization + noopener + env type safety (PR #5150)
+- Added DOMPurify sanitization to `RichTextField.tsx` `dangerouslySetInnerHTML` via existing `SecurityUtils.sanitizeHTML` (XSS prevention).
+- Added `noopener,noreferrer` to `window.open` calls in `AdminErrorBoundary.tsx` and `InquiryDetailModal.tsx` (reverse tabnabbing prevention).
+- Added missing `noopener` to `target="_blank"` anchor in `AIAgentWidget.tsx`.
+- Added `VITE_ENABLE_E2E_SMOKE` to `ImportMetaEnv` type declaration in `vite-env.d.ts`.
+- PR: #5150.
