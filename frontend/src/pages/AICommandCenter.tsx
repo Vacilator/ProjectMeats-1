@@ -810,10 +810,16 @@ const AICommandCenter: React.FC = () => {
         >
           New Trade
         </QuickActionButton>
-        <Tooltip title="AI will suggest the best next actions">
+        <Tooltip title="AI will suggest the best next actions based on your pipeline">
           <QuickActionButton
             icon={<Sparkles size={15} />}
-            onClick={() => setActiveTab('overview')}
+            onClick={() => {
+              setActiveTab('overview');
+              // Scroll to AI proposals section after tab switch
+              setTimeout(() => {
+                document.getElementById('ai-proposals-section')?.scrollIntoView({ behavior: 'smooth' });
+              }, 100);
+            }}
           >
             AI Suggestions
           </QuickActionButton>
@@ -904,14 +910,16 @@ const AICommandCenter: React.FC = () => {
           ]} />
 
           {/* AI Proposals */}
-          <ErrorBoundary fallbackMessage="AI proposals could not be loaded.">
-            <AITradeProposals
-              onProposalExecuted={() => {
-                queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-trades') });
-                setActiveTab('pipeline');
-              }}
-            />
-          </ErrorBoundary>
+          <div id="ai-proposals-section">
+            <ErrorBoundary fallbackMessage="AI proposals could not be loaded.">
+              <AITradeProposals
+                onProposalExecuted={() => {
+                  queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-trades') });
+                  setActiveTab('pipeline');
+                }}
+              />
+            </ErrorBoundary>
+          </div>
 
           {/* Needs Attention preview */}
           {tradeStats.blocked > 0 && (
