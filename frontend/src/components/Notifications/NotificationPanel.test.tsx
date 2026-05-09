@@ -16,31 +16,53 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+const DEFAULT_NOTIFICATION = {
+  id: 'notif-1',
+  tenant: 'tenant-1',
+  user: 1,
+  notification_type: 'system' as const,
+  notification_type_display: 'System',
+  title: 'Potential BOL received',
+  message: 'Draft ready for review',
+  priority: 'high' as const,
+  priority_display: 'High',
+  entity_type: 'ai_feedback',
+  entity_id: 'draft-1',
+  action_url: '/my-tasks?tab=ai-review&draft=draft-1',
+  is_read: false,
+  read_at: null,
+  is_dismissed: false,
+  metadata: {},
+  created_at: '2026-05-07T12:00:00Z',
+  expires_at: null,
+  time_ago: 'Just now',
+};
+
+function setupNotificationsMock(notifications: Array<typeof DEFAULT_NOTIFICATION>) {
+  vi.doMock('../../contexts/NotificationsContext', () => ({
+    useNotifications: () => ({
+      notifications,
+      unreadCount: notifications.filter((n) => !n.is_read).length,
+      loading: false,
+      error: null,
+      markAsRead: markAsReadMock,
+      markAllAsRead: markAllAsReadMock,
+      dismissNotification: dismissNotificationMock,
+      fetchNotifications: vi.fn(),
+      actionItems: [],
+      actionItemCounts: null,
+      fetchActionItems: vi.fn(),
+      preferences: null,
+      updatePreferences: vi.fn(),
+      startPolling: vi.fn(),
+      stopPolling: vi.fn(),
+    }),
+  }));
+}
+
 vi.mock('../../contexts/NotificationsContext', () => ({
   useNotifications: () => ({
-    notifications: [
-      {
-        id: 'notif-1',
-        tenant: 'tenant-1',
-        user: 1,
-        notification_type: 'system',
-        notification_type_display: 'System',
-        title: 'Potential BOL received',
-        message: 'Draft ready for review',
-        priority: 'high',
-        priority_display: 'High',
-        entity_type: 'ai_feedback',
-        entity_id: 'draft-1',
-        action_url: '/my-tasks?tab=ai-review&draft=draft-1',
-        is_read: false,
-        read_at: null,
-        is_dismissed: false,
-        metadata: {},
-        created_at: '2026-05-07T12:00:00Z',
-        expires_at: null,
-        time_ago: 'Just now',
-      },
-    ],
+    notifications: [DEFAULT_NOTIFICATION],
     unreadCount: 1,
     loading: false,
     error: null,
