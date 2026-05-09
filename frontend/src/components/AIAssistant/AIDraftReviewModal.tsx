@@ -472,10 +472,13 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
   }
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div style={{ display: 'grid', gap: 16 }} role="region" aria-label="AI Draft Review">
       {/* Intent Banner */}
       {item.intent_label && (
-        <div style={{
+        <div
+          role="banner"
+          aria-label={`Intent: ${item.intent_label}${typeof item.confidence_score === 'number' ? ` — ${Math.round(item.confidence_score * 100)}% confidence` : ''}`}
+          style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -501,7 +504,10 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
       )}
 
       {/* Top-level batch actions */}
-      <div style={{
+      <div
+        role="toolbar"
+        aria-label="Draft approval actions"
+        style={{
         display: 'flex',
         justifyContent: 'flex-end',
         gap: 8,
@@ -515,7 +521,12 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
             gap: 12,
             flex: 1,
           }}>
-            <div style={{
+            <div
+              role="progressbar"
+              aria-valuenow={approveProgress.current}
+              aria-valuemax={approveProgress.total}
+              aria-label={`Approving ${approveProgress.currentLabel}`}
+              style={{
               flex: 1,
               height: 6,
               borderRadius: 3,
@@ -540,6 +551,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
               type="primary"
               onClick={() => void handleSequentialApproveAll()}
               disabled={approveProgress?.running}
+              aria-label="Approve all drafts and save"
             >
               ✓ Approve All &amp; Save
               {relatedEntityDrafts.filter(d => d.status === 'proposed').length > 0 && (
@@ -551,6 +563,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
             <Button
               danger
               onClick={() => void handleRejected()}
+              aria-label="Reject all drafts"
             >
               ✗ Reject All
             </Button>
@@ -558,7 +571,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         )}
       </div>
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(280px, 320px) minmax(0, 1fr)' }}>
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ display: 'grid', gap: 12 }} role="complementary" aria-label="Source context and extracted data">
         <Collapse
           defaultActiveKey={['source', 'attachments', 'contacts', 'payload']}
           size="small"
