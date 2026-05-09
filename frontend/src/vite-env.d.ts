@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_SUPPORTED_FILE_TYPES?: string;
   readonly VITE_ENABLE_DEBUG?: string;
   readonly VITE_ENABLE_DEVTOOLS?: string;
+  readonly VITE_ENABLE_E2E_SMOKE?: string;
   readonly MODE: string;
   readonly DEV: boolean;
   readonly PROD: boolean;
