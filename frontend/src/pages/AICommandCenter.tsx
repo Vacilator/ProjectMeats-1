@@ -65,6 +65,7 @@ import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
 import { ProcessQuickActions } from '../components/Cockpit/ProcessQuickActions';
 import { TradeLineageFlow } from '../components/Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../components/Cockpit/ProcessFlowHeader';
+import { MissingDependencyQuickCreate, type DependencyType } from '../components/Cockpit/MissingDependencyQuickCreate';
 import { AIDraftReviewModal } from '../components/AIAssistant/AIDraftReviewModal';
 import {
   TransactionalEmptyState,
@@ -504,6 +505,10 @@ const AICommandCenter: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [draftReviewItem, setDraftReviewItem] = useState<PendingReviewItem | null>(null);
   const [selectedTrade, setSelectedTrade] = useState<TradeSession | null>(null);
+  const [quickCreateTarget, setQuickCreateTarget] = useState<{
+    entityType: DependencyType;
+    suggestedName?: string;
+  } | null>(null);
 
   // ---- Data Queries ----
 
@@ -654,17 +659,30 @@ const AICommandCenter: React.FC = () => {
 
   const handleFlowNodeClick = useCallback((entityType: string, entityId: string) => {
     const route = entityListPath(entityType);
-    if (!route) return;
 
     if (!entityId) {
-      // Empty node — navigate to creation page
-      navigate(`${route}?action=create`);
-      handleModalClose();
+      // Empty node — open quick-create modal for supported dependency types
+      const depType = entityType === 'supplier_purchase_order' ? 'supplier'
+        : entityType === 'carrier_purchase_order' ? 'supplier'
+        : entityType === 'inquiry' ? undefined
+        : (entityType as DependencyType | undefined);
+
+      if (depType && ['supplier', 'customer', 'contact', 'plant'].includes(depType)) {
+        setQuickCreateTarget({ entityType: depType as DependencyType });
+        return;
+      }
+      // Fallback: navigate to creation page
+      if (route) {
+        navigate(`${route}?action=create`);
+        handleModalClose();
+      }
       return;
     }
     // Existing entity — navigate to record
-    navigate(`${route}?highlight=${entityId}`);
-    handleModalClose();
+    if (route) {
+      navigate(`${route}?highlight=${entityId}`);
+      handleModalClose();
+    }
   }, [navigate, handleModalClose]);
 
   const handleRefreshAll = useCallback(() => {
@@ -1339,6 +1357,23 @@ const AICommandCenter: React.FC = () => {
           item={draftReviewItem}
           onClose={handleDraftReviewClose}
           onResolved={handleDraftReviewClose}
+        />
+      )}
+
+      {/* Quick Create Modal for empty flow nodes */}
+      {quickCreateTarget && (
+        <MissingDependencyQuickCreate
+          open
+          entityType={quickCreateTarget.entityType}
+          suggestedName={quickCreateTarget.suggestedName}
+          onCreated={(entityId, entityName) => {
+            message.success(`Created ${quickCreateTarget.entityType}: ${entityName}`);
+            setQuickCreateTarget(null);
+            // Refresh lineage + entities
+            queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trade-lineage') });
+            queryClient.invalidateQueries({ queryKey: withTenantQueryKey(quickCreateTarget.entityType + 's') });
+          }}
+          onClose={() => setQuickCreateTarget(null)}
         />
       )}
     </PageContainer>
