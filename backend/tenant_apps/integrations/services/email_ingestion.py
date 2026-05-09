@@ -665,7 +665,7 @@ class EmailIngestionService:
         if not self.tenant:
             raise ValueError("EmailIngestionService requires tenant for fetch_unread_actionable_emails")
 
-        import requests
+        import requests  # noqa: F401 - required by MicrosoftGraphProvider
 
         from apps.integrations.providers import MicrosoftGraphProvider
 
@@ -949,7 +949,7 @@ class EmailIngestionService:
 
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from tenant_apps.ai_assistant.models import AIDocument, ChatMessage, ChatSession, MessageTypeChoices
+        from tenant_apps.ai_assistant.models import AIDocument, ChatMessage, MessageTypeChoices  # noqa: F401
         from tenant_apps.ai_assistant.services.document_parser import validate_ai_document_upload
 
         from apps.integrations.providers import MicrosoftGraphProvider
@@ -1093,7 +1093,10 @@ class EmailIngestionService:
                     raise ToolExecutionError(
                         error_code="ATTACHMENT_TOO_LARGE",
                         message="The selected email attachment is too large to ingest safely.",
-                        hint="Choose a smaller attachment or download it manually and upload it through the document UI.",
+                        hint=(
+                            "Choose a smaller attachment or download it manually "
+                            "and upload it through the document UI."
+                        ),
                         retryable=False,
                     )
             except ValueError:
@@ -1143,7 +1146,8 @@ class EmailIngestionService:
                 )
         except (DatabaseError, OSError, SuspiciousFileOperation, ValidationError, ValueError) as exc:
             logger.warning(
-                "Graph attachment ingest: failed to persist attachment tenant=%s message=%s attachment=%s file=%s err=%s",
+                "Graph attachment ingest: failed to persist attachment "
+                "tenant=%s message=%s attachment=%s file=%s err=%s",
                 self.tenant.id,
                 message_id,
                 attachment_id,
@@ -1240,7 +1244,7 @@ class EmailIngestionService:
         Returns:
             A list of dicts: {"message": <graph message>, "attachments": [ ... ]}
         """
-        import requests
+        import requests  # noqa: F401 - required by MicrosoftGraphProvider
 
         from apps.integrations.providers import MicrosoftGraphProvider
 

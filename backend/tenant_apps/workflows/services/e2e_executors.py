@@ -14,13 +14,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date  # noqa: F401 - used by subclasses
 from decimal import Decimal
 from typing import Any
 
 from django.apps import apps
 from django.db import transaction
-from django.utils import timezone
+from django.utils import timezone  # noqa: F401 - used by subclasses
 
 logger = logging.getLogger("trade")
 
@@ -350,11 +350,7 @@ class E2EProcessExecutors:
         Title, and "Responsible For" multi-selects.
         """
         try:
-            from tenant_apps.workflows.services.contact_resolution import (
-                resolve_bid_evaluator,
-                resolve_po_contact,
-                resolve_rfq_recipient,
-            )
+            from tenant_apps.workflows.services.contact_resolution import resolve_po_contact, resolve_rfq_recipient
 
             supplier_id = self.context.get("current_supplier", {}).get("id") or self.context.get("supplier_id")
             if not supplier_id:
