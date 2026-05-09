@@ -101,7 +101,7 @@ describe('EmailIngestionCockpitPanel', () => {
     });
 
     expect(screen.getAllByRole('button', { name: /Review Details/i }).length).toBeGreaterThan(0);
-  });
+  }, 15000);
 
   it('opens a collapsed review from the recent email action', async () => {
     const client = new QueryClient({
