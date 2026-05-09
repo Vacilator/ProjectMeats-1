@@ -1933,10 +1933,10 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
 
         # Action performance (mock data for now - would need action-level tracking)
         action_performance = []
-        for action in workflow.actions.all()[:10]:
+        for wf_action in workflow.actions.all()[:10]:
             action_performance.append(
                 {
-                    "action_type": action.action_type,
+                    "action_type": wf_action.action_type,
                     "count": total_executions,  # Would track per-action
                     "avg_duration": avg_duration_seconds / workflow.actions.count() if workflow.actions.exists() else 0,
                     "success_rate": success_rate,
@@ -2009,12 +2009,12 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
             )
 
         # Add actions
-        for action in workflow.actions.all():
+        for wf_action in workflow.actions.all():
             template["nodes"].append(
                 {
-                    "id": f"action-{action.id}",
-                    "type": action.action_type,
-                    "data": {"config": action.config, "order": action.order},
+                    "id": f"action-{wf_action.id}",
+                    "type": wf_action.action_type,
+                    "data": {"config": wf_action.config, "order": wf_action.order},
                 }
             )
 
