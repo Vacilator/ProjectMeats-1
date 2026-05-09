@@ -290,7 +290,7 @@ Before submitting PR for Workforms changes:
 - [ ] **Backward Compat**: Old workflows still load and execute
 - [ ] **Migration Logic**: Data transformation helpers added
 - [ ] **Tests Pass**: Legacy workflow tests pass
-- [ ] **Docs Updated**: WORKFORMS_SESSION_STATE.md reflects changes
+- [ ] **Docs Updated**: Migration standards and related docs reflect changes
 - [ ] **API Versioning**: Breaking API changes use new version (v2)
 - [ ] **Database Migration**: Additive migration created if needed
 - [ ] **Golden Pipeline**: CI checks pass (no breaking changes detected)
@@ -340,7 +340,7 @@ pg_restore -d projectmeats_dev /backups/latest.dump
 - **Golden Pipeline Standards**: `/docs/GOLDEN_STANDARD_ACHIEVEMENT.md`
 - **PostgreSQL Migration Guide**: `/docs/POSTGRESQL_MIGRATION_GUIDE.md`
 - **Workforms Development Playbook**: `/docs/workforms/WORKFORMS_DEVELOPMENT_PLAYBOOK.md`
-- **Session State**: `/docs/workforms/WORKFORMS_SESSION_STATE.md`
+- **Session State**: `archived/docs/workforms/WORKFORMS_SESSION_STATE.md` (archived)
 
 ---
 
