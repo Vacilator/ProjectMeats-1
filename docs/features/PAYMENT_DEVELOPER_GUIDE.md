@@ -1305,8 +1305,7 @@ curl -H "Authorization: Bearer <token>" \
 
 ## Related Documentation
 
-- [PAYMENT_WORKFLOW_GUIDE.md](./PAYMENT_WORKFLOW_GUIDE.md) - User guide
-- [CONFIGURATION_AND_SECRETS.md](./CONFIGURATION_AND_SECRETS.md) - Environment setup
+- [CONFIGURATION_AND_SECRETS.md](../reference/CONFIGURATION_AND_SECRETS.md) - Environment setup
 
 ---
 

@@ -52,7 +52,7 @@ ProjectMeats uses a **manifest-based configuration system** to eliminate secret 
 
 ## The Authority: env.manifest.json
 
-**Location**: [`manifests/env.manifest.json`](../manifests/env.manifest.json)
+**Location**: [`manifests/env.manifest.json`](../../manifests/env.manifest.json)
 
 This file defines:
 - **Environments**: All 6 deployment targets (dev, uat, prod × backend, frontend)
@@ -243,7 +243,7 @@ This handles legacy naming and exceptions.
 
 ## Using the Audit Tool
 
-**Location**: [`config/manage_env.py`](../config/manage_env.py)
+**Location**: [`config/manage_env.py`](../../config/manage_env.py)
 
 ### Quick Reference
 ```bash
@@ -449,8 +449,8 @@ curl --http1.1 -H "Host: localhost" http://localhost:80/
 ## Related Documentation
 
 - [Development Pipeline](DEVELOPMENT_PIPELINE.md) - CI/CD workflow overview
-- [Environment Manifest README](../config/ENV_MANIFEST_README.md) - Technical details
-- [Best Practices](../config/BEST_PRACTICES.md) - Configuration guidelines
+- [Environment Manifest README](../../config/ENV_MANIFEST_README.md) - Technical details
+- [Best Practices](../../config/BEST_PRACTICES.md) - Configuration guidelines
 
 ## Archived Documentation
 

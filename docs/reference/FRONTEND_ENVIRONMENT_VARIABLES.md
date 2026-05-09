@@ -328,8 +328,8 @@ const apiUrl = config.API_BASE_URL;  // Works with both systems
 - **Manifest System:** [`manifests/env.manifest.json`](../../manifests/env.manifest.json)
 - **Configuration Guide:** [`docs/CONFIGURATION_AND_SECRETS.md`](./CONFIGURATION_AND_SECRETS.md)
 - **Golden Pipeline:** [`docs/GOLDEN_PIPELINE.md`](./GOLDEN_PIPELINE.md)
-- **Runtime Config:** [`frontend/src/config/runtime.ts`](../frontend/src/config/runtime.ts)
-- **Tenant Context:** [`frontend/src/config/tenantContext.ts`](../frontend/src/config/tenantContext.ts)
+- **Runtime Config:** [`frontend/src/config/runtime.ts`](../../frontend/src/config/runtime.ts)
+- **Tenant Context:** [`frontend/src/config/tenantContext.ts`](../../frontend/src/config/tenantContext.ts)
 
 ### External Resources
 

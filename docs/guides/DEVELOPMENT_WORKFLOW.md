@@ -1165,11 +1165,9 @@ python manage.py sqlmigrate app_name migration_name
 
 ### Related Documentation
 
-- [Database Migration Guide](./DATABASE_MIGRATION_GUIDE.md) - Detailed migration procedures
-- [Deployment Runbook](./DEPLOYMENT_RUNBOOK.md) - Step-by-step deployment instructions
-- [Architecture Diagram](./ARCHITECTURE.md) - System architecture overview
-- [Contributing Guide](../CONTRIBUTING.md) - Development guidelines
-- [GitHub Secrets Configuration](./GITHUB_SECRETS_CONFIGURATION.md) - Secret setup guide
+- [Architecture](../architecture/ARCHITECTURE.md) - System architecture overview
+- [Contributing Guide](../../CONTRIBUTING.md) - Development guidelines
+- [Configuration & Secrets](../reference/CONFIGURATION_AND_SECRETS.md) - Secret setup guide
 
 ### Workflow Files
 
