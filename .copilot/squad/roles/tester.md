@@ -21,7 +21,7 @@ Prevent regressions by defining and executing **high-signal acceptance criteria*
 - If tests are flaky or nondeterministic → block until stabilized.
 
 ## Required references
-- `TESTING_INSTRUCTIONS.md`
+- `archived/docs/TESTING_INSTRUCTIONS.md`
 - `.github/instructions/backend.instructions.md`
 - `.github/instructions/frontend.instructions.md`
 

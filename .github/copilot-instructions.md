@@ -63,7 +63,7 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
 **Recommended squad split:**
 - *Explore agent*: locate files, map the flow, identify risks
 - *Implementation agent*: make the code changes
-- *Validation agent*: run repo scripts/tests (per `TESTING_INSTRUCTIONS.md`)
+- *Validation agent*: run repo scripts/tests
 - *Release agent*: prepare PR notes + rollback steps
 
 **Prompt template:**

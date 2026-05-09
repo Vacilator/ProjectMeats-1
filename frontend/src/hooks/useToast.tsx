@@ -17,6 +17,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import styled from 'styled-components';
+import { getErrorMessage } from '@/utils/errorHelpers';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -111,42 +112,8 @@ export function useToast(): ToastContextValue {
   return context;
 }
 
-export function getErrorMessage(err: unknown, fallback: string = 'Something went wrong'): string {
-  if (!err) return fallback;
-  if (typeof err === 'string') return err;
-
-  const e = err as {
-    message?: unknown;
-    response?: {
-      data?: unknown;
-    };
-  };
-
-  const data = e.response?.data;
-  if (typeof data === 'string' && data.trim()) return data;
-
-  if (data && typeof data === 'object') {
-    const obj = data as Record<string, unknown>;
-    const direct =
-      (typeof obj.detail === 'string' && obj.detail) ||
-      (typeof obj.error === 'string' && obj.error) ||
-      (typeof obj.message === 'string' && obj.message) ||
-      null;
-
-    if (direct) return direct;
-
-    const first = Object.entries(obj).find(([, v]) => typeof v === 'string' || Array.isArray(v));
-    if (first) {
-      const v = first[1];
-      if (typeof v === 'string' && v.trim()) return v;
-      if (Array.isArray(v) && v.length > 0) return String(v[0]);
-    }
-  }
-
-  if (typeof e.message === 'string' && e.message.trim()) return e.message;
-
-  return fallback;
-}
+// Re-exported for backward compatibility — canonical source is @/utils/errorHelpers
+export { getErrorMessage };
 
 // Helper function to get icon for toast type
 function getIcon(type: ToastType): string {

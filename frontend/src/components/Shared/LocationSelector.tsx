@@ -15,7 +15,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getErrorMessage } from '../../hooks/useToast';
+import { getErrorMessage } from '@/utils/errorHelpers';
 import { Location } from '../../types/index';
 import { apiClient } from '../../services/apiService';
 import { logger } from '@/utils/logger';

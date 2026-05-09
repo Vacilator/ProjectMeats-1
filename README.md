@@ -191,7 +191,7 @@ cd frontend && npx playwright test
 ## 📖 Additional Resources
 
 - **[Contributing Guide](CONTRIBUTING.md)** — Branch workflow, PR checklist, coding standards
-- **[Testing Instructions](TESTING_INSTRUCTIONS.md)** — How to run and write tests
+- **[Testing Instructions](archived/docs/TESTING_INSTRUCTIONS.md)** — How to run and write tests *(archived)*
 - **[Golden Pipeline](docs/GOLDEN_PIPELINE.md)** — Deployment architecture (authoritative)
 - **[Migration Standards](docs/workforms/MIGRATION_STANDARDS.md)** — Additive-only, tenant-safe
 

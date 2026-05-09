@@ -72,7 +72,7 @@
 
 **Narration:** "Emails come in, get parsed by AI, and draft trades automatically."
 
-1. Navigate to **Process Cockpit** → AI Inbox tab (or `/process-cockpit`)
+1. Navigate to **Command Center** → AI Inbox tab (or `/command-center`)
 2. Show a parsed email with extracted fields (PO number, quantities, contacts)
 3. Show the **editable draft** with pre-filled form
 4. Point out the **feedback loop** (thumbs up/down trains the model)
