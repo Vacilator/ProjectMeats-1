@@ -20,6 +20,7 @@ import {
 import { AdminGuard } from '@/components/Admin';
 import type { AdminPermissions } from '@/hooks/useAdminPermissions';
 import { logger } from '@/utils/logger';
+import { formatToLocal } from '@/utils/formatters';
 import {
   settlementEventsService,
   type SettlementEvent,
@@ -56,24 +57,9 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
   currency: 'USD',
 });
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
 function formatAmount(amount: string): string {
   const parsed = Number(amount);
   return Number.isFinite(parsed) ? numberFormatter.format(parsed) : amount;
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return '—';
-  }
-  return dateTimeFormatter.format(new Date(value));
 }
 
 function resolveMatchedTarget(event: SettlementEvent): string {
@@ -132,7 +118,7 @@ export const SettlementQueue: React.FC = () => {
         title: 'Occurred',
         dataIndex: 'occurred_at',
         key: 'occurred_at',
-        render: (value: string) => formatDateTime(value),
+        render: (value: string) => formatToLocal(value),
       },
       {
         title: 'Source',
@@ -306,7 +292,7 @@ export const SettlementQueue: React.FC = () => {
                   {reasonLabels[selectedEvent.reconciliation_reason_code] ?? 'Needs review'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Occurred">
-                  {formatDateTime(selectedEvent.occurred_at)}
+                  {formatToLocal(selectedEvent.occurred_at)}
                 </Descriptions.Item>
                 <Descriptions.Item label="Amount">
                   {formatAmount(selectedEvent.amount)}
@@ -324,7 +310,7 @@ export const SettlementQueue: React.FC = () => {
                   {selectedEvent.reviewed_by_name || '—'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Reviewed at">
-                  {formatDateTime(selectedEvent.reviewed_at)}
+                  {formatToLocal(selectedEvent.reviewed_at)}
                 </Descriptions.Item>
                 <Descriptions.Item label="Review note">
                   {selectedEvent.review_note || '—'}

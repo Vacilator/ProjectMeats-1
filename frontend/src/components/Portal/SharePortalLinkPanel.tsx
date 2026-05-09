@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
+import { formatToLocal } from '@/utils/formatters';
 
 import {
   buildAbsolutePortalShareUrl,
@@ -280,15 +281,6 @@ const defaultExpiryInput = (): string => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
-const formatDateTime = (raw: string | null | undefined): string => {
-  if (!raw) {
-    return '—';
-  }
-
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? raw : parsed.toLocaleString();
-};
-
 const describeHistoryEvent = (event: PortalGrantHistoryEvent): string => {
   const snapshot = event.snapshotAfter || {};
   const portalEvent = String(snapshot.portal_event || '');
@@ -562,7 +554,7 @@ export const SharePortalLinkPanel: React.FC<SharePortalLinkPanelProps> = ({
                   <GrantMeta>
                     <GrantTitle>{grant.subjectEmail}</GrantTitle>
                     <GrantSubtle>
-                      Expires {formatDateTime(grant.expiresAt)} · {grant.useCount}/{grant.maxUses}{' '}
+                      Expires {formatToLocal(grant.expiresAt)} · {grant.useCount}/{grant.maxUses}{' '}
                       opens used
                     </GrantSubtle>
                   </GrantMeta>
@@ -611,7 +603,7 @@ export const SharePortalLinkPanel: React.FC<SharePortalLinkPanelProps> = ({
                         <HistoryItem key={event.id}>
                           <div>{describeHistoryEvent(event)}</div>
                           <HistoryMeta>
-                            {(event.actorEmail || 'System')} · {formatDateTime(event.createdAt)}
+                            {(event.actorEmail || 'System')} · {formatToLocal(event.createdAt)}
                           </HistoryMeta>
                         </HistoryItem>
                       ))}

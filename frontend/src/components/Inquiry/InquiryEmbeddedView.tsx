@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import styled from 'styled-components';
 
 import { type Inquiry, type InquiryProduct } from '@/types';
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency, formatDateLocal } from '@/utils/formatters';
 
 export interface InquiryEmbeddedViewProps {
   inquiry: Inquiry;
@@ -200,12 +200,6 @@ const Muted = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-const formatDate = (iso?: string) => {
-  if (!iso) return '-';
-  // Accept both date-only and ISO datetime.
-  return String(iso).slice(0, 10);
-};
-
 const toNumber = (v: unknown) => {
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : null;
@@ -292,7 +286,7 @@ export const InquiryEmbeddedView: React.FC<InquiryEmbeddedViewProps> = ({ inquir
             </Field>
             <Field $span={4}>
               <Label>Valid Until</Label>
-              <ValueBox>{formatDate(inquiry.valid_until)}</ValueBox>
+              <ValueBox>{formatDateLocal(inquiry.valid_until)}</ValueBox>
             </Field>
             <Field $span={4}>
               <Label>Status</Label>

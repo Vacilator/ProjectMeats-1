@@ -156,6 +156,12 @@ def resolve_supplier_contact_route(
     preferred_plant_ids: Sequence[int] | None = None,
     contacts: Sequence[Contact] | None = None,
 ) -> SupplierContactResolution:
+    """Resolve the best contact for a supplier based on focus area and plant affinity.
+
+    Scores candidates by department match, plant relevance, protein/item
+    responsibility overlap, and title keywords.  Returns the top-ranked
+    contact wrapped in a ``SupplierContactResolution``.
+    """
     normalized_focus = _normalize_focus(focus)
     relevant_plant_ids = _relevant_plant_ids(
         inquiry=inquiry,
@@ -286,6 +292,7 @@ def resolve_supplier_order_contact_routes(
     inquiry=None,
     preferred_plant_ids: Sequence[int] | None = None,
 ) -> dict[str, SupplierContactResolution]:
+    """Resolve contacts for all order-related roles (supplier, billing, logistics, docs)."""
     contacts = list(_supplier_contact_candidates(tenant=tenant, supplier=supplier))
     return {
         "supplier_contact": resolve_supplier_contact_route(
@@ -316,6 +323,10 @@ def resolve_supplier_order_contact_routes(
 
 
 def legacy_contact_routing_hints(contact: Contact) -> tuple[str, str]:
+    """Infer department from legacy fields (contact_type, title, position).
+
+    Returns ``(department, source_field)`` or ``("", "")`` if no match.
+    """
     department = _normalize_department(contact.department)
     if department:
         return department, "department"
@@ -333,6 +344,7 @@ def build_supplier_contact_context_lines(
     resolution: SupplierContactResolution,
     include_90_day_confirm: bool = True,
 ) -> list[str]:
+    """Build human-readable context lines describing a contact resolution for email templates."""
     lines: list[str] = []
     if resolution.plant_name:
         lines.append(f"Preferred plant contact: {resolution.plant_name}")

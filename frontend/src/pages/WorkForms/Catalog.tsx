@@ -22,6 +22,7 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
+import { formatDateLocal } from '@/utils/formatters';
 
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -881,12 +882,6 @@ const FormsFlowsCatalog: React.FC = () => {
     }
   };
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
   const catalogErrorUi = error ? getWorkformsErrorUi(error, 'catalog.load') : null;
 
   return (
@@ -1181,7 +1176,7 @@ const FormsFlowsCatalog: React.FC = () => {
                     </MetaItem>
                     <MetaItem>
                       <Clock size={14} />
-                      {formatDate(form.updated_at)}
+                      {formatDateLocal(form.updated_at)}
                     </MetaItem>
                     <StatusBadge $status={form.status}>{form.status}</StatusBadge>
                   </FormMeta>
@@ -1287,7 +1282,7 @@ const FormsFlowsCatalog: React.FC = () => {
                       </MetaItem>
                       <MetaItem>
                         <Clock size={14} />
-                        {formatDate(form.updated_at)}
+                        {formatDateLocal(form.updated_at)}
                       </MetaItem>
                       <StatusBadge $status={form.status}>{form.status}</StatusBadge>
                     </FormMeta>

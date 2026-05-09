@@ -147,6 +147,7 @@ def _normalize_review_document_type(document_type: str) -> str:
 
 
 def _infer_review_entity_type(document_type: str, payload: dict[str, object]) -> str:
+    """Map an AI-classified document type (and payload keys) to a canonical entity type string."""
     normalized = _normalize_review_document_type(document_type)
 
     if normalized in {"purchase_order", "po"}:
@@ -190,6 +191,7 @@ def build_contextual_suggestions(
     entity_id: str,
     current_state: dict[str, object],
 ) -> list[dict[str, object]]:
+    """Generate AI-powered action suggestions for an entity based on its current state."""
     suggestions: list[dict[str, object]] = []
     normalized_type = str(entity_type or "").strip().lower()
     current_state = current_state if isinstance(current_state, dict) else {}
@@ -262,6 +264,7 @@ def build_contextual_suggestions(
 
 
 def _humanize_review_intent(document_type: str, payload: dict[str, object]) -> str:
+    """Return a user-friendly label for a review item's entity intent (e.g. 'Purchase Order')."""
     entity_type = _infer_review_entity_type(document_type, payload)
     if entity_type == "carrier-pos":
         return "Bill Of Lading"
@@ -279,6 +282,7 @@ def build_pending_review_items(
     highlighted_id: str | None = None,
     limit: int = 25,
 ) -> list[dict[str, object]]:
+    """Build serialized list of unresolved AI feedback items for the review queue."""
     qs = AIFeedbackLog.objects.filter(
         tenant_id=tenant_id,
         resolved_by__isnull=True,
@@ -343,6 +347,7 @@ def build_pending_review_items(
 
 
 def ai_not_configured_response() -> Response:
+    """Return a 503 response when OpenAI integration is not configured."""
     return Response(
         {
             "error": "AI is not enabled for this environment.",
@@ -354,6 +359,7 @@ def ai_not_configured_response() -> Response:
 
 
 def _tenant_membership_role(*, user, tenant) -> str:
+    """Return the active TenantUser role for a user in a tenant, or empty string."""
     if not user or not getattr(user, "is_authenticated", False) or tenant is None:
         return ""
 
@@ -365,10 +371,12 @@ def _tenant_membership_role(*, user, tenant) -> str:
 
 
 def _can_review_ai_approvals(*, user, tenant) -> bool:
+    """Check if user has owner/admin role required to resolve AI approvals."""
     return _tenant_membership_role(user=user, tenant=tenant) in {"owner", "admin"}
 
 
 def can_access_ai_review_queue(*, user, tenant) -> bool:
+    """Check if user can view the AI review queue (staff, superuser, or owner/admin/manager)."""
     if not user or not getattr(user, "is_authenticated", False) or tenant is None:
         return False
     if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):

@@ -18,7 +18,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { getErrorMessage } from '../../hooks/useToast';
+import { getErrorMessage } from '@/utils/errorHelpers';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';

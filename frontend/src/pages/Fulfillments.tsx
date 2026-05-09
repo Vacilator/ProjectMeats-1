@@ -15,6 +15,7 @@ import { apiClient } from '../services/apiService';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
 import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
 import { logger } from '@/utils/logger';
+import { formatDateLocal } from '@/utils/formatters';
 
 // ============================================================================
 // Styled Components
@@ -386,11 +387,6 @@ const Fulfillments: React.FC = () => {
     }
   };
 
-  const formatDate = (dateStr: string | undefined) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString();
-  };
-
   const getActionButton = (fulfillment: FulfillmentListItem) => {
     const isLoading = actionLoading === fulfillment.id;
 
@@ -543,7 +539,7 @@ const Fulfillments: React.FC = () => {
                     <span style={{ color: 'rgb(var(--color-text-secondary))' }}>No tracking</span>
                   )}
                 </TrackingInfo>
-                <DateCell>{formatDate((fulfillment as any).expected_delivery ?? (fulfillment as any).estimated_delivery)}</DateCell>
+                <DateCell>{formatDateLocal((fulfillment as any).expected_delivery ?? (fulfillment as any).estimated_delivery)}</DateCell>
                 <div>{getActionButton(fulfillment)}</div>
               </TableRow>
             ))}

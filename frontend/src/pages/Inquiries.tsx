@@ -23,6 +23,7 @@ import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../type
 import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
 import { UnifiedForm } from '../components/UnifiedForm';
 import { inquiryService } from '../services/inquiryService';
+import { formatDateLocal } from '@/utils/formatters';
 
 // ============================================================================
 // Styled Components
@@ -643,10 +644,6 @@ const Inquiries: React.FC = () => {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString();
-  };
-
   const formatCurrency = (value: number | undefined) => {
     if (value === undefined || value === null) return '-';
     return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -784,10 +781,10 @@ const Inquiries: React.FC = () => {
                 <ProductCount>{inquiry.product_count || 0}</ProductCount>
                 <Amount>{formatCurrency(inquiry.total_actual || inquiry.total_desired)}</Amount>
                 <DateCell style={{ color: inquiry.is_expired ? 'rgb(var(--color-danger))' : undefined }}>
-                  {inquiry.valid_until ? formatDate(inquiry.valid_until) : '-'}
+                  {inquiry.valid_until ? formatDateLocal(inquiry.valid_until) : '-'}
                   {inquiry.is_expired && ' ⚠️'}
                 </DateCell>
-                <DateCell>{formatDate(inquiry.created_on)}</DateCell>
+                <DateCell>{formatDateLocal(inquiry.created_on)}</DateCell>
               </TableRow>
             ))}
 

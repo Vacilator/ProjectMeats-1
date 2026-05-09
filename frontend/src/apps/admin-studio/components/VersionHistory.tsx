@@ -3,6 +3,7 @@ import { Clock, GitBranch, X, History, RotateCcw } from 'lucide-react';
 import { adminClient } from '@/services/apiService';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
+import { formatToLocal } from '@/utils/formatters';
 
 interface Version {
   id: string;
@@ -108,17 +109,6 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     }
   };
 
-  const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   if (loading) {
     return (
       <div className="p-6 text-center text-gray-500">
@@ -148,12 +138,12 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="p-3 bg-blue-50 rounded-lg">
             <div className="font-semibold">Version {comparisonData.version_a.version}</div>
-            <div className="text-sm text-gray-600">{formatDate(comparisonData.version_a.created_at)}</div>
+            <div className="text-sm text-gray-600">{formatToLocal(comparisonData.version_a.created_at)}</div>
             <div className="text-xs text-gray-500 mt-1">{comparisonData.version_a.status}</div>
           </div>
           <div className="p-3 bg-purple-50 rounded-lg">
             <div className="font-semibold">Version {comparisonData.version_b.version}</div>
-            <div className="text-sm text-gray-600">{formatDate(comparisonData.version_b.created_at)}</div>
+            <div className="text-sm text-gray-600">{formatToLocal(comparisonData.version_b.created_at)}</div>
             <div className="text-xs text-gray-500 mt-1">{comparisonData.version_b.status}</div>
           </div>
         </div>
@@ -316,7 +306,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                   <div className="flex items-center gap-1">
                     <Clock size={14} />
-                    {formatDate(version.created_at)}
+                    {formatToLocal(version.created_at)}
                   </div>
                   <div>{version.field_count} fields</div>
                   <div>{version.step_count} steps</div>

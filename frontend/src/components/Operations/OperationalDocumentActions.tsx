@@ -16,6 +16,7 @@ import { DownloadOutlined, MailOutlined } from '@ant-design/icons';
 
 import { useConnectivity } from '@/contexts/ConnectivityContext';
 import { businessApi } from '@/services/businessApi';
+import { getErrorMessage } from '@/utils/errorHelpers';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
 import {
@@ -49,20 +50,6 @@ interface OperationalDocumentActionsProps {
   onChanged?: () => void;
   onOptimisticStatusChange?: (nextStatus: string) => void;
 }
-
-const getErrorMessage = (error: unknown): string => {
-  const responseData = (error as { response?: { data?: unknown } })?.response?.data;
-  if (responseData && typeof responseData === 'object') {
-    const detail = (responseData as Record<string, unknown>).detail;
-    const errorMessage = (responseData as Record<string, unknown>).error;
-    if (typeof detail === 'string' && detail.trim()) return detail;
-    if (typeof errorMessage === 'string' && errorMessage.trim()) return errorMessage;
-  }
-  const messageText = (error as { message?: string })?.message;
-  return typeof messageText === 'string' && messageText.trim()
-    ? messageText
-    : 'The action failed.';
-};
 
 const isOfflineLikeError = (error: unknown): boolean =>
   /network\s*error|failed\s*to\s*fetch|networkerror|offline/i.test(getErrorMessage(error));

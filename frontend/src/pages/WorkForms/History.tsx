@@ -28,6 +28,7 @@ import {
 import { businessApi } from '../../services/businessApi';
 import { workformExecutionService, WorkFormExecution } from '@/services/workformExecutionService';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
+import { formatDateLocal } from '@/utils/formatters';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -613,18 +614,6 @@ const FormsFlowsHistory: React.FC = () => {
   }, [activeTab, page, startDate, endDate]);
   
   
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-  
   // Calculate duration in readable format
   const formatDuration = (start: string, end?: string) => {
     if (!end) return '-';
@@ -810,8 +799,8 @@ const FormsFlowsHistory: React.FC = () => {
                       }
                     </StatusBadge>
                   </TableCell>
-                  <TableCell>{formatDate(submission.created_at)}</TableCell>
-                  <TableCell>{formatDate(submission.completed_at || '')}</TableCell>
+                  <TableCell>{formatDateLocal(submission.created_at)}</TableCell>
+                  <TableCell>{formatDateLocal(submission.completed_at || '')}</TableCell>
                   <TableCell>{submission.created_by_name || '-'}</TableCell>
                   <TableCell>
                     <ViewButton 
@@ -866,8 +855,8 @@ const FormsFlowsHistory: React.FC = () => {
                           </StatusBadge>
                         </TableCell>
                         <TableCell>{execution.started_by_name || '-'}</TableCell>
-                        <TableCell>{formatDate(execution.started_at || execution.created_on)}</TableCell>
-                        <TableCell>{formatDate(execution.completed_at || '')}</TableCell>
+                        <TableCell>{formatDateLocal(execution.started_at || execution.created_on)}</TableCell>
+                        <TableCell>{formatDateLocal(execution.completed_at || '')}</TableCell>
                         <TableCell>{formatDuration(execution.started_at || execution.created_on, execution.completed_at || undefined)}</TableCell>
                         <TableCell>
                           <ViewButton

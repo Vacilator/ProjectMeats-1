@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import styled, { css, keyframes } from 'styled-components';
+import { formatDateLocal } from '@/utils/formatters';
 
 // ============================================================================
 // TYPES
@@ -247,17 +248,6 @@ const getInitials = (name: string): string => {
     .slice(0, 2);
 };
 
-const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
 const formatShortDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-US', {
@@ -338,7 +328,7 @@ export const DelegationHistory: React.FC<DelegationHistoryProps> = ({
             <DelegationMeta>
               <MetaItem>
                 <MetaIcon>📅</MetaIcon>
-                Delegated {formatDate(delegation.delegatedAt)}
+                Delegated {formatDateLocal(delegation.delegatedAt)}
               </MetaItem>
               {delegation.dueDate && (
                 <MetaItem>
@@ -349,7 +339,7 @@ export const DelegationHistory: React.FC<DelegationHistoryProps> = ({
               {delegation.completedAt && (
                 <MetaItem>
                   <MetaIcon>✓</MetaIcon>
-                  Completed {formatDate(delegation.completedAt)}
+                  Completed {formatDateLocal(delegation.completedAt)}
                 </MetaItem>
               )}
             </DelegationMeta>

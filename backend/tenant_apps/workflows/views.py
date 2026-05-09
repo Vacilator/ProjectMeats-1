@@ -337,14 +337,14 @@ class FormStepsAPIView(APIView):
         except TenantForm.DoesNotExist:
             return Response({"error": "Form not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        steps = form.entities.all().order_by("order")
+        steps = form.entities.annotate(field_count=Count('fields')).order_by("order")
         steps_data = [
             {
                 "id": str(step.id),
                 "entity_type": step.entity_type,
                 "step_name": step.step_name or "",
                 "order": step.order,
-                "field_count": step.fields.count(),
+                "field_count": step.field_count,
             }
             for step in steps
         ]

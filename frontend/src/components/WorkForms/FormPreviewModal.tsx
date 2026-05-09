@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { logger } from '@/utils/logger';
+import { formatDateLocal } from '@/utils/formatters';
 
 import styled from 'styled-components';
 import { X, Edit, Eye, Copy, Settings } from 'lucide-react';
@@ -264,11 +265,6 @@ const EmptyState = styled.div`
 export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClose }) => {
   const navigate = useNavigate();
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
-
   const getNodeTypeName = (nodeType: string): string => {
     const typeMap: Record<string, string> = {
       trigger: 'Trigger', formStep: 'Form Step', formField: 'Form Field', formSection: 'Section',
@@ -345,8 +341,8 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
             </InfoCard>
             <InfoCard>
               <InfoLabel>Last Updated</InfoLabel>
-              <InfoValue style={{ fontSize: '16px' }}>{formatDate(form.updated_at)}</InfoValue>
-              <InfoSubtext>Created {formatDate(form.created_at)}</InfoSubtext>
+              <InfoValue style={{ fontSize: '16px' }}>{formatDateLocal(form.updated_at)}</InfoValue>
+              <InfoSubtext>Created {formatDateLocal(form.created_at)}</InfoSubtext>
             </InfoCard>
           </InfoGrid>
           {nodeTypes.length > 0 ? (

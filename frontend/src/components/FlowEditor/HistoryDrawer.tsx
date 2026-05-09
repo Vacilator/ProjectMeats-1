@@ -17,7 +17,7 @@
 import React, { useEffect, useState } from 'react';
 import { Drawer, Timeline, Typography, Tag, Avatar, Button, Empty, Spin, message } from 'antd';
 import { ClockCircleOutlined, UserOutlined, RollbackOutlined } from '@ant-design/icons';
-import { getErrorMessage } from '@/hooks/useToast';
+import { getErrorMessage } from '@/utils/errorHelpers';
 import { businessApi } from '@/services/businessApi';
 import styled from 'styled-components';
 import { logger } from '@/utils/logger';

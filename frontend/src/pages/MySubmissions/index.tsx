@@ -10,6 +10,7 @@ import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { formSubmissionService, FormSubmissionListItem } from '../../services/quickActionsService';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { logger } from '../../utils/logger';
+import { formatDateLocal } from '@/utils/formatters';
 
 const PageContainer = styled.div`
   padding: 2rem;
@@ -263,16 +264,6 @@ const getStatusLabel = (status: string): string => {
   }
 };
 
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
 const MySubmissions: React.FC = () => {
   const [submissions, setSubmissions] = useState<FormSubmissionListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -399,8 +390,8 @@ const MySubmissions: React.FC = () => {
               <SubmissionInfo>
                 <FormName>{submission.form_name}</FormName>
                 <SubmissionMeta>
-                  Started {formatDate(submission.created_at)}
-                  {submission.completed_at && ` • Completed ${formatDate(submission.completed_at)}`}
+                  Started {formatDateLocal(submission.created_at)}
+                  {submission.completed_at && ` • Completed ${formatDateLocal(submission.completed_at)}`}
                 </SubmissionMeta>
               </SubmissionInfo>
 
