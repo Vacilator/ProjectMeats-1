@@ -60,6 +60,22 @@ When the workflow editor is active:
 | `Ctrl+K` / `⌘K` | Focus search (same as global) |
 | Click card | Open entity detail panel |
 
+## AI Command Center (`/command-center`)
+
+These work when focus is NOT in a text field:
+
+| Shortcut | Action |
+|----------|--------|
+| `N` | Open New Trade wizard |
+| `R` | Refresh all data |
+| `/` | Focus search input |
+| `Alt+1` | Switch to Overview tab |
+| `Alt+2` | Switch to Action Required tab |
+| `Alt+3` | Switch to Live Pipeline tab |
+| `Alt+4` | Switch to Workflows tab |
+| `Alt+5` | Switch to History tab |
+| `Escape` | Blur search / close modal |
+
 ## Accessibility
 
 All shortcuts follow WCAG 2.1 AAA guidelines:
@@ -70,5 +86,5 @@ All shortcuts follow WCAG 2.1 AAA guidelines:
 
 ---
 
-**Source files**: `useGlobalShortcuts.ts`, `useCommandPalette.ts`, `keyboardNavigation.ts`  
-**Last updated**: 2026-06-24
+**Source files**: `useGlobalShortcuts.ts`, `useCommandPalette.ts`, `keyboardNavigation.ts`, `AICommandCenter.tsx`  
+**Last updated**: 2026-05-09
