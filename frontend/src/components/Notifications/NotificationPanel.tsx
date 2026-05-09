@@ -274,9 +274,15 @@ function resolveActionUrl(notification: Notification): string {
   const url = notification.action_url;
   if (!url) return '';
 
+  // Extract item ID from notification metadata (draft_id, inquiry_id, etc.)
+  const payload = (notification.metadata || {}) as Record<string, unknown>;
+  const itemId = (payload.draft_id || payload.review_id || payload.item_id || '') as string;
+
   // Redirect old process-cockpit / trader-cockpit links into Command Center
   if (url.startsWith('/process-cockpit') || url.includes('process-cockpit')) {
-    return '/command-center?tab=action-required';
+    const params = new URLSearchParams({ tab: 'action-required' });
+    if (itemId) params.set('item', String(itemId));
+    return `/command-center?${params.toString()}`;
   }
   if (url.startsWith('/trader-cockpit') || url.includes('trader-cockpit')) {
     return '/command-center?tab=pipeline';

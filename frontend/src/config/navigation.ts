@@ -39,12 +39,6 @@ export const navigation: NavigationItem[] = [
     path: '/cockpit',
     children: [
       {
-        label: 'Process Monitor',
-        icon: '📡',
-        path: '/process-cockpit',
-        badgeKey: 'actionRequired',
-      },
-      {
         label: 'Calls',
         icon: '📞',
         path: '/calls',

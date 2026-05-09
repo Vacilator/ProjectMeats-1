@@ -14,9 +14,10 @@
  * Theme: CSS custom properties only.
  * Service Layer: businessApi / traderService / aiStaffApi.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import {
+  Alert,
   Badge,
   Button,
   Input,
@@ -606,8 +607,27 @@ const AICommandCenter: React.FC = () => {
 
   const handleDraftReviewClose = useCallback(() => {
     setDraftReviewItem(null);
+    // Remove ?item= from URL after close
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('item');
+      return next;
+    });
     queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-ai-reviews') });
-  }, [queryClient]);
+  }, [queryClient, setSearchParams]);
+
+  // Deep link: ?item=xxx auto-opens that AI review item
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    const itemId = searchParams.get('item');
+    if (!itemId || deepLinkHandled.current) return;
+    const reviews = reviewsQuery.data ?? [];
+    const match = reviews.find((r: PendingReviewItem) => r.id === itemId);
+    if (match) {
+      deepLinkHandled.current = true;
+      setDraftReviewItem(match);
+    }
+  }, [searchParams, reviewsQuery.data]);
 
   const handleNavigateToEntity = useCallback(() => {
     if (!selectedItem) return;
@@ -961,7 +981,17 @@ const AICommandCenter: React.FC = () => {
       {/* ======== Action Required Tab ======== */}
       {activeTab === 'action-required' && (
         <>
-          {filteredAiInbox.length === 0 ? (
+          {reviewsQuery.isLoading ? (
+            <Skeleton active paragraph={{ rows: 4 }} />
+          ) : reviewsQuery.isError ? (
+            <Alert
+              type="error"
+              message="Failed to load AI inbox items"
+              description={String((reviewsQuery.error as any)?.message || 'Unknown error')}
+              showIcon
+              action={<Button size="small" onClick={() => reviewsQuery.refetch()}>Retry</Button>}
+            />
+          ) : filteredAiInbox.length === 0 ? (
             <EmptyState>
               <CheckCircle2 size={32} strokeWidth={1.5} />
               <span>You're all caught up!</span>
@@ -1031,6 +1061,14 @@ const AICommandCenter: React.FC = () => {
         >
           {tradesQuery.isLoading ? (
             <Skeleton active paragraph={{ rows: 5 }} />
+          ) : tradesQuery.isError ? (
+            <Alert
+              type="error"
+              message="Failed to load trades"
+              description={String((tradesQuery.error as any)?.message || 'Unknown error')}
+              showIcon
+              action={<Button size="small" onClick={() => tradesQuery.refetch()}>Retry</Button>}
+            />
           ) : filteredTrades.length > 0 ? (
             <Table
               rowKey="id"

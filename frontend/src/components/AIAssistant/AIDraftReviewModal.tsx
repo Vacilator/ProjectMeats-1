@@ -379,43 +379,62 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
       });
   }, [relatedEntityDrafts]);
 
-  /** Approve a single related entity draft */
+  /** Approve a single related entity draft (local state — saved when main record is resolved) */
   const handleApproveDraft = useCallback((idx: number, typeLabel: string) => {
     setDraftStatuses((prev) => ({ ...prev, [idx]: 'approved' }));
-    message.success(`Approved ${typeLabel} draft.`);
+    message.success(`Marked ${typeLabel} as approved. Save the main record to apply.`);
   }, []);
 
-  /** Reject a single related entity draft */
+  /** Reject a single related entity draft (local state — excluded when main record is resolved) */
   const handleRejectDraft = useCallback((idx: number, typeLabel: string) => {
     setDraftStatuses((prev) => ({ ...prev, [idx]: 'rejected' }));
-    message.info(`Rejected ${typeLabel} draft.`);
+    message.info(`Marked ${typeLabel} as rejected.`);
   }, []);
 
-  /** Sequential approve-all: process drafts in dependency order, then the main item */
+  /** Created records from sequential approve — maps index to entity info */
+  const [createdRecords, setCreatedRecords] = useState<Record<number, { id: string; type: string; label: string }>>({});
+
+  /** Sequential approve-all: mark all drafts as approved in order, then resolve main with combined data */
   const handleSequentialApproveAll = useCallback(async () => {
-    const pendingDrafts = orderedDrafts.filter((d) => d.status === 'proposed');
+    const pendingDrafts = orderedDrafts.filter(
+      (d) => d.status === 'proposed' && draftStatuses[d.originalIndex] !== 'approved' && draftStatuses[d.originalIndex] !== 'rejected',
+    );
     const total = pendingDrafts.length + 1; // +1 for main resolve
 
     setApproveProgress({ running: true, current: 0, total, currentLabel: 'Starting...' });
 
-    // Step through each draft in dependency order
+    // Step through each draft in dependency order — mark as approved with visual feedback
+    const approvedDraftsData: Record<string, unknown>[] = [];
     for (let i = 0; i < pendingDrafts.length; i++) {
       const draft = pendingDrafts[i];
       const typeLabel = draft.entity_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-      setApproveProgress({ running: true, current: i + 1, total, currentLabel: `Creating ${typeLabel}...` });
+      setApproveProgress({ running: true, current: i + 1, total, currentLabel: `Approving ${typeLabel}...` });
       setDraftStatuses((prev) => ({ ...prev, [draft.originalIndex]: 'approved' }));
+      approvedDraftsData.push({
+        entity_type: draft.entity_type,
+        ...asRecord(draft.proposed_data),
+      });
       // Small delay for visual feedback
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 200));
     }
 
-    // Final step: resolve the main item
-    setApproveProgress({ running: true, current: total, total, currentLabel: 'Saving main record...' });
+    // Final step: resolve the main item with all approved draft data
+    setApproveProgress({ running: true, current: total, total, currentLabel: 'Saving all records...' });
 
     try {
-      await aiStaffApi.resolvePendingReview(item!.id, {
-        user_corrected_data: {},
+      const result = await aiStaffApi.resolvePendingReview(item!.id, {
+        user_corrected_data: {
+          approved_drafts: approvedDraftsData,
+        },
       });
-      message.success(`Approved all ${total} items and saved.`);
+      const createdId = (result as any)?.created_id || (result as any)?.id || '';
+      if (createdId) {
+        setCreatedRecords((prev) => ({
+          ...prev,
+          [-1]: { id: createdId, type: entityType || 'record', label: 'Main Record' },
+        }));
+      }
+      message.success(`✅ All ${total} items approved and saved.`);
       setApproveProgress(null);
       onResolved?.(item!.id);
       if (closeOnResolved) {
@@ -428,7 +447,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
       );
       setApproveProgress(null);
     }
-  }, [orderedDrafts, item, onResolved, closeOnResolved, onClose]);
+  }, [orderedDrafts, draftStatuses, item, entityType, onResolved, closeOnResolved, onClose]);
 
   const handleSurfaceClose = useCallback(() => {
     if (resolvingAfterSaveRef.current) {
@@ -768,7 +787,28 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                       {draft.status !== 'exists' ? (
                         <Space size={4} style={{ marginLeft: 'auto' }}>
                           {draftStatuses[idx] === 'approved' ? (
-                            <Tag color="green" style={{ margin: 0, fontSize: 11 }}>✓ Approved</Tag>
+                            <Space size={4}>
+                              <Tag color="green" style={{ margin: 0, fontSize: 11 }}>✓ Approved</Tag>
+                              {createdRecords[idx] ? (
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  style={{ fontSize: 11, padding: 0, height: 'auto' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const rec = createdRecords[idx];
+                                    const route = rec.type === 'purchase_order' ? 'purchase-orders'
+                                      : rec.type === 'sales_order' ? 'sales-orders'
+                                      : rec.type === 'carrier-pos' ? 'purchase-orders'
+                                      : rec.type === 'inquiry' ? 'inquiries'
+                                      : `${rec.type}s`;
+                                    navigate(`/${route}/${rec.id}`);
+                                  }}
+                                >
+                                  Open →
+                                </Button>
+                              ) : null}
+                            </Space>
                           ) : draftStatuses[idx] === 'rejected' ? (
                             <Tag color="red" style={{ margin: 0, fontSize: 11 }}>✗ Rejected</Tag>
                           ) : (

@@ -246,6 +246,7 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'contact') {
     return {
+      status: 'active',
       first_name: firstString(payload.first_name, payload.contact_first_name) || 'Unknown',
       last_name: firstString(payload.last_name, payload.contact_last_name) || 'Contact',
       email: firstString(payload.email, payload.contact_email, payload.from_email),
@@ -257,6 +258,7 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'customer') {
     return {
+      status: 'active',
       name: firstString(payload.name, payload.customer_name, payload.company_name) || 'New Customer',
       notes: summary,
     };
@@ -264,11 +266,16 @@ export const mapDraftToInitialValues = (
 
   if (entityType === 'supplier') {
     return {
+      status: 'active',
       name: firstString(payload.name, payload.supplier_name, payload.vendor_name, payload.company_name) || 'New Supplier',
       notes: summary,
     };
   }
 
+  // Fallback: inject status default even for unknown entity types
+  if (payload && typeof payload === 'object') {
+    return { status: 'draft', ...payload };
+  }
   return payload;
 };
 
