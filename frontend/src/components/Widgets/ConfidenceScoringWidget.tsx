@@ -134,8 +134,10 @@ export const ConfidenceScoringWidget: React.FC = () => {
       setError(null);
       const response = await businessApi.get('ai-assistant/confidence-metrics/');
       setMetrics(response.data);
-    } catch (err: any) {
-      if (err.response?.status === 404) {
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      if (resp.status === 404) {
         // API not deployed yet — show zeros gracefully
         setMetrics(DEFAULT_METRICS);
       } else {

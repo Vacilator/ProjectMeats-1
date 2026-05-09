@@ -328,10 +328,13 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       }
 
       await fetchEmailLogs();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Failed to trigger sync:', error);
 
-      const code = getEmailSyncErrorCode(error?.response?.data);
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = resp.data as Record<string, unknown> | undefined;
+      const code = getEmailSyncErrorCode(data);
 
       if (emailSyncNeedsReconnect(code)) {
         message.error({
@@ -342,7 +345,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
         return;
       }
 
-      message.error(error?.response?.data?.error || 'Failed to start email sync');
+      message.error((data?.error as string) || 'Failed to start email sync');
     } finally {
       setSyncing(false);
     }
