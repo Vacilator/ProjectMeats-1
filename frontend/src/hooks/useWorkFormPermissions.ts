@@ -44,17 +44,22 @@ export function useWorkFormPermissions() {
         const response = await apiClient.get('/workflows/permissions/');
         logger.debug('[useWorkFormPermissions] SUCCESS - Response:', response.data);
         return response.data;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const status = resp.status as number | undefined;
+        const message = (typeof errObj.message === 'string' ? errObj.message : '');
+        const data = resp.data;
         logger.error('[useWorkFormPermissions] FAILED - Error:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          message: error.message,
+          status,
+          data,
+          message,
           error,
         });
 
         // If 401, let the axios interceptor handle it (token refresh or redirect to login)
         // Don't catch 401 errors - they need to propagate for proper auth handling
-        if (error.response?.status === 401) {
+        if (status === 401) {
           logger.warn('[useWorkFormPermissions] 401 Unauthorized - token expired or invalid');
           throw error; // Let axios interceptor handle token refresh/redirect
         }
@@ -66,9 +71,11 @@ export function useWorkFormPermissions() {
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: unknown) => {
       // Don't retry 401 errors - they'll trigger auth flow
-      if (error?.response?.status === 401) {
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      if (resp.status === 401) {
         return false;
       }
       // Retry other errors once

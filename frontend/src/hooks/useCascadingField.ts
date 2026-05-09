@@ -164,8 +164,11 @@ export const useCascadingField = ({
           : (EMPTY_CHOICES as CascadingFieldOption[]);
 
       setOptions((prev) => (areOptionsEqual(prev, resolvedOptions) ? prev : resolvedOptions));
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to fetch cascaded options';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Failed to fetch cascaded options';
       setError(errorMsg);
       logger.error('Error fetching cascading options', { component: 'useCascadingField' }, err);
       setOptions((prev) => (prev.length ? (EMPTY_CHOICES as CascadingFieldOption[]) : prev));

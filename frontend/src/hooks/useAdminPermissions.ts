@@ -62,16 +62,19 @@ export function useAdminPermissions() {
         }
 
         return response.data;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const status = resp.status as number | undefined;
         // If 401, let the axios interceptor handle it
-        if (error.response?.status === 401) {
+        if (status === 401) {
           throw error;
         }
 
         // Common failure mode: stale/missing tenant context (X-Tenant-ID) can cause a 404.
         // Repair tenant context by resolving /tenants/current/ (which has a server-side fallback)
         // and retry once.
-        if (error.response?.status === 404) {
+        if (status === 404) {
           try {
             const current = await apiClient.get('/tenants/current/');
             const currentTenantId = current.data?.id;
@@ -90,9 +93,9 @@ export function useAdminPermissions() {
         }
 
         logger.error('Failed to fetch admin permissions', { component: 'useAdminPermissions', metadata: {
-          status: error.response?.status,
-          data: error.response?.data,
-          message: error.message,
+          status,
+          data: resp.data,
+          message: (typeof errObj.message === 'string' ? errObj.message : ''),
         } }, error);
 
         // For other errors, return default permissions
@@ -101,8 +104,10 @@ export function useAdminPermissions() {
     },
     enabled: !authLoading && isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often
-    retry: (failureCount, error: any) => {
-      if (error?.response?.status === 401) {
+    retry: (failureCount, error: unknown) => {
+      const eObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const eResp = (eObj.response && typeof eObj.response === 'object' ? eObj.response : {}) as Record<string, unknown>;
+      if (eResp.status === 401) {
         return false;
       }
       return failureCount < 1;

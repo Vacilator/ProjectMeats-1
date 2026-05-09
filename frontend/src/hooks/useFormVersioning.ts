@@ -85,8 +85,11 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
         `/forms/${formId}/version-history/`
       );
       setVersions(response.data || []);
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to fetch version history';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Failed to fetch version history';
       setError(errorMsg);
       logger.error('Error fetching version history', { component: 'useFormVersioning' }, err);
     } finally {
@@ -117,8 +120,11 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
       await fetchVersionHistory();
       
       return response.data;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to enable versioning';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Failed to enable versioning';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
@@ -148,8 +154,11 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
       await fetchVersionHistory();
       
       return response.data;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to create version';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Failed to create version';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
@@ -179,8 +188,11 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
       await fetchVersionHistory();
       
       return response.data;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to rollback';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Failed to rollback';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
@@ -211,8 +223,11 @@ export const useFormVersioning = (formId: string, autoFetch = true) => {
       );
       
       return response.data;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Failed to compare versions';
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Failed to compare versions';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
