@@ -617,6 +617,36 @@ const AICommandCenter: React.FC = () => {
     }
   }, [selectedItem, navigate, handleModalClose]);
 
+  const handleFlowNodeClick = useCallback((entityType: string, entityId: string) => {
+    if (!entityId) {
+      // Empty node — navigate to creation page
+      const createRoute = entityType === 'inquiry'
+        ? '/inquiries'
+        : entityType === 'supplier_purchase_order'
+          ? '/purchase-orders'
+          : entityType === 'sales_order'
+            ? '/sales-orders'
+            : null;
+      if (createRoute) {
+        navigate(`${createRoute}?action=create`);
+        handleModalClose();
+      }
+      return;
+    }
+    // Existing entity — navigate to record
+    const route = entityType === 'inquiry'
+      ? `/inquiries`
+      : entityType === 'supplier_purchase_order' || entityType === 'carrier_purchase_order'
+        ? `/purchase-orders`
+        : entityType === 'sales_order'
+          ? `/sales-orders`
+          : null;
+    if (route) {
+      navigate(`${route}?highlight=${entityId}`);
+      handleModalClose();
+    }
+  }, [navigate, handleModalClose]);
+
   const handleRefreshAll = useCallback(() => {
     tradesQuery.refetch();
     reviewsQuery.refetch();
@@ -1204,7 +1234,11 @@ const AICommandCenter: React.FC = () => {
                 <ModalSectionTitle>Process Flow</ModalSectionTitle>
                 <ProcessFlowHeader inquiryId={selectedItem.inquiry_id} />
                 <div style={{ marginTop: 12 }}>
-                  <TradeLineageFlow inquiryId={selectedItem.inquiry_id} compact />
+                  <TradeLineageFlow
+                    inquiryId={selectedItem.inquiry_id}
+                    onNodeClick={handleFlowNodeClick}
+                    compact
+                  />
                 </div>
               </ModalSection>
             )}
