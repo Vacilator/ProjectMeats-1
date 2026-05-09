@@ -82,7 +82,8 @@ Component Stack: ${errorInfo?.componentStack || 'No component stack'}
     // Open GitHub issue or support email
     window.open(
       `https://github.com/Meats-Central/ProjectMeats/issues/new?title=Admin%20Error&body=${errorDetails}`,
-      '_blank'
+      '_blank',
+      'noopener,noreferrer'
     );
   };
 

@@ -3,9 +3,10 @@
  * A simple rich text editor with formatting toolbar
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { promptDialog } from '@/utils/uiDialogs';
+import { SecurityUtils } from '@/utils/security';
 
 const RichTextContainer = styled.div<{ $hasError?: boolean }>`
   border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
@@ -145,6 +146,8 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
 
+  const sanitizedValue = useMemo(() => SecurityUtils.sanitizeHTML(value), [value]);
+
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
     editorRef.current?.focus();
@@ -283,7 +286,7 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
         onInput={handleInput}
         onKeyDown={handleKeyDown}
         onSelect={updateActiveFormats}
-        dangerouslySetInnerHTML={{ __html: value }}
+        dangerouslySetInnerHTML={{ __html: sanitizedValue }}
         role="textbox"
         aria-multiline="true"
         aria-label="Rich text editor"
