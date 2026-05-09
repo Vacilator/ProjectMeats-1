@@ -18,6 +18,7 @@ ALL MODEL REGISTRATIONS use apps.core.admin_site.admin_site (custom three-tier a
 """
 
 import json
+import logging
 
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -199,8 +200,9 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
             return JsonResponse({"error": "Choice list not found"}, status=404)
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+        except Exception:
+            logging.getLogger(__name__).exception("Choice list import failed")
+            return JsonResponse({"error": "Import failed"}, status=500)
 
     def export_csv_view(self, request, pk):
         """Export choice list items as CSV."""
@@ -272,8 +274,9 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
             return JsonResponse({"success": True, "imported": total_count, "created": created_count})
         except SystemChoiceList.DoesNotExist:
             return JsonResponse({"error": "Choice list not found"}, status=404)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+        except Exception:
+            logging.getLogger(__name__).exception("CSV import failed")
+            return JsonResponse({"error": "Import failed"}, status=500)
 
     @admin.action(description="📤 Export selected as JSON")
     def export_selected_json(self, request, queryset):

@@ -362,7 +362,7 @@ class TenantMiddleware:
                     cursor.execute("RESET app.current_tenant_id")
                     cursor.execute("RESET app.current_tenant")
             except Exception:
-                pass  # Silently fail for RESET
+                logger.debug("RLS RESET failed (non-critical)", exc_info=True)
 
         # Set tenant_user if we have both tenant and an authenticated actor (session-auth or force_authenticate)
         if tenant and tenant_actor:
