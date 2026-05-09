@@ -8,12 +8,13 @@
  * - Navigation to related entities
  * - Empty state
  */
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, Check, CheckCheck, X, Clock, AlertCircle,
-  CheckCircle, MessageSquare, FileText, Workflow, Info
+  CheckCircle, MessageSquare, FileText, Workflow, Info,
+  Filter
 } from 'lucide-react';
 import { useNotifications, Notification, NotificationType } from '../../contexts/NotificationsContext';
 import { logger } from '@/utils/logger';
@@ -247,6 +248,66 @@ const LoadingState = styled.div`
 // HELPERS
 // ============================================================================
 
+/** Notification types that require user action */
+const ACTION_REQUIRED_TYPES: Set<NotificationType> = new Set([
+  'task_assigned',
+  'task_due_soon',
+  'task_overdue',
+  'form_submitted',
+  'form_rejected',
+  'workflow_trigger',
+]);
+
+function isActionRequired(notification: Notification): boolean {
+  return (
+    ACTION_REQUIRED_TYPES.has(notification.notification_type) ||
+    notification.priority === 'urgent' ||
+    notification.priority === 'high'
+  );
+}
+
+/**
+ * Map a notification's action_url to the new Command Center route
+ * when it pointed to old fragmented pages.
+ */
+function resolveActionUrl(notification: Notification): string {
+  const url = notification.action_url;
+  if (!url) return '';
+
+  // Redirect old process-cockpit / trader-cockpit links into Command Center
+  if (url.startsWith('/process-cockpit') || url.includes('process-cockpit')) {
+    return '/command-center?tab=action-required';
+  }
+  if (url.startsWith('/trader-cockpit') || url.includes('trader-cockpit')) {
+    return '/command-center?tab=pipeline';
+  }
+
+  return url;
+}
+
+const FilterToggle = styled.button<{ $active: boolean }>`
+  background: ${({ $active }) =>
+    $active ? 'rgb(var(--color-primary) / 0.1)' : 'transparent'};
+  border: 1px solid ${({ $active }) =>
+    $active ? 'rgb(var(--color-primary) / 0.3)' : 'transparent'};
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: ${({ $active }) =>
+    $active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgb(var(--color-primary) / 0.08);
+    color: rgb(var(--color-primary));
+  }
+`;
+
 function getIconBackground(type: NotificationType): string {
   switch (type) {
     case 'task_assigned':
@@ -369,6 +430,7 @@ interface NotificationPanelProps {
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
   const navigate = useNavigate();
+  const [actionOnly, setActionOnly] = useState(true);
   const {
     notifications,
     unreadCount,
@@ -378,8 +440,13 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
     dismissNotification
   } = useNotifications();
 
-  const groupedNotifications = groupNotificationsByTime(notifications);
-  const hasNotifications = notifications.length > 0;
+  const displayedNotifications = useMemo(() => {
+    if (!actionOnly) return notifications;
+    return notifications.filter(isActionRequired);
+  }, [notifications, actionOnly]);
+
+  const groupedNotifications = groupNotificationsByTime(displayedNotifications);
+  const hasNotifications = displayedNotifications.length > 0;
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.is_read) {
@@ -390,8 +457,9 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
       }
     }
 
-    if (notification.action_url) {
-      navigate(notification.action_url);
+    const url = resolveActionUrl(notification);
+    if (url) {
+      navigate(url);
       onClose();
     }
   };
@@ -415,6 +483,14 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
           {unreadCount > 0 && <UnreadBadge>{unreadCount}</UnreadBadge>}
         </Title>
         <HeaderActions>
+          <FilterToggle
+            $active={actionOnly}
+            onClick={() => setActionOnly((v) => !v)}
+            title={actionOnly ? 'Showing action-required only' : 'Showing all notifications'}
+          >
+            <Filter size={12} />
+            {actionOnly ? 'Action Only' : 'All'}
+          </FilterToggle>
           {unreadCount > 0 && (
             <HeaderButton onClick={markAllAsRead}>
               <CheckCheck size={14} />
