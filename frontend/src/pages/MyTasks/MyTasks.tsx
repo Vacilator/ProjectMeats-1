@@ -63,13 +63,13 @@ const StatsBar = styled.div`
 const Title = styled.h1`
   font-size: 28px;
   font-weight: 600;
-  color: rgb(var(--color-text-primary, 44 62 80));
+  color: rgb(var(--color-text-primary));
   margin: 0;
 `;
 
 const CountBadge = styled.span`
-  background: rgb(var(--color-primary, 102 126 234));
-  color: rgb(var(--color-primary-foreground, 255 255 255));
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-primary-foreground));
   font-size: 14px;
   font-weight: 600;
   padding: 4px 12px;
@@ -86,9 +86,9 @@ const TabsRow = styled.div`
 const TabButton = styled.button<{ $active: boolean }>`
   padding: 10px 16px;
   border-radius: 999px;
-  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border, 224 224 224))'};
-  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.12)' : 'rgb(var(--color-surface, 255 255 255))'};
-  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-primary, 44 62 80))'};
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.12)' : 'rgb(var(--color-surface))'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-primary))'};
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -100,7 +100,7 @@ const FiltersBar = styled.div`
   flex-wrap: wrap;
   margin-bottom: 24px;
   padding: 16px;
-  background: rgb(var(--color-surface, 255 255 255));
+  background: rgb(var(--color-surface));
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
 `;
@@ -114,21 +114,21 @@ const FilterGroup = styled.div`
 const FilterLabel = styled.label`
   font-size: 13px;
   font-weight: 500;
-  color: rgb(var(--color-text-secondary, 127 140 141));
+  color: rgb(var(--color-text-secondary));
 `;
 
 const FilterSelect = styled.select`
   padding: 8px 12px;
-  border: 1px solid rgb(var(--color-border, 224 224 224));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   font-size: 14px;
-  color: rgb(var(--color-text-primary, 44 62 80));
-  background: rgb(var(--color-surface, 255 255 255));
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface));
   cursor: pointer;
 
   &:focus {
     outline: none;
-    border-color: rgb(var(--color-primary, 102 126 234));
+    border-color: rgb(var(--color-primary));
   }
 `;
 
@@ -136,17 +136,17 @@ const SearchInput = styled.input`
   flex: 1;
   min-width: 200px;
   padding: 8px 12px;
-  border: 1px solid rgb(var(--color-border, 224 224 224));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   font-size: 14px;
   
   &:focus {
     outline: none;
-    border-color: rgb(var(--color-primary, 102 126 234));
+    border-color: rgb(var(--color-primary));
   }
 
   &::placeholder {
-    color: rgb(var(--color-text-secondary, 127 140 141));
+    color: rgb(var(--color-text-secondary));
   }
 `;
 
@@ -159,7 +159,7 @@ const StatsGrid = styled.div`
 
 const StatCard = styled.div<{ $variant?: 'danger' | 'warning' | 'info' | 'default' }>`
   padding: 20px;
-  background: rgb(var(--color-surface, 255 255 255));
+  background: rgb(var(--color-surface));
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
   border-left: 4px solid ${props => {
@@ -167,7 +167,7 @@ const StatCard = styled.div<{ $variant?: 'danger' | 'warning' | 'info' | 'defaul
       case 'danger': return 'rgb(var(--color-error))';
       case 'warning': return 'rgb(var(--color-warning))';
       case 'info': return 'rgb(var(--color-info))';
-      default: return 'rgb(var(--color-primary, 102 126 234))';
+      default: return 'rgb(var(--color-primary))';
     }
   }};
 `;
@@ -175,12 +175,12 @@ const StatCard = styled.div<{ $variant?: 'danger' | 'warning' | 'info' | 'defaul
 const StatValue = styled.div`
   font-size: 32px;
   font-weight: 700;
-  color: rgb(var(--color-text-primary, 44 62 80));
+  color: rgb(var(--color-text-primary));
 `;
 
 const StatLabel = styled.div`
   font-size: 13px;
-  color: rgb(var(--color-text-secondary, 127 140 141));
+  color: rgb(var(--color-text-secondary));
   margin-top: 4px;
 `;
 
@@ -195,8 +195,8 @@ const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean; $isAtRisk?
   align-items: flex-start;
   padding: 16px 20px;
   background: ${props => props.$isAtRisk 
-    ? 'linear-gradient(135deg, rgba(var(--color-error), 0.05) 0%, rgb(var(--color-surface, 255 255 255)) 100%)'
-    : 'rgb(var(--color-surface, 255 255 255))'
+    ? 'linear-gradient(135deg, rgba(var(--color-error), 0.05) 0%, rgb(var(--color-surface)) 100%)'
+    : 'rgb(var(--color-surface))'
   };
   border-radius: 8px;
   box-shadow: ${props => props.$isAtRisk 
@@ -210,7 +210,7 @@ const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean; $isAtRisk?
       case 'urgent': return 'rgb(var(--color-error))';
       case 'high': return 'rgb(var(--color-warning))';
       case 'normal': return 'rgb(var(--color-info))';
-      default: return 'rgb(var(--color-border, 224 224 224))';
+      default: return 'rgb(var(--color-border))';
     }
   }};
   cursor: pointer;
@@ -232,13 +232,13 @@ const TaskContent = styled.div`
 const TaskTitle = styled.h3`
   font-size: 16px;
   font-weight: 600;
-  color: rgb(var(--color-text-primary, 44 62 80));
+  color: rgb(var(--color-text-primary));
   margin: 0 0 4px 0;
 `;
 
 const TaskDescription = styled.p`
   font-size: 14px;
-  color: rgb(var(--color-text-secondary, 127 140 141));
+  color: rgb(var(--color-text-secondary));
   margin: 0 0 12px 0;
 `;
 
@@ -253,7 +253,7 @@ const TaskMetaItem = styled.span`
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: rgb(var(--color-text-secondary, 127 140 141));
+  color: rgb(var(--color-text-secondary));
 `;
 
 const PriorityBadge = styled.span<{ $priority: string }>`
@@ -321,8 +321,8 @@ const TaskActions = styled.div`
 
 const ActionButton = styled.button`
   padding: 8px 16px;
-  background: rgb(var(--color-primary, 102 126 234));
-  color: rgb(var(--color-primary-foreground, 255 255 255));
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -338,8 +338,8 @@ const ActionButton = styled.button`
 const SecondaryButton = styled.button`
   padding: 8px 16px;
   background: transparent;
-  color: rgb(var(--color-primary, 102 126 234));
-  border: 1px solid rgb(var(--color-primary, 102 126 234));
+  color: rgb(var(--color-primary));
+  border: 1px solid rgb(var(--color-primary));
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
@@ -347,7 +347,7 @@ const SecondaryButton = styled.button`
   transition: background 0.15s ease;
 
   &:hover {
-    background: rgba(var(--color-primary, 102 126 234), 0.1);
+    background: rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -356,18 +356,18 @@ const HistoryToggle = styled.button`
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: rgb(var(--color-surface, 255 255 255));
-  border: 1px solid rgb(var(--color-border, 224 224 224));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: rgb(var(--color-text-primary, 44 62 80));
+  color: rgb(var(--color-text-primary));
   cursor: pointer;
   transition: border-color 0.15s ease;
   margin-bottom: 24px;
 
   &:hover {
-    border-color: rgb(var(--color-primary, 102 126 234));
+    border-color: rgb(var(--color-primary));
   }
 `;
 
@@ -393,8 +393,8 @@ const ReviewQueueCard = styled.div`
   justify-content: space-between;
   gap: 16px;
   padding: 20px;
-  background: rgb(var(--color-surface, 255 255 255));
-  border: 1px solid rgb(var(--color-border, 224 224 224));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 12px;
   box-shadow: var(--shadow-sm);
 `;
@@ -408,13 +408,13 @@ const ReviewQueueTitle = styled.h3`
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: rgb(var(--color-text-primary, 44 62 80));
+  color: rgb(var(--color-text-primary));
 `;
 
 const ReviewQueueSubtitle = styled.p`
   margin: 0;
   font-size: 14px;
-  color: rgb(var(--color-text-secondary, 127 140 141));
+  color: rgb(var(--color-text-secondary));
 `;
 
 const ReviewQueueDetails = styled.div`
@@ -422,7 +422,7 @@ const ReviewQueueDetails = styled.div`
   flex-wrap: wrap;
   gap: 12px;
   font-size: 13px;
-  color: rgb(var(--color-text-secondary, 127 140 141));
+  color: rgb(var(--color-text-secondary));
 `;
 
 const ReviewQueueBadge = styled.span<{ $tone?: 'info' | 'warning' }>`
@@ -451,7 +451,7 @@ const SectionHeader = styled.div`
 const SectionTitle = styled.h2`
   font-size: 20px;
   font-weight: 600;
-  color: rgb(var(--color-text-primary, 44 62 80));
+  color: rgb(var(--color-text-primary));
   margin: 0;
 `;
 
@@ -462,14 +462,14 @@ const WorkflowGrid = styled.div`
 `;
 
 const WorkflowCard = styled.div`
-  background: rgb(var(--color-surface, 255 255 255));
-  border: 1px solid rgb(var(--color-border, 224 224 224));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   padding: 20px;
   transition: all 0.15s ease;
   
   &:hover {
-    border-color: rgb(var(--color-primary, 102 126 234));
+    border-color: rgb(var(--color-primary));
     box-shadow: var(--shadow-md);
   }
 `;
@@ -484,20 +484,20 @@ const WorkflowHeader = styled.div`
 const WorkflowTitle = styled.h3`
   font-size: 16px;
   font-weight: 600;
-  color: rgb(var(--color-text-primary, 44 62 80));
+  color: rgb(var(--color-text-primary));
   margin: 0 0 4px 0;
   flex: 1;
 `;
 
 const WorkflowMeta = styled.div`
   font-size: 13px;
-  color: rgb(var(--color-text-secondary, 127 140 141));
+  color: rgb(var(--color-text-secondary));
   margin-bottom: 12px;
 `;
 
 const ProgressBar = styled.div`
   height: 6px;
-  background: rgb(var(--color-border, 224 224 224));
+  background: rgb(var(--color-border));
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 8px;
@@ -506,7 +506,7 @@ const ProgressBar = styled.div`
 const ProgressFill = styled.div<{ $percent: number }>`
   height: 100%;
   width: ${({ $percent }) => $percent}%;
-  background: rgb(var(--color-primary, 102 126 234));
+  background: rgb(var(--color-primary));
   border-radius: 3px;
   transition: width 0.3s ease;
 `;
@@ -516,7 +516,7 @@ const ProgressText = styled.div`
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
-  color: rgb(var(--color-text-tertiary, 127 140 141));
+  color: rgb(var(--color-text-tertiary));
   margin-bottom: 12px;
 `;
 
@@ -532,8 +532,8 @@ const ResumeButton = styled.button`
   justify-content: center;
   gap: 6px;
   padding: 10px 16px;
-  background: rgb(var(--color-primary, 102 126 234));
-  color: rgb(var(--color-primary-foreground, 255 255 255));
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-primary-foreground));
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -554,7 +554,7 @@ const ResumeButton = styled.button`
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;
-  background: rgb(var(--color-surface, 255 255 255));
+  background: rgb(var(--color-surface));
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
 `;
@@ -567,13 +567,13 @@ const EmptyIcon = styled.div`
 const EmptyTitle = styled.h3`
   font-size: 20px;
   font-weight: 600;
-  color: rgb(var(--color-text-primary, 44 62 80));
+  color: rgb(var(--color-text-primary));
   margin: 0 0 8px 0;
 `;
 
 const EmptyText = styled.p`
   font-size: 14px;
-  color: rgb(var(--color-text-secondary, 127 140 141));
+  color: rgb(var(--color-text-secondary));
   margin: 0;
 `;
 
@@ -587,8 +587,8 @@ const LoadingSpinner = styled.div`
     content: '';
     width: 40px;
     height: 40px;
-    border: 3px solid rgb(var(--color-border, 224 224 224));
-    border-top-color: rgb(var(--color-primary, 102 126 234));
+    border: 3px solid rgb(var(--color-border));
+    border-top-color: rgb(var(--color-primary));
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -1107,7 +1107,7 @@ export const MyTasks: React.FC = () => {
                       expandedRowRender: (item: PendingReviewItem) => (
                         <div style={{ display: 'grid', gap: 8 }}>
                           <div>{item.source_subject || 'AI Draft'}</div>
-                          <div style={{ color: 'rgb(var(--color-text-secondary, 127 140 141))' }}>
+                          <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
                             {item.source_summary ||
                               'Open the draft to inspect the parsed payload and save the final entity.'}
                           </div>
