@@ -711,7 +711,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           </SearchOptions>
         )}
 
-        <ResultsContainer>
+        <ResultsContainer aria-live="polite" role="listbox" aria-label="Search results">
           {isLoading ? (
             <LoadingSpinner>Searching...</LoadingSpinner>
           ) : query.length >= 2 ? (
@@ -723,6 +723,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                   <ResultItem
                     key={`${item.type}-${item.id}`}
                     $isSelected={index === selectedIndex}
+                    role="option"
+                    aria-selected={index === selectedIndex}
                     onClick={() => handleSelect(item)}
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
@@ -770,6 +772,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                     <ResultItem
                       key={`${item.type}-${item.id}`}
                       $isSelected={index === selectedIndex}
+                      role="option"
+                      aria-selected={index === selectedIndex}
                       onClick={() => handleSelect(item)}
                       onMouseEnter={() => setSelectedIndex(index)}
                     >

@@ -555,6 +555,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                 value={proteinType}
                 onChange={(e) => setProteinType(e.target.value)}
                 placeholder="e.g., Beef Ribeye"
+                aria-label="Protein type"
               />
             </FieldGroup>
           </FieldRow>
@@ -571,6 +572,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                 options={customerOptions}
                 loading={customersQuery.isLoading}
                 placeholder="Select customer"
+                aria-label="Customer"
                 filterOption={(input, option) =>
                   (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
                 }
@@ -589,6 +591,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                   options={supplierOptions}
                   loading={suppliersQuery.isLoading}
                   placeholder="Select supplier"
+                  aria-label="Supplier"
                   filterOption={(input, option) =>
                     (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
                   }
@@ -601,7 +604,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
           {weight && (
             <FieldGroup>
               <FieldLabel>Estimated Weight</FieldLabel>
-              <Input size="small" value={weight} onChange={(e) => setWeight(e.target.value)} />
+              <Input size="small" value={weight} onChange={(e) => setWeight(e.target.value)} aria-label="Estimated weight" />
             </FieldGroup>
           )}
 
@@ -613,6 +616,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
               value={description || freeText}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Any additional context..."
+              aria-label="Notes or description"
             />
           </FieldGroup>
         </FormSection>
@@ -749,6 +753,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                 options={customerOptions}
                 loading={customersQuery.isLoading}
                 placeholder="Select or skip"
+                aria-label="Customer"
                 filterOption={(input, option) =>
                   (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
                 }
@@ -767,6 +772,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                   options={supplierOptions}
                   loading={suppliersQuery.isLoading}
                   placeholder="Select or skip"
+                  aria-label="Supplier"
                   filterOption={(input, option) =>
                     (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
                   }

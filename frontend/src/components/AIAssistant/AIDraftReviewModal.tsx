@@ -914,6 +914,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                               <Button
                                 size="small"
                                 type="primary"
+                                aria-label={`Approve ${typeLabel}`}
                                 style={{ fontSize: 11, padding: '0 8px', height: 22 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -925,6 +926,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                               <Button
                                 size="small"
                                 danger
+                                aria-label={`Reject ${typeLabel}`}
                                 style={{ fontSize: 11, padding: '0 8px', height: 22 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
