@@ -659,7 +659,7 @@ const ProcessMonitor: React.FC = () => {
                           borderRadius: 6,
                           border: 'none',
                           background: 'rgb(var(--color-success))',
-                          color: '#fff',
+                          color: 'rgb(var(--color-text-inverse, 255 255 255))',
                           fontWeight: 600,
                           fontSize: 13,
                           cursor: 'pointer',
