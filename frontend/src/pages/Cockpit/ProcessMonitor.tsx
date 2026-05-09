@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import { X, RefreshCw } from 'lucide-react';
+import { message } from 'antd';
 
 import EmailIngestionCockpitPanel from '../../components/Cockpit/EmailIngestionCockpitPanel';
 import { businessApi } from '../../services/businessApi';
@@ -646,6 +647,51 @@ const ProcessMonitor: React.FC = () => {
                       <DetailLabel>Details</DetailLabel>
                       <DetailValue style={{ fontWeight: 400 }}>{selectedNodeData.description}</DetailValue>
                     </DetailRow>
+                  )}
+                  {/* Node-level Approve / Reject actions */}
+                  {(selectedNodeData.type === 'approvalGate' || selectedNodeData.status === 'active') && (
+                    <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: 'rgb(var(--color-success))',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => {
+                          message.success(`Approved node: ${selectedNodeData.label}`);
+                          setSelectedNodeId(null);
+                        }}
+                      >
+                        ✓ Approve
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          border: '1px solid rgb(var(--color-error))',
+                          background: 'transparent',
+                          color: 'rgb(var(--color-error))',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => {
+                          message.info(`Rejected node: ${selectedNodeData.label}`);
+                          setSelectedNodeId(null);
+                        }}
+                      >
+                        ✗ Reject
+                      </button>
+                    </div>
                   )}
                 </>
               ) : (

@@ -781,7 +781,22 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'entityType': // FIX: Added entityType field
       case 'entity-selector':
         // Use simple select dropdown for entity TYPE selection
-        renderedField = renderEntityTypeSelect(commonProps);
+        renderedField = (
+          <div>
+            {renderEntityTypeSelect(commonProps)}
+            {/* Quick-create link for missing master data entities */}
+            {value && ['supplier', 'customer', 'contact', 'plant'].includes(String(value)) && (
+              <span
+                style={{ fontSize: 11, color: 'var(--ant-color-primary)', cursor: 'pointer', marginTop: 4, display: 'inline-block' }}
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('quick-create-entity', { detail: { entityType: String(value) } }));
+                }}
+              >
+                + Create new {String(value)}
+              </span>
+            )}
+          </div>
+        );
         break;
       
       // Complex renderers (Phase D.3) - kept for field-level operations

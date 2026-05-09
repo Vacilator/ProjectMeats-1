@@ -125,6 +125,8 @@ class E2EProcessExecutors:
         """Evaluate received bids using weighted criteria.
 
         Scoring factors: price (40%), reliability (25%), lead_time (20%), quality (15%).
+        Uses enriched contact data (Plant Contact Type, Title, Responsible For)
+        for winner notification routing when available.
         Returns the winning bid or empty if no bids meet threshold.
         """
         try:
@@ -174,6 +176,9 @@ class E2EProcessExecutors:
                     telemetry_event="e2e_inquiry_to_po.bid.no_eligible",
                 )
 
+            # Resolve enriched contact data for the winning supplier
+            contact_routing = self._resolve_winner_contact(winner, config)
+
             logger.info(
                 "[E2E] Bid selected: %s (score=%.3f, margin=%.2f%%)",
                 winner.supplier_name, winner.weighted_score, winner.margin_percent,
@@ -190,6 +195,7 @@ class E2EProcessExecutors:
                     "meets_threshold": winner.meets_threshold,
                     "total_bids_evaluated": len(evaluations),
                     "eligible_bids": len([e for e in evaluations if e.meets_threshold]),
+                    "contact_routing": contact_routing,
                 },
                 telemetry_event="e2e_inquiry_to_po.bid.selected",
             )
@@ -197,6 +203,29 @@ class E2EProcessExecutors:
         except Exception as e:
             logger.exception("[E2E] bid_selection failed: %s", e)
             return ExecutorResult(success=False, error=str(e))
+
+    def _resolve_winner_contact(
+        self, winner: BidEvaluation, config: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Resolve enriched contact details for the winning bid supplier.
+
+        Uses Plant Contact Type, Title, and Responsible For fields when available.
+        """
+        routing: dict[str, Any] = {"supplier_name": winner.supplier_name}
+        try:
+            from .contact_resolution import resolve_contacts_for_node
+
+            contact_config = config.get("contactResolution", {})
+            if contact_config:
+                resolved = resolve_contacts_for_node(
+                    self.context.get("tenant_id", ""),
+                    {"supplier_name": winner.supplier_name},
+                    contact_config,
+                )
+                routing.update(resolved)
+        except Exception:
+            logger.debug("[E2E] Contact resolution not available for bid winner")
+        return routing
 
     def check_bids(self, config: dict[str, Any]) -> ExecutorResult:
         """Check for new bid responses from suppliers.

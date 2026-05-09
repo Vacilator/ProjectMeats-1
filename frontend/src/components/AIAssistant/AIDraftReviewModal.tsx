@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Modal, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Collapse, Modal, Space, Tag, Typography, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -330,192 +330,200 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
   }
 
   return (
-    <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(280px, 320px) minmax(0, 1fr)' }}>
-      <div style={{ display: 'grid', gap: 12 }}>
-        <div
-          style={{
-            border: '1px solid rgb(var(--color-border))',
-            borderRadius: 12,
-            padding: 16,
-            background: 'rgb(var(--color-surface))',
+    <div style={{ display: 'grid', gap: 16 }}>
+      {/* Top-level batch actions */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 8,
+        padding: '8px 0',
+        borderBottom: '1px solid rgb(var(--color-border))',
+      }}>
+        <Button
+          type="primary"
+          onClick={() => {
+            void handleResolved({});
+            if (relatedEntityDrafts.length > 0) {
+              message.success(`Approved main draft + ${relatedEntityDrafts.filter(d => d.status === 'proposed').length} related entities.`);
+            }
           }}
         >
-          <Title level={5} style={{ marginTop: 0 }}>
-            Source Context
-          </Title>
-          <div style={{ display: 'grid', gap: 8 }}>
-            <Text strong>{item.source_subject || item.intent_label || 'Untitled AI draft'}</Text>
-            <div>
-              <Tag color="blue">{item.intent_label || 'AI Draft'}</Tag>
-              {item.sender ? <Tag>{item.sender}</Tag> : null}
-            </div>
-            <Text type="secondary">
-              Received {item.created_on ? new Date(item.created_on).toLocaleString() : 'recently'}
-            </Text>
-            {item.source_document_name ? (
-              <Text type="secondary">Attachment: {item.source_document_name}</Text>
-            ) : null}
-            {payload.po_number ? (
-              <Text type="secondary">PO #: {String(payload.po_number)}</Text>
-            ) : null}
-            {payload.bol_number ? (
-              <Text type="secondary">BOL #: {String(payload.bol_number)}</Text>
-            ) : null}
-            {payload.total_amount ? (
-              <Text type="secondary">Amount: {String(payload.total_amount)}</Text>
-            ) : null}
-            {sourcePreview ? (
-              <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
-                {sourcePreview}
-              </Paragraph>
-            ) : (
-              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                Showing the extracted payload because the original email body was not included in this draft.
-              </Paragraph>
-            )}
-            {reviewDetailsPath ? (
-              <Space size={8} wrap>
-                <Button type="primary" onClick={() => navigate(reviewDetailsPath)}>
-                  Review Details
-                </Button>
-                <Text type="secondary">
-                  Opens the canonical record with the workflow view selected.
-                </Text>
-              </Space>
-            ) : null}
-            <AIInboxFeedbackActions
-              item={item}
-              onSubmitted={(submission) => {
-                if (!item?.id) {
-                  return;
-                }
-                onFeedbackSubmitted?.(item.id, submission);
-              }}
-            />
-          </div>
-        </div>
-
-        {attachmentCount > 0 ? (
-          <div
-            style={{
-              border: '1px solid rgb(var(--color-border))',
-              borderRadius: 12,
-              padding: 16,
-              background: 'rgb(var(--color-surface))',
-            }}
-          >
-            <Title level={5} style={{ marginTop: 0 }}>
-              Attachments ({attachmentCount})
-            </Title>
-            <div style={{ display: 'grid', gap: 6 }}>
-              {(attachmentDocTypes.length > 0 ? attachmentDocTypes : attachmentFilenames.map((n) => ({ name: n, doc_type: '' }))).map(
-                (att, idx) => (
-                  <div
-                    key={att.name || idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '4px 0',
-                    }}
-                  >
-                    <Text style={{ fontSize: 13 }}>
-                      {(() => {
-                        const ext = (att.name || '').split('.').pop()?.toLowerCase() ?? '';
-                        const icon =
-                          ['pdf'].includes(ext) ? '📄' :
-                          ['xlsx', 'xls', 'csv'].includes(ext) ? '📊' :
-                          ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? '🖼️' :
-                          ['doc', 'docx'].includes(ext) ? '📝' :
-                          '📎';
-                        return `${icon} `;
-                      })()}
-                      {att.name || `Attachment ${idx + 1}`}
-                    </Text>
-                    {att.doc_type && att.doc_type !== 'other' ? (
-                      <Tag color="geekblue" style={{ margin: 0 }}>
-                        {att.doc_type.replace(/_/g, ' ')}
-                      </Tag>
-                    ) : null}
+          ✓ Approve All &amp; Save
+        </Button>
+        <Button
+          danger
+          onClick={() => {
+            message.info('Rejected all drafts from this review.');
+            onClose?.();
+          }}
+        >
+          ✗ Reject All
+        </Button>
+      </div>
+      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(280px, 320px) minmax(0, 1fr)' }}>
+      <div style={{ display: 'grid', gap: 12 }}>
+        <Collapse
+          defaultActiveKey={['source', 'attachments', 'contacts', 'payload']}
+          size="small"
+          items={[
+            {
+              key: 'source',
+              label: 'Source Context',
+              children: (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <Text strong>{item.source_subject || item.intent_label || 'Untitled AI draft'}</Text>
+                  <div>
+                    <Tag color="blue">{item.intent_label || 'AI Draft'}</Tag>
+                    {item.sender ? <Tag>{item.sender}</Tag> : null}
                   </div>
-                ),
-              )}
-            </div>
-          </div>
-        ) : null}
-
-        {contactRoles.length > 0 ? (
-          <div
-            style={{
-              border: '1px solid rgb(var(--color-border))',
-              borderRadius: 12,
-              padding: 16,
-              background: 'rgb(var(--color-surface))',
-            }}
-          >
-            <Title level={5} style={{ marginTop: 0 }}>
-              Contact Routing
-            </Title>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {contactRoles.map((role) => (
-                <div
-                  key={role.key}
-                  style={{
-                    border: '1px solid rgb(var(--color-border))',
-                    borderRadius: 10,
-                    padding: 12,
-                    background: 'rgb(var(--color-background))',
-                    display: 'grid',
-                    gap: 6,
-                  }}
-                >
-                  <Space size={8} wrap>
-                    <Tag color="blue">{role.roleLabel}</Tag>
-                    {role.title ? <Text type="secondary">{role.title}</Text> : null}
-                  </Space>
-                  <Text strong>{role.header}</Text>
-                  {role.email ? <Text type="secondary">{role.email}</Text> : null}
-                  {role.responsibilities.length > 0 ? (
-                    <Space size={[4, 4]} wrap>
-                      {role.responsibilities.slice(0, 4).map((value) => (
-                        <Tag key={value}>{value}</Tag>
-                      ))}
+                  <Text type="secondary">
+                    Received {item.created_on ? new Date(item.created_on).toLocaleString() : 'recently'}
+                  </Text>
+                  {item.source_document_name ? (
+                    <Text type="secondary">Attachment: {item.source_document_name}</Text>
+                  ) : null}
+                  {payload.po_number ? (
+                    <Text type="secondary">PO #: {String(payload.po_number)}</Text>
+                  ) : null}
+                  {payload.bol_number ? (
+                    <Text type="secondary">BOL #: {String(payload.bol_number)}</Text>
+                  ) : null}
+                  {payload.total_amount ? (
+                    <Text type="secondary">Amount: {String(payload.total_amount)}</Text>
+                  ) : null}
+                  {sourcePreview ? (
+                    <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
+                      {sourcePreview}
+                    </Paragraph>
+                  ) : (
+                    <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                      Showing the extracted payload because the original email body was not included in this draft.
+                    </Paragraph>
+                  )}
+                  {reviewDetailsPath ? (
+                    <Space size={8} wrap>
+                      <Button type="primary" onClick={() => navigate(reviewDetailsPath)}>
+                        Review Details
+                      </Button>
+                      <Text type="secondary">
+                        Opens the canonical record with the workflow view selected.
+                      </Text>
                     </Space>
                   ) : null}
-                  {role.detailPath ? (
-                    <Button type="link" style={{ paddingLeft: 0 }} onClick={() => navigate(role.detailPath!)}>
-                      Open contact
-                    </Button>
-                  ) : null}
+                  <AIInboxFeedbackActions
+                    item={item}
+                    onSubmitted={(submission) => {
+                      if (!item?.id) {
+                        return;
+                      }
+                      onFeedbackSubmitted?.(item.id, submission);
+                    }}
+                  />
                 </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        <div
-          style={{
-            border: '1px solid rgb(var(--color-border))',
-            borderRadius: 12,
-            padding: 16,
-            background: 'rgb(var(--color-surface))',
-          }}
-        >
-          <Title level={5} style={{ marginTop: 0 }}>
-            Parsed Payload
-          </Title>
-          <pre
-            style={{
-              margin: 0,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              fontSize: 12,
-              color: 'rgb(var(--color-text-secondary))',
-            }}
-          >
-            {JSON.stringify(payload, null, 2)}
-          </pre>
-        </div>
+              ),
+            },
+            ...(attachmentCount > 0
+              ? [
+                  {
+                    key: 'attachments',
+                    label: `Attachments (${attachmentCount})`,
+                    children: (
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        {(attachmentDocTypes.length > 0 ? attachmentDocTypes : attachmentFilenames.map((n) => ({ name: n, doc_type: '' }))).map(
+                          (att, idx) => (
+                            <div
+                              key={att.name || idx}
+                              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}
+                            >
+                              <Text style={{ fontSize: 13 }}>
+                                {(() => {
+                                  const ext = (att.name || '').split('.').pop()?.toLowerCase() ?? '';
+                                  const icon =
+                                    ['pdf'].includes(ext) ? '📄' :
+                                    ['xlsx', 'xls', 'csv'].includes(ext) ? '📊' :
+                                    ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? '🖼️' :
+                                    ['doc', 'docx'].includes(ext) ? '📝' :
+                                    '📎';
+                                  return `${icon} `;
+                                })()}
+                                {att.name || `Attachment ${idx + 1}`}
+                              </Text>
+                              {att.doc_type && att.doc_type !== 'other' ? (
+                                <Tag color="geekblue" style={{ margin: 0 }}>
+                                  {att.doc_type.replace(/_/g, ' ')}
+                                </Tag>
+                              ) : null}
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+            ...(contactRoles.length > 0
+              ? [
+                  {
+                    key: 'contacts',
+                    label: 'Contact Routing',
+                    children: (
+                      <div style={{ display: 'grid', gap: 10 }}>
+                        {contactRoles.map((role) => (
+                          <div
+                            key={role.key}
+                            style={{
+                              border: '1px solid rgb(var(--color-border))',
+                              borderRadius: 10,
+                              padding: 12,
+                              background: 'rgb(var(--color-background))',
+                              display: 'grid',
+                              gap: 6,
+                            }}
+                          >
+                            <Space size={8} wrap>
+                              <Tag color="blue">{role.roleLabel}</Tag>
+                              {role.title ? <Text type="secondary">{role.title}</Text> : null}
+                            </Space>
+                            <Text strong>{role.header}</Text>
+                            {role.email ? <Text type="secondary">{role.email}</Text> : null}
+                            {role.responsibilities.length > 0 ? (
+                              <Space size={[4, 4]} wrap>
+                                {role.responsibilities.slice(0, 4).map((value) => (
+                                  <Tag key={value}>{value}</Tag>
+                                ))}
+                              </Space>
+                            ) : null}
+                            {role.detailPath ? (
+                              <Button type="link" style={{ paddingLeft: 0 }} onClick={() => navigate(role.detailPath!)}>
+                                Open contact
+                              </Button>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+            {
+              key: 'payload',
+              label: 'Parsed Payload',
+              children: (
+                <pre
+                  style={{
+                    margin: 0,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    fontSize: 12,
+                    color: 'rgb(var(--color-text-secondary))',
+                  }}
+                >
+                  {JSON.stringify(payload, null, 2)}
+                </pre>
+              ),
+            },
+          ]}
+        />
       </div>
 
       <div>
@@ -700,6 +708,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           }}
         />
       )}
+    </div>
     </div>
   );
 };
