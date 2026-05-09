@@ -82,9 +82,19 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
         )
 
         if include_deleted and is_admin:
-            return PurchaseOrder.all_objects.for_tenant(self.request.tenant)
+            qs = PurchaseOrder.all_objects.for_tenant(self.request.tenant)
+        else:
+            qs = PurchaseOrder.objects.for_tenant(self.request.tenant)
 
-        return PurchaseOrder.objects.for_tenant(self.request.tenant)
+        return qs.select_related(
+            "supplier",
+            "product",
+            "pick_up_location",
+            "delivery_location",
+            "plant",
+            "contact",
+            "carrier",
+        ).prefetch_related("items")
 
     def perform_destroy(self, instance):
         instance.soft_delete()
