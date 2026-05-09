@@ -42,8 +42,11 @@ export const IntegrationSettings: React.FC = () => {
     try {
       const data = await integrationsService.getOAuthConnectionStatus();
       setConnections(data.connections);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch connection status');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((data.error as string) || 'Failed to fetch connection status');
     } finally {
       setLoading(false);
     }
@@ -74,8 +77,11 @@ export const IntegrationSettings: React.FC = () => {
       await integrationsService.disconnectOAuth(provider);
       setSuccess('Email account disconnected successfully');
       fetchConnectionStatus();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to disconnect');
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((data.error as string) || 'Failed to disconnect');
     } finally {
       setDisconnecting(null);
     }

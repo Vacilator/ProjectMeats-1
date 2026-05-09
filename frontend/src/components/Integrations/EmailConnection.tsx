@@ -69,9 +69,12 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
       }
 
       window.location.href = response.data.auth_url;
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('[EmailConnection] OAuth initiation failed:', error);
-      toast.error(error.response?.data?.error || 'Failed to initiate connection. Please try again.');
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      toast.error((data.error as string) || 'Failed to initiate connection. Please try again.');
     } finally {
       setIsConnecting(false);
     }

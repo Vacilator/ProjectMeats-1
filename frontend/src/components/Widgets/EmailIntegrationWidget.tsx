@@ -320,7 +320,7 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
       setError(null);
       const response = await apiClient.get('/workflows/email/email-accounts/');
       setAccounts(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[EmailIntegrationWidget] Failed to fetch email accounts', err);
       setError(
         toApiErrorText(err, {
@@ -353,7 +353,7 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
       } else {
         throw new Error('Authorization URL not received from server');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[EmailIntegrationWidget] Failed to initiate OAuth connection', err);
       showAlert({
         type: 'error',
@@ -380,7 +380,7 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     try {
       await apiClient.delete(`/workflows/email/email-accounts/${accountId}/`);
       setAccounts(accounts.filter(acc => acc.id !== accountId));
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[EmailIntegrationWidget] Failed to disconnect account', err);
       showAlert({
         type: 'error',

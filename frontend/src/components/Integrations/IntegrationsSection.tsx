@@ -28,7 +28,7 @@ export const IntegrationsSection: React.FC = () => {
       const response = await apiClient.get('/integrations/oauth/status/'); // FIX: Use apiClient
       setConnections(response.data.connections || []);
       setLastCheckedAt(new Date().toISOString());
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('[IntegrationsSection] Failed to load connections:', error);
       toast.error('Failed to load integrations');
     } finally {
@@ -78,9 +78,12 @@ export const IntegrationsSection: React.FC = () => {
       await apiClient.post('/integrations/oauth/disconnect/', { provider }); // FIX: Use apiClient
       toast.success(`${provider} disconnected successfully`);
       loadConnections();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('[IntegrationsSection] Disconnect failed:', error);
-      toast.error(error.response?.data?.error || 'Failed to disconnect');
+      const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      toast.error((data.error as string) || 'Failed to disconnect');
     } finally {
       setIsDisconnecting(null);
     }
