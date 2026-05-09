@@ -61,15 +61,15 @@ const ProposalsContainer = styled.div`
 const ProposalCard = styled(Card)<{ $confidence: number }>`
   margin-bottom: 0.5rem;
   border-left: 3px solid ${(p) =>
-    p.$confidence >= 0.9 ? 'rgb(34, 197, 94)' :
-    p.$confidence >= 0.7 ? 'rgb(234, 179, 8)' :
-    'rgb(156, 163, 175)'};
+    p.$confidence >= 0.9 ? 'rgb(var(--color-success))' :
+    p.$confidence >= 0.7 ? 'rgb(var(--color-warning))' :
+    'rgb(var(--color-text-secondary))'};
   .ant-card-body {
     padding: 0.75rem 1rem;
   }
   transition: box-shadow 0.15s ease;
   &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--shadow-sm);
   }
 `;
 
@@ -103,13 +103,13 @@ const ConfidenceBadge = styled.span<{ $level: 'high' | 'medium' | 'low' }>`
   font-size: 0.7rem;
   font-weight: 600;
   background: ${(p) =>
-    p.$level === 'high' ? 'rgb(220 252 231)' :
-    p.$level === 'medium' ? 'rgb(254 249 195)' :
-    'rgb(243 244 246)'};
+    p.$level === 'high' ? 'rgb(var(--color-success) / 0.12)' :
+    p.$level === 'medium' ? 'rgb(var(--color-warning) / 0.12)' :
+    'rgb(var(--color-text-secondary) / 0.08)'};
   color: ${(p) =>
-    p.$level === 'high' ? 'rgb(21 128 61)' :
-    p.$level === 'medium' ? 'rgb(161 98 7)' :
-    'rgb(107 114 128)'};
+    p.$level === 'high' ? 'rgb(var(--color-success))' :
+    p.$level === 'medium' ? 'rgb(var(--color-warning))' :
+    'rgb(var(--color-text-secondary))'};
 `;
 
 const AUTO_EXECUTE_THRESHOLD = 0.95;
@@ -226,7 +226,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
           <ProposalCard key={proposal.id} $confidence={proposal.confidence}>
             <ProposalHeader>
               <Space size={8}>
-                <Lightbulb size={14} style={{ color: 'rgb(234, 179, 8)' }} />
+                <Lightbulb size={14} style={{ color: 'rgb(var(--color-warning))' }} />
                 <Text strong style={{ fontSize: '0.85rem' }}>{proposal.title}</Text>
                 <ConfidenceBadge $level={getConfidenceLevel(proposal.confidence)}>
                   {Math.round(proposal.confidence * 100)}%
