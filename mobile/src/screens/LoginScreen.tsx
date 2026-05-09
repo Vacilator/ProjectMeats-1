@@ -15,6 +15,7 @@ import { ApiService } from '../services/ApiService';
 import { toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, User } from '../types';
 import { useMobileTranslation } from '../i18n';
+import { colors } from '../theme';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -131,7 +132,7 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -146,12 +147,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     marginBottom: 40,
   },
   form: {
@@ -159,16 +160,16 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#e1e5e9',
+    borderColor: colors.border,
   },
   loginButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   loginButtonText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -192,11 +193,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#d5d8dc',
+    backgroundColor: colors.borderLight,
   },
   dividerText: {
     marginHorizontal: 10,
-    color: '#95a5a6',
+    color: colors.textMuted,
     fontSize: 13,
   },
   alternateActions: {
@@ -209,17 +210,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#d5d8dc',
-    backgroundColor: '#fff',
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
   },
   altButtonText: {
-    color: '#5d6d7e',
+    color: colors.textHint,
     fontSize: 15,
     fontWeight: '500',
   },
   versionText: {
     marginTop: 32,
     fontSize: 12,
-    color: '#95a5a6',
+    color: colors.textMuted,
   },
 });

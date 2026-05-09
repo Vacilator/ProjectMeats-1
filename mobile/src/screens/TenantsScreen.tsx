@@ -12,6 +12,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
 import { toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, User, UserTenant, Tenant } from '../types';
+import { colors } from '../theme';
 
 type TenantsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Tenants'>;
 
@@ -152,7 +153,7 @@ export default function TenantsScreen({ navigation, user, onTenantSelect, onLogo
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -160,32 +161,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 20,
     paddingTop: 50,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e5e9',
+    borderBottomColor: colors.border,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 5,
   },
   welcomeText: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     marginBottom: 15,
   },
   logoutButton: {
     alignSelf: 'flex-end',
-    backgroundColor: '#e74c3c',
+    backgroundColor: colors.error,
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 5,
   },
   logoutText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -193,12 +194,12 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   tenantItem: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e1e5e9',
+    borderColor: colors.border,
   },
   tenantHeader: {
     flexDirection: 'row',
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
   tenantName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     flex: 1,
   },
   badge: {
@@ -218,24 +219,24 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   trialBadge: {
-    backgroundColor: '#f39c12',
+    backgroundColor: colors.warning,
   },
   paidBadge: {
-    backgroundColor: '#27ae60',
+    backgroundColor: colors.success,
   },
   badgeText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 10,
     fontWeight: 'bold',
   },
   tenantRole: {
     fontSize: 14,
-    color: '#3498db',
+    color: colors.primary,
     marginBottom: 3,
   },
   tenantSlug: {
     fontSize: 12,
-    color: '#95a5a6',
+    color: colors.textMuted,
   },
   emptyContainer: {
     flex: 1,
@@ -245,12 +246,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     marginBottom: 10,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#95a5a6',
+    color: colors.textMuted,
     textAlign: 'center',
   },
 });

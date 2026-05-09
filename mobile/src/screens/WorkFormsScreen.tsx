@@ -13,6 +13,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
 import { toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, WorkForm, Tenant, User, GuestUser } from '../types';
+import { colors } from '../theme';
 
 type WorkFormsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'WorkForms'>;
 
@@ -109,7 +110,7 @@ export default function WorkFormsScreen({ navigation, tenant, user, isGuest = fa
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading workforms…</Text>
       </View>
     );
@@ -165,7 +166,7 @@ export default function WorkFormsScreen({ navigation, tenant, user, isGuest = fa
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => loadForms(true)}
-              tintColor="#3498db"
+              tintColor={colors.primary}
             />
           }
         />
@@ -185,17 +186,17 @@ export default function WorkFormsScreen({ navigation, tenant, user, isGuest = fa
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: colors.backgroundAlt,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f2f5',
+    backgroundColor: colors.backgroundAlt,
   },
   loadingText: {
     marginTop: 12,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   header: {
@@ -204,36 +205,36 @@ const styles = StyleSheet.create({
     paddingTop: 52,
     paddingBottom: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#2c3e50',
+    backgroundColor: colors.secondary,
   },
   backBtn: {
     paddingRight: 12,
     paddingVertical: 4,
   },
   backBtnText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 22,
   },
   headerText: {
     flex: 1,
   },
   headerTitle: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 20,
     fontWeight: 'bold',
   },
   headerSubtitle: {
-    color: '#bdc3c7',
+    color: colors.borderMuted,
     fontSize: 13,
   },
   guestBadge: {
-    backgroundColor: '#f39c12',
+    backgroundColor: colors.warning,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   guestBadgeText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 11,
     fontWeight: 'bold',
   },
@@ -242,11 +243,11 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 3,
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginRight: 8,
   },
   badge: {
@@ -271,24 +272,24 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   activeBadge: {
-    backgroundColor: '#eafaf1',
+    backgroundColor: colors.successLight,
   },
   inactiveBadge: {
-    backgroundColor: '#f2f3f4',
+    backgroundColor: colors.surfaceAlt,
   },
   badgeText: {
     fontSize: 11,
     fontWeight: '600',
   },
   activeBadgeText: {
-    color: '#1e8449',
+    color: colors.successDark,
   },
   inactiveBadgeText: {
-    color: '#95a5a6',
+    color: colors.textMuted,
   },
   cardDescription: {
     fontSize: 13,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     marginBottom: 10,
     lineHeight: 18,
   },
@@ -298,7 +299,7 @@ const styles = StyleSheet.create({
   },
   cardMeta: {
     fontSize: 12,
-    color: '#95a5a6',
+    color: colors.textMuted,
   },
   guestNotice: {
     marginTop: 8,
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
   },
   guestNoticeText: {
     fontSize: 11,
-    color: '#f39c12',
+    color: colors.warning,
   },
   emptyState: {
     flex: 1,
@@ -321,12 +322,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -335,12 +336,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#f39c12',
+    backgroundColor: colors.warning,
     padding: 10,
     alignItems: 'center',
   },
   guestFooterText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 13,
     fontWeight: '500',
   },

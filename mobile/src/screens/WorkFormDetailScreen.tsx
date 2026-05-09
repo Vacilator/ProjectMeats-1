@@ -15,6 +15,7 @@ import { RouteProp } from '@react-navigation/native';
 import { ApiService } from '../services/ApiService';
 import { toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, WorkForm, WorkflowDefinition } from '../types';
+import { colors } from '../theme';
 
 type WorkFormDetailNavigationProp = StackNavigationProp<RootStackParamList, 'WorkFormDetail'>;
 type WorkFormDetailRouteProp = RouteProp<RootStackParamList, 'WorkFormDetail'>;
@@ -154,7 +155,7 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
   if (loading && !form) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading workform…</Text>
       </View>
     );
@@ -191,7 +192,7 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#3498db" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} />}
       >
         {error ? (
           <View style={styles.errorCard}>
@@ -293,17 +294,17 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: colors.backgroundAlt,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f2f5',
+    backgroundColor: colors.backgroundAlt,
   },
   loadingText: {
     marginTop: 12,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   header: {
@@ -312,26 +313,26 @@ const styles = StyleSheet.create({
     paddingTop: 52,
     paddingBottom: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#2c3e50',
+    backgroundColor: colors.secondary,
   },
   backBtn: {
     paddingRight: 12,
     paddingVertical: 4,
   },
   backBtnText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 22,
   },
   headerText: {
     flex: 1,
   },
   headerTitle: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 20,
     fontWeight: 'bold',
   },
   headerSubtitle: {
-    color: '#bdc3c7',
+    color: colors.borderMuted,
     fontSize: 13,
   },
   content: {
@@ -339,10 +340,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -358,11 +359,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     paddingRight: 10,
   },
   cardDescription: {
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontSize: 14,
     marginBottom: 10,
     lineHeight: 18,
@@ -373,20 +374,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   activeBadge: {
-    backgroundColor: '#d5f5e3',
+    backgroundColor: colors.successLighter,
   },
   inactiveBadge: {
-    backgroundColor: '#ecf0f1',
+    backgroundColor: colors.surfaceMuted,
   },
   badgeText: {
     fontSize: 12,
     fontWeight: 'bold',
   },
   activeBadgeText: {
-    color: '#27ae60',
+    color: colors.success,
   },
   inactiveBadgeText: {
-    color: '#7f8c8d',
+    color: colors.textSecondary,
   },
   metaRow: {
     flexDirection: 'row',
@@ -394,69 +395,69 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 6,
     borderTopWidth: 1,
-    borderTopColor: '#ecf0f1',
+    borderTopColor: colors.surfaceMuted,
   },
   metaLabel: {
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontSize: 13,
   },
   metaValue: {
-    color: '#2c3e50',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   sectionBody: {
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
   codeBlock: {
     marginTop: 10,
-    backgroundColor: '#0b1020',
-    color: '#e8eefc',
+    backgroundColor: colors.textDark,
+    color: colors.infoLight,
     fontSize: 12,
     padding: 10,
     borderRadius: 8,
   },
   errorCard: {
-    backgroundColor: '#fdecea',
+    backgroundColor: colors.errorLight,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#f5c6cb',
+    borderColor: colors.errorLightBorder,
   },
   errorTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#c0392b',
+    color: colors.errorDark,
     marginBottom: 6,
   },
   errorText: {
-    color: '#922b21',
+    color: colors.errorDarker,
     fontSize: 13,
     lineHeight: 18,
   },
   retryBtn: {
     marginTop: 12,
     alignSelf: 'flex-start',
-    backgroundColor: '#c0392b',
+    backgroundColor: colors.errorDark,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   retryBtnText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontWeight: 'bold',
   },
   executeBtn: {
     marginTop: 12,
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
@@ -465,12 +466,12 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   executeBtnText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontWeight: 'bold',
   },
   executeHint: {
     marginTop: 8,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontSize: 12,
   },
 });

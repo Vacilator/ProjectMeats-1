@@ -86,8 +86,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
           setCurrentLanguage(stored as SupportedLanguage);
         }
       })
-      .catch((err) => {
-        console.warn('[i18n] Failed to restore language preference:', err);
+      .catch(() => {
+        // Non-critical: language preference will use default
       });
   }, []);
 
@@ -95,8 +95,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     setCurrentLanguage(lang);
     try {
       await AsyncStorage.setItem(STORAGE_KEY, lang);
-    } catch (err) {
-      console.warn('[i18n] Failed to persist language preference:', err);
+    } catch {
+      // Non-critical: language preference will reset on next launch
     }
   }, []);
 
