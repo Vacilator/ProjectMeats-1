@@ -11,11 +11,6 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
 
-from apps.core.services.pdf_generator import generate_document_pdf_for_instance
-from apps.integrations.models import ExternalAuthProvider
-from apps.integrations.providers.base import EmailProviderError, TokenExpiredError
-from apps.integrations.providers.microsoft import MicrosoftGraphProvider
-from apps.tenants.rls import set_current_tenant
 from tenant_apps.inquiries.models import InquirySupplierRFQ
 from tenant_apps.purchase_orders.models import (
     PurchaseOrder,
@@ -23,6 +18,11 @@ from tenant_apps.purchase_orders.models import (
     PurchaseOrderApprovalDispatchStatus,
     PurchaseOrderStatus,
 )
+
+from apps.core.services.pdf_generator import generate_document_pdf_for_instance
+from apps.integrations.models import ExternalAuthProvider
+from apps.integrations.providers.microsoft import MicrosoftGraphProvider
+from apps.tenants.rls import set_current_tenant
 
 
 @dataclass(frozen=True)
@@ -109,7 +109,10 @@ def _resolve_recipient(purchase_order: PurchaseOrder) -> tuple[str, str]:
         return rfq.recipient_email, rfq.recipient_name or purchase_order.supplier.name
 
     if purchase_order.supplier_contact_email:
-        return purchase_order.supplier_contact_email, purchase_order.supplier_contact_name or purchase_order.supplier.name
+        return (
+            purchase_order.supplier_contact_email,
+            purchase_order.supplier_contact_name or purchase_order.supplier.name,
+        )
 
     supplier_email = str(getattr(purchase_order.supplier, "email", "") or "").strip()
     if supplier_email:
@@ -327,8 +330,8 @@ def approve_purchase_order_and_send_to_supplier(
             ]
         )
 
-    graph = MicrosoftGraphProvider(tenant.id)
     try:
+        graph = MicrosoftGraphProvider(tenant.id)
         provider_result = graph.send_email(
             access_token,
             {
@@ -349,7 +352,7 @@ def approve_purchase_order_and_send_to_supplier(
                 ],
             },
         )
-    except (EmailProviderError, TokenExpiredError, ValueError) as exc:
+    except Exception as exc:
         with transaction.atomic():
             dispatch = PurchaseOrderApprovalDispatch.objects.select_for_update().get(pk=dispatch.pk, tenant=tenant)
             return _record_failure(

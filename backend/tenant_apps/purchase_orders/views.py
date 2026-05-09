@@ -3,13 +3,17 @@ Purchase Orders views for ProjectMeats.
 
 Provides REST API endpoints for purchase order management.
 """
+import logging
+
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, status
+from django.utils import timezone
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.core.exceptions import ValidationError
+
 from tenant_apps.inquiries.models import Inquiry, InquirySupplierRFQ
 from tenant_apps.purchase_orders.models import (
     CarrierPurchaseOrder,
@@ -19,16 +23,15 @@ from tenant_apps.purchase_orders.models import (
 )
 from tenant_apps.purchase_orders.serializers import (
     CarrierPurchaseOrderSerializer,
+    PurchaseOrderHistorySerializer,
     PurchaseOrderReviewContextSerializer,
     PurchaseOrderSerializer,
-    PurchaseOrderHistorySerializer,
 )
 from tenant_apps.purchase_orders.services.approval_dispatch import approve_purchase_order_and_send_to_supplier
+
 from apps.core.exporting import CsvExportMixin
 from apps.core.serializers_documents import DocumentStatusTransitionSerializer
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin, _request_audit_context
-import logging
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +77,9 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
             "yes",
             "y",
         }
-        is_admin = bool(getattr(self.request.user, "is_superuser", False) or getattr(self.request.user, "is_staff", False))
+        is_admin = bool(
+            getattr(self.request.user, "is_superuser", False) or getattr(self.request.user, "is_staff", False)
+        )
 
         if include_deleted and is_admin:
             return PurchaseOrder.all_objects.for_tenant(self.request.tenant)
@@ -133,11 +138,24 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
         if next_status != PurchaseOrderStatus.APPROVED:
             return super().transition_status(request, pk=pk)
 
-        with _request_audit_context(request):
-            result = approve_purchase_order_and_send_to_supplier(
-                tenant=request.tenant,
-                purchase_order=document,
-                user=request.user if request.user.is_authenticated else None,
+        try:
+            with _request_audit_context(request):
+                result = approve_purchase_order_and_send_to_supplier(
+                    tenant=request.tenant,
+                    purchase_order=document,
+                    user=request.user if request.user.is_authenticated else None,
+                )
+        except Exception as exc:
+            logger.exception(
+                "Unexpected error during purchase order approval for PO %s",
+                pk,
+            )
+            return Response(
+                {
+                    "error": f"Purchase order approval failed: {exc}",
+                    "code": "approval_error",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
         if not result.success:
             return Response(
@@ -206,9 +224,7 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
         Returns a list of all historical changes made to the purchase order.
         """
         purchase_order = self.get_object()
-        history_entries = PurchaseOrderHistory.objects.filter(
-            purchase_order=purchase_order
-        ).order_by("-created_on")
+        history_entries = PurchaseOrderHistory.objects.filter(purchase_order=purchase_order).order_by("-created_on")
 
         serializer = PurchaseOrderHistorySerializer(history_entries, many=True)
         return Response(serializer.data)
@@ -219,11 +235,11 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
 
         POST /api/v1/purchase-orders/{id}/create-sales-order-draft/
         """
-        from tenant_apps.sales_orders.services.draft_sales_order import (
-            create_draft_from_approved_source,
-            DraftSalesOrderError,
-        )
         from tenant_apps.sales_orders.serializers import SalesOrderSerializer as SOSerializer
+        from tenant_apps.sales_orders.services.draft_sales_order import (
+            DraftSalesOrderError,
+            create_draft_from_approved_source,
+        )
 
         purchase_order = self.get_object()
 
@@ -233,16 +249,16 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
                 purchase_order=purchase_order,
             )
         except DraftSalesOrderError as exc:
-            raise DRFValidationError({'detail': str(exc)}) from exc
+            raise DRFValidationError({"detail": str(exc)}) from exc
 
         response_status = status.HTTP_201_CREATED if result.created else status.HTTP_200_OK
         return Response(
             {
-                'created': result.created,
-                'source_type': result.source_type,
-                'sales_order': SOSerializer(
+                "created": result.created,
+                "source_type": result.source_type,
+                "sales_order": SOSerializer(
                     result.sales_order,
-                    context={'request': request},
+                    context={"request": request},
                 ).data,
             },
             status=response_status,
@@ -251,9 +267,7 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
     @action(detail=True, methods=["get"], url_path="review-context")
     def review_context(self, request, pk=None):
         purchase_order = self.get_object()
-        serializer = PurchaseOrderReviewContextSerializer(
-            self._build_review_context(request, purchase_order)
-        )
+        serializer = PurchaseOrderReviewContextSerializer(self._build_review_context(request, purchase_order))
         return Response(serializer.data)
 
     def _build_review_context(self, request, purchase_order: PurchaseOrder) -> dict[str, object]:
@@ -319,9 +333,13 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
         if tenant is None or inquiry is None:
             return None
 
-        queryset = InquirySupplierRFQ.objects.for_tenant(tenant).select_related("supplier").filter(
-            inquiry=inquiry,
-            supplier_id=purchase_order.supplier_id,
+        queryset = (
+            InquirySupplierRFQ.objects.for_tenant(tenant)
+            .select_related("supplier")
+            .filter(
+                inquiry=inquiry,
+                supplier_id=purchase_order.supplier_id,
+            )
         )
         rfq_id = source_lineage.get("rfq_id")
         if rfq_id:
