@@ -1,0 +1,1266 @@
+/**
+ * AI Command Center — Unified Hub
+ *
+ * Consolidates Process Monitor, Trader Cockpit, and WorkForms AI Inbox
+ * into a single operational command center.
+ *
+ * Tabs:
+ *   1. Overview   — KPIs, quick actions, AI proposals
+ *   2. Action Required — Items needing human attention (AI inbox + interventions)
+ *   3. Live Pipeline — Active trade sessions
+ *   4. Workflows  — WorkForms monitoring (active executions)
+ *   5. History    — Completed trades, resolved reviews
+ *
+ * Theme: CSS custom properties only.
+ * Service Layer: businessApi / traderService / aiStaffApi.
+ */
+import React, { useCallback, useMemo, useState } from 'react';
+import styled, { keyframes } from 'styled-components';
+import {
+  Badge,
+  Button,
+  Input,
+  Modal,
+  Segmented,
+  Skeleton,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Plus,
+  Search,
+  RefreshCw,
+  TrendingUp,
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  Zap,
+  Sparkles,
+  LayoutDashboard,
+  Mail,
+  Workflow,
+  AlertCircle,
+  Clock,
+  ExternalLink,
+  User,
+  ChevronRight,
+} from 'lucide-react';
+
+import { TradePipelineTracker } from '../components/Trader/TradePipelineTracker';
+import { SmartTradeCreator } from '../components/Trader/SmartTradeCreator';
+import { AITradeProposals } from '../components/Trader/AITradeProposals';
+import { OperationsPanel } from '../components/Trader/OperationsPanel';
+import { StatCardGrid } from '../components/Shared/StatCardGrid';
+import { CockpitPanel } from '../components/Shared/CockpitPanel';
+import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
+import { ProcessQuickActions } from '../components/Cockpit/ProcessQuickActions';
+import { TradeLineageFlow } from '../components/Cockpit/TradeLineageFlow';
+import { ProcessFlowHeader } from '../components/Cockpit/ProcessFlowHeader';
+import { AIDraftReviewModal } from '../components/AIAssistant/AIDraftReviewModal';
+import {
+  TransactionalEmptyState,
+  TransactionalEmptyStateGuidance,
+  TransactionalEmptyStateGuidanceItem,
+} from '../components/Onboarding';
+import {
+  traderService,
+  type TradeSession,
+} from '../services/traderService';
+import { aiStaffApi, type PendingReviewItem } from '../services/aiService';
+import { withTenantQueryKey } from '../utils/queryKeys';
+
+const { Text, Title } = Typography;
+
+// ============================================================================
+// Animations
+// ============================================================================
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
+const pulseGlow = keyframes`
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  50%      { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
+`;
+
+// ============================================================================
+// Styled Components
+// ============================================================================
+
+const PageContainer = styled.div`
+  padding: 1.5rem 2rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  animation: ${fadeIn} 0.3s ease-out;
+
+  @media (max-width: 640px) {
+    padding: 1rem;
+  }
+`;
+
+const PageHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+`;
+
+const HeaderLeft = styled.div`
+  flex: 1;
+  min-width: 200px;
+`;
+
+const Subtitle = styled(Text)`
+  font-size: 0.82rem;
+  color: rgb(var(--color-text-tertiary, 107 114 128));
+  display: block;
+  margin-top: 2px;
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const QuickActionsRow = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+`;
+
+const QuickActionButton = styled(Button)`
+  border-radius: 10px;
+  height: 44px;
+  font-weight: 500;
+  padding: 0 1.25rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &.ant-btn-primary {
+    animation: ${pulseGlow} 3s ease-in-out infinite;
+  }
+`;
+
+const TabContainer = styled.div`
+  margin-bottom: 1.25rem;
+`;
+
+const WizardModal = styled(Modal)`
+  .ant-modal-content {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .ant-modal-body {
+    padding: 1.5rem;
+  }
+`;
+
+// AI Inbox card styles
+const CardList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const ItemCard = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    background: rgba(var(--color-primary), 0.02);
+  }
+`;
+
+const ItemIcon = styled.div<{ $variant?: string }>`
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: ${({ $variant }) =>
+    $variant === 'warning'
+      ? 'rgba(var(--color-warning), 0.1)'
+      : $variant === 'error'
+        ? 'rgba(var(--color-error), 0.1)'
+        : $variant === 'success'
+          ? 'rgba(var(--color-success), 0.1)'
+          : 'rgba(var(--color-primary), 0.1)'};
+  color: ${({ $variant }) =>
+    $variant === 'warning'
+      ? 'rgb(var(--color-warning))'
+      : $variant === 'error'
+        ? 'rgb(var(--color-error))'
+        : $variant === 'success'
+          ? 'rgb(var(--color-success))'
+          : 'rgb(var(--color-primary))'};
+`;
+
+const ItemContent = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const ItemTitle = styled.div`
+  font-weight: 600;
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const ItemMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  margin-top: 2px;
+`;
+
+const StatusPill = styled.span<{ $variant?: string }>`
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: ${({ $variant }) =>
+    $variant === 'warning'
+      ? 'rgba(var(--color-warning), 0.12)'
+      : $variant === 'error'
+        ? 'rgba(var(--color-error), 0.12)'
+        : $variant === 'success'
+          ? 'rgba(var(--color-success), 0.12)'
+          : 'rgba(var(--color-primary), 0.12)'};
+  color: ${({ $variant }) =>
+    $variant === 'warning'
+      ? 'rgb(var(--color-warning))'
+      : $variant === 'error'
+        ? 'rgb(var(--color-error))'
+        : $variant === 'success'
+          ? 'rgb(var(--color-success))'
+          : 'rgb(var(--color-primary))'};
+`;
+
+const SourceTag = styled.span`
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgb(var(--color-text-tertiary));
+  flex-shrink: 0;
+`;
+
+const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: rgb(var(--color-text-secondary));
+  text-align: center;
+`;
+
+const EmptySubtext = styled.span`
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+`;
+
+// Detail Modal styles
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const ModalEntity = styled.div`
+  flex: 1;
+`;
+
+const ModalEntityTitle = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ModalEntityMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  margin-top: 4px;
+`;
+
+const ModalSection = styled.div`
+  margin-top: 16px;
+`;
+
+const ModalSectionTitle = styled.div`
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const MetaGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+`;
+
+const MetaItem = styled.div``;
+
+const MetaLabel = styled.div`
+  font-size: 11px;
+  color: rgb(var(--color-text-tertiary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const MetaValue = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+  margin-top: 2px;
+`;
+
+const DetailModalContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const STEP_LABELS: Record<string, string> = {
+  supplier_rfq: 'Supplier RFQ',
+  supplier_reply_parse: 'Awaiting Reply',
+  draft_supplier_po: 'Draft PO',
+  approve_supplier_po: 'Approve PO',
+  draft_sales_order: 'Draft SO',
+  approve_sales_order: 'Approve SO',
+  carrier_fan_out: 'Carrier Fan-Out',
+  carrier_reply_parse: 'Awaiting Carrier',
+  draft_carrier_po: 'Draft Carrier PO',
+  completed: 'Completed',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  initiated: 'blue',
+  sourcing: 'orange',
+  quoted: 'purple',
+  ordered: 'cyan',
+  logistics: 'geekblue',
+  completed: 'green',
+  cancelled: 'default',
+  halted: 'red',
+};
+
+type HubTab = 'overview' | 'action-required' | 'pipeline' | 'workflows' | 'history';
+
+// ============================================================================
+// Unified Item type (from Process Monitor)
+// ============================================================================
+
+interface UnifiedItem {
+  id: string;
+  source: 'process' | 'ai-inbox' | 'task' | 'intervention' | 'draft';
+  icon: 'workflow' | 'mail' | 'task' | 'alert' | 'draft';
+  title: string;
+  subtitle: string;
+  status: string;
+  statusLabel: string;
+  timestamp: string;
+  entity_type?: string;
+  entity_id?: string;
+  inquiry_id?: string;
+  contact_name?: string;
+  department?: string;
+  confidence?: number;
+  intent_label?: string;
+  raw?: unknown;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function getStatusVariant(status: string): string {
+  switch (status) {
+    case 'review':
+    case 'pending':
+    case 'awaiting':
+      return 'warning';
+    case 'error':
+    case 'failed':
+    case 'halted':
+      return 'error';
+    case 'completed':
+    case 'resolved':
+    case 'done':
+      return 'success';
+    default:
+      return 'info';
+  }
+}
+
+function getIconForSource(icon: string) {
+  switch (icon) {
+    case 'mail':
+      return <Mail size={16} />;
+    case 'alert':
+      return <AlertCircle size={16} />;
+    case 'draft':
+      return <Sparkles size={16} />;
+    case 'task':
+      return <CheckCircle2 size={16} />;
+    default:
+      return <Workflow size={16} />;
+  }
+}
+
+function formatTimeAgo(timestamp: string): string {
+  if (!timestamp) return '';
+  const diff = Date.now() - new Date(timestamp).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+const AICommandCenter: React.FC = () => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Tab from URL
+  const activeTab = useMemo<HubTab>(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['overview', 'action-required', 'pipeline', 'workflows', 'history'].includes(tab)) {
+      return tab as HubTab;
+    }
+    return 'overview';
+  }, [searchParams]);
+
+  const setActiveTab = useCallback(
+    (tab: HubTab) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', tab);
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  // Local state
+  const [searchText, setSearchText] = useState('');
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<UnifiedItem | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [draftReviewItem, setDraftReviewItem] = useState<PendingReviewItem | null>(null);
+  const [selectedTrade, setSelectedTrade] = useState<TradeSession | null>(null);
+
+  // ---- Data Queries ----
+
+  // Active trades
+  const tradesQuery = useQuery({
+    queryKey: withTenantQueryKey('command-center-trades'),
+    queryFn: () => traderService.listActiveTrades(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const trades = useMemo(() => tradesQuery.data?.results || [], [tradesQuery.data]);
+
+  // AI inbox reviews
+  const reviewsQuery = useQuery({
+    queryKey: withTenantQueryKey('command-center-ai-reviews'),
+    queryFn: () => aiStaffApi.listPendingReviews(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  // ---- Derived: AI inbox items as UnifiedItem ----
+
+  const aiInboxItems = useMemo<UnifiedItem[]>(() => {
+    const reviews = reviewsQuery.data ?? [];
+    return reviews.map((review: PendingReviewItem) => {
+      const reviewAny = review as Record<string, unknown>;
+      return {
+        id: `ai-${review.id}`,
+        source: 'ai-inbox' as const,
+        icon: 'mail' as const,
+        title: review.source_subject || (review as any).source_document_name || 'Email Review',
+        subtitle: [
+          review.sender && `From: ${review.sender}`,
+          review.intent_label && `Intent: ${review.intent_label}`,
+        ].filter(Boolean).join(' • '),
+        status: 'review',
+        statusLabel: 'Needs Review',
+        timestamp: (reviewAny.created_on || reviewAny.created_at || '') as string,
+        confidence: reviewAny.confidence_score as number | undefined,
+        intent_label: review.intent_label,
+        raw: review,
+      };
+    });
+  }, [reviewsQuery.data]);
+
+  // ---- Derived: trade stats ----
+
+  const tradeStats = useMemo(() => ({
+    total: trades.length,
+    active: trades.filter((t) => !['completed', 'cancelled', 'halted'].includes(t.status)).length,
+    blocked: trades.filter((t) => t.status === 'halted').length,
+    completedToday: trades.filter((t) => {
+      if (t.status !== 'completed' || !t.updated_at) return false;
+      return new Date(t.updated_at).toDateString() === new Date().toDateString();
+    }).length,
+  }), [trades]);
+
+  // Filtered trades
+  const filteredTrades = useMemo(() => {
+    if (!searchText.trim()) return trades;
+    const term = searchText.toLowerCase();
+    return trades.filter(
+      (t) =>
+        t.trade_id.toLowerCase().includes(term) ||
+        t.customer_name?.toLowerCase().includes(term) ||
+        t.source_email_subject.toLowerCase().includes(term) ||
+        t.current_step.toLowerCase().includes(term),
+    );
+  }, [trades, searchText]);
+
+  // Filtered AI inbox
+  const filteredAiInbox = useMemo(() => {
+    if (!searchText.trim()) return aiInboxItems;
+    const q = searchText.toLowerCase();
+    return aiInboxItems.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        item.subtitle.toLowerCase().includes(q) ||
+        item.intent_label?.toLowerCase().includes(q),
+    );
+  }, [aiInboxItems, searchText]);
+
+  // ---- Handlers ----
+
+  const handleNewTrade = useCallback(() => {
+    setWizardOpen(true);
+  }, []);
+
+  const handleItemClick = useCallback((item: UnifiedItem) => {
+    if (item.source === 'ai-inbox' && item.raw) {
+      setDraftReviewItem(item.raw as PendingReviewItem);
+    } else {
+      setSelectedItem(item);
+      setModalOpen(true);
+    }
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+    setSelectedItem(null);
+  }, []);
+
+  const handleDraftReviewClose = useCallback(() => {
+    setDraftReviewItem(null);
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-ai-reviews') });
+  }, [queryClient]);
+
+  const handleNavigateToEntity = useCallback(() => {
+    if (!selectedItem) return;
+    if (selectedItem.entity_type && selectedItem.entity_id) {
+      navigate(`/records/${selectedItem.entity_type}/${selectedItem.entity_id}`);
+      handleModalClose();
+    }
+  }, [selectedItem, navigate, handleModalClose]);
+
+  const handleRefreshAll = useCallback(() => {
+    tradesQuery.refetch();
+    reviewsQuery.refetch();
+  }, [tradesQuery, reviewsQuery]);
+
+  // Advance trade mutation
+  const advanceMutation = useMutation({
+    mutationFn: (tradeSessionId: string) => traderService.advanceTrade(tradeSessionId),
+    onSuccess: (result) => {
+      if (result.completed) {
+        message.success('Trade completed!');
+      } else if (result.blocked) {
+        message.info(`Trade blocked: ${result.blocked_reason}`);
+      } else {
+        message.success(`Advanced to: ${STEP_LABELS[result.current_step] || result.current_step}`);
+      }
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-trades') });
+    },
+    onError: () => {
+      message.error('Failed to advance trade');
+    },
+  });
+
+  // Trade table columns
+  const tradeColumns = useMemo<ColumnsType<TradeSession>>(
+    () => [
+      {
+        title: 'Trade',
+        dataIndex: 'trade_id',
+        key: 'trade_id',
+        width: 130,
+        render: (value: string) => <Text strong style={{ fontSize: '0.8rem' }}>{value}</Text>,
+      },
+      {
+        title: 'Customer',
+        dataIndex: 'customer_name',
+        key: 'customer_name',
+        ellipsis: true,
+        render: (value: string | null) => value || <Text type="secondary">—</Text>,
+      },
+      {
+        title: 'Route',
+        dataIndex: 'route',
+        key: 'route',
+        width: 85,
+        render: (value: string) => (
+          <Tag color={value === 'BROKER' ? 'purple' : 'blue'} style={{ margin: 0, borderRadius: 6 }}>
+            {value || 'FULFILL'}
+          </Tag>
+        ),
+      },
+      {
+        title: 'Status',
+        dataIndex: 'status',
+        key: 'status',
+        width: 95,
+        render: (value: string) => (
+          <Tag color={STATUS_COLORS[value] || 'default'} style={{ margin: 0, borderRadius: 6 }}>
+            {value.charAt(0).toUpperCase() + value.slice(1)}
+          </Tag>
+        ),
+      },
+      {
+        title: 'Step',
+        dataIndex: 'current_step',
+        key: 'current_step',
+        ellipsis: true,
+        render: (value: string) => (
+          <Text style={{ fontSize: '0.75rem' }}>
+            {STEP_LABELS[value] || value}
+          </Text>
+        ),
+      },
+      {
+        title: '',
+        key: 'actions',
+        width: 100,
+        render: (_: unknown, record: TradeSession) => (
+          <Button
+            size="small"
+            type="primary"
+            ghost
+            icon={<ArrowRight size={12} />}
+            style={{ borderRadius: 8 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              advanceMutation.mutate(record.id);
+            }}
+            loading={advanceMutation.isPending}
+          >
+            Advance
+          </Button>
+        ),
+      },
+    ],
+    [advanceMutation],
+  );
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  return (
+    <PageContainer>
+      {/* Header */}
+      <PageHeader>
+        <HeaderLeft>
+          <Title level={3} style={{ marginBottom: 0, fontWeight: 800 }}>
+            ⚡ Command Center
+          </Title>
+          <Subtitle>
+            Your unified hub for trades, AI inbox, and operational oversight.
+          </Subtitle>
+        </HeaderLeft>
+        <HeaderActions>
+          <Input
+            placeholder="Search…"
+            prefix={<Search size={14} />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 220, borderRadius: 10 }}
+            allowClear
+          />
+          <Tooltip title="Refresh all">
+            <Button
+              icon={<RefreshCw size={14} />}
+              onClick={handleRefreshAll}
+              loading={tradesQuery.isFetching || reviewsQuery.isFetching}
+              style={{ borderRadius: 10 }}
+            />
+          </Tooltip>
+        </HeaderActions>
+      </PageHeader>
+
+      {/* Quick Actions */}
+      <QuickActionsRow>
+        <QuickActionButton
+          type="primary"
+          icon={<Plus size={15} />}
+          onClick={handleNewTrade}
+        >
+          New Trade
+        </QuickActionButton>
+        <Tooltip title="AI will suggest the best next actions">
+          <QuickActionButton
+            icon={<Sparkles size={15} />}
+            onClick={() => setActiveTab('overview')}
+          >
+            AI Suggestions
+          </QuickActionButton>
+        </Tooltip>
+        {aiInboxItems.length > 0 && (
+          <QuickActionButton
+            icon={<Mail size={15} />}
+            onClick={() => setActiveTab('action-required')}
+          >
+            AI Inbox
+            <Badge
+              count={aiInboxItems.length}
+              size="small"
+              style={{ marginLeft: 6 }}
+            />
+          </QuickActionButton>
+        )}
+      </QuickActionsRow>
+
+      {/* Tab Navigation */}
+      <TabContainer>
+        <Segmented
+          value={activeTab}
+          onChange={(val) => setActiveTab(val as HubTab)}
+          options={[
+            {
+              label: (
+                <Space size={6}>
+                  <Sparkles size={13} />
+                  <span>Overview</span>
+                </Space>
+              ),
+              value: 'overview',
+            },
+            {
+              label: (
+                <Space size={6}>
+                  <AlertCircle size={13} />
+                  <span>Action Required</span>
+                  {aiInboxItems.length > 0 && <Badge count={aiInboxItems.length} size="small" />}
+                </Space>
+              ),
+              value: 'action-required',
+            },
+            {
+              label: (
+                <Space size={6}>
+                  <LayoutDashboard size={13} />
+                  <span>Live Pipeline</span>
+                  {tradeStats.active > 0 && <Badge count={tradeStats.active} size="small" />}
+                </Space>
+              ),
+              value: 'pipeline',
+            },
+            {
+              label: (
+                <Space size={6}>
+                  <Workflow size={13} />
+                  <span>Workflows</span>
+                </Space>
+              ),
+              value: 'workflows',
+            },
+            {
+              label: (
+                <Space size={6}>
+                  <Clock size={13} />
+                  <span>History</span>
+                </Space>
+              ),
+              value: 'history',
+            },
+          ]}
+          style={{ borderRadius: 10 }}
+          block
+        />
+      </TabContainer>
+
+      {/* ======== Overview Tab ======== */}
+      {activeTab === 'overview' && (
+        <>
+          {/* KPIs */}
+          <StatCardGrid items={[
+            { value: tradeStats.total, label: 'Total Trades', icon: <Activity size={11} /> },
+            { value: tradeStats.active, label: 'In Progress', icon: <TrendingUp size={11} /> },
+            { value: tradeStats.blocked, label: 'Blocked', icon: <AlertTriangle size={11} />, alert: true },
+            { value: aiInboxItems.length, label: 'AI Inbox', icon: <Mail size={11} /> },
+          ]} />
+
+          {/* AI Proposals */}
+          <ErrorBoundary fallbackMessage="AI proposals could not be loaded.">
+            <AITradeProposals
+              onProposalExecuted={() => {
+                queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-trades') });
+                setActiveTab('pipeline');
+              }}
+            />
+          </ErrorBoundary>
+
+          {/* Needs Attention preview */}
+          {tradeStats.blocked > 0 && (
+            <CockpitPanel
+              title="Blocked Trades"
+              extra={
+                <Button type="link" size="small" onClick={() => setActiveTab('pipeline')}>
+                  View all →
+                </Button>
+              }
+            >
+              <Table
+                rowKey="id"
+                columns={tradeColumns}
+                dataSource={trades.filter((t) => t.status === 'halted').slice(0, 3)}
+                pagination={false}
+                size="small"
+                showHeader={false}
+                onRow={(record) => ({
+                  onClick: () => setSelectedTrade(record),
+                  style: { cursor: 'pointer' },
+                })}
+                locale={{ emptyText: <Text type="secondary">All clear</Text> }}
+              />
+            </CockpitPanel>
+          )}
+
+          {/* AI Inbox preview */}
+          {aiInboxItems.length > 0 && (
+            <CockpitPanel
+              title="Recent AI Inbox"
+              extra={
+                <Button type="link" size="small" onClick={() => setActiveTab('action-required')}>
+                  View all ({aiInboxItems.length}) →
+                </Button>
+              }
+            >
+              <CardList>
+                {aiInboxItems.slice(0, 3).map((item) => (
+                  <ItemCard key={item.id} onClick={() => handleItemClick(item)}>
+                    <ItemIcon $variant={getStatusVariant(item.status)}>
+                      {getIconForSource(item.icon)}
+                    </ItemIcon>
+                    <ItemContent>
+                      <ItemTitle>{item.title}</ItemTitle>
+                      <ItemMeta>
+                        <StatusPill $variant={getStatusVariant(item.status)}>
+                          {item.statusLabel}
+                        </StatusPill>
+                        {item.intent_label && (
+                          <span style={{ fontWeight: 500, color: 'rgb(var(--color-primary))' }}>
+                            🎯 {item.intent_label}
+                          </span>
+                        )}
+                        {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
+                      </ItemMeta>
+                    </ItemContent>
+                    <ChevronRight size={16} style={{ color: 'rgb(var(--color-text-secondary))' }} />
+                  </ItemCard>
+                ))}
+              </CardList>
+            </CockpitPanel>
+          )}
+        </>
+      )}
+
+      {/* ======== Action Required Tab ======== */}
+      {activeTab === 'action-required' && (
+        <>
+          {filteredAiInbox.length === 0 ? (
+            <EmptyState>
+              <CheckCircle2 size={32} strokeWidth={1.5} />
+              <span>You're all caught up!</span>
+              <EmptySubtext>No items require your attention right now.</EmptySubtext>
+            </EmptyState>
+          ) : (
+            <CardList>
+              {filteredAiInbox.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  onClick={() => handleItemClick(item)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleItemClick(item); } }}
+                  aria-label={`${item.title} – ${item.statusLabel}`}
+                >
+                  <ItemIcon $variant={getStatusVariant(item.status)}>
+                    {getIconForSource(item.icon)}
+                  </ItemIcon>
+                  <ItemContent>
+                    <ItemTitle>{item.title}</ItemTitle>
+                    <ItemMeta>
+                      <StatusPill $variant={getStatusVariant(item.status)}>
+                        {item.statusLabel}
+                      </StatusPill>
+                      {item.intent_label && (
+                        <span style={{ fontWeight: 500, color: 'rgb(var(--color-primary))' }}>
+                          🎯 {item.intent_label}
+                        </span>
+                      )}
+                      {item.confidence != null && (
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          background: item.confidence >= 0.8
+                            ? 'rgba(var(--color-success), 0.1)'
+                            : item.confidence >= 0.5
+                              ? 'rgba(var(--color-warning), 0.1)'
+                              : 'rgba(var(--color-error), 0.1)',
+                          color: item.confidence >= 0.8
+                            ? 'rgb(var(--color-success))'
+                            : item.confidence >= 0.5
+                              ? 'rgb(var(--color-warning))'
+                              : 'rgb(var(--color-error))',
+                        }}>
+                          {Math.round(item.confidence * 100)}%
+                        </span>
+                      )}
+                      {item.subtitle && <span style={{ fontSize: 11 }}>{item.subtitle}</span>}
+                      {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
+                    </ItemMeta>
+                  </ItemContent>
+                  <SourceTag>AI</SourceTag>
+                  <ChevronRight size={16} style={{ color: 'rgb(var(--color-text-secondary))', flexShrink: 0 }} />
+                </ItemCard>
+              ))}
+            </CardList>
+          )}
+        </>
+      )}
+
+      {/* ======== Live Pipeline Tab ======== */}
+      {activeTab === 'pipeline' && (
+        <CockpitPanel
+          title="Active Trades"
+          extra={<Text type="secondary" style={{ fontSize: '0.72rem' }}>{filteredTrades.length} trades</Text>}
+        >
+          {tradesQuery.isLoading ? (
+            <Skeleton active paragraph={{ rows: 5 }} />
+          ) : filteredTrades.length > 0 ? (
+            <Table
+              rowKey="id"
+              columns={tradeColumns}
+              dataSource={filteredTrades}
+              pagination={{ pageSize: 12, showSizeChanger: false, size: 'small' }}
+              size="small"
+              onRow={(record) => ({
+                onClick: () => setSelectedTrade(record),
+                style: { cursor: 'pointer' },
+              })}
+            />
+          ) : (
+            <TransactionalEmptyState
+              icon={<Zap size={32} />}
+              title="No active trades"
+              message="Start a trade with one click — the AI will guide everything."
+              actions={[{ label: 'New Trade', onClick: handleNewTrade, variant: 'primary' }]}
+            >
+              <TransactionalEmptyStateGuidance>
+                <TransactionalEmptyStateGuidanceItem>
+                  Click "New Trade" or let AI proposals create one for you.
+                </TransactionalEmptyStateGuidanceItem>
+              </TransactionalEmptyStateGuidance>
+            </TransactionalEmptyState>
+          )}
+        </CockpitPanel>
+      )}
+
+      {/* ======== Workflows Tab ======== */}
+      {activeTab === 'workflows' && (
+        <CockpitPanel title="Workflow Operations">
+          <ErrorBoundary fallbackMessage="Operations data could not be loaded.">
+            <OperationsPanel />
+          </ErrorBoundary>
+        </CockpitPanel>
+      )}
+
+      {/* ======== History Tab ======== */}
+      {activeTab === 'history' && (
+        <CockpitPanel title="Completed Trades">
+          {trades.filter((t) => t.status === 'completed').length > 0 ? (
+            <Table
+              rowKey="id"
+              columns={tradeColumns.filter((c) => c.key !== 'actions')}
+              dataSource={trades.filter((t) => t.status === 'completed')}
+              pagination={{ pageSize: 10, showSizeChanger: false, size: 'small' }}
+              size="small"
+              onRow={(record) => ({
+                onClick: () => setSelectedTrade(record),
+                style: { cursor: 'pointer' },
+              })}
+            />
+          ) : (
+            <Text type="secondary">No completed trades yet. They'll appear here once finished.</Text>
+          )}
+        </CockpitPanel>
+      )}
+
+      {/* ======== Modals ======== */}
+
+      {/* Smart Trade Creator */}
+      <WizardModal
+        open={wizardOpen}
+        onCancel={() => setWizardOpen(false)}
+        title={null}
+        footer={null}
+        width={680}
+        destroyOnClose
+      >
+        <SmartTradeCreator
+          onTradeCreated={() => {
+            setWizardOpen(false);
+            queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-trades') });
+            setActiveTab('pipeline');
+            message.success('Trade pipeline started!');
+          }}
+          onCancel={() => setWizardOpen(false)}
+        />
+      </WizardModal>
+
+      {/* Trade Detail Modal */}
+      <Modal
+        open={Boolean(selectedTrade)}
+        onCancel={() => setSelectedTrade(null)}
+        title={
+          <Space>
+            <Text strong>{selectedTrade?.trade_id}</Text>
+            {selectedTrade && (
+              <Tag color={STATUS_COLORS[selectedTrade.status] || 'default'} style={{ borderRadius: 6 }}>
+                {selectedTrade.status}
+              </Tag>
+            )}
+          </Space>
+        }
+        footer={[
+          <Button key="close" onClick={() => setSelectedTrade(null)} style={{ borderRadius: 8 }}>
+            Close
+          </Button>,
+          <Button
+            key="advance"
+            type="primary"
+            icon={<ArrowRight size={14} />}
+            style={{ borderRadius: 8 }}
+            onClick={() => {
+              if (selectedTrade) advanceMutation.mutate(selectedTrade.id);
+            }}
+            loading={advanceMutation.isPending}
+          >
+            Advance
+          </Button>,
+        ]}
+        width={650}
+      >
+        {selectedTrade && (
+          <DetailModalContent>
+            <TradePipelineTracker
+              currentStep={selectedTrade.current_step}
+              route={selectedTrade.route}
+            />
+            <Space wrap style={{ marginTop: 8 }}>
+              <Tag color={selectedTrade.route === 'BROKER' ? 'purple' : 'blue'} style={{ borderRadius: 6 }}>
+                {selectedTrade.route || 'FULFILL'}
+              </Tag>
+              {selectedTrade.customer_name && (
+                <Text type="secondary" style={{ fontSize: '0.8rem' }}>
+                  Customer: <strong>{selectedTrade.customer_name}</strong>
+                </Text>
+              )}
+            </Space>
+            <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+              Current Step: <strong>{STEP_LABELS[selectedTrade.current_step] || selectedTrade.current_step}</strong>
+              {selectedTrade.initiated_at && (
+                <> · Started {new Date(selectedTrade.initiated_at).toLocaleDateString()}</>
+              )}
+            </Text>
+          </DetailModalContent>
+        )}
+      </Modal>
+
+      {/* Process/Action Item Detail Modal */}
+      <Modal
+        open={modalOpen && !!selectedItem}
+        onCancel={handleModalClose}
+        footer={null}
+        width={1100}
+        destroyOnClose
+        styles={{ body: { padding: '24px' } }}
+      >
+        {selectedItem && (
+          <>
+            <ModalHeader>
+              <ItemIcon $variant={getStatusVariant(selectedItem.status)}>
+                {getIconForSource(selectedItem.icon)}
+              </ItemIcon>
+              <ModalEntity>
+                <ModalEntityTitle>{selectedItem.title}</ModalEntityTitle>
+                <ModalEntityMeta>
+                  <StatusPill $variant={getStatusVariant(selectedItem.status)}>
+                    {selectedItem.statusLabel}
+                  </StatusPill>
+                  {selectedItem.intent_label && (
+                    <span style={{ fontWeight: 500, color: 'rgb(var(--color-primary))' }}>
+                      🎯 {selectedItem.intent_label}
+                    </span>
+                  )}
+                  {selectedItem.contact_name && (
+                    <span>
+                      <User size={12} style={{ marginRight: 4, verticalAlign: -1 }} />
+                      {selectedItem.contact_name}
+                    </span>
+                  )}
+                  {selectedItem.timestamp && <span>• {formatTimeAgo(selectedItem.timestamp)}</span>}
+                </ModalEntityMeta>
+              </ModalEntity>
+              {selectedItem.entity_type && selectedItem.entity_id && (
+                <Tooltip title="Open full record">
+                  <button
+                    onClick={handleNavigateToEntity}
+                    style={{
+                      background: 'none',
+                      border: '1px solid rgb(var(--color-border))',
+                      borderRadius: 6,
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 13,
+                      color: 'rgb(var(--color-text-primary))',
+                    }}
+                  >
+                    <ExternalLink size={14} /> Open
+                  </button>
+                </Tooltip>
+              )}
+            </ModalHeader>
+
+            {selectedItem.inquiry_id && (
+              <ModalSection>
+                <ModalSectionTitle>Process Flow</ModalSectionTitle>
+                <ProcessFlowHeader inquiryId={selectedItem.inquiry_id} />
+                <div style={{ marginTop: 12 }}>
+                  <TradeLineageFlow inquiryId={selectedItem.inquiry_id} compact />
+                </div>
+              </ModalSection>
+            )}
+
+            <ModalSection>
+              <ModalSectionTitle>Details</ModalSectionTitle>
+              <MetaGrid>
+                <MetaItem>
+                  <MetaLabel>Type</MetaLabel>
+                  <MetaValue>{selectedItem.entity_type?.replace(/_/g, ' ') || selectedItem.source}</MetaValue>
+                </MetaItem>
+                <MetaItem>
+                  <MetaLabel>Status</MetaLabel>
+                  <MetaValue>
+                    <StatusPill $variant={getStatusVariant(selectedItem.status)}>
+                      {selectedItem.statusLabel}
+                    </StatusPill>
+                  </MetaValue>
+                </MetaItem>
+                {selectedItem.confidence != null && (
+                  <MetaItem>
+                    <MetaLabel>AI Confidence</MetaLabel>
+                    <MetaValue>{Math.round(selectedItem.confidence * 100)}%</MetaValue>
+                  </MetaItem>
+                )}
+              </MetaGrid>
+            </ModalSection>
+
+            {selectedItem.entity_type && selectedItem.entity_id && (
+              <ModalSection>
+                <ModalSectionTitle>Quick Actions</ModalSectionTitle>
+                <ProcessQuickActions
+                  entityType={selectedItem.entity_type}
+                  entityId={selectedItem.entity_id}
+                  entityStatus={selectedItem.status}
+                  inquiryId={selectedItem.inquiry_id}
+                  compact={false}
+                />
+              </ModalSection>
+            )}
+          </>
+        )}
+      </Modal>
+
+      {/* AI Draft Review Modal */}
+      {draftReviewItem && (
+        <AIDraftReviewModal
+          open={!!draftReviewItem}
+          item={draftReviewItem}
+          onClose={handleDraftReviewClose}
+          onResolved={handleDraftReviewClose}
+        />
+      )}
+    </PageContainer>
+  );
+};
+
+export default AICommandCenter;
+export { AICommandCenter };

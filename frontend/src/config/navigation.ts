@@ -28,6 +28,12 @@ export interface NavigationItem {
 
 export const navigation: NavigationItem[] = [
   {
+    label: 'Command Center',
+    icon: '⚡',
+    path: '/command-center',
+    badgeKey: 'actionRequired',
+  },
+  {
     label: 'Cockpit',
     icon: '🎯',
     path: '/cockpit',
@@ -77,11 +83,6 @@ export const navigation: NavigationItem[] = [
     label: 'Customers',
     icon: '👥',
     path: '/customers',
-  },
-  {
-    label: 'Trader Cockpit',
-    icon: '⚡',
-    path: '/trader-cockpit',
   },
   {
     label: 'Orders',
