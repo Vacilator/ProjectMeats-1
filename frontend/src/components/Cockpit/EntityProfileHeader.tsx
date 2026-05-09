@@ -127,16 +127,6 @@ const FieldsGrid = styled.div`
   }
 `;
 
-const SidebarLayout = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 16px;
-
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
 const GroupHeading = styled.div`
   grid-column: 1 / -1;
   font-size: 12px;

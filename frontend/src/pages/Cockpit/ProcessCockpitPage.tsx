@@ -40,7 +40,7 @@ import { tradeExceptionQueueService } from '../../services/tradeExceptionQueueSe
 import { aiStaffApi } from '../../services/aiService';
 import type { PendingReviewItem } from '../../services/aiService';
 import { useNotifications } from '../../contexts/NotificationsContext';
-import type { ActionItem } from '../../contexts/NotificationsContext';
+
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import { getValidTenantId } from '../../utils/tenantId';
 import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewModal';

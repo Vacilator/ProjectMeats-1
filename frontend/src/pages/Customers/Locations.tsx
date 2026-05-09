@@ -152,27 +152,6 @@ const CustomerLink = styled.a`
   }
 `;
 
-const Label = styled.label`
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
-
-const RequiredMark = styled.span`
-  color: rgb(var(--color-error));
-  margin-left: 4px;
-`;
-
-const ErrorMessage = styled.div`
-  color: rgb(var(--color-error));
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`;
-
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -186,7 +165,7 @@ const CustomerLocations: React.FC = () => {
   // State
   const [locations, setLocations] = useState<Location[]>([]);
   const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);

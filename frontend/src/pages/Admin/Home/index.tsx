@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { AdminPage } from '@/components/Admin/AdminPage';
-import { AdminGuard, EmptyState, LoadingSkeleton } from '@/components/Admin';
+import { AdminGuard, LoadingSkeleton } from '@/components/Admin';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 
 interface WorkspaceCard {

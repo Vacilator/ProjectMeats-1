@@ -880,7 +880,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   submission,
   isOpen,
   onClose,
-  onSubmissionUpdate,
+  onSubmissionUpdate: _onSubmissionUpdate,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [formData, setFormData] = useState<Record<string, Record<string, any>>>({});

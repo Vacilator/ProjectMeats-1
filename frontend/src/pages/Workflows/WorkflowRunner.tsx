@@ -104,14 +104,6 @@ const ErrorMessage = styled.div`
   margin-bottom: 1.5rem;
 `;
 
-const LoadingSpinner = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 3rem;
-  font-size: 1rem;
-  color: rgb(var(--color-text-secondary));
-`;
 
 export const WorkflowRunner: React.FC = () => {
   const { runId } = useParams<{ runId: string }>();

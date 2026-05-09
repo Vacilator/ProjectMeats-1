@@ -240,7 +240,7 @@ const LoadingState = styled(EmptyState)`
 // ============================================================================
 
 export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetProps> = ({
-  onRefresh
+  onRefresh: _onRefresh
 }) => {
   const navigate = useNavigate();
   const [emails, setEmails] = useState<EmailLog[]>([]);

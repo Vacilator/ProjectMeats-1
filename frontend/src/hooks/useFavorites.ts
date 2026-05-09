@@ -134,7 +134,7 @@ export const useFavorites = () => {
     },
     
     // Rollback on error
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousFavorites) {
         queryClient.setQueryData(favoritesKey, context.previousFavorites);
       }

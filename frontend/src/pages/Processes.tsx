@@ -144,13 +144,6 @@ const Subtitle = styled.p<{ $theme: Theme }>`
   margin: 0;
 `;
 
-const LoadingMessage = styled.div<{ $theme: Theme }>`
-  text-align: center;
-  padding: 60px;
-  font-size: 18px;
-  color: ${(props) => props.$theme.colors.textSecondary};
-`;
-
 const ErrorMessage = styled.div<{ $theme: Theme }>`
   text-align: center;
   padding: 60px;

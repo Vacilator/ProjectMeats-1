@@ -1,7 +1,7 @@
 import React from 'react';
 
 import SearchableSelect, { type SearchableSelectProps } from './SearchableSelect';
-import { type LocalSearchableSelectProps, type SearchableSelectOption } from './LocalSearchableSelectImpl';
+import { type LocalSearchableSelectProps } from './LocalSearchableSelectImpl';
 
 export type { LocalSearchableSelectProps, SearchableSelectOption } from './LocalSearchableSelectImpl';
 

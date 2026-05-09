@@ -17,11 +17,11 @@
  * @module VirtualFieldManager
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import {
-  Plus, Edit2, Trash2, Save, X, Type, Calendar, Hash, CheckSquare,
-  List, Link as LinkIcon, Mail, Globe
+  Plus, Edit2, Trash2, Save, Type, Calendar, Hash, CheckSquare,
+  List, Link as LinkIcon, Mail
 } from 'lucide-react';
 import { Modal as AntModal } from 'antd';
 import { apiClient } from '../../services/apiService';

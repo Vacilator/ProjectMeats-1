@@ -29,7 +29,7 @@ import {
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { WorkflowExecution } from '../../types/workflows';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { compareTasksSmart, isAtRiskTask, daysUntilDue } from '../../utils/taskPrioritization';
+import { compareTasksSmart, isAtRiskTask } from '../../utils/taskPrioritization';
 
 // Styled Components
 const Container = styled.div`
@@ -43,21 +43,6 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-`;
-
-const StatsBar = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-  padding: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--color-error), 0.05) 0%,
-    rgba(var(--color-warning), 0.05) 100%
-  );
-  border: 1px solid rgba(var(--color-error), 0.2);
-  border-radius: 8px;
 `;
 
 
@@ -383,34 +368,6 @@ const WorkflowsSection = styled.div`
   margin-bottom: 32px;
 `;
 
-const ReviewQueueList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const ReviewQueueCard = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px;
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-`;
-
-const ReviewQueueMeta = styled.div`
-  display: grid;
-  gap: 8px;
-`;
-
-const ReviewQueueTitle = styled.h3`
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
 
 const ReviewQueueSubtitle = styled.p`
   margin: 0;
@@ -418,29 +375,6 @@ const ReviewQueueSubtitle = styled.p`
   color: rgb(var(--color-text-secondary));
 `;
 
-const ReviewQueueDetails = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const ReviewQueueBadge = styled.span<{ $tone?: 'info' | 'warning' }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  background: ${props => props.$tone === 'warning'
-    ? 'rgba(var(--color-warning), 0.12)'
-    : 'rgba(var(--color-info), 0.12)'};
-  color: ${props => props.$tone === 'warning'
-    ? 'rgb(var(--color-warning))'
-    : 'rgb(var(--color-info))'};
-`;
 
 const SectionHeader = styled.div`
   display: flex;
@@ -856,13 +790,6 @@ export const MyTasks: React.FC = () => {
   // Calculate "At Risk" tasks (high-value + overdue/due soon)
   const isAtRisk = (item: ActionItem): boolean => isAtRiskTask(item);
 
-  const atRiskStats = useMemo(() => {
-    const atRiskItems = filteredItems.filter(isAtRisk);
-    const totalValue = atRiskItems.reduce((sum, item) => sum + (item.related_po_value ?? 0), 0);
-    const overdue = atRiskItems.filter(item => item.is_overdue).length;
-    const dueSoon = atRiskItems.filter(item => !item.is_overdue).length;
-    return { count: atRiskItems.length, totalValue, overdue, dueSoon };
-  }, [filteredItems]);
 
   const riskStats = useMemo(() => {
     const atRiskItems = filteredItems.filter(isAtRisk);

@@ -82,7 +82,7 @@ export interface ContextualFormResult {
 /**
  * Detects trade context from entity type and form values.
  */
-export function detectTradeContext(entityType: string, values?: Record<string, unknown>): TradeContext {
+export function detectTradeContext(entityType: string, _values?: Record<string, unknown>): TradeContext {
   switch (entityType) {
     case 'purchase-orders':
     case 'purchase_orders':

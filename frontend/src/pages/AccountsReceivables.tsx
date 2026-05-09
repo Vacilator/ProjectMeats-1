@@ -69,13 +69,6 @@ const StatLabel = styled.div`
   font-weight: 500;
 `;
 
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 60px 20px;
-  font-size: 18px;
-  color: rgb(var(--color-text-secondary));
-`;
-
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;

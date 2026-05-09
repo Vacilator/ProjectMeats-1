@@ -9,7 +9,7 @@
  *
  * Theme Compliance: CSS custom properties only.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -431,10 +431,6 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
     staleTime: 30_000,
     refetchInterval: 30_000,
   });
-
-  const handleNodeClick = useCallback((entityType: string, entityId: string) => {
-    setSelectedNode({ entityType, entityId });
-  }, []);
 
   if (!data) return null;
 

@@ -285,7 +285,7 @@ const OverrideButton = styled.button<{ $variant: 'approve' | 'reject' }>`
 
 export const AIVerificationCard: React.FC<InteractionCardProps> = ({
   node,
-  context,
+  context: _context,
   onComplete,
   readOnly = false,
 }) => {

@@ -12,7 +12,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { showAlert } from '@/utils/uiDialogs';
 import { X, Save, Plus, Trash2 } from 'lucide-react';
-import { FormRule, RuleCondition, RuleAction, RuleOperator, RuleActionType } from './types';
+import { FormRule, RuleOperator, RuleActionType } from './types';
 import { useFormBuilderStore } from './store';
 
 const Overlay = styled.div<{ isOpen: boolean }>`

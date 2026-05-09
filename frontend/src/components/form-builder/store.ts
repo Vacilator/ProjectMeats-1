@@ -266,7 +266,7 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
     });
   },
   
-  autoMapFields: (stepId: string) => {
+  autoMapFields: (_stepId: string) => {
     // TODO: Implement Auto-Map algorithm in Phase 5
     logger.debug('Auto-Map not yet implemented - Phase 5', { component: 'FormBuilderStore' });
   },

@@ -315,7 +315,7 @@ const StepContent: React.FC<{
   index: number;
   showNumber: boolean;
   size?: 'small' | 'medium' | 'large';
-}> = ({ step, index, showNumber, size = 'medium' }) => {
+}> = ({ step, index, showNumber, size: _size = 'medium' }) => {
   if (step.status === 'completed') {
     return <Checkmark />;
   }

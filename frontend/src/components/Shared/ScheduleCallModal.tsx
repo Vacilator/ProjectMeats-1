@@ -388,7 +388,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 
   // Call timer state (for logging call duration)
   const [isTimerActive, setIsTimerActive] = useState(false);
-  const [timerDurationSeconds, setTimerDurationSeconds] = useState(0);
+  const [_timerDurationSeconds, setTimerDurationSeconds] = useState(0);
 
   // Inquiry modal state
   const [showInquiryModal, setShowInquiryModal] = useState(false);

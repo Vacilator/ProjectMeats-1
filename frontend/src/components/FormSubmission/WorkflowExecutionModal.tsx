@@ -22,7 +22,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
-import { X, ChevronLeft, ChevronRight, Save } from 'lucide-react';
+import { X, ChevronLeft, Save } from 'lucide-react';
 import type { Edge, Node } from '@xyflow/react';
 import { TaskRenderer } from './TaskRenderer';
 import { useWorkflowContext } from './hooks/useWorkflowContext';
@@ -309,7 +309,7 @@ const EmptyState = styled.div`
 /**
  * Build execution order from workflow nodes and edges
  */
-function buildExecutionOrder(nodes: WorkflowNode[], edges?: Edge<any>[]): string[] {
+function buildExecutionOrder(nodes: WorkflowNode[], _edges?: Edge<any>[]): string[] {
   // Simple linear order for now
   // TODO: Implement proper topological sort based on edges
   return nodes

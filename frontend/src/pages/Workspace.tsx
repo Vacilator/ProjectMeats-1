@@ -19,7 +19,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import {
-  LayoutGrid, Settings, Lock, Unlock, Plus,
+  LayoutGrid, Lock, Unlock, Plus,
   RotateCcw, X
 } from 'lucide-react';
 import {

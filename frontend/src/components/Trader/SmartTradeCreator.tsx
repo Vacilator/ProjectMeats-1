@@ -17,13 +17,10 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import {
   Button,
-  Card,
   Input,
   Radio,
   Select,
   Space,
-  Steps,
-  Tag,
   Tooltip,
   Typography,
   message,
@@ -33,7 +30,6 @@ import {
   Bot,
   CheckCircle2,
   ClipboardPaste,
-  FileText,
   Lightbulb,
   MessageSquare,
   Sparkles,
@@ -51,7 +47,7 @@ import { withTenantQueryKey } from '../../utils/queryKeys';
 import { DependencyWizard } from './DependencyWizard';
 import { TradePipelineTracker } from './TradePipelineTracker';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 // ============================================================================

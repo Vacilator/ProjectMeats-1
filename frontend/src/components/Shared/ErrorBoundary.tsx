@@ -5,7 +5,7 @@
  * Falls back to a small, non-disruptive "Something went wrong" message
  * with an optional Retry button.
  */
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Button, Typography } from 'antd';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { logger } from '../../utils/logger';

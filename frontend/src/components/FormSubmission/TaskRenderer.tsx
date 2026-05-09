@@ -27,7 +27,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { AlertCircle } from 'lucide-react';
 import { WorkflowContext } from './hooks/useWorkflowContext';
-import { getCardDefinition, detectCardType, InteractionCardDefinition } from './InteractionCardRegistry';
+import { detectCardType } from './InteractionCardRegistry';
 import ExecutionFormStep from './ExecutionFormStep';
 import { logger } from '@/utils/logger';
 

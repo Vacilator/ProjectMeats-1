@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { Button, Space, Tag } from 'antd';
+import { Button, Tag } from 'antd';
 import {
   CheckCircle2,
   AlertTriangle,
