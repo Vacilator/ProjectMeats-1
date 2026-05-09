@@ -479,14 +479,17 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       setData(nextData);
       onTitleResolved?.(resolveEntityDisplay(nextData, { entityType, fallbackStyle: 'id' }));
       return nextData;
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err: unknown) {
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const status = typeof resp.status === 'number' ? resp.status : 0;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
       logger.error('Failed to update entity profile header field', { component: 'EntityProfileHeader' }, err);
 
       if (status === 500 || status === 502 || status === 503 || status === 504) {
         message.error('Server temporarily unavailable. Please try again in a moment.');
       } else {
-        message.error(err?.response?.data?.error || 'Failed to update field');
+        message.error((data.error as string) || 'Failed to update field');
       }
 
       void load();

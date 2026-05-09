@@ -13,6 +13,7 @@
 
 import { Node, Edge } from '@xyflow/react';
 import { logger } from '@/utils/logger';
+import { getAxiosErrorInfo } from '@/utils/errorHelpers';
 
 import { sortNodesTopologically } from './nodeSorting';
 import { sanitizeNodeDataForPersistence } from './nodeDataSanitization';
@@ -326,29 +327,29 @@ export const saveWorkflow = async (
     const data = await createTenantWorkForm(payload as any);
     logger.debug('✅ Workflow created:', data);
     return data as any;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const info = getAxiosErrorInfo(error);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const config = (errObj.config && typeof errObj.config === 'object' ? errObj.config : {}) as Record<string, unknown>;
     logger.error('❌ Error saving workflow:', {
-      message: error?.message,
-      status: error?.response?.status,
-      url: error?.config?.url,
-      method: error?.config?.method,
-      data: error?.response?.data,
+      message: info.message,
+      status: info.status,
+      url: config.url,
+      method: config.method,
+      data: info.data,
     });
     
     // Enhanced error handling with user-friendly messages
-    if (error.response?.status === 401) {
+    if (info.status === 401) {
       throw new Error('Please log in to save workflows.');
     }
     
-    if (error.message?.includes('Tenant context missing')) {
+    if (info.message?.includes('Tenant context missing')) {
       throw new Error('Please select a tenant to save workflows.');
     }
     
-    if (error.response) {
-      const status = error.response.status;
-      const data = error.response.data;
-      
-      switch (status) {
+    if (info.status > 0) {
+      switch (info.status) {
         case 403:
           throw new Error('Permission denied. You do not have access to save this workflow.');
         case 404:
@@ -356,12 +357,12 @@ export const saveWorkflow = async (
         case 500:
           throw new Error('Server error. Please try again later.');
         default:
-          throw new Error(`Save failed: ${data?.error || data?.detail || error.response.statusText}`);
+          throw new Error(`Save failed: ${info.message}`);
       }
-    } else if (error.request) {
+    } else if (errObj.request) {
       throw new Error('Network error: Unable to reach server. Please check your connection.');
     } else {
-      throw new Error(`Save failed: ${error.message}`);
+      throw new Error(`Save failed: ${info.message}`);
     }
   }
 };
@@ -420,15 +421,17 @@ export const loadWorkflow = async (
     }
 
     return data as any;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const info = getAxiosErrorInfo(error);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
     logger.error('❌ Error loading workflow:', error);
     
-    if (error.response) {
-      throw new Error(`Load failed: ${error.response.data?.error || error.response.statusText}`);
-    } else if (error.request) {
+    if (info.status > 0) {
+      throw new Error(`Load failed: ${info.message}`);
+    } else if (errObj.request) {
       throw new Error('Load failed: No response from server');
     } else {
-      throw new Error(`Load failed: ${error.message}`);
+      throw new Error(`Load failed: ${info.message}`);
     }
   }
 };
@@ -449,15 +452,17 @@ export const listWorkflows = async (
     const workflows = await listTenantWorkForms(filters);
     logger.debug(`✅ Loaded ${workflows.length} workflows`);
     return workflows as any;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const info = getAxiosErrorInfo(error);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
     logger.error('❌ Error listing workflows:', error);
     
-    if (error.response) {
-      throw new Error(`List failed: ${error.response.data?.error || error.response.statusText}`);
-    } else if (error.request) {
+    if (info.status > 0) {
+      throw new Error(`List failed: ${info.message}`);
+    } else if (errObj.request) {
       throw new Error('List failed: No response from server');
     } else {
-      throw new Error(`List failed: ${error.message}`);
+      throw new Error(`List failed: ${info.message}`);
     }
   }
 };
@@ -473,15 +478,17 @@ export const deleteWorkflow = async (workflowId: string): Promise<void> => {
   try {
     await deleteTenantWorkForm(workflowId);
     logger.debug('✅ Workflow deleted:', workflowId);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const info = getAxiosErrorInfo(error);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
     logger.error('❌ Error deleting workflow:', error);
     
-    if (error.response) {
-      throw new Error(`Delete failed: ${error.response.data?.error || error.response.statusText}`);
-    } else if (error.request) {
+    if (info.status > 0) {
+      throw new Error(`Delete failed: ${info.message}`);
+    } else if (errObj.request) {
       throw new Error('Delete failed: No response from server');
     } else {
-      throw new Error(`Delete failed: ${error.message}`);
+      throw new Error(`Delete failed: ${info.message}`);
     }
   }
 };
@@ -505,7 +512,7 @@ export const validateWorkflow = async (
     const data = await validateWorkForm(workflowId);
     logger.debug('✅ Workflow validation:', data);
     return data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ Error validating workflow:', error);
     throw error;
   }
@@ -535,7 +542,7 @@ export const listContainers = async (
   try {
     const data = await listWorkFormContainers(workflowId);
     return data.containers || [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ Error listing containers:', error);
     throw error;
   }
@@ -564,7 +571,7 @@ export const getContainerDetails = async (
   try {
     const data = await getContainerDetail(workflowId, containerId);
     return data as any;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ Error getting container details:', error);
     throw error;
   }

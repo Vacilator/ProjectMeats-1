@@ -252,9 +252,12 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       try {
         const response = await apiClient.get(`${config.apiPath}/${entityId}/`);
         setEntity(response.data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error(`Failed to fetch ${entityType}:`, err);
-        setError(err.response?.data?.detail || 'Failed to load entity details');
+        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+        const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+        setError((data.detail as string) || 'Failed to load entity details');
       } finally {
         setIsLoading(false);
       }
@@ -333,9 +336,12 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
 
       setRelationships(relationshipsWithItems.filter(r => r.count > 0));
       setShowRelations(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[EntityDetailModal] Failed to fetch relations:', err);
-      setError(err.response?.data?.detail || 'Failed to load related records');
+      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+      setError((data.detail as string) || 'Failed to load related records');
     } finally {
       setLoadingRelations(false);
     }
