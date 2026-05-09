@@ -28,6 +28,7 @@ import {
 } from '../../services/aiService';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { WorkflowExecution } from '../../types/workflows';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { compareTasksSmart, isAtRiskTask, daysUntilDue } from '../../utils/taskPrioritization';
 
 // Styled Components
@@ -633,6 +634,7 @@ const formatDueDate = (dateStr: string | null): string => {
  * MyTasks page component.
  */
 export const MyTasks: React.FC = () => {
+  useDocumentTitle('My Tasks');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { actionItems, actionItemCounts, loading, error, fetchActionItems } = useNotifications();

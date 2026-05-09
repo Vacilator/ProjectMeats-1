@@ -39,6 +39,7 @@ import {
   BranchesOutlined,
 } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // -------------------------------------------------------------------
 // Types
@@ -229,6 +230,7 @@ function VersionHistoryModal({
 // -------------------------------------------------------------------
 
 export function TemplateLibraryPage(): React.ReactElement {
+  useDocumentTitle('Templates');
   const queryClient = useQueryClient();
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);

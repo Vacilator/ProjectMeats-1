@@ -23,6 +23,7 @@ import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -335,6 +336,7 @@ const EmptyMessage = styled.div`
 // ============================================================================
 
 const PayablePOs: React.FC = () => {
+  useDocumentTitle('Payable POs');
   const navigate = useNavigate();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);

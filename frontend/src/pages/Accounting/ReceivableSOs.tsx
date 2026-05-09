@@ -22,6 +22,7 @@ import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -334,6 +335,7 @@ const EmptyMessage = styled.div`
 // ============================================================================
 
 const ReceivableSOs: React.FC = () => {
+  useDocumentTitle('Receivable SOs');
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

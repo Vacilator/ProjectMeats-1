@@ -6,6 +6,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { InquiryAnalyticsDashboard } from '../components/Inquiry';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const Container = styled.div`
   max-width: 1400px;
@@ -13,6 +14,7 @@ const Container = styled.div`
 `;
 
 const InquiryAnalytics: React.FC = () => {
+  useDocumentTitle('Inquiry Analytics');
   return (
     <Container>
       <InquiryAnalyticsDashboard />

@@ -26,6 +26,7 @@ import {
   type SettlementEvent,
   type SettlementReasonCode,
 } from '@/services/settlementEventsService';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const reasonLabels: Record<SettlementReasonCode, string> = {
   '': 'Needs review',
@@ -80,6 +81,7 @@ function isAccountingAdmin(permissions: AdminPermissions): boolean {
 }
 
 export const SettlementQueue: React.FC = () => {
+  useDocumentTitle('Settlements');
   const [events, setEvents] = useState<SettlementEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<SettlementEvent | null>(null);
   const [reasonFilter, setReasonFilter] = useState<string>('');

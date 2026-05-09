@@ -2,8 +2,10 @@ import React from 'react';
 
 import { ActivityFeed } from '@/components/Shared';
 import { PageContainer } from '@/components/ui/PageContainer';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export const ActivityFeedPage: React.FC = () => {
+  useDocumentTitle('Activity Feed');
   return (
     <PageContainer title="Activity Feed">
       <div

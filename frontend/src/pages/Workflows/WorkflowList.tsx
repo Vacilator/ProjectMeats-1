@@ -17,6 +17,7 @@ import { Button } from '../../components/ui/Button';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface Blueprint {
   id: string;
@@ -106,6 +107,7 @@ const MetaItem = styled.span`
 `;
 
 export const WorkflowList: React.FC = () => {
+  useDocumentTitle('Workflows');
   const navigate = useNavigate();
   const [startingWorkflow, setStartingWorkflow] = useState<string | null>(null);
 

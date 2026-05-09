@@ -11,6 +11,7 @@ import { apiClient } from '../services/apiService';
 import { InquiryTemplate, InquiryEntityType } from '../types';
 import { InquiryTemplateModal } from '../components/Inquiry';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // Styled Components
@@ -253,6 +254,7 @@ const LoadingState = styled.div`
 // ============================================================================
 
 const InquiryTemplates: React.FC = () => {
+  useDocumentTitle('Inquiry Templates');
   const [templates, setTemplates] = useState<InquiryTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [entityFilter, setEntityFilter] = useState<string>('all');
