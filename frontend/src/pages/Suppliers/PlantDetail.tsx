@@ -292,6 +292,15 @@ export const PlantDetail: React.FC = () => {
   );
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
+  const handleDeptContactClose = useCallback(() => {
+    setDepartmentContactCreateRoute(false);
+  }, [setDepartmentContactCreateRoute]);
+
+  const handleDeptContactSuccess = useCallback(() => {
+    setDepartmentContactCreateRoute(false);
+    setRefreshKey((key) => key + 1);
+  }, [setDepartmentContactCreateRoute]);
+
   if (isEditing) {
     return (
       <StandalonePlantEditForm
@@ -444,12 +453,9 @@ export const PlantDetail: React.FC = () => {
         entityType="contact"
         mode="create"
         isOpen={isCreatingDepartmentContact}
-        onClose={() => setDepartmentContactCreateRoute(false)}
+        onClose={handleDeptContactClose}
         initialValues={departmentContactInitialValues}
-        onSuccess={() => {
-          setDepartmentContactCreateRoute(false);
-          setRefreshKey((key) => key + 1);
-        }}
+        onSuccess={handleDeptContactSuccess}
       />
     </div>
   );

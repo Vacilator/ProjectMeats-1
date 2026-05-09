@@ -48,8 +48,11 @@ const Suppliers: React.FC = () => {
   useEffect(() => {
     if (searchParams.get('action') === 'create') {
       setCreateOpen(true);
-      searchParams.delete('action');
-      setSearchParams(searchParams);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('action');
+        return next;
+      });
     }
   }, [searchParams, setSearchParams]);
 

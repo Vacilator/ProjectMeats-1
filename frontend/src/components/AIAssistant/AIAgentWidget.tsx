@@ -601,17 +601,18 @@ const deriveAIInboxSocketProtocols = (accessToken: string): string[] => {
 /**
  * Pre-flight check: verify the backend API is reachable before attempting
  * a WebSocket connection.  Returns true when the API health endpoint
- * responds (any status), false otherwise.
+ * responds (any HTTP status), false only on network failure.
  */
 const checkWSEndpointReachable = async (): Promise<boolean> => {
   try {
     // eslint-disable-next-line no-restricted-globals -- raw fetch intentional: lightweight pre-flight probe must bypass auth interceptors
-    const res = await fetch('/api/v1/health/', {
-      method: 'HEAD',
+    await fetch('/api/v1/health/', {
+      method: 'GET',
       cache: 'no-store',
       signal: AbortSignal.timeout(5000),
     });
-    return res.ok;
+    // Any HTTP response (even 4xx/5xx) means the server is reachable
+    return true;
   } catch {
     return false;
   }

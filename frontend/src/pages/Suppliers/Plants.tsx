@@ -190,7 +190,6 @@ const Plants: React.FC = () => {
   
   // State
   const [plants, setPlants] = useState<Plant[]>([]);
-  const [filteredPlants, setFilteredPlants] = useState<Plant[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -230,11 +229,29 @@ const Plants: React.FC = () => {
     loadPlants(contextSupplierId);
   }, [contextSupplierId]);
 
-  useEffect(() => {
-    filterPlants();
+  // Derived filtered list — pure computation, no state needed
+  const filteredPlants = useMemo(() => {
+    let filtered = [...plants];
+
+    if (contextSupplierId) {
+      filtered = filtered.filter(p => p.supplier === contextSupplierId);
+    }
+
+    if (searchText) {
+      const search = searchText.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.name.toLowerCase().includes(search) ||
+        (p.plant_est_num || '').toLowerCase().includes(search) ||
+        p.supplier_name?.toLowerCase().includes(search) ||
+        p.city?.toLowerCase().includes(search) ||
+        p.state?.toLowerCase().includes(search)
+      );
+    }
+
+    return filtered;
   }, [plants, searchText, contextSupplierId]);
 
-  const loadPlants = async (supplierFilterId: number | null) => {
+  const loadPlants = useCallback(async (supplierFilterId: number | null) => {
     try {
       setLoading(true);
       const response = await apiClient.get('plants/', {
@@ -247,39 +264,16 @@ const Plants: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadSuppliers = async () => {
+  const loadSuppliers = useCallback(async () => {
     try {
       const response = await apiClient.get('suppliers/');
       setSuppliers(response.data.results || response.data);
     } catch (error) {
       logger.error('Error loading suppliers', { component: 'Plants', metadata: { error } });
     }
-  };
-
-  const filterPlants = () => {
-    let filtered = [...plants];
-    
-    // Filter by context supplier
-    if (contextSupplierId) {
-      filtered = filtered.filter(p => p.supplier === contextSupplierId);
-    }
-    
-    // Filter by search text
-    if (searchText) {
-      const search = searchText.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(search) ||
-        (p.plant_est_num || '').toLowerCase().includes(search) ||
-        p.supplier_name?.toLowerCase().includes(search) ||
-        p.city?.toLowerCase().includes(search) ||
-        p.state?.toLowerCase().includes(search)
-      );
-    }
-    
-    setFilteredPlants(filtered);
-  };
+  }, []);
 
   const handleAdd = useCallback(() => {
     setShowModal(true);
@@ -294,7 +288,7 @@ const Plants: React.FC = () => {
     void loadPlants(contextSupplierId);
   }, [contextSupplierId]);
 
-  const handleEdit = (plant: Plant) => {
+  const handleEdit = useCallback((plant: Plant) => {
     const nextSupplierId = contextSupplierId ?? plant.supplier ?? null;
     if (nextSupplierId) {
       navigate(`/suppliers/${nextSupplierId}/plants/${plant.id}`, {
@@ -304,9 +298,9 @@ const Plants: React.FC = () => {
     }
 
     navigate(`/plants/${plant.id}/edit`);
-  };
+  }, [contextSupplierId, navigate]);
 
-  const handleDelete = async (plant: Plant) => {
+  const handleDelete = useCallback(async (plant: Plant) => {
     const confirmed = await confirmDialog({
       title: 'Delete Plant',
       content: `Are you sure you want to delete ${plant.name}?`,
@@ -325,16 +319,16 @@ const Plants: React.FC = () => {
       logger.error('Error deleting plant', { component: 'Plants', metadata: { error } });
       message.error('Failed to delete plant');
     }
-  };
+  }, [contextSupplierId, loadPlants]);
 
 
 
-  const handleSupplierClick = (supplierId: number) => {
+  const handleSupplierClick = useCallback((supplierId: number) => {
     navigate(`/suppliers/${supplierId}`);
-  };
+  }, [navigate]);
 
   // Table columns
-  const columns: ColumnsType<Plant> = [
+  const columns: ColumnsType<Plant> = useMemo(() => [
     {
       title: 'Name',
       dataIndex: 'name',
@@ -460,7 +454,7 @@ const Plants: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleEdit, handleSupplierClick, navigate]);
 
   return (
     <PageContainer>
