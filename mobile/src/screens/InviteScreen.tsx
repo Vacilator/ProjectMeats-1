@@ -16,6 +16,7 @@ import { RouteProp } from '@react-navigation/native';
 import { ApiService } from '../services/ApiService';
 import { getApiErrorPresentation, toApiErrorText } from '../services/apiErrorPresentation';
 import { RootStackParamList, TenantInvite, User } from '../types';
+import { colors } from '../theme';
 
 type InviteScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Invite'>;
 type InviteScreenRouteProp = RouteProp<RootStackParamList, 'Invite'>;
@@ -141,7 +142,7 @@ export default function InviteScreen({ navigation, route, onInviteAccepted }: Pr
                 disabled={validating}
               >
                 {validating ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={colors.textOnPrimary} />
                 ) : (
                   <Text style={styles.primaryButtonText}>Validate Invite</Text>
                 )}
@@ -227,7 +228,7 @@ export default function InviteScreen({ navigation, route, onInviteAccepted }: Pr
               disabled={accepting}
             >
               {accepting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.textOnPrimary} />
               ) : (
                 <Text style={styles.primaryButtonText}>Join Workspace</Text>
               )}
@@ -250,7 +251,7 @@ export default function InviteScreen({ navigation, route, onInviteAccepted }: Pr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -265,28 +266,28 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     marginBottom: 24,
     textAlign: 'center',
   },
   inviteBanner: {
-    backgroundColor: '#eafaf1',
+    backgroundColor: colors.successLight,
     borderRadius: 10,
     padding: 16,
     marginBottom: 24,
     width: '100%',
     maxWidth: 320,
     borderLeftWidth: 4,
-    borderLeftColor: '#27ae60',
+    borderLeftColor: colors.success,
   },
   inviteBannerTitle: {
     fontSize: 15,
-    color: '#1e8449',
+    color: colors.successDark,
     marginBottom: 4,
     fontWeight: '500',
   },
@@ -295,10 +296,10 @@ const styles = StyleSheet.create({
   },
   inviteBannerMeta: {
     fontSize: 13,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
   },
   roleText: {
-    color: '#2471a3',
+    color: colors.primaryDark,
     fontWeight: '500',
   },
   form: {
@@ -307,22 +308,22 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: '#5d6d7e',
+    color: colors.textHint,
     marginBottom: 6,
     marginLeft: 2,
     fontWeight: '500',
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 14,
     marginBottom: 16,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: '#e1e5e9',
+    borderColor: colors.border,
   },
   primaryButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
@@ -332,7 +333,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   backButtonText: {
-    color: '#3498db',
+    color: colors.primary,
     fontSize: 15,
   },
 });

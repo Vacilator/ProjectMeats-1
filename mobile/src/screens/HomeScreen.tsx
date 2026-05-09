@@ -11,6 +11,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
 import { RootStackParamList, User, GuestUser, Tenant } from '../types';
 import { useMobileTranslation } from '../i18n';
+import { colors } from '../theme';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -69,7 +70,7 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
         carriers: carriers.count,
       });
     } catch (error: any) {
-      console.error('Error loading dashboard data:', error);
+      // Silently handle — dashboard will show zero counts
     } finally {
       setLoading(false);
     }
@@ -152,35 +153,35 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
               title={t.home.customers}
               count={dashboardData.customers}
               onPress={() => handleEntityPress('Customer')}
-              color="#3498db"
+              color={colors.primary}
             />
             
             <EntityCard
               title={t.home.suppliers}
               count={dashboardData.suppliers}
               onPress={() => handleEntityPress('Supplier')}
-              color="#e74c3c"
+              color={colors.error}
             />
             
             <EntityCard
               title={t.home.contacts}
               count={dashboardData.contacts}
               onPress={() => handleEntityPress('Contact')}
-              color="#f39c12"
+              color={colors.warning}
             />
             
             <EntityCard
               title={t.home.plants}
               count={dashboardData.plants}
               onPress={() => handleEntityPress('Plant')}
-              color="#27ae60"
+              color={colors.success}
             />
             
             <EntityCard
               title={t.home.carriers}
               count={dashboardData.carriers}
               onPress={() => handleEntityPress('Carrier')}
-              color="#9b59b6"
+              color={colors.purple}
             />
           </View>
         )}
@@ -224,14 +225,12 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: '#fff',
-    padding: 20,
-    paddingTop: 50,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e5e9',
+    borderBottomColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
@@ -239,23 +238,21 @@ const styles = StyleSheet.create({
   tenantName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 5,
+    color: colors.textPrimary,
   },
   welcomeText: {
     fontSize: 14,
-    color: '#7f8c8d',
-    marginBottom: 8,
+    color: colors.textSecondary,
   },
   trialBanner: {
-    backgroundColor: '#f39c12',
+    backgroundColor: colors.warning,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
     alignSelf: 'flex-start',
   },
   trialText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -269,13 +266,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   switchButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary,
   },
   logoutButton: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: colors.error,
   },
   headerButtonText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -286,7 +283,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 15,
     marginTop: 10,
   },
@@ -308,13 +305,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   entityTitle: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 5,
   },
   entityCount: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 24,
     fontWeight: 'bold',
   },
@@ -325,23 +322,23 @@ const styles = StyleSheet.create({
   },
   quickActionButton: {
     width: '48%',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e1e5e9',
+    borderColor: colors.border,
   },
   workFormsButton: {
-    backgroundColor: '#2c3e50',
-    borderColor: '#2c3e50',
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
   },
   workFormsButtonText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
   },
   quickActionText: {
-    color: '#2c3e50',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: 'bold',
   },

@@ -13,6 +13,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
 import { getApiErrorPresentation } from '../services/apiErrorPresentation';
 import { RootStackParamList, GuestSession } from '../types';
+import { colors } from '../theme';
 
 type GuestLoginNavigationProp = StackNavigationProp<RootStackParamList, 'Guest'>;
 
@@ -94,7 +95,7 @@ export default function GuestLoginScreen({ navigation, onGuestLogin }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -109,17 +110,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     marginBottom: 24,
     textAlign: 'center',
   },
   infoBanner: {
-    backgroundColor: '#eaf4fb',
+    backgroundColor: colors.infoBanner,
     borderRadius: 8,
     padding: 12,
     marginBottom: 24,
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 13,
-    color: '#2471a3',
+    color: colors.primaryDark,
     lineHeight: 18,
   },
   form: {
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
   },
 
   primaryButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: colors.success,
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   backButtonText: {
-    color: '#3498db',
+    color: colors.primary,
     fontSize: 15,
   },
 });
