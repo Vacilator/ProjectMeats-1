@@ -1,6 +1,6 @@
 /**
  * Admin Error Boundary Component
- * 
+ *
  * Catches errors in admin workspace and displays user-friendly fallback UI.
  * Prevents entire app from crashing when admin pages encounter errors.
  */
@@ -8,6 +8,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import styled from 'styled-components';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
+import { logger } from '../../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -42,9 +43,8 @@ class AdminErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console and error reporting service
-    console.error('❌ [AdminErrorBoundary] Caught error:', error);
-    console.error('📍 [AdminErrorBoundary] Component stack:', errorInfo.componentStack);
+    // Log error to structured logger for telemetry
+    logger.error('Caught error:', { component: 'AdminErrorBoundary', metadata: { error: error.message, stack: errorInfo.componentStack } });
 
     // Update state with error details
     this.setState(prevState => ({
@@ -177,11 +177,11 @@ const ErrorCard = styled.div`
 const ErrorIcon = styled.div`
   color: rgb(var(--color-error));
   margin-bottom: 1.5rem;
-  
+
   svg {
     animation: pulse 2s ease-in-out infinite;
   }
-  
+
   @keyframes pulse {
     0%, 100% {
       opacity: 1;
@@ -204,7 +204,7 @@ const ErrorMessage = styled.p`
   color: rgb(var(--color-text-secondary));
   line-height: 1.6;
   margin: 0 0 2rem 0;
-  
+
   strong {
     color: rgb(var(--color-error));
     font-weight: 700;
@@ -268,12 +268,12 @@ const PrimaryButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-primary-hover));
     transform: translateY(-1px);
   }
-  
+
   &:active {
     background: rgb(var(--color-primary-active));
     transform: translateY(0);
@@ -293,7 +293,7 @@ const SecondaryButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
     border-color: rgba(var(--color-primary), 0.55);

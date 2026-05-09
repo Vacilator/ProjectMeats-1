@@ -8,6 +8,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button, Typography } from 'antd';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { logger } from '../../utils/logger';
 
 const { Text } = Typography;
 
@@ -32,8 +33,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log to console in dev — future: send to telemetry
-    console.error('[ErrorBoundary]', error, errorInfo);
+    // Route through structured logger for telemetry
+    logger.error('Caught error:', { component: 'ErrorBoundary', metadata: { error: error.message, stack: errorInfo.componentStack } });
   }
 
   handleRetry = () => {

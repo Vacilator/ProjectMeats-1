@@ -66,7 +66,7 @@ const HeaderActions = styled.div`
 
 const AddButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
@@ -209,7 +209,7 @@ const StatusBadge = styled.span<{ $color: string }>`
 
 const ActionButton = styled.button`
   background: rgb(var(--color-success));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 6px 12px;
   border-radius: 4px;

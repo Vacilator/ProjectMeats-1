@@ -1,7 +1,7 @@
 # ProjectMeats Documentation
 
-**Status**: 🔄 LIVING DOCUMENT  
-**Category**: Navigation Index  
+**Status**: 🔄 LIVING DOCUMENT
+**Category**: Navigation Index
 **Last Updated**: 2026-02-01
 
 ---
@@ -27,7 +27,7 @@ Major enhancement to WorkForms editor with 6-week, 9-phase implementation:
 
 [View Full Project Plan →](features/WORKFORMS_ENHANCEMENT_PROJECT.md)
 
-### February 2026: Wave 2 Complete! 
+### February 2026: Wave 2 Complete!
 
 ✅ **Cockpit Command Center** is now 100% complete (48/48 tasks)
 
@@ -49,12 +49,12 @@ Major enhancement to WorkForms editor with 6-week, 9-phase implementation:
 |--------------|-------|
 | **See what's new** | [What's New](WHATS_NEW.md) 🆕 |
 | **View active projects** | [WorkForms Enhancement](features/WORKFORMS_ENHANCEMENT_PROJECT.md) 🚀 **NEW** |
-| **Understand Wave 2 completion** | [Wave 2 Explained](implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) 🆕 |
+| **Understand Wave 2 completion** | [What's New](WHATS_NEW.md) |
 | **Set up my local environment** | [Quick Start](getting-started/QUICK_START.md) → [Local Development](getting-started/LOCAL_DEVELOPMENT.md) |
 | **Understand the architecture** | [Architecture Overview](architecture/ARCHITECTURE.md) |
 | **Deploy to an environment** | [Development Workflow](guides/DEVELOPMENT_WORKFLOW.md) |
-| **See the project roadmap** | [Master Plan v3.1](plans/PROJECTMEATS_V2_MASTER_PLAN.md) |
-| **Track current progress** | [Progress Tracker](plans/PROGRESS_TRACKER.md) |
+| **See the project roadmap** | [MASTER_PLAN](../MASTER_PLAN.md) (canonical) |
+| **Track current progress** | [MASTER_PLAN](../MASTER_PLAN.md) |
 | **Configure secrets/env vars** | [Configuration & Secrets](reference/CONFIGURATION_AND_SECRETS.md) |
 | **Contribute code** | [Contributing Guide](getting-started/CONTRIBUTING.md) |
 
