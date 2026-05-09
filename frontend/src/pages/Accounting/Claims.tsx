@@ -26,6 +26,7 @@ import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -460,6 +461,7 @@ const ActionButton = styled.button<{ variant?: 'approve' | 'deny' | 'settle' | '
 // ============================================================================
 
 export const Claims: React.FC = () => {
+  useDocumentTitle('Claims');
   const [activeTab, setActiveTab] = useState<ClaimType>('payable');
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);

@@ -30,6 +30,7 @@ import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
 import { formatTradeDate, formatTradeWeight } from '../../utils/trade';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -409,6 +410,7 @@ const EmptyMessage = styled.div`
 // ============================================================================
 
 const Invoices: React.FC = () => {
+  useDocumentTitle('Invoices');
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();

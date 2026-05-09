@@ -19,6 +19,7 @@ import { Tabs } from 'antd';
 import { CheckSquare, Clock, BookOpen, History, FileText, Workflow } from 'lucide-react';
 import { useActionItems } from '../../contexts/ActionItemsContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // Types
@@ -155,6 +156,7 @@ const Content = styled.main`
 // ============================================================================
 
 const WorkFormsLayout: React.FC = () => {
+  useDocumentTitle('WorkForms');
   const location = useLocation();
   const navigate = useNavigate();
   const { counts } = useActionItems();

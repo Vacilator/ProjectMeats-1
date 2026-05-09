@@ -6,6 +6,7 @@ import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { formatCurrency } from '../shared/utils';
 import { apiService, Invoice } from '../services/apiService';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Styled Components
 const Header = styled.div`
@@ -317,6 +318,7 @@ const SubmitButton = styled.button`
 `;
 
 const AccountsReceivables: React.FC = () => {
+  useDocumentTitle('Accounts Receivable');
   const [receivables, setReceivables] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

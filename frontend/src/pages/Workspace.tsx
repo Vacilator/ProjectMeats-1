@@ -39,6 +39,7 @@ import { CommandPalette } from '../components/Navigation/CommandPalette';
 import { useCommandPalette } from '../hooks/useCommandPalette';
 import { apiClient } from '../services/apiService';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -418,6 +419,7 @@ const WidgetIcon = styled.span`
 // ============================================================================
 
 export const WorkspacePage: React.FC = () => {
+  useDocumentTitle('Workspace');
   const containerRef = useRef<HTMLDivElement>(null);
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [layout, setLayout] = useState<WidgetLayout[]>(DEFAULT_LAYOUT);

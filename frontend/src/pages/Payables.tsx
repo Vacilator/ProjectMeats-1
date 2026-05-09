@@ -5,8 +5,10 @@
  */
 import React from 'react';
 import { ComingSoon } from './ComingSoon';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const Payables: React.FC = () => {
+  useDocumentTitle('Payables');
   return (
     <ComingSoon
       title="Accounts Payable"

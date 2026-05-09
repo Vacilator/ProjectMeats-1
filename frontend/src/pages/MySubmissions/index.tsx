@@ -11,6 +11,7 @@ import { formSubmissionService, FormSubmissionListItem } from '../../services/qu
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { logger } from '../../utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const PageContainer = styled.div`
   padding: 2rem;
@@ -265,6 +266,7 @@ const getStatusLabel = (status: string): string => {
 };
 
 const MySubmissions: React.FC = () => {
+  useDocumentTitle('My Submissions');
   const [submissions, setSubmissions] = useState<FormSubmissionListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');

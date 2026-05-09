@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const Login: React.FC = () => {
+  useDocumentTitle('Login');
   const [credentials, setCredentials] = useState({
     username: '',
     password: '',
