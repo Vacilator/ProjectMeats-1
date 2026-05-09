@@ -107,6 +107,8 @@ describe('AIAgentWidget', () => {
     jwtServiceMock.refreshAccessToken.mockClear();
     vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
     vi.stubGlobal('scrollTo', vi.fn());
+    // Mock fetch for the WS pre-flight health check
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
     localStorage.clear();
     Object.defineProperty(Element.prototype, 'scrollIntoView', {
       configurable: true,
