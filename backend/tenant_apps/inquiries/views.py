@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from django.db.models import Avg, Count, F, Q, Sum
+from django.db.models import Avg, Count, F, Prefetch, Q, Sum
 from django.db.models.functions import TruncWeek
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -412,7 +412,9 @@ class InquiryViewSet(viewsets.ModelViewSet):
     def from_template(self, request, template_id=None):
         """Create a new inquiry from a template."""
         try:
-            template = InquiryTemplate.objects.get(id=template_id, tenant=request.tenant, is_active=True)
+            template = InquiryTemplate.objects.prefetch_related(
+                Prefetch("products", queryset=InquiryTemplateProduct.objects.select_related("product"))
+            ).get(id=template_id, tenant=request.tenant, is_active=True)
         except InquiryTemplate.DoesNotExist:
             return Response({"error": "Template not found or inactive"}, status=status.HTTP_404_NOT_FOUND)
 

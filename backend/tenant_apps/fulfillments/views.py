@@ -130,11 +130,10 @@ class FulfillmentViewSet(viewsets.ModelViewSet):
         
         # Update inquiry status if all fulfillments are complete
         inquiry = fulfillment.inquiry
-        all_complete = all(
-            f.status == FulfillmentStatusChoices.COMPLETED 
-            for f in inquiry.fulfillments.all()
-        )
-        if all_complete:
+        has_incomplete = inquiry.fulfillments.exclude(
+            status=FulfillmentStatusChoices.COMPLETED
+        ).exists()
+        if not has_incomplete:
             inquiry.status = 'fulfilled'
             inquiry.save()
         
