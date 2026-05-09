@@ -3,7 +3,7 @@ import { Button, Card, Skeleton, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Truck } from 'lucide-react';
+import { Truck, AlertCircle } from 'lucide-react';
 
 import {
   TransactionalEmptyState,
@@ -169,6 +169,13 @@ const FreightOrders: React.FC = () => {
       <Card size="small">
         {freightOrdersQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 10 }} />
+        ) : freightOrdersQuery.isError ? (
+          <TransactionalEmptyState
+            icon={<AlertCircle size={36} />}
+            title="Failed to load freight orders"
+            message="Something went wrong while fetching freight orders. Please try again."
+            actions={[{ label: 'Retry', onClick: () => void freightOrdersQuery.refetch(), variant: 'primary' }]}
+          />
         ) : freightOrdersQuery.data?.length ? (
           <Table
             rowKey="id"

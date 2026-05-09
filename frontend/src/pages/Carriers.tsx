@@ -8,7 +8,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Button, Card, Input, Skeleton, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
-import { Truck, Search, Plus, Shield, AlertTriangle } from 'lucide-react';
+import { Truck, Search, Plus, Shield, AlertTriangle, AlertCircle } from 'lucide-react';
 import styled from 'styled-components';
 
 import {
@@ -273,6 +273,13 @@ const Carriers: React.FC = () => {
       <Card size="small">
         {carriersQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 8 }} />
+        ) : carriersQuery.isError ? (
+          <TransactionalEmptyState
+            icon={<AlertCircle size={36} />}
+            title="Failed to load carriers"
+            message="Something went wrong while fetching carriers. Please try again."
+            actions={[{ label: 'Retry', onClick: () => void carriersQuery.refetch(), variant: 'primary' }]}
+          />
         ) : filteredCarriers.length > 0 ? (
           <Table
             rowKey="id"

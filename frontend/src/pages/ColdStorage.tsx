@@ -8,7 +8,7 @@ import React, { useMemo, useState } from 'react';
 import { Button, Card, Input, Progress, Skeleton, Space, Table, Tag, Tooltip, Typography, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
-import { Thermometer, Search, Plus, Package, MapPin, AlertTriangle } from 'lucide-react';
+import { Thermometer, Search, Plus, Package, MapPin, AlertTriangle, AlertCircle } from 'lucide-react';
 import styled from 'styled-components';
 
 import {
@@ -369,6 +369,13 @@ const ColdStorage: React.FC = () => {
       <Card size="small" title="Lot Inventory (FIFO)">
         {facilitiesQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 8 }} />
+        ) : facilitiesQuery.isError ? (
+          <TransactionalEmptyState
+            icon={<AlertCircle size={36} />}
+            title="Failed to load cold storage data"
+            message="Something went wrong while fetching inventory. Please try again."
+            actions={[{ label: 'Retry', onClick: () => void facilitiesQuery.refetch(), variant: 'primary' }]}
+          />
         ) : filteredLots.length > 0 ? (
           <Table
             rowKey="id"
