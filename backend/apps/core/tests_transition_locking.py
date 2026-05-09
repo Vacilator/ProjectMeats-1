@@ -4,13 +4,11 @@ Covers: transition_entity, guard clauses, concurrent modification detection,
 valid transition enforcement, convenience wrappers, and event emission.
 """
 
-import uuid
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase, TransactionTestCase
-from django.db import connection
 
 from apps.core.events.contracts import TradeEventType
 from apps.core.services.transition_locking import (

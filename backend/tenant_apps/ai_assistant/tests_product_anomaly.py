@@ -3,7 +3,6 @@
 from unittest import TestCase
 
 from tenant_apps.ai_assistant.services.product_anomaly_baseline import (
-    AnomalyCheckResult,
     AnomalyThreshold,
     ProductBaseline,
     build_baseline_from_history,

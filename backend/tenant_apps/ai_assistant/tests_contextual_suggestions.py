@@ -3,9 +3,7 @@
 from unittest import TestCase
 
 from tenant_apps.ai_assistant.services.contextual_suggestions import (
-    Suggestion,
     SuggestionRequest,
-    SuggestionResponse,
     get_contextual_suggestions,
 )
 

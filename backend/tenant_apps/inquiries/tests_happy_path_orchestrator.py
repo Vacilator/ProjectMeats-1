@@ -16,15 +16,10 @@ from django.utils import timezone
 
 from apps.tenants.models import Tenant
 from tenant_apps.contacts.models import Contact
-from tenant_apps.carriers.models import (
-    Carrier,
-    CarrierFreightInquiry,
-    CarrierFreightInquiryStatus,
-)
+from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
     Inquiry,
-    InquiryRouteDecisionChoices,
     InquiryStatusChoices,
     InquirySupplierRFQ,
 )

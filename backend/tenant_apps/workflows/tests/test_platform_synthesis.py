@@ -7,10 +7,9 @@ Covers:
 - Feedback stats aggregation
 """
 
-from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase
 
 
 # ═══════════════════════════════════════════════════════════════════════════

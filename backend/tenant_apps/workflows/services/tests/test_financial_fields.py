@@ -4,12 +4,10 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 from django.test import SimpleTestCase
-from django.utils import timezone
 
 from tenant_apps.workflows.services.financial_fields import (
     PaymentStatus,
     RiskLevel,
-    TradeFinancials,
     calculate_order_financials,
     calculate_trade_financials,
 )

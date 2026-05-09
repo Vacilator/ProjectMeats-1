@@ -3,7 +3,6 @@
 from django.test import TestCase
 
 from apps.core.tests.factories import (
-    CarrierFactory,
     CarrierPurchaseOrderFactory,
     ContactFactory,
     CustomerFactory,

@@ -1,11 +1,10 @@
 """Tests for trading performance analytics service."""
 
-from datetime import date, timedelta
+from datetime import date
 from unittest import TestCase
 
 from tenant_apps.workflows.services.trading_analytics import (
     AnalyticsFilter,
-    SupplierWinRate,
     build_analytics_dashboard,
     compute_cycle_times,
     compute_margin_trend,

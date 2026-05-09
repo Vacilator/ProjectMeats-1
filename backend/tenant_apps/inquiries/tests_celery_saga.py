@@ -4,8 +4,7 @@ Covers: process_domain_event task, saga dispatch, idempotency,
 individual handlers, and the sweep task.
 """
 
-import uuid
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -19,7 +18,6 @@ from tenant_apps.inquiries.tasks import (
     _dispatch_saga,
     _saga_inquiry_routed,
     _saga_sales_order_approved,
-    _saga_supplier_po_approved,
     _saga_trade_completed,
     enqueue_event_for_saga,
     process_domain_event,

@@ -7,7 +7,6 @@ idempotency, and event querying.
 import uuid
 
 from django.test import TestCase
-from django.utils import timezone
 
 from apps.core.events.contracts import (
     AUTO_ADVANCE_EVENTS,

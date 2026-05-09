@@ -19,7 +19,6 @@ Usage:
     locust -f locustfile.py --host=https://api.meatscentral.com
 """
 
-import json
 import random
 from locust import HttpUser, task, between, SequentialTaskSet
 

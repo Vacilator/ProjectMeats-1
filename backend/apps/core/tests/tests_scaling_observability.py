@@ -11,12 +11,11 @@ Covers:
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase
 
 from apps.core.utils.caching import (
-    TenantCacheMixin,
     cached_queryset,
     invalidate_tenant_cache,
     tenant_cache_key,
@@ -40,7 +39,6 @@ from apps.core.utils.correlation import (
 from apps.core.utils.metrics import MetricsCollector
 from apps.core.utils.unsupervised import (
     DEFAULT_AUTO_EXECUTE_THRESHOLD,
-    ExecutionDecision,
     UnsupervisedPolicy,
     execution_guard,
 )

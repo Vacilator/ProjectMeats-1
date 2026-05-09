@@ -4,8 +4,6 @@ from django.test import TestCase
 
 from apps.core.tests.factories import (
     ContactFactory,
-    CustomerFactory,
-    PlantFactory,
     SupplierFactory,
     TenantFactory,
 )
