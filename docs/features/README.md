@@ -38,5 +38,4 @@
 
 ---
 
-> **Consolidated docs** moved to [archive/consolidated/](../archive/consolidated/)
-> See [Documentation Organization Plan](../plans/DOCUMENTATION_ORGANIZATION_PLAN.md)
+> See repo-root `MASTER_PLAN.md` for current priorities and documentation organization.

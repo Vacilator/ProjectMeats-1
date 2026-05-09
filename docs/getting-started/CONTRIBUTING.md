@@ -131,7 +131,7 @@ The script checks:
 | No archived-doc references | Workflows reference live docs only |
 | `run-name:` in pipeline | Pipeline has a descriptive run name |
 
-See [`docs/GOLDEN_PIPELINE.md`](../GOLDEN_PIPELINE.md) and [`docs/PIPELINE_FINAL_VERIFICATION.md`](../PIPELINE_FINAL_VERIFICATION.md) for the authoritative reference.
+See [`docs/GOLDEN_PIPELINE.md`](../GOLDEN_PIPELINE.md) for the authoritative reference.
 
 ### PR Title Convention
 

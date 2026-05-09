@@ -24,4 +24,4 @@
 - OpenAPI/Swagger documentation
 - Tenant-scoped querysets
 
-See [Master Plan](../plans/PROJECTMEATS_V2_MASTER_PLAN.md) for architectural decisions.
+See repo-root `MASTER_PLAN.md` for architectural decisions.

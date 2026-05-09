@@ -577,8 +577,8 @@ git push origin v1.0.0
 - [Semantic Versioning](https://semver.org/)
 - [GitHub Flow](https://docs.github.com/en/get-started/quickstart/github-flow)
 - [Git Best Practices](https://git-scm.com/book/en/v2)
-- [ProjectMeats Contributing Guide](../CONTRIBUTING.md)
-- [ProjectMeats Copilot Instructions](../.github/copilot-instructions.md)
+- [ProjectMeats Contributing Guide](../../CONTRIBUTING.md)
+- [ProjectMeats Copilot Instructions](../../.github/copilot-instructions.md)
 
 ---
 

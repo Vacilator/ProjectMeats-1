@@ -491,8 +491,7 @@ PAID (Green)
 
 **Document Status:** ✅ Complete and Production-Ready  
 **Related Documentation:**
-- [PAYMENT_WORKFLOW_TECHNICAL.md](./PAYMENT_WORKFLOW_TECHNICAL.md) (Technical Implementation Details)
-- [CONFIGURATION_AND_SECRETS.md](./CONFIGURATION_AND_SECRETS.md) (Environment Setup)
+- [CONFIGURATION_AND_SECRETS.md](../reference/CONFIGURATION_AND_SECRETS.md) (Environment Setup)
 
 ---
 

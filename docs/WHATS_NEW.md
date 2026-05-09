@@ -426,7 +426,7 @@ ProjectMeats uses **wave-based delivery** instead of "big bang" releases:
 ### Deep Dive
 
 - **Master Plan**: repo-root `MASTER_PLAN.md` (canonical)
-- **Roadmap**: [ROADMAP.md](./ROADMAP.md)
+- **Roadmap**: repo-root `ROADMAP.md`
 - **Changelog**: [CHANGELOG.md](./reference/CHANGELOG.md)
 - **Architecture**: [/docs/architecture/](./architecture/)
 
@@ -475,11 +475,11 @@ Three channels:
 
 ### Key Documents
 
-| Document | Purpose | Size |
-|----------|---------|------|
-| [WHATS_NEW.md](./WHATS_NEW.md) | This file - latest changes summary | 5 KB |
-| [ROADMAP.md](./ROADMAP.md) | Development roadmap | 17 KB |
-| [CHANGELOG.md](./reference/CHANGELOG.md) | Version history | 3 KB |
+| Document | Purpose |
+|----------|---------|
+| [WHATS_NEW.md](./WHATS_NEW.md) | This file - latest changes summary |
+| repo-root `ROADMAP.md` | Development roadmap |
+| [CHANGELOG.md](./reference/CHANGELOG.md) | Version history |
 
 ### Wave Status Dashboard
 
