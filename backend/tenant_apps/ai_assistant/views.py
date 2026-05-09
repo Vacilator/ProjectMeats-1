@@ -159,11 +159,26 @@ def _infer_review_entity_type(document_type: str, payload: dict[str, object]) ->
         return "sales_order"
     if normalized in {"inquiry", "quote"}:
         return "inquiry"
+    if normalized in {"contact", "new_contact", "contact_update"}:
+        return "contact"
+    if normalized in {"new_customer", "customer"}:
+        return "customer"
+    if normalized in {"supplier", "new_supplier", "vendor", "supplier_note"}:
+        return "supplier"
+    if normalized in {"payment", "payment_notice", "remittance"}:
+        return "payment"
+    if normalized in {"pricing_sheet"}:
+        return "pricing_sheet"
 
+    # Fallback: infer from payload keys
     if any(key in payload for key in ("order_number", "vendor_name", "supplier_name")):
         return "purchase_order"
     if any(key in payload for key in ("bol_number", "carrier_name", "pickup_date", "pick_up_date")):
         return "carrier-pos"
+    if any(key in payload for key in ("first_name", "last_name", "contact_name")):
+        return "contact"
+    if any(key in payload for key in ("total_amount", "payment_amount", "remittance_amount")):
+        return "payment"
 
     return ""
 

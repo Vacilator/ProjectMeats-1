@@ -989,25 +989,36 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
 
         {unsupported ? (
           <Alert
-            type="warning"
+            type="info"
             showIcon
-            message="This AI draft does not map to a supported entity form yet."
-            description="The extracted payload is preserved on the left so an operator can review it manually."
+            message="Unrecognized draft type — showing as Contact record"
+            description="The AI could not map this email to a specific entity type. Review the extracted data on the left and approve to create a Contact record, or reject to dismiss."
+            style={{ marginBottom: 12 }}
           />
-        ) : (
-          <UnifiedForm
-            entityType={entityType}
-            mode="draft"
-            variant="inline"
-            isOpen={open}
-            onClose={handleSurfaceClose}
-            onSuccess={(result) => {
-              void handleResolved(result);
-            }}
-            initialValues={initialValues}
-            draftKey={item.id}
-          />
-        )}
+        ) : null}
+
+        <UnifiedForm
+          entityType={unsupported ? 'contact' : entityType}
+          mode="draft"
+          variant="inline"
+          isOpen={open}
+          onClose={handleSurfaceClose}
+          onSuccess={(result) => {
+            void handleResolved(result);
+          }}
+          initialValues={unsupported ? {
+            first_name: (item as Record<string, unknown>).contact_name
+              ? String((item as Record<string, unknown>).contact_name).split(' ')[0]
+              : '',
+            last_name: (item as Record<string, unknown>).contact_name
+              ? String((item as Record<string, unknown>).contact_name).split(' ').slice(1).join(' ')
+              : '',
+            company: String((item as Record<string, unknown>).contact_company || ''),
+            email: String((item as Record<string, unknown>).sender || ''),
+            status: 'draft',
+          } : initialValues}
+          draftKey={item.id}
+        />
       </div>
 
       {quickCreateTarget && (

@@ -108,9 +108,9 @@ describe('mapDraftToInitialValues', () => {
     expect(result.name).toBe('New Customer');
   });
 
-  it('sets status=active for customer', () => {
+  it('sets status=draft for customer', () => {
     const result = mapDraftToInitialValues(makeItem('customer', {}));
-    expect(result.status).toBe('active');
+    expect(result.status).toBe('draft');
   });
 
   it('defaults supplier name when missing', () => {
@@ -118,14 +118,59 @@ describe('mapDraftToInitialValues', () => {
     expect(result.name).toBe('New Supplier');
   });
 
-  it('sets status=active for supplier', () => {
+  it('sets status=draft for supplier', () => {
     const result = mapDraftToInitialValues(makeItem('supplier', {}));
-    expect(result.status).toBe('active');
+    expect(result.status).toBe('draft');
   });
 
-  it('sets status=active for contact', () => {
+  it('sets status=draft for contact', () => {
     const result = mapDraftToInitialValues(makeItem('contact', {}));
-    expect(result.status).toBe('active');
+    expect(result.status).toBe('draft');
+  });
+
+  it('maps pricing_sheet to inquiry', () => {
+    const entityType = resolveDraftEntityType(makeItem('pricing_sheet', {}));
+    expect(entityType).toBe('inquiry');
+  });
+
+  it('maps payment to invoice', () => {
+    const entityType = resolveDraftEntityType(makeItem('payment', {}));
+    expect(entityType).toBe('invoice');
+  });
+
+  it('maps supplier_note to supplier', () => {
+    const entityType = resolveDraftEntityType(makeItem('supplier_note', {}));
+    expect(entityType).toBe('supplier');
+  });
+
+  it('maps contact_update to contact', () => {
+    const entityType = resolveDraftEntityType(makeItem('contact_update', {}));
+    expect(entityType).toBe('contact');
+  });
+
+  it('falls back to contact when contact_name is present on unknown type', () => {
+    const item = {
+      ...makeItem('', {}),
+      contact_name: 'John Doe',
+    };
+    const entityType = resolveDraftEntityType(item as unknown as PendingReviewItem);
+    expect(entityType).toBe('contact');
+  });
+
+  it('falls back to invoice when total_amount is in payload', () => {
+    const entityType = resolveDraftEntityType(
+      makeItem('', { total_amount: '$1,500' }),
+    );
+    expect(entityType).toBe('invoice');
+  });
+
+  it('maps invoice entity type and sets initial values', () => {
+    const result = mapDraftToInitialValues(
+      makeItem('payment', { total_amount: '5000', invoice_number: 'INV-001' }),
+    );
+    expect(result.status).toBe('draft');
+    expect(result.total_amount).toBe('5000');
+    expect(result.invoice_number).toBe('INV-001');
   });
 
   it('sets status=draft as fallback for unknown entity types', () => {

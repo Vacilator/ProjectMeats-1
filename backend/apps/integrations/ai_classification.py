@@ -17,6 +17,9 @@ ACTIONABLE_EMAIL_CATEGORIES: dict[str, str] = {
     "New Customer": "new_customer",
     "Invoice": "invoice",
     "Pricing Sheet": "pricing_sheet",
+    "Contact Update": "contact",
+    "Payment Notice": "payment",
+    "Supplier Note": "supplier_note",
 }
 INQUIRY_EMAIL_CATEGORIES = {"Purchase Order", "New Customer"}
 SUPPORTED_EMAIL_CATEGORIES = tuple([*ACTIONABLE_EMAIL_CATEGORIES.keys(), "Spam/Other"])
@@ -48,15 +51,22 @@ def classify_ingested_email(
         + ", ".join(SUPPORTED_EMAIL_CATEGORIES)
         + ".\nReturn JSON only.\n"
         "Rules:\n"
-        "1. Use Spam/Other when the message is not actionable for ProjectMeats operators.\n"
-        "2. Keep summary under 160 characters.\n"
-        "3. Confidence must be a number between 0 and 1.\n"
-        "4. actionable must be true only for Purchase Order, BOL, New Customer, Invoice, or Pricing Sheet.\n"
-        "5. Extract contact/company/product details only when clearly supported by the email.\n"
-        "6. requested_protein must be one of: "
+        "1. Use Spam/Other ONLY when the message contains zero business-relevant information "
+        "(no contact name, no company, no dollar amount, no invoice/PO number, no product reference).\n"
+        "2. If the email contains a contact name or company but is not a PO/BOL/Invoice/Pricing Sheet, "
+        "classify as 'Contact Update'.\n"
+        "3. If the email mentions a payment, remittance, dollar amount with an invoice reference, "
+        "classify as 'Payment Notice'.\n"
+        "4. If the email is from a supplier with operational info (shipping updates, notes, availability), "
+        "classify as 'Supplier Note'.\n"
+        "5. Keep summary under 160 characters.\n"
+        "6. Confidence must be a number between 0 and 1.\n"
+        "7. actionable must be true for all categories EXCEPT Spam/Other.\n"
+        "8. Extract contact/company/product details only when clearly supported by the email.\n"
+        "9. requested_protein must be one of: "
         + ", ".join(value for value in SUPPORTED_PROTEIN_VALUES if value)
         + " or an empty string when unknown.\n"
-        "7. requested_quantity and requested_uom must stay as plain strings and can be empty.\n"
+        "10. requested_quantity and requested_uom must stay as plain strings and can be empty.\n"
         "8. When attachment content is provided, use it alongside the email body for classification and extraction.\n"
         "9. po_number: extract PO/order number when present, empty string otherwise.\n"
         "10. bol_number: extract BOL/bill of lading number when present, empty string otherwise.\n"
@@ -201,6 +211,23 @@ def classify_ingested_email(
 
     summary = str(parsed.get("summary") or "").strip()
     rationale = str(parsed.get("rationale") or "").strip()
+
+    # Extract fields before actionable check (needed for fallback)
+    contact_name = str(parsed.get("contact_name") or "").strip()
+    contact_company = str(parsed.get("contact_company") or "").strip()
+    total_amount = str(parsed.get("total_amount") or "").strip()
+    po_number = str(parsed.get("po_number") or "").strip()
+
+    # Fallback: if classified as Spam/Other but contains business signals,
+    # reclassify to the most appropriate actionable category
+    if category == "Spam/Other":
+        if total_amount and (po_number or parsed.get("invoice_number")):
+            category = "Payment Notice"
+            rationale = f"[Auto-reclassified from Spam/Other] {rationale}"
+        elif contact_name or contact_company:
+            category = "Contact Update"
+            rationale = f"[Auto-reclassified from Spam/Other] {rationale}"
+
     actionable = category in ACTIONABLE_EMAIL_CATEGORIES
     requested_protein = str(parsed.get("requested_protein") or "").strip()
     if requested_protein not in SUPPORTED_PROTEIN_VALUES:
@@ -214,14 +241,14 @@ def classify_ingested_email(
         "rationale": rationale,
         "actionable": actionable,
         "inquiry_candidate": actionable and category in INQUIRY_EMAIL_CATEGORIES,
-        "contact_name": str(parsed.get("contact_name") or "").strip(),
-        "contact_company": str(parsed.get("contact_company") or "").strip(),
+        "contact_name": contact_name,
+        "contact_company": contact_company,
         "requested_product_name": str(parsed.get("requested_product_name") or "").strip(),
         "requested_protein": requested_protein,
         "requested_quantity": str(parsed.get("requested_quantity") or "").strip(),
         "requested_uom": str(parsed.get("requested_uom") or "").strip(),
-        "po_number": str(parsed.get("po_number") or "").strip(),
+        "po_number": po_number,
         "bol_number": str(parsed.get("bol_number") or "").strip(),
-        "total_amount": str(parsed.get("total_amount") or "").strip(),
+        "total_amount": total_amount,
         "attachment_document_types": parsed.get("attachment_document_types") or [],
     }
