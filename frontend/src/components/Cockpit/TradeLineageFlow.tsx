@@ -183,15 +183,15 @@ const NodeWrapper = styled.div<{ $color: string; $isActive: boolean; $isEmpty: b
   border: 2px solid ${(p) => (p.$isEmpty ? 'rgb(var(--color-border))' : p.$color)};
   opacity: ${(p) => (p.$isEmpty ? 0.5 : 1)};
   min-width: 210px;
-  cursor: ${(p) => (p.$isEmpty ? 'default' : 'pointer')};
+  cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: ${(p) =>
     p.$isActive ? `0 0 0 3px ${p.$color}30, 0 4px 12px ${p.$color}20` : '0 1px 4px rgba(0,0,0,0.08)'};
 
   &:hover {
-    transform: ${(p) => (p.$isEmpty ? 'none' : 'translateY(-1px)')};
+    transform: translateY(-1px);
     box-shadow: ${(p) =>
-      p.$isEmpty ? 'none' : `0 4px 12px ${p.$color}30`};
+      p.$isEmpty ? `0 2px 8px rgba(var(--color-primary), 0.15)` : `0 4px 12px ${p.$color}30`};
   }
 `;
 
@@ -369,7 +369,9 @@ const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => 
         </>
       )}
       {data.isEmpty && (
-        <NodeNumber style={{ fontStyle: 'italic' }}>Not yet created</NodeNumber>
+        <NodeNumber style={{ fontStyle: 'italic', cursor: 'pointer', color: 'rgb(var(--color-primary))' }}>
+          ➕ Click to create
+        </NodeNumber>
       )}
     </NodeWrapper>
   );
@@ -457,6 +459,7 @@ export const TradeLineageFlow: React.FC<TradeLineageFlowProps> = ({
   compact = false,
   className,
 }) => {
+  const navigate = useNavigate();
   const { data, isLoading, error } = useQuery({
     queryKey: withTenantQueryKey('trade-lineage', inquiryId),
     queryFn: async () => {
@@ -474,8 +477,26 @@ export const TradeLineageFlow: React.FC<TradeLineageFlowProps> = ({
   }, [data]);
 
   const handleNodeClick = (_: React.MouseEvent, node: Node<LineageNodeData>) => {
-    if (node.data.isEmpty || !onNodeClick) return;
-    onNodeClick(node.data.entityType, node.data.entityId);
+    if (onNodeClick) {
+      // Always pass through, even for empty nodes (caller can handle creation)
+      onNodeClick(node.data.entityType, node.data.entityId);
+      return;
+    }
+    // Default behavior: navigate to entity record if it exists
+    if (!node.data.isEmpty && node.data.entityId) {
+      const entityRoute = node.data.entityType === 'inquiry'
+        ? `/inquiries`
+        : node.data.entityType === 'supplier_purchase_order'
+          ? `/purchase-orders`
+          : node.data.entityType === 'sales_order'
+            ? `/sales-orders`
+            : node.data.entityType === 'carrier_purchase_order'
+              ? `/purchase-orders`
+              : null;
+      if (entityRoute) {
+        navigate(`${entityRoute}?highlight=${node.data.entityId}`);
+      }
+    }
   };
 
   if (isLoading) {

@@ -716,6 +716,34 @@ const ProcessCockpitPage: React.FC = () => {
     }
   }, [selectedItem, navigate, handleModalClose]);
 
+  const handleFlowNodeClick = useCallback((entityType: string, entityId: string) => {
+    if (!entityId) {
+      const createRoute = entityType === 'inquiry'
+        ? '/inquiries'
+        : entityType === 'supplier_purchase_order'
+          ? '/purchase-orders'
+          : entityType === 'sales_order'
+            ? '/sales-orders'
+            : null;
+      if (createRoute) {
+        navigate(`${createRoute}?action=create`);
+        handleModalClose();
+      }
+      return;
+    }
+    const route = entityType === 'inquiry'
+      ? '/inquiries'
+      : entityType === 'supplier_purchase_order' || entityType === 'carrier_purchase_order'
+        ? '/purchase-orders'
+        : entityType === 'sales_order'
+          ? '/sales-orders'
+          : null;
+    if (route) {
+      navigate(`${route}?highlight=${entityId}`);
+      handleModalClose();
+    }
+  }, [navigate, handleModalClose]);
+
   // ---------- Filtering ----------
 
   const getFilteredItems = useCallback(
@@ -991,7 +1019,11 @@ const ProcessCockpitPage: React.FC = () => {
                 <ModalSectionTitle>Process Flow</ModalSectionTitle>
                 <ProcessFlowHeader inquiryId={selectedItem.inquiry_id} />
                 <div style={{ marginTop: 12 }}>
-                  <TradeLineageFlow inquiryId={selectedItem.inquiry_id} compact />
+                  <TradeLineageFlow
+                    inquiryId={selectedItem.inquiry_id}
+                    onNodeClick={handleFlowNodeClick}
+                    compact
+                  />
                 </div>
               </ModalSection>
             )}
