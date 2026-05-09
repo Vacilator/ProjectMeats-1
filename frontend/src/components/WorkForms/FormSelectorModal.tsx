@@ -359,11 +359,11 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Overlay $isOpen={isOpen} onClick={onClose}>
+    <Overlay $isOpen={isOpen} onClick={onClose} role="dialog" aria-modal="true" aria-label={t('forms.selectAForm')}>
       <Modal onClick={(e) => e.stopPropagation()}>
         <Header>
           <Title>{t('forms.selectAForm')}</Title>
-          <CloseButton onClick={onClose}>
+          <CloseButton onClick={onClose} aria-label="Close">
             <X size={20} />
           </CloseButton>
         </Header>
@@ -394,12 +394,16 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
               </EmptyText>
             </EmptyState>
           ) : (
-            <FormList>
+            <FormList role="listbox" aria-label="Available forms">
               {filteredForms.map((form: any) => (
                 <FormCard
                   key={form.id}
                   $selected={selectedFormId === form.id}
                   onClick={() => setSelectedFormId(form.id)}
+                  onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedFormId(form.id); } }}
+                  role="option"
+                  aria-selected={selectedFormId === form.id}
+                  tabIndex={0}
                 >
                   <FormIcon>
                     <FileText size={24} />
