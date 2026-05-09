@@ -569,6 +569,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                 value={customerId}
                 onChange={setCustomerId}
                 options={customerOptions}
+                loading={customersQuery.isLoading}
                 placeholder="Select customer"
                 filterOption={(input, option) =>
                   (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
@@ -586,6 +587,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                   value={supplierId}
                   onChange={setSupplierId}
                   options={supplierOptions}
+                  loading={suppliersQuery.isLoading}
                   placeholder="Select supplier"
                   filterOption={(input, option) =>
                     (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
@@ -745,6 +747,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                 value={customerId}
                 onChange={setCustomerId}
                 options={customerOptions}
+                loading={customersQuery.isLoading}
                 placeholder="Select or skip"
                 filterOption={(input, option) =>
                   (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
@@ -762,6 +765,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                   value={supplierId}
                   onChange={setSupplierId}
                   options={supplierOptions}
+                  loading={suppliersQuery.isLoading}
                   placeholder="Select or skip"
                   filterOption={(input, option) =>
                     (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
