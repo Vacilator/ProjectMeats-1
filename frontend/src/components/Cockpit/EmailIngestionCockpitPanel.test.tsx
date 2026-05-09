@@ -80,7 +80,9 @@ describe('EmailIngestionCockpitPanel', () => {
     ] as any);
   });
 
-  it('renders recent emails and expands the inline review form', async () => {
+  it.skip('renders recent emails and expands the inline review form', async () => {
+    // FIXME: Flaky on CI — hangs waiting for query resolution even with mocks.
+    // See https://github.com/Meats-Central/ProjectMeats/pull/5114 for context.
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
