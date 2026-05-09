@@ -24,14 +24,10 @@ from typing import Any
 
 from django.utils import timezone
 
-from apps.tenants.rls import tenant_rls
 from tenant_apps.contacts.models import Contact, ContactDepartmentChoices
-from tenant_apps.inquiries.models import (
-    Inquiry,
-    InquiryRouteDecisionChoices,
-    InquiryStatusChoices,
-    InquirySupplierRFQ,
-)
+from tenant_apps.inquiries.models import Inquiry, InquiryRouteDecisionChoices, InquiryStatusChoices, InquirySupplierRFQ
+
+from apps.tenants.rls import tenant_rls
 
 logger = logging.getLogger(__name__)
 
@@ -202,19 +198,15 @@ def advance_orchestrator(
         except ValueError:
             pass
 
-    for step in steps[start_idx: target_idx + 1]:
+    for step in steps[start_idx : target_idx + 1]:
         if step == OrchestratorStep.COMPLETED:
             result.completed = True
             result.current_step = OrchestratorStep.COMPLETED
             _mark_inquiry_fulfilled(tenant=tenant, inquiry=inquiry)
-            _emit_orchestrator_telemetry(
-                tenant=tenant, inquiry=inquiry, event="orchestrator.completed", step=step
-            )
+            _emit_orchestrator_telemetry(tenant=tenant, inquiry=inquiry, event="orchestrator.completed", step=step)
             break
 
-        step_result = _execute_step(
-            tenant=tenant, inquiry=inquiry, step=step, user=user
-        )
+        step_result = _execute_step(tenant=tenant, inquiry=inquiry, step=step, user=user)
         result.steps_executed.append(step_result)
 
         if not step_result.success:
@@ -310,7 +302,8 @@ def get_lineage_chain(*, tenant: Any, inquiry: Inquiry) -> dict[str, Any]:
                 po_contact_routing,
                 contacts_by_id=contacts_by_id,
                 action_prefix="Supplier PO routed to",
-                fallback_company=getattr(getattr(po, "supplier", None), "name", "") or getattr(inquiry.supplier, "name", ""),
+                fallback_company=getattr(getattr(po, "supplier", None), "name", "")
+                or getattr(inquiry.supplier, "name", ""),
                 preferred_roles=("supplier_contact", "shipping_contact", "billing_contact"),
             ),
         }
@@ -363,7 +356,9 @@ def _build_inquiry_contact_roles(
 ) -> list[dict[str, Any]]:
     cards: list[dict[str, Any]] = []
     if rfq_routing:
-        fallback_company = getattr(getattr(latest_rfq, "supplier", None), "name", "") or getattr(inquiry.supplier, "name", "")
+        fallback_company = getattr(getattr(latest_rfq, "supplier", None), "name", "") or getattr(
+            inquiry.supplier, "name", ""
+        )
         card = _build_contact_role_card(
             role="rfq_recipient",
             payload=rfq_routing,
@@ -558,14 +553,10 @@ def _first_non_empty(*values: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _execute_step(
-    *, tenant: Any, inquiry: Inquiry, step: OrchestratorStep, user: Any = None
-) -> StepResult:
+def _execute_step(*, tenant: Any, inquiry: Inquiry, step: OrchestratorStep, user: Any = None) -> StepResult:
     """Execute a single orchestrator step by delegating to the appropriate service."""
 
-    _emit_orchestrator_telemetry(
-        tenant=tenant, inquiry=inquiry, event=f"orchestrator.step.start", step=step
-    )
+    _emit_orchestrator_telemetry(tenant=tenant, inquiry=inquiry, event="orchestrator.step.start", step=step)
 
     try:
         if step == OrchestratorStep.SUPPLIER_RFQ:
@@ -590,9 +581,7 @@ def _execute_step(
             return StepResult(step=step, success=False, message=f"Unknown step: {step}")
     except Exception as exc:
         logger.exception(f"Orchestrator step {step.value} failed for inquiry {inquiry.id}")
-        _emit_orchestrator_telemetry(
-            tenant=tenant, inquiry=inquiry, event="orchestrator.step.error", step=step
-        )
+        _emit_orchestrator_telemetry(tenant=tenant, inquiry=inquiry, event="orchestrator.step.error", step=step)
         return StepResult(step=step, success=False, message=str(exc))
 
 
@@ -622,9 +611,7 @@ def _step_supplier_rfq(*, tenant: Any, inquiry: Inquiry, user: Any = None) -> St
         )
 
     try:
-        result = send_supplier_rfqs_for_inquiry(
-            tenant=tenant, inquiry=inquiry, user=user
-        )
+        result = send_supplier_rfqs_for_inquiry(tenant=tenant, inquiry=inquiry, user=user)
         return StepResult(
             step=OrchestratorStep.SUPPLIER_RFQ,
             success=True,
@@ -669,9 +656,7 @@ def _step_supplier_reply_parse(*, tenant: Any, inquiry: Inquiry) -> StepResult:
 
 def _step_draft_supplier_po(*, tenant: Any, inquiry: Inquiry) -> StepResult:
     """Create draft supplier PO from the accepted/replied RFQ."""
-    from tenant_apps.inquiries.services.supplier_quote_po_draft import (
-        create_supplier_quote_purchase_order_draft,
-    )
+    from tenant_apps.inquiries.services.supplier_quote_po_draft import create_supplier_quote_purchase_order_draft
 
     # Already linked?
     if inquiry.supplier_purchase_order_id:
@@ -683,9 +668,7 @@ def _step_draft_supplier_po(*, tenant: Any, inquiry: Inquiry) -> StepResult:
             entity_type="PurchaseOrder",
         )
 
-    replied_rfq = inquiry.supplier_rfqs.filter(
-        status__in=["replied", "accepted"]
-    ).first()
+    replied_rfq = inquiry.supplier_rfqs.filter(status__in=["replied", "accepted"]).first()
     if not replied_rfq:
         return StepResult(
             step=OrchestratorStep.DRAFT_SUPPLIER_PO,
@@ -693,9 +676,7 @@ def _step_draft_supplier_po(*, tenant: Any, inquiry: Inquiry) -> StepResult:
             message="No replied RFQ found.",
         )
 
-    result = create_supplier_quote_purchase_order_draft(
-        tenant=tenant, inquiry=inquiry, rfq_id=replied_rfq.id
-    )
+    result = create_supplier_quote_purchase_order_draft(tenant=tenant, inquiry=inquiry, rfq_id=replied_rfq.id)
 
     # Link to inquiry
     inquiry.supplier_purchase_order = result.purchase_order
@@ -797,7 +778,7 @@ def _step_approve_sales_order(*, tenant: Any, inquiry: Inquiry) -> StepResult:
         )
 
     so.refresh_from_db()
-    if so.status in (SalesOrderStatus.APPROVED, SalesOrderStatus.COMPLETED):
+    if so.status in (SalesOrderStatus.APPROVED, SalesOrderStatus.DELIVERED):
         return StepResult(
             step=OrchestratorStep.APPROVE_SALES_ORDER,
             success=True,
@@ -826,9 +807,7 @@ def _step_carrier_fan_out(*, tenant: Any, inquiry: Inquiry, user: Any = None) ->
             message="No sales order linked.",
         )
 
-    result = send_carrier_freight_inquiries(
-        tenant=tenant, sales_order=so, user=user
-    )
+    result = send_carrier_freight_inquiries(tenant=tenant, sales_order=so, user=user)
 
     if result.success:
         return StepResult(
@@ -947,11 +926,9 @@ def _derive_fulfill_state(inquiry: Inquiry) -> OrchestratorStep:
     so = inquiry.sales_order
     if so:
         so.refresh_from_db()
-        if so.status in (SalesOrderStatus.APPROVED, SalesOrderStatus.COMPLETED):
+        if so.status in (SalesOrderStatus.APPROVED, SalesOrderStatus.DELIVERED):
             # Check carrier progress
-            has_freight = CarrierFreightInquiry.objects.filter(
-                tenant=inquiry.tenant, sales_order=so
-            ).exists()
+            has_freight = CarrierFreightInquiry.objects.filter(tenant=inquiry.tenant, sales_order=so).exists()
             if not has_freight:
                 return OrchestratorStep.CARRIER_FAN_OUT
 
@@ -1008,9 +985,7 @@ def _mark_inquiry_fulfilled(*, tenant: Any, inquiry: Inquiry) -> None:
         inquiry.save(update_fields=["status", "modified_on"])
 
 
-def _emit_orchestrator_telemetry(
-    *, tenant: Any, inquiry: Inquiry, event: str, step: OrchestratorStep
-) -> None:
+def _emit_orchestrator_telemetry(*, tenant: Any, inquiry: Inquiry, event: str, step: OrchestratorStep) -> None:
     """Emit structured telemetry for orchestrator state transitions."""
     logger.info(
         f"Telemetry: {event}",
