@@ -49,7 +49,7 @@ import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewModal'
 // Types
 // ============================================================================
 
-type CockpitTab = 'all' | 'action-required' | 'completed';
+type CockpitTab = 'all' | 'action-required' | 'completed' | 'in-progress' | 'ai-inbox' | 'tasks';
 
 interface UnifiedItem {
   id: string;
@@ -649,6 +649,20 @@ const ProcessCockpitPage: React.FC = () => {
     );
   }, [allProcesses]);
 
+  const inProgressItems: UnifiedItem[] = useMemo(() => {
+    return allProcesses.filter((item) =>
+      ['in_progress', 'running', 'pending', 'submitted', 'processing'].includes(item.status?.toLowerCase()),
+    );
+  }, [allProcesses]);
+
+  const aiInboxItems: UnifiedItem[] = useMemo(() => {
+    return actionRequiredItems.filter((item) => item.source === 'ai-inbox' || item.source === 'draft');
+  }, [actionRequiredItems]);
+
+  const taskItems: UnifiedItem[] = useMemo(() => {
+    return actionRequiredItems.filter((item) => item.source === 'task' || item.source === 'intervention');
+  }, [actionRequiredItems]);
+
   // Sync indicator
   const lastSynced = useMemo(() => {
     if (!dataUpdatedAt) return 'Never';
@@ -723,11 +737,17 @@ const ProcessCockpitPage: React.FC = () => {
         return getFilteredItems(actionRequiredItems);
       case 'completed':
         return getFilteredItems(completedItems);
+      case 'in-progress':
+        return getFilteredItems(inProgressItems);
+      case 'ai-inbox':
+        return getFilteredItems(aiInboxItems);
+      case 'tasks':
+        return getFilteredItems(taskItems);
       case 'all':
       default:
         return getFilteredItems(activeProcesses);
     }
-  }, [activeTab, activeProcesses, actionRequiredItems, completedItems, getFilteredItems]);
+  }, [activeTab, activeProcesses, actionRequiredItems, completedItems, inProgressItems, aiInboxItems, taskItems, getFilteredItems]);
 
   // ---------- Render ----------
 
@@ -747,6 +767,30 @@ const ProcessCockpitPage: React.FC = () => {
             <History size={32} strokeWidth={1.5} />
             <span>No completed processes yet</span>
             <EmptySubtext>Completed workflows and inquiries will appear here.</EmptySubtext>
+          </EmptyState>
+        );
+      case 'in-progress':
+        return (
+          <EmptyState>
+            <Workflow size={32} strokeWidth={1.5} />
+            <span>No processes running</span>
+            <EmptySubtext>Active workflows will appear here when started.</EmptySubtext>
+          </EmptyState>
+        );
+      case 'ai-inbox':
+        return (
+          <EmptyState>
+            <Mail size={32} strokeWidth={1.5} />
+            <span>AI Inbox is empty</span>
+            <EmptySubtext>AI-classified emails and drafts will appear here.</EmptySubtext>
+          </EmptyState>
+        );
+      case 'tasks':
+        return (
+          <EmptyState>
+            <ClipboardList size={32} strokeWidth={1.5} />
+            <span>No operational tasks</span>
+            <EmptySubtext>Assigned tasks and interventions will appear here.</EmptySubtext>
           </EmptyState>
         );
       default:
@@ -799,6 +843,22 @@ const ProcessCockpitPage: React.FC = () => {
         </Tab>
         <Tab $active={activeTab === 'completed'} onClick={() => handleTabChange('completed')}>
           <CheckCircle2 size={15} /> Completed
+        </Tab>
+        <Tab $active={activeTab === 'in-progress'} onClick={() => handleTabChange('in-progress')}>
+          <Workflow size={15} /> In Progress
+          {inProgressItems.length > 0 && (
+            <span style={{ fontSize: 11, opacity: 0.6 }}>({inProgressItems.length})</span>
+          )}
+        </Tab>
+        <Tab $active={activeTab === 'ai-inbox'} onClick={() => handleTabChange('ai-inbox')}>
+          <Mail size={15} /> AI Inbox
+          {aiInboxItems.length > 0 && <TabBadge>{aiInboxItems.length}</TabBadge>}
+        </Tab>
+        <Tab $active={activeTab === 'tasks'} onClick={() => handleTabChange('tasks')}>
+          <ClipboardList size={15} /> Tasks
+          {taskItems.length > 0 && (
+            <span style={{ fontSize: 11, opacity: 0.6 }}>({taskItems.length})</span>
+          )}
         </Tab>
       </TabBar>
 

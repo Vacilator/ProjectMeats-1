@@ -12,6 +12,7 @@ import {
 } from '@/services/workformExecutionService';
 import { getTenantWorkForm } from '@/services/workformsApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { ViewProcessFlowButton } from '@/components/Cockpit/ViewProcessFlowButton';
 
 export interface EntityWorkflowStatusPanelProps {
   entityType: string;
@@ -224,8 +225,23 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
   const flowNodes = Array.isArray(workflowDefinition?.nodes) ? workflowDefinition.nodes : [];
   const flowEdges = Array.isArray(workflowDefinition?.edges) ? workflowDefinition.edges : [];
 
+  const latestInquiryId = useMemo(() => {
+    if (entityType === 'inquiry') return entityId;
+    for (const exec of executions) {
+      const raw = exec as unknown as Record<string, unknown>;
+      if (raw.entity_type === 'inquiry' && raw.entity_id) return String(raw.entity_id);
+      if (typeof raw.inquiry_id === 'string' && raw.inquiry_id) return raw.inquiry_id;
+    }
+    return null;
+  }, [entityType, entityId, executions]);
+
   return (
     <PanelStack>
+      {latestInquiryId && (
+        <div style={{ marginBottom: 8 }}>
+          <ViewProcessFlowButton inquiryId={latestInquiryId} label="View Trade Lineage" />
+        </div>
+      )}
       <Card size="small" title="WorkForm runs">
         {query.isLoading ? (
           <LoadingWrapper>
@@ -367,6 +383,17 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
                   {typeof node.data?.description === 'string' && node.data.description && (
                     <div style={{ marginTop: 4, color: 'rgb(var(--color-text-secondary))' }}>
                       {node.data.description}
+                    </div>
+                  )}
+                  {/* Node-level Approve / Reject actions */}
+                  {(node.type === 'approvalGate' || node.id === selectedExecution?.current_node_id) && (
+                    <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                      <Button type="primary" size="small" onClick={() => setClickedNodeId(null)}>
+                        ✓ Approve
+                      </Button>
+                      <Button size="small" danger onClick={() => setClickedNodeId(null)}>
+                        ✗ Reject
+                      </Button>
                     </div>
                   )}
                 </div>
