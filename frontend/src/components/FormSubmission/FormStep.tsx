@@ -1,6 +1,6 @@
 /**
  * FormStep Component
- * 
+ *
  * Renders a single step within a form submission with fields and notes.
  */
 import React, { useCallback, useState, useMemo } from 'react';
@@ -75,18 +75,18 @@ const StepNumber = styled.span<{ status: string }>`
   border-radius: 50%;
   font-size: 0.875rem;
   font-weight: 600;
-  
+
   ${({ status }) => {
     switch (status) {
       case 'completed':
         return `
           background: var(--color-success, rgb(var(--color-success)));
-          color: white;
+          color: rgb(var(--color-text-inverse));
         `;
       case 'in_progress':
         return `
           background: var(--color-primary, rgb(var(--color-primary)));
-          color: white;
+          color: rgb(var(--color-text-inverse));
         `;
       case 'action_needed':
         return `
@@ -187,7 +187,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'success' }>`
       case 'success':
         return `
           background: var(--color-success, rgb(var(--color-success)));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           &:hover:not(:disabled) {
             background: var(--color-success-dark, rgb(var(--color-success)));
           }
@@ -204,7 +204,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'success' }>`
       default:
         return `
           background: var(--color-primary, rgb(var(--color-primary)));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           &:hover:not(:disabled) {
             background: var(--color-primary-dark, rgb(var(--color-primary)));
           }
@@ -267,7 +267,7 @@ const FormStep: React.FC<FormStepProps> = ({
 
   const handleComplete = useCallback(async () => {
     if (!canComplete || hasErrors || isCompleting) return;
-    
+
     setIsCompleting(true);
     try {
       await onCompleteStep();

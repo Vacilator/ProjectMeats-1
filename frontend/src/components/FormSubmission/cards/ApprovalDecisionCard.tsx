@@ -1,16 +1,16 @@
 /**
  * Approval Decision Card
- * 
+ *
  * Phase 4: Hybrid Task Renderer
  * Interaction card for manual approval workflow nodes.
- * 
+ *
  * Features:
  * - Approve/Reject toggle
  * - Required comment field
  * - Context summary display
  * - Timestamp tracking
  * - Approver identification
- * 
+ *
  * Created: 2026-02-12 - Phase 4 Hybrid Task Renderer Implementation
  */
 
@@ -53,7 +53,7 @@ const CardIcon = styled.div`
   background: rgb(var(--color-warning) / 0.1);
   border-radius: var(--radius-md);
   color: rgb(var(--color-warning));
-  
+
   svg {
     width: 24px;
     height: 24px;
@@ -113,8 +113,8 @@ const DecisionButton = styled.button<{ $selected: boolean; $variant: 'approve' |
   padding: 16px;
   border: 2px solid ${props => {
     if (props.$selected) {
-      return props.$variant === 'approve' 
-        ? 'rgb(var(--color-success))' 
+      return props.$variant === 'approve'
+        ? 'rgb(var(--color-success))'
         : 'rgb(var(--color-error))';
     }
     return 'rgb(var(--color-border))';
@@ -134,20 +134,20 @@ const DecisionButton = styled.button<{ $selected: boolean; $variant: 'approve' |
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  
+
   &:hover {
-    border-color: ${props => 
-      props.$variant === 'approve' 
-        ? 'rgb(var(--color-success))' 
+    border-color: ${props =>
+      props.$variant === 'approve'
+        ? 'rgb(var(--color-success))'
         : 'rgb(var(--color-error))'
     };
-    background: ${props => 
+    background: ${props =>
       props.$variant === 'approve'
         ? 'rgb(var(--color-success) / 0.05)'
         : 'rgb(var(--color-error) / 0.05)'
     };
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -161,17 +161,17 @@ const DecisionIcon = styled.div<{ $variant: 'approve' | 'reject' }>`
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: ${props => 
+  background: ${props =>
     props.$variant === 'approve'
       ? 'rgb(var(--color-success) / 0.2)'
       : 'rgb(var(--color-error) / 0.2)'
   };
-  color: ${props => 
+  color: ${props =>
     props.$variant === 'approve'
       ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-error))'
   };
-  
+
   svg {
     width: 20px;
     height: 20px;
@@ -211,17 +211,17 @@ const CommentTextarea = styled.textarea`
   color: rgb(var(--color-text-primary));
   background: rgb(var(--color-surface));
   resize: vertical;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
-  
+
   &:disabled {
     background: rgb(var(--color-surface-hover));
     cursor: not-allowed;
@@ -233,26 +233,26 @@ const SubmitButton = styled.button<{ $variant: 'approve' | 'reject' }>`
   padding: 14px;
   border: none;
   border-radius: var(--radius-md);
-  background: ${props => 
+  background: ${props =>
     props.$variant === 'approve'
       ? 'rgb(var(--color-success))'
       : 'rgb(var(--color-error))'
   };
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
-  
+
   &:active:not(:disabled) {
     transform: translateY(0);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -270,7 +270,7 @@ const ErrorMessage = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -292,7 +292,7 @@ const MetadataItem = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
-  
+
   svg {
     width: 14px;
     height: 14px;
@@ -317,10 +317,10 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
   const config = node.data || {};
   const title = config.title || 'Approval Required';
   const summaryTemplate = config.summary || 'Please review and approve or reject this request.';
-  
+
   // Resolve summary template with context data
   const summary = context ? resolveTemplateString(summaryTemplate, context) : summaryTemplate;
-  
+
   // Get current user info (would come from auth context in production)
   const currentUser = {
     id: 'user-123',
@@ -329,18 +329,18 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
 
   const handleSubmit = () => {
     setError(null);
-    
+
     // Validate
     if (!decision) {
       setError('Please select Approve or Reject');
       return;
     }
-    
+
     if (!comment.trim()) {
       setError('Please provide a comment explaining your decision');
       return;
     }
-    
+
     // Complete card with decision data
     onComplete({
       decision: decision === 'approve',
@@ -362,12 +362,12 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
         </CardIcon>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      
+
       <SummarySection>
         <SummaryLabel>Request Summary</SummaryLabel>
         <SummaryText>{summary}</SummaryText>
       </SummarySection>
-      
+
       <DecisionSection>
         <DecisionLabel>Your Decision <RequiredIndicator>*</RequiredIndicator></DecisionLabel>
         <DecisionButtons>
@@ -383,7 +383,7 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
             </DecisionIcon>
             <DecisionText>Approve</DecisionText>
           </DecisionButton>
-          
+
           <DecisionButton
             type="button"
             $selected={decision === 'reject'}
@@ -398,7 +398,7 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
           </DecisionButton>
         </DecisionButtons>
       </DecisionSection>
-      
+
       <CommentSection>
         <CommentLabel>
           Comment <RequiredIndicator>*</RequiredIndicator>
@@ -406,8 +406,8 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
         <CommentTextarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder={decision === 'approve' 
-            ? 'Explain why you are approving this request...' 
+          placeholder={decision === 'approve'
+            ? 'Explain why you are approving this request...'
             : decision === 'reject'
               ? 'Explain why you are rejecting this request...'
               : 'Select a decision and add your comment...'
@@ -415,7 +415,7 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
           disabled={readOnly}
         />
       </CommentSection>
-      
+
       {!readOnly && (
         <SubmitButton
           type="button"
@@ -426,14 +426,14 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
           {decision === 'approve' ? 'Submit Approval' : decision === 'reject' ? 'Submit Rejection' : 'Submit Decision'}
         </SubmitButton>
       )}
-      
+
       {error && (
         <ErrorMessage>
           <AlertCircle />
           <span>{error}</span>
         </ErrorMessage>
       )}
-      
+
       <MetadataSection>
         <MetadataItem>
           <User />

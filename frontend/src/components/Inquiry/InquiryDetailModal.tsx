@@ -1,6 +1,6 @@
 /**
  * Inquiry Detail Modal
- * 
+ *
  * Modal for viewing and managing inquiry details.
  * Features:
  * - View inquiry information and products
@@ -11,8 +11,8 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { 
-  Inquiry, 
+import {
+  Inquiry,
   InquiryProduct,
   InquiryStatus,
 } from '../../types';
@@ -91,7 +91,7 @@ const CloseButton = styled.button`
   line-height: 1;
   padding: 0.25rem;
   border-radius: var(--radius-md);
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
     background: rgba(var(--color-text-primary), 0.1);
@@ -134,14 +134,14 @@ const InfoItem = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  
+
   .label {
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
     text-transform: uppercase;
     letter-spacing: 0.025em;
   }
-  
+
   .value {
     font-size: 0.875rem;
     color: rgb(var(--color-text-primary));
@@ -206,11 +206,11 @@ const ProductRow = styled.div`
   padding: 0.75rem;
   border-bottom: 1px solid rgb(var(--color-border));
   align-items: center;
-  
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
@@ -221,7 +221,7 @@ const ProductInfo = styled.div`
     font-weight: 500;
     color: rgb(var(--color-text-primary));
   }
-  
+
   .description {
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
@@ -230,8 +230,8 @@ const ProductInfo = styled.div`
 
 const PriceCell = styled.div<{ variant?: 'desired' | 'actual' }>`
   font-size: 0.875rem;
-  color: ${props => props.variant === 'actual' 
-    ? 'rgb(var(--color-success))' 
+  color: ${props => props.variant === 'actual'
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-info))'};
   font-weight: 500;
 `;
@@ -261,27 +261,27 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'succes
   align-items: center;
   gap: 0.375rem;
   transition: all 0.2s;
-  
+
   ${props => {
     switch (props.variant) {
       case 'primary':
         return `
           background: rgb(var(--color-primary));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { opacity: 0.9; }
         `;
       case 'success':
         return `
           background: rgb(var(--color-success));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { opacity: 0.9; }
         `;
       case 'danger':
         return `
           background: rgb(var(--color-error));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { opacity: 0.9; }
         `;
@@ -294,7 +294,7 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'succes
         `;
     }
   }}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -337,7 +337,7 @@ const CloseModalButton = styled.button`
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-text-primary), 0.05);
   }
@@ -457,7 +457,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                   {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
                 </StatusBadge>
               </SectionHeader>
-              
+
               <StatusActions>
                 {canQuote && (
                   <ActionButton
@@ -505,7 +505,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                   {inquiry.entity_type === 'customer' ? 'Customer' : 'Supplier'} Information
                 </SectionTitle>
               </SectionHeader>
-              
+
               <InfoGrid>
                 <InfoItem>
                   <span className="label">{inquiry.entity_type === 'customer' ? 'Customer' : 'Supplier'}</span>
@@ -553,7 +553,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               <SectionHeader>
                 <SectionTitle>Products ({inquiry.products?.length || 0})</SectionTitle>
               </SectionHeader>
-              
+
               {inquiry.products && inquiry.products.length > 0 ? (
                 <ProductsTable>
                   <ProductsHeader>
@@ -564,7 +564,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                     <span>Line Total</span>
                     <span>Margin</span>
                   </ProductsHeader>
-                  
+
                   {inquiry.products.map((product: InquiryProduct) => (
                     <ProductRow key={product.id}>
                       <ProductInfo>
@@ -588,7 +588,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                       </MarginCell>
                     </ProductRow>
                   ))}
-                  
+
                   <TotalsRow>
                     <div>Total</div>
                     <div />
@@ -613,7 +613,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 <SectionHeader>
                   <SectionTitle>Competitor Information</SectionTitle>
                 </SectionHeader>
-                
+
                 <InfoGrid>
                   {inquiry.competitor_names && (
                     <InfoItem>
@@ -644,7 +644,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               <SectionHeader>
                 <SectionTitle>Notes</SectionTitle>
               </SectionHeader>
-              
+
               {inquiry.notes ? (
                 <NotesBox>{inquiry.notes}</NotesBox>
               ) : (

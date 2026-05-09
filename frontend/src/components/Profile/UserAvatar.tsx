@@ -1,6 +1,6 @@
 /**
  * UserAvatar Component
- * 
+ *
  * Displays user avatar with optional upload functionality in edit mode.
  * Features:
  * - Circular avatar display
@@ -132,7 +132,7 @@ const AvatarImage = styled.img`
 const AvatarInitials = styled.div<{ $size: number }>`
   font-size: ${(props) => props.$size * 0.4}px;
   font-weight: 700;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   user-select: none;
 `;
 
@@ -192,7 +192,7 @@ const UploadIcon = styled.div<{ $uploading: boolean }>`
 const UploadText = styled.span`
   font-size: 8px;
   font-weight: 600;
-  color: white;
+  color: rgb(var(--color-text-inverse));
   margin-top: 2px;
   text-transform: uppercase;
 `;

@@ -100,9 +100,9 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
     } catch (err: any) {
       logger.error('Save failed', { component: 'QuickActionsEditor' }, err);
       // Extract detailed error from response
-      const errorMsg = err?.response?.data?.error || 
-                       err?.response?.data?.details || 
-                       err?.message || 
+      const errorMsg = err?.response?.data?.error ||
+                       err?.response?.data?.details ||
+                       err?.message ||
                        'Failed to save quick actions';
       const errorDetails = typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg;
       setError(errorDetails);
@@ -371,7 +371,7 @@ const ControlButton = styled.button<{ $theme: Theme }>`
 
 const RemoveButton = styled(ControlButton)`
   color: rgb(var(--color-error));
-  
+
   &:not(:disabled):hover {
     background: rgba(220, 53, 69, 0.1);
   }
@@ -416,7 +416,7 @@ const FormMeta = styled.div`
 
 const AddButton = styled.button<{ $theme: Theme }>`
   background: ${({ $theme }) => $theme.colors.primary};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 4px;
   padding: 6px 12px;
@@ -473,7 +473,7 @@ const CancelButton = styled.button<{ $theme: Theme }>`
 
 const SaveButton = styled.button<{ $theme: Theme }>`
   background: ${({ $theme }) => $theme.colors.primary};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   padding: 10px 20px;

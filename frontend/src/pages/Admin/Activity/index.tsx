@@ -540,7 +540,7 @@ const TimelineDot = styled.div<{ $tone: Tone }>`
   height: 32px;
   border-radius: var(--radius-full);
   background: ${(p) => toneToColor(p.$tone)};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   display: flex;
   align-items: center;
   justify-content: center;

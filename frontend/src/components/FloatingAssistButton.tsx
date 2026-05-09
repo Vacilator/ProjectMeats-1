@@ -1,11 +1,11 @@
 /**
  * Floating Assistance Button (FAB)
- * 
+ *
  * Fixed-position action button in bottom-right corner providing quick access to:
  * - Support: FAQ
  * - Support: Create Ticket
  * - User Profile
- * 
+ *
  * Features:
  * - Responsive design
  * - Theme-aware styling
@@ -118,7 +118,7 @@ const FAB = styled.button<{ $theme: Theme; $isOpen: boolean }>`
     props.$theme.name === 'dark'
       ? 'linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-primary)) 100%)'
       : 'linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-primary)) 100%)'};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   font-size: 24px;
   font-weight: bold;

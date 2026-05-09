@@ -27,9 +27,9 @@ const Profile: React.FC = () => {
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarUrl(reader.result as string);
-      setMessage({ 
-        type: 'success', 
-        text: 'Profile picture uploaded! (Preview only - backend integration needed)' 
+      setMessage({
+        type: 'success',
+        text: 'Profile picture uploaded! (Preview only - backend integration needed)'
       });
     };
     reader.readAsDataURL(file);
@@ -339,7 +339,7 @@ const UserRole = styled.p`
 
 const EditButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 10px 20px;
   border-radius: 8px;
@@ -409,7 +409,7 @@ const FormActions = styled.div`
 
 const CancelButton = styled.button`
   background: rgb(var(--color-text-secondary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
@@ -430,7 +430,7 @@ const CancelButton = styled.button`
 
 const SaveButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 12px 24px;
   border-radius: 8px;

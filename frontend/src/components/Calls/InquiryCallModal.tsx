@@ -326,7 +326,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
     p.$variant === 'primary'
       ? `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     border: none;
 
     &:hover { opacity: 0.92; }

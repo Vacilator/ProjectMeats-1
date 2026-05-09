@@ -369,7 +369,7 @@ const NewButton = styled.button`
   border-radius: 999px;
   border: 1px solid rgba(var(--color-primary), 0.35);
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   font-weight: 800;
   font-size: 14px;
   box-shadow: 0 10px 22px rgba(var(--color-primary), 0.25);

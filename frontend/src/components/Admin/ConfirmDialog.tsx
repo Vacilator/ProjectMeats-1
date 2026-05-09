@@ -1,9 +1,9 @@
 /**
  * Confirm Dialog Component
- * 
+ *
  * A confirmation dialog for destructive actions in the admin workspace.
  * Uses the shared Modal component with predefined styling.
- * 
+ *
  * Usage:
  * ```tsx
  * <ConfirmDialog
@@ -99,7 +99,7 @@ const Button = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   border: none;
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -110,7 +110,7 @@ const CancelButton = styled(Button)`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   border: 1px solid rgb(var(--color-border));
-  
+
   &:hover:not(:disabled) {
     background: rgb(var(--color-surface-hover));
   }
@@ -118,8 +118,8 @@ const CancelButton = styled(Button)`
 
 const ConfirmButton = styled(Button)<{ variant: 'primary' | 'danger' | 'warning' }>`
   background: ${({ variant }) => getVariantColor(variant)};
-  color: white;
-  
+  color: rgb(var(--color-text-inverse));
+
   &:hover:not(:disabled) {
     opacity: 0.9;
   }

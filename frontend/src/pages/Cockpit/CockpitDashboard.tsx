@@ -1,28 +1,28 @@
 /**
  * Cockpit Dashboard Component
- * 
+ *
  * Widget grid dashboard for the Cockpit command center.
  * Refactored from Workspace.tsx for dual-mode Cockpit interface.
- * 
+ *
  * Features:
  * - Draggable, resizable widgets
  * - Layout persistence
  * - Edit mode toggle
  * - Widget catalog
  * - CommandBar for universal search (⌘K)
- * 
+ *
  * Updated: 2026-02-04 - Refactored from Workspace.tsx
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import styled from 'styled-components';
-import { 
+import {
   LayoutGrid, Lock, Unlock, Plus,
   RotateCcw, X
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { 
-  WidgetGrid, 
-  WidgetConfig, 
+import {
+  WidgetGrid,
+  WidgetConfig,
   WidgetLayout,
   QuickStatsWidget,
   RecentActivityWidget,
@@ -115,72 +115,72 @@ const DEFAULT_LAYOUT: WidgetLayout[] = [
 
 // Widget catalog for adding new widgets - organized by category
 const WIDGET_CATALOG = [
-  { 
-    type: 'TodaysNumbersWidget', 
-    title: "Today's Numbers", 
+  {
+    type: 'TodaysNumbersWidget',
+    title: "Today's Numbers",
     description: 'Detailed KPI dashboard with trends',
     category: 'metrics',
     icon: '📊',
   },
-  { 
-    type: 'MyTasksWidget', 
-    title: 'My Tasks', 
+  {
+    type: 'MyTasksWidget',
+    title: 'My Tasks',
     description: 'Your assigned tasks and deadlines',
     category: 'productivity',
     icon: '✅',
   },
-  { 
-    type: 'QuickStatsWidget', 
-    title: 'Quick Stats', 
+  {
+    type: 'QuickStatsWidget',
+    title: 'Quick Stats',
     description: 'Key metrics and KPIs',
     category: 'metrics',
     icon: '📈',
   },
-  { 
-    type: 'RecentActivityWidget', 
-    title: 'Recent Activity', 
+  {
+    type: 'RecentActivityWidget',
+    title: 'Recent Activity',
     description: 'Activity feed',
     category: 'information',
     icon: '📰',
   },
-  { 
-    type: 'UpcomingCallsWidget', 
-    title: 'Upcoming Calls', 
+  {
+    type: 'UpcomingCallsWidget',
+    title: 'Upcoming Calls',
     description: 'Scheduled callbacks',
     category: 'productivity',
     icon: '📞',
   },
-  { 
-    type: 'QuickActionsWidget', 
-    title: 'Quick Actions', 
+  {
+    type: 'QuickActionsWidget',
+    title: 'Quick Actions',
     description: 'Common shortcuts',
     category: 'productivity',
     icon: '⚡',
   },
-  { 
-    type: 'EntityExplorerWidget', 
-    title: 'Entity Explorer', 
+  {
+    type: 'EntityExplorerWidget',
+    title: 'Entity Explorer',
     description: 'Browse and explore entities',
     category: 'information',
     icon: '🔍',
   },
-  { 
-    type: 'EmailIntegrationWidget', 
-    title: 'Email Integrations', 
+  {
+    type: 'EmailIntegrationWidget',
+    title: 'Email Integrations',
     description: 'Manage connected email accounts',
     category: 'integrations',
     icon: '📧',
   },
-  { 
-    type: 'EmailIngestionMonitorWidget', 
-    title: 'Email Ingestion Monitor', 
+  {
+    type: 'EmailIngestionMonitorWidget',
+    title: 'Email Ingestion Monitor',
     description: 'Track order-related emails and AI processing',
     category: 'integrations',
     icon: '📬',
   },
-  { 
-    type: 'ConfidenceScoringWidget', 
-    title: 'AI Confidence', 
+  {
+    type: 'ConfidenceScoringWidget',
+    title: 'AI Confidence',
     description: 'AI parsing confidence metrics and auto-processing stats',
     category: 'metrics',
     icon: '🧠',
@@ -242,20 +242,20 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'dange
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   ${props => {
     switch (props.$variant) {
       case 'primary':
         return `
           background: rgb(var(--color-primary));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { opacity: 0.9; }
         `;
       case 'danger':
         return `
           background: rgb(var(--color-error));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { opacity: 0.9; }
         `;
@@ -276,7 +276,7 @@ const EditBadge = styled.span`
   padding: 4px 8px;
   border-radius: var(--radius-sm, 4px);
   background: rgb(var(--color-warning));
-  color: black;
+  color: rgb(var(--color-text-primary));
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -285,7 +285,7 @@ const EditBadge = styled.span`
 
 const GridWrapper = styled.div`
   padding: 24px;
-  
+
   @media (max-width: 640px) {
     padding: 16px;
   }
@@ -356,7 +356,7 @@ const ModalClose = styled.button`
   border-radius: var(--radius-sm, 4px);
   color: rgb(var(--color-text-tertiary));
   cursor: pointer;
-  
+
   &:hover {
     background: rgb(var(--color-border));
     color: rgb(var(--color-text-primary));
@@ -427,7 +427,7 @@ const CategoryHeader = styled.div`
   padding: 8px 0;
   margin-top: 16px;
   border-bottom: 1px solid rgb(var(--color-border));
-  
+
   &:first-child {
     margin-top: 0;
   }
@@ -459,7 +459,7 @@ export const CockpitDashboard: React.FC = () => {
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
   const [isLayoutLoaded, setIsLayoutLoaded] = useState(false);
-  
+
   // Header owns global Ctrl+K search. Cockpit reads query from URL.
   const [searchParams, setSearchParams] = useSearchParams();
   const cockpitQuery = searchParams.get('q') ?? '';
@@ -474,7 +474,7 @@ export const CockpitDashboard: React.FC = () => {
     setSearchParams(next, { replace: true });
     void launchTour('cockpit', hasCompletedTour('cockpit') ? 'restart' : 'resume');
   }, [hasCompletedTour, launchTour, searchParams, setSearchParams]);
-  
+
   // Handle search query changes from SmartSearch component
   // NOTE: use replace=true so typing doesn't spam browser history.
   const handleQueryChange = useCallback((newQuery: string) => {
@@ -491,7 +491,7 @@ export const CockpitDashboard: React.FC = () => {
 
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
-  
+
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
   const pinnedTools = useCockpitPinnedTools();
@@ -690,7 +690,7 @@ export const CockpitDashboard: React.FC = () => {
     setWidgets(DEFAULT_WIDGETS);
     setLayout(DEFAULT_LAYOUT);
     localStorage.removeItem(STORAGE_KEY);
-    
+
     // Also delete from backend (silently handle 404 as expected)
     try {
       await businessApi.delete('cockpit/workspace-layout/');
@@ -706,7 +706,7 @@ export const CockpitDashboard: React.FC = () => {
         }
         // Suppress 404 completely - it's expected
       }
-    
+
     setIsEditing(false);
   }, []);
 
@@ -715,7 +715,7 @@ export const CockpitDashboard: React.FC = () => {
     const id = `${type.toLowerCase()}-${Date.now()}`;
     const newWidget: WidgetConfig = { id, type, title };
     const newLayoutItem: WidgetLayout = { i: id, x: 0, y: Infinity, w: 4, h: 3 };
-    
+
     setWidgets(prev => [...prev, newWidget]);
     setLayout(prev => [...prev, newLayoutItem]);
     setIsCatalogOpen(false);
@@ -741,7 +741,7 @@ export const CockpitDashboard: React.FC = () => {
   // Render widget based on type
   const renderWidget = useCallback((widget: WidgetConfig) => {
     const normalizedType = normalizeWidgetType(widget.type);
-    
+
     switch (normalizedType) {
       case 'QuickStatsWidget':
         return <QuickStatsWidget />;
@@ -775,10 +775,10 @@ export const CockpitDashboard: React.FC = () => {
           normalizedType,
         });
         return (
-          <div style={{ 
-            padding: '20px', 
-            textAlign: 'center', 
-            color: 'rgb(var(--color-text-tertiary))' 
+          <div style={{
+            padding: '20px',
+            textAlign: 'center',
+            color: 'rgb(var(--color-text-tertiary))'
           }}>
             <p>⚠️ Widget not found</p>
             <p style={{ fontSize: '12px' }}>Type: {widget.type}</p>
@@ -958,12 +958,12 @@ export const CockpitDashboard: React.FC = () => {
             {Object.entries(WIDGET_CATEGORIES).map(([category, label]) => {
               const categoryWidgets = WIDGET_CATALOG.filter(w => w.category === category);
               if (categoryWidgets.length === 0) return null;
-              
+
               return (
                 <div key={category}>
                   <CategoryHeader>{label}</CategoryHeader>
                   {categoryWidgets.map(item => (
-                    <WidgetOption 
+                    <WidgetOption
                       key={item.type}
                       onClick={() => handleAddWidget(item.type, item.title)}
                     >

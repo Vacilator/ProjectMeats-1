@@ -24,7 +24,7 @@ const Title = styled.h1`
 
 const AddButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
@@ -140,7 +140,7 @@ const TableCell = styled.td`
 
 const StatusBadge = styled.span<{ $color: string }>`
   background: ${(props) => props.$color};
-  color: white;
+  color: rgb(var(--color-text-inverse));
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
@@ -149,7 +149,7 @@ const StatusBadge = styled.span<{ $color: string }>`
 
 const ActionButton = styled.button`
   background: rgb(var(--color-success));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
@@ -165,7 +165,7 @@ const ActionButton = styled.button`
 
 const DeleteButton = styled.button`
   background: rgb(var(--color-error));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 6px 12px;
   border-radius: 4px;
@@ -288,7 +288,7 @@ const FormActions = styled.div`
 
 const CancelButton = styled.button`
   background: rgb(var(--color-text-secondary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 10px 20px;
   border-radius: 6px;
@@ -303,7 +303,7 @@ const CancelButton = styled.button`
 
 const SubmitButton = styled.button`
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   padding: 10px 20px;
   border-radius: 6px;

@@ -1,21 +1,21 @@
 /**
  * WorkflowExecutionModal
- * 
+ *
  * Phase 4 Integration: TaskRenderer + FormSubmissionModal Bridge
- * 
+ *
  * This component orchestrates workflow execution by routing nodes to
  * the appropriate renderer:
  * - Form steps → FormStep component (via TaskRenderer)
  * - Interaction cards → Interaction card components (via TaskRenderer)
  * - Legacy form submissions → FormSubmissionModal (backward compatibility)
- * 
+ *
  * Features:
  * - Automatic step progression
  * - Workflow context management
  * - Progress tracking
  * - Auto-save support
  * - Cancel/resume workflows
- * 
+ *
  * Created: 2026-02-12 - TaskRenderer Integration
  */
 
@@ -43,7 +43,7 @@ export interface WorkflowExecutionProps {
     nodes: WorkflowNode[];
     edges?: Edge<any>[];
   };
-  
+
   /** Initial workflow execution data */
   execution?: {
     id: string;
@@ -51,16 +51,16 @@ export interface WorkflowExecutionProps {
     current_node_id?: string;
     data: Record<string, any>;
   };
-  
+
   /** Modal open state */
   isOpen: boolean;
-  
+
   /** Close handler */
   onClose: () => void;
-  
+
   /** Execution complete handler */
   onComplete?: (data: Record<string, any>) => void;
-  
+
   /** Auto-save handler */
   onAutoSave?: (data: Record<string, any>) => void;
 }
@@ -231,7 +231,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
 
   ${props => props.$variant === 'primary' && `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
 
     &:hover:not(:disabled) {
       background: rgb(var(--color-primary-hover));
@@ -352,7 +352,7 @@ export const WorkflowExecutionModal: React.FC<WorkflowExecutionProps> = ({
   onAutoSave,
 }) => {
   // Build execution order from workflow
-  const executionOrder = useMemo(() => 
+  const executionOrder = useMemo(() =>
     buildExecutionOrder(workflow.nodes, workflow.edges),
     [workflow.nodes, workflow.edges]
   );
@@ -515,7 +515,7 @@ export const WorkflowExecutionModal: React.FC<WorkflowExecutionProps> = ({
               <ChevronLeft />
               Previous
             </Button>
-            
+
             <Button
               $variant="secondary"
               onClick={handleSkip}

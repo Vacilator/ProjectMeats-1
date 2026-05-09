@@ -233,7 +233,7 @@ const ActionBtn = styled.button<{ $variant: 'approve' | 'reject' }>`
     p.$variant === 'approve'
       ? `
     background: rgb(var(--color-success));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     &:hover { background: rgb(var(--color-success)); opacity: 0.9; }
   `
       : `

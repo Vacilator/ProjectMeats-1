@@ -1,6 +1,6 @@
 /**
  * InquiryTemplates Page
- * 
+ *
  * Manage inquiry templates for quick inquiry creation
  */
 import React, { useState, useEffect, useCallback } from 'react';
@@ -58,7 +58,7 @@ const FilterSelect = styled.select`
 const CreateButton = styled.button`
   padding: 10px 20px;
   background: rgb(var(--color-primary));
-  color: white;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: var(--radius-md);
   font-size: 0.9rem;
@@ -67,7 +67,7 @@ const CreateButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   &:hover {
     opacity: 0.9;
   }
@@ -86,7 +86,7 @@ const TemplateCard = styled.div<{ $isInactive?: boolean }>`
   padding: 20px;
   opacity: ${props => props.$isInactive ? 0.6 : 1};
   transition: all 0.2s;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -111,11 +111,11 @@ const StatusBadge = styled.span<{ $active: boolean }>`
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
-  background: ${props => props.$active 
-    ? 'rgba(var(--color-success), 0.1)' 
+  background: ${props => props.$active
+    ? 'rgba(var(--color-success), 0.1)'
     : 'rgba(var(--color-border), 0.5)'};
-  color: ${props => props.$active 
-    ? 'rgb(var(--color-success))' 
+  color: ${props => props.$active
+    ? 'rgb(var(--color-success))'
     : 'rgb(var(--color-text-secondary))'};
 `;
 
@@ -124,11 +124,11 @@ const EntityTypeBadge = styled.span<{ $type: InquiryEntityType }>`
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
-  background: ${props => props.$type === 'customer' 
-    ? 'rgba(var(--color-info), 0.1)' 
+  background: ${props => props.$type === 'customer'
+    ? 'rgba(var(--color-info), 0.1)'
     : 'rgba(var(--color-warning), 0.1)'};
-  color: ${props => props.$type === 'customer' 
-    ? 'rgb(var(--color-primary))' 
+  color: ${props => props.$type === 'customer'
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-warning))'};
 `;
 
@@ -194,12 +194,12 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' }>`
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   ${props => props.$variant === 'primary' ? `
     background: rgb(var(--color-primary));
-    color: white;
+    color: rgb(var(--color-text-inverse));
     border: none;
-    
+
     &:hover {
       opacity: 0.9;
     }
@@ -207,7 +207,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' }>`
     background: transparent;
     color: rgb(var(--color-error));
     border: 1px solid rgb(var(--color-error));
-    
+
     &:hover {
       background: rgba(var(--color-error), 0.1);
     }
@@ -215,7 +215,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' }>`
     background: transparent;
     color: rgb(var(--color-text-primary));
     border: 1px solid rgb(var(--color-border));
-    
+
     &:hover {
       background: rgba(var(--color-primary), 0.05);
     }
@@ -257,18 +257,18 @@ const InquiryTemplates: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [entityFilter, setEntityFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<InquiryTemplate | null>(null);
-  
+
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
     try {
       const params: Record<string, string> = {};
       if (entityFilter !== 'all') params.entity_type = entityFilter;
       if (statusFilter !== 'all') params.is_active = statusFilter;
-      
+
       const response = await apiClient.get('/inquiry-templates/', { params });
       setTemplates(response.data.results || response.data);
     } catch (error) {
@@ -277,21 +277,21 @@ const InquiryTemplates: React.FC = () => {
       setLoading(false);
     }
   }, [entityFilter, statusFilter]);
-  
+
   useEffect(() => {
     fetchTemplates();
   }, [fetchTemplates]);
-  
+
   const handleCreateClick = () => {
     setEditingTemplate(null);
     setModalOpen(true);
   };
-  
+
   const handleEditClick = (template: InquiryTemplate) => {
     setEditingTemplate(template);
     setModalOpen(true);
   };
-  
+
   const handleDeleteClick = async (template: InquiryTemplate) => {
     const confirmed = await confirmDialog({
       title: 'Delete template?',
@@ -311,13 +311,13 @@ const InquiryTemplates: React.FC = () => {
       showAlert({ type: 'error', title: 'Error', content: 'Failed to delete template' });
     }
   };
-  
+
   const handleToggleActive = async (template: InquiryTemplate) => {
     try {
       const response = await apiClient.patch(`/inquiry-templates/${template.id}/`, {
         is_active: !template.is_active,
       });
-      setTemplates(prev => prev.map(t => 
+      setTemplates(prev => prev.map(t =>
         t.id === template.id ? response.data : t
       ));
     } catch (error) {
@@ -325,17 +325,17 @@ const InquiryTemplates: React.FC = () => {
       showAlert({ type: 'error', title: 'Error', content: 'Failed to update template' });
     }
   };
-  
+
   const handleSaveTemplate = (template: InquiryTemplate) => {
     if (editingTemplate) {
-      setTemplates(prev => prev.map(t => 
+      setTemplates(prev => prev.map(t =>
         t.id === template.id ? template : t
       ));
     } else {
       setTemplates(prev => [template, ...prev]);
     }
   };
-  
+
   return (
     <PageContainer>
       <Header>
@@ -364,7 +364,7 @@ const InquiryTemplates: React.FC = () => {
           </CreateButton>
         </HeaderActions>
       </Header>
-      
+
       {loading ? (
         <LoadingState>
           <Skeleton active paragraph={{ rows: 8 }} />
@@ -399,11 +399,11 @@ const InquiryTemplates: React.FC = () => {
                   </div>
                 </div>
               </CardHeader>
-              
+
               {template.description && (
                 <CardDescription>{template.description}</CardDescription>
               )}
-              
+
               <CardMeta>
                 <MetaItem>
                   📅 {template.default_valid_days} day validity
@@ -412,7 +412,7 @@ const InquiryTemplates: React.FC = () => {
                   📊 Used {template.use_count || 0} times
                 </MetaItem>
               </CardMeta>
-              
+
               {template.products && template.products.length > 0 && (
                 <ProductsList>
                   <ProductsLabel>Default Products:</ProductsLabel>
@@ -426,7 +426,7 @@ const InquiryTemplates: React.FC = () => {
                   )}
                 </ProductsList>
               )}
-              
+
               <CardActions>
                 <ActionButton onClick={() => handleEditClick(template)}>
                   ✏️ Edit
@@ -434,8 +434,8 @@ const InquiryTemplates: React.FC = () => {
                 <ActionButton onClick={() => handleToggleActive(template)}>
                   {template.is_active ? '⏸️ Deactivate' : '▶️ Activate'}
                 </ActionButton>
-                <ActionButton 
-                  $variant="danger" 
+                <ActionButton
+                  $variant="danger"
                   onClick={() => handleDeleteClick(template)}
                 >
                   🗑️
@@ -445,7 +445,7 @@ const InquiryTemplates: React.FC = () => {
           ))}
         </TemplatesGrid>
       )}
-      
+
       <InquiryTemplateModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}

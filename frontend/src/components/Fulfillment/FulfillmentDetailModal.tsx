@@ -1,6 +1,6 @@
 /**
  * FulfillmentDetailModal
- * 
+ *
  * Modal for viewing and managing fulfillment details.
  * Features:
  * - View fulfillment information
@@ -114,7 +114,7 @@ const CloseButton = styled.button`
   font-size: 1.5rem;
   color: rgb(var(--color-text-secondary));
   padding: 0.25rem;
-  
+
   &:hover {
     color: rgb(var(--color-text-primary));
   }
@@ -128,7 +128,7 @@ const Content = styled.div`
 
 const Section = styled.div`
   margin-bottom: 1.5rem;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -155,7 +155,7 @@ const InfoItem = styled.div`
     color: rgb(var(--color-text-secondary));
     margin-bottom: 0.25rem;
   }
-  
+
   .value {
     font-size: 0.875rem;
     color: rgb(var(--color-text-primary));
@@ -198,13 +198,13 @@ const ProductsTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
-  
+
   th, td {
     padding: 0.75rem;
     text-align: left;
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   th {
     font-weight: 600;
     color: rgb(var(--color-text-secondary));
@@ -212,11 +212,11 @@ const ProductsTable = styled.table`
     text-transform: uppercase;
     letter-spacing: 0.025em;
   }
-  
+
   td {
     color: rgb(var(--color-text-primary));
   }
-  
+
   tr:last-child td {
     border-bottom: none;
   }
@@ -243,7 +243,7 @@ const AddTrackingInput = styled.div`
   display: flex;
   gap: 0.5rem;
   margin-top: 0.75rem;
-  
+
   input {
     flex: 1;
     padding: 0.5rem 0.75rem;
@@ -252,7 +252,7 @@ const AddTrackingInput = styled.div`
     font-size: 0.875rem;
     background: rgb(var(--color-surface));
     color: rgb(var(--color-text-primary));
-    
+
     &:focus {
       outline: none;
       border-color: rgb(var(--color-primary));
@@ -284,27 +284,27 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' | 
   align-items: center;
   gap: 0.5rem;
   transition: all 0.15s;
-  
+
   ${props => {
     switch (props.$variant) {
       case 'primary':
         return `
           background: rgb(var(--color-primary));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { opacity: 0.9; }
         `;
       case 'success':
         return `
           background: rgb(var(--color-success));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { background: rgb(var(--color-success)); opacity: 0.85; }
         `;
       case 'danger':
         return `
           background: rgb(var(--color-error));
-          color: white;
+          color: rgb(var(--color-text-inverse));
           border: none;
           &:hover { background: rgb(var(--color-error)); opacity: 0.85; }
         `;
@@ -320,7 +320,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' | 
         `;
     }
   }}
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -333,12 +333,12 @@ const TotalRow = styled.div`
   padding: 1rem;
   border-top: 2px solid rgb(var(--color-border));
   font-weight: 600;
-  
+
   .label {
     color: rgb(var(--color-text-secondary));
     margin-right: 1rem;
   }
-  
+
   .value {
     color: rgb(var(--color-primary));
     font-size: 1.125rem;
@@ -398,7 +398,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
 
   const handleAction = async (action: 'ship' | 'deliver' | 'complete') => {
     if (!fulfillment) return;
-    
+
     setIsActionLoading(true);
     try {
       await apiClient.post(`/fulfillments/${fulfillment.id}/${action}/`);
@@ -413,7 +413,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
 
   const handleAddTracking = async () => {
     if (!fulfillment || !newTracking.trim()) return;
-    
+
     setIsActionLoading(true);
     try {
       await apiClient.post(`/fulfillments/${fulfillment.id}/add_tracking/`, {
@@ -453,8 +453,8 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
       case 'pending':
       case 'in_progress':
         return (
-          <Button 
-            $variant="primary" 
+          <Button
+            $variant="primary"
             onClick={() => handleAction('ship')}
             disabled={isActionLoading}
           >
@@ -463,8 +463,8 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
         );
       case 'shipped':
         return (
-          <Button 
-            $variant="success" 
+          <Button
+            $variant="success"
             onClick={() => handleAction('deliver')}
             disabled={isActionLoading}
           >
@@ -473,8 +473,8 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
         );
       case 'delivered':
         return (
-          <Button 
-            $variant="success" 
+          <Button
+            $variant="success"
             onClick={() => handleAction('complete')}
             disabled={isActionLoading}
           >

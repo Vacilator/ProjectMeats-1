@@ -1,6 +1,6 @@
 /**
  * FormPreviewModal Component
- * 
+ *
  * Shows a preview of a form with options to view, edit, or clone.
  * Task 1.4 of WORKFORMS_NAVIGATION_FIX_PLAN
  */
@@ -108,7 +108,7 @@ const StatusBadge = styled.span<{ $status: 'draft' | 'active' | 'inactive' }>`
   font-size: 12px;
   font-weight: 500;
   text-transform: capitalize;
-  
+
   ${props => {
     switch (props.$status) {
       case 'active':
@@ -243,7 +243,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'outline' }>`
   ${props => {
     switch (props.variant) {
       case 'primary':
-        return 'background: rgb(var(--color-primary)); color: white; &:hover { opacity: 0.9; transform: translateY(-1px); }';
+        return 'background: rgb(var(--color-primary)); color: rgb(var(--color-text-inverse)); &:hover { opacity: 0.9; transform: translateY(-1px); }';
       case 'outline':
         return 'background: transparent; color: rgb(var(--color-text-primary)); border: 1px solid rgb(var(--color-border)); &:hover { background: rgb(var(--color-surface-hover)); }';
       default:
@@ -263,12 +263,12 @@ const EmptyState = styled.div`
 // Component
 export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClose }) => {
   const navigate = useNavigate();
-  
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
-  
+
   const getNodeTypeName = (nodeType: string): string => {
     const typeMap: Record<string, string> = {
       trigger: 'Trigger', formStep: 'Form Step', formField: 'Form Field', formSection: 'Section',
@@ -286,7 +286,7 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
       navigate(`/workforms/editor/${form.id}`);
     }, 100);
   };
-  
+
   const handleClone = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     logger.debug('[FormPreview] Clone button clicked - form:', { id: form.id, name: form.name });
@@ -296,7 +296,7 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
       navigate(`/workforms/editor?clone=${form.id}`);
     }, 100);
   };
-  
+
   const handleSettings = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     logger.debug('[FormPreview] Settings button clicked - form:', { id: form.id, name: form.name });
@@ -306,7 +306,7 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
       navigate(`/workforms/editor/${form.id}?tab=settings`);
     }, 100);
   };
-  
+
   const handlePreview = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     logger.debug('[FormPreview] Preview button clicked - form:', { id: form.id, name: form.name });
@@ -316,7 +316,7 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
       navigate(`/workforms/editor/${form.id}?mode=preview`);
     }, 100);
   };
-  
+
   const nodes = form.flow_data?.nodes || [];
   const nodeTypes = [...new Set(nodes.map(n => n.type))];
 

@@ -1,6 +1,6 @@
 /**
  * StepRoutingLogic Component
- * 
+ *
  * UI for configuring step-to-step routing logic in workflows.
  * Allows defining conditions that determine which step comes next.
  */
@@ -11,7 +11,7 @@ import styled, { css, keyframes } from 'styled-components';
 // TYPES
 // ============================================================================
 
-export type ConditionOperator = 
+export type ConditionOperator =
   | 'equals'
   | 'not_equals'
   | 'contains'
@@ -128,16 +128,16 @@ const RulesContainer = styled.div`
 
 const RuleCard = styled.div<{ $isDefault?: boolean; $priority: number }>`
   padding: 16px;
-  background: ${props => props.$isDefault 
-    ? 'rgb(var(--color-success-bg, 240 253 244))' 
+  background: ${props => props.$isDefault
+    ? 'rgb(var(--color-success-bg, 240 253 244))'
     : 'rgb(var(--color-surface-alt, 249 250 251))'};
   border-radius: 8px;
-  border: 1px solid ${props => props.$isDefault 
-    ? 'rgb(var(--color-success-border, 187 247 208))' 
+  border: 1px solid ${props => props.$isDefault
+    ? 'rgb(var(--color-success-border, 187 247 208))'
     : 'rgb(var(--color-border, 229 231 235))'};
   animation: ${fadeIn} 0.2s ease-out;
   position: relative;
-  
+
   ${props => props.$isDefault && css`
     &::before {
       content: 'Default';
@@ -146,7 +146,7 @@ const RuleCard = styled.div<{ $isDefault?: boolean; $priority: number }>`
       right: 16px;
       padding: 2px 8px;
       background: rgb(var(--color-success, 34 197 94));
-      color: white;
+      color: rgb(var(--color-text-inverse));
       font-size: 10px;
       font-weight: 600;
       border-radius: 4px;
@@ -171,7 +171,7 @@ const RuleNameInput = styled.input`
   font-weight: 500;
   background: rgb(var(--color-surface, 255 255 255));
   color: rgb(var(--color-text-primary, 17 24 39));
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -191,11 +191,11 @@ const IconButton = styled.button<{ $variant?: 'danger' | 'default' }>`
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  color: ${props => props.$variant === 'danger' 
-    ? 'rgb(var(--color-error, 239 68 68))' 
+  color: ${props => props.$variant === 'danger'
+    ? 'rgb(var(--color-error, 239 68 68))'
     : 'rgb(var(--color-text-secondary, 107 114 128))'};
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: ${props => props.$variant === 'danger'
       ? 'rgb(var(--color-error-bg, 254 242 242))'
@@ -221,7 +221,7 @@ const StepBadge = styled.div<{ $type: WorkflowStep['type'] }>`
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
-  
+
   ${props => {
     switch (props.$type) {
       case 'form':
@@ -274,7 +274,7 @@ const Select = styled.select`
   color: rgb(var(--color-text-primary, 17 24 39));
   cursor: pointer;
   min-width: 150px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -315,7 +315,7 @@ const Input = styled.input`
   background: rgb(var(--color-surface, 255 255 255));
   color: rgb(var(--color-text-primary, 17 24 39));
   min-width: 120px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -331,7 +331,7 @@ const RemoveButton = styled.button`
   cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
-  
+
   &:hover {
     background: rgb(var(--color-error-bg, 254 242 242));
     color: rgb(var(--color-error, 239 68 68));
@@ -347,7 +347,7 @@ const AddButton = styled.button`
   cursor: pointer;
   font-size: 13px;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary, 102 126 234));
     color: rgb(var(--color-primary, 102 126 234));
@@ -357,11 +357,11 @@ const AddButton = styled.button`
 
 const LogicalToggle = styled.button<{ $isAnd: boolean }>`
   padding: 4px 12px;
-  background: ${props => props.$isAnd 
-    ? 'rgb(var(--color-info-bg, 239 246 255))' 
+  background: ${props => props.$isAnd
+    ? 'rgb(var(--color-info-bg, 239 246 255))'
     : 'rgb(var(--color-warning-bg, 254 252 232))'};
-  color: ${props => props.$isAnd 
-    ? 'rgb(var(--color-info, 59 130 246))' 
+  color: ${props => props.$isAnd
+    ? 'rgb(var(--color-info, 59 130 246))'
     : 'rgb(var(--color-warning, 234 179 8))'};
   border: none;
   border-radius: 12px;
@@ -370,7 +370,7 @@ const LogicalToggle = styled.button<{ $isAnd: boolean }>`
   cursor: pointer;
   text-transform: uppercase;
   transition: all 0.15s ease;
-  
+
   &:hover {
     opacity: 0.8;
   }
@@ -394,7 +394,7 @@ const PriorityInput = styled.input`
   border-radius: 4px;
   font-size: 12px;
   text-align: center;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
@@ -408,7 +408,7 @@ const DefaultToggle = styled.label`
   font-size: 12px;
   color: rgb(var(--color-text-secondary, 107 114 128));
   cursor: pointer;
-  
+
   input {
     cursor: pointer;
   }
@@ -418,7 +418,7 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 32px;
   color: rgb(var(--color-text-secondary, 107 114 128));
-  
+
   p {
     margin: 8px 0 0 0;
     font-size: 13px;
@@ -437,21 +437,21 @@ const FlowDiagram = styled.div`
 
 const StepChip = styled.button<{ $active: boolean }>`
   padding: 6px 12px;
-  background: ${props => props.$active 
-    ? 'rgb(var(--color-primary, 102 126 234))' 
+  background: ${props => props.$active
+    ? 'rgb(var(--color-primary, 102 126 234))'
     : 'rgb(var(--color-surface, 255 255 255))'};
-  color: ${props => props.$active 
-    ? 'white' 
+  color: ${props => props.$active
+    ? 'white'
     : 'rgb(var(--color-text-primary, 17 24 39))'};
-  border: 1px solid ${props => props.$active 
-    ? 'rgb(var(--color-primary, 102 126 234))' 
+  border: 1px solid ${props => props.$active
+    ? 'rgb(var(--color-primary, 102 126 234))'
     : 'rgb(var(--color-border, 229 231 235))'};
   border-radius: 16px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     ${props => !props.$active && css`
       border-color: rgb(var(--color-primary, 102 126 234));
@@ -490,7 +490,7 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
   onChange,
 }) => {
   const [selectedStepId, setSelectedStepId] = useState<string>(currentStepId);
-  
+
   const currentStep = steps.find(s => s.id === selectedStepId);
   const availableTargetSteps = steps.filter(s => s.id !== selectedStepId);
   const availableFields = fields.filter(f => {
@@ -499,7 +499,7 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
     const fieldStep = steps.find(s => s.id === f.stepId);
     return fieldStep && fieldStep.order <= currentOrder;
   });
-  
+
   const stepRules = rules
     .filter(r => r.sourceStepId === selectedStepId)
     .sort((a, b) => a.priority - b.priority);
@@ -507,7 +507,7 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
   const addRule = useCallback(() => {
     const defaultTarget = availableTargetSteps[0];
     if (!defaultTarget) return;
-    
+
     const newRule: RoutingRule = {
       id: generateId(),
       name: `Route to ${defaultTarget.name}`,
@@ -518,7 +518,7 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
       priority: stepRules.length + 1,
       isDefault: stepRules.length === 0,
     };
-    
+
     onChange([...rules, newRule]);
   }, [rules, selectedStepId, availableTargetSteps, stepRules.length, onChange]);
 
@@ -548,14 +548,14 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
   const addCondition = useCallback((ruleId: string) => {
     const field = availableFields[0];
     if (!field) return;
-    
+
     const newCondition: RoutingCondition = {
       id: generateConditionId(),
       fieldId: field.id,
       operator: 'equals',
       value: '',
     };
-    
+
     const rule = rules.find(r => r.id === ruleId);
     if (rule) {
       updateRule(ruleId, { conditions: [...rule.conditions, newCondition] });
@@ -563,14 +563,14 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
   }, [rules, availableFields, updateRule]);
 
   const updateCondition = useCallback((
-    ruleId: string, 
-    conditionId: string, 
+    ruleId: string,
+    conditionId: string,
     updates: Partial<RoutingCondition>
   ) => {
     const rule = rules.find(r => r.id === ruleId);
     if (rule) {
       updateRule(ruleId, {
-        conditions: rule.conditions.map(c => 
+        conditions: rule.conditions.map(c =>
           c.id === conditionId ? { ...c, ...updates } : c
         ),
       });
@@ -589,7 +589,7 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
   const toggleLogicalOperator = useCallback((ruleId: string) => {
     const rule = rules.find(r => r.id === ruleId);
     if (rule) {
-      updateRule(ruleId, { 
+      updateRule(ruleId, {
         logicalOperator: rule.logicalOperator === 'AND' ? 'OR' : 'AND',
       });
     }
@@ -621,7 +621,7 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
       {currentStep && (
         <>
           <Description>
-            Configure routing rules for <strong>{currentStep.name}</strong>. 
+            Configure routing rules for <strong>{currentStep.name}</strong>.
             Rules are evaluated in priority order; the first matching rule determines the next step.
           </Description>
 
@@ -635,7 +635,7 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
             ) : (
               stepRules.map(rule => {
                 const targetStep = steps.find(s => s.id === rule.targetStepId);
-                
+
                 return (
                   <RuleCard key={rule.id} $isDefault={rule.isDefault} $priority={rule.priority}>
                     <RuleHeader>
@@ -662,8 +662,8 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
                           />
                           Default
                         </DefaultToggle>
-                        <IconButton 
-                          $variant="danger" 
+                        <IconButton
+                          $variant="danger"
                           onClick={() => removeRule(rule.id)}
                           aria-label="Delete rule"
                           title="Delete rule"
@@ -711,13 +711,13 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
 
                       {rule.conditions.map(condition => {
                         const field = availableFields.find(f => f.id === condition.fieldId);
-                        
+
                         return (
                           <ConditionRow key={condition.id}>
                             <Select
                               value={condition.fieldId}
-                              onChange={(e) => updateCondition(rule.id, condition.id, { 
-                                fieldId: e.target.value 
+                              onChange={(e) => updateCondition(rule.id, condition.id, {
+                                fieldId: e.target.value
                               })}
                             >
                               {availableFields.map(f => (
@@ -727,10 +727,10 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
 
                             <Select
                               value={condition.operator}
-                              onChange={(e) => updateCondition(rule.id, condition.id, { 
+                              onChange={(e) => updateCondition(rule.id, condition.id, {
                                 operator: e.target.value as ConditionOperator,
-                                value: NO_VALUE_OPERATORS.includes(e.target.value as ConditionOperator) 
-                                  ? '' 
+                                value: NO_VALUE_OPERATORS.includes(e.target.value as ConditionOperator)
+                                  ? ''
                                   : condition.value,
                               })}
                             >
@@ -743,9 +743,9 @@ export const StepRoutingLogic: React.FC<StepRoutingLogicProps> = ({
                               <Input
                                 type={field?.type === 'number' ? 'number' : 'text'}
                                 value={String(condition.value)}
-                                onChange={(e) => updateCondition(rule.id, condition.id, { 
-                                  value: field?.type === 'number' 
-                                    ? parseFloat(e.target.value) || 0 
+                                onChange={(e) => updateCondition(rule.id, condition.id, {
+                                  value: field?.type === 'number'
+                                    ? parseFloat(e.target.value) || 0
                                     : e.target.value,
                                 })}
                                 placeholder="Value..."
