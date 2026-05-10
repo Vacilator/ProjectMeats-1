@@ -1077,7 +1077,14 @@ const AICommandCenter: React.FC = () => {
             >
               <CardList>
                 {aiInboxItems.slice(0, 3).map((item) => (
-                  <ItemCard key={item.id} onClick={() => handleItemClick(item)}>
+                  <ItemCard
+                    key={item.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleItemClick(item)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleItemClick(item); } }}
+                    aria-label={`${item.title} – ${item.statusLabel ?? 'pending'}`}
+                  >
                     <ItemIcon $variant={getStatusVariant(item.status)}>
                       {getIconForSource(item.icon)}
                     </ItemIcon>
@@ -1128,6 +1135,8 @@ const AICommandCenter: React.FC = () => {
               {filteredAiInbox.map((item) => (
                 <ItemCard
                   key={item.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleItemClick(item)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleItemClick(item); } }}
                   aria-label={`${item.title} – ${item.statusLabel}`}

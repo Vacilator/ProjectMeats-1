@@ -190,13 +190,15 @@ export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData
   const hasForm = Boolean(resolvedFormId);
   
   const handleEditForm = () => {
-    // TODO: Open form in FormBuilder (needs a canonical route)
-    // Keep as no-op for now.
+    if (resolvedFormId) {
+      window.open(`/workforms/editor/${resolvedFormId}`, '_blank', 'noopener');
+    }
   };
 
   const handlePreviewForm = () => {
-    // TODO: Open form preview modal (needs a canonical surface)
-    // Keep as no-op for now.
+    if (resolvedFormId) {
+      window.open(`/workforms/preview/${resolvedFormId}`, '_blank', 'noopener');
+    }
   };
 
   const handleChangeForm = () => {

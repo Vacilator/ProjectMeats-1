@@ -232,24 +232,26 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({
     );
   }
 
-  // Case 4: Automated nodes (future implementation)
+  // Case 4: Automated nodes — show informative status card
   if (isAutomatedNode(node.type)) {
-    // TODO: Implement auto-execution for:
-    // - actionEmail
-    // - actionSMS
-    // - actionHTTP
-    // - actionScript
-    // - dataTransform
-    // For now, show placeholder
+    const automatedLabels: Record<string, { label: string; desc: string }> = {
+      actionEmail: { label: 'Send Email', desc: 'Sends an email automatically based on configured template and recipients.' },
+      actionSMS: { label: 'Send SMS', desc: 'Sends an SMS notification to the configured phone number.' },
+      actionHTTP: { label: 'HTTP Request', desc: 'Makes an external API call to the configured endpoint.' },
+      actionScript: { label: 'Run Script', desc: 'Executes a custom script or transformation logic.' },
+      dataTransform: { label: 'Data Transform', desc: 'Transforms data between workflow steps using mapping rules.' },
+    };
+    const info = automatedLabels[node.type || ''] ?? { label: 'Automated Step', desc: 'This step executes automatically when the workflow runs.' };
+
     return (
       <RendererContainer>
         <UnsupportedNodeCard>
-          <UnsupportedTitle>Automated Node</UnsupportedTitle>
+          <UnsupportedTitle>⚡ {info.label}</UnsupportedTitle>
           <UnsupportedMessage>
-            This node will execute automatically when workflow runs.
+            {info.desc}
           </UnsupportedMessage>
           <UnsupportedDetails>
-            Type: {node.type || 'unknown'}
+            Node type: {node.type || 'unknown'} • Runs server-side
           </UnsupportedDetails>
         </UnsupportedNodeCard>
       </RendererContainer>
