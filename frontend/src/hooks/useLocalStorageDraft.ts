@@ -61,6 +61,16 @@ const getSignature = (values: DraftValues): string => {
   }
 };
 
+function useDeepStableValue<T>(value: T): T {
+  const ref = useRef(value);
+
+  if (!isEqual(ref.current, value)) {
+    ref.current = value;
+  }
+
+  return ref.current;
+}
+
 export interface UseLocalStorageDraftOptions {
   storageKey: string;
   baseValues?: DraftValues;
@@ -80,9 +90,8 @@ export const useLocalStorageDraft = ({
   enabled = true,
   delay = 30000,
 }: UseLocalStorageDraftOptions): UseLocalStorageDraftResult => {
-  const stableBaseValues = useMemo(
-    () => (baseValues && typeof baseValues === 'object' ? baseValues : EMPTY_VALUES),
-    [baseValues],
+  const stableBaseValues = useDeepStableValue(
+    baseValues && typeof baseValues === 'object' ? baseValues : EMPTY_VALUES,
   );
   const [hydratedInitialValues, setHydratedInitialValues] = useState<DraftValues>(stableBaseValues);
   const baselineSignatureRef = useRef(getSignature(stableBaseValues));

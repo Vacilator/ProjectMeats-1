@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Collapse, Modal, Space, Tag, Typography, message } from 'antd';
+import isEqual from 'lodash/isEqual';
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -9,12 +10,14 @@ import {
 import { MissingDependencyQuickCreate, type DependencyType } from '@/components/Cockpit/MissingDependencyQuickCreate';
 import { UnifiedForm } from '@/components/UnifiedForm';
 import { aiStaffApi, type PendingReviewItem } from '@/services/aiService';
+import { normalizeEntityKey } from '@/components/Shared/UniversalEntityForm';
 import {
   mapDraftToInitialValues,
   resolveDraftEntityType,
 } from '@/utils/aiDraftFormMapping';
 import { buildReviewDetailsPathFromItem } from '@/utils/reviewDetailsPath';
 import { getErrorMessage } from '@/utils/errorHelpers';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import {
   createEntitiesSequentially,
   getEntityRoute,
@@ -28,7 +31,7 @@ const { Paragraph, Text, Title } = Typography;
  * inside the AI Draft Review modal and surfaces a recovery UI.
  */
 class DraftReviewErrorBoundary extends React.Component<
-  { children: React.ReactNode; itemId?: string },
+  { children: React.ReactNode; itemId?: string; diagnostics?: Record<string, unknown> },
   { error: Error | null }
 > {
   state: { error: Error | null } = { error: null };
@@ -41,7 +44,12 @@ class DraftReviewErrorBoundary extends React.Component<
     // eslint-disable-next-line no-console
     console.error(
       '[AIDraftReviewModal] Render crash caught by error boundary.',
-      { itemId: this.props.itemId, error, componentStack: info.componentStack },
+      {
+        itemId: this.props.itemId,
+        diagnostics: this.props.diagnostics,
+        error,
+        componentStack: info.componentStack,
+      },
     );
   }
 
@@ -62,12 +70,18 @@ class DraftReviewErrorBoundary extends React.Component<
                   ? 'A render loop (React #185) was caught before it could crash the page. This is likely caused by an unstable query key or dependency array.'
                   : `Error: ${this.state.error.message}`}
               </Paragraph>
-              <Paragraph type="secondary">
-                Draft item ID: {this.props.itemId ?? 'unknown'}
-              </Paragraph>
-              <Button
-                size="small"
-                onClick={() => this.setState({ error: null })}
+               <Paragraph type="secondary">
+                 Draft item ID: {this.props.itemId ?? 'unknown'}
+               </Paragraph>
+               {Array.isArray(this.props.diagnostics?.queryKeys) &&
+               this.props.diagnostics.queryKeys.length > 0 ? (
+                 <Paragraph type="secondary" style={{ marginBottom: 12 }}>
+                   Query keys: {JSON.stringify(this.props.diagnostics.queryKeys)}
+                 </Paragraph>
+               ) : null}
+               <Button
+                 size="small"
+                 onClick={() => this.setState({ error: null })}
               >
                 Retry
               </Button>
@@ -103,6 +117,16 @@ const asRecord = (value: unknown): Record<string, unknown> => (
     ? (value as Record<string, unknown>)
     : {}
 );
+
+function useDeepStableValue<T>(value: T): T {
+  const ref = useRef(value);
+
+  if (!isEqual(ref.current, value)) {
+    ref.current = value;
+  }
+
+  return ref.current;
+}
 
 const firstString = (...values: unknown[]): string | undefined => {
   for (const value of values) {
@@ -286,24 +310,25 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
 }) => {
   const navigate = useNavigate();
   const resolvingAfterSaveRef = useRef(false);
+  const stableItem = useDeepStableValue(item);
   const [quickCreateTarget, setQuickCreateTarget] = useState<{
     entityType: DependencyType;
     suggestedName?: string;
     suggestedEmail?: string;
   } | null>(null);
-  const entityType = useMemo(() => resolveDraftEntityType(item), [item]);
-  const initialValues = useMemo(() => mapDraftToInitialValues(item), [item]);
-  const payload = useMemo(() => asRecord(item?.original_extracted_data), [item]);
-  const reviewDetailsPath = useMemo(() => buildReviewDetailsPathFromItem(item), [item]);
+  const entityType = useMemo(() => resolveDraftEntityType(stableItem), [stableItem]);
+  const initialValues = useMemo(() => mapDraftToInitialValues(stableItem), [stableItem]);
+  const payload = useMemo(() => asRecord(stableItem?.original_extracted_data), [stableItem]);
+  const reviewDetailsPath = useMemo(() => buildReviewDetailsPathFromItem(stableItem), [stableItem]);
   const sourcePreview = useMemo(
     () =>
       firstString(
-        item?.source_summary,
+        stableItem?.source_summary,
         payload.email_body,
         payload.body,
         payload.text,
       ),
-    [item?.source_summary, payload],
+    [payload, stableItem?.source_summary],
   );
   const contactRoles = useMemo(
     () => extractReviewContactRoles(payload, initialValues),
@@ -367,18 +392,18 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
 
   const handleResolved = useCallback(
     async (result: unknown) => {
-      if (!item?.id) {
+      if (!stableItem?.id) {
         return;
       }
 
       resolvingAfterSaveRef.current = true;
       setResolvingState(true);
       try {
-        await aiStaffApi.resolvePendingReview(item.id, {
+        await aiStaffApi.resolvePendingReview(stableItem.id, {
           user_corrected_data: asRecord(result),
         });
         message.success('Draft saved and removed from the AI review queue.');
-        onResolved?.(item.id);
+        onResolved?.(stableItem.id);
         if (closeOnResolved) {
           onClose?.();
         }
@@ -391,22 +416,22 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         setResolvingState(false);
       }
     },
-    [closeOnResolved, item?.id, onClose, onResolved, setResolvingState],
+    [closeOnResolved, onClose, onResolved, setResolvingState, stableItem?.id],
   );
 
   const handleRejected = useCallback(
     async () => {
-      if (!item?.id) {
+      if (!stableItem?.id) {
         return;
       }
 
       setResolvingState(true);
       try {
-        await aiStaffApi.resolvePendingReview(item.id, {
+        await aiStaffApi.resolvePendingReview(stableItem.id, {
           user_corrected_data: { _rejected: true },
         });
         message.info('Rejected all drafts from this review.');
-        onResolved?.(item.id);
+        onResolved?.(stableItem.id);
         if (closeOnResolved) {
           onClose?.();
         }
@@ -418,7 +443,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         setResolvingState(false);
       }
     },
-    [closeOnResolved, item?.id, onClose, onResolved, setResolvingState],
+    [closeOnResolved, onClose, onResolved, setResolvingState, stableItem?.id],
   );
 
   const [draftStatuses, setDraftStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected' | 'error'>>({});
@@ -496,7 +521,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
    * propagate FKs, then resolve the main review item.
    */
   const handleSequentialApproveAll = useCallback(async () => {
-    if (!item?.id) return;
+    if (!stableItem?.id) return;
 
     const pendingDrafts = orderedDrafts.filter(
       (d) => d.status === 'proposed' && draftStatuses[d.originalIndex] !== 'rejected',
@@ -576,13 +601,13 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           })),
         },
       };
-      await aiStaffApi.resolvePendingReview(item.id, resolvePayload);
+      await aiStaffApi.resolvePendingReview(stableItem.id, resolvePayload);
 
       if (result.allSucceeded) {
         message.success(`✅ All ${result.created.length} entities created successfully.`);
       }
       setApproveProgress(null);
-      onResolved?.(item.id);
+      onResolved?.(stableItem.id);
       if (closeOnResolved) {
         onClose?.();
       }
@@ -592,7 +617,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
       );
       setApproveProgress(null);
     }
-  }, [orderedDrafts, draftStatuses, item, onResolved, closeOnResolved, onClose]);
+  }, [orderedDrafts, draftStatuses, stableItem?.id, onResolved, closeOnResolved, onClose]);
 
   const handleSurfaceClose = useCallback(() => {
     if (resolvingAfterSaveRef.current) {
@@ -623,9 +648,49 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
 
   const unsupported = !entityType;
 
-  const fallbackInitialValues = useMemo(() => {
+  const formInitialValues = useMemo(() => {
+    if (entityType === 'inquiry') {
+      return {
+        status: 'draft',
+        entity_type: 'customer',
+        contact_name: firstString(
+          initialValues.contact_name,
+          payload.contact_name,
+          payload.sender_name,
+          stableItem?.sender,
+        ),
+        contact_email: firstString(
+          initialValues.contact_email,
+          payload.contact_email,
+          payload.sender_email,
+          payload.from_email,
+        ),
+        contact_company: firstString(
+          initialValues.contact_company,
+          payload.contact_company,
+          payload.customer_name,
+          payload.customer_company,
+          payload.supplier_name,
+          payload.vendor_name,
+        ),
+        requested_protein: firstString(
+          initialValues.requested_protein,
+          payload.requested_protein,
+          payload.protein_type,
+          payload.type_of_protein,
+        ),
+        valid_until: firstString(
+          initialValues.valid_until,
+          typeof payload.valid_until === 'string' ? payload.valid_until : undefined,
+          typeof payload.due_date === 'string' ? payload.due_date : undefined,
+        ),
+        notes: firstString(initialValues.notes, payload.summary, payload.rationale),
+        ...initialValues,
+      };
+    }
+
     if (!unsupported) return initialValues;
-    const itemAny = item as Record<string, unknown>;
+    const itemAny = stableItem as Record<string, unknown>;
     const contactName = typeof itemAny.contact_name === 'string' ? itemAny.contact_name : '';
     const parts = contactName.split(' ');
     return {
@@ -635,19 +700,19 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
       email: String(itemAny.sender || ''),
       status: 'draft',
     };
-  }, [unsupported, item, initialValues]);
+  }, [entityType, initialValues, payload, stableItem, unsupported]);
 
-  if (!item) {
+  if (!stableItem) {
     return null;
   }
 
   return (
     <div style={{ display: 'grid', gap: 16 }} role="region" aria-label="AI Draft Review">
       {/* Intent Banner */}
-      {item.intent_label && (
-        <div
-          role="banner"
-          aria-label={`Intent: ${item.intent_label}${typeof item.confidence_score === 'number' ? ` — ${Math.round(item.confidence_score * 100)}% confidence` : ''}`}
+        {stableItem.intent_label && (
+          <div
+            role="banner"
+            aria-label={`Intent: ${stableItem.intent_label}${typeof stableItem.confidence_score === 'number' ? ` — ${Math.round(stableItem.confidence_score * 100)}% confidence` : ''}`}
           style={{
           display: 'flex',
           alignItems: 'center',
@@ -661,16 +726,16 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           fontWeight: 500,
         }}>
           <span style={{ fontSize: 16 }}>🎯</span>
-          <span>Intent: {item.intent_label}</span>
+          <span>Intent: {stableItem.intent_label}</span>
           {typeof payload.rationale === 'string' && payload.rationale.includes('[Reclassified') && (
             <Tag color="purple" style={{ marginLeft: 0 }}>⚡ Reclassified</Tag>
           )}
-          {typeof item.confidence_score === 'number' && (
+          {typeof stableItem.confidence_score === 'number' && (
             <Tag color={
-              item.confidence_score >= 0.8 ? 'green' :
-              item.confidence_score >= 0.5 ? 'orange' : 'red'
+              stableItem.confidence_score >= 0.8 ? 'green' :
+              stableItem.confidence_score >= 0.5 ? 'orange' : 'red'
             } style={{ marginLeft: 'auto' }}>
-              {Math.round(item.confidence_score * 100)}% confidence
+              {Math.round(stableItem.confidence_score * 100)}% confidence
             </Tag>
           )}
         </div>
@@ -754,17 +819,17 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
               label: 'Source Context',
               children: (
                 <div style={{ display: 'grid', gap: 8 }}>
-                  <Text strong>{item.source_subject || item.intent_label || 'Untitled AI draft'}</Text>
-                  <div>
-                    <Tag color="blue">{item.intent_label || 'AI Draft'}</Tag>
-                    {item.sender ? <Tag>{item.sender}</Tag> : null}
-                  </div>
-                  <Text type="secondary">
-                    Received {item.created_on ? new Date(item.created_on).toLocaleString() : 'recently'}
-                  </Text>
-                  {item.source_document_name ? (
-                    <Text type="secondary">Attachment: {item.source_document_name}</Text>
-                  ) : null}
+                   <Text strong>{stableItem.source_subject || stableItem.intent_label || 'Untitled AI draft'}</Text>
+                   <div>
+                     <Tag color="blue">{stableItem.intent_label || 'AI Draft'}</Tag>
+                     {stableItem.sender ? <Tag>{stableItem.sender}</Tag> : null}
+                   </div>
+                   <Text type="secondary">
+                     Received {stableItem.created_on ? new Date(stableItem.created_on).toLocaleString() : 'recently'}
+                   </Text>
+                   {stableItem.source_document_name ? (
+                     <Text type="secondary">Attachment: {stableItem.source_document_name}</Text>
+                   ) : null}
                   {payload.po_number ? (
                     <Text type="secondary">PO #: {String(payload.po_number)}</Text>
                   ) : null}
@@ -817,15 +882,15 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                       </Text>
                     </Space>
                   ) : null}
-                  <AIInboxFeedbackActions
-                    item={item}
-                    onSubmitted={(submission) => {
-                      if (!item?.id) {
-                        return;
-                      }
-                      onFeedbackSubmitted?.(item.id, submission);
-                    }}
-                  />
+                    <AIInboxFeedbackActions
+                     item={stableItem}
+                     onSubmitted={(submission) => {
+                       if (!stableItem?.id) {
+                         return;
+                       }
+                       onFeedbackSubmitted?.(stableItem.id, submission);
+                     }}
+                   />
                 </div>
               ),
             },
@@ -1124,8 +1189,8 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           isOpen={open}
           onClose={handleSurfaceClose}
           onSuccess={handleFormSuccess}
-          initialValues={fallbackInitialValues}
-          draftKey={item.id}
+          initialValues={formInitialValues}
+          draftKey={stableItem.id}
         />
       </div>
 
@@ -1152,6 +1217,27 @@ export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
   onFeedbackSubmitted,
 }) => {
   const [resolving, setResolving] = useState(false);
+  const stableItem = useDeepStableValue(item);
+  const stableEntityType = useMemo(() => resolveDraftEntityType(stableItem), [stableItem]);
+  const stableEntityKey = useMemo(
+    () => (stableEntityType ? normalizeEntityKey(stableEntityType) : ''),
+    [stableEntityType],
+  );
+  const modalDiagnostics = useMemo(
+    () => ({
+      draftKey: stableItem?.id ?? null,
+      entityType: stableEntityType ?? null,
+      normalizedEntityKey: stableEntityKey || null,
+      queryKeys: stableEntityKey
+        ? [
+            withTenantQueryKey('entity-form-schema', stableEntityKey),
+            withTenantQueryKey('entity-form-record', stableEntityKey, 'new'),
+            withTenantQueryKey('entity-form-fk-options-batch', stableEntityKey),
+          ]
+        : [],
+    }),
+    [stableEntityKey, stableEntityType, stableItem?.id],
+  );
 
   return (
     <Modal
@@ -1164,10 +1250,10 @@ export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
       mask={{ closable: !resolving }}
       keyboard={!resolving}
     >
-      <DraftReviewErrorBoundary itemId={item?.id}>
+      <DraftReviewErrorBoundary itemId={stableItem?.id} diagnostics={modalDiagnostics}>
         <AIDraftReviewContent
           open={open}
-          item={item}
+          item={stableItem}
           onClose={onClose}
           onResolved={onResolved}
           onFeedbackSubmitted={onFeedbackSubmitted}
