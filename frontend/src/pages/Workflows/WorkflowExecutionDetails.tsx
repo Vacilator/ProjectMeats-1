@@ -71,13 +71,13 @@ export const WorkflowExecutionDetails: React.FC = () => {
   const getStepIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle size={20} className="text-green-500" />;
+        return <CheckCircle size={20} style={{ color: 'rgb(var(--color-success))' }} />;
       case 'current':
-        return <Activity size={20} className="text-blue-500 animate-pulse" />;
+        return <Activity size={20} className="animate-pulse" style={{ color: 'rgb(var(--color-primary))' }} />;
       case 'pending':
-        return <Clock size={20} className="text-gray-300" />;
+        return <Clock size={20} style={{ color: 'rgb(var(--color-text-quaternary))' }} />;
       default:
-        return <AlertCircle size={20} className="text-gray-400" />;
+        return <AlertCircle size={20} style={{ color: 'rgb(var(--color-text-quaternary))' }} />;
     }
   };
 
@@ -102,49 +102,50 @@ export const WorkflowExecutionDetails: React.FC = () => {
 
   if (!runData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
         <div className="text-center">
-          <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900">Workflow Run Not Found</h1>
-          <p className="text-gray-600 mt-2">Run ID: {runId}</p>
+          <AlertCircle size={48} className="mx-auto mb-4" style={{ color: 'rgb(var(--color-error))' }} />
+          <h1 className="text-2xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>Workflow Run Not Found</h1>
+          <p className="mt-2" style={{ color: 'rgb(var(--color-text-secondary))' }}>Run ID: {runId}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div style={{ background: 'rgb(var(--color-bg-primary))', borderBottom: '1px solid rgb(var(--color-border))' }}>
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{runData.workflow_name}</h1>
-              <p className="text-sm text-gray-500 mt-1">Run ID: {runData.id}</p>
+              <h1 className="text-3xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>{runData.workflow_name}</h1>
+              <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Run ID: {runData.id}</p>
             </div>
             <div className="flex flex-col items-end gap-2">
               <span
-                className={`px-4 py-2 rounded-full text-sm font-medium ${
+                className="px-4 py-2 rounded-full text-sm font-medium"
+                style={
                   runData.status === 'COMPLETED'
-                    ? 'bg-green-100 text-green-800'
+                    ? { background: 'rgba(var(--color-success), 0.1)', color: 'rgb(var(--color-success))' }
                     : runData.status === 'FAILED'
-                    ? 'bg-red-100 text-red-800'
+                    ? { background: 'rgba(var(--color-error), 0.1)', color: 'rgb(var(--color-error))' }
                     : runData.status === 'IN_PROGRESS'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
+                    ? { background: 'rgba(var(--color-primary), 0.1)', color: 'rgb(var(--color-primary))' }
+                    : { background: 'rgb(var(--color-bg-secondary))', color: 'rgb(var(--color-text-secondary))' }
+                }
               >
                 {runData.status.replace('_', ' ')}
               </span>
               {runData.status === 'IN_PROGRESS' && (
                 <div className="text-right">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm" style={{ color: 'rgb(var(--color-text-secondary))' }}>
                     Step {runData.current_step_index + 1} of {runData.total_steps}
                   </div>
-                  <div className="w-48 bg-gray-200 rounded-full h-2 mt-1">
+                  <div className="w-48 rounded-full h-2 mt-1" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
                     <div
-                      className="bg-blue-500 h-2 rounded-full transition-all"
-                      style={{ width: `${runData.progress_percentage}%` }}
+                      className="h-2 rounded-full transition-all"
+                      style={{ width: `${runData.progress_percentage}%`, background: 'rgb(var(--color-primary))' }}
                      />
                   </div>
                 </div>
@@ -159,23 +160,24 @@ export const WorkflowExecutionDetails: React.FC = () => {
           {/* Left Column: Step Timeline */}
           <div className="lg:col-span-2 space-y-6">
             {/* Workflow Steps */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Workflow Steps</h2>
+            <div className="rounded-lg p-6" style={{ background: 'rgb(var(--color-bg-primary))', border: '1px solid rgb(var(--color-border))' }}>
+              <h2 className="text-lg font-bold mb-4" style={{ color: 'rgb(var(--color-text-primary))' }}>Workflow Steps</h2>
               <div className="space-y-3">
                 {runData.step_details && runData.step_details.map((step: StepDetail) => (
-                  <div key={step.index} className="border-l-4 border-gray-200 pl-4">
+                  <div key={step.index} className="pl-4" style={{ borderLeft: '4px solid rgb(var(--color-border))' }}>
                     <div className="flex items-start gap-3">
                       {getStepIcon(step.status)}
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-gray-900">{step.label}</h3>
-                          <span className="text-xs text-gray-500">{step.type}</span>
+                          <h3 className="font-medium" style={{ color: 'rgb(var(--color-text-primary))' }}>{step.label}</h3>
+                          <span className="text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{step.type}</span>
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">Step {step.index + 1}</p>
+                        <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Step {step.index + 1}</p>
                         {step.status === 'completed' && (
                           <button
                             onClick={() => toggleStepExpand(step.index)}
-                            className="mt-2 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                            className="mt-2 text-sm flex items-center gap-1"
+                            style={{ color: 'rgb(var(--color-primary))' }}
                           >
                             {expandedSteps.has(step.index) ? (
                               <>
@@ -189,7 +191,7 @@ export const WorkflowExecutionDetails: React.FC = () => {
                           </button>
                         )}
                         {expandedSteps.has(step.index) && (
-                          <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
+                          <div className="mt-3 p-3 rounded text-xs" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
                             <pre className="whitespace-pre-wrap">
                               {JSON.stringify(
                                 runData.data_context.steps?.find(
@@ -209,32 +211,33 @@ export const WorkflowExecutionDetails: React.FC = () => {
             </div>
 
             {/* Execution Log */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Execution Log</h2>
+            <div className="rounded-lg p-6" style={{ background: 'rgb(var(--color-bg-primary))', border: '1px solid rgb(var(--color-border))' }}>
+              <h2 className="text-lg font-bold mb-4" style={{ color: 'rgb(var(--color-text-primary))' }}>Execution Log</h2>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {executionLog.length === 0 ? (
-                  <p className="text-sm text-gray-500">No execution log entries yet</p>
+                  <p className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>No execution log entries yet</p>
                 ) : (
                   executionLog.map((entry, idx) => (
                     <div
                       key={idx}
-                      className="border-l-2 border-blue-300 pl-3 py-2 hover:bg-gray-50"
+                      className="pl-3 py-2"
+                      style={{ borderLeft: '2px solid rgb(var(--color-primary))' }}
                     >
                       <div className="flex items-start justify-between">
                         <div className="text-sm">
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium" style={{ color: 'rgb(var(--color-text-primary))' }}>
                             {entry.event.replace('_', ' ')}
                           </span>
                           {entry.step_name && (
-                            <span className="text-gray-600"> - {entry.step_name}</span>
+                            <span style={{ color: 'rgb(var(--color-text-secondary))' }}> - {entry.step_name}</span>
                           )}
                         </div>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                           {formatTimestamp(entry.timestamp)}
                         </span>
                       </div>
                       {entry.message && (
-                        <p className="text-xs text-gray-600 mt-1">{entry.message}</p>
+                        <p className="text-xs mt-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>{entry.message}</p>
                       )}
                     </div>
                   ))
@@ -246,39 +249,39 @@ export const WorkflowExecutionDetails: React.FC = () => {
           {/* Right Column: Metadata & Actions */}
           <div className="space-y-6">
             {/* Metadata */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Metadata</h2>
+            <div className="rounded-lg p-6" style={{ background: 'rgb(var(--color-bg-primary))', border: '1px solid rgb(var(--color-border))' }}>
+              <h2 className="text-lg font-bold mb-4" style={{ color: 'rgb(var(--color-text-primary))' }}>Metadata</h2>
               <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="text-gray-500">Created</dt>
-                  <dd className="font-medium text-gray-900 mt-1">
+                  <dt style={{ color: 'rgb(var(--color-text-tertiary))' }}>Created</dt>
+                  <dd className="font-medium mt-1" style={{ color: 'rgb(var(--color-text-primary))' }}>
                     {formatTimestamp(runData.created_on)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Last Updated</dt>
-                  <dd className="font-medium text-gray-900 mt-1">
+                  <dt style={{ color: 'rgb(var(--color-text-tertiary))' }}>Last Updated</dt>
+                  <dd className="font-medium mt-1" style={{ color: 'rgb(var(--color-text-primary))' }}>
                     {formatTimestamp(runData.modified_on)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Workflow</dt>
-                  <dd className="font-medium text-gray-900 mt-1">{runData.workflow_slug}</dd>
+                  <dt style={{ color: 'rgb(var(--color-text-tertiary))' }}>Workflow</dt>
+                  <dd className="font-medium mt-1" style={{ color: 'rgb(var(--color-text-primary))' }}>{runData.workflow_slug}</dd>
                 </div>
               </dl>
             </div>
 
             {/* Error Log */}
             {runData.error_log && runData.error_log.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                <h2 className="text-lg font-bold text-red-900 mb-4">Errors</h2>
+              <div className="rounded-lg p-6" style={{ background: 'rgba(var(--color-error), 0.05)', border: '1px solid rgba(var(--color-error), 0.2)' }}>
+                <h2 className="text-lg font-bold mb-4" style={{ color: 'rgb(var(--color-error))' }}>Errors</h2>
                 <div className="space-y-2">
                   {runData.error_log.map((error: any, idx: number) => (
                     <div key={idx} className="text-sm">
-                      <div className="font-medium text-red-800">{error.type}</div>
-                      <div className="text-red-600 mt-1">{error.message}</div>
+                      <div className="font-medium" style={{ color: 'rgb(var(--color-error))' }}>{error.type}</div>
+                      <div className="mt-1" style={{ color: 'rgba(var(--color-error), 0.8)' }}>{error.message}</div>
                       {error.timestamp && (
-                        <div className="text-xs text-red-500 mt-1">
+                        <div className="text-xs mt-1" style={{ color: 'rgba(var(--color-error), 0.6)' }}>
                           {formatTimestamp(error.timestamp)}
                         </div>
                       )}
@@ -289,16 +292,16 @@ export const WorkflowExecutionDetails: React.FC = () => {
             )}
 
             {/* Data Context Toggle */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="rounded-lg p-6" style={{ background: 'rgb(var(--color-bg-primary))', border: '1px solid rgb(var(--color-border))' }}>
               <button
                 onClick={() => setShowDataContext(!showDataContext)}
                 className="w-full text-left flex items-center justify-between"
               >
-                <h2 className="text-lg font-bold text-gray-900">Data Context</h2>
+                <h2 className="text-lg font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>Data Context</h2>
                 {showDataContext ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
               </button>
               {showDataContext && (
-                <div className="mt-4 p-3 bg-gray-50 rounded text-xs overflow-auto max-h-96">
+                <div className="mt-4 p-3 rounded text-xs overflow-auto max-h-96" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
                   <pre className="whitespace-pre-wrap">
                     {JSON.stringify(runData.data_context, null, 2)}
                   </pre>
