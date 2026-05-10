@@ -83,6 +83,10 @@ class TabularDocumentParsingTests(TestCase):
         self.assertIn('| Item 500 | Backordered | 500.00 |', parsed['text'])
         self.assertNotIn('| Item 501 | Backordered | 501.00 |', parsed['text'])
 
+    @unittest.skipUnless(
+        __import__('importlib').util.find_spec('openpyxl'),
+        'openpyxl not installed'
+    )
     def test_parse_document_converts_xlsx_to_markdown(self):
         from openpyxl import Workbook
 
