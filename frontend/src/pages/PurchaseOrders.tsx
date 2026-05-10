@@ -363,9 +363,11 @@ const PurchaseOrders: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
+    const po = purchaseOrders.find((p) => p.id === id);
+    const label = po?.order_number ? `PO #${po.order_number}` : 'this purchase order';
     const confirmed = await confirmDialog({
-      title: 'Delete purchase order?',
-      content: 'Are you sure you want to delete this purchase order?',
+      title: 'Delete Purchase Order',
+      content: `Are you sure you want to delete "${label}"? This action cannot be undone.`,
       okText: 'Delete',
       cancelText: 'Cancel',
       danger: true,
