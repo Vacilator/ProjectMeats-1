@@ -5,6 +5,7 @@ import { X, RefreshCw } from 'lucide-react';
 import { message } from 'antd';
 
 import EmailIngestionCockpitPanel from '../../components/Cockpit/EmailIngestionCockpitPanel';
+import EmailConfidenceDashboard from '../../components/Cockpit/EmailConfidenceDashboard';
 import { businessApi } from '../../services/businessApi';
 import { useAuth } from '../../contexts/AuthContext';
 const UnifiedFlowEditor = lazy(() => import('../../components/FlowEditor/UnifiedFlowEditor').then(m => ({ default: m.UnifiedFlowEditor })));
@@ -505,6 +506,7 @@ const ProcessMonitor: React.FC = () => {
       </Header>
 
       <EmailIngestionCockpitPanel />
+      <EmailConfidenceDashboard />
 
       {listQuery.isLoading ? (
         <EmptyState>Loading…</EmptyState>

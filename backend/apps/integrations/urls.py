@@ -20,6 +20,7 @@ urlpatterns = [
     path('email/auto-sync/<str:task_id>/', views.get_scheduled_email_sync_status, name='email-auto-sync-status'),
     path('email/sync/', views.sync_emails, name='email-sync'),
     path('email/logs/', views.get_email_logs, name='email-logs'),
+    path('email/stats/', views.get_email_stats, name='email-stats'),
     
     # Microsoft OAuth (Phase 5)
     path('microsoft/', include('apps.integrations.microsoft.urls', namespace='microsoft')),

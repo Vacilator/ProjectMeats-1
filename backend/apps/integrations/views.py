@@ -728,3 +728,100 @@ def get_email_logs(request):
         )
 
     return Response({"emails": email_data, "count": len(email_data)})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_email_stats(request):
+    """Aggregate email classification statistics for current tenant.
+
+    Returns confidence-score distribution (histogram buckets), auto-approve
+    vs manual-review breakdown, category counts, and success/failure rates.
+    Used by the Cockpit confidence-scoring dashboard widget.
+    """
+    tenant = getattr(request, "tenant", None)
+    if not tenant:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    from django.db.models import Avg, Count, Q
+    from .models import EmailLog, EmailReviewDraft
+
+    # Overall email counts by status
+    email_status_counts = dict(
+        EmailLog.objects.filter(tenant=tenant)
+        .values_list("status")
+        .annotate(cnt=Count("id"))
+        .values_list("status", "cnt")
+    )
+    total_emails = sum(email_status_counts.values())
+
+    # Draft stats
+    drafts_qs = EmailReviewDraft.objects.filter(tenant=tenant)
+    total_drafts = drafts_qs.count()
+
+    # Category breakdown
+    category_counts = dict(
+        drafts_qs.values_list("draft_type")
+        .annotate(cnt=Count("id"))
+        .values_list("draft_type", "cnt")
+    )
+
+    # Status breakdown (pending_review / reviewed / dismissed)
+    draft_status_counts = dict(
+        drafts_qs.values_list("status")
+        .annotate(cnt=Count("id"))
+        .values_list("status", "cnt")
+    )
+
+    # Auto-approved count: reviewed drafts with confidence >= 0.98
+    auto_approved = drafts_qs.filter(
+        status="reviewed", classification_confidence__gte=0.98
+    ).count()
+    manual_reviewed = draft_status_counts.get("reviewed", 0) - auto_approved
+
+    # Average confidence
+    avg_confidence = drafts_qs.aggregate(avg=Avg("classification_confidence"))["avg"] or 0.0
+
+    # Confidence histogram (10 buckets: 0-0.1, 0.1-0.2, ..., 0.9-1.0)
+    confidence_buckets = []
+    bucket_ranges = [(i / 10, (i + 1) / 10) for i in range(10)]
+    for low, high in bucket_ranges:
+        if high < 1.0:
+            cnt = drafts_qs.filter(
+                classification_confidence__gte=low,
+                classification_confidence__lt=high,
+            ).count()
+        else:
+            cnt = drafts_qs.filter(
+                classification_confidence__gte=low,
+                classification_confidence__lte=high,
+            ).count()
+        confidence_buckets.append(
+            {"range": f"{low:.1f}-{high:.1f}", "count": cnt}
+        )
+
+    # High-confidence rate (>= 0.9)
+    high_confidence_count = drafts_qs.filter(
+        classification_confidence__gte=0.9
+    ).count()
+
+    return Response(
+        {
+            "total_emails": total_emails,
+            "email_status_counts": email_status_counts,
+            "total_drafts": total_drafts,
+            "category_counts": category_counts,
+            "draft_status_counts": draft_status_counts,
+            "auto_approved": auto_approved,
+            "manual_reviewed": manual_reviewed,
+            "dismissed": draft_status_counts.get("dismissed", 0),
+            "pending_review": draft_status_counts.get("pending_review", 0),
+            "avg_confidence": round(avg_confidence, 3),
+            "high_confidence_rate": (
+                round(high_confidence_count / total_drafts, 3)
+                if total_drafts
+                else 0.0
+            ),
+            "confidence_histogram": confidence_buckets,
+        }
+    )
