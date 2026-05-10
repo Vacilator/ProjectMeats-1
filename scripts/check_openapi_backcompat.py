@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
@@ -30,6 +31,7 @@ HTTP_METHODS: Set[str] = {
     "head",
     "trace",
 }
+PATH_PARAMETER_PATTERN = re.compile(r"\{[^}/]+\}")
 
 
 def _load_json(path: Path) -> Dict[str, Any]:
@@ -42,6 +44,12 @@ def _ref_to_schema_name(ref: str) -> Optional[str]:
     if not ref.startswith(prefix):
         return None
     return ref[len(prefix) :]
+
+
+def _normalize_openapi_path(path: str) -> str:
+    """Treat path-template parameter renames as non-breaking."""
+
+    return PATH_PARAMETER_PATTERN.sub("{}", path)
 
 
 def _resolve_ref(spec: Dict[str, Any], schema: Any, *, seen: Set[str]) -> Any:
@@ -88,8 +96,16 @@ def _compare_paths(baseline: Dict[str, Any], candidate: Dict[str, Any]) -> List[
     if not isinstance(b_paths, dict) or not isinstance(c_paths, dict):
         return ["Invalid OpenAPI structure: missing or non-object 'paths'"]
 
+    normalized_candidate_paths = {
+        _normalize_openapi_path(path): item
+        for path, item in c_paths.items()
+        if isinstance(path, str) and isinstance(item, dict)
+    }
+
     for path, method in _iter_baseline_operations(b_paths):
         c_item = c_paths.get(path)
+        if not isinstance(c_item, dict):
+            c_item = normalized_candidate_paths.get(_normalize_openapi_path(path))
         if not isinstance(c_item, dict):
             errors.append(f"Missing path: {path}")
             continue
