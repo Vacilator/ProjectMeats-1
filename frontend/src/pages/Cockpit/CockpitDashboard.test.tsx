@@ -70,6 +70,10 @@ vi.mock('../../components/Cockpit/AILearningMetricsWidget', () => ({
   AILearningMetricsWidget: () => <div data-testid="ai-learning-metrics">AI metrics</div>,
 }));
 
+vi.mock('../../components/Cockpit/NextActionChips', () => ({
+  NextActionChips: () => <div data-testid="next-action-chips" />,
+}));
+
 vi.mock('../../components/Onboarding', () => ({
   CockpitWelcomeEmptyState: ({
     onCustomizeDashboard,

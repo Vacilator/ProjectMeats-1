@@ -449,6 +449,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
     notifications,
     unreadCount,
     loading,
+    error: fetchError,
     markAsRead,
     markAllAsRead,
     dismissNotification
@@ -520,6 +521,14 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
       <Content role="list" aria-label="Notifications" aria-live="polite">
         {loading ? (
           <LoadingState>Loading notifications...</LoadingState>
+        ) : fetchError ? (
+          <EmptyState>
+            <EmptyIcon>
+              <AlertCircle size={40} strokeWidth={1.5} />
+            </EmptyIcon>
+            <EmptyTitle>Failed to load</EmptyTitle>
+            <EmptyMessage>{fetchError}</EmptyMessage>
+          </EmptyState>
         ) : !hasNotifications ? (
           <EmptyState>
             <EmptyIcon>

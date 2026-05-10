@@ -21,6 +21,7 @@ import { StatCardGrid } from '@/components/Shared/StatCardGrid';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 
 const { Text, Title } = Typography;
 
@@ -91,6 +92,16 @@ const Carriers: React.FC = () => {
   });
 
   const carriers = carriersQuery.data || [];
+
+  const handleExportCsv = useCallback(() => {
+    const headers = ['Name', 'Code', 'Type', 'Contact Person', 'Phone', 'Email', 'MC Number'];
+    const rows = carriers.map((c: Carrier) => [
+      c.name ?? '', c.code ?? '', c.carrier_type ?? '',
+      c.contact_person ?? '', c.phone ?? '', c.email ?? '', c.mc_number ?? '',
+    ]);
+    const csv = buildCsv({ headers, rows });
+    downloadCsv(`carriers_${new Date().toISOString().split('T')[0]}.csv`, csv);
+  }, [carriers]);
 
   const handleCreateClose = useCallback(() => {
     setIsCreateOpen(false);
@@ -257,6 +268,9 @@ const Carriers: React.FC = () => {
             style={{ width: 220 }}
             allowClear
           />
+          <Button onClick={handleExportCsv} disabled={!carriers.length}>
+            Export CSV
+          </Button>
           <Button type="primary" icon={<Plus size={14} />} onClick={() => setIsCreateOpen(true)}>
             Add Carrier
           </Button>

@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Result, Space, Table, Tag, Typography } from 'antd';
+import { Button, Input, Result, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { apiClient, apiService, type Supplier } from '../services/apiService';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { confirmDialog } from '@/utils/uiDialogs';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 
 type SupplierProduct = {
   id: string | number;
@@ -82,14 +85,35 @@ const Suppliers: React.FC = () => {
 
   const handleDelete = useCallback(
     async (supplierId: string | number) => {
-      const confirmed = window.confirm('Are you sure you want to delete this supplier?');
+      const supplier = suppliers.find((s) => s.id === supplierId);
+      const name = supplier?.name || 'this supplier';
+      const confirmed = await confirmDialog({
+        title: 'Delete Supplier',
+        content: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+        okText: 'Delete',
+        danger: true,
+      });
       if (!confirmed) return;
 
-      await apiService.deleteSupplier(Number(supplierId));
-      void suppliersQuery.refetch();
+      try {
+        await apiService.deleteSupplier(Number(supplierId));
+        void suppliersQuery.refetch();
+      } catch {
+        message.error('Failed to delete supplier. Please try again.');
+      }
     },
-    [suppliersQuery]
+    [suppliersQuery, suppliers]
   );
+
+  const handleExportCsv = useCallback(() => {
+    const headers = ['Name', 'Email', 'Contact Person', 'Phone', 'City', 'State', 'Country'];
+    const rows = suppliers.map((s) => [
+      s.name ?? '', s.email ?? '', s.contact_person ?? '',
+      s.phone ?? '', s.city ?? '', s.state ?? '', s.country ?? '',
+    ]);
+    const csv = buildCsv({ headers, rows });
+    downloadCsv(`suppliers_${new Date().toISOString().split('T')[0]}.csv`, csv);
+  }, [suppliers]);
 
   const handleCreateClose = useCallback(() => {
     setCreateOpen(false);
@@ -186,6 +210,9 @@ const Suppliers: React.FC = () => {
             onChange={(e) => setSearchText(e.target.value)}
             allowClear
           />
+          <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={!suppliers.length}>
+            Export CSV
+          </Button>
           <Button type="primary" onClick={() => setCreateOpen(true)}>
             New Supplier
           </Button>

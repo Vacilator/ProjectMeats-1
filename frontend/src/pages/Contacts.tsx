@@ -7,6 +7,8 @@ import { apiService, Contact } from '../services/apiService';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { confirmDialog } from '@/utils/uiDialogs';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 
 // Styled Components
 const Container = styled.div`
@@ -43,6 +45,28 @@ const AddButton = styled.button`
   &:hover {
     background: rgb(var(--color-primary-hover));
     transform: translateY(-1px);
+  }
+`;
+
+const ExportButton = styled.button`
+  background: rgb(var(--color-bg-secondary));
+  color: rgb(var(--color-text-secondary));
+  border: 1px solid rgb(var(--color-border));
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgb(var(--color-bg-tertiary));
+    color: rgb(var(--color-text-primary));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -283,24 +307,39 @@ const Contacts: React.FC = () => {
   }, [clearCreateParam, contactsQuery]);
 
   const handleDelete = useCallback(async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this contact?')) {
-      try {
-        await apiService.deleteContact(id);
-        alert('Contact deleted successfully!');
-        await contactsQuery.refetch();
-      } catch (error: unknown) {
-        logger.error('[Contacts] Error deleting contact:', error);
-        const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
-        const errorMessage = err?.response?.data?.detail
-          || err?.response?.data?.message
-          || err?.message
-          || 'Failed to delete contact';
-        alert(`Error: ${errorMessage}`);
-      }
+    const contact = contacts.find((c) => c.id === id);
+    const name = contact ? `${contact.first_name} ${contact.last_name}`.trim() : 'this contact';
+    const confirmed = await confirmDialog({
+      title: 'Delete Contact',
+      content: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+      okText: 'Delete',
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      await apiService.deleteContact(id);
+      await contactsQuery.refetch();
+    } catch (error: unknown) {
+      logger.error('[Contacts] Error deleting contact:', error);
+      const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Failed to delete contact';
+      alert(`Error: ${errorMessage}`);
     }
-  }, [contactsQuery]);
+  }, [contactsQuery, contacts]);
 
-
+  const handleExportCsv = useCallback(() => {
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Company', 'Position'];
+    const rows = contacts.map((c) => [
+      c.first_name ?? '', c.last_name ?? '', c.email ?? '',
+      c.phone ?? '', c.company ?? '', c.position ?? '',
+    ]);
+    const csv = buildCsv({ headers, rows });
+    downloadCsv(`contacts_${new Date().toISOString().split('T')[0]}.csv`, csv);
+  }, [contacts]);
 
   if (loading) {
     return (
@@ -326,7 +365,10 @@ const Contacts: React.FC = () => {
     <Container>
       <Header>
         <Title>Contacts</Title>
-        <AddButton onClick={() => { setEditingContact(null); setShowForm(true); }}>+ Add Contact</AddButton>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <ExportButton onClick={handleExportCsv} disabled={!contacts.length}>Export CSV</ExportButton>
+          <AddButton onClick={() => { setEditingContact(null); setShowForm(true); }}>+ Add Contact</AddButton>
+        </div>
       </Header>
 
       <StatsCards>
