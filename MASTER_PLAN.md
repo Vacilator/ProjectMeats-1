@@ -147,6 +147,21 @@ All 10 items from the squad deep-dive plan have been completed:
 - ✅ TypeScript: 0 errors across all changes
 - ✅ Frontend: 0 hardcoded colors, 0 console.* calls, 0 merge conflicts
 
+### Phase 31: Backend Robustness & Monitoring ✅ SHIPPED
+- ✅ Auto-pipeline dispatch error isolation: pipeline.apply_async() wrapped in try/except for per-email error logging (PR #5278)
+- ✅ Quantity parse logging: invalid extracted quantities now log WARNING instead of silently dropping (PR #5278)
+- ✅ Invoice number schema fix: added `invoice_number` to AI classification response schema, prompt, field_confidence, and return value — previously dead reclassification path now functional (PR #5278)
+- ✅ WorkForms Monitoring error state: retry button when analytics query fails (PR #5278)
+- ✅ UX polish: loading spinners (ActionItemsWidget, IntegrationsSection), improved loading text (SystemChoiceManager) (PR #5279)
+- ✅ Image fallbacks: avatar images in DelegationHistory, DelegateTaskModal, WorkflowStatusTimeline gracefully degrade on load error (PR #5279)
+- ✅ Profile form validation: client-side name/email validation before submit (PR #5279)
+
+### Phase 32: Advanced Validation & WebSocket Reliability ✅ SHIPPED
+- ✅ AccountsReceivables form validation: client-side validation for invoice_number, customer, total, due_date (PR #5280)
+- ✅ Workflows cascaded-options: error response includes field context for debugging (PR #5280)
+- ✅ AIAgentWidget WS pre-flight: probes actual WebSocket path instead of /api/v1/health/ (PR #5280)
+- ✅ AIAgentWidget permanent failure tracking: prevents tab-visibility retry spam when WS never connected (PR #5280)
+
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
 - No breaking migrations.
