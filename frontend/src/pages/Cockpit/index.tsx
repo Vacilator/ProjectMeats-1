@@ -10,6 +10,7 @@ import styled from 'styled-components';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Tabs } from 'antd';
 import { Target, LayoutGrid, Workflow, PhoneCall } from 'lucide-react';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // Styled Components
@@ -115,6 +116,7 @@ const TAB_ITEMS = [
 ] as const;
 
 const CockpitPage: React.FC = () => {
+  useDocumentTitle('Cockpit');
   const location = useLocation();
   const navigate = useNavigate();
 

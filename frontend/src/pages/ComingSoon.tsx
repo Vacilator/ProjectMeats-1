@@ -7,6 +7,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface ComingSoonProps {
   title: string;
@@ -22,6 +23,7 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({
   features,
 }) => {
   const navigate = useNavigate();
+  useDocumentTitle('Coming Soon');
 
   return (
     <Container>

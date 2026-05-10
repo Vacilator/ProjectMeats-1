@@ -12,6 +12,7 @@ import { extractBrandColors } from '@/utils/themeUtils';
 import { injectTenantColors } from '@/config/theme';
 import { formatUsPhone } from '@/utils/phone';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
 
 interface Tenant {
@@ -104,6 +105,7 @@ const normalizeLogoUrl = (logoUrl: string | null | undefined, cacheKey?: string 
 };
 
 const AdminProfilePage: React.FC = () => {
+  useDocumentTitle('Profile');
   const toast = useToast();
   const queryClient = useQueryClient();
   const { permissions } = useAdminPermissions();

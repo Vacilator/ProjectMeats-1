@@ -18,6 +18,7 @@ import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -157,6 +158,7 @@ const CustomerLink = styled.a`
 // ============================================================================
 
 const CustomerLocations: React.FC = () => {
+  useDocumentTitle('Customer Locations');
   const location = useLocation();
   const navigate = useNavigate();
   const { customerId } = useParams<{ customerId?: string }>();

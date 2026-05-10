@@ -41,6 +41,7 @@ import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 
 import { OptionListModal } from './OptionListModal';
 import { TenantListModal, type TenantList } from './TenantListModal';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
 
 const { Text } = Typography;
@@ -98,6 +99,7 @@ interface SystemChoiceList {
 type CustomTenantList = TenantList;
 
 const OptionListsPage: React.FC = () => {
+  useDocumentTitle('Option Lists');
   const { permissions } = useAdminPermissions();
   const canEdit = permissions.can_manage_option_lists;
   const canView =

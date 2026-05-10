@@ -20,6 +20,7 @@ import { ActivityFeed, CommentsPanel, EntityFormSurface, UnifiedEntityTable } fr
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { apiClient } from '@/services/apiService';
 import { businessApi } from '@/services/businessApi';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { type ResolvedEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = {
@@ -61,6 +62,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   basePath,
   mode,
 }) => {
+  useDocumentTitle('Entity Record');
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams<RouteParams>();

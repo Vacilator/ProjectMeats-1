@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { AdminPage } from '@/components/Admin/AdminPage';
 import { AdminGuard, LoadingSkeleton } from '@/components/Admin';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface WorkspaceCard {
   title: string;
@@ -54,6 +55,7 @@ const CARDS: WorkspaceCard[] = [
 ];
 
 const AdminWorkspaceHome: React.FC = () => {
+  useDocumentTitle('Admin Home');
   const { permissions, isLoading } = useAdminPermissions();
   const canAccess = ['admin', 'owner', 'superuser'].includes(permissions.role);
 

@@ -13,6 +13,7 @@ import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from 
 import { apiClient } from '../../services/apiService';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
 
 interface SystemProduct {
@@ -120,6 +121,7 @@ const LoadingContainer = styled.div`
 `;
 
 const PlantProducts: React.FC = () => {
+  useDocumentTitle('Plant Products');
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();

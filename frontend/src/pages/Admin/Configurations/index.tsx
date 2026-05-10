@@ -16,6 +16,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { captureSentryException } from '@/utils/sentry';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
 
 interface Configuration {
@@ -51,6 +52,7 @@ interface TenantCurrent {
 }
 
 const ConfigurationsPage: React.FC = () => {
+  useDocumentTitle('Configurations');
   const toast = useToast();
   const { permissions } = useAdminPermissions();
   const canManage = permissions.can_manage_configurations;
