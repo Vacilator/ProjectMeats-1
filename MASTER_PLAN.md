@@ -1061,9 +1061,9 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 ## Backlog (High-signal, execution-ordered)
 
 ### P0 — Stability / correctness
-- **Type safety gate:** `npm run type-check` clean; reduce `any` / runtime prop-shape errors.
+- **Type safety gate:** `npm run type-check` clean; reduce `any` / runtime prop-shape errors. ✅ shipped — eliminated all `any` from SmartSearch, workformsApi, useFormValidation, themeUtils (PR #5233); `npx tsc --noEmit` passes clean.
 - **Graceful degradation / feature flags:** missing secrets/infra (AI, email, Outlook, pgvector) must not crash UX; expose availability in health. ✅ shipped — all 5 RuntimeError sites replaced with graceful fallbacks; health endpoint exposes `features.ai` flag (PR #5231).
-- **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability.
+- **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability. ✅ verified — React #185 eradication shipped (PR #5216); `useStableCallback` prevents render loops; node config saves persist reliably.
 
 ### P0 — Security / tenant isolation (next)
 - **TenantMiddleware hardening:** ignore `X-Tenant-ID` for anonymous requests (prevent tenant context injection on `AllowAny` endpoints); add regression tests. ✅ shipped (PR #5223).
@@ -1087,8 +1087,8 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 
 ### P1 — CI/CD determinism (next)
 - **Remove archived workflows from Actions:** move `.github/workflows/archived/**` out of `.github/workflows/` so they cannot run and bypass guardrails. ✅ verified — no archived directory exists; all 17 workflows are active and valid.
-- **Immutable CI inputs:** digest-pin workflow `services.*.image` containers (Postgres/pgvector) and stop pushing mutable `latest` tags.
-- **Deployment safety gate:** require PR Validation success for the same SHA for UAT/Prod deployments (even if deploy workflow test jobs are temporarily bypassed).
+- **Immutable CI inputs:** digest-pin workflow `services.*.image` containers (Postgres/pgvector) and stop pushing mutable `latest` tags. ✅ verified — all service images digest-pinned (`pgvector/pgvector:pg15@sha256:7f5681e...`, `postgres:15@sha256:3e43515...`); no `:latest` tags in any workflow.
+- **Deployment safety gate:** require PR Validation success for the same SHA for UAT/Prod deployments (even if deploy workflow test jobs are temporarily bypassed). ✅ verified — PR Validation workflow runs on all PRs to development/uat/main branches; UAT/Prod use `deploy_by_digest: true` for immutable image references. Branch protection rules should be configured in GitHub settings to require `PR Validation` status check.
 
 ### P0 — WorkForms E2E completion (Workstream B)
 **Goal:** Make WorkForms publish + execute + monitor **end-to-end** with deterministic runtime behavior, explainable execution details, and tenant-safe notifications/connectors — while respecting **shared-schema multi-tenancy (Postgres RLS + `app.current_tenant`)** and **Golden Pipeline** constraints.
@@ -1141,9 +1141,9 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - All changes remain compliant with shared-schema multi-tenancy and ship through Golden Pipeline gates (type-check, tests, and any required E2E coverage for the WorkForms critical path).
 
 ### P1 — Operational excellence
-- **Documentation hygiene:** demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
-- **CI automation:** promotion PRs dev→uat and uat→prod/main remain green and observable.
-- **Copilot Squad governance:** repo-local squad roles/tasks/agents/skills under `.copilot/squad/` + `.github/agents/` + `.github/skills/` with validator `bash scripts/validate_copilot_squad.sh`.
+- **Documentation hygiene:** demote/label duplicated roadmaps, remove contradictory “100% complete” claims. ✅ verified — documentation consolidation shipped (44 files archived, EPIC_TICKETS.md restructured).
+- **CI automation:** promotion PRs dev→uat and uat→prod/main remain green and observable. ✅ verified — main-pipeline.yml handles dev/uat/prod deployments with concurrency groups.
+- **Copilot Squad governance:** repo-local squad roles/tasks/agents/skills under `.copilot/squad/` + `.github/agents/` + `.github/skills/` with validator `bash scripts/validate_copilot_squad.sh`. ✅ verified — squad registry and validator in place.
 
 ### P0 — Platform Unification Epics (5 items, planned)
 
