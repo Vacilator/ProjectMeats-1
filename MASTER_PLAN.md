@@ -1065,11 +1065,11 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability.
 
 ### P0 — Security / tenant isolation (next)
-- **TenantMiddleware hardening:** ignore `X-Tenant-ID` for anonymous requests (prevent tenant context injection on `AllowAny` endpoints); add regression tests. ✅ shipped (PR #5223). ✅ shipped (PR #5223).
+- **TenantMiddleware hardening:** ignore `X-Tenant-ID` for anonymous requests (prevent tenant context injection on `AllowAny` endpoints); add regression tests. ✅ shipped (PR #5223).
 - **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily.
 - **Email webhooks verification (critical):** Outlook requires unpredictable per-subscription `clientState`; Gmail requires request verification (JWT/secret) so forged requests cannot trigger upstream API calls.
 - **Tenant-scope email integration data:** phase in `tenant_id` for EmailAccount/EmailLog (and related tables), then add RLS policies once tenant-scoped.
-- **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure. ✅ shipped (PR #5223). ✅ shipped (PR #5223).
+- **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure. ✅ shipped (PR #5223).
 
 ### P0 — WorkForms editor “industry leader” UX (next)
 - **Publish readiness preflight + support matrix UI:** block publish when unsupported nodes/missing required config; show actionable remediation. ✅ shipped (PR #5225).
