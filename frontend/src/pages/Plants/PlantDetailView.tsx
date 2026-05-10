@@ -7,6 +7,7 @@ import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
 import { isAuthError } from '@/utils/isAuthError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import StandalonePlantEditForm from './StandalonePlantEditForm';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
@@ -94,6 +95,7 @@ export const PlantDetailView: React.FC = () => {
   const { loading: authLoading, isAuthenticated } = useAuthState();
 
   const plantId = String(id || '').trim();
+  useDocumentTitle(plantId ? `Plant ${plantId}` : 'Plant Detail');
 
   const [isEditing, setIsEditing] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);

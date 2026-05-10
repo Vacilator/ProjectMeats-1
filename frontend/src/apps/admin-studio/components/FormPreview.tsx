@@ -5,6 +5,7 @@
  * Helps users visualize their field configurations before saving.
  */
 import React, { useState } from 'react';
+import { message } from 'antd';
 import { formatUsPhone } from '@/utils/phone';
 
 interface Field {
@@ -30,7 +31,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Preview mode - form not submitted\n\nData:\n' + JSON.stringify(formData, null, 2));
+    message.info('Preview mode — form not submitted');
   };
 
   const renderField = (field: Field) => {

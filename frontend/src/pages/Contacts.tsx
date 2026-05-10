@@ -7,7 +7,7 @@ import { apiService, Contact } from '../services/apiService';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { confirmDialog } from '@/utils/uiDialogs';
+import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { buildCsv, downloadCsv } from '@/utils/csv';
 
 // Styled Components
@@ -327,7 +327,7 @@ const Contacts: React.FC = () => {
         || err?.response?.data?.message
         || err?.message
         || 'Failed to delete contact';
-      alert(`Error: ${errorMessage}`);
+      showAlert({ type: 'error', title: 'Error', content: errorMessage });
     }
   }, [contactsQuery, contacts]);
 

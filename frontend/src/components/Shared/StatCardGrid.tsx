@@ -42,7 +42,7 @@ const Value = styled.div<{ $alert?: boolean }>`
   font-size: 1.75rem;
   font-weight: 800;
   color: ${({ $alert }) =>
-    $alert ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary, 17 24 39))'};
+    $alert ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-primary, 17 24 39))'};
   line-height: 1.2;
 `;
 
