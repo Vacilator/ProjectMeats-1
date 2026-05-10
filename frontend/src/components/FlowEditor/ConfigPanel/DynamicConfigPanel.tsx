@@ -849,8 +849,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
         renderedField = (
           <FormField key={field.id}>
-            <Label>{field.label}</Label>
+            <Label htmlFor={`pm-field-${field.id}`}>{field.label}</Label>
             <Select
+              id={`pm-field-${field.id}`}
               value={selected}
               onChange={async (e) => {
                 const selectedFormId = e.target.value;
@@ -1039,8 +1040,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
           renderedField = (
             <FormField key={field.id}>
-              <Label>{field.label}</Label>
-              <KeyValueList>
+              <Label id={`pm-field-label-${field.id}`}>{field.label}</Label>
+              <KeyValueList aria-labelledby={`pm-field-label-${field.id}`}>
                 {pairs.length === 0 && <KeyValueEmpty>None configured yet.</KeyValueEmpty>}
                 {pairs.map((p, idx) => (
                   <KeyValueRow key={`${field.id}-${idx}`}>
@@ -1110,8 +1111,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
         renderedField = (
           <FormField key={field.id}>
-            <Label>{field.label}</Label>
-            <KeyValueList>
+            <Label id={`pm-field-label-${field.id}`}>{field.label}</Label>
+            <KeyValueList aria-labelledby={`pm-field-label-${field.id}`}>
               {pairs.length === 0 && <KeyValueEmpty>None configured yet.</KeyValueEmpty>}
               {pairs.map((p, idx) => (
                 <KeyValueRow key={`${field.id}-${idx}`}>

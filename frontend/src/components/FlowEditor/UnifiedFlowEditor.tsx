@@ -7308,6 +7308,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <ToolbarButton 
             onClick={() => handleSaveWorkflow()} 
             title="Save Workflow (Ctrl+S)"
+            aria-label="Save workflow"
+            data-testid="flow-toolbar-save"
             disabled={isSaving}
             style={hasUnsavedChanges ? {
               background: 'rgb(var(--color-primary))',
@@ -7328,6 +7330,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                   ? `${validationResult.warningCount} warning${validationResult.warningCount !== 1 ? 's' : ''} — click to review`
                   : 'Publish readiness check — all clear'
             }
+            aria-label="Toggle publish readiness check"
+            aria-pressed={showValidationDrawer}
+            data-testid="flow-toolbar-preflight"
             style={
               validationResult.errorCount > 0
                 ? { color: 'rgb(var(--color-error))', borderColor: 'rgba(var(--color-error), 0.35)' }
@@ -7353,6 +7358,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     ? 'Fix validation errors before publishing'
                     : 'Publish Workflow')
             }
+            aria-label={currentWorkflowStatus === 'active' ? 'Workflow is published' : 'Publish workflow'}
+            data-testid="flow-toolbar-publish"
             disabled={
               isSaving ||
               nodes.length === 0 ||
@@ -7480,19 +7487,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <Settings />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-        <ViewportButton onClick={() => fitView({ padding: 0.2, duration: 300 })} title="Fit to View (F)">
+        <ViewportButton onClick={() => fitView({ padding: 0.2, duration: 300 })} title="Fit to View (F)" aria-label="Fit to view">
           <Maximize2 />
         </ViewportButton>
-        <ViewportButton onClick={zoomIn} title="Zoom In">
+        <ViewportButton onClick={zoomIn} title="Zoom In" aria-label="Zoom in">
           <ZoomIn />
         </ViewportButton>
-        <ViewportButton onClick={zoomOut} title="Zoom Out">
+        <ViewportButton onClick={zoomOut} title="Zoom Out" aria-label="Zoom out">
           <ZoomOut />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton 
           onClick={() => setIsMinimapVisible(!isMinimapVisible)} 
           title={isMinimapVisible ? 'Hide Minimap (M)' : 'Show Minimap (M)'}
+          aria-label={isMinimapVisible ? 'Hide minimap' : 'Show minimap'}
+          aria-pressed={isMinimapVisible}
           style={isMinimapVisible ? {
             background: 'rgb(var(--color-primary))',
             color: 'rgb(var(--color-primary-foreground))',
@@ -7503,7 +7512,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         {/* FIX: Wired Help button directly to Keyboard Shortcuts state */}
-        <ViewportButton onClick={() => setShowKeyboardShortcuts(true)} title="Help & Keyboard Shortcuts (?)">
+        <ViewportButton onClick={() => setShowKeyboardShortcuts(true)} title="Help & Keyboard Shortcuts (?)" aria-label="Help and keyboard shortcuts">
           <HelpCircle />
         </ViewportButton>
       </ViewportToolbar>

@@ -47,15 +47,20 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
   if (!isOpen) return null;
   
   return (
-    <DrawerContainer>
+    <DrawerContainer data-testid="validation-drawer" role="region" aria-label="Workflow validation results">
       <DrawerHeader>
         <HeaderLeft>
-          <Title>Workflow Validation</Title>
+          <Title id="validation-drawer-title">Workflow Validation</Title>
           <StatusBadge $isValid={validation.isValid}>
             {validation.isValid ? '✓ Valid' : `${validation.errorCount} Error${validation.errorCount !== 1 ? 's' : ''}`}
           </StatusBadge>
         </HeaderLeft>
-        <CloseButton onClick={onClose}>
+        <CloseButton
+          onClick={onClose}
+          aria-label="Close validation drawer"
+          data-testid="validation-drawer-close"
+          type="button"
+        >
           <X size={18} />
         </CloseButton>
       </DrawerHeader>
@@ -67,6 +72,12 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
             <SectionHeader
               onClick={() => toggleSection('errors')}
               $isExpanded={expandedSections.has('errors')}
+              role="button"
+              tabIndex={0}
+              aria-expanded={expandedSections.has('errors')}
+              aria-controls="validation-errors-list"
+              onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSection('errors'); } }}
+              data-testid="validation-section-errors"
             >
               <SectionTitle>
                 <AlertCircle size={18} color="rgb(var(--color-error))" />
@@ -75,13 +86,17 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
               {expandedSections.has('errors') ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </SectionHeader>
             {expandedSections.has('errors') && (
-              <IssueList>
+              <IssueList id="validation-errors-list">
                 {errorIssues.map(issue => (
                   <IssueCard
                     key={issue.id}
                     $severity="error"
                     onClick={() => issue.nodeId && onNavigateToNode(issue.nodeId)}
                     $isClickable={!!issue.nodeId}
+                    role={issue.nodeId ? 'button' : undefined}
+                    tabIndex={issue.nodeId ? 0 : undefined}
+                    onKeyDown={issue.nodeId ? (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigateToNode(issue.nodeId!); } } : undefined}
+                    data-testid={`validation-issue-${issue.id}`}
                   >
                     <IssueMessage>{issue.message}</IssueMessage>
                     {issue.suggestion && (
@@ -103,6 +118,12 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
             <SectionHeader
               onClick={() => toggleSection('warnings')}
               $isExpanded={expandedSections.has('warnings')}
+              role="button"
+              tabIndex={0}
+              aria-expanded={expandedSections.has('warnings')}
+              aria-controls="validation-warnings-list"
+              onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSection('warnings'); } }}
+              data-testid="validation-section-warnings"
             >
               <SectionTitle>
                 <AlertTriangle size={18} color="rgb(var(--color-warning))" />
@@ -111,13 +132,17 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
               {expandedSections.has('warnings') ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </SectionHeader>
             {expandedSections.has('warnings') && (
-              <IssueList>
+              <IssueList id="validation-warnings-list">
                 {warningIssues.map(issue => (
                   <IssueCard
                     key={issue.id}
                     $severity="warning"
                     onClick={() => issue.nodeId && onNavigateToNode(issue.nodeId)}
                     $isClickable={!!issue.nodeId}
+                    role={issue.nodeId ? 'button' : undefined}
+                    tabIndex={issue.nodeId ? 0 : undefined}
+                    onKeyDown={issue.nodeId ? (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigateToNode(issue.nodeId!); } } : undefined}
+                    data-testid={`validation-issue-${issue.id}`}
                   >
                     <IssueMessage>{issue.message}</IssueMessage>
                     {issue.suggestion && (
@@ -136,6 +161,12 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
             <SectionHeader
               onClick={() => toggleSection('info')}
               $isExpanded={expandedSections.has('info')}
+              role="button"
+              tabIndex={0}
+              aria-expanded={expandedSections.has('info')}
+              aria-controls="validation-info-list"
+              onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSection('info'); } }}
+              data-testid="validation-section-info"
             >
               <SectionTitle>
                 <Info size={18} color="rgb(var(--color-info))" />
@@ -144,9 +175,9 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
               {expandedSections.has('info') ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </SectionHeader>
             {expandedSections.has('info') && (
-              <IssueList>
+              <IssueList id="validation-info-list">
                 {infoIssues.map(issue => (
-                  <IssueCard key={issue.id} $severity="info" $isClickable={false}>
+                  <IssueCard key={issue.id} $severity="info" $isClickable={false} data-testid={`validation-issue-${issue.id}`}>
                     <IssueMessage>{issue.message}</IssueMessage>
                     {issue.suggestion && (
                       <IssueSuggestion>💡 {issue.suggestion}</IssueSuggestion>
@@ -160,7 +191,7 @@ export const ValidationDrawer: React.FC<ValidationDrawerProps> = ({
         
         {/* All Clear */}
         {validation.issues.length === 0 && (
-          <AllClearMessage>
+          <AllClearMessage data-testid="validation-all-clear">
             <AlertCircle size={48} color="rgb(var(--color-success))" />
             <h3>All Clear!</h3>
             <p>No validation issues found. Your workflow is ready to publish.</p>
