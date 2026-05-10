@@ -7,7 +7,8 @@ This directory contains the live GitHub Actions entrypoints for ProjectMeats. Fo
 ### Delivery and validation
 - `.github/workflows/pr-validation.yml`
   - PR gate for `development`, `uat`, and `main`
-  - Runs the infrastructure drift gate, changed-file repo pre-commit, migration validation, backend tests, frontend type-check/unit tests, mobile checks, and squad validation
+  - Runs the infrastructure drift gate, changed-file repo pre-commit, migration validation, backend tests, frontend type-check/unit tests, and squad validation
+  - Skips OpenAPI/mobile contract jobs when the PR does not touch backend, mobile, or contract-governed surfaces
   - Calls `.github/workflows/evidence-rubric.yml` to publish the PR evidence summary artifact/comment
 - `.github/workflows/evidence-rubric.yml`
   - Reusable PR evidence publisher that turns job results into a markdown rubric, workflow artifact, step summary, and best-effort PR comment
