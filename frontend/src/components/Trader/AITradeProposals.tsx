@@ -196,7 +196,20 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
     );
   }
 
-  if (proposals.length === 0) return null;
+  if (proposals.length === 0) {
+    return (
+      <ProposalsContainer role="region" aria-label="AI Trade Proposals">
+        <Card size="small" style={{ opacity: 0.7, textAlign: 'center' }}>
+          <Space direction="vertical" size={4}>
+            <Lightbulb size={20} style={{ color: 'rgb(var(--color-text-tertiary))' }} />
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              No AI trade proposals right now. Check back later.
+            </Typography.Text>
+          </Space>
+        </Card>
+      </ProposalsContainer>
+    );
+  }
 
   return (
     <ProposalsContainer role="region" aria-label="AI Trade Proposals">

@@ -10,7 +10,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Table, Tag } from 'antd';
+import { Table, Tag, Select, message } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
@@ -585,6 +585,11 @@ export const MyTasks: React.FC = () => {
   const [reviewError, setReviewError] = useState('');
   const [selectedReview, setSelectedReview] = useState<PendingReviewItem | null>(null);
   
+  // AI Inbox filter/sort state
+  const [aiIntentFilter, setAiIntentFilter] = useState<string>('all');
+  const [aiConfidenceSort, setAiConfidenceSort] = useState<'none' | 'asc' | 'desc'>('none');
+  const [aiSelectedRowKeys, setAiSelectedRowKeys] = useState<React.Key[]>([]);
+  
   // Local filter state
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -915,6 +920,62 @@ export const MyTasks: React.FC = () => {
     ? pendingReviews.length
     : actionItemCounts?.total;
 
+  const aiUniqueIntents = useMemo(() => {
+    const intents = new Set<string>();
+    pendingReviews.forEach((r) => {
+      const label = r.intent_label || r.document_type || 'AI Draft';
+      intents.add(label);
+    });
+    return Array.from(intents).sort();
+  }, [pendingReviews]);
+
+  const filteredAiReviews = useMemo(() => {
+    let items = pendingReviews;
+    if (aiIntentFilter !== 'all') {
+      items = items.filter((r) => (r.intent_label || r.document_type || 'AI Draft') === aiIntentFilter);
+    }
+    if (aiConfidenceSort !== 'none') {
+      items = [...items].sort((a, b) => {
+        const ca = Number(a.confidence_score || 0);
+        const cb = Number(b.confidence_score || 0);
+        return aiConfidenceSort === 'desc' ? cb - ca : ca - cb;
+      });
+    }
+    return items;
+  }, [pendingReviews, aiIntentFilter, aiConfidenceSort]);
+
+  const handleBatchReviewAction = useCallback(
+    async (action: 'approve' | 'reject') => {
+      const selected = pendingReviews.filter((r) => aiSelectedRowKeys.includes(r.id));
+      if (selected.length === 0) return;
+
+      const label = action === 'approve' ? 'approved' : 'rejected';
+      let successCount = 0;
+
+      for (const item of selected) {
+        try {
+          if (action === 'approve') {
+            openReview(item);
+          }
+          successCount++;
+        } catch {
+          logger.error(`Failed to ${action} draft ${item.id}`);
+        }
+      }
+
+      if (action === 'reject') {
+        setPendingReviews((current) =>
+          current.filter((r) => !aiSelectedRowKeys.includes(r.id)),
+        );
+        void message.success(`${successCount} draft(s) ${label}`);
+      } else {
+        void message.info(`Opening ${successCount} draft(s) for review`);
+      }
+      setAiSelectedRowKeys([]);
+    },
+    [aiSelectedRowKeys, pendingReviews, openReview],
+  );
+
   const aiInboxColumns = useMemo(
     () => [
       {
@@ -937,6 +998,18 @@ export const MyTasks: React.FC = () => {
         key: 'created_on',
         render: (value: string | undefined) =>
           value ? new Date(value).toLocaleString() : 'Recently',
+      },
+      {
+        title: 'Confidence',
+        dataIndex: 'confidence_score',
+        key: 'confidence_score',
+        width: 110,
+        render: (value: number | undefined) => {
+          const score = Number(value || 0);
+          const pct = Math.round(score * 100);
+          const color = score >= 0.8 ? 'green' : score >= 0.5 ? 'orange' : 'red';
+          return <Tag color={color}>{pct}%</Tag>;
+        },
       },
       {
         title: 'Action',
@@ -1026,33 +1099,78 @@ export const MyTasks: React.FC = () => {
                   </EmptyText>
                 </EmptyState>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <Table
-                    rowKey="id"
-                    dataSource={pendingReviews}
-                    columns={aiInboxColumns}
-                    pagination={false}
-                    expandable={{
-                      expandedRowRender: (item: PendingReviewItem) => (
-                        <div style={{ display: 'grid', gap: 8 }}>
-                          <div>{item.source_subject || 'AI Draft'}</div>
-                          <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
-                            {item.source_summary ||
-                              'Open the draft to inspect the parsed payload and save the final entity.'}
+                <>
+                  {/* Filter / sort toolbar */}
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+                    <Select
+                      value={aiIntentFilter}
+                      onChange={setAiIntentFilter}
+                      style={{ minWidth: 180 }}
+                      aria-label="Filter by intent"
+                      options={[
+                        { value: 'all', label: 'All intents' },
+                        ...aiUniqueIntents.map((i) => ({ value: i, label: i })),
+                      ]}
+                    />
+                    <Select
+                      value={aiConfidenceSort}
+                      onChange={setAiConfidenceSort}
+                      style={{ minWidth: 180 }}
+                      aria-label="Sort by confidence"
+                      options={[
+                        { value: 'none', label: 'Default order' },
+                        { value: 'desc', label: 'Confidence: High → Low' },
+                        { value: 'asc', label: 'Confidence: Low → High' },
+                      ]}
+                    />
+                    {aiSelectedRowKeys.length > 0 && (
+                      <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                        <Tag color="blue">{aiSelectedRowKeys.length} selected</Tag>
+                        <ActionButton onClick={() => void handleBatchReviewAction('approve')}>
+                          Review Selected
+                        </ActionButton>
+                        <ActionButton
+                          style={{ background: 'rgb(var(--color-error))', color: 'rgb(var(--color-text-inverse))' }}
+                          onClick={() => void handleBatchReviewAction('reject')}
+                        >
+                          Dismiss Selected
+                        </ActionButton>
+                      </div>
+                    )}
+                    <span style={{ color: 'rgb(var(--color-text-tertiary))', fontSize: 12, marginLeft: 'auto' }}>
+                      {filteredAiReviews.length} of {pendingReviews.length} shown
+                    </span>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <Table
+                      rowKey="id"
+                      dataSource={filteredAiReviews}
+                      columns={aiInboxColumns}
+                      pagination={false}
+                      rowSelection={{
+                        selectedRowKeys: aiSelectedRowKeys,
+                        onChange: setAiSelectedRowKeys,
+                      }}
+                      expandable={{
+                        expandedRowRender: (item: PendingReviewItem) => (
+                          <div style={{ display: 'grid', gap: 8 }}>
+                            <div>{item.source_subject || 'AI Draft'}</div>
+                            <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+                              {item.source_summary ||
+                                'Open the draft to inspect the parsed payload and save the final entity.'}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              {item.source_document_name ? (
+                                <Tag>Attachment: {item.source_document_name}</Tag>
+                              ) : null}
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {item.source_document_name ? (
-                              <Tag>Attachment: {item.source_document_name}</Tag>
-                            ) : null}
-                            <Tag color="gold">
-                              Confidence {(Number(item.confidence_score || 0) * 100).toFixed(0)}%
-                            </Tag>
-                          </div>
-                        </div>
-                      ),
-                    }}
-                  />
-                </div>
+                        ),
+                      }}
+                    />
+                  </div>
+                </>
               )}
             </WorkflowsSection>
 
