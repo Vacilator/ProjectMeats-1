@@ -108,10 +108,10 @@ export const ConfigDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
-          <p className="mt-4 text-gray-600">Loading configuration...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: 'rgb(var(--color-primary))' }} />
+          <p className="mt-4" style={{ color: 'rgb(var(--color-text-secondary))' }}>Loading configuration...</p>
         </div>
       </div>
     );
@@ -119,14 +119,15 @@ export const ConfigDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen p-8" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
         <div className="max-w-4xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h3 className="text-red-800 font-semibold">Error Loading Configuration</h3>
-            <p className="text-red-600 mt-2">{error}</p>
+          <div className="border rounded-lg p-6" style={{ background: 'rgb(var(--color-error-bg))', borderColor: 'rgb(var(--color-error))' }}>
+            <h3 className="font-semibold" style={{ color: 'rgb(var(--color-error))' }}>Error Loading Configuration</h3>
+            <p className="mt-2" style={{ color: 'rgb(var(--color-error))' }}>{error}</p>
             <button
               onClick={loadData}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              className="mt-4 px-4 py-2 text-[rgb(var(--color-text-inverse))] rounded hover:opacity-90 transition-colors"
+              style={{ background: 'rgb(var(--color-error))' }}
             >
               Retry
             </button>
@@ -137,20 +138,20 @@ export const ConfigDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="shadow-sm border-b" style={{ background: 'rgb(var(--color-bg-primary))' }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">⚙️ Configuration Dashboard</h1>
-              <p className="text-gray-500 text-sm mt-1">
+              <h1 className="text-2xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>⚙️ Configuration Dashboard</h1>
+              <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                 Manage system and tenant configurations
               </p>
             </div>
             <button
               onClick={handleClearCache}
-              className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-sm rounded-lg hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors flex items-center gap-2" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
             >
               <span>🔄</span>
               Refresh Cache
@@ -196,14 +197,14 @@ export const ConfigDashboard: React.FC = () => {
         <div className="flex justify-end gap-3 mb-6">
           <Link
             to="/config/audit"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors text-sm" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
           >
             📜 View Audit Log
           </Link>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-sm border">
+        <div className="rounded-lg shadow-sm border" style={{ background: 'rgb(var(--color-bg-primary))' }}>
           <div className="border-b">
             <nav className="flex -mb-px">
               {(['overview', 'choices', 'configs', 'features'] as const).map((tab) => (
@@ -212,9 +213,13 @@ export const ConfigDashboard: React.FC = () => {
                   onClick={() => setActiveTab(tab)}
                   className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-transparent'
+                      : 'border-transparent hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border-secondary))]'
                   }`}
+                  style={{
+                    borderColor: activeTab === tab ? 'rgb(var(--color-primary))' : undefined,
+                    color: activeTab === tab ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-tertiary))',
+                  }}
                 >
                   {tab === 'overview' && '📊 Overview'}
                   {tab === 'choices' && '📋 Choice Lists'}
@@ -233,7 +238,7 @@ export const ConfigDashboard: React.FC = () => {
                 placeholder={`Search ${activeTab}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[rgb(var(--color-primary))] focus:border-[rgb(var(--color-primary))]"
               />
             </div>
           )}
@@ -279,17 +284,18 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ icon, label, value, color, onClick }) => {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
-    purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  const colorStyles: Record<string, React.CSSProperties> = {
+    blue: { background: 'rgb(var(--color-info-bg))', color: 'rgb(var(--color-primary))', borderColor: 'rgb(var(--color-primary))' },
+    green: { background: 'rgb(var(--color-success-bg))', color: 'rgb(var(--color-success))', borderColor: 'rgb(var(--color-success))' },
+    purple: { background: 'rgb(var(--color-info-bg))', color: 'rgb(var(--color-primary))', borderColor: 'rgb(var(--color-primary))' },
+    emerald: { background: 'rgb(var(--color-success-bg))', color: 'rgb(var(--color-success))', borderColor: 'rgb(var(--color-success))' },
   };
 
   return (
     <button
       onClick={onClick}
-      className={`${colorClasses[color]} border rounded-lg p-4 text-left transition-transform hover:scale-105 w-full`}
+      className="border rounded-lg p-4 text-left transition-transform hover:scale-105 w-full"
+      style={colorStyles[color]}
     >
       <div className="text-2xl mb-2">{icon}</div>
       <div className="text-3xl font-bold">{value}</div>
@@ -316,24 +322,24 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Recent Choice Lists */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Recent Choice Lists</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'rgb(var(--color-text-primary))' }}>📋 Recent Choice Lists</h3>
         {recentChoiceLists.length > 0 ? (
           <ul className="space-y-2">
             {recentChoiceLists.map((list) => (
               <li
                 key={list.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgb(var(--color-bg-secondary))' }}
               >
                 <div>
-                  <span className="font-medium text-gray-900">{list.name}</span>
-                  <span className="text-xs text-gray-500 ml-2 font-mono">{list.slug}</span>
+                  <span className="font-medium" style={{ color: 'rgb(var(--color-text-primary))' }}>{list.name}</span>
+                  <span className="text-xs ml-2 font-mono" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{list.slug}</span>
                 </div>
                 <span
-                  className={`text-xs px-2 py-1 rounded ${
-                    list.is_extensible
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-blue-100 text-blue-700'
-                  }`}
+                  className="text-xs px-2 py-1 rounded"
+                  style={{
+                    background: list.is_extensible ? 'rgb(var(--color-warning-bg))' : 'rgb(var(--color-info-bg))',
+                    color: list.is_extensible ? 'rgb(var(--color-warning))' : 'rgb(var(--color-primary))',
+                  }}
                 >
                   {list.is_extensible ? '🏢 Extensible' : '🔒 System'}
                 </span>
@@ -341,46 +347,46 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             ))}
           </ul>
         ) : (
-          <p className="text-gray-500">No choice lists found.</p>
+          <p style={{ color: 'rgb(var(--color-text-tertiary))' }}>No choice lists found.</p>
         )}
       </div>
 
       {/* Config Categories */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">🔧 Config by Category</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'rgb(var(--color-text-primary))' }}>🔧 Config by Category</h3>
         {configsByCategory ? (
           <ul className="space-y-2">
             {Object.entries(configsByCategory).map(([category, configs]) => (
               <li
                 key={category}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgb(var(--color-bg-secondary))' }}
               >
-                <span className="font-medium text-gray-900">{category}</span>
-                <span className="text-sm text-gray-600">{configs.length} items</span>
+                <span className="font-medium" style={{ color: 'rgb(var(--color-text-primary))' }}>{category}</span>
+                <span className="text-sm" style={{ color: 'rgb(var(--color-text-secondary))' }}>{configs.length} items</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-gray-500">No configurations found.</p>
+          <p style={{ color: 'rgb(var(--color-text-tertiary))' }}>No configurations found.</p>
         )}
       </div>
 
       {/* Enabled Features */}
       <div className="lg:col-span-2">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">✅ Enabled Features</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'rgb(var(--color-text-primary))' }}>✅ Enabled Features</h3>
         {enabledFlags.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {enabledFlags.map((flag) => (
               <span
                 key={flag.key}
-                className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
+                className="px-3 py-1 rounded-full text-sm" style={{ background: 'rgb(var(--color-success-bg))', color: 'rgb(var(--color-success))' }}
               >
                 {flag.key}
               </span>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No features currently enabled.</p>
+          <p style={{ color: 'rgb(var(--color-text-tertiary))' }}>No features currently enabled.</p>
         )}
       </div>
     </div>
@@ -399,7 +405,7 @@ const ChoiceListsTab: React.FC<ChoiceListsTabProps> = ({ choiceLists }) => {
   };
 
   if (choiceLists.length === 0) {
-    return <p className="text-gray-500 text-center py-8">No choice lists found.</p>;
+    return <p className="text-center py-8" style={{ color: 'rgb(var(--color-text-tertiary))' }}>No choice lists found.</p>;
   }
 
   return (
@@ -408,39 +414,39 @@ const ChoiceListsTab: React.FC<ChoiceListsTabProps> = ({ choiceLists }) => {
         <div key={list.id} className="border rounded-lg overflow-hidden">
           <button
             onClick={() => toggleExpand(list.id)}
-            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+            className="w-full flex items-center justify-between p-4 hover:bg-[rgb(var(--color-bg-tertiary))] transition-colors" style={{ background: 'rgb(var(--color-bg-secondary))' }}
           >
             <div className="flex items-center gap-3">
               <span className="text-lg">📋</span>
               <div className="text-left">
-                <span className="font-semibold text-gray-900">{list.name}</span>
-                <span className="text-xs text-gray-500 ml-2 font-mono">{list.slug}</span>
+                <span className="font-semibold" style={{ color: 'rgb(var(--color-text-primary))' }}>{list.name}</span>
+                <span className="text-xs ml-2 font-mono" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{list.slug}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span
-                className={`text-xs px-2 py-1 rounded ${
-                  list.is_extensible
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'bg-blue-100 text-blue-700'
-                }`}
+                className="text-xs px-2 py-1 rounded"
+                style={{
+                  background: list.is_extensible ? 'rgb(var(--color-warning-bg))' : 'rgb(var(--color-info-bg))',
+                  color: list.is_extensible ? 'rgb(var(--color-warning))' : 'rgb(var(--color-primary))',
+                }}
               >
                 {list.is_extensible ? '🏢 Tenant Extensible' : '🔒 System Only'}
               </span>
-              <span className="text-gray-400">{expanded[list.id] ? '▲' : '▼'}</span>
+              <span style={{ color: 'rgb(var(--color-text-quaternary))' }}>{expanded[list.id] ? '▲' : '▼'}</span>
             </div>
           </button>
 
           {expanded[list.id] && (
-            <div className="p-4 border-t bg-white">
+            <div className="p-4 border-t" style={{ background: 'rgb(var(--color-bg-primary))' }}>
               {list.description && (
-                <p className="text-sm text-gray-600 mb-4">{list.description}</p>
+                <p className="text-sm mb-4" style={{ color: 'rgb(var(--color-text-secondary))' }}>{list.description}</p>
               )}
               {list.items && list.items.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="bg-gray-100">
+                      <tr style={{ background: 'rgb(var(--color-bg-tertiary))' }}>
                         <th className="px-3 py-2 text-left">Value</th>
                         <th className="px-3 py-2 text-left">Label</th>
                         <th className="px-3 py-2 text-left">Scope</th>
@@ -454,20 +460,19 @@ const ChoiceListsTab: React.FC<ChoiceListsTabProps> = ({ choiceLists }) => {
                           <td className="px-3 py-2">{item.label}</td>
                           <td className="px-3 py-2">
                             <span
-                              className={`text-xs px-2 py-0.5 rounded ${
-                                item.is_system
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-orange-100 text-orange-700'
-                              }`}
+                              className="text-xs px-2 py-0.5 rounded"
+                              style={{
+                                background: item.is_system ? 'rgb(var(--color-info-bg))' : 'rgb(var(--color-warning-bg))',
+                                color: item.is_system ? 'rgb(var(--color-primary))' : 'rgb(var(--color-warning))',
+                              }}
                             >
                               {item.is_system ? 'System' : 'Tenant'}
                             </span>
                           </td>
                           <td className="px-3 py-2">
                             <span
-                              className={`text-xs ${
-                                item.is_active ? 'text-green-600' : 'text-gray-400'
-                              }`}
+                              className="text-xs"
+                              style={{ color: item.is_active ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-quaternary))' }}
                             >
                               {item.is_active ? '✓ Active' : '✗ Inactive'}
                             </span>
@@ -479,14 +484,14 @@ const ChoiceListsTab: React.FC<ChoiceListsTabProps> = ({ choiceLists }) => {
                   <div className="mt-4 pt-4 border-t">
                     <Link
                       to={`/config/choices/${list.slug}`}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-[rgb(var(--color-text-inverse))] rounded-lg hover:bg-[rgb(var(--color-primary-hover))] transition-colors text-sm" style={{ background: 'rgb(var(--color-primary))' }}
                     >
                       ✏️ Edit Items
                     </Link>
                   </div>
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">No items in this list.</p>
+                <p className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>No items in this list.</p>
               )}
             </div>
           )}
@@ -497,7 +502,7 @@ const ChoiceListsTab: React.FC<ChoiceListsTabProps> = ({ choiceLists }) => {
       <div className="mt-6 text-center">
         <Link
           to="/config/choices"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          className="inline-flex items-center gap-2 px-6 py-3 text-[rgb(var(--color-text-inverse))] rounded-lg hover:bg-[rgb(var(--color-primary-hover))] transition-colors font-medium" style={{ background: 'rgb(var(--color-primary))' }}
         >
           📋 Open Choice List Editor
         </Link>
@@ -512,7 +517,7 @@ interface TenantConfigsTabProps {
 
 const TenantConfigsTab: React.FC<TenantConfigsTabProps> = ({ configsByCategory }) => {
   if (!configsByCategory || Object.keys(configsByCategory).length === 0) {
-    return <p className="text-gray-500 text-center py-8">No tenant configurations found.</p>;
+    return <p className="text-center py-8" style={{ color: 'rgb(var(--color-text-tertiary))' }}>No tenant configurations found.</p>;
   }
 
   const categoryIcons: Record<string, string> = {
@@ -527,31 +532,31 @@ const TenantConfigsTab: React.FC<TenantConfigsTabProps> = ({ configsByCategory }
     <div className="space-y-6">
       {Object.entries(configsByCategory).map(([category, configs]) => (
         <div key={category}>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2" style={{ color: 'rgb(var(--color-text-primary))' }}>
             <span>{categoryIcons[category] || '📦'}</span>
             {category}
-            <span className="text-sm font-normal text-gray-500">({configs.length})</span>
+            <span className="text-sm font-normal" style={{ color: 'rgb(var(--color-text-tertiary))' }}>({configs.length})</span>
           </h3>
-          <div className="bg-gray-50 rounded-lg overflow-hidden">
+          <div className="rounded-lg overflow-hidden" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Key</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Value</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Updated</th>
+                <tr style={{ background: 'rgb(var(--color-bg-tertiary))' }}>
+                  <th className="px-4 py-2 text-left font-medium" style={{ color: 'rgb(var(--color-text-secondary))' }}>Key</th>
+                  <th className="px-4 py-2 text-left font-medium" style={{ color: 'rgb(var(--color-text-secondary))' }}>Value</th>
+                  <th className="px-4 py-2 text-left font-medium" style={{ color: 'rgb(var(--color-text-secondary))' }}>Updated</th>
                 </tr>
               </thead>
               <tbody>
                 {configs.map((config: TenantConfig) => (
-                  <tr key={config.id} className="border-t border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-800">{config.key}</td>
+                  <tr key={config.id} className="border-t" style={{ borderColor: 'rgb(var(--color-border-primary))' }}>
+                    <td className="px-4 py-3 font-mono text-xs" style={{ color: 'rgb(var(--color-text-primary))' }}>{config.key}</td>
                     <td className="px-4 py-3">
-                      <code className="px-2 py-1 bg-gray-200 rounded text-xs">
+                      <code className="px-2 py-1 rounded text-xs" style={{ background: 'rgb(var(--color-bg-quaternary))' }}>
                         {JSON.stringify(config.value).substring(0, 50)}
                         {JSON.stringify(config.value).length > 50 ? '...' : ''}
                       </code>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
+                    <td className="px-4 py-3 text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                       {new Date(config.updated_at).toLocaleDateString()}
                     </td>
                   </tr>
@@ -566,7 +571,7 @@ const TenantConfigsTab: React.FC<TenantConfigsTabProps> = ({ configsByCategory }
       <div className="mt-6 text-center">
         <Link
           to="/config/tenant"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          className="inline-flex items-center gap-2 px-6 py-3 text-[rgb(var(--color-text-inverse))] rounded-lg hover:bg-[rgb(var(--color-primary-hover))] transition-colors font-medium" style={{ background: 'rgb(var(--color-primary))' }}
         >
           🔧 Open Tenant Config Editor
         </Link>
@@ -581,7 +586,7 @@ interface FeatureFlagsTabProps {
 
 const FeatureFlagsTab: React.FC<FeatureFlagsTabProps> = ({ flags }) => {
   if (flags.length === 0) {
-    return <p className="text-gray-500 text-center py-8">No feature flags found.</p>;
+    return <p className="text-center py-8" style={{ color: 'rgb(var(--color-text-tertiary))' }}>No feature flags found.</p>;
   }
 
   const enabledFlags = flags.filter((f) => f.enabled);
@@ -591,47 +596,47 @@ const FeatureFlagsTab: React.FC<FeatureFlagsTabProps> = ({ flags }) => {
     <div className="space-y-6">
       {/* Enabled Flags */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2" style={{ color: 'rgb(var(--color-text-primary))' }}>
           ✅ Enabled
-          <span className="text-sm font-normal text-gray-500">({enabledFlags.length})</span>
+          <span className="text-sm font-normal" style={{ color: 'rgb(var(--color-text-tertiary))' }}>({enabledFlags.length})</span>
         </h3>
         {enabledFlags.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {enabledFlags.map((flag) => (
               <div
                 key={flag.key}
-                className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg"
+                className="flex items-center gap-3 p-3 border rounded-lg" style={{ background: 'rgb(var(--color-success-bg))', borderColor: 'rgb(var(--color-success))' }}
               >
-                <span className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="text-sm font-medium text-green-800">{flag.key}</span>
+                <span className="w-3 h-3 rounded-full" style={{ background: 'rgb(var(--color-success))' }} />
+                <span className="text-sm font-medium" style={{ color: 'rgb(var(--color-success))' }}>{flag.key}</span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">No enabled flags.</p>
+          <p className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>No enabled flags.</p>
         )}
       </div>
 
       {/* Disabled Flags */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2" style={{ color: 'rgb(var(--color-text-primary))' }}>
           ⭕ Disabled
-          <span className="text-sm font-normal text-gray-500">({disabledFlags.length})</span>
+          <span className="text-sm font-normal" style={{ color: 'rgb(var(--color-text-tertiary))' }}>({disabledFlags.length})</span>
         </h3>
         {disabledFlags.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {disabledFlags.map((flag) => (
               <div
                 key={flag.key}
-                className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                className="flex items-center gap-3 p-3 border rounded-lg" style={{ background: 'rgb(var(--color-bg-secondary))', borderColor: 'rgb(var(--color-border-primary))' }}
               >
-                <span className="w-3 h-3 rounded-full bg-gray-400" />
-                <span className="text-sm font-medium text-gray-600">{flag.key}</span>
+                <span className="w-3 h-3 rounded-full" style={{ background: 'rgb(var(--color-text-quaternary))' }} />
+                <span className="text-sm font-medium" style={{ color: 'rgb(var(--color-text-secondary))' }}>{flag.key}</span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">No disabled flags.</p>
+          <p className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>No disabled flags.</p>
         )}
       </div>
     </div>

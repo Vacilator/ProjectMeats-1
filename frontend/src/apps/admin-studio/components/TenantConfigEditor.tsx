@@ -353,17 +353,17 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
   if (loading && !configsByCategory) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'rgb(var(--color-primary))' }} />
       </div>
     );
   }
 
   return (
-    <div className="flex h-full bg-gray-50">
+    <div className="flex h-full" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
       {/* Sidebar - Category Selection */}
-      <div className="w-64 bg-white border-r flex flex-col">
+      <div className="w-64 border-r flex flex-col" style={{ background: 'rgb(var(--color-bg-primary))' }}>
         <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">🔧 Config Categories</h2>
+          <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--color-text-primary))' }}>🔧 Config Categories</h2>
         </div>
         <div className="flex-1 overflow-y-auto">
           {CATEGORIES.map((category) => {
@@ -372,20 +372,21 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
               <button
                 key={category}
                 onClick={() => void handleCategoryChange(category)}
-                className={`w-full text-left p-4 border-b hover:bg-gray-50 transition-colors ${
-                  selectedCategory === category ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                className={`w-full text-left p-4 border-b hover:bg-[rgb(var(--color-bg-secondary))] transition-colors ${
+                  selectedCategory === category ? 'border-l-4' : ''
                 }`}
+                style={selectedCategory === category ? { background: 'rgb(var(--color-info-bg))', borderLeftColor: 'rgb(var(--color-primary))' } : undefined}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{info.icon}</span>
-                    <span className="font-medium text-gray-900">{category}</span>
+                    <span className="font-medium" style={{ color: 'rgb(var(--color-text-primary))' }}>{category}</span>
                   </div>
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}>
                     {getCategoryCount(category)}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1 ml-7">{info.description}</p>
+                <p className="text-xs mt-1 ml-7" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{info.description}</p>
               </button>
             );
           })}
@@ -395,27 +396,27 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
       {/* Main Content - Config Editor */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b p-4">
+        <div className="border-b p-4" style={{ background: 'rgb(var(--color-bg-primary))' }}>
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'rgb(var(--color-text-primary))' }}>
                 {CATEGORY_INFO[selectedCategory].icon} {selectedCategory} Configuration
               </h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                 {CATEGORY_INFO[selectedCategory].description}
               </p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleExport}
-                className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                className="px-3 py-1.5 text-sm rounded hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
                 title="Export configs as JSON"
               >
                 📤 Export
               </button>
               <button
                 onClick={handleImport}
-                className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                className="px-3 py-1.5 text-sm rounded hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
                 title="Import configs from JSON"
               >
                 📥 Import
@@ -423,7 +424,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
               {onClose && (
                 <button
                   onClick={onClose}
-                  className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                  className="px-3 py-1.5 text-sm rounded hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
                 >
                   ✕
                 </button>
@@ -438,18 +439,18 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
               placeholder="Search configs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
             />
           </div>
 
           {/* Status Messages */}
           {error && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="mt-3 p-3 border rounded-lg text-sm" style={{ background: 'rgb(var(--color-error-bg))', borderColor: 'rgb(var(--color-error))', color: 'rgb(var(--color-error))' }}>
               {error}
             </div>
           )}
           {successMessage && (
-            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+            <div className="mt-3 p-3 border rounded-lg text-sm" style={{ background: 'rgb(var(--color-success-bg))', borderColor: 'rgb(var(--color-success))', color: 'rgb(var(--color-success))' }}>
               {successMessage}
             </div>
           )}
@@ -461,32 +462,34 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
             {filteredConfigs.map((config, index) => (
               <div
                 key={config.id || `new-${index}`}
-                className={`bg-white border rounded-lg overflow-hidden ${
-                  config.is_new ? 'border-green-300 bg-green-50' : ''
-                } ${config.is_modified ? 'border-orange-300' : ''}`}
+                className={`border rounded-lg overflow-hidden`}
+                style={{
+                  background: config.is_new ? 'rgb(var(--color-success-bg))' : 'rgb(var(--color-bg-primary))',
+                  borderColor: config.is_new ? 'rgb(var(--color-success))' : config.is_modified ? 'rgb(var(--color-warning))' : undefined,
+                }}
               >
                 <div className="p-4">
                   {/* Key Row */}
                   <div className="flex items-center gap-4 mb-3">
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Key</label>
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Key</label>
                       <input
                         type="text"
                         value={config.key}
                         onChange={(e) => handleConfigChange(index, 'key', e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
                         placeholder="e.g., ui.theme.primary_color"
                       />
                     </div>
                     <div className="w-32">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
-                      <span className="inline-block px-3 py-2 bg-gray-100 rounded-lg text-sm text-gray-600">
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Type</label>
+                      <span className="inline-block px-3 py-2 rounded-lg text-sm" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}>
                         {getValueType(config.value)}
                       </span>
                     </div>
                     <button
                       onClick={() => void handleDeleteConfig(index)}
-                      className="mt-5 text-red-600 hover:text-red-800 p-2"
+                      className="mt-5 hover:text-[rgb(var(--color-error))] p-2" style={{ color: 'rgb(var(--color-error))' }}
                       title="Delete config"
                     >
                       🗑️
@@ -495,24 +498,24 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
 
                   {/* Value Row */}
                   <div className="mb-3">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Value</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Value</label>
                     {editingValue === (config.id || `new-${index}`) ? (
                       <textarea
                         value={formatValueForDisplay(config.value)}
                         onChange={(e) => handleValueChange(index, e.target.value)}
                         onBlur={() => setEditingValue(null)}
-                        className="w-full px-3 py-2 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                        className="w-full px-3 py-2 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))] min-h-[100px]"
                         placeholder="Enter value (JSON or string)"
                         autoFocus
                       />
                     ) : (
                       <div
                         onClick={() => setEditingValue(config.id || `new-${index}`)}
-                        className="w-full px-3 py-2 border rounded-lg font-mono text-sm bg-gray-50 cursor-pointer hover:bg-gray-100 min-h-[40px]"
+                        className="w-full px-3 py-2 border rounded-lg font-mono text-sm cursor-pointer hover:bg-[rgb(var(--color-bg-tertiary))] min-h-[40px]" style={{ background: 'rgb(var(--color-bg-secondary))' }}
                       >
-                        <code className="text-gray-800">
+                        <code style={{ color: 'rgb(var(--color-text-primary))' }}>
                           {formatValueForDisplay(config.value) || (
-                            <span className="text-gray-400 italic">Click to edit</span>
+                            <span className="italic" style={{ color: 'rgb(var(--color-text-quaternary))' }}>Click to edit</span>
                           )}
                         </code>
                       </div>
@@ -521,12 +524,12 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
 
                   {/* Description Row */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Description</label>
                     <input
                       type="text"
                       value={config.description}
                       onChange={(e) => handleConfigChange(index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
                       placeholder="Optional description"
                     />
                   </div>
@@ -534,12 +537,12 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
                   {/* Status badges */}
                   <div className="flex gap-2 mt-3">
                     {config.is_new && (
-                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
+                      <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgb(var(--color-success-bg))', color: 'rgb(var(--color-success))' }}>
                         New
                       </span>
                     )}
                     {config.is_modified && !config.is_new && (
-                      <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded">
+                      <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgb(var(--color-warning-bg))', color: 'rgb(var(--color-warning))' }}>
                         Modified
                       </span>
                     )}
@@ -549,7 +552,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
             ))}
 
             {filteredConfigs.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                 {searchQuery ? (
                   <p>No configs matching "{searchQuery}"</p>
                 ) : (
@@ -564,26 +567,30 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-white border-t p-4 flex justify-between items-center">
+        <div className="border-t p-4 flex justify-between items-center" style={{ background: 'rgb(var(--color-bg-primary))' }}>
           <button
             onClick={handleAddConfig}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+            className="px-4 py-2 rounded-lg hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors text-sm font-medium" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
           >
             + Add Config
             <KeyboardShortcut keys="⌘N" />
           </button>
           <div className="flex gap-3 items-center">
             {hasChanges && (
-              <span className="text-sm text-orange-600">● Unsaved changes</span>
+              <span className="text-sm" style={{ color: 'rgb(var(--color-warning))' }}>● Unsaved changes</span>
             )}
             <button
               onClick={handleSave}
               disabled={!hasChanges || saving}
               className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
                 hasChanges && !saving
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'text-[rgb(var(--color-text-inverse))] hover:bg-[rgb(var(--color-primary-hover))]'
+                  : 'cursor-not-allowed'
               }`}
+              style={{
+                background: hasChanges && !saving ? 'rgb(var(--color-primary))' : 'rgb(var(--color-bg-quaternary))',
+                color: hasChanges && !saving ? undefined : 'rgb(var(--color-text-quaternary))',
+              }}
             >
               {saving ? 'Saving...' : 'Save Changes'}
               <KeyboardShortcut keys="⌘S" />

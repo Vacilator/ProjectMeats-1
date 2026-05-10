@@ -157,39 +157,39 @@ const Editor: React.FC<EditorProps> = () => {
 
   if (!blueprintId) {
     return (
-      <div className="h-screen w-screen bg-gray-50 flex items-center justify-center">
+      <div className="h-screen w-screen flex items-center justify-center" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">❌ Error</h1>
-          <p className="text-gray-600">No Blueprint ID provided</p>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: 'rgb(var(--color-error))' }}>❌ Error</h1>
+          <p style={{ color: 'rgb(var(--color-text-secondary))' }}>No Blueprint ID provided</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-50">
+    <div className="h-screen w-screen flex flex-col" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="border-b px-6 py-4" style={{ background: 'rgb(var(--color-bg-primary))', borderColor: 'rgb(var(--color-border-primary))' }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>
               System Blueprint Studio
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
               {blueprintName && <span className="font-medium">{blueprintName}</span>}
               {blueprintName && ' · '}
-              Version: <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{blueprintId.slice(0, 8)}...</code>
+              Version: <code className="px-2 py-0.5 rounded text-xs" style={{ background: 'rgb(var(--color-bg-tertiary))' }}>{blueprintId.slice(0, 8)}...</code>
             </p>
           </div>
           <div className="flex items-center gap-3">
             {!loading && (
               <>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    isPublished
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
+                  className="px-3 py-1 rounded-full text-xs font-medium"
+                  style={{
+                    background: isPublished ? 'rgb(var(--color-success-bg))' : 'rgb(var(--color-bg-tertiary))',
+                    color: isPublished ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-primary))',
+                  }}
                 >
                   {isPublished ? '✅ Published' : '📝 Draft'}
                 </span>
@@ -197,7 +197,7 @@ const Editor: React.FC<EditorProps> = () => {
                   <button
                     onClick={handleUnpublish}
                     disabled={publishing}
-                    className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-[rgb(var(--color-error-bg))] disabled:opacity-50 disabled:cursor-not-allowed" style={{ color: 'rgb(var(--color-error))', background: 'rgb(var(--color-error-bg))', borderColor: 'rgb(var(--color-error))' }}
                   >
                     {publishing ? '⏳ Unpublishing...' : '🔒 Unpublish'}
                   </button>
@@ -205,7 +205,8 @@ const Editor: React.FC<EditorProps> = () => {
                   <button
                     onClick={handlePublish}
                     disabled={publishing}
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-medium text-[rgb(var(--color-text-inverse))] rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+                    style={{ background: 'rgb(var(--color-success))' }}
                   >
                     {publishing ? '⏳ Publishing...' : '🚀 Publish Workflow'}
                   </button>
@@ -217,15 +218,19 @@ const Editor: React.FC<EditorProps> = () => {
       </header>
 
       {/* Tab Navigation */}
-      <nav className="bg-white border-b border-gray-200 px-6">
+      <nav className="border-b px-6" style={{ background: 'rgb(var(--color-bg-primary))', borderColor: 'rgb(var(--color-border-primary))' }}>
         <div className="flex gap-4">
           <button
             onClick={() => setActiveTab('schema')}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'schema'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? ''
+                : 'border-transparent hover:text-[rgb(var(--color-text-secondary))]'
             }`}
+            style={{
+              borderColor: activeTab === 'schema' ? 'rgb(var(--color-primary))' : undefined,
+              color: activeTab === 'schema' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-tertiary))',
+            }}
           >
             📊 Data Schema (Excel View)
           </button>
@@ -233,9 +238,13 @@ const Editor: React.FC<EditorProps> = () => {
             onClick={() => setActiveTab('canvas')}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'canvas'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? ''
+                : 'border-transparent hover:text-[rgb(var(--color-text-secondary))]'
             }`}
+            style={{
+              borderColor: activeTab === 'canvas' ? 'rgb(var(--color-primary))' : undefined,
+              color: activeTab === 'canvas' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-tertiary))',
+            }}
           >
             🔄 Workflow Canvas (Visual)
           </button>
@@ -243,9 +252,13 @@ const Editor: React.FC<EditorProps> = () => {
             onClick={() => setActiveTab('history')}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'history'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? ''
+                : 'border-transparent hover:text-[rgb(var(--color-text-secondary))]'
             }`}
+            style={{
+              borderColor: activeTab === 'history' ? 'rgb(var(--color-primary))' : undefined,
+              color: activeTab === 'history' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-tertiary))',
+            }}
           >
             📜 Version History
           </button>

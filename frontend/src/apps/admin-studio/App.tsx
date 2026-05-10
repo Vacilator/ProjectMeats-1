@@ -40,16 +40,16 @@ const App: React.FC = () => {
 // Wrapper page for ChoiceListEditor with navigation
 const ChoiceListEditorPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
+    <div className="min-h-screen" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+      <header className="shadow-sm border-b" style={{ background: 'rgb(var(--color-bg-primary))' }}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
           <a
             href="/admin/system-config/studio/config"
-            className="text-gray-500 hover:text-gray-700"
+            className="hover:text-[rgb(var(--color-text-secondary))]" style={{ color: 'rgb(var(--color-text-tertiary))' }}
           >
             ← Back to Config
           </a>
-          <h1 className="text-xl font-bold text-gray-900">Choice List Editor</h1>
+          <h1 className="text-xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>Choice List Editor</h1>
         </div>
       </header>
       <div className="h-[calc(100vh-65px)]">
@@ -62,16 +62,16 @@ const ChoiceListEditorPage: React.FC = () => {
 // Wrapper page for TenantConfigEditor with navigation
 const TenantConfigEditorPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
+    <div className="min-h-screen" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+      <header className="shadow-sm border-b" style={{ background: 'rgb(var(--color-bg-primary))' }}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
           <a
             href="/admin/system-config/studio/config"
-            className="text-gray-500 hover:text-gray-700"
+            className="hover:text-[rgb(var(--color-text-secondary))]" style={{ color: 'rgb(var(--color-text-tertiary))' }}
           >
             ← Back to Config
           </a>
-          <h1 className="text-xl font-bold text-gray-900">Tenant Config Editor</h1>
+          <h1 className="text-xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>Tenant Config Editor</h1>
         </div>
       </header>
       <div className="h-[calc(100vh-65px)]">
@@ -84,16 +84,16 @@ const TenantConfigEditorPage: React.FC = () => {
 // Wrapper page for AuditLogViewer with navigation
 const AuditLogPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
+    <div className="min-h-screen" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+      <header className="shadow-sm border-b" style={{ background: 'rgb(var(--color-bg-primary))' }}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
           <a
             href="/admin/system-config/studio/config"
-            className="text-gray-500 hover:text-gray-700"
+            className="hover:text-[rgb(var(--color-text-secondary))]" style={{ color: 'rgb(var(--color-text-tertiary))' }}
           >
             ← Back to Config
           </a>
-          <h1 className="text-xl font-bold text-gray-900">📜 Audit Log</h1>
+          <h1 className="text-xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>📜 Audit Log</h1>
         </div>
       </header>
       <div className="h-[calc(100vh-65px)]">

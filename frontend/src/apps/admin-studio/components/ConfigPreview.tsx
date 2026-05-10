@@ -87,7 +87,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
         >
           <div className="flex items-center gap-2 mb-2">
             <div 
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[rgb(var(--color-text-inverse))] text-xs"
               style={{ backgroundColor: primaryColor }}
             >
               TF
@@ -99,7 +99,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
           </div>
           <div className="flex gap-2">
             <span 
-              className="text-xs px-2 py-1 text-white"
+              className="text-xs px-2 py-1 text-[rgb(var(--color-text-inverse))]"
               style={{ backgroundColor: primaryColor, borderRadius: `${borderRadius / 2}px` }}
             >
               {SAMPLE_ENTITIES.supplier.status}
@@ -110,7 +110,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
         {/* Sample Buttons */}
         <div className="flex gap-2">
           <button
-            className="px-3 py-1.5 text-xs text-white font-medium transition-colors"
+            className="px-3 py-1.5 text-xs text-[rgb(var(--color-text-inverse))] font-medium transition-colors"
             style={{ 
               backgroundColor: primaryColor, 
               borderRadius: `${borderRadius}px`,
@@ -119,7 +119,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
             Primary
           </button>
           <button
-            className="px-3 py-1.5 text-xs text-white font-medium"
+            className="px-3 py-1.5 text-xs text-[rgb(var(--color-text-inverse))] font-medium"
             style={{ 
               backgroundColor: secondaryColor, 
               borderRadius: `${borderRadius}px`,
@@ -180,27 +180,28 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     ];
     
     return (
-      <div className="p-4 border rounded-lg bg-white">
-        <h4 className="text-sm font-semibold mb-3 text-gray-900">🚩 Feature Flags</h4>
+      <div className="p-4 border rounded-lg" style={{ background: 'rgb(var(--color-bg-primary))' }}>
+        <h4 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--color-text-primary))' }}>🚩 Feature Flags</h4>
         <div className="space-y-2">
           {features.map(f => (
             <div 
               key={f.key}
-              className={`flex items-center justify-between p-2 rounded transition-colors ${
-                f.enabled ? 'bg-green-50' : 'bg-gray-50'
-              }`}
+              className="flex items-center justify-between p-2 rounded transition-colors"
+              style={{ background: f.enabled ? 'rgb(var(--color-success-bg))' : 'rgb(var(--color-bg-secondary))' }}
             >
               <span className="text-sm flex items-center gap-2">
                 <span>{f.icon}</span>
-                <span className={f.enabled ? 'text-gray-900' : 'text-gray-500'}>
+                <span style={{ color: f.enabled ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-tertiary))' }}>
                   {f.key}
                 </span>
               </span>
-              <span className={`text-xs px-2 py-0.5 rounded ${
-                f.enabled 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-gray-200 text-gray-600'
-              }`}>
+              <span
+                className="text-xs px-2 py-0.5 rounded"
+                style={{
+                  background: f.enabled ? 'rgb(var(--color-success-bg))' : 'rgb(var(--color-bg-quaternary))',
+                  color: f.enabled ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-secondary))',
+                }}
+              >
                 {f.enabled ? 'ON' : 'OFF'}
               </span>
             </div>
@@ -219,52 +220,54 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     const dateFormat = getConfig<string>('business.locale.date_format', 'MM/DD/YYYY');
     
     return (
-      <div className="p-4 border rounded-lg bg-white">
-        <h4 className="text-sm font-semibold mb-3 text-gray-900">💼 Business Rules</h4>
+      <div className="p-4 border rounded-lg" style={{ background: 'rgb(var(--color-bg-primary))' }}>
+        <h4 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--color-text-primary))' }}>💼 Business Rules</h4>
         
         {/* Auto-Approval Demo */}
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          <div className="text-xs text-gray-500 mb-1">Auto-Approval Threshold</div>
+        <div className="mb-4 p-3 rounded-lg" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+          <div className="text-xs mb-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Auto-Approval Threshold</div>
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-green-600">
+            <span className="text-2xl font-bold" style={{ color: 'rgb(var(--color-success))' }}>
               {currencySymbol}{autoApproveThreshold.toLocaleString()}
             </span>
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             POs under this amount are auto-approved
           </div>
         </div>
         
         {/* Sample Order */}
-        <div className="p-3 bg-blue-50 rounded-lg mb-3">
+        <div className="p-3 rounded-lg mb-3" style={{ background: 'rgb(var(--color-info-bg))' }}>
           <div className="flex justify-between items-center mb-2">
             <span className="font-medium text-sm">{SAMPLE_ENTITIES.order.number}</span>
-            <span className={`text-xs px-2 py-0.5 rounded ${
-              SAMPLE_ENTITIES.order.amount < autoApproveThreshold 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-amber-100 text-amber-800'
-            }`}>
+            <span
+              className="text-xs px-2 py-0.5 rounded"
+              style={{
+                background: SAMPLE_ENTITIES.order.amount < autoApproveThreshold ? 'rgb(var(--color-success-bg))' : 'rgb(var(--color-warning-bg))',
+                color: SAMPLE_ENTITIES.order.amount < autoApproveThreshold ? 'rgb(var(--color-success))' : 'rgb(var(--color-warning))',
+              }}
+            >
               {SAMPLE_ENTITIES.order.amount < autoApproveThreshold 
                 ? '✓ Auto-Approved' 
                 : '⏳ Needs Approval'}
             </span>
           </div>
-          <div className="text-xl font-bold text-gray-900">
+          <div className="text-xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>
             {currencySymbol}{SAMPLE_ENTITIES.order.amount.toLocaleString()}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             {dateFormat.replace('MM', '02').replace('DD', '03').replace('YYYY', '2026')}
           </div>
         </div>
         
         {/* Other Rules */}
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="p-2 bg-gray-50 rounded">
-            <div className="text-xs text-gray-500">Max Line Items</div>
+          <div className="p-2 rounded" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+            <div className="text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Max Line Items</div>
             <div className="font-medium">{maxLineItems}</div>
           </div>
-          <div className="p-2 bg-gray-50 rounded">
-            <div className="text-xs text-gray-500">Payment Terms</div>
+          <div className="p-2 rounded" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+            <div className="text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Payment Terms</div>
             <div className="font-medium">{defaultPaymentTerms}</div>
           </div>
         </div>
@@ -288,30 +291,34 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
     ];
     
     return (
-      <div className="p-4 border rounded-lg bg-white">
-        <h4 className="text-sm font-semibold mb-3 text-gray-900">🔗 Integrations</h4>
+      <div className="p-4 border rounded-lg" style={{ background: 'rgb(var(--color-bg-primary))' }}>
+        <h4 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--color-text-primary))' }}>🔗 Integrations</h4>
         <div className="space-y-2">
           {integrations.map(i => (
             <div 
               key={i.name}
-              className={`flex items-center justify-between p-2 rounded border transition-all ${
-                i.enabled 
-                  ? 'border-green-200 bg-green-50' 
-                  : 'border-gray-200 bg-gray-50'
-              }`}
+              className="flex items-center justify-between p-2 rounded border transition-all"
+              style={{
+                borderColor: i.enabled ? 'rgb(var(--color-success))' : 'rgb(var(--color-border-primary))',
+                background: i.enabled ? 'rgb(var(--color-success-bg))' : 'rgb(var(--color-bg-secondary))',
+              }}
             >
               <span className="flex items-center gap-2">
                 <span className="text-lg">{i.icon}</span>
                 <div>
-                  <div className={`text-sm font-medium ${i.enabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <div
+                    className="text-sm font-medium"
+                    style={{ color: i.enabled ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-tertiary))' }}
+                  >
                     {i.name}
                   </div>
-                  <div className="text-xs text-gray-400 capitalize">{i.provider}</div>
+                  <div className="text-xs capitalize" style={{ color: 'rgb(var(--color-text-quaternary))' }}>{i.provider}</div>
                 </div>
               </span>
-              <div className={`w-3 h-3 rounded-full ${
-                i.enabled ? 'bg-green-500' : 'bg-gray-300'
-              }`} />
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ background: i.enabled ? 'rgb(var(--color-success))' : 'rgb(var(--color-border-secondary))' }}
+              />
             </div>
           ))}
         </div>
@@ -322,19 +329,19 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
   // Other/Generic Preview
   const OtherPreview: React.FC = () => {
     return (
-      <div className="p-4 border rounded-lg bg-white">
-        <h4 className="text-sm font-semibold mb-3 text-gray-900">📦 Other Configurations</h4>
+      <div className="p-4 border rounded-lg" style={{ background: 'rgb(var(--color-bg-primary))' }}>
+        <h4 className="text-sm font-semibold mb-3" style={{ color: 'rgb(var(--color-text-primary))' }}>📦 Other Configurations</h4>
         <div className="space-y-2">
           {configs.filter(c => c.category === 'OTHER').slice(0, 5).map(c => (
-            <div key={c.key} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-              <span className="text-sm font-mono text-gray-700">{c.key}</span>
-              <span className="text-sm text-gray-500 truncate max-w-[150px]">
+            <div key={c.key} className="flex justify-between items-center p-2 rounded" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+              <span className="text-sm font-mono" style={{ color: 'rgb(var(--color-text-secondary))' }}>{c.key}</span>
+              <span className="text-sm truncate max-w-[150px]" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                 {typeof c.value === 'object' ? JSON.stringify(c.value) : String(c.value)}
               </span>
             </div>
           ))}
           {configs.filter(c => c.category === 'OTHER').length === 0 && (
-            <div className="text-center py-6 text-gray-400">
+            <div className="text-center py-6" style={{ color: 'rgb(var(--color-text-quaternary))' }}>
               <div className="text-3xl mb-2">📦</div>
               <p className="text-sm">No configs in this category</p>
             </div>
@@ -363,20 +370,20 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
   
   return (
     <div className="h-full flex flex-col">
-      <div className="p-3 border-b bg-gray-50">
+      <div className="p-3 border-b" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700">
+          <h3 className="text-sm font-semibold" style={{ color: 'rgb(var(--color-text-secondary))' }}>
             👁️ Live Preview
           </h3>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs" style={{ color: 'rgb(var(--color-text-quaternary))' }}>
             Changes preview in real-time
           </span>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 bg-gray-100">
+      <div className="flex-1 overflow-y-auto p-4" style={{ background: 'rgb(var(--color-bg-tertiary))' }}>
         {renderPreview()}
       </div>
-      <div className="p-2 border-t bg-gray-50 text-xs text-gray-400 text-center">
+      <div className="p-2 border-t text-xs text-center" style={{ background: 'rgb(var(--color-bg-secondary))', color: 'rgb(var(--color-text-quaternary))' }}>
         Preview updates automatically as you edit configs
       </div>
     </div>
