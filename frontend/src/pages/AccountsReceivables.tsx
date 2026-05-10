@@ -8,6 +8,7 @@ import { formatCurrency } from '../shared/utils';
 import { apiService, Invoice } from '../services/apiService';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 
 // Styled Components
 const Header = styled.div`
@@ -38,6 +39,28 @@ const AddButton = styled.button`
   &:hover {
     background: rgb(var(--color-primary-hover));
     transform: translateY(-1px);
+  }
+`;
+
+const ExportButton = styled.button`
+  background: rgb(var(--color-bg-secondary));
+  color: rgb(var(--color-text-secondary));
+  border: 1px solid rgb(var(--color-border));
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgb(var(--color-bg-tertiary));
+    color: rgb(var(--color-text-primary));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -417,9 +440,11 @@ const AccountsReceivables: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
+    const invoice = receivables.find((r) => r.id === id);
+    const label = invoice?.invoice_number ? `Invoice #${invoice.invoice_number}` : 'this invoice';
     const confirmed = await confirmDialog({
-      title: 'Delete invoice?',
-      content: 'Are you sure you want to delete this invoice?',
+      title: 'Delete Invoice',
+      content: `Are you sure you want to delete "${label}"? This action cannot be undone.`,
       okText: 'Delete',
       cancelText: 'Cancel',
       danger: true,
@@ -449,6 +474,16 @@ const AccountsReceivables: React.FC = () => {
         content: `Error: ${errorMessage}`,
       });
     }
+  };
+
+  const handleExportCsv = () => {
+    const headers = ['Invoice #', 'Customer', 'Total', 'Due Date', 'Status'];
+    const rows = receivables.map((r) => [
+      r.invoice_number, String(r.customer), String(r.total ?? ''),
+      r.due_date ?? '', r.status,
+    ]);
+    const csv = buildCsv({ headers, rows });
+    downloadCsv(`accounts_receivable_${new Date().toISOString().split('T')[0]}.csv`, csv);
   };
 
   const handleInputChange = (
@@ -507,7 +542,10 @@ const AccountsReceivables: React.FC = () => {
     <>
       <Header>
         <Title>Accounts Receivables</Title>
-        <AddButton onClick={() => setShowForm(true)}>+ Add Receivable</AddButton>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <ExportButton onClick={handleExportCsv} disabled={!receivables.length}>Export CSV</ExportButton>
+          <AddButton onClick={() => setShowForm(true)}>+ Add Receivable</AddButton>
+        </div>
       </Header>
 
       <StatsCards>

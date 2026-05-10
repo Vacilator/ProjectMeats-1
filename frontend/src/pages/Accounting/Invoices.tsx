@@ -31,6 +31,7 @@ import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade
 import { formatTradeDate, formatTradeWeight } from '../../utils/trade';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -107,6 +108,28 @@ const PrimaryButton = styled.button`
 
   &:hover {
     opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const SecondaryButton = styled.button`
+  padding: 0.75rem 1.5rem;
+  background: rgb(var(--color-bg-secondary));
+  color: rgb(var(--color-text-secondary));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgb(var(--color-bg-tertiary));
+    color: rgb(var(--color-text-primary));
   }
 
   &:disabled {
@@ -501,11 +524,25 @@ const Invoices: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleExportCsv = () => {
+    const headers = ['Invoice #', 'Customer', 'Status', 'Total', 'Paid', 'Outstanding', 'Due Date', 'Created'];
+    const rows = filteredInvoices.map((inv) => [
+      inv.invoice_number, inv.customer_name ?? '', inv.status,
+      inv.total_amount, inv.paid_amount ?? '', inv.outstanding_amount ?? '',
+      inv.due_date ?? '', inv.created_on,
+    ]);
+    const csv = buildCsv({ headers, rows });
+    downloadCsv(`invoices_${new Date().toISOString().split('T')[0]}.csv`, csv);
+  };
+
   return (
     <PageContainer>
       <PageHeader>
         <PageTitle>Receivables - Invoices</PageTitle>
         <HeaderActions>
+          <SecondaryButton onClick={handleExportCsv} disabled={!filteredInvoices.length}>
+            Export CSV
+          </SecondaryButton>
           <PrimaryButton onClick={openCreateInvoice}>
             + Create Invoice
           </PrimaryButton>
