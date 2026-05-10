@@ -42,14 +42,17 @@ export function renderTextField(
         ? String((field.placeholder as any).value)
         : undefined;
 
+  const fieldInputId = `pm-field-${field.id}`;
+
   return (
     <FormField key={field.id}>
-      <Label>
+      <Label htmlFor={fieldInputId}>
         {field.label}
         {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
       </Label>
       {field.type === 'textarea' ? (
         <TextArea
+          id={fieldInputId}
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
@@ -58,6 +61,7 @@ export function renderTextField(
         />
       ) : (
         <Input
+          id={fieldInputId}
           type={
             field.type === 'number' ? 'number'
             : field.type === 'email' ? 'email'
@@ -101,6 +105,7 @@ export function renderSelectField(
   const { field, value, onChange, error } = props;
 
   const isMulti = field.type === 'multiselect' || field.type === 'multiSelect' || field.multiple === true;
+  const fieldInputId = `pm-field-${field.id}`;
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (isMulti) {
@@ -113,11 +118,12 @@ export function renderSelectField(
 
   return (
     <FormField key={field.id}>
-      <Label>
+      <Label htmlFor={fieldInputId}>
         {field.label}
         {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
       </Label>
       <Select
+        id={fieldInputId}
         value={
           isMulti
             ? Array.isArray(value)
@@ -207,11 +213,12 @@ export function renderEntityTypeSelect(
 
   return (
     <FormField key={field.id}>
-      <Label>
+      <Label htmlFor={`pm-field-${field.id}`}>
         {field.label}
         {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
       </Label>
       <Select
+        id={`pm-field-${field.id}`}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
         disabled={field.disabled || props.disabled || isLoading}
