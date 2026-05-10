@@ -177,6 +177,62 @@ A fix is not "done" until it is verified to work in the deployed dev environment
 infrastructure issues prevent the fix from working (e.g., missing ASGI server, nginx
 misconfiguration), document the remaining infrastructure dependency explicitly in the PR.
 
+### 9. NEVER Use TanStack Query Result Objects in Dependency Arrays
+
+TanStack Query hooks (`useQuery`, `useMutation`) return new object references on every
+render. Using them as dependencies in `useCallback`, `useEffect`, or `useMemo` creates
+infinite re-render loops (React #185).
+
+```typescript
+// ❌ WRONG — emailsQuery is a new object each render
+const refetchAll = useCallback(() => {
+  void emailsQuery.refetch();
+}, [emailsQuery]); // loop!
+
+// ✅ CORRECT — use queryClient (stable singleton)
+const queryClient = useQueryClient();
+const refetchAll = useCallback(() => {
+  queryClient.invalidateQueries({ queryKey: ['emails'] });
+}, [queryClient]);
+```
+
+### 10. NEVER Pass Inline Arrow Functions as Props to Form/Modal Components
+
+Inline arrow functions (`onSuccess={() => ...}`, `onClose={() => ...}`) create new
+references on every render. When passed to components that use `useStableCallback` or
+`React.memo`, they still cause unnecessary reconciliation. Extract to `useCallback`.
+
+```typescript
+// ❌ WRONG — new function reference every render
+<EntityFormSurface onSuccess={(r) => void handleResolved(r)} />
+
+// ✅ CORRECT — stable reference
+const handleFormSuccess = useCallback((r: unknown) => {
+  void handleResolved(r);
+}, [handleResolved]);
+<EntityFormSurface onSuccess={handleFormSuccess} />
+```
+
+### 11. NEVER Inline Object/Array Literals in TanStack Query `queryKey`
+
+Inline objects or arrays inside `queryKey` create new references every render, causing
+TanStack Query to refetch infinitely.
+
+```typescript
+// ❌ WRONG — { filters } is new each render
+useQuery({ queryKey: ['items', { filters }], queryFn: ... });
+
+// ✅ CORRECT — memoize the key
+const stableKey = useMemo(() => ['items', { filters }], [filters]);
+useQuery({ queryKey: stableKey, queryFn: ... });
+```
+
+### 12. Run `npm run lint:render-stability` Before Declaring React Work Done
+
+The render stability linter detects all of the above patterns automatically. Any
+error-severity violation MUST be fixed before merge. Warnings should be addressed
+when touching the affected file.
+
 ## Styling
 
 > **📚 IMPORTANT**: For complete styling guidelines, see [docs/DESIGN_SYSTEM.md](/docs/DESIGN_SYSTEM.md)
