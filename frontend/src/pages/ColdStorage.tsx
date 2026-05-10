@@ -315,15 +315,27 @@ const ColdStorage: React.FC = () => {
         </Space>
       </PageHeader>
 
-      <StatCardGrid items={[
-        { value: stats.totalFacilities, label: 'Facilities' },
-        { value: stats.totalLots, label: 'Active Lots' },
-        { value: stats.totalWeight.toLocaleString(), label: 'Total Weight (LBS)' },
-        { value: stats.expiringSoon, label: 'Expiring Soon', icon: <AlertTriangle size={11} />, alert: true },
-      ]} />
+      {facilitiesQuery.isLoading ? (
+        <Skeleton active paragraph={{ rows: 2 }} />
+      ) : (
+        <StatCardGrid items={[
+          { value: stats.totalFacilities, label: 'Facilities' },
+          { value: stats.totalLots, label: 'Active Lots' },
+          { value: stats.totalWeight.toLocaleString(), label: 'Total Weight (LBS)' },
+          { value: stats.expiringSoon, label: 'Expiring Soon', icon: <AlertTriangle size={11} />, alert: true },
+        ]} />
+      )}
 
       {/* Facility Capacity Cards */}
-      {facilities.length > 0 && (
+      {facilitiesQuery.isLoading ? (
+        <CapacityGrid>
+          {[1, 2, 3, 4].map((k) => (
+            <FacilityCard key={k} size="small">
+              <Skeleton active paragraph={{ rows: 3 }} />
+            </FacilityCard>
+          ))}
+        </CapacityGrid>
+      ) : facilities.length > 0 && (
         <CapacityGrid>
           {facilities.slice(0, 4).map((facility) => {
             const facilityLots = lots.filter((l) => l.location_id === facility.id);

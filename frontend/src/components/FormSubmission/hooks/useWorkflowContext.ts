@@ -277,9 +277,17 @@ export function useWorkflowContext(
       if (!node) return;
       
       const nodeData = contextData[nodeId];
+      const nodeDataRecord = (node.data ?? {}) as Record<string, unknown>;
+      const schemaFields = Array.isArray(nodeDataRecord.fields) ? nodeDataRecord.fields as Array<{ key?: string; name?: string; label?: string }> : [];
+      const fieldLabelMap = new Map<string, string>();
+      schemaFields.forEach((f) => {
+        const fieldKey = f.key || f.name;
+        if (fieldKey && f.label) fieldLabelMap.set(fieldKey, f.label);
+      });
+
       const fields = Object.keys(nodeData).map(key => ({
         key,
-        label: key, // TODO: Get label from field definition
+        label: fieldLabelMap.get(key) || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
         type: typeof nodeData[key],
         value: nodeData[key],
       }));
