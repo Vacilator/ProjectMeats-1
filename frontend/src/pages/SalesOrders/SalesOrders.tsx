@@ -594,8 +594,11 @@ export const SalesOrdersPage: React.FC = () => {
 
     setIsModalOpen(true);
 
-    ['action', 'customer_id', 'cockpit_q'].forEach((key) => searchParams.delete(key));
-    setSearchParams(searchParams);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      ['action', 'customer_id', 'cockpit_q'].forEach((key) => next.delete(key));
+      return next;
+    });
   }, [searchParams, setSearchParams, cockpitPrefill]);
 
   useEffect(() => {

@@ -13,7 +13,7 @@
  * 
  * Pattern: Follows Invoices.tsx architecture with side panel integration
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
@@ -339,7 +339,7 @@ const PayablePOs: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Fetch purchase orders with accounting focus
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -351,11 +351,10 @@ const PayablePOs: React.FC = () => {
       
       const response = await apiClient.get('purchase-orders/', { params });
       
-      // Transform orders to include payment status (mocked for now - backend enhancement needed)
       const ordersWithPaymentStatus = response.data.results || response.data;
       setOrders(ordersWithPaymentStatus.map((order: PurchaseOrder) => ({
         ...order,
-        payment_status: order.payment_status || 'unpaid', // Default to unpaid if not provided
+        payment_status: order.payment_status || 'unpaid',
         outstanding_amount: order.outstanding_amount || order.total_amount,
       })));
     } catch (err: unknown) {
@@ -367,11 +366,11 @@ const PayablePOs: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter]);
+  }, [fetchOrders]);
 
   // Count orders by status
   const counts = {

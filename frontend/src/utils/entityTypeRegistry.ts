@@ -33,6 +33,8 @@ const ALIASES: Record<string, string> = {
   carrier_po: 'carrier-pos',
   carrier_purchase_order: 'carrier-pos',
   'carrier-purchase-order': 'carrier-pos',
+  carriers: 'carrier',
+  carrier: 'carrier',
 };
 
 /**
@@ -62,6 +64,7 @@ const DISPLAY_NAMES: Record<string, string> = {
   purchase_order: 'Purchase Order',
   sales_order: 'Sales Order',
   'carrier-pos': 'Carrier PO',
+  carrier: 'Carrier',
 };
 
 /** Human-friendly label for an entity type. */
