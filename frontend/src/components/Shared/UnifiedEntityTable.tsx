@@ -339,6 +339,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
       )}
 
       <Table<Row>
+        aria-label={`${entityType || 'Entity'} records`}
         size="small"
         rowKey={resolvedRowKey}
         columns={columns}

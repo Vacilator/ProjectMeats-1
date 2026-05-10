@@ -6,6 +6,7 @@ import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { ActivityFeed } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type RouteParams = { supplierId?: string; plantId?: string; contactId?: string };
 
@@ -22,6 +23,7 @@ export const PlantContactDetail: React.FC = () => {
   const sid = String(supplierId || '').trim();
   const pid = String(plantId || '').trim();
   const cid = String(contactId || '').trim();
+  useDocumentTitle('Plant Contact Detail');
 
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);

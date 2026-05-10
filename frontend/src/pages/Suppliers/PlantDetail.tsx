@@ -11,6 +11,7 @@ import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
 import StandalonePlantEditForm from '@/pages/Plants/StandalonePlantEditForm';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type RouteParams = { supplierId?: string; plantId?: string };
 
@@ -47,6 +48,7 @@ export const PlantDetail: React.FC = () => {
   const sid = String(supplierId || '').trim();
   const pid = String(plantId || '').trim();
   const { loading: authLoading, isAuthenticated } = useAuthState();
+  useDocumentTitle(pid ? `Plant ${pid}` : 'Plant Detail');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isEditing, setIsEditing] = useState(startEditing);
   const isCreatingDepartmentContact = searchParams.get('createDeptContact') === '1';
