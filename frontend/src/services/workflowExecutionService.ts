@@ -10,9 +10,47 @@ import {
   WorkflowExecution,
   WorkflowExecutionListResponse,
   WorkflowAuditTrailResponse,
+  WorkflowExecutionStatus,
   ResumeWorkflowPayload,
   CancelWorkflowPayload,
 } from '../types/workflows';
+
+/** Raw FormSubmission shape from the backend API. */
+interface RawFormSubmission {
+  id: string;
+  form?: string;
+  form_id?: string;
+  form_name?: string;
+  status: WorkflowExecutionStatus;
+  current_step?: number;
+  current_step_id?: string;
+  current_step_name?: string;
+  total_steps?: number;
+  assigned_to?: string;
+  assigned_to_name?: string;
+  created_by?: string;
+  created_by_name?: string;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
+  error_message?: string | null;
+  data?: Record<string, unknown>;
+}
+
+/** Raw audit trail entry from the backend history endpoint. */
+interface RawAuditEntry {
+  id: string;
+  step_name?: string;
+  step_id?: string;
+  status?: string;
+  assigned_to_name?: string;
+  created_by_name?: string;
+  created_at?: string;
+  duration_seconds?: number;
+  notes?: string;
+  data?: Record<string, unknown>;
+}
 
 /**
  * Workflow Execution API Service
@@ -62,7 +100,7 @@ export class WorkflowExecutionService {
     const response = await businessApi.get(`${this.baseUrl}${id}/history/`);
     
     const execution = this.transformToExecution(response.data.submission);
-    const auditTrail = (response.data.history || []).map((entry: any) => ({
+    const auditTrail = (response.data.history || []).map((entry: RawAuditEntry) => ({
       id: entry.id,
       execution_id: id,
       step_name: entry.step_name || 'Unknown',
@@ -77,7 +115,7 @@ export class WorkflowExecutionService {
 
     // Calculate total duration
     const totalDuration = auditTrail.reduce(
-      (sum: number, entry: any) => sum + (entry.duration_seconds || 0),
+      (sum: number, entry: { duration_seconds?: number }) => sum + (entry.duration_seconds || 0),
       0
     );
 
@@ -107,7 +145,7 @@ export class WorkflowExecutionService {
   /**
    * Transform FormSubmission API response to WorkflowExecution
    */
-  private transformToExecution(submission: any): WorkflowExecution {
+  private transformToExecution(submission: RawFormSubmission): WorkflowExecution {
     const totalSteps = submission.total_steps || 1;
     const currentStep = submission.current_step || 0;
     const completedSteps = Math.min(currentStep, totalSteps);
@@ -118,7 +156,7 @@ export class WorkflowExecutionService {
       workflow_name: submission.form_name || 'Unnamed Workflow',
       workflow_id: submission.form || submission.form_id || '',
       status: submission.status,
-      current_node_id: submission.current_step_id || submission.current_step,
+      current_node_id: submission.current_step_id || (submission.current_step != null ? String(submission.current_step) : undefined),
       current_step_name: submission.current_step_name || `Step ${currentStep}`,
       completed_nodes: completedSteps,
       total_nodes: totalSteps,
@@ -127,11 +165,11 @@ export class WorkflowExecutionService {
       assigned_to_name: submission.assigned_to_name,
       started_by: submission.created_by || '',
       started_by_name: submission.created_by_name || 'Unknown',
-      created_at: submission.created_at,
-      updated_at: submission.updated_at,
-      completed_at: submission.completed_at,
-      cancelled_at: submission.cancelled_at,
-      error_message: submission.error_message,
+      created_at: submission.created_at ?? '',
+      updated_at: submission.updated_at ?? '',
+      completed_at: submission.completed_at ?? undefined,
+      cancelled_at: submission.cancelled_at ?? undefined,
+      error_message: submission.error_message ?? undefined,
       data: submission.data,
     };
   }
