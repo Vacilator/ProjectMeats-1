@@ -4,11 +4,14 @@ import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { apiClient, apiService, type Customer } from '../services/apiService';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { confirmDialog } from '@/utils/uiDialogs';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 
 type CustomerProduct = {
   id: string | number;
@@ -138,7 +141,14 @@ const Customers: React.FC = () => {
 
   const handleDelete = useCallback(
     async (customerId: string | number) => {
-      const confirmed = window.confirm('Are you sure you want to delete this customer?');
+      const customer = customers.find((c) => c.id === customerId);
+      const name = customer?.name || 'this customer';
+      const confirmed = await confirmDialog({
+        title: 'Delete Customer',
+        content: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+        okText: 'Delete',
+        danger: true,
+      });
       if (!confirmed) return;
 
       try {
@@ -148,8 +158,19 @@ const Customers: React.FC = () => {
         message.error('Failed to delete customer. Please try again.');
       }
     },
-    [customersQuery]
+    [customersQuery, customers]
   );
+
+  const handleExportCsv = useCallback(() => {
+    const headers = ['Name', 'Email', 'Contact Person', 'Phone', 'City', 'State', 'Country'];
+    const rows = customers.map((c) => [
+      c.name ?? '', c.email ?? '', c.contact_person ?? '',
+      c.phone_office || c.phone_mobile || c.phone || '',
+      c.city ?? '', c.state ?? '', c.country ?? '',
+    ]);
+    const csv = buildCsv({ headers, rows });
+    downloadCsv(`customers_${new Date().toISOString().split('T')[0]}.csv`, csv);
+  }, [customers]);
 
   const handleCreateClose = useCallback(() => {
     setCreateOpen(false);
@@ -249,6 +270,9 @@ const Customers: React.FC = () => {
               style={{ width: '100%' }}
             />
           </SearchInputContainer>
+          <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={!customers.length}>
+            Export CSV
+          </Button>
           <Button type="primary" onClick={() => setCreateOpen(true)}>
             New Customer
           </Button>

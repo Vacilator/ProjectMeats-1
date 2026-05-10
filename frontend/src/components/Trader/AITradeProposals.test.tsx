@@ -172,15 +172,15 @@ describe('AITradeProposals', () => {
 
   it('renders nothing when no pending proposals', async () => {
     mockGetProposals.mockResolvedValue([PROPOSAL_EXECUTED]);
-    const { container } = renderProposals();
+    renderProposals();
 
     // Wait for loading to finish
     await waitFor(() => {
       expect(screen.queryByLabelText('Loading AI trade proposals')).not.toBeInTheDocument();
     });
-    // No pending proposals → empty render
+    // No pending proposals → shows empty state
     expect(screen.queryByText('AI Trade Proposals')).not.toBeInTheDocument();
-    expect(container.textContent).toBe('');
+    expect(screen.getByText(/No AI trade proposals right now/)).toBeInTheDocument();
   });
 
   it('renders error state with retry on error', async () => {
