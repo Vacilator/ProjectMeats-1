@@ -158,7 +158,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
         render: (val: string, record: InterventionTrade) => (
           <div>
             <span className="font-medium">{val}</span>
-            <div className="text-xs text-gray-400">{timeAgo(record.failed_at)}</div>
+            <div className="text-xs" style={{ color: 'rgb(var(--color-text-quaternary))' }}>{timeAgo(record.failed_at)}</div>
           </div>
         ),
       },
@@ -169,7 +169,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
         render: (val: string, record: InterventionTrade) => (
           <div>
             <span>{val}</span>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
               After: {record.last_successful_step}
             </div>
           </div>
@@ -184,7 +184,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
               {record.failure_category}
             </Tag>
             <Tooltip title={record.failure_reason}>
-              <span className="text-xs text-gray-600 block truncate max-w-[200px]">
+              <span className="text-xs block truncate max-w-[200px]" style={{ color: 'rgb(var(--color-text-secondary))' }}>
                 {record.failure_reason}
               </span>
             </Tooltip>
@@ -197,7 +197,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
         render: (_: unknown, record: InterventionTrade) => (
           <div className="text-sm">
             <div>{record.customer_name}</div>
-            <div className="text-gray-400">{record.supplier_name}</div>
+            <div style={{ color: 'rgb(var(--color-text-quaternary))' }}>{record.supplier_name}</div>
           </div>
         ),
       },
@@ -214,8 +214,10 @@ export function TradesInterventionDashboard(): React.ReactElement {
         key: 'retries',
         render: (_: unknown, record: InterventionTrade) => (
           <span
-            className={
-              record.retry_count >= record.max_retries ? 'text-red-500' : ''
+            style={
+              record.retry_count >= record.max_retries
+                ? { color: 'rgb(var(--color-error))' }
+                : undefined
             }
           >
             {record.retry_count}/{record.max_retries}
@@ -289,7 +291,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description={
-            <span className="text-green-600 font-medium">
+            <span className="font-medium" style={{ color: 'rgb(var(--color-success))' }}>
               All trades are running smoothly — no intervention needed
             </span>
           }
@@ -315,7 +317,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
             {stats.timeout > 0 && <span>{stats.timeout} timeouts</span>}
             {stats.validation > 0 && <span>{stats.validation} validation errors</span>}
             {stats.maxRetries > 0 && (
-              <span className="text-red-500">
+              <span style={{ color: 'rgb(var(--color-error))' }}>
                 {stats.maxRetries} exceeded max retries
               </span>
             )}
@@ -327,7 +329,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
       <Card
         title={
           <span>
-            <ExclamationCircleOutlined className="mr-2 text-orange-500" />
+            <ExclamationCircleOutlined className="mr-2" style={{ color: 'rgb(var(--color-warning))' }} />
             Intervention Queue
           </span>
         }

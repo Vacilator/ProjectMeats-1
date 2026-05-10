@@ -98,17 +98,18 @@ const SortableItem: React.FC<SortableItemProps> = ({
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`flex items-center gap-3 p-3 bg-white border rounded-lg ${
+      className={`flex items-center gap-3 p-3 border rounded-lg ${
         isDragging ? 'shadow-lg' : 'shadow-sm'
       } ${!item.is_active ? 'opacity-50' : ''}`}
+      style={{ ...style, background: 'rgb(var(--color-bg-primary))' }}
     >
       {/* Drag handle */}
       {isReorderable && (
         <button type="button"
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+          className="cursor-grab active:cursor-grabbing"
+          style={{ color: 'rgb(var(--color-text-quaternary))' }}
         >
           <GripVertical className="w-5 h-5" />
         </button>
@@ -117,27 +118,27 @@ const SortableItem: React.FC<SortableItemProps> = ({
       {/* Item info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-900">{item.label}</span>
+          <span className="font-medium" style={{ color: 'rgb(var(--color-text-primary))' }}>{item.label}</span>
           {item.is_default && (
-            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+            <span className="px-2 py-0.5 text-xs rounded" style={{ background: 'rgba(var(--color-info), 0.1)', color: 'rgb(var(--color-info))' }}>
               Default
             </span>
           )}
           {item.is_system_defined ? (
-            <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+            <span className="px-2 py-0.5 text-xs rounded" style={{ background: 'rgb(var(--color-bg-secondary))', color: 'rgb(var(--color-text-secondary))' }}>
               System
             </span>
           ) : (
-            <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">
+            <span className="px-2 py-0.5 text-xs rounded" style={{ background: 'rgba(var(--color-success), 0.1)', color: 'rgb(var(--color-success))' }}>
               Custom
             </span>
           )}
         </div>
-        <div className="text-sm text-gray-500">
-          Value: <code className="px-1 bg-gray-100 rounded">{item.value}</code>
+        <div className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+          Value: <code className="px-1 rounded" style={{ background: 'rgb(var(--color-bg-secondary))' }}>{item.value}</code>
         </div>
         {item.extra_data?.description && (
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             {item.extra_data.description}
           </div>
         )}
@@ -149,7 +150,8 @@ const SortableItem: React.FC<SortableItemProps> = ({
           // System items: can only toggle visibility
           <button type="button"
             onClick={() => onToggleVisibility(item)}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded"
+            className="p-2 rounded"
+            style={{ color: 'rgb(var(--color-text-quaternary))' }}
             title={item.is_active ? 'Hide for tenant' : 'Show for tenant'}
           >
             {item.is_active ? (
@@ -163,14 +165,16 @@ const SortableItem: React.FC<SortableItemProps> = ({
           <>
             <button type="button"
               onClick={() => onEdit(item)}
-              className="p-2 text-blue-600 hover:text-blue-700 rounded"
+              className="p-2 rounded"
+              style={{ color: 'rgb(var(--color-primary))' }}
               title="Edit"
             >
               <Pencil className="w-5 h-5" />
             </button>
             <button type="button"
               onClick={() => onDelete(item)}
-              className="p-2 text-red-600 hover:text-red-700 rounded"
+              className="p-2 rounded"
+              style={{ color: 'rgb(var(--color-error))' }}
               title="Delete"
             >
               <Trash2 className="w-5 h-5" />
@@ -351,11 +355,12 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-red-800">{error}</p>
+      <div className="p-4 rounded-lg" style={{ background: 'rgba(var(--color-error), 0.05)', border: '1px solid rgba(var(--color-error), 0.2)' }}>
+        <p style={{ color: 'rgb(var(--color-error))' }}>{error}</p>
         <button type="button"
           onClick={loadChoiceList}
-          className="mt-2 text-red-600 hover:text-red-700 underline"
+          className="mt-2 underline"
+          style={{ color: 'rgb(var(--color-error))' }}
         >
           Retry
         </button>
@@ -365,8 +370,8 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
 
   if (!choiceList) {
     return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-yellow-800">Choice list not found</p>
+      <div className="p-4 rounded-lg" style={{ background: 'rgba(var(--color-warning), 0.05)', border: '1px solid rgba(var(--color-warning), 0.2)' }}>
+        <p style={{ color: 'rgb(var(--color-warning))' }}>Choice list not found</p>
       </div>
     );
   }
@@ -376,16 +381,16 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{choiceList.name}</h2>
-          <p className="text-gray-600 mt-1">{choiceList.description}</p>
+          <h2 className="text-2xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>{choiceList.name}</h2>
+          <p className="mt-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>{choiceList.description}</p>
           <div className="flex gap-2 mt-2">
             {choiceList.is_extensible && (
-              <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
+              <span className="px-2 py-1 text-xs rounded" style={{ background: 'rgba(var(--color-success), 0.1)', color: 'rgb(var(--color-success))' }}>
                 Extensible
               </span>
             )}
             {choiceList.is_reorderable && (
-              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+              <span className="px-2 py-1 text-xs rounded" style={{ background: 'rgba(var(--color-info), 0.1)', color: 'rgb(var(--color-info))' }}>
                 Reorderable
               </span>
             )}
@@ -395,7 +400,8 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         {choiceList.is_extensible && !isAddingItem && (
           <button type="button"
             onClick={() => setIsAddingItem(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg"
+            style={{ background: 'rgb(var(--color-primary))', color: 'rgb(var(--color-text-inverse))' }}
           >
             <Plus className="w-5 h-5" />
             Add Custom Item
@@ -405,11 +411,11 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
 
       {/* Add item form */}
       {isAddingItem && (
-        <div className="p-4 bg-gray-50 border rounded-lg space-y-3">
-          <h3 className="font-medium text-gray-900">Add Custom Item</h3>
+        <div className="p-4 border rounded-lg space-y-3" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+          <h3 className="font-medium" style={{ color: 'rgb(var(--color-text-primary))' }}>Add Custom Item</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>
                 Value (CODE)
               </label>
               <input
@@ -419,11 +425,12 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                   setNewItem({ ...newItem, value: e.target.value })
                 }
                 placeholder="e.g., WAGYU"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg"
+                style={{ borderColor: 'rgb(var(--color-border))' }}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>
                 Label (Display)
               </label>
               <input
@@ -433,14 +440,16 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                   setNewItem({ ...newItem, label: e.target.value })
                 }
                 placeholder="e.g., Wagyu Beef"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg"
+                style={{ borderColor: 'rgb(var(--color-border))' }}
               />
             </div>
           </div>
           <div className="flex gap-2">
             <button type="button"
               onClick={handleAddItem}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg"
+              style={{ background: 'rgb(var(--color-primary))', color: 'rgb(var(--color-text-inverse))' }}
             >
               <Check className="w-5 h-5" />
               Save
@@ -450,7 +459,8 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                 setIsAddingItem(false);
                 setNewItem({ value: '', label: '' });
               }}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              className="px-4 py-2 rounded-lg"
+              style={{ background: 'rgb(var(--color-bg-secondary))', color: 'rgb(var(--color-text-secondary))', border: '1px solid rgb(var(--color-border))' }}
             >
               <X className="w-5 h-5" />
               Cancel
@@ -461,12 +471,12 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
 
       {/* Edit item modal */}
       {editingItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-medium mb-4">Edit Item</h3>
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(var(--color-overlay), 0.5)' }}>
+          <div className="rounded-lg p-6 max-w-md w-full" style={{ background: 'rgb(var(--color-bg-primary))' }}>
+            <h3 className="text-lg font-medium mb-4" style={{ color: 'rgb(var(--color-text-primary))' }}>Edit Item</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>
                   Label
                 </label>
                 <input
@@ -476,18 +486,21 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                     setEditingItem({ ...editingItem, label: e.target.value })
                   }
                   className="w-full px-3 py-2 border rounded-lg"
+                  style={{ borderColor: 'rgb(var(--color-border))' }}
                 />
               </div>
               <div className="flex gap-2 mt-4">
                 <button type="button"
                   onClick={handleEditItem}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="flex-1 px-4 py-2 rounded-lg"
+                  style={{ background: 'rgb(var(--color-primary))', color: 'rgb(var(--color-text-inverse))' }}
                 >
                   Save
                 </button>
                 <button type="button"
                   onClick={() => setEditingItem(null)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  className="flex-1 px-4 py-2 rounded-lg"
+                  style={{ background: 'rgb(var(--color-bg-secondary))', color: 'rgb(var(--color-text-secondary))', border: '1px solid rgb(var(--color-border))' }}
                 >
                   Cancel
                 </button>
@@ -499,7 +512,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
 
       {/* Items list */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wider">
+        <h3 className="text-sm font-medium uppercase tracking-wider" style={{ color: 'rgb(var(--color-text-secondary))' }}>
           Items ({items.length})
         </h3>
         <DndContext
@@ -525,7 +538,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         </DndContext>
 
         {items.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             No items yet. Add your first custom item above.
           </div>
         )}
