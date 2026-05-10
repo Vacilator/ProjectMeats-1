@@ -309,12 +309,46 @@ const EmptyState = styled.div`
 /**
  * Build execution order from workflow nodes and edges
  */
-function buildExecutionOrder(nodes: WorkflowNode[], _edges?: Edge<any>[]): string[] {
-  // Simple linear order for now
-  // TODO: Implement proper topological sort based on edges
-  return nodes
-    .filter(node => node.type !== 'endSuccess' && node.type !== 'endError' && node.type !== 'endCancel')
-    .map(node => node.id);
+function buildExecutionOrder(nodes: WorkflowNode[], edges?: Edge<any>[]): string[] {
+  const validNodes = nodes.filter(
+    node => node.type !== 'endSuccess' && node.type !== 'endError' && node.type !== 'endCancel'
+  );
+  if (!edges || edges.length === 0) {
+    return validNodes.map(node => node.id);
+  }
+
+  const validIds = new Set(validNodes.map(n => n.id));
+  const adjacency = new Map<string, string[]>();
+  const inDegree = new Map<string, number>();
+  for (const id of validIds) {
+    adjacency.set(id, []);
+    inDegree.set(id, 0);
+  }
+  for (const edge of edges) {
+    if (validIds.has(edge.source) && validIds.has(edge.target)) {
+      adjacency.get(edge.source)!.push(edge.target);
+      inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
+    }
+  }
+
+  // Kahn's algorithm
+  const queue = [...validIds].filter(id => (inDegree.get(id) || 0) === 0);
+  const sorted: string[] = [];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    sorted.push(current);
+    for (const neighbor of adjacency.get(current) || []) {
+      const deg = (inDegree.get(neighbor) || 1) - 1;
+      inDegree.set(neighbor, deg);
+      if (deg === 0) queue.push(neighbor);
+    }
+  }
+
+  // If cycle detected, fall back to original order
+  if (sorted.length < validIds.size) {
+    return validNodes.map(node => node.id);
+  }
+  return sorted;
 }
 
 /**

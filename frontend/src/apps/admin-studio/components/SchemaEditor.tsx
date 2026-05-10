@@ -1548,7 +1548,7 @@ const SchemaEditor: React.FC = () => {
         {selectedFields.size > 0 && (
           <SelectionBadge>
             {selectedFields.size} selected
-            <button onClick={() => setSelectedFields(new Set())} style={{ marginLeft: '0.25rem', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+            <button onClick={() => setSelectedFields(new Set())} aria-label="Clear selection" style={{ marginLeft: '0.25rem', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
           </SelectionBadge>
         )}
       </Toolbar>
