@@ -113,6 +113,7 @@ def classify_email_async(self, email_log_id: str, tenant_id: str):
                 subject=instance.subject,
                 body_text=instance.body_text,
                 sender_email=instance.sender_email,
+                sender_name=instance.sender_name or "",
                 has_attachments=instance.has_attachments,
                 attachment_text=attachment_text,
             )

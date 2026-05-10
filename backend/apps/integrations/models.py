@@ -425,6 +425,10 @@ class EmailReviewDraft(models.Model):
         ('new_customer', 'New Customer'),
         ('invoice', 'Invoice'),
         ('pricing_sheet', 'Pricing Sheet'),
+        ('contact', 'Contact Update'),
+        ('company', 'Company Update'),
+        ('payment', 'Payment Notice'),
+        ('supplier_note', 'Supplier Note'),
     ]
 
     STATUS_CHOICES = [

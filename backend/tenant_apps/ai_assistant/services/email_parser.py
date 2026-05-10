@@ -692,7 +692,13 @@ def _resolve_contact(*, tenant, email: str, name: str, supplier, create_missing:
         return contact
 
     if create_missing and email:
-        first_name, last_name = _split_name(name)
+        # Use email local part as name fallback when display name is missing
+        resolved_name = name
+        if not resolved_name:
+            local_part = email.split("@")[0] if "@" in email else email
+            # Convert common email patterns to readable names (e.g. john.smith → John Smith)
+            resolved_name = local_part.replace(".", " ").replace("_", " ").replace("-", " ").strip()
+        first_name, last_name = _split_name(resolved_name)
         contact = Contact.objects.create(
             tenant=tenant,
             first_name=first_name,
@@ -733,9 +739,13 @@ def _resolve_plant(*, tenant, supplier, result: ResolvedEntities):
 
 
 def _split_name(display_name: str) -> tuple[str, str]:
-    """Split display name into first/last."""
+    """Split display name into first/last.
+
+    When no display name is available, returns empty strings instead of
+    placeholder text so callers can decide how to handle the missing data.
+    """
     if not display_name:
-        return ("Unknown", "Contact")
+        return ("", "")
 
     parts = display_name.strip().split()
     if len(parts) == 1:

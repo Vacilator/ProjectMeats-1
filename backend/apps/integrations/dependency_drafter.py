@@ -47,9 +47,15 @@ def build_related_entity_drafts(
     contact_name = _text(payload.get('contact_name'))
     contact_company = _text(payload.get('contact_company'))
     sender_email = _text(payload.get('sender_email')) or _text(getattr(email_log, 'sender_email', ''))
-    sender_name = _text(getattr(email_log, 'sender_name', '')) or contact_name
+    sender_name = _text(getattr(email_log, 'sender_name', ''))
+    draft_type = _text(payload.get('draft_type'))
 
-    # --- Supplier draft ---
+    # Resolve best available person name: prefer AI-extracted, fall back to
+    # sender display name (but only if it looks like a real person name, not
+    # a company/department like "Accounting" or "Sales Team")
+    resolved_person_name = contact_name or _person_name_from_sender(sender_name)
+
+    # --- Supplier draft (from company name) ---
     supplier_draft = _propose_supplier(
         name=contact_company,
         email=sender_email,
@@ -58,9 +64,10 @@ def build_related_entity_drafts(
     if supplier_draft:
         drafts.append(supplier_draft)
 
-    # --- Customer draft (if category suggests new customer) ---
+    # --- Customer draft ---
     category = _text(payload.get('category'))
-    if category == 'New Customer' and contact_company:
+    # For "New Customer" or "Company Update" with company info, propose customer
+    if category in ('New Customer', 'Company Update') and contact_company:
         customer_draft = _propose_customer(
             name=contact_company,
             tenant=tenant,
@@ -68,10 +75,20 @@ def build_related_entity_drafts(
         if customer_draft:
             drafts.append(customer_draft)
 
-    # --- Contact draft ---
-    if sender_email or sender_name:
+    # --- Contact draft (only when we have a real person name or email) ---
+    if resolved_person_name and (sender_email or resolved_person_name):
         contact_draft = _propose_contact(
-            name=sender_name,
+            name=resolved_person_name,
+            email=sender_email,
+            company=contact_company,
+            tenant=tenant,
+        )
+        if contact_draft:
+            drafts.append(contact_draft)
+    elif draft_type == 'contact' and sender_email:
+        # Intent is contact but no person name — still propose with email only
+        contact_draft = _propose_contact(
+            name=resolved_person_name,
             email=sender_email,
             company=contact_company,
             tenant=tenant,
@@ -126,6 +143,35 @@ def build_related_entity_drafts(
 
 def _text(value: Any) -> str:
     return str(value or '').strip()
+
+
+# Common non-person sender names (departments, roles, generic addresses)
+_NON_PERSON_NAMES = frozenset({
+    'accounting', 'admin', 'billing', 'contact', 'dispatch', 'finance',
+    'help desk', 'helpdesk', 'hr', 'info', 'invoicing', 'logistics',
+    'no reply', 'noreply', 'notifications', 'office', 'operations', 'ops',
+    'orders', 'payroll', 'procurement', 'purchasing', 'reception',
+    'sales', 'sales team', 'shipping', 'support', 'team', 'warehouse',
+})
+
+
+def _person_name_from_sender(sender_name: str) -> str:
+    """Return sender_name only if it looks like an individual person name.
+
+    Filters out department/role names (e.g. "Accounting", "Sales Team") that
+    are valid display names but not useful as contact person names.
+    """
+    if not sender_name:
+        return ''
+    normalized = sender_name.strip().lower()
+    if normalized in _NON_PERSON_NAMES:
+        return ''
+    # Single-word names that match common non-person patterns
+    if ' ' not in sender_name.strip() and normalized in {
+        w for phrase in _NON_PERSON_NAMES for w in phrase.split()
+    }:
+        return ''
+    return sender_name.strip()
 
 
 def _propose_supplier(*, name: str, email: str, tenant: Any) -> dict[str, Any] | None:
