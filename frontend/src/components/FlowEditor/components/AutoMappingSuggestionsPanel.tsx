@@ -241,7 +241,7 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
           </Tooltip>
         </Title>
         {onClose && (
-          <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} />
+          <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} aria-label="Close suggestions" />
         )}
       </Header>
       
