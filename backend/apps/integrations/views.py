@@ -204,6 +204,22 @@ def oauth_callback(request, provider_type):
     ):
         return redirect("/settings?error=permission_denied")
 
+    # Set RLS context BEFORE any tenant-scoped ORM writes.
+    from apps.tenants.rls import set_current_tenant, reset_current_tenant
+
+    rls_result = set_current_tenant(str(tenant.id))
+    if not rls_result.ok:
+        logger.error("Failed to set RLS context for OAuth callback: %s", rls_result.error)
+        return redirect("/settings?error=internal_error")
+
+    try:
+        return _complete_oauth_exchange(request, tenant, provider_type, code)
+    finally:
+        reset_current_tenant()
+
+
+def _complete_oauth_exchange(request, tenant, provider_type, code):
+    """Exchange OAuth code for tokens and persist them under RLS context."""
     # Build redirect URI (must match the one used in get_auth_url)
     callback_path = f"/api/v1/integrations/oauth/callback/{provider_type}/"
     redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
@@ -225,7 +241,7 @@ def oauth_callback(request, provider_type):
         # Get user info
         user_info = provider.get_user_info(token_response.access_token)
 
-        # Store tokens in database
+        # Store tokens in database (RLS context already set by caller)
         auth_provider, created = ExternalAuthProvider.objects.update_or_create(
             tenant=tenant,
             provider_type=provider_type,
