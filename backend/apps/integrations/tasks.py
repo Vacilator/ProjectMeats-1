@@ -202,17 +202,28 @@ def classify_email_async(self, email_log_id: str, tenant_id: str):
             )
 
             if classification.get('actionable') and classification.get('draft_type'):
+                confidence_score = float(
+                    classification.get('confidence_score') or classification.get('confidence') or 0.0
+                )
+                draft_type = classification['draft_type']
+
+                # Phase 21: Auto-approve high-confidence PO drafts (≥0.98)
+                from apps.integrations.auto_pipeline import AUTO_PROCESS_CONFIDENCE_THRESHOLD
+                auto_approved = (
+                    confidence_score >= AUTO_PROCESS_CONFIDENCE_THRESHOLD
+                    and draft_type == 'purchase_order'
+                )
+                initial_status = 'reviewed' if auto_approved else 'pending_review'
+
                 draft, _ = EmailReviewDraft.objects.update_or_create(
                     email_log=instance,
                     defaults={
                         'tenant': instance.tenant,
-                        'draft_type': classification['draft_type'],
+                        'draft_type': draft_type,
                         'summary': str(classification.get('summary') or '').strip(),
                         'extracted_payload': classification,
-                        'classification_confidence': float(
-                            classification.get('confidence_score') or classification.get('confidence') or 0.0
-                        ),
-                        'status': 'pending_review',
+                        'classification_confidence': confidence_score,
+                        'status': initial_status,
                     },
                 )
                 _record_email_lineage_event(
@@ -225,10 +236,33 @@ def classify_email_async(self, email_log_id: str, tenant_id: str):
                         'draft_id': str(draft.id),
                         'draft_type': str(draft.draft_type or ''),
                         'category': str(classification.get('category') or ''),
-                        'confidence_score': classification.get('confidence_score') or classification.get('confidence'),
+                        'confidence_score': confidence_score,
+                        'auto_approved': auto_approved,
                     },
                 )
-                _notify_actionable_email(instance, draft, classification)
+                if auto_approved:
+                    _record_email_lineage_event(
+                        instance,
+                        event_type='email_draft_auto_approved',
+                        summary=(
+                            f'Auto-approved {draft.get_draft_type_display()} draft '
+                            f'(confidence {confidence_score:.0%} ≥ {AUTO_PROCESS_CONFIDENCE_THRESHOLD:.0%}).'
+                        ),
+                        target_type='email_review_draft',
+                        target_id=str(draft.id),
+                        metadata={
+                            'draft_id': str(draft.id),
+                            'confidence_score': confidence_score,
+                            'threshold': AUTO_PROCESS_CONFIDENCE_THRESHOLD,
+                        },
+                    )
+                    logger.info(
+                        'Email %s auto-approved for zero-touch pipeline (confidence=%.2f)',
+                        instance.id,
+                        confidence_score,
+                    )
+                else:
+                    _notify_actionable_email(instance, draft, classification)
                 instance.mark_as_draft_created(extracted_data=classification)
             else:
                 logger.info(

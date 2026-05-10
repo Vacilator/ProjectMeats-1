@@ -111,6 +111,7 @@ def auto_process_approved_emails(self):
                     create_purchase_order_from_email.s(email_log_id, tid),
                     generate_sales_order_from_po.s(tid),
                     trigger_fulfillment.s(tid),
+                    generate_invoice_from_so.s(tid),
                 )
                 pipeline.apply_async()
                 dispatched += 1
@@ -419,4 +420,141 @@ def trigger_fulfillment(self, so_id: int | None, tenant_id: str):
     except Exception as e:
         _log_pipeline_event(tenant_id, so_id, "trigger_fulfillment", "failed", {"error": str(e)})
         logger.error("trigger_fulfillment failed: %s", str(e), exc_info=True)
+        raise self.retry(exc=e, countdown=30 * (2**self.request.retries))
+
+
+@shared_task(
+    name="integrations.generate_invoice_from_so",
+    bind=True,
+    max_retries=2,
+    soft_time_limit=60,
+    time_limit=90,
+)
+def generate_invoice_from_so(self, fulfillment_result: dict | None, tenant_id: str):
+    """Generate a draft invoice from a confirmed Sales Order.
+
+    Terminal step in the zero-touch pipeline. Creates a draft invoice
+    linked to the SO. The invoice remains in 'draft' status for
+    finance team review.
+
+    Idempotent: checks existing invoices for the SO before creating.
+    """
+    from tenant_apps.invoices.models import Invoice
+    from tenant_apps.invoices.services.invoice_generation import generate_invoice_number
+    from tenant_apps.sales_orders.models import SalesOrder
+
+    if not fulfillment_result or not isinstance(fulfillment_result, dict):
+        logger.warning("generate_invoice_from_so: no fulfillment result, skipping")
+        return None
+
+    so_id = fulfillment_result.get("so_id")
+    if not so_id:
+        logger.warning("generate_invoice_from_so: no so_id in fulfillment result, skipping")
+        return None
+
+    try:
+        with tenant_rls(tenant_id):
+            so = SalesOrder.objects.get(id=so_id, tenant_id=tenant_id)
+
+            # Idempotent: check if an invoice already exists for this SO
+            existing = Invoice.objects.filter(
+                tenant_id=tenant_id,
+                sales_order=so,
+            ).first()
+            if existing:
+                _log_pipeline_event(
+                    tenant_id,
+                    so_id,
+                    "generate_invoice",
+                    "skipped",
+                    {"reason": "already_exists", "invoice_id": existing.id},
+                )
+                return {"invoice_id": existing.id, "action": "none"}
+
+            # Resolve customer — SO may link through supplier/inquiry
+            customer = getattr(so, "customer", None)
+            if not customer:
+                # Try to find customer through inquiry lineage
+                from tenant_apps.inquiries.models import Inquiry
+
+                inquiry = Inquiry.objects.filter(
+                    tenant_id=tenant_id,
+                    sales_order=so,
+                ).select_related("customer").first()
+                if inquiry:
+                    customer = inquiry.customer
+
+            if not customer:
+                _log_pipeline_event(
+                    tenant_id,
+                    so_id,
+                    "generate_invoice",
+                    "skipped",
+                    {"reason": "no_customer", "so_number": so.our_sales_order_num},
+                )
+                logger.info(
+                    "Skipping invoice generation for SO %s: no customer linked",
+                    so.our_sales_order_num,
+                )
+                return {"so_id": so_id, "action": "skipped", "reason": "no_customer"}
+
+            # Generate invoice number
+            last_invoice = (
+                Invoice.objects.filter(tenant_id=tenant_id)
+                .order_by("-id")
+                .first()
+            )
+            sequence = (last_invoice.id + 1) if last_invoice else 1
+            invoice_number = generate_invoice_number(tenant_id, sequence)
+
+            with transaction.atomic():
+                invoice = Invoice(
+                    tenant_id=tenant_id,
+                    invoice_number=invoice_number,
+                    customer=customer,
+                    sales_order=so,
+                    our_sales_order_num=so.our_sales_order_num or "",
+                    description_of_product_item=getattr(so, "item_description", "") or "",
+                    status="draft",
+                    notes=f"Auto-generated from SO {so.our_sales_order_num} via zero-touch pipeline",
+                )
+
+                if hasattr(so, "quantity") and so.quantity:
+                    invoice.quantity = so.quantity
+                if hasattr(so, "total_weight") and so.total_weight:
+                    invoice.total_weight = so.total_weight
+                if hasattr(so, "total_amount") and so.total_amount:
+                    invoice.total_amount = so.total_amount
+                    invoice.outstanding_amount = so.total_amount
+
+                invoice.save()
+
+            _log_pipeline_event(
+                tenant_id,
+                so_id,
+                "generate_invoice",
+                "success",
+                {
+                    "invoice_id": invoice.id,
+                    "invoice_number": invoice_number,
+                    "so_number": so.our_sales_order_num,
+                    "customer_id": customer.id,
+                },
+            )
+
+            return {
+                "invoice_id": invoice.id,
+                "invoice_number": invoice_number,
+                "so_id": so_id,
+                "action": "created",
+                "pipeline": "complete_with_invoice",
+            }
+
+    except SalesOrder.DoesNotExist:
+        _log_pipeline_event(tenant_id, so_id, "generate_invoice", "failed", {"reason": "so_not_found"})
+        return None
+
+    except Exception as e:
+        _log_pipeline_event(tenant_id, so_id, "generate_invoice", "failed", {"error": str(e)})
+        logger.error("generate_invoice_from_so failed: %s", str(e), exc_info=True)
         raise self.retry(exc=e, countdown=30 * (2**self.request.retries))

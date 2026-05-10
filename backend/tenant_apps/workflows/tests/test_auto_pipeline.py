@@ -130,3 +130,63 @@ class AutoPipelineTaskTestCase(TestCase):
         from apps.integrations.auto_pipeline import generate_sales_order_from_po
         result = generate_sales_order_from_po(None, self.tenant_id)
         self.assertIsNone(result)
+
+    def test_generate_invoice_returns_none_for_no_fulfillment(self):
+        """If fulfillment_result is None, should return None."""
+        from apps.integrations.auto_pipeline import generate_invoice_from_so
+        result = generate_invoice_from_so(None, self.tenant_id)
+        self.assertIsNone(result)
+
+    def test_generate_invoice_returns_none_for_missing_so_id(self):
+        """If fulfillment_result has no so_id, should return None."""
+        from apps.integrations.auto_pipeline import generate_invoice_from_so
+        result = generate_invoice_from_so({"action": "created"}, self.tenant_id)
+        self.assertIsNone(result)
+
+    def test_generate_invoice_skips_existing(self):
+        """If an invoice already exists for the SO, should skip."""
+        from apps.integrations.auto_pipeline import generate_invoice_from_so
+
+        mock_so = MagicMock()
+        mock_so.id = 10
+        mock_so.our_sales_order_num = "SO-001"
+        mock_so.tenant_id = self.tenant_id
+
+        mock_invoice = MagicMock()
+        mock_invoice.id = 99
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            with patch('tenant_apps.sales_orders.models.SalesOrder.objects') as mock_so_mgr:
+                mock_so_mgr.get.return_value = mock_so
+                with patch('tenant_apps.invoices.models.Invoice.objects') as mock_inv_mgr:
+                    mock_inv_mgr.filter.return_value.first.return_value = mock_invoice
+
+                    result = generate_invoice_from_so({"so_id": 10}, self.tenant_id)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result['invoice_id'], 99)
+        self.assertEqual(result['action'], 'none')
+
+    def test_generate_invoice_skips_when_no_customer(self):
+        """If SO has no customer and no inquiry link, should skip gracefully."""
+        from apps.integrations.auto_pipeline import generate_invoice_from_so
+
+        mock_so = MagicMock()
+        mock_so.id = 10
+        mock_so.our_sales_order_num = "SO-001"
+        mock_so.tenant_id = self.tenant_id
+        mock_so.customer = None
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            with patch('tenant_apps.sales_orders.models.SalesOrder.objects') as mock_so_mgr:
+                mock_so_mgr.get.return_value = mock_so
+                with patch('tenant_apps.invoices.models.Invoice.objects') as mock_inv_mgr:
+                    mock_inv_mgr.filter.return_value.first.return_value = None  # no existing invoice
+                    with patch('tenant_apps.inquiries.models.Inquiry.objects') as mock_inq_mgr:
+                        mock_inq_mgr.filter.return_value.select_related.return_value.first.return_value = None
+
+                        result = generate_invoice_from_so({"so_id": 10}, self.tenant_id)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result['action'], 'skipped')
+        self.assertEqual(result['reason'], 'no_customer')
