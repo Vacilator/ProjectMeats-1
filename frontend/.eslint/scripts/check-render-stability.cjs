@@ -18,7 +18,7 @@
  *
  * Exit codes:
  *   0 - No violations found
- *   1 - Violations found (warnings only; does not block CI by default)
+ *   1 - Error-severity violations found (blocks CI)
  */
 
 const fs = require('fs');
@@ -51,7 +51,7 @@ const PATTERNS = [
   },
   {
     id: 'inline-onsuccess-arrow',
-    severity: 'warning',
+    severity: 'error',
     description: 'Inline arrow function for onSuccess prop — extract to useCallback',
     // Matches: onSuccess={(anything) => { or onSuccess={() =>
     regex: /onSuccess=\{(?:\([^)]*\)|[a-zA-Z_$]\w*)\s*=>/g,
@@ -59,14 +59,14 @@ const PATTERNS = [
   },
   {
     id: 'inline-onclose-arrow',
-    severity: 'warning',
+    severity: 'error',
     description: 'Inline arrow function for onClose prop — extract to useCallback',
     regex: /onClose=\{(?:\([^)]*\)|[a-zA-Z_$]\w*)\s*=>/g,
     fileFilter: /\.tsx$/,
   },
   {
     id: 'inline-oncreated-arrow',
-    severity: 'warning',
+    severity: 'error',
     description: 'Inline arrow function for onCreated prop — extract to useCallback',
     regex: /onCreated=\{(?:\([^)]*\)|[a-zA-Z_$]\w*)\s*=>/g,
     fileFilter: /\.tsx$/,
