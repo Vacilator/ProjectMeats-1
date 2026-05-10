@@ -571,6 +571,9 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
         }}>
           <span style={{ fontSize: 16 }}>🎯</span>
           <span>Intent: {item.intent_label}</span>
+          {typeof payload.rationale === 'string' && payload.rationale.includes('[Reclassified') && (
+            <Tag color="purple" style={{ marginLeft: 0 }}>⚡ Reclassified</Tag>
+          )}
           {typeof item.confidence_score === 'number' && (
             <Tag color={
               item.confidence_score >= 0.8 ? 'green' :
@@ -679,6 +682,30 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                   ) : null}
                   {payload.total_amount ? (
                     <Text type="secondary">Amount: {String(payload.total_amount)}</Text>
+                  ) : null}
+                  {typeof payload.rationale === 'string' && payload.rationale.trim() ? (
+                    <Alert
+                      type="info"
+                      showIcon
+                      message="AI Rationale"
+                      description={String(payload.rationale)}
+                      style={{ marginTop: 4 }}
+                    />
+                  ) : null}
+                  {payload.field_confidence && typeof payload.field_confidence === 'object' ? (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                      {Object.entries(payload.field_confidence as Record<string, unknown>)
+                        .filter(([, v]) => typeof v === 'number' && (v as number) > 0)
+                        .sort(([, a], [, b]) => (b as number) - (a as number))
+                        .map(([field, conf]) => (
+                          <Tag
+                            key={field}
+                            color={(conf as number) >= 0.8 ? 'green' : (conf as number) >= 0.5 ? 'orange' : 'red'}
+                          >
+                            {field.replace(/_/g, ' ')}: {Math.round((conf as number) * 100)}%
+                          </Tag>
+                        ))}
+                    </div>
                   ) : null}
                   {sourcePreview ? (
                     <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
