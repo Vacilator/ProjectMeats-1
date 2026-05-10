@@ -6131,18 +6131,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         dataKeys: Object.keys(selectedNode.data || {}),
         timestamp: new Date().toISOString()
       });
-      
-      // Force check that portal container exists
-      setTimeout(() => {
-        const portal = document.getElementById('config-portal');
-        const hasChildren = !!portal && portal.childNodes.length > 0;
-
-        if (portal) {
-          logger.debug('[Modal State] ✅ Portal container present', { hasChildren });
-        } else {
-          logger.error('[Modal State] ❌ Missing #config-portal in DOM - config panel cannot render');
-        }
-      }, 100);
     } else {
       logger.debug('[Modal State] Config panel closed (selectedNode is null)');
     }
@@ -6628,12 +6616,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Close modal
     setIsTemplateModalOpen(false);
     
-    // Fit view to show full template
-    setTimeout(() => {
+    // Fit view after React has committed the new nodes to the DOM
+    requestAnimationFrame(() => {
       if (reactFlowInstance?.fitView) {
         reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
       }
-    }, 100);
+    });
   }, [setNodes, setEdges, reactFlowInstance]);
 
   const handleStartBlank = useCallback(() => {

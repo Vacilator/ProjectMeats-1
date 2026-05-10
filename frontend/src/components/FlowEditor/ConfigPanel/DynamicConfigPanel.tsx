@@ -40,7 +40,12 @@ import {
 } from '../utils/scheduleCron';
 import { evaluateCondition } from '../config/conditionalLogic';
 import { validateField } from '../config/validationEngine';
-import { toFormFieldsFromSelectedFields } from '../utils/formFieldsDualModel';
+import {
+  toFormFieldsFromSelectedFields,
+  toSelectedFieldsFromFormFields,
+  isSelectedFieldArray,
+  isFormBuilderFieldArray,
+} from '../utils/formFieldsDualModel';
 
 // Field renderers
 import {
@@ -255,9 +260,27 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   }, [schemaNeedsTenantForms]);
 
   // Keep local form state in sync with external node.data changes (e.g., Apply/Discard in shadow state).
+  // Normalize the fields/formFields dual model at the boundary so downstream
+  // rendering always sees both shapes, preventing empty config panels on first click.
   useEffect(() => {
     if (node?.data) {
-      setFormData(node.data);
+      const data = node.data as Record<string, unknown>;
+      const hasFields = Array.isArray(data.fields) && data.fields.length > 0;
+      const hasFormFields = Array.isArray(data.formFields) && (data.formFields as unknown[]).length > 0;
+
+      if (hasFields && !hasFormFields && isSelectedFieldArray(data.fields)) {
+        setFormData({
+          ...data,
+          formFields: toFormFieldsFromSelectedFields(data.fields),
+        });
+      } else if (hasFormFields && !hasFields && isFormBuilderFieldArray(data.formFields)) {
+        setFormData({
+          ...data,
+          fields: toSelectedFieldsFromFormFields(data.formFields as any),
+        });
+      } else {
+        setFormData(data);
+      }
     }
   }, [node?.id, node?.data]);
 
