@@ -240,7 +240,7 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -255,7 +255,7 @@ const Modal = styled.div<{ $theme: Theme }>`
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.2);
 `;
 
 const ModalHeader = styled.div<{ $theme: Theme }>`
@@ -373,7 +373,7 @@ const RemoveButton = styled(ControlButton)`
   color: rgb(var(--color-error));
 
   &:not(:disabled):hover {
-    background: rgba(220, 53, 69, 0.1);
+    background: rgba(var(--color-error), 0.1);
   }
 `;
 
@@ -436,7 +436,7 @@ const EmptyMessage = styled.div<{ $theme: Theme }>`
 `;
 
 const ErrorMessage = styled.div`
-  background: rgba(220, 53, 69, 0.1);
+  background: rgba(var(--color-error), 0.1);
   border: 1px solid rgb(var(--color-error));
   color: rgb(var(--color-error));
   padding: 12px;
