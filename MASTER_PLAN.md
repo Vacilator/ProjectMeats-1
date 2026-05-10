@@ -110,8 +110,22 @@ All 10 items from the squad deep-dive plan have been completed:
 - ✅ WorkflowExecutionModal topological sort — replaced linear fallback with Kahn's algorithm for edge-based ordering (PR #5257)
 - ✅ Accessibility gaps closed — aria-labels added to 3 icon-only buttons (PreviewModal, MappingSection, SchemaEditor) (PR #5257)
 - ✅ Hardcoded `white`/`black` CSS literals eliminated across 11 files (PR #5255)
+- ✅ StepManagerPanel validation logic implemented — steps now flag errors when missing entityType/selectedFields (PR #5260)
+- ✅ Smart email reclassification — Contact↔Company auto-correction with field_confidence passthrough + 8 tests (PR #5261)
 - ✅ All 19 backend email integration tests pass
 - ✅ TypeScript: 0 errors
+
+### Phase 28: Email Intelligence & UX Productivity ✅ SHIPPED
+- ✅ AI Draft Review Modal: rationale display Alert, per-field confidence color-coded Tags, reclassification indicator badge (PR #5262)
+- ✅ AI Inbox batch operations: row selection with bulk Review/Dismiss, intent filter dropdown, confidence sort (High→Low/Low→High), dedicated confidence column (PR #5263)
+- ✅ ColdStorage loading skeletons for stat cards + facility capacity cards during data fetch (PR #5264)
+- ✅ Workflow context field labels resolved from schema definition with Title Case fallback (PR #5264)
+- ✅ AICommandCenter keyboard accessibility: role/tabIndex/onKeyDown/aria-label on all ItemCards (PR #5265)
+- ✅ FormReferenceNode edit/preview navigation implemented — opens FormBuilder/preview in new tab (PR #5265)
+- ✅ TaskRenderer automated node cards: descriptive labels per node type (Email/SMS/HTTP/Script/Transform) (PR #5265)
+- ✅ AutoMappingSuggestionsPanel aria-label on close button (PR #5263)
+- ✅ AITradeProposals empty state card instead of returning null (PR #5263)
+- ✅ TypeScript: 0 errors across all changes
 
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
