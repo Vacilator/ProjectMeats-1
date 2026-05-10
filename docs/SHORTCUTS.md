@@ -12,6 +12,21 @@ These work anywhere in the application (except when focused on text inputs).
 | `Ctrl+Shift+K` / `⌘⇧K` | Open AI Command Center (Omnibox) | `AICommandCenter` |
 | `Ctrl+J` / `⌘J` | Toggle AI Assistant widget | `AIAgentWidget` |
 | `/` | Quick-open Command Palette | `CommandPalette` |
+| `?` | Open keyboard shortcuts cheatsheet | `ShortcutCheatsheet` |
+| `Escape` | Close current modal / panel / overlay | Global |
+
+## Navigation (vim-style)
+
+Press `g` followed by a letter within 800ms to jump to a page:
+
+| Shortcut | Destination |
+|----------|-------------|
+| `g` then `d` | Dashboard (`/cockpit/dashboard`) |
+| `g` then `c` | Customers (`/customers`) |
+| `g` then `s` | Suppliers (`/suppliers`) |
+| `g` then `p` | Purchase Orders (`/purchase-orders`) |
+| `g` then `o` | Sales Orders (`/sales-orders`) |
+| `g` then `i` | Inquiries (`/inquiries`) |
 
 ## Command Palette
 
@@ -86,5 +101,5 @@ All shortcuts follow WCAG 2.1 AAA guidelines:
 
 ---
 
-**Source files**: `useGlobalShortcuts.ts`, `useCommandPalette.ts`, `keyboardNavigation.ts`, `AICommandCenter.tsx`  
-**Last updated**: 2026-05-09
+**Source files**: `useGlobalShortcuts.ts` (canonical `SHORTCUT_REGISTRY`), `useCommandPalette.ts`, `keyboardNavigation.ts`, `AICommandCenter.tsx`, `ShortcutCheatsheet.tsx`  
+**Last updated**: 2026-05-10
