@@ -372,6 +372,7 @@ const SupplierProducts: React.FC = () => {
           </EmptyState>
         ) : (
           <Table
+            aria-label="Supplier products"
             columns={columns}
             dataSource={filteredItems}
             rowKey="id"
@@ -422,6 +423,7 @@ const SupplierProducts: React.FC = () => {
           </div>
         </div>
         <Table
+          aria-label="Available system products for supplier"
           size="small"
           loading={loadingSystemProducts}
           dataSource={systemProducts.filter(p => !items.find(existing => existing.product === p.id))}

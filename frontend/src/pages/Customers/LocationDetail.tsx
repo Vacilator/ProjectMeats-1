@@ -10,6 +10,7 @@ import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
 import { isAuthError } from '@/utils/isAuthError';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type RouteParams = { customerId?: string; locationId?: string };
 
@@ -361,6 +362,7 @@ export const LocationDetail: React.FC = () => {
                   <Empty description="No contacts for this location" />
                 ) : (
                   <Table
+                    aria-label="Customer location contacts"
                     size="small"
                     columns={columns}
                     dataSource={contacts}

@@ -6,6 +6,7 @@ import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { ActivityFeed } from '@/components/Shared';
 import { apiClient } from '@/services/apiService';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type RouteParams = { customerId?: string; locationId?: string; contactId?: string };
 
@@ -22,6 +23,7 @@ export const LocationContactDetail: React.FC = () => {
   const cid = String(customerId || '').trim();
   const lid = String(locationId || '').trim();
   const coid = String(contactId || '').trim();
+  useDocumentTitle('Contact Detail');
 
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState<CustomerRow | null>(null);

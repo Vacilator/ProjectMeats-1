@@ -547,6 +547,7 @@ const BillingPage: React.FC = () => {
 
             <Card title="Billing History">
               <Table
+                aria-label="Billing invoice history"
                 columns={invoiceColumns}
                 dataSource={invoices}
                 loading={subscriptionInvoicesQuery.isLoading}

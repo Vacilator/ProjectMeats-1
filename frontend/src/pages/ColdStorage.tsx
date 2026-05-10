@@ -390,6 +390,7 @@ const ColdStorage: React.FC = () => {
           />
         ) : filteredLots.length > 0 ? (
           <Table
+            aria-label="Cold storage inventory"
             rowKey="id"
             columns={columns}
             dataSource={filteredLots}

@@ -230,6 +230,7 @@ export const TenantListModal: React.FC<TenantListModalProps> = ({
           </Space>
 
           <Table
+            aria-label="Tenant list options"
             rowKey="key"
             size="small"
             columns={columns}

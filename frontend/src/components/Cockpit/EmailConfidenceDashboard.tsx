@@ -306,6 +306,7 @@ export const EmailConfidenceDashboard: React.FC = () => {
                 Classification Categories
               </Title>
               <Table
+                aria-label="Email confidence scores"
                 dataSource={categoryRows}
                 pagination={false}
                 size="small"

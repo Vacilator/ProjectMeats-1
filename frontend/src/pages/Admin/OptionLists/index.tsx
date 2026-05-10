@@ -1060,6 +1060,7 @@ const OptionListsPage: React.FC = () => {
                           />
                         ) : (
                           <Table
+                            aria-label="Master product options"
                             rowKey="id"
                             columns={productColumns}
                             dataSource={filteredMasterProducts}
@@ -1080,6 +1081,7 @@ const OptionListsPage: React.FC = () => {
                         />
                       ) : (
                         <Table
+                          aria-label="System option lists"
                           rowKey="id"
                           columns={systemColumns}
                           dataSource={filteredSystemLists}
@@ -1105,6 +1107,7 @@ const OptionListsPage: React.FC = () => {
                       />
                     ) : (
                       <Table
+                        aria-label="Custom option lists"
                         rowKey="id"
                         columns={customColumns}
                         dataSource={filteredCustomLists}

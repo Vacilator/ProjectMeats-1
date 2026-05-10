@@ -1144,6 +1144,7 @@ export const MyTasks: React.FC = () => {
 
                   <div style={{ overflowX: 'auto' }}>
                     <Table
+                      aria-label="AI review tasks"
                       rowKey="id"
                       dataSource={filteredAiReviews}
                       columns={aiInboxColumns}

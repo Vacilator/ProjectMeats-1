@@ -62,6 +62,9 @@ interface AdminTableProps<T> {
   csvExport?: {
     fileName?: string;
   };
+
+  /** Accessible label for the table. Defaults to "Data table". */
+  ariaLabel?: string;
 }
 
 const compareForSort = (aValue: unknown, bValue: unknown) => {
@@ -94,6 +97,7 @@ export function AdminTable<T extends Record<string, any>>({
   selectable = false,
   onSelectionChange,
   csvExport,
+  ariaLabel = 'Data table',
 }: AdminTableProps<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
 
@@ -227,6 +231,7 @@ export function AdminTable<T extends Record<string, any>>({
         </Toolbar>
       )}
       <Table
+        aria-label={ariaLabel}
         size="middle"
         columns={antdColumns}
         dataSource={data}

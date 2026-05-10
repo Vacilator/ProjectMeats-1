@@ -1050,6 +1050,7 @@ const AICommandCenter: React.FC = () => {
               }
             >
               <Table
+                aria-label="Halted trades requiring attention"
                 rowKey="id"
                 columns={tradeColumns}
                 dataSource={trades.filter((t) => t.status === 'halted').slice(0, 3)}
@@ -1206,6 +1207,7 @@ const AICommandCenter: React.FC = () => {
             />
           ) : filteredTrades.length > 0 ? (
             <Table
+              aria-label="Active trades"
               rowKey="id"
               columns={tradeColumns}
               dataSource={filteredTrades}
@@ -1247,6 +1249,7 @@ const AICommandCenter: React.FC = () => {
         <CockpitPanel title="Completed Trades">
           {trades.filter((t) => t.status === 'completed').length > 0 ? (
             <Table
+              aria-label="Completed trades history"
               rowKey="id"
               columns={tradeColumns.filter((c) => c.key !== 'actions')}
               dataSource={trades.filter((t) => t.status === 'completed')}
