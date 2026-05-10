@@ -100,13 +100,15 @@ class SystemProductViewSet(viewsets.ModelViewSet):
         include_inactive_raw = str(self.request.query_params.get('include_inactive') or '').lower()
         include_inactive = include_inactive_raw in ('1', 'true', 'yes')
 
-        # Non-staff users must never be able to include globally inactive products.
-        if not (self.request.user.is_staff or self.request.user.is_superuser):
+        # Only true superusers may include globally inactive products.
+        # Tenant admins are promoted to is_staff=True via signals — that must NOT
+        # grant cross-tenant product visibility.
+        if not self.request.user.is_superuser:
             include_inactive = False
 
         queryset = Product.objects.all()
 
-        if self.request.user.is_staff or self.request.user.is_superuser:
+        if self.request.user.is_superuser:
             if not include_inactive:
                 queryset = queryset.filter(is_active=True)
             return queryset
