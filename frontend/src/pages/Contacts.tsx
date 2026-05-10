@@ -92,7 +92,7 @@ const RetryButton = styled.button`
   margin-top: 12px;
   padding: 8px 20px;
   background: rgb(var(--color-primary));
-  color: #fff;
+  color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 6px;
   cursor: pointer;
