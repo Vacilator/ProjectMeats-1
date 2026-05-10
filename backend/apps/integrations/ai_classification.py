@@ -242,18 +242,34 @@ def classify_ingested_email(
     # Fallback: if classified as Spam/Other but contains business signals,
     # reclassify to the most appropriate actionable category
     if category == "Spam/Other":
-        if total_amount and (po_number or parsed.get("invoice_number")):
+        bol_number = str(parsed.get("bol_number") or "").strip()
+        invoice_number = str(parsed.get("invoice_number") or "").strip()
+        requested_product = str(parsed.get("requested_product_name") or "").strip()
+
+        if po_number and total_amount:
+            category = "Purchase Order"
+            rationale = f"[Auto-reclassified from Spam/Other: PO# + amount present] {rationale}"
+        elif bol_number:
+            category = "BOL"
+            rationale = f"[Auto-reclassified from Spam/Other: BOL# present] {rationale}"
+        elif invoice_number and total_amount:
+            category = "Invoice"
+            rationale = f"[Auto-reclassified from Spam/Other: invoice# + amount present] {rationale}"
+        elif total_amount and (po_number or invoice_number):
             category = "Payment Notice"
-            rationale = f"[Auto-reclassified from Spam/Other] {rationale}"
+            rationale = f"[Auto-reclassified from Spam/Other: financial data present] {rationale}"
+        elif requested_product and (str(parsed.get("requested_quantity") or "").strip()):
+            category = "Purchase Order"
+            rationale = f"[Auto-reclassified from Spam/Other: product + quantity present] {rationale}"
         elif contact_name and contact_company:
             category = "Contact Update"
-            rationale = f"[Auto-reclassified from Spam/Other] {rationale}"
+            rationale = f"[Auto-reclassified from Spam/Other: contact info present] {rationale}"
         elif contact_company and not contact_name:
             category = "Company Update"
-            rationale = f"[Auto-reclassified from Spam/Other] {rationale}"
+            rationale = f"[Auto-reclassified from Spam/Other: company info present] {rationale}"
         elif contact_name:
             category = "Contact Update"
-            rationale = f"[Auto-reclassified from Spam/Other] {rationale}"
+            rationale = f"[Auto-reclassified from Spam/Other: contact name present] {rationale}"
 
     # Smart reclassification: "Contact Update" without a usable person name
     # but WITH company info should be "Company Update" instead

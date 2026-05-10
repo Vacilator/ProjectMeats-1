@@ -162,3 +162,61 @@ class SmartReclassifyTests(TestCase):
         result = self._classify(payload)
         self.assertEqual(result["category"], "Purchase Order")
         self.assertEqual(result["draft_type"], "purchase_order")
+
+    def test_spam_with_bol_reclassified_to_bol(self):
+        """Spam/Other + BOL number → BOL."""
+        payload = self._base_payload(
+            category="Spam/Other",
+            contact_name="",
+            contact_company="",
+            actionable=False,
+        )
+        payload["bol_number"] = "BOL-2025-001"
+        result = self._classify(payload)
+        self.assertEqual(result["category"], "BOL")
+        self.assertTrue(result["actionable"])
+        self.assertEqual(result["draft_type"], "bill_of_lading")
+
+    def test_spam_with_invoice_and_amount_reclassified_to_invoice(self):
+        """Spam/Other + invoice number + total_amount → Invoice."""
+        payload = self._base_payload(
+            category="Spam/Other",
+            contact_name="",
+            contact_company="",
+            actionable=False,
+        )
+        payload["invoice_number"] = "INV-2025-042"
+        payload["total_amount"] = "1500.00"
+        result = self._classify(payload)
+        self.assertEqual(result["category"], "Invoice")
+        self.assertTrue(result["actionable"])
+
+    def test_spam_with_product_and_quantity_reclassified_to_po(self):
+        """Spam/Other + product + quantity → Purchase Order."""
+        payload = self._base_payload(
+            category="Spam/Other",
+            contact_name="",
+            contact_company="",
+            actionable=False,
+        )
+        payload["requested_product_name"] = "Chicken Breast"
+        payload["requested_quantity"] = "500"
+        result = self._classify(payload)
+        self.assertEqual(result["category"], "Purchase Order")
+        self.assertTrue(result["actionable"])
+        self.assertEqual(result["draft_type"], "purchase_order")
+
+    def test_spam_with_po_and_amount_reclassified_to_po(self):
+        """Spam/Other + PO number + total_amount → Purchase Order."""
+        payload = self._base_payload(
+            category="Spam/Other",
+            contact_name="",
+            contact_company="",
+            actionable=False,
+        )
+        payload["po_number"] = "PO-2025-999"
+        payload["total_amount"] = "25000.00"
+        result = self._classify(payload)
+        self.assertEqual(result["category"], "Purchase Order")
+        self.assertTrue(result["actionable"])
+        self.assertEqual(result["draft_type"], "purchase_order")
