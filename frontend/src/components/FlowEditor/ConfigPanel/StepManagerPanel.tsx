@@ -293,12 +293,13 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
     const selectedFields = (node.data as any)?.selectedFields;
     const hasSelectedFields = Array.isArray(selectedFields) && selectedFields.length > 0;
 
+    const hasErrors = !Boolean((node.data as any)?.entityType) && !hasSelectedFields && node.type !== 'trigger';
     return {
       id: node.id,
       type: node.type || 'unknown',
       label: String((node.data as any)?.label ?? (node.data as any)?.name ?? `${node.type || 'Node'} ${node.id.slice(0, 8)}`),
       stepNumber,
-      hasErrors: false, // TODO: Add validation logic
+      hasErrors,
       isConfigured: Boolean((node.data as any)?.entityType) || hasSelectedFields,
     };
   }).sort((a, b) => {
