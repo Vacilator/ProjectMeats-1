@@ -127,6 +127,8 @@ export const PinnedToolsBar: React.FC = () => {
   const [recordLoading, setRecordLoading] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState(520);
 
+  const handleCloseDrawer = useCallback(() => setOpenPinnedId(null), []);
+
   useEffect(() => {
     const recompute = () => {
       if (typeof window === 'undefined') return;
@@ -309,7 +311,7 @@ export const PinnedToolsBar: React.FC = () => {
 
       <Drawer
         open={isDrawerOpen}
-        onClose={() => setOpenPinnedId(null)}
+        onClose={handleCloseDrawer}
         width={drawerWidth}
         title={drawerTitle}
         extra={

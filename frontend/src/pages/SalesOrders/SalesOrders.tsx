@@ -12,7 +12,7 @@
  * 
  * Pattern: Follows Claims.tsx architecture for consistency
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
@@ -649,6 +649,14 @@ export const SalesOrdersPage: React.FC = () => {
     }
   };
 
+  const handleCreateClose = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  const handleCreateSuccess = useCallback(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
   const handleOrderClick = (order: SalesOrder) => {
     setSelectedOrder(order);
   };
@@ -948,8 +956,8 @@ export const SalesOrdersPage: React.FC = () => {
         entityType="sales-orders"
         mode="create"
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => fetchOrders()}
+        onClose={handleCreateClose}
+        onSuccess={handleCreateSuccess}
         initialValues={modalInitialValues as any}
       />
     </PageContainer>

@@ -602,6 +602,11 @@ export const MyTasks: React.FC = () => {
   const [isDelegating, setIsDelegating] = useState(false);
   const [showDelegationHistory, setShowDelegationHistory] = useState(false);
   
+  const handleDelegateModalClose = useCallback(() => {
+    setShowDelegateModal(false);
+    setSelectedTask(null);
+  }, []);
+
   // Mock available users - in production, this would come from an API
   const [availableUsers] = useState<User[]>([
     { id: '1', name: 'John Smith', email: 'john@example.com', role: 'Sales Rep', department: 'Sales' },
@@ -1412,10 +1417,7 @@ export const MyTasks: React.FC = () => {
       {/* Delegate Task Modal */}
       <DelegateTaskModal
         isOpen={showDelegateModal}
-        onClose={() => {
-          setShowDelegateModal(false);
-          setSelectedTask(null);
-        }}
+        onClose={handleDelegateModalClose}
         onDelegate={handleDelegate}
         taskName={selectedTask?.title || ''}
         availableUsers={availableUsers}

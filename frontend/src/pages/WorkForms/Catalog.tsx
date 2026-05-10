@@ -16,7 +16,7 @@
  * - Category organization
  * - Edit, clone, delete actions
  */
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { logger } from '@/utils/logger';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
@@ -558,6 +558,10 @@ const FormsFlowsCatalog: React.FC = () => {
   const [proteinTypeFilter, setProteinTypeFilter] = useState<ProteinType>('all'); // NEW
   const [departmentFilter, setDepartmentFilter] = useState<Department>('all'); // NEW
   const [isQuickRunning, setIsQuickRunning] = useState<string | null>(null); // NEW: Track running workflow ID
+
+  const handleTemplateSelectorClose = useCallback(() => {
+    setShowTemplateSelector(false);
+  }, []);
 
   // Phase 4.2: Get user permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
@@ -1347,7 +1351,7 @@ const FormsFlowsCatalog: React.FC = () => {
       {/* Template Selector Modal */}
       <TemplateSelector
         isOpen={showTemplateSelector}
-        onClose={() => setShowTemplateSelector(false)}
+        onClose={handleTemplateSelectorClose}
         onSelectTemplate={handleTemplateSelect}
         onStartBlank={handleCreateBlank}
       />

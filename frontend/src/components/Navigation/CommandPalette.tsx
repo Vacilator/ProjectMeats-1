@@ -494,6 +494,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   
   // Entity detail modal state
   const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: string | number } | null>(null);
+
+  const handleEntityDetailClose = useCallback(() => setSelectedEntity(null), []);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -840,7 +842,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       {selectedEntity && (
         <EntityDetailModal
           isOpen={!!selectedEntity}
-          onClose={() => setSelectedEntity(null)}
+          onClose={handleEntityDetailClose}
           entityType={selectedEntity.type}
           entityId={selectedEntity.id}
           onExpandEntity={(entity) => {

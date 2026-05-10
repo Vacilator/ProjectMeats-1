@@ -210,6 +210,13 @@ export const SettlementQueue: React.FC = () => {
     }
   }, [loadQueue, rejectForm, selectedEvent]);
 
+  const handleDrawerClose = useCallback(() => {
+    setSelectedEvent(null);
+    setActiveAction(null);
+    overrideForm.resetFields();
+    rejectForm.resetFields();
+  }, [overrideForm, rejectForm]);
+
   return (
     <AdminGuard feature="workspace" allow={isAccountingAdmin}>
       <Space orientation="vertical" size="large" style={{ width: '100%', padding: '24px' }}>
@@ -269,12 +276,7 @@ export const SettlementQueue: React.FC = () => {
         <Drawer
           title={selectedEvent ? `Settlement event #${selectedEvent.id}` : 'Settlement event'}
           open={Boolean(selectedEvent)}
-          onClose={() => {
-            setSelectedEvent(null);
-            setActiveAction(null);
-            overrideForm.resetFields();
-            rejectForm.resetFields();
-          }}
+          onClose={handleDrawerClose}
           size="large"
           extra={
             selectedEvent ? (

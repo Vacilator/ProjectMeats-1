@@ -23,7 +23,7 @@
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  * Last Updated: 2026-02-18 - Phase E.2 Panel Migration
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { 
   ChevronDown, ChevronUp, GripVertical, Plus, Edit2, Trash2, 
@@ -390,6 +390,13 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   const [selectedFieldForEditing, setSelectedFieldForEditing] = useState<EntityField | null>(null);
   const [pickedFields, setPickedFields] = useState<SelectedField[]>([]);
 
+
+  const handleCloseFieldPicker = useCallback(() => setShowFieldPicker(false), []);
+  const handleOverlayClick = useCallback(
+    (e: React.MouseEvent) => { if (e.target === e.currentTarget) setShowFieldPicker(false); },
+    []
+  );
+
   // Phase A: Enhanced entity and field loading with error handling
   const { 
     data: entities = [], 
@@ -421,7 +428,12 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     clearSuggestions,
   } = useAutoMapping();
   const [showAutoMapping, setShowAutoMapping] = useState<boolean>(false);
-  
+
+  const handleCloseAutoMapping = useCallback(() => {
+    clearSuggestions();
+    setShowAutoMapping(false);
+  }, [clearSuggestions]);
+
   // Phase A.3: Filter available fields by search term and type
   const filteredEntityFields = availableEntityFields
     .filter(field => {
@@ -686,10 +698,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                       applyAllSuggestions(nodeId);
                     }
                   }}
-                  onClose={() => {
-                    clearSuggestions();
-                    setShowAutoMapping(false);
-                  }}
+                  onClose={handleCloseAutoMapping}
                 />
               )}
               
@@ -1067,14 +1076,14 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
       {/* Phase C.1.3: Entity Field Picker Modal */}
       {showFieldPicker && localStep.entityType && (
         <ModalOverlay
-          onClick={(e) => e.target === e.currentTarget && setShowFieldPicker(false)}
+          onClick={handleOverlayClick}
         >
           <ModalContent>
             <ModalHeader>
               <ModalTitle>
                 Select Fields from {entities.find(e => e.id === localStep.entityType)?.label_plural}
               </ModalTitle>
-              <SecondaryButton onClick={() => setShowFieldPicker(false)}>
+              <SecondaryButton onClick={handleCloseFieldPicker}>
                 Close
               </SecondaryButton>
             </ModalHeader>
@@ -1087,7 +1096,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               />
             </ModalBody>
             <ModalFooter>
-              <SecondaryButton onClick={() => setShowFieldPicker(false)}>
+              <SecondaryButton onClick={handleCloseFieldPicker}>
                 Cancel
               </SecondaryButton>
               <PrimaryButton

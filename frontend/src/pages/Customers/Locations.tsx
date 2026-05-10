@@ -9,7 +9,7 @@
  * - Theme-compliant styling with antd Table
  * - Multi-tenancy support
  */
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
@@ -305,6 +305,17 @@ const CustomerLocations: React.FC = () => {
 
 
 
+  const handleFormClose = useCallback(() => {
+    setShowModal(false);
+    setEditingLocation(null);
+  }, []);
+
+  const handleFormSuccess = useCallback(() => {
+    setShowModal(false);
+    setEditingLocation(null);
+    void loadLocations(contextCustomerId);
+  }, [contextCustomerId]);
+
   const handleCustomerClick = (customerId: number) => {
     navigate(`/customers/${customerId}`);
   };
@@ -472,16 +483,9 @@ const CustomerLocations: React.FC = () => {
           mode={editingLocation ? 'edit' : 'create'}
           entityId={editingLocation?.id}
           isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setEditingLocation(null);
-          }}
+          onClose={handleFormClose}
           initialValues={locationInitialValues}
-          onSuccess={() => {
-            setShowModal(false);
-            setEditingLocation(null);
-            void loadLocations(contextCustomerId);
-          }}
+          onSuccess={handleFormSuccess}
         />
       )}
     </PageContainer>

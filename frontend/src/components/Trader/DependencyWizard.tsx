@@ -168,6 +168,8 @@ export const DependencyWizard: React.FC<DependencyWizardProps> = ({
 }) => {
   const [createModalType, setCreateModalType] = useState<string | null>(null);
 
+  const handleCreateModalClose = useCallback(() => setCreateModalType(null), []);
+
   const satisfiedCount = useMemo(
     () => checklist.filter((item) => item.satisfied).length,
     [checklist]
@@ -262,7 +264,7 @@ export const DependencyWizard: React.FC<DependencyWizardProps> = ({
           entityType={createModalType}
           mode="create"
           isOpen={true}
-          onClose={() => setCreateModalType(null)}
+          onClose={handleCreateModalClose}
           onSuccess={handleCreateSuccess}
         />
       )}

@@ -16,7 +16,7 @@
  *
  * Updated: 2026-02-03 - Renamed from "Call Log" to "Calls"
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { Calendar, Badge, Segmented } from 'antd';
@@ -728,6 +728,22 @@ export const CallLog: React.FC = () => {
     }
   };
 
+  // Stable callbacks for modal props
+  const handleInquiryClose = useCallback(() => setShowInquiryCallModal(false), []);
+  const handleInquirySuccess = useCallback(() => {
+    void fetchScheduledCalls();
+    setShowInquiryCallModal(false);
+  }, []);
+  const handleScheduleClose = useCallback(() => {
+    setShowScheduleModal(false);
+    setDefaultCallPurpose(undefined);
+  }, []);
+  const handleEditClose = useCallback(() => setEditingCall(null), []);
+  const handleEditSuccess = useCallback(() => {
+    fetchScheduledCalls();
+    setEditingCall(null);
+  }, []);
+
   const handleCallClick = (call: ScheduledCall) => {
     setSelectedCall(call);
     setSelectedCallDetails(call); // Store details for notes display
@@ -1175,20 +1191,14 @@ export const CallLog: React.FC = () => {
 
       <InquiryCallModal
         isOpen={showInquiryCallModal}
-        onClose={() => setShowInquiryCallModal(false)}
-        onSuccess={() => {
-          void fetchScheduledCalls();
-          setShowInquiryCallModal(false);
-        }}
+        onClose={handleInquiryClose}
+        onSuccess={handleInquirySuccess}
       />
 
       {/* Schedule Modal - Create */}
       <ScheduleCallModal
         isOpen={showScheduleModal}
-        onClose={() => {
-          setShowScheduleModal(false);
-          setDefaultCallPurpose(undefined);
-        }}
+        onClose={handleScheduleClose}
         onSuccess={fetchScheduledCalls}
         defaultCallPurpose={defaultCallPurpose}
       />
@@ -1197,11 +1207,8 @@ export const CallLog: React.FC = () => {
       <ScheduleCallModal
         isOpen={!!editingCall}
         initialData={editingCall || undefined}
-        onClose={() => setEditingCall(null)}
-        onSuccess={() => {
-          fetchScheduledCalls();
-          setEditingCall(null);
-        }}
+        onClose={handleEditClose}
+        onSuccess={handleEditSuccess}
       />
 
       <SplitPaneContainer>

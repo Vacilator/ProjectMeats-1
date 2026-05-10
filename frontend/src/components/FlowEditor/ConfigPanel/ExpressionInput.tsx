@@ -27,7 +27,7 @@
  * Created: 2026-02-12 - Phase 4 Expression Input Implementation
  */
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { X } from 'lucide-react';
 import { VariablePicker } from './VariablePicker';
@@ -143,6 +143,9 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerPosition, setPickerPosition] = useState({ top: 0, left: 0 });
+
+  const handleClosePicker = useCallback(() => setShowPicker(false), []);
+
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -302,7 +305,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
         context={context}
         isOpen={showPicker}
         onSelect={handleVariableSelect}
-        onClose={() => setShowPicker(false)}
+        onClose={handleClosePicker}
         position={pickerPosition}
       />
     </>

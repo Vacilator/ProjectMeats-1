@@ -395,6 +395,12 @@ const PayablePOs: React.FC = () => {
     fetchOrders();
   }, [fetchOrders]);
 
+  const handlePaymentModalClose = useCallback(() => setShowPaymentModal(false), []);
+  const handlePaymentSuccess = useCallback(() => {
+    fetchOrders();
+    setShowPaymentModal(false);
+  }, [fetchOrders]);
+
   // Count orders by status
   const counts = {
     all: orders.length,
@@ -580,15 +586,12 @@ const PayablePOs: React.FC = () => {
 
             <RecordPaymentModal
               isOpen={showPaymentModal}
-              onClose={() => setShowPaymentModal(false)}
+              onClose={handlePaymentModalClose}
               entityType="purchase_order"
               entityId={selectedOrder.id}
               entityReference={selectedOrder.order_number}
               outstandingAmount={parseFloat(selectedOrder.outstanding_amount || selectedOrder.total_amount || '0')}
-              onSuccess={() => {
-                fetchOrders();
-                setShowPaymentModal(false);
-              }}
+              onSuccess={handlePaymentSuccess}
             />
           </SidePanel>
         )}

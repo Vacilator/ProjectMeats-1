@@ -171,6 +171,8 @@ export const MissingDependencyResolver: React.FC<MissingDependencyResolverProps>
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState<MissingDependency | null>(null);
 
+  const handleCloseCreating = useCallback(() => setCreating(null), []);
+
   const handleCreated = useCallback(
     (entity: { value: string; label: string }) => {
       if (!creating) return;
@@ -242,7 +244,7 @@ export const MissingDependencyResolver: React.FC<MissingDependencyResolverProps>
         <QuickCreateModal
           entityType={creating.entityType}
           isOpen={true}
-          onClose={() => setCreating(null)}
+          onClose={handleCloseCreating}
           onCreated={handleCreated}
           initialValues={{
             ...(creating.suggestedName ? { name: creating.suggestedName } : {}),

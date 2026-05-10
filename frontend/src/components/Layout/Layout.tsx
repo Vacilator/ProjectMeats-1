@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import styled from 'styled-components';
 import Sidebar from './Sidebar';
@@ -24,6 +24,10 @@ const Layout: React.FC = () => {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showCheatsheet, setShowCheatsheet] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
+
+  const handleOmniboxClose = useCallback(() => setShowOmnibox(false), []);
+  const handleCommandPaletteClose = useCallback(() => setShowCommandPalette(false), []);
+  const handleCheatsheetClose = useCallback(() => setShowCheatsheet(false), []);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -66,11 +70,11 @@ const Layout: React.FC = () => {
         </MainArea>
         <Omnibox
           isOpen={showOmnibox}
-          onClose={() => setShowOmnibox(false)}
+          onClose={handleOmniboxClose}
           onSubmit={handleOmniboxSubmit}
         />
-        <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
-        <ShortcutCheatsheet open={showCheatsheet} onClose={() => setShowCheatsheet(false)} />
+        <CommandPalette isOpen={showCommandPalette} onClose={handleCommandPaletteClose} />
+        <ShortcutCheatsheet open={showCheatsheet} onClose={handleCheatsheetClose} />
         <ErrorBoundary fallback={<div />}>
           <AIAgentWidget />
         </ErrorBoundary>

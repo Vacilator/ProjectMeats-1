@@ -14,7 +14,7 @@
  * Theme Compliance:
  * - Uses CSS custom properties
  */
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Phone, Clock, User, Calendar } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
@@ -120,6 +120,8 @@ export const UpcomingCallsWidget: React.FC<UpcomingCallsWidgetProps> = () => {
   const { stats, isLoading, error, refetch } = useCockpitStats();
   const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: number } | null>(null);
 
+  const handleEntityDetailClose = useCallback(() => setSelectedEntity(null), []);
+
   const calls = useMemo(() => stats?.upcoming_calls ?? [], [stats]);
 
   const normalizeEntityTypeForModal = (raw: string): string | null => {
@@ -209,7 +211,7 @@ export const UpcomingCallsWidget: React.FC<UpcomingCallsWidgetProps> = () => {
           {selectedEntity && (
             <EntityDetailModal
               isOpen={!!selectedEntity}
-              onClose={() => setSelectedEntity(null)}
+              onClose={handleEntityDetailClose}
               entityType={selectedEntity.type}
               entityId={selectedEntity.id}
             />

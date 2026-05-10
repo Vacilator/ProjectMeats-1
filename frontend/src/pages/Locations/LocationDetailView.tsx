@@ -201,6 +201,15 @@ export const LocationDetailView: React.FC = () => {
     return buckets;
   }, [contacts]);
 
+  const handleEditClose = useCallback(() => {
+    setEditOpen(false);
+  }, []);
+
+  const handleEditSuccess = useCallback(() => {
+    setEditOpen(false);
+    setRefreshKey((key) => key + 1);
+  }, []);
+
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
   return (
@@ -238,11 +247,8 @@ export const LocationDetailView: React.FC = () => {
           variant="modal"
           isOpen={editOpen}
           entityId={locationId}
-          onClose={() => setEditOpen(false)}
-          onSuccess={() => {
-            setEditOpen(false);
-            setRefreshKey((key) => key + 1);
-          }}
+          onClose={handleEditClose}
+          onSuccess={handleEditSuccess}
         />
       ) : null}
 

@@ -4,7 +4,7 @@
  * Business-friendly spreadsheet editor for defining form fields.
  * Fetches and saves schema_config to/from Django backend.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import FormPreview from './FormPreview';
 import { adminClient } from '@/services/apiService';
@@ -315,6 +315,8 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<number, string[]>>({});
+
+  const handleClosePreview = useCallback(() => setShowPreview(false), []);
 
   // Fetch schema on mount
   useEffect(() => {
@@ -639,7 +641,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
       {showPreview && (
         <FormPreview
           fields={fields}
-          onClose={() => setShowPreview(false)}
+          onClose={handleClosePreview}
         />
       )}
     </Container>
