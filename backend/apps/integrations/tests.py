@@ -160,10 +160,12 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get('error_code'), 'token_invalid')
         self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
 
-    @patch('apps.integrations.signals.classify_ingested_email')
-    def test_new_email_creates_action_required_feedback_log(self, classify_ingested_email):
+    @patch('apps.integrations.tasks.classify_email_async.apply_async')
+    @patch('apps.integrations.ai_classification.classify_ingested_email')
+    @patch('tenant_apps.inquiries.services.parse_supplier_quote_reply', return_value=None)
+    def test_new_email_creates_action_required_feedback_log(self, _parse_mock, classify_mock, _apply_async_mock):
         provider = ExternalAuthProvider.objects.get(tenant=self.tenant, provider_type='microsoft')
-        classify_ingested_email.return_value = {
+        classify_mock.return_value = {
             'document_type': 'purchase_order',
             'draft_type': 'purchase_order',
             'order_number': 'PO-123',
@@ -181,9 +183,13 @@ class EmailSyncTests(APITestCase):
             body_text='Please book PO-123.',
         )
 
+        # Run the async classification task synchronously
+        from apps.integrations.tasks import classify_email_async
+        classify_email_async.apply(args=[str(email.pk), str(email.tenant_id)])
+
         email.refresh_from_db()
         self.assertEqual(email.status, 'action_required')
-        self.assertEqual(email.extracted_data, classify_ingested_email.return_value)
+        self.assertEqual(email.extracted_data, classify_mock.return_value)
 
         feedback = AIFeedbackLog.objects.get(tenant=self.tenant)
         self.assertEqual(feedback.document_type, 'purchase_order')
