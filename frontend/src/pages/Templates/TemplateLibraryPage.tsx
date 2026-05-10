@@ -98,9 +98,9 @@ function TemplateCard({
       title={
         <div className="flex items-center gap-2">
           {template.isSystemTemplate ? (
-            <LockOutlined className="text-blue-500" />
+            <LockOutlined style={{ color: 'rgb(var(--color-info))' }} />
           ) : (
-            <FileTextOutlined className="text-gray-400" />
+            <FileTextOutlined style={{ color: 'rgb(var(--color-text-quaternary))' }} />
           )}
           <span className="font-semibold">{template.name}</span>
         </div>
@@ -116,7 +116,7 @@ function TemplateCard({
         </Space>
       }
     >
-      <p className="text-gray-600 text-sm mb-4">{template.description}</p>
+      <p className="text-sm mb-4" style={{ color: 'rgb(var(--color-text-secondary))' }}>{template.description}</p>
 
       {/* Metadata badges */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -136,7 +136,7 @@ function TemplateCard({
       </div>
 
       {/* Category and dates */}
-      <div className="text-xs text-gray-400 mb-4">
+      <div className="text-xs mb-4" style={{ color: 'rgb(var(--color-text-quaternary))' }}>
         Category: <Tag>{template.category}</Tag>
         {' • '}Updated: {new Date(template.updated_at).toLocaleDateString()}
       </div>
@@ -212,8 +212,8 @@ function VersionHistoryModal({
                   <span className="font-medium">v{v.version}</span>
                   {v.is_current && <Tag color="green">Current</Tag>}
                 </div>
-                <div className="text-sm text-gray-600">{v.change_summary}</div>
-                <div className="text-xs text-gray-400">
+                <div className="text-sm" style={{ color: 'rgb(var(--color-text-secondary))' }}>{v.change_summary}</div>
+                <div className="text-xs" style={{ color: 'rgb(var(--color-text-quaternary))' }}>
                   {v.published_by} • {new Date(v.published_at).toLocaleDateString()}
                 </div>
               </div>
@@ -328,8 +328,8 @@ export function TemplateLibraryPage(): React.ReactElement {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Template Library</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>Template Library</h1>
+          <p className="mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             Official process templates and safe variants for your trading workflows
           </p>
         </div>
@@ -348,7 +348,7 @@ export function TemplateLibraryPage(): React.ReactElement {
       {/* System Templates */}
       <div>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <LockOutlined className="text-blue-500" />
+          <LockOutlined style={{ color: 'rgb(var(--color-info))' }} />
           Official Templates
         </h2>
         {systemTemplates.length === 0 ? (
@@ -374,7 +374,7 @@ export function TemplateLibraryPage(): React.ReactElement {
           <Divider />
           <div>
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <BranchesOutlined className="text-green-500" />
+              <BranchesOutlined style={{ color: 'rgb(var(--color-success))' }} />
               Variants
               <Tag>{variants.length}</Tag>
             </h2>
@@ -404,13 +404,13 @@ export function TemplateLibraryPage(): React.ReactElement {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>
               Source Template
             </label>
             <Input value={selectedTemplate?.name ?? ''} disabled />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>
               Variant Name
             </label>
             <Input
