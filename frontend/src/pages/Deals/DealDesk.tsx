@@ -170,7 +170,7 @@ const StatusBadge = styled.span<{ status: DealStatus }>`
       case 'delivered':
         return 'background: rgba(var(--color-info), 0.15); color: rgb(var(--color-info));';
       case 'in_transit':
-        return 'background: rgba(var(--color-warning), 0.18); color: rgb(180, 83, 9);';
+        return 'background: rgba(var(--color-warning), 0.18); color: rgb(var(--color-warning));';
       case 'cancelled':
         return 'background: rgba(var(--color-neutral), 0.15); color: rgb(var(--color-neutral));';
       case 'active':

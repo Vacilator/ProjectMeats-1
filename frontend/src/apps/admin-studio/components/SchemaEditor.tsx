@@ -907,7 +907,7 @@ const SortableRow: React.FC<{
                 
                 {/* Conditional Visibility Rules */}
                 {expandedVisibility[row.original.id] && (
-                  <div style={{ marginTop: '8px', padding: '12px', background: 'rgb(249 250 251)', borderRadius: '6px' }}>
+                  <div style={{ marginTop: '8px', padding: '12px', background: 'rgb(var(--color-bg-secondary))', borderRadius: '6px' }}>
                     <ConditionalVisibilityRules
                       targetFieldId={row.original.id}
                       availableFields={allFields.filter(f => f.id !== row.original.id).map(f => ({
