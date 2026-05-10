@@ -434,6 +434,20 @@ class ApiServiceClass {
     });
     return response.data;
   }
+
+  async getWorkFormExecutions(workformId: string): Promise<ApiResponse<WorkFormExecution>> {
+    const response = await this.api.get<ApiResponse<WorkFormExecution>>(
+      '/workform-executions/',
+      { params: { workform: workformId } }
+    );
+    const data = response.data;
+    return {
+      count: data?.count ?? 0,
+      next: data?.next,
+      previous: data?.previous,
+      results: Array.isArray(data?.results) ? data.results : [],
+    };
+  }
 }
 
 export const ApiService = new ApiServiceClass();

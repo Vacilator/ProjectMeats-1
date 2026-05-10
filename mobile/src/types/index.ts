@@ -155,9 +155,26 @@ export interface InviteAcceptRequest {
 // WorkForms types (mobile contract aligned with backend serializers)
 export type WorkFormStatus = 'draft' | 'active' | 'archived' | string;
 
+export interface WorkflowNode {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  data: Record<string, unknown>;
+  parentId?: string;
+}
+
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
+  type?: string;
+}
+
 export interface WorkflowDefinition {
-  nodes: any[];
-  edges: any[];
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
   viewport?: {
     x: number;
     y: number;
