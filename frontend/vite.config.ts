@@ -201,6 +201,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './vitest.setup.ts',
     css: true,
+    // Prevent any individual test from hanging forever (was previously unbounded).
+    testTimeout: 15000,
+    hookTimeout: 10000,
     // E2E specs are Playwright tests and must not be collected by Vitest.
     // NOTE: Setting exclude overrides Vitest defaults; keep the standard exclusions.
     exclude: [
