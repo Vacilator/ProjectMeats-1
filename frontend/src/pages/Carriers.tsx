@@ -296,6 +296,7 @@ const Carriers: React.FC = () => {
           />
         ) : filteredCarriers.length > 0 ? (
           <Table
+            aria-label="Carriers list"
             rowKey="id"
             columns={columns}
             dataSource={filteredCarriers}

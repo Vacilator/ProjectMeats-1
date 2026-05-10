@@ -428,9 +428,11 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const handleDeleteItem = async (id: string) => {
     if (!isExtensible) return;
 
+    const item = items.find(i => i.id === id);
+    const itemLabel = item?.label || item?.value || 'this item';
     const confirmed = await confirmDialog({
       title: 'Delete item?',
-      content: 'Are you sure you want to delete this item?',
+      content: `Are you sure you want to delete "${itemLabel}"? This action cannot be undone.`,
       okText: 'Delete',
       cancelText: 'Cancel',
       danger: true,
