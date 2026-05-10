@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)
 **Last Updated**: 2026-05-10
-**Primary Focus**: Industry Leader State execution — all Phase 12-26 backlog items shipped; all frontend Tailwind hardcoded colors eliminated.
+**Primary Focus**: Industry Leader State execution — all Phase 12-27 backlog items shipped; complete UX polish, code quality, and accessibility sweep.
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -102,6 +102,16 @@ All 10 items from the squad deep-dive plan have been completed:
 - ✅ `grep` scan for hardcoded Tailwind colors: 0 matches across all .tsx files
 - ✅ TODO/FIXME/HACK audit: all 13 remaining comments are legitimate future-work markers, not bugs
 - **Result**: Entire frontend uses CSS custom properties (`--color-*`) for all colors — fully theme-compliant
+
+### Phase 27: UX Polish & Code Quality ✅ SHIPPED
+- ✅ Document titles added to 36 pages — all user-facing pages now set proper browser tab titles (PRs #5256, #5258)
+- ✅ Workflow success toast — WorkflowList start mutation now shows success feedback before navigation (PR #5256)
+- ✅ AdminErrorBoundary wired up to Sentry — errors now reported to tracking (was TODO placeholder) (PR #5257)
+- ✅ WorkflowExecutionModal topological sort — replaced linear fallback with Kahn's algorithm for edge-based ordering (PR #5257)
+- ✅ Accessibility gaps closed — aria-labels added to 3 icon-only buttons (PreviewModal, MappingSection, SchemaEditor) (PR #5257)
+- ✅ Hardcoded `white`/`black` CSS literals eliminated across 11 files (PR #5255)
+- ✅ All 19 backend email integration tests pass
+- ✅ TypeScript: 0 errors
 
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
