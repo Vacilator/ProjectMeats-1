@@ -75,6 +75,8 @@ export interface InteractionCardDefinition {
 import { DocumentUploadCard } from './cards/DocumentUploadCard';
 import { ApprovalDecisionCard } from './cards/ApprovalDecisionCard';
 import { AIVerificationCard } from './cards/AIVerificationCard';
+import { PaymentCard } from './cards/PaymentCard';
+import { ValidationCard } from './cards/ValidationCard';
 
 // ============================================================================
 // Interaction Card Registry
@@ -129,12 +131,12 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     skippable: false,
   },
   
-  // Payment Processing Card (placeholder for future)
+  // Payment Processing Card
   payment_processing: {
     nodeType: 'pendingPayment',
     title: 'Payment Required',
     icon: DollarSign,
-    renderer: DocumentUploadCard, // TODO: Create PaymentCard component
+    renderer: PaymentCard,
     requiredFields: ['transaction_id', 'payment_status'],
     completionCondition: (data) => data.payment_status === 'completed',
     autoAdvance: true,
@@ -142,12 +144,12 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     skippable: false,
   },
   
-  // Data Validation Card (placeholder for future)
+  // Data Validation Card
   data_validation: {
     nodeType: 'pendingResponse',
     title: 'Data Validation Required',
     icon: AlertCircle,
-    renderer: DocumentUploadCard, // TODO: Create ValidationCard component
+    renderer: ValidationCard,
     requiredFields: ['validation_status'],
     completionCondition: (data) => data.validation_status === 'approved',
     autoAdvance: false,
