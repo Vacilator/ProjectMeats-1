@@ -5,7 +5,7 @@ This directory contains the **single source of truth** for system configuration 
 ## Files
 
 ### `env.manifest.json`
-Complete environment variable registry with GitHub secret mappings (Version 5.1)
+Complete environment variable registry with GitHub secret mappings (Version 5.2)
 
 ### `GOLDEN_FILES.md` (This File)
 Index of all authoritative sources for AI agents and developers
@@ -57,6 +57,12 @@ Golden template for workflow suggestion engine with meat industry context
 | **AI Prompts** | `/manifests/ai_standards/` | Templates |
 | **Keyboard Shortcuts** | `docs/SHORTCUTS.md` | AUTHORITATIVE |
 | **Auto Pipeline (Email→Fulfillment)** | `backend/apps/integrations/auto_pipeline.py` | AUTHORITATIVE |
+| **Pre-commit Hooks** | `.pre-commit-config.yaml` | ENFORCEMENT (CI) |
+| **Sync Marker** | `.sync-marker` | AUTHORITATIVE |
+| **Workflow Templates** | `.github/workflows/*.yml` | ENFORCEMENT (CI) |
+| **Golden State Verifier** | `scripts/verify_golden_state.sh` | ENFORCEMENT (nightly) |
+| **Golden Audit Script** | `scripts/golden-audit.sh` | TOOLING |
+| **Phase 5 API Verifier** | `scripts/verify-phase5-api.sh` | TOOLING (manual) |
 
 ## Environment Structure (6-Lane System)
 
