@@ -246,15 +246,15 @@ export const FormReferenceNode = React.memo<NodeProps<Node<FormReferenceNodeData
       </FormInfo>
       
       <ActionButtons>
-        <ActionButton onClick={handlePreviewForm} title="Preview form" role="button">
+        <ActionButton onClick={handlePreviewForm} title="Preview form" role="button" aria-label="Preview form">
           <Eye size={14} />
           Preview
         </ActionButton>
-        <ActionButton onClick={handleEditForm} title="Edit form in builder" role="button">
+        <ActionButton onClick={handleEditForm} title="Edit form in builder" role="button" aria-label="Edit form in builder">
           <Edit size={14} />
           Edit
         </ActionButton>
-        <ActionButton onClick={handleChangeForm} title="Select different form" role="button">
+        <ActionButton onClick={handleChangeForm} title="Select different form" role="button" aria-label="Select different form">
           <ExternalLink size={14} />
           Change
         </ActionButton>
