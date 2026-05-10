@@ -255,6 +255,18 @@ def classify_ingested_email(
             category = "Contact Update"
             rationale = f"[Auto-reclassified from Spam/Other] {rationale}"
 
+    # Smart reclassification: "Contact Update" without a usable person name
+    # but WITH company info should be "Company Update" instead
+    if category == "Contact Update" and not contact_name and contact_company:
+        category = "Company Update"
+        rationale = f"[Reclassified: no person name, company info present] {rationale}"
+
+    # Smart reclassification: "Company Update" with a person name but no
+    # company info should be "Contact Update" instead
+    if category == "Company Update" and contact_name and not contact_company:
+        category = "Contact Update"
+        rationale = f"[Reclassified: person name present, no company info] {rationale}"
+
     actionable = category in ACTIONABLE_EMAIL_CATEGORIES
     requested_protein = str(parsed.get("requested_protein") or "").strip()
     if requested_protein not in SUPPORTED_PROTEIN_VALUES:
@@ -278,6 +290,7 @@ def classify_ingested_email(
         "bol_number": str(parsed.get("bol_number") or "").strip(),
         "total_amount": total_amount,
         "attachment_document_types": parsed.get("attachment_document_types") or [],
+        "field_confidence": parsed.get("field_confidence") or {},
     }
 
 
