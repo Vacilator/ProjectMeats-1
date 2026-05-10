@@ -142,6 +142,17 @@ const EmptyText = styled.div`
   font-size: 13px;
 `;
 
+const LoadingSpinner = styled.div`
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgb(var(--color-border));
+  border-top-color: rgb(var(--color-primary));
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-bottom: 8px;
+  @keyframes spin { to { transform: rotate(360deg); } }
+`;
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -206,7 +217,8 @@ export const ActionItemsWidget: React.FC<ActionItemsWidgetProps> = ({
         icon={<CheckSquare size={16} />}
       >
         <EmptyState>
-          <EmptyText>Loading...</EmptyText>
+          <LoadingSpinner />
+          <EmptyText>Loading action items…</EmptyText>
         </EmptyState>
       </WidgetCard>
     );

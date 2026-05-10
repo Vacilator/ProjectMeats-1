@@ -53,6 +53,16 @@ const Profile: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      setMessage({ type: 'error', text: 'First name and last name are required.' });
+      return;
+    }
+    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setMessage({ type: 'error', text: 'A valid email address is required.' });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 

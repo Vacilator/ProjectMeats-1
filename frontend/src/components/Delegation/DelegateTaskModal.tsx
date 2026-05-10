@@ -520,7 +520,7 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
                     >
                       <UserAvatar $hasImage={!!user.avatar}>
                         {user.avatar ? (
-                          <img src={user.avatar} alt={user.name} />
+                          <img src={user.avatar} alt={user.name} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         ) : (
                           getInitials(user.name)
                         )}
