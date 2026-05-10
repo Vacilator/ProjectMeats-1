@@ -680,13 +680,15 @@ const ProcessCockpitPage: React.FC = () => {
 
   const handleTabChange = useCallback(
     (tab: CockpitTab) => {
-      const next = new URLSearchParams(searchParams);
-      next.set('view', tab);
-      next.delete('tab');
-      setSearchParams(next);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('view', tab);
+        next.delete('tab');
+        return next;
+      });
       setSelectedItem(null);
     },
-    [searchParams, setSearchParams],
+    [setSearchParams],
   );
 
   const handleItemClick = useCallback((item: UnifiedItem) => {

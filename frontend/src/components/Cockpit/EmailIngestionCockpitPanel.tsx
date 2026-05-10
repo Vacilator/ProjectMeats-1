@@ -18,7 +18,7 @@ import {
   MailOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { AIDraftReviewContent } from '@/components/AIAssistant/AIDraftReviewModal';
@@ -131,6 +131,8 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
     }
   }, [highlightedDraftId]);
 
+  const queryClient = useQueryClient();
+
   const emailsQuery = useQuery({
     queryKey: withTenantQueryKey('process-cockpit-email-logs'),
     queryFn: fetchEmailLogs,
@@ -144,9 +146,9 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
   });
 
   const refetchAll = useCallback(() => {
-    void emailsQuery.refetch();
-    void pendingReviewsQuery.refetch();
-  }, [emailsQuery, pendingReviewsQuery]);
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('process-cockpit-email-logs') });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('process-cockpit-pending-reviews') });
+  }, [queryClient]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {

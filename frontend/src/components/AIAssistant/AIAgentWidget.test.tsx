@@ -102,9 +102,12 @@ describe('AIAgentWidget', () => {
     toastMock.error.mockReset();
     toastMock.success.mockReset();
     toastMock.warning.mockReset();
-    jwtServiceMock.getAccessToken.mockClear();
-    jwtServiceMock.getTenantFromToken.mockClear();
-    jwtServiceMock.refreshAccessToken.mockClear();
+    jwtServiceMock.getAccessToken.mockReset();
+    jwtServiceMock.getAccessToken.mockReturnValue('access-token');
+    jwtServiceMock.getTenantFromToken.mockReset();
+    jwtServiceMock.getTenantFromToken.mockReturnValue({ defaultTenantId: 'tenant-123' });
+    jwtServiceMock.refreshAccessToken.mockReset();
+    jwtServiceMock.refreshAccessToken.mockResolvedValue('refreshed-access-token');
     vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
     vi.stubGlobal('scrollTo', vi.fn());
     // Mock fetch for the WS pre-flight health check
@@ -130,7 +133,7 @@ describe('AIAgentWidget', () => {
     expect(websocketInstances[0].url).toContain('/ws/ai/inbox/');
     expect(websocketInstances[0].url).toContain('tenant_id=tenant-123');
     expect(websocketInstances[0].url).toContain('access_token=access-token');
-    expect(websocketInstances[0].protocols).toEqual(['pm.ai.inbox', 'access_token', 'access-token']);
+    expect(websocketInstances[0].protocols).toBeUndefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'AI chat widget' }));
 
@@ -172,11 +175,7 @@ describe('AIAgentWidget', () => {
     });
 
     expect(websocketInstances[0].url).toContain('access_token=refreshed-access-token');
-    expect(websocketInstances[0].protocols).toEqual([
-      'pm.ai.inbox',
-      'access_token',
-      'refreshed-access-token',
-    ]);
+    expect(websocketInstances[0].protocols).toBeUndefined();
   });
 
   it('falls back to the stored tenant id and shows a contextual inbox update message', async () => {
@@ -215,5 +214,43 @@ describe('AIAgentWidget', () => {
         'Bill Of Lading from dispatch@example.com: Potential BOL received'
       );
     });
+  });
+
+  it('does not bypass reconnect backoff on visibility changes', async () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    try {
+      render(
+        <MemoryRouter>
+          <AIAgentWidget />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(websocketInstances).toHaveLength(1);
+      });
+
+      act(() => {
+        websocketInstances[0].onclose?.({ code: 1006 } as CloseEvent);
+      });
+
+      expect(websocketInstances).toHaveLength(1);
+
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      expect(websocketInstances).toHaveLength(1);
+
+      await waitFor(() => {
+        expect(websocketInstances).toHaveLength(2);
+      }, { timeout: 2500 });
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 });

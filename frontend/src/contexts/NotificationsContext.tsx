@@ -377,18 +377,22 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
     const interval = setInterval(async () => {
       try {
         const count = await fetchUnreadCountAPI();
-        if (count !== unreadCount) {
-          // New notifications, fetch full list
-          await fetchNotifications();
-        }
+        // Use functional updater to compare against current value
+        // without requiring unreadCount in the dependency array
+        setUnreadCount((prev) => {
+          if (count !== prev) {
+            // New notifications — trigger full list refresh outside setState
+            void fetchNotifications();
+          }
+          return count;
+        });
       } catch (err) {
         // Silently fail polling - it's not critical
-        // logger.warn('[NotificationsContext] Polling failed');
       }
     }, pollingInterval);
     
     return () => clearInterval(interval);
-  }, [pollingActive, isAuthenticated, pollingInterval, unreadCount, fetchNotifications]);
+  }, [pollingActive, isAuthenticated, pollingInterval, fetchNotifications]);
   
   const value: NotificationsContextType = {
     notifications,
