@@ -410,7 +410,7 @@ export const WorkflowStatusTimeline: React.FC<WorkflowStatusTimelineProps> = ({
                   <MetaItem>
                     <AssigneeAvatar $hasImage={!!step.assignee.avatar}>
                       {step.assignee.avatar ? (
-                        <img src={step.assignee.avatar} alt={step.assignee.name} />
+                        <img src={step.assignee.avatar} alt={step.assignee.name} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       ) : (
                         getInitials(step.assignee.name)
                       )}

@@ -96,7 +96,9 @@ export const IntegrationsSection: React.FC = () => {
     return (
       <Section>
         <SectionTitle>Email Integrations</SectionTitle>
-        <p>Loading...</p>
+        <LoadingContainer>
+          <LoadingDot /><LoadingDot style={{ animationDelay: '0.2s' }} /><LoadingDot style={{ animationDelay: '0.4s' }} />
+        </LoadingContainer>
       </Section>
     );
   }
@@ -223,6 +225,25 @@ const ConnectionsList = styled.div`
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 12px;
+  }
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  gap: 6px;
+  padding: 24px;
+  justify-content: center;
+`;
+
+const LoadingDot = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--color-primary));
+  animation: bounce 1s ease-in-out infinite;
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.4); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
   }
 `;
 

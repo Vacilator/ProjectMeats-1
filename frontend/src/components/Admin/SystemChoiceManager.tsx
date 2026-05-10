@@ -424,7 +424,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
           </PanelHeader>
           <ListsGrid>
             {isLoading ? (
-              <LoadingState>Loading...</LoadingState>
+              <LoadingState>Loading choice lists…</LoadingState>
             ) : filteredLists.length === 0 ? (
               <EmptyState>No choice lists found</EmptyState>
             ) : (

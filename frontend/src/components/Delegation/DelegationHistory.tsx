@@ -301,7 +301,7 @@ export const DelegationHistory: React.FC<DelegationHistoryProps> = ({
                 <UserBadge>
                   <Avatar $hasImage={!!delegation.fromUser.avatar}>
                     {delegation.fromUser.avatar ? (
-                      <img src={delegation.fromUser.avatar} alt={delegation.fromUser.name} />
+                      <img src={delegation.fromUser.avatar} alt={delegation.fromUser.name} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       getInitials(delegation.fromUser.name)
                     )}
@@ -312,7 +312,7 @@ export const DelegationHistory: React.FC<DelegationHistoryProps> = ({
                 <UserBadge>
                   <Avatar $hasImage={!!delegation.toUser.avatar}>
                     {delegation.toUser.avatar ? (
-                      <img src={delegation.toUser.avatar} alt={delegation.toUser.name} />
+                      <img src={delegation.toUser.avatar} alt={delegation.toUser.name} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       getInitials(delegation.toUser.name)
                     )}
