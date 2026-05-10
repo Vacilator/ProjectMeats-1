@@ -76,6 +76,13 @@ export const Monitoring: React.FC = () => {
 
             {analyticsQuery.isLoading ? (
               <LoadingText>Loading analytics…</LoadingText>
+            ) : analyticsQuery.isError ? (
+              <ErrorBox>
+                <p>Failed to load analytics.</p>
+                <Button variant="secondary" onClick={() => void analyticsQuery.refetch()}>
+                  Retry
+                </Button>
+              </ErrorBox>
             ) : (
               <AnalyticsContent>
                 <MetricGrid>
@@ -214,6 +221,17 @@ const SectionSubtitle = styled.div`
 
 const LoadingText = styled.div`
   margin-top: 12px;
+`;
+
+const ErrorBox = styled.div`
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(var(--color-error), 0.06);
+  color: rgb(var(--color-error));
+  display: flex;
+  align-items: center;
+  gap: 12px;
 `;
 
 const AnalyticsContent = styled.div`
