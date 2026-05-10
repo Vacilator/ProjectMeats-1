@@ -12,10 +12,13 @@ Part of Wave 2: Cockpit Command Center implementation.
 """
 import re
 import logging
+from datetime import timedelta
+from difflib import SequenceMatcher
 from typing import List, Dict, Any, Optional, Tuple
 from django.db.models import Q
 from django.core.cache import cache
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 from apps.core.caching import CacheService
 from apps.tenants.models import Tenant
@@ -262,7 +265,7 @@ class UniversalSearchService:
         return query, None
     
     def _build_query_filter(self, search_text: str, search_fields: List[str]) -> Q:
-        """Build Q filter for search across multiple fields."""
+        """Build Q filter for search across multiple fields with fuzzy tolerance."""
         if not search_text:
             return Q()
         
@@ -276,6 +279,105 @@ class UniversalSearchService:
             combined &= term_filter
         
         return combined
+
+    def _build_fuzzy_query_filter(
+        self, search_text: str, search_fields: List[str]
+    ) -> Q:
+        """Build an expanded Q filter that tolerates common single-char typos.
+
+        For short search terms (≤ 8 chars) we generate single-char-deleted
+        variants so that ``icontains`` can match despite a typo.  For longer
+        terms we fall back to the standard exact ``icontains`` match only –
+        the substring overlap is usually enough.
+        """
+        if not search_text:
+            return Q()
+
+        terms = search_text.split()
+        combined = Q()
+
+        for term in terms:
+            term_filter = Q()
+            variants = {term.lower()}
+
+            # Generate single-char-deletion variants for short terms
+            if 3 <= len(term) <= 8:
+                for i in range(len(term)):
+                    variant = term[:i] + term[i + 1:]
+                    if len(variant) >= 2:
+                        variants.add(variant.lower())
+
+            for variant in variants:
+                for field in search_fields:
+                    term_filter |= Q(**{f'{field}__icontains': variant})
+            combined &= term_filter
+
+        return combined
+
+    def _compute_relevance_score(
+        self,
+        obj: Any,
+        search_text: str,
+        config: Dict[str, Any],
+    ) -> float:
+        """Compute a relevance score (0–1) for a search result.
+
+        Factors (weighted):
+          * Exact / prefix match on display field  – 0.50
+          * Substring / word-boundary match        – 0.25
+          * Fuzzy string similarity                – 0.10
+          * Recency boost                          – 0.15
+        """
+        if not search_text:
+            return 0.5
+
+        query_lower = search_text.lower().strip()
+        display_value = self._get_display_value(obj, config).lower()
+
+        # --- Text relevance (0.85 total) ---
+        text_score = 0.0
+
+        # Exact match
+        if display_value == query_lower:
+            text_score = 0.85
+        # Prefix match (display starts with query)
+        elif display_value.startswith(query_lower):
+            text_score = 0.70
+        # Word-boundary match (query appears at the start of a word)
+        elif re.search(rf'\b{re.escape(query_lower)}', display_value):
+            text_score = 0.55
+        # Substring match
+        elif query_lower in display_value:
+            text_score = 0.40
+        else:
+            # Check all searchable fields for substring
+            for field_name in config.get('search_fields', []):
+                field_val = str(getattr(obj, field_name, '') or '').lower()
+                if query_lower in field_val:
+                    text_score = max(text_score, 0.30)
+                elif re.search(rf'\b{re.escape(query_lower)}', field_val):
+                    text_score = max(text_score, 0.35)
+
+            # Fuzzy similarity on display field
+            if text_score < 0.30:
+                ratio = SequenceMatcher(None, query_lower, display_value).ratio()
+                text_score = max(text_score, ratio * 0.40)
+
+        # --- Recency boost (0.15 max) ---
+        recency_score = 0.0
+        created = getattr(obj, 'created_at', None) or getattr(obj, 'created_on', None)
+        if created:
+            try:
+                now = timezone.now()
+                if timezone.is_naive(created):
+                    created = timezone.make_aware(created)
+                age_days = max((now - created).total_seconds() / 86400, 0)
+                # Exponential decay: full boost within 7 days, halves every 30 days
+                recency_score = 0.15 * (0.5 ** (age_days / 30))
+            except Exception:
+                pass
+
+        return round(min(text_score + recency_score, 1.0), 4)
     
     def _search_entity(
         self,
@@ -283,7 +385,7 @@ class UniversalSearchService:
         search_text: str,
         limit: int = 10,
     ) -> Dict[str, Any]:
-        """Search a single entity type."""
+        """Search a single entity type with relevance scoring and fuzzy matching."""
         config = SEARCHABLE_ENTITIES.get(entity_type)
         if not config:
             return {'items': [], 'total_count': 0}
@@ -293,9 +395,6 @@ class UniversalSearchService:
             return {'items': [], 'total_count': 0}
         
         try:
-            # Build query
-            query_filter = self._build_query_filter(search_text, config['search_fields'])
-            
             # Execute with tenant filter when applicable.
             base_qs = Model.objects.all()
             if hasattr(Model, 'tenant'):
@@ -309,7 +408,15 @@ class UniversalSearchService:
                 base_qs = visible_products_qs(tenant=self.tenant, qs=base_qs)
 
             if search_text:
+                # Primary: exact icontains match
+                query_filter = self._build_query_filter(search_text, config['search_fields'])
                 queryset = base_qs.filter(query_filter)
+
+                # If too few results, expand with fuzzy matching
+                exact_count = queryset.count()
+                if exact_count < limit:
+                    fuzzy_filter = self._build_fuzzy_query_filter(search_text, config['search_fields'])
+                    queryset = base_qs.filter(fuzzy_filter).distinct()
             else:
                 # If the user is effectively filtering by entity type (e.g. query="purchase"),
                 # show the most recent records for that type.
@@ -323,13 +430,16 @@ class UniversalSearchService:
                 queryset = base_qs.order_by(ordering)
 
             total_count = queryset.count()
-            queryset = queryset[:limit]
+            # Fetch more for scoring then truncate
+            fetch_limit = min(limit * 3, 100)
+            queryset = queryset[:fetch_limit]
             
-            # Format results
+            # Format results with relevance scoring
             results = []
             for obj in queryset:
                 display_value = self._get_display_value(obj, config)
                 subtitle = self._get_subtitle(obj, config)
+                score = self._compute_relevance_score(obj, search_text, config) if search_text else 0.5
                 
                 results.append({
                     'id': obj.id,
@@ -339,8 +449,12 @@ class UniversalSearchService:
                     'icon': config['icon'],
                     'color': config['color'],
                     'route': config['route'].format(id=obj.id),
-                    'score': 1.0,  # Basic relevance (can be enhanced)
+                    'score': score,
                 })
+
+            # Sort by score descending, then truncate to limit
+            results.sort(key=lambda x: x['score'], reverse=True)
+            results = results[:limit]
             
             return {
                 'items': results,

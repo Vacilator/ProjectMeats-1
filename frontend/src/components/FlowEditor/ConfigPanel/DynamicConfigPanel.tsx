@@ -1285,7 +1285,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         );
     }
 
-    // Agent C Phase 2: Wrap in transition container for smooth show/hide
+    // Lazy-mount: skip rendering heavy field content when hidden to avoid
+    // mounting ConditionBuilder, EntityFieldPicker, etc. for invisible fields.
     return (
       <FieldTransitionWrapper
         key={field.id}
@@ -1296,7 +1297,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           opacity: isVisible ? 1 : 0
         }}
       >
-        {renderedField}
+        {isVisible && renderedField}
       </FieldTransitionWrapper>
     );
   };
