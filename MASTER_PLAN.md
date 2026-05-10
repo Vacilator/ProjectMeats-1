@@ -42,13 +42,15 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 - AI-suggested next-action floating chips.
 - Run full Playwright E2E after changes.
 
-### Phase 21: Full End-to-End Automation (Email → Fulfillment)
-- Extend AI inbox + email ingestion to 95%+ zero-touch.
-- New Celery tasks: auto-PO → supplier confirm → inventory → SO → fulfillment → invoice.
-- Confidence scoring dashboard.
-- Human fallback only on <98% confidence.
-- Additive-only migrations per MIGRATION_STANDARDS.md.
-- End-to-end tests with sample emails in dev.
+### Phase 21: Full End-to-End Automation (Email → Fulfillment) ✅ SHIPPED (PR #5236)
+- ✅ Auto-approve high-confidence PO drafts (≥98%) — `status='reviewed'` with audit lineage
+- ✅ 4-step Celery chain: PO → SO → Fulfillment → Invoice (`generate_invoice_from_so` task)
+- ✅ Invoice generation with proper FK resolution (customer via SO or Inquiry fallback)
+- ✅ Idempotent pipeline (checks existing records before creating)
+- ✅ Human fallback only on <98% confidence (low-confidence → `pending_review`)
+- ✅ 11 pipeline tests (6 existing + 5 new invoice generation tests)
+- Confidence scoring dashboard — deferred to Phase 22+
+- End-to-end tests with sample emails in dev — deferred to Phase 22+
 
 ### Phase 22: Repo + CI/CD + Golden Pipeline Perfection
 - Full audit against GOLDEN_FILES.md and env.manifest.json.
