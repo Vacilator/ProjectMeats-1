@@ -1620,8 +1620,11 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             )
             return Response(options, status=status.HTTP_200_OK)
         except Exception:
-            logger.exception("Cascaded options lookup failed")
-            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Cascaded options lookup failed for field=%s parent_value=%s", field.field_key, parent_value)
+            return Response(
+                {"error": "Failed to load cascaded options", "detail": f"Error resolving options for field '{field.field_key}'"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class TenantFormRuleViewSet(viewsets.ModelViewSet):
