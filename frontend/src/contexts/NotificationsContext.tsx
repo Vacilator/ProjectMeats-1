@@ -7,7 +7,7 @@
  * - Mark as read/dismiss functionality
  * - Polling for new notifications
  */
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { notificationsService } from '../services/notificationsService';
 import { logger } from '../utils/logger';
@@ -256,6 +256,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
   const [actionItemCounts, setActionItemCounts] = useState<ActionItemCounts | null>(null);
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [pollingActive, setPollingActive] = useState(false);
+  const unreadCountRef = useRef(0);
   
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -271,6 +272,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       ]);
       setNotifications(notifs);
       setUnreadCount(count);
+      unreadCountRef.current = count;
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to fetch notifications'));
     } finally {
@@ -349,6 +351,10 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
   // Polling control
   const startPolling = useCallback(() => setPollingActive(true), []);
   const stopPolling = useCallback(() => setPollingActive(false), []);
+
+  useEffect(() => {
+    unreadCountRef.current = unreadCount;
+  }, [unreadCount]);
   
   // Initial fetch when authenticated
   useEffect(() => {
@@ -377,15 +383,12 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
     const interval = setInterval(async () => {
       try {
         const count = await fetchUnreadCountAPI();
-        // Use functional updater to compare against current value
-        // without requiring unreadCount in the dependency array
-        setUnreadCount((prev) => {
-          if (count !== prev) {
-            // New notifications — trigger full list refresh outside setState
-            void fetchNotifications();
-          }
-          return count;
-        });
+        const previousCount = unreadCountRef.current;
+        if (count !== previousCount) {
+          unreadCountRef.current = count;
+          setUnreadCount(count);
+          void fetchNotifications();
+        }
       } catch (err) {
         // Silently fail polling - it's not critical
       }

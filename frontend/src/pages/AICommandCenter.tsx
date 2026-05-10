@@ -637,7 +637,7 @@ const AICommandCenter: React.FC = () => {
   const handleItemClick = useCallback((item: UnifiedItem) => {
     if (item.source === 'ai-inbox' && item.raw) {
       const reviewItem = item.raw as PendingReviewItem;
-      setDraftReviewItem(reviewItem);
+      setDraftReviewItem((current) => (current?.id === reviewItem.id ? current : reviewItem));
       // Mark deep-link as handled so the effect doesn't double-fire
       deepLinkHandled.current = true;
       // Update URL for deep-linkable state
@@ -679,16 +679,22 @@ const AICommandCenter: React.FC = () => {
 
   // Deep link: ?item=xxx auto-opens that AI review item
   const deepLinkHandled = useRef(false);
+  const deepLinkedItemId = searchParams.get('item');
   useEffect(() => {
-    const itemId = searchParams.get('item');
-    if (!itemId || deepLinkHandled.current) return;
+    if (!deepLinkedItemId) {
+      deepLinkHandled.current = false;
+      return;
+    }
+
+    if (deepLinkHandled.current && draftReviewItem?.id === deepLinkedItemId) return;
+
     const reviews = reviewsQuery.data ?? [];
-    const match = reviews.find((r: PendingReviewItem) => r.id === itemId);
+    const match = reviews.find((r: PendingReviewItem) => r.id === deepLinkedItemId);
     if (match) {
       deepLinkHandled.current = true;
-      setDraftReviewItem(match);
+      setDraftReviewItem((current) => (current?.id === match.id ? current : match));
     }
-  }, [searchParams, reviewsQuery.data]);
+  }, [deepLinkedItemId, draftReviewItem?.id, reviewsQuery.data]);
 
   const handleNavigateToEntity = useCallback(() => {
     if (!selectedItem) return;

@@ -56,6 +56,10 @@ export const ExecuteWorkForm: React.FC = () => {
   const queryClient = useQueryClient();
   const startedExecutionRef = useRef<string | null>(null);
   const [executionError, setExecutionError] = useState<unknown>(null);
+  const startExecutionKey = useMemo(
+    () => (id ? `${id}:${location.key}` : null),
+    [id, location.key],
+  );
 
   const allowLegacyFallback = useMemo(() => {
     const sp = new URLSearchParams(location.search || '');
@@ -138,13 +142,13 @@ export const ExecuteWorkForm: React.FC = () => {
   }, [id, mutation]);
 
   useEffect(() => {
-    if (!id || startedExecutionRef.current === id) {
+    if (!id || !startExecutionKey || startedExecutionRef.current === startExecutionKey) {
       return;
     }
 
-    startedExecutionRef.current = id;
+    startedExecutionRef.current = startExecutionKey;
     void startExecution();
-  }, [id, startExecution]);
+  }, [id, startExecution, startExecutionKey]);
 
   const executionErrorUi = executionError ? getWorkformsErrorUi(executionError, 'execute.start') : null;
   const isCircuitBreakerError = executionError ? isCircuitBreakerExecutionError(executionError) : false;

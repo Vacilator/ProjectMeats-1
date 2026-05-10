@@ -437,7 +437,7 @@ const ProcessCockpitPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [draftReviewItem, setDraftReviewItem] = useState<PendingReviewItem | null>(null);
 
-  const { actionItems, fetchActionItems } = useNotifications();
+  const { actionItems } = useNotifications();
 
   // ---------- Data Fetching ----------
 
@@ -709,8 +709,7 @@ const ProcessCockpitPage: React.FC = () => {
     setDraftReviewItem(null);
     queryClient.invalidateQueries({ queryKey: withTenantQueryKey('cockpit-ai-reviews') });
     queryClient.invalidateQueries({ queryKey: withTenantQueryKey('cockpit-drafts') });
-    fetchActionItems();
-  }, [queryClient, fetchActionItems]);
+  }, [queryClient]);
 
   const handleNavigateToEntity = useCallback(() => {
     if (!selectedItem) return;

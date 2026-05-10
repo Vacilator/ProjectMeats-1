@@ -108,9 +108,11 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
   const queryClient = useQueryClient();
   const [feedbackTarget, setFeedbackTarget] = useState<string | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
+  const proposalsQueryKey = useMemo(() => withTenantQueryKey('ai-trade-proposals'), []);
+  const activeTradesQueryKey = useMemo(() => withTenantQueryKey('trader-cockpit-active-trades'), []);
 
   const proposalsQuery = useQuery({
-    queryKey: withTenantQueryKey('ai-trade-proposals'),
+    queryKey: proposalsQueryKey,
     queryFn: () => traderService.getProposals(),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
@@ -125,8 +127,8 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
     mutationFn: (proposalId: string) => traderService.executeProposal(proposalId),
     onSuccess: (result) => {
       message.success(`Trade ${result.trade_id} launched from AI proposal!`);
-      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('ai-trade-proposals') });
-      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trader-cockpit-active-trades') });
+      void queryClient.refetchQueries({ queryKey: proposalsQueryKey, exact: true, type: 'active' });
+      void queryClient.invalidateQueries({ queryKey: activeTradesQueryKey });
       onProposalExecuted?.(result.trade_session_id);
     },
     onError: () => {
@@ -139,7 +141,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
       traderService.submitProposalFeedback(params.id, params.signal, params.comment),
     onSuccess: () => {
       message.success('Feedback recorded — improving future proposals');
-      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('ai-trade-proposals') });
+      void queryClient.refetchQueries({ queryKey: proposalsQueryKey, exact: true, type: 'active' });
       setFeedbackTarget(null);
       setFeedbackComment('');
     },
@@ -164,7 +166,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
       signal: 'thumbs_down',
       comment: feedbackComment,
     });
-  }, [feedbackTarget, feedbackComment, feedbackMutation]);
+  }, [feedbackComment, feedbackMutation, feedbackTarget]);
 
 
 
