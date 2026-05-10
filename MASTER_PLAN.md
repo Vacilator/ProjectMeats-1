@@ -137,6 +137,14 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 - **Broken doc link fixes: SHIPPED.** Fixed 10 broken markdown links in `docs/WHATS_NEW.md` and `docs/USER_GUIDE_MULTI_STEP_CONTAINERS.md` referencing deleted `implementation-history/` and `plans/` files (PR #5143). Comprehensive sweep fixed 23 additional broken relative links across 11 files — incorrect `../` depth, references to deleted plans/guides, and non-existent implementation history (PR #5145).
 - **React Flow v11→v12 migration: SHIPPED.** Migrated 5 remaining files from legacy `reactflow` (v11) to `@xyflow/react` (v12). Removed `reactflow` package (26 transitive packages removed). Updated test mocks. Zero TS errors, all 1452 tests pass (PR #5147).
 - **Backend unused imports cleanup: SHIPPED.** Removed 47 unused imports (F401) across 28 backend test files. Zero flake8 F401 violations remaining (PR #5148).
+- **Deployment fix — react-is: SHIPPED.** Restored `react-is@^19.2.5` accidentally removed in PR #5208, unblocking `recharts` builds (PR #5214).
+- **Email ingestion intelligence v2: SHIPPED.** AI classifier now receives sender_name, distinguishes Company Update vs Contact Update, smart contact-name resolution (sender display name → AI-extracted → email local part), company-only emails draft companies not contacts. 7 files (PR #5215).
+- **React #185 eradication — EntityFormSurface: SHIPPED.** Added `useStableCallback` ref-based helper, extracted 6 inline arrow functions into `useCallback`-wrapped handlers in UniversalEntityRecordPage. Eliminates render loops on all entity form buttons (New Plant, Edit, etc.) and restores AI Chat Widget. 2 files (PR #5216).
+- **Theme-token compliance — QuickActionsEditor: SHIPPED.** Replaced 4 hardcoded `rgba()` with CSS custom properties (PR #5217).
+- **Security: is_staff product catalog bypass removed: SHIPPED.** Tenant admins promoted to `is_staff=True` could bypass `visible_products_qs()` and see the global product catalog. Changed to `is_superuser` only. Regression test added (PR #5218).
+- **Security: OAuth callback RLS context: SHIPPED.** Set `set_current_tenant()` / `reset_current_tenant()` before tenant-scoped ORM writes in OAuth callback. Prevents stale RLS context on pooled connections (PR #5219).
+- **Email test regression fix: SHIPPED.** Updated `test_new_email_creates_action_required_feedback_log` mock pattern to match Celery async classification (PR #5220).
+- **Last hardcoded color eliminated: SHIPPED.** Replaced `#fff` in Contacts.tsx. `npm run lint:colors` now reports zero violations (PR #5221).
 - **AI Widget WebSocket resilience shipped.** Dev-only structured logging, token refresh hardening, close-code diagnostics (PR #5040).
 - **Email sync on login shipped.** Django `user_logged_in` signal fires tenant-scoped Celery sync + frontend status indicator (PR #5041).
 - **Render loop fix shipped.** Stabilized `DynamicFormEngine` dependency tracking with deep-equality ref guard + signature-based visibility effect guard (PR #5038). Comprehensive 11-file sweep eliminates the entire React #185 bug class: engine-level ref-pattern guards in DynamicFormEngine + UniversalEntityForm, page-level useCallback extraction for Suppliers/Customers/Contacts/Carriers/FreightOrders/Inquiries, component-level for UnifiedEntityTable/CustomerDetailView/ScheduleCallModal (PR #5049).
@@ -221,11 +229,11 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
   - Docs: incident response runbook (triage + rollback + tenant isolation/RLS guidance)
 
 - **Security / tenant isolation** (RLS correctness):
-  - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes).
-  - Make invitation email Celery task tenant/RLS safe (pass `tenant_id`; wrap task ORM in `tenant_rls` before querying invitation).
-  - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness).
-  - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL).
-  - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows.
+  - **P0 data isolation**: remove `is_staff` global bypasses in `apps/system/views/choice_viewsets.py` (tenant admins are promoted to `is_staff=True` via signals; must not yield cross-tenant reads/writes). ✅ shipped — `choice_viewsets.py` already used `is_superuser`; actual `is_staff` bypass found and fixed in `product_viewset.py` (PR #5218).
+  - Make invitation email Celery task tenant/RLS safe (pass `tenant_id`; wrap task ORM in `tenant_rls` before querying invitation). ✅ already shipped (tenant_rls context manager wraps invite lookup).
+  - Workflow webhook receiver must set `request.tenant` + `set_current_tenant()` **before** ORM lookup (FORCE RLS correctness). ✅ already shipped (views_triggers.py `_set_tenant_context()` sets both).
+  - Legacy workflow webhook endpoint must fail closed unless tenant context is resolvable (migrate callers to tenant-path URL). ✅ already shipped (returns 404 when tenant unresolvable).
+  - Integrations OAuth callback must set tenant + RLS session vars before writing tenant-scoped rows. ✅ shipped (PR #5219).
   - WorkForms create must not bypass activation validation when `status=active`. ✅ shipped (runtime validation guardrails in PR #4483; verified by `apps.system.tests.test_workform_runtime_support_validation`).
 - **WorkForms runtime/observability**: editor validation/history/autosave, node action routing, local shadow-state staging, execution telemetry, persisted runtime hydration, and the first operator-facing analytics dashboard are now hardened. This batch adds a dry-run-first schema upgrade command that canonicalizes legacy node aliases, stamps workflow schema version metadata, refreshes `form_references` safely, and closes the fresh-database RLS audit gap on `core_comment` before any deeper model cleanup. Next: deterministic schema init / form "fields" model cleanup and any remaining a11y + theme-token hardening.
 - **CI guardrails (never-miss-again)**:
