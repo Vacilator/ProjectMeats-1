@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
+import { toast } from 'react-hot-toast';
 
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { formatCurrency } from '../shared/utils';
@@ -342,6 +343,24 @@ const AccountsReceivables: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.invoice_number.trim()) {
+      toast.error('Invoice number is required.');
+      return;
+    }
+    if (!formData.customer) {
+      toast.error('Please select a customer.');
+      return;
+    }
+    if (!formData.total || isNaN(parseFloat(formData.total)) || parseFloat(formData.total) <= 0) {
+      toast.error('Please enter a valid total amount.');
+      return;
+    }
+    if (!formData.due_date) {
+      toast.error('Due date is required.');
+      return;
+    }
+
     try {
       const receivableData = {
         ...formData,

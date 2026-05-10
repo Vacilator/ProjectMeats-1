@@ -599,19 +599,25 @@ const deriveAIInboxSocketProtocols = (accessToken: string): string[] => {
 };
 
 /**
- * Pre-flight check: verify the backend API is reachable before attempting
- * a WebSocket connection.  Returns true when the API health endpoint
- * responds (any HTTP status), false only on network failure.
+ * Pre-flight check: verify the WebSocket path is routed before attempting
+ * a WebSocket connection.  Probes the actual WS path with a plain HTTP
+ * request.  If the path is routed (ASGI/Channels), the server will respond
+ * with 200/400/403/426; if the path is not proxied the reverse proxy will
+ * return 404/502/504.  Only returns false on network failure or a clear
+ * "not found" (404) response — this prevents the browser from logging
+ * uncatchable native WebSocket errors for endpoints that don't exist.
  */
 const checkWSEndpointReachable = async (): Promise<boolean> => {
   try {
     // eslint-disable-next-line no-restricted-globals -- raw fetch intentional: lightweight pre-flight probe must bypass auth interceptors
-    await fetch('/api/v1/health/', {
+    const response = await fetch(AI_INBOX_SOCKET_PATH, {
       method: 'GET',
       cache: 'no-store',
       signal: AbortSignal.timeout(5000),
     });
-    // Any HTTP response (even 4xx/5xx) means the server is reachable
+    // 404 means the path isn't routed at all — WS will definitely fail
+    if (response.status === 404) return false;
+    // Any other HTTP response means the path exists (even 400/403/426 is fine)
     return true;
   } catch {
     return false;
@@ -845,6 +851,12 @@ export const AIAgentWidget: React.FC = () => {
   const wsEndpointCheckedRef = useRef(false);
   const wsEndpointReachableRef = useRef(false);
 
+  // Permanent failure: WS has never succeeded and all retries exhausted.
+  // Only manual reconnect can reset this.
+  const wsPermanentlyFailedRef = useRef(false);
+  // Track whether WS has EVER opened successfully in this session
+  const wsEverConnectedRef = useRef(false);
+
   // Track when first failure occurred (for delayed degraded UI)
   const firstFailureTimeRef = useRef<number | null>(null);
 
@@ -852,6 +864,7 @@ export const AIAgentWidget: React.FC = () => {
     inboxReconnectAttemptsRef.current = 0;
     inboxRefreshAttemptedRef.current = false;
     wsEndpointCheckedRef.current = false;
+    wsPermanentlyFailedRef.current = false;
     firstFailureTimeRef.current = null;
     setAiInboxRealtimeStatus('connecting');
     manualReconnectRef.current?.();
@@ -905,7 +918,14 @@ export const AIAgentWidget: React.FC = () => {
 
       // Stop retrying after MAX_RECONNECT_ATTEMPTS — user can manually reconnect
       if (attempt > MAX_RECONNECT_ATTEMPTS) {
-        setAiInboxRealtimeStatus('degraded');
+        // If WS never connected successfully, mark as permanently failed
+        // so tab-visibility and other triggers don't restart the spam cycle
+        if (!wsEverConnectedRef.current) {
+          wsPermanentlyFailedRef.current = true;
+          setAiInboxRealtimeStatus('idle');
+        } else {
+          setAiInboxRealtimeStatus('degraded');
+        }
         return;
       }
 
@@ -1016,6 +1036,8 @@ export const AIAgentWidget: React.FC = () => {
 
         socket.onopen = () => {
           if (disposed) return;
+          wsEverConnectedRef.current = true;
+          wsPermanentlyFailedRef.current = false;
           inboxReconnectAttemptsRef.current = 0;
           inboxRefreshAttemptedRef.current = false;
           firstFailureTimeRef.current = null;
