@@ -7,6 +7,7 @@ import { PinnedToolsBar } from '../Cockpit/PinnedToolsBar';
 import Breadcrumb from '../Navigation/Breadcrumb';
 import Omnibox from '../AIAssistant/Omnibox';
 import { CommandPalette } from '../Navigation/CommandPalette';
+import { ShortcutCheatsheet } from '../Navigation/ShortcutCheatsheet';
 import { AIAgentWidget } from '../AIAssistant/AIAgentWidget';
 import { ConnectivityBanner } from '../common/ConnectivityBanner';
 import { ErrorBoundary } from '../common/ErrorBoundary';
@@ -21,6 +22,7 @@ const Layout: React.FC = () => {
   const { theme } = useTheme();
   const [showOmnibox, setShowOmnibox] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showCheatsheet, setShowCheatsheet] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
 
   const toggleSidebar = () => {
@@ -35,6 +37,7 @@ const Layout: React.FC = () => {
     onOpenCommandPalette: () => setShowCommandPalette(true),
     onOpenOmnibox: () => setShowOmnibox(true),
     onToggleAIAgentWidget: () => window.dispatchEvent(new CustomEvent('pm:ai-toggle')),
+    onShowCheatsheet: () => setShowCheatsheet(true),
   });
 
   const handleOmniboxSubmit = (_command: string) => {
@@ -67,6 +70,7 @@ const Layout: React.FC = () => {
           onSubmit={handleOmniboxSubmit}
         />
         <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
+        <ShortcutCheatsheet open={showCheatsheet} onClose={() => setShowCheatsheet(false)} />
         <ErrorBoundary fallback={<div />}>
           <AIAgentWidget />
         </ErrorBoundary>
