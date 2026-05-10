@@ -198,6 +198,39 @@ const EmailMeta = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const ProviderTag = styled.span<{ $provider: string }>`
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+  ${props => {
+    switch (props.$provider) {
+      case 'microsoft':
+        return `
+          background: rgba(var(--color-info), 0.1);
+          color: rgb(var(--color-info));
+        `;
+      case 'google':
+        return `
+          background: rgba(var(--color-error), 0.1);
+          color: rgb(var(--color-error));
+        `;
+      default:
+        return `
+          background: rgba(var(--color-text-secondary), 0.1);
+          color: rgb(var(--color-text-secondary));
+        `;
+    }
+  }}
+`;
+
+const PROVIDER_LABELS: Record<string, string> = {
+  microsoft: '📧 Outlook',
+  google: '📨 Gmail',
+  manual: '✉️ Manual',
+};
+
 const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
@@ -437,10 +470,21 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
                 </EmailHeader>
                 <EmailMeta>
                   <span>From: {email.sender}</span>
+                  {email.provider_type ? (
+                    <ProviderTag $provider={email.provider_type}>
+                      {PROVIDER_LABELS[email.provider_type] ?? email.provider_type}
+                    </ProviderTag>
+                  ) : null}
                   {email.has_attachments && <span>📎</span>}
                   <span>•</span>
                   <span>{new Date(email.created_at).toLocaleDateString()}</span>
                 </EmailMeta>
+                {email.status === 'failed' && email.error_message ? (
+                  <EmailMeta style={{ color: 'rgb(var(--color-error))' }}>
+                    <AlertCircle size={10} />
+                    <span>{email.error_message} • Retryable</span>
+                  </EmailMeta>
+                ) : null}
               </EmailItem>
             );
           })
