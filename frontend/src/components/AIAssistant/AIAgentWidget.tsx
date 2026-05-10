@@ -594,10 +594,6 @@ const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string |
   return url.toString();
 };
 
-const deriveAIInboxSocketProtocols = (accessToken: string): string[] => {
-  return ['pm.ai.inbox', 'access_token', accessToken];
-};
-
 /**
  * Pre-flight check: verify the WebSocket path is routed before attempting
  * a WebSocket connection.  Probes the actual WS path with a plain HTTP
@@ -940,9 +936,9 @@ export const AIAgentWidget: React.FC = () => {
       const delayMs = Math.round(baseDelayMs * jitterFactor);
 
       inboxReconnectTimerRef.current = window.setTimeout(() => {
+        inboxReconnectTimerRef.current = null;
         if (document.hidden) {
-          // Tab hidden — defer until visible
-          scheduleReconnect(attemptRefresh);
+          // Tab hidden — wait for visibilitychange instead of burning retries
           return;
         }
         void connect(attemptRefresh);
@@ -1028,12 +1024,13 @@ export const AIAgentWidget: React.FC = () => {
 
         closeSocket();
 
-        // Only show "connecting" on first attempt to avoid UI jitter on retries
-        if (inboxReconnectAttemptsRef.current === 0) {
+        // Only surface "connecting" when the widget is open on the initial attempt.
+        // Background retries should stay visually idle while collapsed.
+        if (inboxReconnectAttemptsRef.current === 0 && expandedRef.current) {
           setAiInboxRealtimeStatus('connecting');
         }
 
-        const socket = new WebSocket(wsUrl, deriveAIInboxSocketProtocols(accessToken));
+        const socket = new WebSocket(wsUrl);
         inboxSocketRef.current = socket;
 
         socket.onopen = () => {
@@ -1171,10 +1168,11 @@ export const AIAgentWidget: React.FC = () => {
       if (!document.hidden && !disposed) {
         // If WS permanently failed (never connected), don't retry on visibility
         if (wsPermanentlyFailedRef.current) return;
+        // Respect any scheduled backoff timer instead of forcing an immediate retry
+        if (inboxReconnectTimerRef.current != null) return;
 
         const socket = inboxSocketRef.current;
         if (!socket || socket.readyState === WebSocket.CLOSED) {
-          inboxReconnectAttemptsRef.current = 0;
           void connect(true);
         }
       }
