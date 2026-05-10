@@ -130,13 +130,13 @@ const StatusBadge = styled.span<{ $status: WorkflowProgressCardProps['status'] }
         `;
       case 'cancelled':
         return css`
-          background: rgba(127, 140, 141, 0.1);
-          color: rgb(127, 140, 141);
+          background: rgba(var(--color-neutral), 0.1);
+          color: rgb(var(--color-neutral));
         `;
       default: // draft
         return css`
           background: rgba(var(--color-warning), 0.1);
-          color: rgb(180, 140, 8);
+          color: rgb(var(--color-warning));
         `;
     }
   }}
@@ -168,7 +168,7 @@ const ProgressFill = styled.div<{ $progress: number; $status: WorkflowProgressCa
       return css`background: rgb(var(--color-success));`;
     }
     return css`
-      background: linear-gradient(90deg, rgb(var(--color-info)), rgb(102, 126, 234));
+      background: linear-gradient(90deg, rgb(var(--color-info)), rgb(var(--color-primary)));
       background-size: 200% 100%;
       animation: ${shimmer} 2s infinite linear;
     `;

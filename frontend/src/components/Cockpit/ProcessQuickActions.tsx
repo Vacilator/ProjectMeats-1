@@ -10,6 +10,7 @@
 import React, { useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { confirmDialog } from '@/utils/uiDialogs';
 import {
   Send,
   CheckCircle2,
@@ -338,9 +339,14 @@ export const ProcessQuickActions: React.FC<ProcessQuickActionsProps> = ({
   });
 
   const handleAction = useCallback(
-    (action: ProcessAction) => {
+    async (action: ProcessAction) => {
       if (action.requiresConfirmation) {
-        const confirmed = window.confirm(`${action.label}: ${action.description}. Proceed?`);
+        const confirmed = await confirmDialog({
+          title: action.label,
+          content: `${action.description}. Proceed?`,
+          okText: 'Confirm',
+          cancelText: 'Cancel',
+        });
         if (!confirmed) return;
       }
       executeMutation.mutate({ action });

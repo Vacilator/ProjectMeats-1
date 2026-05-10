@@ -19,6 +19,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { logger } from '@/utils/logger';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
 import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
 import { UnifiedForm } from '../components/UnifiedForm';
@@ -116,8 +117,12 @@ const SecondaryButton = styled.button`
     background: rgba(var(--color-primary), 0.05);
     border-color: rgb(var(--color-primary));
   }
-`;
 
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
 const DropdownContainer = styled.div`
   position: relative;
 
@@ -651,6 +656,26 @@ const Inquiries: React.FC = () => {
     return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const handleExportCSV = useCallback(() => {
+    if (!inquiries.length) return;
+    const csv = buildCsv({
+      headers: ['Inquiry #', 'Customer', 'Supplier', 'Contact', 'Status', 'Entity Type', 'Products', 'Amount', 'Valid Until', 'Created'],
+      rows: inquiries.map((inq) => [
+        inq.inquiry_number,
+        inq.customer_name ?? '',
+        inq.supplier_name ?? '',
+        inq.contact_name ?? '',
+        inq.status,
+        inq.entity_type,
+        String(inq.product_count ?? 0),
+        inq.total_actual != null ? inq.total_actual.toFixed(2) : inq.total_desired != null ? inq.total_desired.toFixed(2) : '',
+        inq.valid_until ?? '',
+        inq.created_on ?? '',
+      ]),
+    });
+    downloadCsv(`inquiries-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }, [inquiries]);
+
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
@@ -658,6 +683,9 @@ const Inquiries: React.FC = () => {
       <Header>
         <Title>📋 Inquiries</Title>
         <HeaderActions>
+          <SecondaryButton onClick={handleExportCSV} disabled={!inquiries.length}>
+            📥 Export CSV
+          </SecondaryButton>
           {templates.length > 0 && (
             <DropdownContainer>
               <SecondaryButton onClick={() => setShowTemplateMenu(!showTemplateMenu)}>
