@@ -17,3 +17,5 @@ export { useActionItemCounts, POLL_INTERVAL_ACTIVE, POLL_INTERVAL_BACKGROUND } f
 export type { ActionItemCounts, UseActionItemCountsResult } from './useActionItemCounts';
 
 export { useZodForm } from './useZodForm';
+
+export { useMediaQuery, useIsMobile, useIsTablet } from './useMediaQuery';

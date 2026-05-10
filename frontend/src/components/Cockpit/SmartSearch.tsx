@@ -173,6 +173,10 @@ const ContentArea = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+
+  @media (max-width: 768px) {
+    padding: 12px 8px;
+  }
 `;
 
 const Section = styled.div`
@@ -226,6 +230,7 @@ const ResultCard = styled.div.attrs({ role: 'button', tabIndex: 0 })`
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
+  min-height: 44px;
 
   &:hover {
     background: rgb(var(--color-background-tertiary));
@@ -236,6 +241,14 @@ const ResultCard = styled.div.attrs({ role: 'button', tabIndex: 0 })`
   &:focus-visible {
     outline: 2px solid rgba(var(--color-primary), 0.6);
     outline-offset: 2px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 14px 12px;
+
+    &:hover {
+      transform: none;
+    }
   }
 `;
 

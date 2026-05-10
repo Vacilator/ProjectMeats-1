@@ -20,6 +20,7 @@ import {
   RotateCcw, X
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import {
   WidgetGrid,
   WidgetConfig,
@@ -452,6 +453,10 @@ export const CockpitDashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { hasCompletedTour, launchTour } = useOnboarding();
   const { stats } = useCockpitStats();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  const gridCols = isMobile ? 1 : isTablet ? 6 : 12;
+  const gridRowHeight = isMobile ? 80 : 100;
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [inlineAction, setInlineAction] = useState<InlineActionState>(null);
   const [layout, setLayout] = useState<WidgetLayout[]>(DEFAULT_LAYOUT);
@@ -938,8 +943,8 @@ export const CockpitDashboard: React.FC = () => {
               onPinWidget={handlePinWidget}
               renderWidget={renderWidget}
               width={gridWidth}
-              cols={12}
-              rowHeight={100}
+              cols={gridCols}
+              rowHeight={gridRowHeight}
               isEditing={isEditing}
             />
           )}

@@ -111,6 +111,7 @@ import {
   Map as MapIcon, // Sprint 1 Task 1.3: Minimap toggle
   Settings, // Sprint 1 Task 1.4: Background & Grid settings
   ShieldCheck, // Publish readiness preflight
+  Smartphone, // Mobile notice
 } from 'lucide-react';
 
 import {
@@ -162,6 +163,7 @@ import {
 import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
 import { useCollaboration } from './hooks/useCollaboration'; // Phase 9.2
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { getCurrentTenant } from '../../config/runtime';
 
 // FormBuilder Context Provider (2026-02-21 Comprehensive Enhancements)
@@ -427,6 +429,50 @@ const CloseButton = styled.button`
     width: 18px;
     height: 18px;
   }
+`;
+
+// ============================================================================
+// Mobile Notice Component
+// ============================================================================
+
+const MobileNotice = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  padding: 32px;
+  text-align: center;
+  gap: 16px;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+`;
+
+const MobileNoticeIcon = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(var(--color-primary), 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(var(--color-primary));
+`;
+
+const MobileNoticeTitle = styled.h2`
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: rgb(var(--color-text-primary));
+`;
+
+const MobileNoticeMessage = styled.p`
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 360px;
+  color: rgb(var(--color-text-secondary));
 `;
 
 // ============================================================================
@@ -1807,7 +1853,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   const queryClient = useQueryClient();
 
-  // Backend-driven WorkForms node metadata (additive overlay; local schemas remain canonical for now).
+  // Mobile detection — show friendly fallback instead of broken canvas
+  const isMobile = useIsMobile();
   const { data: workformsMetadata } = useQuery({
     queryKey: withTenantQueryKey('system', 'workforms', 'metadata', 'v1'),
     queryFn: () => workformsMetadataService.getMetadata('v1'),
@@ -6997,6 +7044,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       currentNodeId={selectedFormStep?.id || null}
     >
       <EditorContainer ref={editorContainerRef} $isFullscreen={isFullscreen}>
+      {/* Mobile fallback — flow canvas requires pointer precision */}
+      {isMobile && (
+        <MobileNotice role="status" aria-label="Desktop required for workflow editor">
+          <MobileNoticeIcon>
+            <Smartphone size={32} />
+          </MobileNoticeIcon>
+          <MobileNoticeTitle>Desktop Recommended</MobileNoticeTitle>
+          <MobileNoticeMessage>
+            The WorkForm editor uses a drag-and-drop canvas that works best on
+            larger screens. Please switch to a desktop or tablet in landscape
+            mode for the full editing experience.
+          </MobileNoticeMessage>
+        </MobileNotice>
+      )}
       {/* Deprecation Banner (Phase 6.1) */}
       {hasDeprecatedNodes && !bannerDismissed && (
         <DeprecationBanner>
