@@ -104,7 +104,7 @@ const DropdownMenu = styled.div<{ $open: boolean }>`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 30px rgba(var(--color-overlay), 0.15);
   min-width: 220px;
   z-index: 2000;
   overflow: hidden;

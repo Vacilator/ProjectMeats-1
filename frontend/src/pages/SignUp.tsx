@@ -288,7 +288,7 @@ const SignUpCard = styled.div`
   padding: 40px;
   width: 100%;
   max-width: 500px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(var(--color-overlay), 0.1);
   max-height: 90vh;
   overflow-y: auto;
 `;
@@ -465,7 +465,7 @@ const SignUpButton = styled.button`
 const LoadingSpinner = styled.div`
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(var(--color-surface-raw, 255, 255, 255), 0.3);
   border-top: 2px solid white;
   border-radius: 50%;
   animation: spin 1s linear infinite;

@@ -74,7 +74,7 @@ const GridContainer = styled.div<{ $isEditing: boolean }>`
 
     &.react-draggable-dragging {
       z-index: 100;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.2);
     }
 
     /* Show resize handle only in edit mode */

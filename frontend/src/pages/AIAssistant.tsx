@@ -51,7 +51,7 @@ const ChatContainer = styled.div`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-surface-foreground));
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 10px rgba(var(--color-overlay), 0.08);
   overflow: hidden;
 `;
 

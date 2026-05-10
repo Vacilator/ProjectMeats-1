@@ -361,9 +361,7 @@ const baseItemStyles = css<{ $level: number; $active: boolean; $isDarkMode: bool
   gap: 12px;
   padding: 18px 12px;
   padding-left: ${(props) => 12 + props.$level * 16}px;
-  color: ${(props) => props.$isDarkMode
-    ? `rgba(255, 255, 255, ${props.$active ? 1 : 0.7})`
-    : `rgba(30, 41, 59, ${props.$active ? 1 : 0.7})`};
+  color: ${(props) => props.$active ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-secondary))'};
   text-decoration: none;
   transition: all 0.15s ease;
   font-size: ${(props) => props.$level === 0 ? 14 : 13}px;
@@ -373,10 +371,8 @@ const baseItemStyles = css<{ $level: number; $active: boolean; $isDarkMode: bool
   box-sizing: border-box;
 
   &:hover {
-    background-color: ${(props) => props.$isDarkMode
-      ? 'rgba(255, 255, 255, 0.08)'
-      : 'rgba(0, 0, 0, 0.04)'};
-    color: ${(props) => props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
+    background-color: rgba(var(--color-text-primary), 0.08);
+    color: rgb(var(--color-text-primary));
   }
 `;
 
@@ -384,7 +380,7 @@ const activeStyles = css<{ $isDarkMode: boolean }>`
   background-color: ${(props) => props.$isDarkMode
     ? 'rgba(var(--color-primary), 0.15)'
     : 'rgba(var(--color-primary), 0.1)'};
-  color: ${(props) => props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
+  color: rgb(var(--color-text-primary));
 
   &::before {
     content: '';
@@ -412,7 +408,7 @@ const StyledNavLink = styled(NavLink)<{ $theme: Theme; $level: number; $active: 
   ${(props) => props.$active && activeStyles}
 
   ${(props) => props.$hasActiveChild && css<{ $isDarkMode: boolean }>`
-    color: ${props.$isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgb(var(--color-text-primary))'};
+    color: rgb(var(--color-text-primary));
   `}
 
   &.active {
@@ -429,7 +425,7 @@ const AccordionHeader = styled.div<{ $theme: Theme; $level: number; $active: boo
     background-color: ${props.$isDarkMode
       ? 'rgba(var(--color-primary), 0.15)'
       : 'rgba(var(--color-primary), 0.1)'};
-    color: ${props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
+    color: rgb(var(--color-text-primary));
 
     &::before {
       content: '';
@@ -451,7 +447,7 @@ const AccordionHeader = styled.div<{ $theme: Theme; $level: number; $active: boo
   `}
 
   ${(props) => props.$active && props.$hasExactActiveChild && css<{ $isDarkMode: boolean }>`
-    color: ${props.$isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 41, 59, 0.95)'};
+    color: rgb(var(--color-text-primary));
   `}
 `;
 
@@ -489,9 +485,7 @@ const AccordionHeaderContainer = styled.div<{
   `}
 
   &:hover {
-    background-color: ${(props) => props.$isDarkMode
-      ? 'rgba(255, 255, 255, 0.08)'
-      : 'rgba(0, 0, 0, 0.04)'};
+    background-color: rgba(var(--color-text-primary), 0.08);
   }
 `;
 
@@ -509,9 +503,7 @@ const AccordionNavLinkInner = styled.div<{
   gap: 12px;
   padding: 18px 12px;
   padding-left: ${(props) => 12 + props.$level * 16}px;
-  color: ${(props) => props.$isDarkMode
-    ? `rgba(255, 255, 255, ${props.$active ? 1 : 0.7})`
-    : `rgba(30, 41, 59, ${props.$active ? 1 : 0.7})`};
+  color: ${(props) => props.$active ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-secondary))'};
   text-decoration: none;
   font-size: ${(props) => props.$level === 0 ? 14 : 13}px;
   height: 60px;
@@ -527,7 +519,7 @@ const AccordionNavLinkInner = styled.div<{
   background: transparent;
 
   ${(props) => props.$hasExactActiveChild && css<{ $isDarkMode: boolean }>`
-    color: ${props.$isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgb(var(--color-text-primary))'};
+    color: rgb(var(--color-text-primary));
   `}
 `;
 
@@ -553,9 +545,7 @@ const ExpandButton = styled.button<{ $isExpanded: boolean; $isDarkMode: boolean 
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  color: ${(props) => props.$isDarkMode
-    ? 'rgba(255, 255, 255, 0.5)'
-    : 'rgba(0, 0, 0, 0.4)'};
+  color: rgb(var(--color-text-secondary));
   transition: all 0.15s ease;
   margin-left: auto;
   flex-shrink: 0;
@@ -564,10 +554,8 @@ const ExpandButton = styled.button<{ $isExpanded: boolean; $isDarkMode: boolean 
   pointer-events: auto;
 
   &:hover {
-    background: ${(props) => props.$isDarkMode
-      ? 'rgba(255, 255, 255, 0.1)'
-      : 'rgba(0, 0, 0, 0.05)'};
-    color: ${(props) => props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
+    background: rgba(var(--color-text-primary), 0.08);
+    color: rgb(var(--color-text-primary));
   }
 `;
 
@@ -606,8 +594,8 @@ const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean
   opacity: ${(props) => (props.$isExpanded ? 1 : 0)};
   transition: max-height 0.25s ease-out, opacity 0.2s ease;
   background: ${(props) => props.$isDarkMode
-    ? 'rgba(0, 0, 0, 0.15)'
-    : 'rgba(0, 0, 0, 0.02)'};
+    ? 'rgba(var(--color-overlay), 0.15)'
+    : 'rgba(var(--color-overlay), 0.02)'};
   margin: ${(props) => props.$isExpanded ? '2px 0' : '0'};
   border-radius: 4px;
   margin-left: 8px;
@@ -634,8 +622,8 @@ const Badge = styled.span<{ $isDarkMode: boolean }>`
   margin-left: auto;
   flex-shrink: 0;
   box-shadow: ${(props) => props.$isDarkMode
-    ? '0 1px 3px rgba(0, 0, 0, 0.3)'
-    : '0 1px 3px rgba(0, 0, 0, 0.15)'};
+    ? '0 1px 3px rgba(var(--color-overlay), 0.3)'
+    : '0 1px 3px rgba(var(--color-overlay), 0.15)'};
 `;
 
 export default NavigationMenu;

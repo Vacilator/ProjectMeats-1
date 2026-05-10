@@ -110,7 +110,7 @@ const ClearButton = styled.button`
   align-items: center;
   
   &:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(var(--color-overlay), 0.05);
     color: rgb(var(--color-text-primary));
   }
 `;
@@ -126,7 +126,7 @@ const Dropdown = styled.div<{ $isOpen: boolean }>`
   background: white;
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.15);
   /* Sit above modal/table stacking contexts */
   z-index: 2000;
   

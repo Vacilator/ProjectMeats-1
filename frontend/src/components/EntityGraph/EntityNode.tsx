@@ -37,7 +37,7 @@ const NodeContainer = styled.div<{ $color: string; $isRoot: boolean }>`
   border: 2px solid ${props => props.$color};
   box-shadow: ${props => props.$isRoot 
     ? `0 4px 12px ${props.$color}40` 
-    : '0 2px 8px rgba(0, 0, 0, 0.1)'};
+    : '0 2px 8px rgba(var(--color-overlay), 0.1)'};
   min-width: 140px;
   max-width: 200px;
   cursor: pointer;

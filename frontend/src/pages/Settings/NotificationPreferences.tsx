@@ -38,7 +38,7 @@ const Subtitle = styled.p`
 const Section = styled.section`
   background: rgb(var(--color-surface, 255 255 255));
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(var(--color-overlay), 0.1);
   padding: 24px;
   margin-bottom: 24px;
 `;
@@ -111,7 +111,7 @@ const Toggle = styled.button<{ $active: boolean; $disabled?: boolean }>`
     height: 20px;
     border-radius: 50%;
     background: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(var(--color-overlay), 0.2);
     transition: left 0.2s ease;
   }
 

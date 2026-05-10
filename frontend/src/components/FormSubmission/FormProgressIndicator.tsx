@@ -33,8 +33,8 @@ export interface FormProgressIndicatorProps {
 // ============================================================================
 
 const pulse = keyframes`
-  0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(102, 126, 234, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-primary), 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(var(--color-primary), 0); }
 `;
 
 const checkmark = keyframes`

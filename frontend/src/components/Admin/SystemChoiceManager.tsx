@@ -805,7 +805,7 @@ const ListCard = styled.div<{ $isSelected: boolean }>`
 
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
 `;
 
@@ -864,7 +864,7 @@ const MetaBadge = styled.span<{ $color: string }>`
     switch (props.$color) {
       case 'blue': return 'rgba(var(--color-info), 0.1)';
       case 'green': return 'rgba(var(--color-success), 0.1)';
-      case 'purple': return 'rgba(168, 85, 247, 0.1)';
+      case 'purple': return 'rgba(var(--color-accent, 168, 85, 247), 0.1)';
       case 'gray':
       default: return 'rgba(var(--color-neutral), 0.1)';
     }
@@ -873,7 +873,7 @@ const MetaBadge = styled.span<{ $color: string }>`
     switch (props.$color) {
       case 'blue': return 'rgb(var(--color-info))';
       case 'green': return 'rgb(var(--color-success))';
-      case 'purple': return 'rgb(168, 85, 247)';
+      case 'purple': return 'rgb(var(--color-accent, 168, 85, 247))';
       case 'gray':
       default: return 'rgb(var(--color-neutral))';
     }

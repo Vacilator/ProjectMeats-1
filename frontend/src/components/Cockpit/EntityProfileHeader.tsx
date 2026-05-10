@@ -82,7 +82,7 @@ const Container = styled.div`
   border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(var(--color-overlay), 0.05);
 `;
 
 const TitleRow = styled.div`

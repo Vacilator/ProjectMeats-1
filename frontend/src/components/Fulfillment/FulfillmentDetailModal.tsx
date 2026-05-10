@@ -70,7 +70,7 @@ const Overlay = styled.div<{ $isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: ${props => props.$isOpen ? 'flex' : 'none'};
   justify-content: center;
   align-items: center;
@@ -81,7 +81,7 @@ const Overlay = styled.div<{ $isOpen: boolean }>`
 const Modal = styled.div`
   background: rgb(var(--color-surface));
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   width: 100%;
   max-width: 800px;
   max-height: 90vh;
@@ -175,18 +175,18 @@ const StatusBadge = styled.span<{ $status: string }>`
     switch (props.$status) {
       case 'pending': return 'rgba(var(--color-warning), 0.1)';
       case 'in_progress': return 'rgba(var(--color-info), 0.1)';
-      case 'shipped': return 'rgba(147, 51, 234, 0.1)';
+      case 'shipped': return 'rgba(var(--color-primary), 0.1)';
       case 'delivered': return 'rgba(var(--color-success), 0.1)';
       case 'completed': return 'rgba(var(--color-success), 0.1)';
       case 'cancelled': return 'rgba(var(--color-error), 0.1)';
-      default: return 'rgba(156, 163, 175, 0.1)';
+      default: return 'rgba(var(--color-text-muted), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$status) {
       case 'pending': return 'rgb(var(--color-warning))';
       case 'in_progress': return 'rgb(var(--color-info))';
-      case 'shipped': return 'rgb(126, 34, 206)';
+      case 'shipped': return 'rgb(var(--color-primary))';
       case 'delivered': return 'rgb(var(--color-success))';
       case 'completed': return 'rgb(var(--color-success))';
       case 'cancelled': return 'rgb(var(--color-error))';

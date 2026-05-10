@@ -52,7 +52,7 @@ const StatCard = styled.div`
   color: rgb(var(--color-surface-foreground));
   padding: 24px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.1);
   text-align: center;
 `;
 
@@ -97,7 +97,7 @@ const Table = styled.table`
   color: rgb(var(--color-surface-foreground));
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.1);
 `;
 
 const TableHeader = styled.thead`
@@ -178,7 +178,7 @@ const FormOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -451,7 +451,7 @@ const AccountsReceivables: React.FC = () => {
       case 'overdue':
         return 'rgb(var(--color-error))';
       case 'disputed':
-        return 'rgb(111, 66, 193)';
+        return 'rgb(var(--color-primary))';
       default:
         return 'rgb(var(--color-text-secondary))';
     }

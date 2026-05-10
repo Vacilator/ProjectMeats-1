@@ -155,9 +155,9 @@ const SaveIndicator = styled.span<{ status: 'saved' | 'saving' | 'unsaved' }>`
   border-radius: var(--radius-full);
   background-color: ${props => {
     switch(props.status) {
-      case 'saved': return 'rgba(34, 197, 94, 0.1)';
-      case 'saving': return 'rgba(234, 179, 8, 0.1)';
-      case 'unsaved': return 'rgba(239, 68, 68, 0.1)';
+      case 'saved': return 'rgba(var(--color-success), 0.1)';
+      case 'saving': return 'rgba(var(--color-warning), 0.1)';
+      case 'unsaved': return 'rgba(var(--color-error), 0.1)';
     }
   }};
   color: ${props => {
@@ -304,7 +304,7 @@ const PreviewModal = styled.div<{ isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(var(--color-overlay), 0.5);
   display: ${props => props.isOpen ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;
@@ -534,49 +534,49 @@ const TypeBadge = styled.span<{ fieldType: string }>`
   letter-spacing: 0.05em;
   background-color: ${props => {
     const colors: Record<string, string> = {
-      text: 'rgba(59, 130, 246, 0.1)',
-      number: 'rgba(34, 197, 94, 0.1)',
-      date: 'rgba(249, 115, 22, 0.1)',
-      datetime: 'rgba(249, 115, 22, 0.1)',
-      select: 'rgba(168, 85, 247, 0.1)',
-      reference: 'rgba(236, 72, 153, 0.1)',
-      email: 'rgba(14, 165, 233, 0.1)',
-      phone: 'rgba(14, 165, 233, 0.1)',
-      url: 'rgba(14, 165, 233, 0.1)',
-      textarea: 'rgba(100, 116, 139, 0.1)',
-      checkbox: 'rgba(34, 197, 94, 0.1)',
-      radio: 'rgba(168, 85, 247, 0.1)',
-      file: 'rgba(234, 179, 8, 0.1)',
-      currency: 'rgba(16, 185, 129, 0.1)',
-      percent: 'rgba(245, 158, 11, 0.1)',
-      rating: 'rgba(251, 191, 36, 0.1)',
-      color: 'rgba(236, 72, 153, 0.1)',
-      json: 'rgba(99, 102, 241, 0.1)',
+      text: 'rgba(var(--color-primary), 0.1)',
+      number: 'rgba(var(--color-success), 0.1)',
+      date: 'rgba(var(--color-warning), 0.1)',
+      datetime: 'rgba(var(--color-warning), 0.1)',
+      select: 'rgba(var(--color-accent), 0.1)',
+      reference: 'rgba(var(--color-accent-pink), 0.1)',
+      email: 'rgba(var(--color-info), 0.1)',
+      phone: 'rgba(var(--color-info), 0.1)',
+      url: 'rgba(var(--color-info), 0.1)',
+      textarea: 'rgba(var(--color-text-secondary), 0.1)',
+      checkbox: 'rgba(var(--color-success), 0.1)',
+      radio: 'rgba(var(--color-accent), 0.1)',
+      file: 'rgba(var(--color-warning), 0.1)',
+      currency: 'rgba(var(--color-success), 0.1)',
+      percent: 'rgba(var(--color-warning), 0.1)',
+      rating: 'rgba(var(--color-warning), 0.1)',
+      color: 'rgba(var(--color-accent-pink), 0.1)',
+      json: 'rgba(var(--color-accent), 0.1)',
     };
-    return colors[props.fieldType] || 'rgba(100, 116, 139, 0.1)';
+    return colors[props.fieldType] || 'rgba(var(--color-text-secondary), 0.1)';
   }};
   color: ${props => {
     const colors: Record<string, string> = {
       text: 'rgb(var(--color-info))',
       number: 'rgb(var(--color-success))',
-      date: 'rgb(249, 115, 22)',
-      datetime: 'rgb(249, 115, 22)',
-      select: 'rgb(168, 85, 247)',
-      reference: 'rgb(236, 72, 153)',
-      email: 'rgb(14, 165, 233)',
-      phone: 'rgb(14, 165, 233)',
-      url: 'rgb(14, 165, 233)',
-      textarea: 'rgb(100, 116, 139)',
+      date: 'rgb(var(--color-warning))',
+      datetime: 'rgb(var(--color-warning))',
+      select: 'rgb(var(--color-accent))',
+      reference: 'rgb(var(--color-accent-pink))',
+      email: 'rgb(var(--color-info))',
+      phone: 'rgb(var(--color-info))',
+      url: 'rgb(var(--color-info))',
+      textarea: 'rgb(var(--color-text-secondary))',
       checkbox: 'rgb(var(--color-success))',
-      radio: 'rgb(168, 85, 247)',
+      radio: 'rgb(var(--color-accent))',
       file: 'rgb(var(--color-warning))',
-      currency: 'rgb(16, 185, 129)',
-      percent: 'rgb(245, 158, 11)',
+      currency: 'rgb(var(--color-success))',
+      percent: 'rgb(var(--color-warning))',
       rating: 'rgb(var(--color-warning))',
-      color: 'rgb(236, 72, 153)',
-      json: 'rgb(99, 102, 241)',
+      color: 'rgb(var(--color-accent-pink))',
+      json: 'rgb(var(--color-accent))',
     };
-    return colors[props.fieldType] || 'rgb(100, 116, 139)';
+    return colors[props.fieldType] || 'rgb(var(--color-text-secondary))';
   }};
 `;
 

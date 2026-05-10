@@ -486,7 +486,7 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
     textColor: 'rgb(var(--color-text-primary))',
     backgroundColor: 'rgb(var(--color-background))',
     arrowColor: 'rgb(var(--color-background))',
-    overlayColor: 'rgba(0, 0, 0, 0.5)',
+    overlayColor: 'rgba(var(--color-overlay), 0.5)',
     zIndex: 10000,
     showProgress: true,
     buttons: ['back', 'close', 'primary', 'skip'],

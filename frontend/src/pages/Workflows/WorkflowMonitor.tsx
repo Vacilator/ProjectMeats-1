@@ -268,7 +268,7 @@ const ProgressFill = styled.div<{ percentage: number }>`
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(255, 255, 255, 0.3),
+      rgba(var(--color-surface-raw, 255, 255, 255), 0.3),
       transparent
     );
     animation: shimmer 2s infinite;

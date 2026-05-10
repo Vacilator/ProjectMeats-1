@@ -324,7 +324,7 @@ const InputContainer = styled.div<{ $isDragOver?: boolean }>`
   ${(props) =>
     props.$isDragOver &&
     `
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    background: linear-gradient(135deg, rgba(var(--color-primary), 0.1) 0%, rgba(var(--color-info), 0.1) 100%);
     border-radius: 12px;
   `}
 `;
@@ -384,7 +384,7 @@ const DragOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+  background: linear-gradient(135deg, rgba(var(--color-primary), 0.95) 0%, rgba(var(--color-info), 0.95) 100%);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -419,7 +419,7 @@ const SuggestionsContainer = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   padding: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
   animation: slideUp 0.2s ease-out;
 
   @keyframes slideUp {
@@ -488,13 +488,13 @@ const InputWrapper = styled.div<{ $isDragOver?: boolean }>`
 
   &:focus-within {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 
   ${(props) =>
     props.$isDragOver &&
     `
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(var(--color-primary), 0.05) 0%, rgba(var(--color-info), 0.05) 100%);
   `}
 `;
 
@@ -604,7 +604,7 @@ const SendIcon = styled.span`
 const LoadingSpinner = styled.div`
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(var(--color-surface-raw, 255, 255, 255), 0.3);
   border-radius: 50%;
   border-top-color: rgb(var(--color-text-inverse));
   animation: spin 1s linear infinite;

@@ -74,7 +74,7 @@ const Dropdown = styled.div<{ $theme: Theme }>`
   background: ${props => props.$theme.colors.surface};
   border: 1px solid ${props => props.$theme.colors.border};
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   z-index: 1000;
 
   @media (max-width: 640px) {

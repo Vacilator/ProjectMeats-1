@@ -78,7 +78,7 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(var(--color-overlay), 0.7);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -90,7 +90,7 @@ const Overlay = styled.div`
 const ModalContainer = styled.div`
   background: rgb(var(--color-surface));
   border-radius: var(--radius-lg, 16px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.4);
   max-width: 480px;
   width: 100%;
   padding: 40px 32px;

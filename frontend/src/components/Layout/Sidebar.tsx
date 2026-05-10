@@ -115,11 +115,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
     <SidebarContainer
       $isOpen={isExpanded}
       $theme={theme}
-      $isDarkMode={isDarkMode}
       onMouseEnter={() => !keepOpen && setIsHovered(true)}
       onMouseLeave={() => !keepOpen && setIsHovered(false)}
     >
-      <SidebarHeader $theme={theme} $isExpanded={isExpanded} $isDarkMode={isDarkMode}>
+      <SidebarHeader $theme={theme} $isExpanded={isExpanded}>
         <Logo>
           {tenantBranding?.logoUrl ? (
             <LogoImage src={tenantBranding.logoUrl} alt={tenantBranding.tenantName} />
@@ -135,7 +134,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
             onClick={handleKeepOpenToggle} 
             $theme={theme} 
             $active={keepOpen}
-            $isDarkMode={isDarkMode}
             title={keepOpen ? "Unpin sidebar" : "Pin sidebar open"}
             aria-label={keepOpen ? "Unpin sidebar" : "Pin sidebar open"}
           >
@@ -144,20 +142,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
         )}
       </SidebarHeader>
 
-      <NavigationSection $isDarkMode={isDarkMode}>
+      <NavigationSection>
         <NavigationMenu items={navigation} isExpanded={isExpanded} />
       </NavigationSection>
 
       {/* Admin Workspace Section - Bottom Navigation */}
       {showAdminWorkspace ? (
-        <AdminWorkspaceSection $isDarkMode={isDarkMode}>
+        <AdminWorkspaceSection>
           <NavigationMenu items={adminWorkspaceNavigation} isExpanded={isExpanded} />
         </AdminWorkspaceSection>
       ) : null}
 
-      <SidebarFooter $isExpanded={isExpanded} $isDarkMode={isDarkMode}>
+      <SidebarFooter $isExpanded={isExpanded}>
         {isExpanded && (
-          <FooterText $isDarkMode={isDarkMode}>
+          <FooterText>
             © 2026 Meats Central
           </FooterText>
         )}
@@ -166,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
   );
 };
 
-const SidebarContainer = styled.div<{ $isOpen: boolean; $theme: Theme; $isDarkMode: boolean }>`
+const SidebarContainer = styled.div<{ $isOpen: boolean; $theme: Theme }>`
   width: ${(props) => (props.$isOpen ? '260px' : '64px')};
   height: 100vh;
   background: rgb(var(--color-surface));
@@ -178,9 +176,7 @@ const SidebarContainer = styled.div<{ $isOpen: boolean; $theme: Theme; $isDarkMo
   left: 0;
   top: 0;
   z-index: 1000;
-  box-shadow: ${(props) => props.$isDarkMode 
-    ? '2px 0 12px rgba(0, 0, 0, 0.3)' 
-    : '2px 0 12px rgba(0, 0, 0, 0.08)'};
+  box-shadow: 2px 0 12px rgba(var(--color-overlay), 0.08);
   will-change: width;
   overflow: hidden;
 
@@ -191,11 +187,9 @@ const SidebarContainer = styled.div<{ $isOpen: boolean; $theme: Theme; $isDarkMo
   }
 `;
 
-const SidebarHeader = styled.div<{ $theme: Theme; $isExpanded: boolean; $isDarkMode: boolean }>`
+const SidebarHeader = styled.div<{ $theme: Theme; $isExpanded: boolean }>`
   padding: 16px;
-  border-bottom: 1px solid ${(props) => props.$isDarkMode 
-    ? 'rgba(255, 255, 255, 0.08)' 
-    : 'rgba(0, 0, 0, 0.08)'};
+  border-bottom: 1px solid rgba(var(--color-text-primary), 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -243,7 +237,7 @@ const LogoText = styled.h2<{ $isDarkMode: boolean }>`
   letter-spacing: 0.01em;
 `;
 
-const PinButton = styled.button<{ $theme: Theme; $active: boolean; $isDarkMode: boolean }>`
+const PinButton = styled.button<{ $theme: Theme; $active: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,14 +251,14 @@ const PinButton = styled.button<{ $theme: Theme; $active: boolean; $isDarkMode: 
   border-radius: 6px;
   color: ${(props) => props.$active 
     ? 'rgb(var(--color-primary))' 
-    : props.$isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.4)'};
+    : 'rgb(var(--color-text-secondary))'};
   cursor: pointer;
   transition: all 0.15s ease;
 
   &:hover {
     background: ${(props) => props.$active 
       ? 'rgba(var(--color-primary), 0.3)' 
-      : props.$isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+      : 'rgba(var(--color-text-primary), 0.06)'};
     color: ${(props) => props.$active 
       ? 'rgb(var(--color-primary))' 
       : 'rgb(var(--color-text-primary))'};
@@ -276,7 +270,7 @@ const PinButton = styled.button<{ $theme: Theme; $active: boolean; $isDarkMode: 
   }
 `;
 
-const NavigationSection = styled.nav<{ $isDarkMode: boolean }>`
+const NavigationSection = styled.nav`
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -291,48 +285,36 @@ const NavigationSection = styled.nav<{ $isDarkMode: boolean }>`
   }
 
   &::-webkit-scrollbar-thumb {
-    background: ${(props) => props.$isDarkMode 
-      ? 'rgba(255, 255, 255, 0.15)' 
-      : 'rgba(0, 0, 0, 0.15)'};
+    background: rgba(var(--color-text-primary), 0.15);
     border-radius: 3px;
 
     &:hover {
-      background: ${(props) => props.$isDarkMode 
-        ? 'rgba(255, 255, 255, 0.25)' 
-        : 'rgba(0, 0, 0, 0.25)'};
+      background: rgba(var(--color-text-primary), 0.25);
     }
   }
 `;
 
-const AdminWorkspaceSection = styled.nav<{ $isDarkMode: boolean }>`
-  border-top: 1px solid ${(props) => props.$isDarkMode 
-    ? 'rgba(255, 255, 255, 0.08)' 
-    : 'rgba(0, 0, 0, 0.08)'};
+const AdminWorkspaceSection = styled.nav`
+  border-top: 1px solid rgba(var(--color-text-primary), 0.08);
   padding: 8px 0;
   margin-top: auto;
   
   /* Subtle background to differentiate admin section */
-  background: ${(props) => props.$isDarkMode 
-    ? 'rgba(0, 0, 0, 0.1)' 
-    : 'rgba(0, 0, 0, 0.02)'};
+  background: rgba(var(--color-overlay), 0.04);
 `;
 
-const SidebarFooter = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean }>`
+const SidebarFooter = styled.div<{ $isExpanded: boolean }>`
   padding: 12px 16px;
-  border-top: 1px solid ${(props) => props.$isDarkMode 
-    ? 'rgba(255, 255, 255, 0.08)' 
-    : 'rgba(0, 0, 0, 0.08)'};
+  border-top: 1px solid rgba(var(--color-text-primary), 0.08);
   min-height: ${(props) => props.$isExpanded ? '48px' : '0'};
   display: ${(props) => props.$isExpanded ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;
 `;
 
-const FooterText = styled.span<{ $isDarkMode: boolean }>`
+const FooterText = styled.span`
   font-size: 11px;
-  color: ${(props) => props.$isDarkMode 
-    ? 'rgba(255, 255, 255, 0.4)' 
-    : 'rgba(0, 0, 0, 0.4)'};
+  color: rgb(var(--color-text-secondary));
   letter-spacing: 0.02em;
 `;
 

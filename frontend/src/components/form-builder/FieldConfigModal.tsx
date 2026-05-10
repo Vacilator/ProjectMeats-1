@@ -23,7 +23,7 @@ import { Variable } from '../FlowEditor/components/VariablePicker';
 const Overlay = styled.div<{ isOpen: boolean }>`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: ${props => props.isOpen ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;
@@ -33,7 +33,7 @@ const Overlay = styled.div<{ isOpen: boolean }>`
 const Modal = styled.div`
   background: rgb(var(--color-surface));
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   width: 90vw;
   max-width: 700px;
   max-height: 85vh;

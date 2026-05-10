@@ -75,7 +75,7 @@ export const PerformanceOverlay: React.FC = () => {
         right: 20,
         width: 400,
         zIndex: 9999,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        boxShadow: '0 4px 12px rgba(var(--color-overlay),0.15)',
         maxHeight: 'calc(100vh - 40px)',
         overflow: 'auto'
       }}

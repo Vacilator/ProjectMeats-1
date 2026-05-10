@@ -40,7 +40,7 @@ const Toolbar = styled.div`
   padding: 1rem;
   background: white;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(var(--color-overlay),0.1);
 `;
 
 const Table = styled.table`
@@ -48,7 +48,7 @@ const Table = styled.table`
   background: white;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(var(--color-overlay),0.1);
   border-collapse: collapse;
 `;
 
@@ -77,7 +77,7 @@ const Input = styled.input<{ hasError?: boolean }>`
   &:focus {
     outline: none;
     border-color: ${props => props.hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
-    box-shadow: ${props => props.hasError ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : 'none'};
+    box-shadow: ${props => props.hasError ? '0 0 0 3px rgba(var(--color-error), 0.1)' : 'none'};
   }
 `;
 

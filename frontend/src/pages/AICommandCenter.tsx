@@ -94,8 +94,8 @@ const fadeIn = keyframes`
 `;
 
 const pulseGlow = keyframes`
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
-  50%      { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-primary), 0); }
+  50%      { box-shadow: 0 0 0 4px rgba(var(--color-primary), 0.15); }
 `;
 
 // ============================================================================

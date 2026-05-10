@@ -100,7 +100,7 @@ const CustomNodeContainer = styled(motion.div)<{ $depth: number; $expanded: bool
     ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
   min-width: 180px;
   cursor: pointer;
   transition: all 0.2s;
@@ -136,7 +136,7 @@ const NodeTitle = styled.div<{ $isRoot: boolean }>`
 const NodeSubtitle = styled.div<{ $isRoot: boolean }>`
   font-size: 12px;
   color: ${props => props.$isRoot
-    ? 'rgba(255, 255, 255, 0.8)'
+    ? 'rgba(var(--color-surface-raw, 255, 255, 255), 0.8)'
     : 'rgb(var(--color-text-secondary))'};
 `;
 

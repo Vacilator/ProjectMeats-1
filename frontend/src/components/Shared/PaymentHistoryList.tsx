@@ -121,7 +121,7 @@ const LoadingState = styled.div`
 
 const ErrorState = styled.div`
   padding: 16px;
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(var(--color-error), 0.1);
   color: var(--color-error);
   border-radius: 6px;
   font-size: 14px;

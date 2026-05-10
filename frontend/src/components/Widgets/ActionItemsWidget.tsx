@@ -66,7 +66,7 @@ const Item = styled.div`
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.03);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 `;
 

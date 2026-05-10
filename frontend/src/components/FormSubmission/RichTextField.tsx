@@ -17,7 +17,7 @@ const RichTextContainer = styled.div<{ $hasError?: boolean }>`
   
   &:focus-within {
     border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.15);
   }
 `;
 

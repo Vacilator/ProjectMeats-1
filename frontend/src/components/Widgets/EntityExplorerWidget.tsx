@@ -57,7 +57,7 @@ const ENTITY_CONFIG: Record<EntityType, { icon: React.ReactNode; color: string; 
   },
   customers: {
     icon: <Users size={14} />,
-    color: 'rgb(168, 85, 247)',
+    color: 'rgb(var(--color-accent))',
     path: '/customers',
     label: 'Customers',
   },
@@ -75,7 +75,7 @@ const ENTITY_CONFIG: Record<EntityType, { icon: React.ReactNode; color: string; 
   },
   invoices: {
     icon: <FileText size={14} />,
-    color: 'rgb(236, 72, 153)',
+    color: 'rgb(var(--color-accent-pink))',
     path: '/accounting/invoices',
     label: 'Invoices',
   },
@@ -141,7 +141,7 @@ const Tab = styled.button<{ $active: boolean; $color: string }>`
   transition: all 0.15s ease;
 
   ${props => props.$active && `
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 3px rgba(var(--color-overlay), 0.08);
   `}
 
   &:hover {
