@@ -52,6 +52,7 @@ type EmailLog = {
   subject: string;
   sender: string;
   status: EmailLogStatus;
+  provider_type: string | null;
   has_attachments: boolean;
   attachment_count?: number;
   attachment_filenames?: string[];
@@ -94,6 +95,17 @@ const STATUS_CONFIG: Record<
   },
   failed: { color: 'error', icon: <ExclamationCircleOutlined />, text: 'Failed' },
   ignored: { color: 'default', icon: <ClockCircleOutlined />, text: 'Ignored' },
+};
+
+const PROVIDER_BADGE: Record<string, { label: string; color: string }> = {
+  microsoft: { label: '📧 Outlook', color: 'blue' },
+  google: { label: '📨 Gmail', color: 'red' },
+  manual: { label: '✉️ Manual', color: 'default' },
+};
+
+const getProviderBadge = (providerType: string | null) => {
+  if (!providerType) return null;
+  return PROVIDER_BADGE[providerType] ?? { label: providerType, color: 'default' };
 };
 
 const fetchEmailLogs = async (): Promise<EmailLogsResponse> => {
@@ -342,12 +354,21 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
                               <Tag color={STATUS_CONFIG[email.status].color} icon={STATUS_CONFIG[email.status].icon}>
                                 {STATUS_CONFIG[email.status].text}
                               </Tag>
+                              {(() => {
+                                const badge = getProviderBadge(email.provider_type);
+                                return badge ? (
+                                  <Tag color={badge.color} style={{ fontSize: 11 }}>{badge.label}</Tag>
+                                ) : null;
+                              })()}
                             </Space>
                             {email.draft?.summary ? (
                               <Text type="secondary">{email.draft.summary}</Text>
                             ) : null}
                             {email.error_message ? (
-                              <Text type="danger">{email.error_message}</Text>
+                              <Text type="danger">
+                                {email.error_message}
+                                {email.status === 'failed' ? ' • Retryable — re-sync to retry' : ''}
+                              </Text>
                             ) : null}
                           </Space>
                         }
