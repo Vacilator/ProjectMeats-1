@@ -5,8 +5,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 import { apiService, PurchaseOrder } from '../services/apiService';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const Processes: React.FC = () => {
+  useDocumentTitle('Processes');
   const { theme } = useTheme();
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);

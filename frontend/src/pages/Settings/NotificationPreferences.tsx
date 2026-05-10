@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNotifications, NotificationType } from '../../contexts/NotificationsContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -326,6 +327,7 @@ const DELIVERY_LABELS: Record<DeliveryMethod, string> = {
 // ============================================================================
 
 export const NotificationPreferences: React.FC = () => {
+  useDocumentTitle('Notification Preferences');
   const { preferences, updatePreferences, loading: contextLoading, error: contextError } = useNotifications();
 
   // Local state for form

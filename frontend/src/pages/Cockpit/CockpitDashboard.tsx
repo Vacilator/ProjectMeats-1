@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   WidgetGrid,
   WidgetConfig,
@@ -451,6 +452,7 @@ type InlineActionState = {
 } | null;
 
 export const CockpitDashboard: React.FC = () => {
+  useDocumentTitle('Dashboard');
   const containerRef = useRef<HTMLDivElement>(null);
   const { hasCompletedTour, launchTour } = useOnboarding();
   const { stats } = useCockpitStats();

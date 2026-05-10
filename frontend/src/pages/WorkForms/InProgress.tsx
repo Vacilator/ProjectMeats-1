@@ -29,6 +29,7 @@ import { workflowExecutionService } from '../../services/workflowExecutionServic
 import { workformExecutionService } from '@/services/workformExecutionService';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // Types
@@ -389,6 +390,7 @@ const CancelButton = styled.button`
 // ============================================================================
 
 const FormsFlowsInProgress: React.FC = () => {
+  useDocumentTitle('In Progress');
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'submissions' | 'executions'>('submissions');

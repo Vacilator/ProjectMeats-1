@@ -6,8 +6,10 @@ import { Skeleton } from 'antd';
 import { AlertCircle, CheckCircle, Mail, ExternalLink } from 'lucide-react';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { integrationsService, type OAuthConnection } from '@/services/integrationsService';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export const IntegrationSettings: React.FC = () => {
+  useDocumentTitle('Email Integrations');
   const [connections, setConnections] = useState<OAuthConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
