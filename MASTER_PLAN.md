@@ -151,6 +151,7 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 - **WorkForms publish readiness preflight: SHIPPED.** ValidationDrawer integrated into toolbar with ShieldCheck button, actionable remediation items, blocks publish on unsupported/misconfigured nodes (PR #5225).
 - **WorkForms A11y + testability: SHIPPED.** ValidationDrawer aria-expanded/role/tabIndex/onKeyDown, DynamicConfigPanel htmlFor/id on labels, toolbar aria-labels/aria-pressed/data-testid selectors (PR #5226).
 - **Cockpit search relevance + lazy-mount: SHIPPED.** Multi-factor relevance scoring (exact/prefix/word-boundary/substring/fuzzy + recency boost), single-char-deletion fuzzy variants, lazy-mount hidden config fields (PR #5227).
+- **Graceful degradation + webhook deprecation: SHIPPED.** Replaced 5 RuntimeError raises with graceful fallbacks (manual-review fallback, friendly unavailable responses, empty dicts). Legacy webhook receiver now logs WARNING on every call. 7 files (PR #5231).
 - **Mobile responsiveness: SHIPPED.** useMediaQuery/useIsMobile/useIsTablet hooks, responsive CockpitDashboard grid (1/6/12 cols), touch-target sizing, SmartSearch mobile padding, FlowEditor mobile notice banner, global CSS touch/overflow/modal rules (PR #5228).
 - **AI Widget WebSocket resilience shipped.** Dev-only structured logging, token refresh hardening, close-code diagnostics (PR #5040).
 - **Email sync on login shipped.** Django `user_logged_in` signal fires tenant-scoped Celery sync + frontend status indicator (PR #5041).
@@ -1061,12 +1062,12 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 
 ### P0 — Stability / correctness
 - **Type safety gate:** `npm run type-check` clean; reduce `any` / runtime prop-shape errors.
-- **Graceful degradation / feature flags:** missing secrets/infra (AI, email, Outlook, pgvector) must not crash UX; expose availability in health.
+- **Graceful degradation / feature flags:** missing secrets/infra (AI, email, Outlook, pgvector) must not crash UX; expose availability in health. ✅ shipped — all 5 RuntimeError sites replaced with graceful fallbacks; health endpoint exposes `features.ai` flag (PR #5231).
 - **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability.
 
 ### P0 — Security / tenant isolation (next)
 - **TenantMiddleware hardening:** ignore `X-Tenant-ID` for anonymous requests (prevent tenant context injection on `AllowAny` endpoints); add regression tests. ✅ shipped (PR #5223).
-- **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily.
+- **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily. ✅ shipped — canonical tenant-scoped URL active; legacy endpoint deprecated with WARNING logging (PR #5231).
 - **Email webhooks verification (critical):** Outlook requires unpredictable per-subscription `clientState`; Gmail requires request verification (JWT/secret) so forged requests cannot trigger upstream API calls.
 - **Tenant-scope email integration data:** phase in `tenant_id` for EmailAccount/EmailLog (and related tables), then add RLS policies once tenant-scoped.
 - **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure. ✅ shipped (PR #5223).
@@ -1082,7 +1083,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Cockpit Search relevance:** ranking + fuzzy match + recency; persistent favorites that are tenant-safe (RLS-backed). ✅ shipped relevance scoring + fuzzy match (PR #5227); favorites already RLS-backed (PR #4037).
 - **Mobile responsiveness:** Cockpit + core CRUD forms usable <768px; touch targets; FlowEditor mobile/tablet fallback. ✅ shipped (PR #5228).
 - **Email ingestion monitor:** correctness, diagnostics, reconnect CTA, progress reporting, attachment-aware detection. ✅ shipped provenance badges + retryability hints (PR #5224); intelligent classification (PR #5215).
-- **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows.
+- **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows. ✅ verified complete — full CRUD for system lists, custom tenant lists, overrides, and products at /workspace/option-lists.
 
 ### P1 — CI/CD determinism (next)
 - **Remove archived workflows from Actions:** move `.github/workflows/archived/**` out of `.github/workflows/` so they cannot run and bypass guardrails. ✅ verified — no archived directory exists; all 17 workflows are active and valid.
