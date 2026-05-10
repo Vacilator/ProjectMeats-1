@@ -63,12 +63,13 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 - ✅ Non-canonical files already archived in `archived/` directory
 
 ### Phase 23: Frontend Hardening + Backend Tenant Safety
-- Frontend theme-token compliance sweep: eliminate hardcoded rgb/rgba in CommandPalette, MyTasks
-- Frontend canonical logging: replace console.* with logger.* in FlowEditor + contexts
-- Confidence scoring dashboard for email auto-pipeline
-- End-to-end tests with sample emails in dev
-- Backend tenant ambiguity hardening (fail-closed for multi-tenant users)
-- WorkForms schema-init deterministic initialization
+- ✅ Frontend theme-token compliance sweep: eliminated ALL 241 hardcoded rgb/rgba values across 94 files (PR #5240)
+- ✅ Frontend canonical logging: already clean — zero console.* calls in production code
+- ✅ exhaustive-deps suppression in Execute.tsx: already removed
+- Confidence scoring dashboard for email auto-pipeline — deferred
+- End-to-end tests with sample emails in dev — deferred
+- Backend tenant ambiguity hardening (fail-closed for multi-tenant users) — future
+- WorkForms schema-init deterministic initialization — future
 
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
