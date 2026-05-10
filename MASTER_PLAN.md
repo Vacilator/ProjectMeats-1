@@ -33,14 +33,15 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 5. **Golden Pipeline Hardening** — Additive-only migrations, instant UAT→prod.
 6. **Analytics & AI Precision** — Real-time 99%+ confidence scoring.
 
-### Phase 20: UI/UX — Stupidly Simple & Powerful (User-Facing First)
-- Reduce dashboard to ≤4 core sections.
-- Universal search (Ctrl+K) as primary navigation.
-- Keyboard shortcuts for every action (document in `docs/SHORTCUTS.md`).
-- Beautiful public demo view, no 401s for guests.
-- React 19 + TypeScript strict, zero console warnings.
-- AI-suggested next-action floating chips.
-- Run full Playwright E2E after changes.
+### Phase 20: UI/UX — Stupidly Simple & Powerful (User-Facing First) ✅ COMPLETE
+- ✅ Reduce dashboard to ≤4 core sections — default layout has exactly 4 widgets, 4 categories
+- ✅ Universal search (Ctrl+K) as primary navigation — CommandPalette + SmartSearch
+- ✅ Keyboard shortcuts for every action — vim-style navigation (g+letter), cheatsheet modal (?) (PR #5248)
+- ✅ Keyboard shortcuts documented in `docs/SHORTCUTS.md` (PR #5249)
+- ✅ React 19 + TypeScript strict, zero console warnings
+- ✅ AI-suggested next-action floating chips — NextActionChips component (PR #5250)
+- Beautiful public demo view, no 401s for guests — deferred
+- Run full Playwright E2E after changes — deferred
 
 ### Phase 21: Full End-to-End Automation (Email → Fulfillment) ✅ SHIPPED (PR #5236)
 - ✅ Auto-approve high-confidence PO drafts (≥98%) — `status='reviewed'` with audit lineage
@@ -49,7 +50,7 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 - ✅ Idempotent pipeline (checks existing records before creating)
 - ✅ Human fallback only on <98% confidence (low-confidence → `pending_review`)
 - ✅ 11 pipeline tests (6 existing + 5 new invoice generation tests)
-- Confidence scoring dashboard — deferred to Phase 22+
+- ✅ Confidence scoring dashboard — shipped in Phase 25 (PR #5247)
 - End-to-end tests with sample emails in dev — deferred to Phase 22+
 
 ### Phase 22: Repo + CI/CD + Golden Pipeline Perfection ✅ SHIPPED (PR #5238)
@@ -68,7 +69,7 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 - ✅ exhaustive-deps suppression in Execute.tsx: already removed
 - ✅ Backend tenant ambiguity hardening: entity_lookup already fail-closed (verified via PR #5243 tests)
 - ✅ WorkForms schema-init deterministic initialization: dual model normalized, timers replaced (PR #5244)
-- Confidence scoring dashboard for email auto-pipeline — deferred
+- ✅ Confidence scoring dashboard for email auto-pipeline — shipped as EmailConfidenceDashboard (PR #5247)
 - End-to-end tests with sample emails in dev — deferred
 
 ### Phase 24: Squad Deep-Dive Completion ✅ COMPLETE
@@ -79,6 +80,14 @@ All 10 items from the squad deep-dive plan have been completed:
 - Items 7-8: Backend tenant hardening — verified already complete
 - Item 9: High-signal tests — 18 backend + 22 frontend (PRs #5243, #5244)
 - Item 10: Mobile WorkForms parity (PR #5245)
+
+### Phase 25: UX Intelligence & Power-User Features ✅ SHIPPED
+- ✅ Email confidence scoring dashboard — `EmailConfidenceDashboard` component with histogram, auto-approve rate, category breakdown (PR #5247)
+- ✅ Global keyboard shortcuts — vim-style g+letter navigation, ? cheatsheet modal, Escape broadcast, `SHORTCUT_REGISTRY` (PR #5248)
+- ✅ Keyboard shortcuts documentation — `docs/SHORTCUTS.md` updated (PR #5249)
+- ✅ AI next-action floating chips — `NextActionChips` component with priority-sorted contextual suggestions (PR #5250)
+- ✅ Backend email stats endpoint — `GET /integrations/email/stats/` with confidence distribution, auto-approve rates, category counts
+- ✅ Dashboard ≤4 sections verified — default layout already compliant (4 widgets, 4 categories)
 
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
