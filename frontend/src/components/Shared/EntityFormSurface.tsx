@@ -11,7 +11,7 @@
  * duplicating per-entry-point logic.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import { Modal, Skeleton } from 'antd';
 import { useQuery } from '@tanstack/react-query';
@@ -94,6 +94,17 @@ function useDeepStableValue<T>(value: T): T {
   return ref.current;
 }
 
+/**
+ * Returns a stable callback that always invokes the latest version of `fn`.
+ * Prevents render cascades when parent components pass fresh arrow functions.
+ */
+function useStableCallback<T extends (...args: any[]) => any>(fn: T | undefined): T {
+  const ref: RefObject<T | undefined> = useRef(fn);
+  ref.current = fn;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useCallback(((...args: any[]) => ref.current?.(...args)) as unknown as T, []);
+}
+
 const humanizeEntityType = (value: string): string => {
   const tail = String(value || '')
     .split('.')
@@ -153,15 +164,8 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const [formSubmitting, setFormSubmitting] = useState(false);
 
   const useUniversalInquiryCreate = getRuntimeConfigBoolean('USE_UNIVERSAL_INQUIRY_CREATE', false);
-  const handleClose = useCallback(() => {
-    onClose();
-  }, [onClose]);
-  const handleSuccess = useCallback(
-    (result: unknown) => {
-      onSuccess?.(result);
-    },
-    [onSuccess]
-  );
+  const handleClose = useStableCallback(onClose);
+  const handleSuccess = useStableCallback(onSuccess);
 
   useEffect(() => {
     if (!isOpen) {
@@ -364,6 +368,14 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   );
   const shouldMountForm = isOpen && formReady && !formLoading && !formLoadError;
 
+  const formSubmittingRef = useRef(formSubmitting);
+  formSubmittingRef.current = formSubmitting;
+  const handleCancel = useCallback(() => {
+    if (formSubmittingRef.current) return;
+    handleClose();
+  }, [handleClose]);
+  const maskConfig = useMemo(() => ({ closable: !formSubmitting }), [formSubmitting]);
+
   if (variant === 'modal' && !isOpen) {
     return null;
   }
@@ -403,12 +415,9 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     <Modal
       open={isOpen}
       centered
-      onCancel={() => {
-        if (formSubmitting) return;
-        handleClose();
-      }}
+      onCancel={handleCancel}
       closable={!formSubmitting}
-      mask={{ closable: !formSubmitting }}
+      mask={maskConfig}
       keyboard={!formSubmitting}
       footer={null}
       width="min(720px, calc(100vw - 32px))"

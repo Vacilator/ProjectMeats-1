@@ -180,6 +180,47 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     }
   }, [entityId, mode, normalizedEntityType]);
 
+  const handleChildCreateClose = useCallback(() => {
+    setChildCreateOpen(false);
+  }, []);
+
+  const handleChildCreateSuccess = useCallback(() => {
+    setChildCreateOpen(false);
+    void loadChildRows();
+  }, [loadChildRows]);
+
+  const handleFormClose = useCallback(() => {
+    navigate(basePath);
+  }, [basePath, navigate]);
+
+  const handleFormSuccess = useCallback(
+    (result: unknown) => {
+      const nextId = extractId(result);
+
+      if (mode === 'create' && nextId) {
+        navigate(`${basePath}/${encodeURIComponent(nextId)}`);
+        return;
+      }
+
+      if (mode === 'edit' && entityId) {
+        navigate(viewPath);
+        return;
+      }
+    },
+    [basePath, entityId, mode, navigate, viewPath]
+  );
+
+  const handleOperationalChanged = useCallback(() => {
+    void loadOverview();
+  }, [loadOverview]);
+
+  const handleNavigateToEntity = useCallback(
+    (t: string, pk: string) => {
+      navigate(getRecordPath(t, pk));
+    },
+    [navigate]
+  );
+
   useEffect(() => {
     void loadChildRows();
   }, [loadChildRows]);
@@ -391,9 +432,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                 entityId={entityId}
                 recordLabel={title}
                 compact
-                onChanged={() => {
-                  void loadOverview();
-                }}
+                onChanged={handleOperationalChanged}
               />
             ) : null}
             <Button type="primary" onClick={() => editPath && navigate(editPath)}>
@@ -413,20 +452,8 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
           variant="inline"
           isOpen={true}
           entityId={formMode === 'create' ? undefined : entityId}
-          onClose={() => navigate(basePath)}
-          onSuccess={(result) => {
-            const nextId = extractId(result);
-
-            if (mode === 'create' && nextId) {
-              navigate(`${basePath}/${encodeURIComponent(nextId)}`);
-              return;
-            }
-
-            if (mode === 'edit' && entityId) {
-              navigate(viewPath);
-              return;
-            }
-          }}
+          onClose={handleFormClose}
+          onSuccess={handleFormSuccess}
         />
       )}
 
@@ -438,9 +465,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
           <EntityProfileHeader
             entityType={normalizedEntityType}
             entityId={entityId}
-            onNavigateToEntity={(t, pk) => {
-              navigate(getRecordPath(t, pk));
-            }}
+            onNavigateToEntity={handleNavigateToEntity}
             onTitleResolved={setRecordDisplay}
             layout="grid"
             variant="full"
@@ -676,7 +701,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           variant="inline"
                           isOpen={true}
                           entityId={entityId}
-                          onClose={() => navigate(basePath)}
+                          onClose={handleFormClose}
                         />
                       ),
                     },
@@ -756,11 +781,8 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
               mode="create"
               variant="modal"
               isOpen={childCreateOpen}
-              onClose={() => setChildCreateOpen(false)}
-              onSuccess={() => {
-                setChildCreateOpen(false);
-                void loadChildRows();
-              }}
+              onClose={handleChildCreateClose}
+              onSuccess={handleChildCreateSuccess}
               initialValues={childCreateInitialValues}
             />
           )}
