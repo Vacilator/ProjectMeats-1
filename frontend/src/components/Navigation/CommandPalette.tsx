@@ -685,7 +685,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
             onKeyDown={handleKeyDown}
             placeholder="Search suppliers, customers, orders..."
           />
-          <CloseButton onClick={onClose}>
+          <CloseButton onClick={onClose} aria-label="Close search">
             <X size={16} />
           </CloseButton>
         </SearchInputContainer>

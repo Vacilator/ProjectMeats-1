@@ -364,7 +364,10 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
               logs.map((log) => (
                 <div
                   key={log.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => loadLogDetail(log.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadLogDetail(log.id); } }}
                   className="p-4 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <div className="flex items-start gap-4">

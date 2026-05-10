@@ -261,6 +261,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         {versions.map((version) => (
           <div
             key={version.id}
+            role={compareMode ? 'button' : undefined}
+            tabIndex={compareMode ? 0 : undefined}
             className={`p-4 border rounded-lg transition-all ${
               version.id === currentVersionId
                 ? 'border-blue-500 bg-blue-50'
@@ -268,6 +270,16 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             } ${compareMode ? 'cursor-pointer' : ''}`}
             onClick={() => {
               if (compareMode) {
+                if (!selectedForCompare) {
+                  setSelectedForCompare(version.id);
+                } else if (selectedForCompare !== version.id) {
+                  handleCompare(version.id);
+                }
+              }
+            }}
+            onKeyDown={(e) => {
+              if (compareMode && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
                 if (!selectedForCompare) {
                   setSelectedForCompare(version.id);
                 } else if (selectedForCompare !== version.id) {
