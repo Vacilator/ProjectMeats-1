@@ -1,14 +1,21 @@
 /**
  * Theme Utilities - Dynamic brand color extraction
- * Note: colorthief types are not available, using 'any' sparingly
+ * Note: colorthief has no TS types; interfaces defined inline.
  */
 
 import { logger } from './logger';
 
-let cachedColorThiefModule: any | null = null;
-let cachedColorThiefInstance: any | null = null;
+type RGBTuple = [number, number, number];
 
-const getColorThiefModule = async (): Promise<any> => {
+interface ColorThiefLike {
+  getColor: (img: HTMLImageElement, quality?: number) => RGBTuple;
+  getPalette: (img: HTMLImageElement, count?: number, quality?: number) => RGBTuple[];
+}
+
+let cachedColorThiefModule: unknown = null;
+let cachedColorThiefInstance: ColorThiefLike | null = null;
+
+const getColorThiefModule = async (): Promise<unknown> => {
   if (cachedColorThiefModule) return cachedColorThiefModule;
 
   // colorthief export shape varies across versions and bundlers.
@@ -17,25 +24,25 @@ const getColorThiefModule = async (): Promise<any> => {
   return cachedColorThiefModule;
 };
 
-const getColorThiefInstance = async (): Promise<any> => {
+const getColorThiefInstance = async (): Promise<ColorThiefLike> => {
   if (cachedColorThiefInstance) return cachedColorThiefInstance;
 
-  const mod: any = await getColorThiefModule();
-  const exported: any = mod?.default ?? mod?.ColorThief ?? mod;
+  const mod = await getColorThiefModule() as Record<string, unknown>;
+  const exported = mod?.default ?? mod?.ColorThief ?? mod;
 
   // Some bundlers expose an already-created instance; others expose a constructor.
-  if (exported && typeof exported.getColor === 'function') {
-    cachedColorThiefInstance = exported;
+  if (exported && typeof (exported as ColorThiefLike).getColor === 'function') {
+    cachedColorThiefInstance = exported as ColorThiefLike;
     return cachedColorThiefInstance;
   }
 
   if (typeof exported === 'function') {
     try {
-      cachedColorThiefInstance = new exported();
+      cachedColorThiefInstance = new (exported as { new(): ColorThiefLike })();
       return cachedColorThiefInstance;
     } catch {
       // Fallback: some builds may expose a factory function.
-      cachedColorThiefInstance = exported();
+      cachedColorThiefInstance = (exported as () => ColorThiefLike)();
       return cachedColorThiefInstance;
     }
   }
@@ -270,7 +277,7 @@ export const extractBrandColors = async (logoUrl: string): Promise<number[] | nu
 
     // Try ColorThief first (higher quality when it works).
     try {
-      const colorThief: any = await getColorThiefInstance();
+      const colorThief = await getColorThiefInstance();
       const color = colorThief?.getColor?.(img);
       if (Array.isArray(color) && color.length === 3) return color;
     } catch {

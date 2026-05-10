@@ -49,7 +49,7 @@ export interface UseFormValidationReturn {
   /** Set of field keys that have been modified */
   dirtyFields: Set<string>;
   /** Validate a single field, returns error message or null */
-  validateField: (fieldKey: string, value: any) => string | null;
+  validateField: (fieldKey: string, value: unknown) => string | null;
   /** Validate all fields in current step, returns all errors */
   validateStep: () => Record<string, string>;
   /** Check if all required fields in step are valid */
@@ -57,9 +57,9 @@ export interface UseFormValidationReturn {
   /** Mark a field as touched (triggers validation) */
   markFieldTouched: (fieldKey: string) => void;
   /** Handle field value change with hybrid validation */
-  handleFieldChange: (fieldKey: string, value: any, immediate?: boolean) => void;
+  handleFieldChange: (fieldKey: string, value: unknown, immediate?: boolean) => void;
   /** Handle field blur (mark touched + validate) */
-  handleFieldBlur: (fieldKey: string, value: any) => void;
+  handleFieldBlur: (fieldKey: string, value: unknown) => void;
   /** Clear all validation state */
   clearValidation: () => void;
   /** Get error for a specific field (only if touched) */
@@ -87,7 +87,7 @@ export function useFormValidation(
   }, [fields]);
 
   // Validate a single field
-  const validateField = useCallback((fieldKey: string, value: any): string | null => {
+  const validateField = useCallback((fieldKey: string, value: unknown): string | null => {
     const field = fieldMap.get(fieldKey);
     if (!field) return null;
 
@@ -165,7 +165,7 @@ export function useFormValidation(
   }, []);
 
   // Handle field change with hybrid validation
-  const handleFieldChange = useCallback((fieldKey: string, value: any, immediate = false) => {
+  const handleFieldChange = useCallback((fieldKey: string, value: unknown, immediate = false) => {
     // Mark as dirty
     setDirtyFields(prev => {
       const next = new Set(prev);
@@ -192,7 +192,7 @@ export function useFormValidation(
   }, [touchedFields, validateField, onValidationChange]);
 
   // Handle field blur
-  const handleFieldBlur = useCallback((fieldKey: string, value: any) => {
+  const handleFieldBlur = useCallback((fieldKey: string, value: unknown) => {
     // Mark as touched
     setTouchedFields(prev => {
       const next = new Set(prev);

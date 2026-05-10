@@ -89,7 +89,7 @@ export interface TenantForm {
   name: string;
   description: string;
   type: 'single_step' | 'multi_step';
-  form_definition: any;
+  form_definition: Record<string, unknown>;
   version: number;
   usage_count: number;
   entity_type: string;
@@ -133,7 +133,7 @@ export interface TenantWorkForm {
   name: string;
   description: string;
   status: 'draft' | 'active' | 'archived';
-  workflow_definition: any;
+  workflow_definition: Record<string, unknown>;
   form_references: string[];
   version: number;
   parent_version?: string;
@@ -292,15 +292,15 @@ export const getFormFields = async (formId: string): Promise<EntityField[]> => {
   
   // Extract fields from form_definition structure.
   // Backward compatibility: some legacy code paths may still return `flow_data`.
-  const definition = (form as any).form_definition ?? (form as any).flow_data;
+  const formObj = form as unknown as Record<string, unknown>;
+  const definition = formObj.form_definition ?? formObj.flow_data;
   const fields: EntityField[] = [];
+  const def = definition as Record<string, unknown> | undefined;
 
-  if (definition?.fields && Array.isArray(definition.fields)) {
-    // Single-step form
-    fields.push(...definition.fields);
-  } else if (definition?.steps && Array.isArray(definition.steps)) {
-    // Multi-step form - aggregate all fields from all steps
-    definition.steps.forEach((step: any) => {
+  if (def?.fields && Array.isArray(def.fields)) {
+    fields.push(...(def.fields as EntityField[]));
+  } else if (def?.steps && Array.isArray(def.steps)) {
+    (def.steps as Array<{ fields?: EntityField[] }>).forEach((step) => {
       if (step.fields && Array.isArray(step.fields)) {
         fields.push(...step.fields);
       }
@@ -317,7 +317,7 @@ export const createTenantForm = async (data: {
   name: string;
   description?: string;
   type: 'single_step' | 'multi_step';
-  form_definition: any;
+  form_definition: Record<string, unknown>;
 }): Promise<TenantForm> => {
   const response = await apiClient.post('/tenant-forms/', data);
   return response.data;
@@ -433,7 +433,7 @@ export const createTenantWorkForm = async (data: {
   name: string;
   description?: string;
   status?: 'draft' | 'active' | 'archived';
-  workflow_definition: any;
+  workflow_definition: Record<string, unknown>;
 }): Promise<TenantWorkForm> => {
   requireTenantId('/tenant-workforms/');
 
@@ -524,13 +524,13 @@ export const validateWorkForm = async (
 };
 
 export interface SuggestNodesResponse {
-  suggestions: any[];
+  suggestions: Record<string, unknown>[];
   confidence?: number;
   mode?: 'ai' | 'static';
   cached?: boolean;
 }
 
-export const suggestNodes = async (payload: any): Promise<SuggestNodesResponse> => {
+export const suggestNodes = async (payload: Record<string, unknown>): Promise<SuggestNodesResponse> => {
   const response = await apiClient.post('/workflows/suggest-nodes/', payload);
   return response.data;
 };
@@ -553,7 +553,7 @@ export interface ContainerDetail {
   total_nodes: number;
   node_types: Record<string, number>;
   form_references: string[];
-  nodes: any[];
+  nodes: Record<string, unknown>[];
 }
 
 /**

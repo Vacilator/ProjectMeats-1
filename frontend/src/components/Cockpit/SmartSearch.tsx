@@ -59,13 +59,25 @@ export interface RelationalChunk {
   icon: React.ReactNode;
 }
 
+interface ApiSearchItem {
+  id: string | number;
+  type: string;
+  title?: string;
+  name?: string;
+  subtitle?: string;
+  status?: string;
+  quantity?: string | number;
+  relevance_score?: number;
+  metadata?: Record<string, unknown>;
+}
+
 // NOTE: Breadcrumb UI is owned by CockpitDashboard via <BreadcrumbBar />.
 // SmartSearch reacts to navigation path changes to implement continuous browsing.
 
 export interface InlineActionPayload {
   action: 'create' | 'edit' | 'view';
   entityType: string;
-  contextData: any;
+  contextData: Record<string, unknown>;
 }
 
 export interface SmartSearchProps {
@@ -393,16 +405,18 @@ const getRelationshipIcon = (relType: string) => {
 /**
  * Format entity subtitle from metadata
  */
-const formatEntitySubtitle = (item: any): string => {
+const formatEntitySubtitle = (item: SearchEntity | ApiSearchItem): string => {
   // Use smart labels if available
-  if (item.metadata?.labels && item.metadata.labels.length > 0) {
-    return item.metadata.labels[0]; // Show first label
+  const meta = item.metadata as Record<string, unknown> | undefined;
+  const labels = meta?.labels;
+  if (Array.isArray(labels) && labels.length > 0) {
+    return String(labels[0]); // Show first label
   }
   
   // Fallback to common fields
   if (item.subtitle) return item.subtitle;
-  if (item.status) return item.status;
-  if (item.quantity) return `Qty: ${item.quantity}`;
+  if ('status' in item && item.status) return String(item.status);
+  if ('quantity' in item && item.quantity) return `Qty: ${item.quantity}`;
   
   return '';
 };
@@ -447,7 +461,7 @@ const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
   }
   
   return {
-    type: 'actions' as any,
+    type: 'actions',
     title: 'Quick Actions',
     items: actions,
     icon: <TrendingUp size={16} />,
@@ -491,7 +505,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
   const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
 
-  const [quickCreateConfig, setQuickCreateConfig] = useState<{ isOpen: boolean; type: string; context: any }>(
+  const [quickCreateConfig, setQuickCreateConfig] = useState<{ isOpen: boolean; type: string; context: Record<string, unknown> }>(
     { isOpen: false, type: '', context: {} }
   );
 
@@ -621,13 +635,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       const { relationships } = response.data;
       
       // Transform API relationships to chunks
-      Object.entries(relationships).forEach(([relType, items]: [string, any]) => {
+      (Object.entries(relationships) as [string, ApiSearchItem[]][]).forEach(([relType, items]) => {
         if (!items || items.length === 0) return;
         
         const chunk: RelationalChunk = {
-          type: relType as any,
+          type: relType as string,
           title: formatRelationshipTitle(relType),
-          items: items.map((item: any) => ({
+          items: items.map((item: ApiSearchItem) => ({
             id: String(item.id ?? ''),
             type: String(item.type ?? 'unknown'),
             name: item.title || item.name || `${item.type} #${item.id}`,
@@ -650,9 +664,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         
         if (fuzzyResponse.data.fuzzy_matches && fuzzyResponse.data.fuzzy_matches.length > 0) {
           // Group fuzzy matches by type
-          const fuzzyByType: Record<string, any[]> = {};
+          const fuzzyByType: Record<string, ApiSearchItem[]> = {};
           
-          fuzzyResponse.data.fuzzy_matches.forEach((match: any) => {
+          fuzzyResponse.data.fuzzy_matches.forEach((match: ApiSearchItem) => {
             if (!fuzzyByType[match.type]) {
               fuzzyByType[match.type] = [];
             }
@@ -664,11 +678,11 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             const fuzzyChunk: RelationalChunk = {
               type: `fuzzy_${matchType}`,
               title: `${formatRelationshipTitle(matchType)} (Fuzzy Matches)`,
-              items: (matches as any[]).map((match: any) => ({
+              items: matches.map((match: ApiSearchItem) => ({
                 id: String(match.id ?? ''),
                 type: String(match.type ?? 'unknown'),
-                name: match.name,
-                subtitle: match.subtitle || `Match: ${match.metadata?.match_type || 'Unknown'}`,
+                name: match.name || match.title || `${match.type} #${match.id}`,
+                subtitle: match.subtitle || `Match: ${String(match.metadata?.match_type || 'Unknown')}`,
                 metadata: {
                   ...(match.metadata ?? {}),
                   fuzzy: true,
@@ -1016,10 +1030,10 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       const url = `/system/entities/${encodeURIComponent(entity.type)}/${encodeURIComponent(entity.id)}/relationships/?relationship_types=${encodeURIComponent(relationshipType)}`;
       const response = await businessApi.get(url);
 
-      const items = (response.data?.relationships?.[relationshipType] ?? []) as any[];
+      const items = (response.data?.relationships?.[relationshipType] ?? []) as ApiSearchItem[];
       const count = Number(response.data?.counts?.[relationshipType] ?? items.length);
 
-      const mapped: SearchEntity[] = items.map((item: any) => ({
+      const mapped: SearchEntity[] = items.map((item: ApiSearchItem) => ({
         id: String(item.id ?? ''),
         type: String(item.type ?? 'unknown'),
         name: item.title || item.name || `${item.type} #${item.id}`,
@@ -1496,12 +1510,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               isOpen={true}
               onClose={closeQuickCreate}
               context={{
-                customerId: quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id,
-                supplierId: quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id,
-                contactId: quickCreateConfig.context?.contact || quickCreateConfig.context?.contact_id,
+                customerId: (quickCreateConfig.context?.customer ?? quickCreateConfig.context?.customer_id) as string | undefined,
+                supplierId: (quickCreateConfig.context?.supplier ?? quickCreateConfig.context?.supplier_id) as string | undefined,
+                contactId: (quickCreateConfig.context?.contact ?? quickCreateConfig.context?.contact_id) as string | undefined,
               }}
               onSuccess={(created) => {
-                const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
+                const row = (created && typeof created === 'object' ? created : {}) as Record<string, unknown>;
                 const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
                 const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
                 const createdType =
@@ -1564,7 +1578,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               mode={inlineAction.action === 'view' ? 'view' : inlineAction.action === 'edit' ? 'edit' : 'create'}
               entityId={
                 inlineAction.action === 'view' || inlineAction.action === 'edit'
-                  ? (inlineAction.contextData?.entityId ?? inlineAction.contextData?.id ?? activeEntity.id)
+                  ? String(inlineAction.contextData?.entityId ?? inlineAction.contextData?.id ?? activeEntity.id)
                   : undefined
               }
               variant="inline"
@@ -1572,12 +1586,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               isOpen={true}
               onClose={() => onInlineCancel?.()}
               context={{
-                customerId: inlineAction.contextData?.customer || inlineAction.contextData?.customer_id,
-                supplierId: inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id,
-                contactId: inlineAction.contextData?.contact || inlineAction.contextData?.contact_id,
+                customerId: (inlineAction.contextData?.customer ?? inlineAction.contextData?.customer_id) as string | undefined,
+                supplierId: (inlineAction.contextData?.supplier ?? inlineAction.contextData?.supplier_id) as string | undefined,
+                contactId: (inlineAction.contextData?.contact ?? inlineAction.contextData?.contact_id) as string | undefined,
               }}
               onSuccess={(created) => {
-                const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
+                const row = (created && typeof created === 'object' ? created : {}) as Record<string, unknown>;
                 const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
                 const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
 
@@ -1766,7 +1780,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     renderRelationalChunks()
                   ),
                 },
-              ] as any[])}
+              ] as React.ComponentProps<typeof Tabs>["items"])}
             />
           )
           ) : isRelationsLoading ? (
