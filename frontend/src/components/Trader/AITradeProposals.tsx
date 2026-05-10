@@ -29,12 +29,13 @@ import {
   message,
 } from 'antd';
 import {
+  AlertCircle,
   Lightbulb,
   Play,
+  RefreshCw,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
-  Zap,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
@@ -42,6 +43,7 @@ import styled from 'styled-components';
 import {
   traderService,
 } from '@/services/traderService';
+import { ConfidenceBadge } from '@/components/Shared/ConfidenceBadge';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
 const { Text } = Typography;
@@ -90,25 +92,7 @@ const ProposalActions = styled.div`
   justify-content: flex-end;
 `;
 
-const ConfidenceBadge = styled.span<{ $level: 'high' | 'medium' | 'low' }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.125rem 0.5rem;
-  border-radius: 1rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  background: ${(p) =>
-    p.$level === 'high' ? 'rgb(var(--color-success) / 0.12)' :
-    p.$level === 'medium' ? 'rgb(var(--color-warning) / 0.12)' :
-    'rgb(var(--color-text-secondary) / 0.08)'};
-  color: ${(p) =>
-    p.$level === 'high' ? 'rgb(var(--color-success))' :
-    p.$level === 'medium' ? 'rgb(var(--color-warning))' :
-    'rgb(var(--color-text-secondary))'};
-`;
 
-const AUTO_EXECUTE_THRESHOLD = 0.95;
 
 // ============================================================================
 // Component
@@ -182,8 +166,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
     });
   }, [feedbackTarget, feedbackComment, feedbackMutation]);
 
-  const getConfidenceLevel = (c: number): 'high' | 'medium' | 'low' =>
-    c >= 0.9 ? 'high' : c >= 0.7 ? 'medium' : 'low';
+
 
   if (proposalsQuery.isLoading) {
     return (
@@ -196,7 +179,21 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
   }
 
   if (proposalsQuery.isError) {
-    return null; // Silently degrade — non-critical feature
+    return (
+      <ProposalsContainer role="region" aria-label="AI Trade Proposals">
+        <Card size="small" title={<Space><Sparkles size={14} /> AI Proposals</Space>}>
+          <div style={{ textAlign: 'center', padding: '1rem' }}>
+            <AlertCircle size={20} style={{ color: 'rgb(var(--color-warning))', marginBottom: 8 }} />
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+              Unable to load AI proposals
+            </Typography.Text>
+            <Button size="small" onClick={() => proposalsQuery.refetch()} icon={<RefreshCw size={12} />}>
+              Retry
+            </Button>
+          </div>
+        </Card>
+      </ProposalsContainer>
+    );
   }
 
   if (proposals.length === 0) return null;
@@ -224,16 +221,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
               <Space size={8}>
                 <Lightbulb size={14} style={{ color: 'rgb(var(--color-warning))' }} />
                 <Text strong style={{ fontSize: '0.85rem' }}>{proposal.title}</Text>
-                <ConfidenceBadge $level={getConfidenceLevel(proposal.confidence)}>
-                  {Math.round(proposal.confidence * 100)}%
-                </ConfidenceBadge>
-                {proposal.confidence >= AUTO_EXECUTE_THRESHOLD && (
-                  <Tooltip title="Above auto-execute threshold">
-                    <Tag color="green" style={{ fontSize: '0.65rem', margin: 0 }}>
-                      <Zap size={10} /> Auto-Ready
-                    </Tag>
-                  </Tooltip>
-                )}
+                <ConfidenceBadge score={proposal.confidence} showAutoExecute />
               </Space>
               <Tag color={proposal.source === 'email' ? 'blue' : proposal.source === 'history' ? 'purple' : 'default'}>
                 {proposal.source}

@@ -124,10 +124,12 @@ describe('AITradeProposals', () => {
     });
   });
 
-  it('shows Auto-Ready tag for proposals above threshold', async () => {
+  it('shows auto-execute indicator for proposals above threshold', async () => {
     renderProposals();
     await waitFor(() => {
-      expect(screen.getByText('Auto-Ready')).toBeInTheDocument();
+      // The 97% proposal (above 0.95 threshold) should have the auto-execute badge
+      const badge97 = screen.getByLabelText(/97%/);
+      expect(badge97).toBeInTheDocument();
     });
   });
 
@@ -181,14 +183,15 @@ describe('AITradeProposals', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('renders nothing on error', async () => {
+  it('renders error state with retry on error', async () => {
     mockGetProposals.mockRejectedValue(new Error('fail'));
-    const { container } = renderProposals();
+    renderProposals();
 
     await waitFor(() => {
       expect(screen.queryByLabelText('Loading AI trade proposals')).not.toBeInTheDocument();
     });
-    expect(container.innerHTML).toBe('');
+    expect(screen.getByText('Unable to load AI proposals')).toBeInTheDocument();
+    expect(screen.getByText('Retry')).toBeInTheDocument();
   });
 
   it('has accessible region role', async () => {

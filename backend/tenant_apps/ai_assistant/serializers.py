@@ -264,7 +264,24 @@ class AIDocumentSerializer(serializers.ModelSerializer):
         return _validate_request_session(value, self.context.get('request'))
 
     def get_document_type(self, obj) -> str:
-        # Classification may happen asynchronously; keep this additive and deterministic.
+        # Infer document type from processing metadata or content type
+        metadata = getattr(obj, 'custom_data', None) or {}
+        if isinstance(metadata, dict):
+            doc_type = metadata.get('document_type') or metadata.get('doc_type')
+            if doc_type:
+                return str(doc_type)
+        # Infer from content type
+        ct = getattr(obj, 'content_type', '') or ''
+        if 'pdf' in ct:
+            return 'pdf'
+        if 'spreadsheet' in ct or 'excel' in ct or 'csv' in ct:
+            return 'spreadsheet'
+        if 'image' in ct:
+            return 'image'
+        if 'word' in ct or 'document' in ct:
+            return 'document'
+        if 'text' in ct:
+            return 'text'
         return 'unknown'
 
     def get_source_metadata(self, obj) -> dict:

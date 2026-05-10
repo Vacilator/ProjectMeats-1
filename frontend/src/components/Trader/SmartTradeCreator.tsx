@@ -42,6 +42,7 @@ import {
   type TradeInitiateRequest,
   type DependencyCheckResult,
 } from '../../services/traderService';
+import { ConfidenceBadge } from '@/components/Shared/ConfidenceBadge';
 import { businessApi } from '../../services/businessApi';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import { DependencyWizard } from './DependencyWizard';
@@ -163,27 +164,7 @@ const SuggestionChip = styled.button<{ $confidence: number }>`
   }
 `;
 
-const ConfidenceBadge = styled.span<{ $level: 'high' | 'medium' | 'low' }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 0.68rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-  background: ${({ $level }) =>
-    $level === 'high'
-      ? 'rgba(var(--color-success), 0.12)'
-      : $level === 'medium'
-        ? 'rgba(var(--color-warning), 0.1)'
-        : 'rgba(var(--color-border), 0.3)'};
-  color: ${({ $level }) =>
-    $level === 'high'
-      ? 'rgb(var(--color-success))'
-      : $level === 'medium'
-        ? 'rgb(var(--color-warning))'
-        : 'rgb(var(--color-text-secondary))'};
-`;
+
 
 const FormSection = styled.div`
   display: flex;
@@ -472,12 +453,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
     setStep('review');
   }, []);
 
-  const confidenceLevel = useMemo((): 'high' | 'medium' | 'low' => {
-    if (!parsedResult) return 'low';
-    if (parsedResult.confidence >= 0.85) return 'high';
-    if (parsedResult.confidence >= 0.6) return 'medium';
-    return 'low';
-  }, [parsedResult]);
+
 
   // ============================================================================
   // Render
@@ -520,9 +496,9 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
             <Bot size={16} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
               <Text strong style={{ fontSize: '0.78rem' }}>AI Analysis</Text>
-              <ConfidenceBadge $level={confidenceLevel} style={{ marginLeft: 8 }}>
-                {Math.round(parsedResult.confidence * 100)}% confident
-              </ConfidenceBadge>
+              <span style={{ marginLeft: 8 }}>
+                <ConfidenceBadge score={parsedResult.confidence} />
+              </span>
               <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {parsedResult.suggestions.filter((s) => !appliedSuggestions.has(s.field)).map((s) => (
                   <SuggestionChip key={s.field} $confidence={s.confidence} onClick={() => applySuggestion(s)}>
@@ -689,9 +665,9 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
                 <Text strong style={{ fontSize: '0.78rem' }}>
                   AI detected {parsedResult.suggestions.length} field{parsedResult.suggestions.length > 1 ? 's' : ''}
                 </Text>
-                <ConfidenceBadge $level={confidenceLevel} style={{ marginLeft: 8 }}>
-                  {Math.round(parsedResult.confidence * 100)}%
-                </ConfidenceBadge>
+                <span style={{ marginLeft: 8 }}>
+                  <ConfidenceBadge score={parsedResult.confidence} />
+                </span>
                 <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {parsedResult.suggestions.map((s) => (
                     <SuggestionChip
