@@ -9,6 +9,7 @@ import { Component, ErrorInfo, ReactNode } from 'react';
 import styled from 'styled-components';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { logger } from '../../utils/logger';
+import { captureSentryException } from '../../utils/sentry';
 
 interface Props {
   children: ReactNode;
@@ -52,8 +53,10 @@ class AdminErrorBoundary extends Component<Props, State> {
       errorCount: prevState.errorCount + 1,
     }));
 
-    // TODO: Send to error tracking service (Sentry, LogRocket, etc.)
-    // Example: Sentry.captureException(error, { extra: errorInfo });
+    captureSentryException(error, {
+      component: 'AdminErrorBoundary',
+      metadata: { componentStack: errorInfo.componentStack },
+    });
   }
 
   handleReset = () => {
