@@ -120,11 +120,7 @@ describe('DynamicConfigPanel (visibility + defaults)', () => {
       <DynamicConfigPanel node={node} nodes={nodes} edges={edges} onUpdateNode={vi.fn()} />,
     );
 
-    const body = screen.getByTestId('field-body');
-
-    // FieldTransitionWrapper should collapse when not visible.
-    const wrapper = body.parentElement as HTMLElement;
-    expect(wrapper).toHaveStyle({ maxHeight: '0' });
-    expect(wrapper).toHaveStyle({ opacity: '0' });
+    // When method defaults to 'GET', body (conditional on POST) should not be in DOM
+    expect(screen.queryByTestId('field-body')).not.toBeInTheDocument();
   });
 });
