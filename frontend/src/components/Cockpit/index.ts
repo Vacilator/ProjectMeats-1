@@ -18,6 +18,7 @@ export { CockpitApprovalPanel } from './CockpitApprovalPanel';
 export { CockpitFinancialsPanel } from './CockpitFinancialsPanel';
 export { CockpitAnalyticsDashboard } from './CockpitAnalyticsDashboard';
 export { EmailConfidenceDashboard } from './EmailConfidenceDashboard';
+export { NextActionChips } from './NextActionChips';
 export { InterventionsPanel } from './InterventionsPanel';
 export { TradesInterventionDashboard } from './TradesInterventionDashboard';
 export type { TradeLineageFlowProps } from './TradeLineageFlow';
