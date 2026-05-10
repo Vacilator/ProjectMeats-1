@@ -618,7 +618,7 @@ const Invoices: React.FC = () => {
               )
             ) : (
               <TableWrapper>
-                <Table>
+                <Table aria-label="Invoices list">
                   <TableHeader>
                     <tr>
                       <TableHead>Invoice #</TableHead>

@@ -205,6 +205,7 @@ const FreightOrders: React.FC = () => {
           />
         ) : freightOrdersQuery.data?.length ? (
           <Table
+            aria-label="Freight orders list"
             rowKey="id"
             columns={columns}
             dataSource={freightOrdersQuery.data}

@@ -795,7 +795,7 @@ export const SalesOrdersPage: React.FC = () => {
                 </TransactionalEmptyState>
               )
             ) : (
-              <Table>
+              <Table aria-label="Sales orders list">
                 <TableHeader>
                   <TableRow>
                     <TableHeaderCell>Order #</TableHeaderCell>

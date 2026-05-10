@@ -181,9 +181,11 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
    * Delete choice list
    */
   const handleDeleteList = useCallback(async (listId: string) => {
+    const list = choiceLists.find(l => l.id === listId);
+    const listLabel = list?.label || 'this choice list';
     const confirmed = await confirmDialog({
       title: 'Delete choice list?',
-      content: 'Are you sure you want to delete this choice list?',
+      content: `Are you sure you want to delete "${listLabel}"? This action cannot be undone.`,
       okText: 'Delete',
       cancelText: 'Cancel',
       danger: true,
@@ -200,7 +202,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     } catch (error) {
       logger.error('Failed to delete list', { component: 'SystemChoiceManager' }, error);
     }
-  }, [loadChoiceLists, selectedList]);
+  }, [choiceLists, loadChoiceLists, selectedList]);
 
   /**
    * Create/Update item
@@ -234,9 +236,11 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
    * Delete item
    */
   const handleDeleteItem = useCallback(async (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    const itemLabel = item?.label || item?.value || 'this item';
     const confirmed = await confirmDialog({
       title: 'Delete item?',
-      content: 'Are you sure you want to delete this item?',
+      content: `Are you sure you want to delete "${itemLabel}"? This action cannot be undone.`,
       okText: 'Delete',
       cancelText: 'Cancel',
       danger: true,
@@ -252,7 +256,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     } catch (error) {
       logger.error('Failed to delete item', { component: 'SystemChoiceManager' }, error);
     }
-  }, [selectedList, loadItems]);
+  }, [items, selectedList, loadItems]);
 
   /**
    * Toggle item active state
