@@ -313,8 +313,8 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
                 key={dp.period}
                 title={`${dp.trade_count} trades • ${formatCurrency(dp.total_revenue)} revenue`}
               >
-                <div className="text-center p-2 rounded border border-gray-100">
-                  <div className="text-xs text-gray-500">{dp.period}</div>
+                <div className="text-center p-2 rounded" style={{ border: '1px solid rgb(var(--color-border))' }}>
+                  <div className="text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{dp.period}</div>
                   <div
                     className="text-lg font-semibold"
                     style={{
@@ -323,7 +323,7 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
                   >
                     {dp.average_margin.toFixed(1)}%
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs" style={{ color: 'rgb(var(--color-text-quaternary))' }}>
                     {dp.trade_count} trade{dp.trade_count !== 1 ? 's' : ''}
                   </div>
                 </div>
@@ -377,11 +377,11 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
               suffix=" days"
               precision={1}
             />
-            <div className="flex justify-between text-sm text-gray-500">
+            <div className="flex justify-between text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
               <span>Min: {data.cycle_time.min_days} days</span>
               <span>Max: {data.cycle_time.max_days} days</span>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
               {data.cycle_time.total_completed} processes completed
             </div>
           </div>
