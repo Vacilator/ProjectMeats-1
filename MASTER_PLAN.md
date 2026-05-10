@@ -162,6 +162,24 @@ All 10 items from the squad deep-dive plan have been completed:
 - ✅ AIAgentWidget WS pre-flight: probes actual WebSocket path instead of /api/v1/health/ (PR #5280)
 - ✅ AIAgentWidget permanent failure tracking: prevents tab-visibility retry spam when WS never connected (PR #5280)
 
+### Phase 33: Data Intelligence & Export ✅ SHIPPED
+- ✅ CSV export for Customers, Suppliers, Contacts, Carriers, Invoices, AccountsReceivables (PR #5282-#5283)
+- ✅ Delete confirmations show entity names in all modals (OptionListModal, SystemChoiceManager) (PR #5283, #5287)
+- ✅ All `window.confirm()` calls eliminated from frontend → `confirmDialog` (PR #5285)
+
+### Phase 34: Quality Sweep ✅ SHIPPED
+- ✅ WS preflight 502-504 handling + conditional field test fix (PR #5284)
+- ✅ CSV exports for Inquiries, FreightOrders, ReceivableSOs, PayablePOs (PR #5285, #5288)
+- ✅ Approval toasts, hooks correctness (fetchOrders useCallback, searchParams functional updates) (PR #5286)
+- ✅ AI draft mapping expansion: company, plant, department, carrier entity support (PR #5286)
+- ✅ Table aria-labels for SalesOrders, Carriers, FreightOrders, Invoices, and all remaining pages (PR #5287, #5288)
+- ✅ StepManager type safety, frontend instruction guardrails (PR #5288)
+- ✅ Zero hardcoded rgb() values across entire frontend — 100% CSS custom property compliance (PR #5290)
+- ✅ All `alert()` calls eliminated from frontend → `showAlert`/`message.info()` (PR #5290)
+- ✅ useDocumentTitle for LocationDetailView, PlantDetailView, PlantDetail, PlantContactDetail, LocationContactDetail (PR #5290, #5291)
+- ✅ UnifiedEntityTable dynamic aria-label (PR #5291)
+- ✅ Suppliers referential stability: onRow/expandable memoized (PR #5290)
+
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
 - No breaking migrations.
@@ -173,7 +191,11 @@ All 10 items from the squad deep-dive plan have been completed:
 --- (as of 2026-05-10)
 
 ### What is true right now
-- **All Phase 12-19 backlog items (55 EPIC tickets) are shipped.** The full execution queue from enterprise hardening through ambient AI is complete on `development`.
+- **Phases 12-34 complete.** All 63+ EPIC tickets, 10 Squad Deep-Dive items, and all P0/P1 priorities shipped to `development`.
+- **100% CSS custom property compliance.** Zero hardcoded rgb/rgba/hex color values remain in production frontend code. All semantic colors use CSS variables with WCAG AA+ contrast ratios.
+- **Zero browser-native dialogs.** All `window.confirm()`, `window.alert()`, and `alert()` eliminated → AntD Modal-based wrappers (`confirmDialog`, `showAlert`, `message`).
+- **Full table accessibility.** Every `<Table>` component has a descriptive `aria-label` for screen readers.
+- **useDocumentTitle on all route pages.** Browser tabs show contextual titles for every navigable page.
 - **WCAG-compliant color system: COMPLETE.** All 644 hardcoded rgb/rgba status colors swept from production code → CSS custom properties. WCAG AA+ contrast ratios for all semantic colors (success 7.5:1, warning 7.2:1, error 7.8:1, info 6.6:1). Shipped in PRs #5025-#5029 (5 batches).
 - **Inline style extraction: 268+ conversions shipped.** Top 12 offender files converted from inline `style={{}}` to named styled-components. PRs #5030-#5031.
 - **Navigation cleanup shipped.** Removed placeholder PO/SO Attachment nav items, collapsed 3-hop redirect chains, removed dead imports (PR #5030).
