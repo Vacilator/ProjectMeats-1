@@ -46,6 +46,7 @@ import {
 } from '../../components/Cockpit';
 import type { SearchEntity } from '../../components/Cockpit/SmartSearch';
 import { AILearningMetricsWidget } from '../../components/Cockpit/AILearningMetricsWidget';
+import { NextActionChips } from '../../components/Cockpit/NextActionChips';
 import { EmptyState } from '../../components/Admin';
 import { CockpitWelcomeEmptyState, useOnboarding } from '../../components/Onboarding';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
@@ -858,6 +859,9 @@ export const CockpitDashboard: React.FC = () => {
           />
         </HeroSearchInner>
       </HeroSearchSection>
+
+      {/* AI-suggested next-action chips */}
+      {showDashboardWidgets && !showWelcomeEmptyState && <NextActionChips />}
 
       {/* Phase 3: AI Learning Metrics */}
       {showDashboardWidgets && showWelcomeEmptyState && (
