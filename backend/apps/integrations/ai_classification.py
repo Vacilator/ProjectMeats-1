@@ -90,11 +90,12 @@ def classify_ingested_email(
         "15. po_number: extract PO/order number when present, empty string otherwise.\n"
         "16. bol_number: extract BOL/bill of lading number when present, empty string otherwise.\n"
         "17. total_amount: extract total dollar amount as string when present, empty string otherwise.\n"
-        "18. attachment_document_types: for each attachment section, classify its type "
+        "18. invoice_number: extract invoice number when present, empty string otherwise.\n"
+        "19. attachment_document_types: for each attachment section, classify its type "
         "(purchase_order, bill_of_lading, invoice, pricing_sheet, manifest, label, certificate, photo, other). "
         "Return a list of objects with name (filename) and doc_type.\n"
-        "19. field_confidence: for each extracted field (contact_name, contact_company, po_number, bol_number, "
-        "total_amount, requested_product_name, requested_protein, requested_quantity), provide a confidence "
+        "20. field_confidence: for each extracted field (contact_name, contact_company, po_number, bol_number, "
+        "total_amount, invoice_number, requested_product_name, requested_protein, requested_quantity), provide a confidence "
         "score 0-1. Return as object with field names as keys and confidence numbers as values.\n\n"
         f"Subject: {subject}\n"
         + (f"Sender: {sender_name} <{sender_email}>" if sender_name else f"Sender: {sender_email}")
@@ -141,6 +142,7 @@ def classify_ingested_email(
                     "po_number": {"type": "string"},
                     "bol_number": {"type": "string"},
                     "total_amount": {"type": "string"},
+                    "invoice_number": {"type": "string"},
                     "attachment_document_types": {
                         "type": "array",
                         "items": {
@@ -161,6 +163,7 @@ def classify_ingested_email(
                             "po_number": {"type": "number"},
                             "bol_number": {"type": "number"},
                             "total_amount": {"type": "number"},
+                            "invoice_number": {"type": "number"},
                             "requested_product_name": {"type": "number"},
                             "requested_protein": {"type": "number"},
                             "requested_quantity": {"type": "number"},
@@ -171,6 +174,7 @@ def classify_ingested_email(
                             "po_number",
                             "bol_number",
                             "total_amount",
+                            "invoice_number",
                             "requested_product_name",
                             "requested_protein",
                             "requested_quantity",
@@ -193,6 +197,7 @@ def classify_ingested_email(
                     "po_number",
                     "bol_number",
                     "total_amount",
+                    "invoice_number",
                     "attachment_document_types",
                     "field_confidence",
                 ],
@@ -238,12 +243,12 @@ def classify_ingested_email(
     contact_company = str(parsed.get("contact_company") or "").strip()
     total_amount = str(parsed.get("total_amount") or "").strip()
     po_number = str(parsed.get("po_number") or "").strip()
+    invoice_number = str(parsed.get("invoice_number") or "").strip()
 
     # Fallback: if classified as Spam/Other but contains business signals,
     # reclassify to the most appropriate actionable category
     if category == "Spam/Other":
         bol_number = str(parsed.get("bol_number") or "").strip()
-        invoice_number = str(parsed.get("invoice_number") or "").strip()
         requested_product = str(parsed.get("requested_product_name") or "").strip()
 
         if po_number and total_amount:
@@ -304,6 +309,7 @@ def classify_ingested_email(
         "requested_uom": str(parsed.get("requested_uom") or "").strip(),
         "po_number": po_number,
         "bol_number": str(parsed.get("bol_number") or "").strip(),
+        "invoice_number": invoice_number,
         "total_amount": total_amount,
         "attachment_document_types": parsed.get("attachment_document_types") or [],
         "field_confidence": parsed.get("field_confidence") or {},
@@ -334,6 +340,7 @@ def _manual_review_fallback(
         "requested_uom": "",
         "po_number": "",
         "bol_number": "",
+        "invoice_number": "",
         "total_amount": "",
         "attachment_document_types": [],
         "_ai_unavailable": True,

@@ -128,7 +128,19 @@ def auto_process_approved_emails(self):
                 else:
                     continue
 
-                pipeline.apply_async()
+                try:
+                    pipeline.apply_async()
+                except Exception as dispatch_err:
+                    logger.error(
+                        "Failed to dispatch %s pipeline for email %s (tenant %s): %s",
+                        draft_type, email_log_id, tid, dispatch_err,
+                        exc_info=True,
+                    )
+                    _log_pipeline_event(
+                        tid, email_log_id, "dispatch_failed", "error",
+                        {"draft_type": draft_type, "error": str(dispatch_err)},
+                    )
+                    continue
                 dispatched += 1
 
                 _log_pipeline_event(
@@ -223,8 +235,11 @@ def create_purchase_order_from_email(self, email_log_id: int, tenant_id: str):
                 if quantity:
                     try:
                         po.quantity = Decimal(str(quantity))
-                    except Exception:
-                        pass
+                    except (ValueError, ArithmeticError) as qty_err:
+                        logger.warning(
+                            "Invalid quantity '%s' for email %s: %s",
+                            quantity, email_log_id, qty_err,
+                        )
 
                 po.save()
 
