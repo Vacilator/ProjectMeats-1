@@ -22,6 +22,7 @@ import { ActivityFeed, RecordPaymentModal, PaymentHistoryList } from '../../comp
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -70,6 +71,28 @@ const PageTitle = styled.h1`
   font-weight: 700;
   color: rgb(var(--color-text-primary));
   margin: 0;
+`;
+
+const ExportButton = styled.button`
+  background: rgb(var(--color-bg-secondary));
+  color: rgb(var(--color-text-secondary));
+  border: 1px solid rgb(var(--color-border));
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgb(var(--color-bg-tertiary));
+    color: rgb(var(--color-text-primary));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
@@ -380,10 +403,29 @@ const PayablePOs: React.FC = () => {
     paid: orders.filter(o => o.payment_status === 'paid').length,
   };
 
+  const handleExportCSV = useCallback(() => {
+    if (!orders.length) return;
+    const csv = buildCsv({
+      headers: ['PO Number', 'Supplier', 'Order Date', 'Total Amount', 'Outstanding', 'Payment Status'],
+      rows: orders.map((o) => [
+        o.order_number,
+        o.supplier_name ?? `Supplier #${o.supplier}`,
+        o.order_date ?? '',
+        o.total_amount,
+        o.outstanding_amount ?? o.total_amount,
+        o.payment_status ?? 'unpaid',
+      ]),
+    });
+    downloadCsv(`payable-purchase-orders-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }, [orders]);
+
   return (
     <PageContainer>
       <PageHeader>
         <PageTitle>Payables - Purchase Orders</PageTitle>
+        <ExportButton onClick={handleExportCSV} disabled={!orders.length}>
+          📥 Export CSV
+        </ExportButton>
       </PageHeader>
 
       <ContentContainer hasSidePanel={!!selectedOrder}>
@@ -411,10 +453,10 @@ const PayablePOs: React.FC = () => {
             ) : error ? (
               <ErrorMessage>{error}</ErrorMessage>
             ) : orders.length === 0 ? (
-              <EmptyMessage>No purchase orders found</EmptyMessage>
+              <EmptyMessage>No purchase orders found. Try adjusting your filters.</EmptyMessage>
             ) : (
               <TableWrapper>
-                <Table>
+                <Table aria-label="Payable purchase orders list">
                   <TableHeader>
                     <tr>
                       <TableHead>PO Number</TableHead>

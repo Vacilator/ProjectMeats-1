@@ -12,7 +12,7 @@
  * 
  * Pattern: Follows Invoices.tsx architecture with side panel integration
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 
@@ -21,6 +21,7 @@ import { RecordPaymentModal, PaymentHistoryList } from '../../components/Shared'
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -69,6 +70,28 @@ const PageTitle = styled.h1`
   font-weight: 700;
   color: rgb(var(--color-text-primary));
   margin: 0;
+`;
+
+const ExportButton = styled.button`
+  background: rgb(var(--color-bg-secondary));
+  color: rgb(var(--color-text-secondary));
+  border: 1px solid rgb(var(--color-border));
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgb(var(--color-bg-tertiary));
+    color: rgb(var(--color-text-primary));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
@@ -337,23 +360,22 @@ const ReceivableSOs: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Fetch sales orders with accounting focus
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const params: any = {};
+      const params: Record<string, string> = {};
       if (statusFilter !== 'all') {
         params.payment_status = statusFilter;
       }
       
       const response = await apiClient.get('sales-orders/', { params });
       
-      // Transform orders to include payment status (mocked for now - backend enhancement needed)
       const ordersWithPaymentStatus = response.data.results || response.data;
       setOrders(ordersWithPaymentStatus.map((order: SalesOrder) => ({
         ...order,
-        payment_status: order.payment_status || 'unpaid', // Default to unpaid if not provided
+        payment_status: order.payment_status || 'unpaid',
         outstanding_amount: order.outstanding_amount || order.total_amount,
       })));
     } catch (err: unknown) {
@@ -365,11 +387,11 @@ const ReceivableSOs: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter]);
+  }, [fetchOrders]);
 
   // Count orders by status
   const counts = {
@@ -379,10 +401,29 @@ const ReceivableSOs: React.FC = () => {
     paid: orders.filter(o => o.payment_status === 'paid').length,
   };
 
+  const handleExportCSV = useCallback(() => {
+    if (!orders.length) return;
+    const csv = buildCsv({
+      headers: ['SO Number', 'Customer', 'Order Date', 'Total Amount', 'Outstanding', 'Payment Status'],
+      rows: orders.map((o) => [
+        o.order_number,
+        o.customer_name ?? `Customer #${o.customer}`,
+        o.order_date ?? '',
+        o.total_amount,
+        o.outstanding_amount ?? o.total_amount,
+        o.payment_status ?? 'unpaid',
+      ]),
+    });
+    downloadCsv(`receivable-sales-orders-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }, [orders]);
+
   return (
     <PageContainer>
       <PageHeader>
         <PageTitle>Receivables - Sales Orders</PageTitle>
+        <ExportButton onClick={handleExportCSV} disabled={!orders.length}>
+          📥 Export CSV
+        </ExportButton>
       </PageHeader>
 
       <ContentContainer hasSidePanel={!!selectedOrder}>
@@ -410,10 +451,10 @@ const ReceivableSOs: React.FC = () => {
             ) : error ? (
               <ErrorMessage>{error}</ErrorMessage>
             ) : orders.length === 0 ? (
-              <EmptyMessage>No sales orders found</EmptyMessage>
+              <EmptyMessage>No sales orders found. Try adjusting your filters.</EmptyMessage>
             ) : (
               <TableWrapper>
-                <Table>
+                <Table aria-label="Receivable sales orders list">
                   <TableHeader>
                     <tr>
                       <TableHead>SO Number</TableHead>
