@@ -110,6 +110,7 @@ import {
   Play, // Task 1: Workflow Execution
   Map as MapIcon, // Sprint 1 Task 1.3: Minimap toggle
   Settings, // Sprint 1 Task 1.4: Background & Grid settings
+  ShieldCheck, // Publish readiness preflight
 } from 'lucide-react';
 
 import {
@@ -7319,6 +7320,31 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           </ToolbarButton>
 
           <ToolbarButton
+            onClick={() => setShowValidationDrawer(!showValidationDrawer)}
+            title={
+              validationResult.errorCount > 0
+                ? `${validationResult.errorCount} error${validationResult.errorCount !== 1 ? 's' : ''}, ${validationResult.warningCount} warning${validationResult.warningCount !== 1 ? 's' : ''} — click to review`
+                : validationResult.warningCount > 0
+                  ? `${validationResult.warningCount} warning${validationResult.warningCount !== 1 ? 's' : ''} — click to review`
+                  : 'Publish readiness check — all clear'
+            }
+            style={
+              validationResult.errorCount > 0
+                ? { color: 'rgb(var(--color-error))', borderColor: 'rgba(var(--color-error), 0.35)' }
+                : validationResult.warningCount > 0
+                  ? { color: 'rgb(var(--color-warning))', borderColor: 'rgba(var(--color-warning), 0.35)' }
+                  : { color: 'rgb(var(--color-success))', borderColor: 'rgba(var(--color-success), 0.35)' }
+            }
+          >
+            <ShieldCheck size={14} style={{ marginRight: '4px' }} />
+            {validationResult.errorCount > 0
+              ? `${validationResult.errorCount} Error${validationResult.errorCount !== 1 ? 's' : ''}`
+              : validationResult.warningCount > 0
+                ? `${validationResult.warningCount} Warning${validationResult.warningCount !== 1 ? 's' : ''}`
+                : 'Ready'}
+          </ToolbarButton>
+
+          <ToolbarButton
             onClick={handlePublishWorkflow}
             title={
               currentWorkflowStatus === 'active'
@@ -8203,6 +8229,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           nodeId={editingNodeId}
         />
       )}
+
+      {/* Publish Readiness Preflight Drawer (Phase 7 P0) */}
+      <ValidationDrawer
+        validation={validationResult}
+        isOpen={showValidationDrawer}
+        onClose={() => setShowValidationDrawer(false)}
+        onNavigateToNode={handleNavigateToNode}
+      />
       
       </EditorContainer>
     </FlowEditorProvider>

@@ -20,6 +20,7 @@ import { Node, Edge } from '@xyflow/react';
 // Ensure schemas are registered before any publish-time validation runs.
 import '../config/nodeConfigSchemas';
 
+import { NODE_TYPE_REGISTRY } from '../nodeTypes';
 import { schemaRegistry } from '../config/schemaRegistry';
 import { evaluateCondition } from '../config/conditionalLogic';
 import { validateField } from '../config/validationEngine';
@@ -218,6 +219,34 @@ const _materializeEffectiveValues = (
 
 export function validateNodeConfig(node: Node): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
+
+  // Node support matrix check: detect deprecated/hidden node types
+  const nodeType = (node.data as any)?.nodeType || node.type || 'unknown';
+  const registryEntry = NODE_TYPE_REGISTRY[nodeType];
+  if (registryEntry) {
+    if (registryEntry.hidden) {
+      const replacement = registryEntry.description?.match(/use (?:the )?"?(\w+)"?/i)?.[1];
+      issues.push({
+        id: `deprecated-node-${node.id}`,
+        nodeId: node.id,
+        severity: 'warning',
+        message: `"${node.data?.label || registryEntry.name}" uses deprecated node type "${nodeType}"`,
+        suggestion: replacement
+          ? `Replace with "${replacement}" node type for continued support`
+          : 'This node type is deprecated and may be removed in a future release',
+        category: 'config',
+      });
+    }
+  } else if (nodeType !== 'unknown' && !node.type?.startsWith('action')) {
+    issues.push({
+      id: `unregistered-node-${node.id}`,
+      nodeId: node.id,
+      severity: 'warning',
+      message: `"${node.data?.label || node.id}" uses unregistered node type "${nodeType}"`,
+      suggestion: 'This node type is not in the support matrix and may not execute correctly',
+      category: 'config',
+    });
+  }
 
   // Existing lightweight type-specific checks
   if (node.type === 'form' || node.type === 'formProcessGroup' || node.type === 'formBook') {
