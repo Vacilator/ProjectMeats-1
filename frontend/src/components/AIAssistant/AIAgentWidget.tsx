@@ -1934,10 +1934,10 @@ export const AIAgentWidget: React.FC = () => {
                 <span>{activeSessionTitle}</span>
               </SessionTitle>
               <SessionActions>
-                <IconBtn type="button" title="New session" onClick={() => void handleNewChat()}>
+                <IconBtn type="button" title="New session" aria-label="New session" onClick={() => void handleNewChat()}>
                   <Plus size={16} />
                 </IconBtn>
-                <IconBtn type="button" title="Close" onClick={() => setExpanded(false)}>
+                <IconBtn type="button" title="Close" aria-label="Close chat" onClick={() => setExpanded(false)}>
                   <X size={16} />
                 </IconBtn>
               </SessionActions>
@@ -2131,15 +2131,15 @@ export const AIAgentWidget: React.FC = () => {
               ) : null}
 
               <ComposerRow>
-                <IconBtn type="button" title="Attach" onClick={() => fileInputRef.current?.click()}>
+                <IconBtn type="button" title="Attach" aria-label="Attach file" onClick={() => fileInputRef.current?.click()}>
                   {uploadingAttachments > 0 ? <LoaderCircle className="pm-spin" size={16} /> : <Paperclip size={16} />}
                 </IconBtn>
 
-                <IconBtn type="button" title="Tools" onClick={() => void handleListTools()}>
+                <IconBtn type="button" title="Tools" aria-label="Tools" onClick={() => void handleListTools()}>
                   <Wrench size={16} />
                 </IconBtn>
 
-                <IconBtn type="button" title="Route preview" onClick={() => void handleRoutePreview()}>
+                <IconBtn type="button" title="Route preview" aria-label="Route preview" onClick={() => void handleRoutePreview()}>
                   <GitBranch size={16} />
                 </IconBtn>
 

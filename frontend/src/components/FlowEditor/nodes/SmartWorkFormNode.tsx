@@ -895,7 +895,7 @@ export const SmartWorkFormNode = React.memo<NodeProps<SmartWorkFormFlowNode>>(({
                         ) : null}
                       </div>
                     </div>
-                    <MiniButton type="button" onClick={() => removeFieldFromStep(s.id, f.id)} title="Remove field">
+                    <MiniButton type="button" onClick={() => removeFieldFromStep(s.id, f.id)} title="Remove field" aria-label={`Remove field ${f.label || f.id}`}>
                       ✕
                     </MiniButton>
                   </FieldRow>

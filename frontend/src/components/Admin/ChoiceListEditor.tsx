@@ -110,6 +110,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
           {...listeners}
           className="cursor-grab active:cursor-grabbing"
           style={{ color: 'rgb(var(--color-text-quaternary))' }}
+          aria-label={`Reorder ${item.label}`}
         >
           <GripVertical className="w-5 h-5" />
         </button>
@@ -153,6 +154,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
             className="p-2 rounded"
             style={{ color: 'rgb(var(--color-text-quaternary))' }}
             title={item.is_active ? 'Hide for tenant' : 'Show for tenant'}
+            aria-label={item.is_active ? `Hide ${item.label}` : `Show ${item.label}`}
           >
             {item.is_active ? (
               <Eye className="w-5 h-5" />
@@ -168,6 +170,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
               className="p-2 rounded"
               style={{ color: 'rgb(var(--color-primary))' }}
               title="Edit"
+              aria-label={`Edit ${item.label}`}
             >
               <Pencil className="w-5 h-5" />
             </button>
@@ -176,6 +179,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
               className="p-2 rounded"
               style={{ color: 'rgb(var(--color-error))' }}
               title="Delete"
+              aria-label={`Delete ${item.label}`}
             >
               <Trash2 className="w-5 h-5" />
             </button>

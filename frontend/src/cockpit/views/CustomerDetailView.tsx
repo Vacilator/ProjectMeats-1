@@ -840,7 +840,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       <StickyHeader>
         <HeaderInner>
           <div style={{ minWidth: 0 }}>
-            <BreadcrumbTitleButton onClick={() => navigate('/cockpit')} type="button" title="Back to Cockpit search">
+            <BreadcrumbTitleButton onClick={() => navigate('/cockpit')} type="button" title="Back to Cockpit search" aria-label="Back to Cockpit search">
               <BreadcrumbTitle>{title}</BreadcrumbTitle>
               <BreadcrumbHint>Click to return to global search / Entity Explorer</BreadcrumbHint>
             </BreadcrumbTitleButton>
