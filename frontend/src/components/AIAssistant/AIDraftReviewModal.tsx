@@ -23,6 +23,63 @@ import {
 
 const { Paragraph, Text, Title } = Typography;
 
+/**
+ * Error boundary that catches render-phase crashes (e.g. React #185)
+ * inside the AI Draft Review modal and surfaces a recovery UI.
+ */
+class DraftReviewErrorBoundary extends React.Component<
+  { children: React.ReactNode; itemId?: string },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    // eslint-disable-next-line no-console
+    console.error(
+      '[AIDraftReviewModal] Render crash caught by error boundary.',
+      { itemId: this.props.itemId, error, componentStack: info.componentStack },
+    );
+  }
+
+  render() {
+    if (this.state.error) {
+      const is185 =
+        this.state.error.message?.includes('Maximum update depth') ||
+        this.state.error.message?.includes('#185');
+      return (
+        <Alert
+          type="error"
+          showIcon
+          message={is185 ? 'Render loop detected' : 'Something went wrong'}
+          description={
+            <>
+              <Paragraph>
+                {is185
+                  ? 'A render loop (React #185) was caught before it could crash the page. This is likely caused by an unstable query key or dependency array.'
+                  : `Error: ${this.state.error.message}`}
+              </Paragraph>
+              <Paragraph type="secondary">
+                Draft item ID: {this.props.itemId ?? 'unknown'}
+              </Paragraph>
+              <Button
+                size="small"
+                onClick={() => this.setState({ error: null })}
+              >
+                Retry
+              </Button>
+            </>
+          }
+        />
+      );
+    }
+    return this.props.children;
+  }
+}
+
 type AIDraftReviewModalProps = {
   open: boolean;
   item: PendingReviewItem | null;
@@ -544,7 +601,41 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
     onClose?.();
   }, [onClose]);
 
+  const handleQuickCreateClose = useCallback(() => {
+    setQuickCreateTarget(null);
+  }, []);
+
+  const handleQuickCreateDone = useCallback((_entityId: string | number, entityName: string) => {
+    setQuickCreateTarget((prev) => {
+      if (prev) {
+        message.success(`Created ${prev.entityType}: ${entityName}`);
+      }
+      return null;
+    });
+  }, []);
+
+  const handleFormSuccess = useCallback(
+    (result: unknown) => {
+      void handleResolved(result);
+    },
+    [handleResolved],
+  );
+
   const unsupported = !entityType;
+
+  const fallbackInitialValues = useMemo(() => {
+    if (!unsupported) return initialValues;
+    const itemAny = item as Record<string, unknown>;
+    const contactName = typeof itemAny.contact_name === 'string' ? itemAny.contact_name : '';
+    const parts = contactName.split(' ');
+    return {
+      first_name: parts[0] || '',
+      last_name: parts.slice(1).join(' ') || '',
+      company: String(itemAny.contact_company || ''),
+      email: String(itemAny.sender || ''),
+      status: 'draft',
+    };
+  }, [unsupported, item, initialValues]);
 
   if (!item) {
     return null;
@@ -1032,20 +1123,8 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           variant="inline"
           isOpen={open}
           onClose={handleSurfaceClose}
-          onSuccess={(result) => {
-            void handleResolved(result);
-          }}
-          initialValues={unsupported ? {
-            first_name: (item as Record<string, unknown>).contact_name
-              ? String((item as Record<string, unknown>).contact_name).split(' ')[0]
-              : '',
-            last_name: (item as Record<string, unknown>).contact_name
-              ? String((item as Record<string, unknown>).contact_name).split(' ').slice(1).join(' ')
-              : '',
-            company: String((item as Record<string, unknown>).contact_company || ''),
-            email: String((item as Record<string, unknown>).sender || ''),
-            status: 'draft',
-          } : initialValues}
+          onSuccess={handleFormSuccess}
+          initialValues={fallbackInitialValues}
           draftKey={item.id}
         />
       </div>
@@ -1056,11 +1135,8 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
           entityType={quickCreateTarget.entityType}
           suggestedName={quickCreateTarget.suggestedName}
           suggestedEmail={quickCreateTarget.suggestedEmail}
-          onClose={() => setQuickCreateTarget(null)}
-          onCreated={(_entityId, entityName) => {
-            message.success(`Created ${quickCreateTarget.entityType}: ${entityName}`);
-            setQuickCreateTarget(null);
-          }}
+          onClose={handleQuickCreateClose}
+          onCreated={handleQuickCreateDone}
         />
       )}
     </div>
@@ -1088,15 +1164,17 @@ export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
       mask={{ closable: !resolving }}
       keyboard={!resolving}
     >
-      <AIDraftReviewContent
-        open={open}
-        item={item}
-        onClose={onClose}
-        onResolved={onResolved}
-        onFeedbackSubmitted={onFeedbackSubmitted}
-        closeOnResolved
-        onResolvingChange={setResolving}
-      />
+      <DraftReviewErrorBoundary itemId={item?.id}>
+        <AIDraftReviewContent
+          open={open}
+          item={item}
+          onClose={onClose}
+          onResolved={onResolved}
+          onFeedbackSubmitted={onFeedbackSubmitted}
+          closeOnResolved
+          onResolvingChange={setResolving}
+        />
+      </DraftReviewErrorBoundary>
     </Modal>
   );
 };

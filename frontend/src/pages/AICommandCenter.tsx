@@ -638,6 +638,8 @@ const AICommandCenter: React.FC = () => {
     if (item.source === 'ai-inbox' && item.raw) {
       const reviewItem = item.raw as PendingReviewItem;
       setDraftReviewItem(reviewItem);
+      // Mark deep-link as handled so the effect doesn't double-fire
+      deepLinkHandled.current = true;
       // Update URL for deep-linkable state
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -657,6 +659,8 @@ const AICommandCenter: React.FC = () => {
 
   const handleDraftReviewClose = useCallback(() => {
     setDraftReviewItem(null);
+    // Reset deep-link guard so future deep-links work
+    deepLinkHandled.current = false;
     // Remove ?item= from URL after close
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
