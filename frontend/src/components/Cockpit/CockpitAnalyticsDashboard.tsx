@@ -30,6 +30,7 @@ import {
   ClockCircleOutlined,
   TeamOutlined,
   DownloadOutlined,
+  ExclamationCircleOutlined,
   FilterOutlined,
 } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
@@ -141,7 +142,7 @@ function exportToCsv(data: AnalyticsDashboardData): void {
 export function CockpitAnalyticsDashboard(): React.ReactElement {
   const [dateRange, setDateRange] = useState<string>('30');
 
-  const { data, isLoading } = useQuery<AnalyticsDashboardData>({
+  const { data, isLoading, isError, refetch } = useQuery<AnalyticsDashboardData>({
     queryKey: ['cockpit', 'analytics', dateRange],
     queryFn: async () => {
       const res = await businessApi.get('/workflows/analytics/dashboard/', {
@@ -226,6 +227,23 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
     return (
       <div className="flex items-center justify-center py-12">
         <Spin size="large" tip="Loading analytics..." />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <ExclamationCircleOutlined style={{ fontSize: 36, color: 'rgb(var(--color-error))', marginBottom: 12 }} />
+        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'rgb(var(--color-text-primary))' }}>
+          Failed to load analytics
+        </div>
+        <div style={{ fontSize: 14, color: 'rgb(var(--color-text-secondary))', marginBottom: 16 }}>
+          Something went wrong while fetching dashboard data. Please try again.
+        </div>
+        <Button type="primary" onClick={() => void refetch()}>
+          Retry
+        </Button>
       </div>
     );
   }

@@ -13,7 +13,7 @@
  * - Date range filtering
  * - Search by form name
  * - View submission details (read-only)
- * - Export to CSV (future)
+ * - Export to CSV
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -552,14 +552,45 @@ const FormsFlowsHistory: React.FC = () => {
     window.location.href = `/workflows/details/${submission.id}`;
   };
   
-  // Export to CSV - Planned for Wave F (Features) - see REMAINING_WORK_OUTLINE.md
+  // Export to CSV
   const handleExport = () => {
-    // Feature F3.5: Export to Excel/PDF - scheduled for implementation
-    showAlert({
-      type: 'info',
-      title: 'Coming soon',
-      content: 'Export functionality coming soon!',
-    });
+    const rows = activeTab === 'submissions' ? submissions : workflowExecutions;
+    if (!rows || rows.length === 0) {
+      showAlert({ type: 'info', title: 'Nothing to export', content: 'No records available to export.' });
+      return;
+    }
+
+    let csvContent: string;
+    if (activeTab === 'submissions') {
+      const headers = ['Form Name', 'Status', 'Created At', 'Completed At', 'Created By', 'Steps'];
+      const csvRows = (rows as FormSubmission[]).map((s) => [
+        `"${(s.form_name || '').replace(/"/g, '""')}"`,
+        s.status,
+        s.created_at ? new Date(s.created_at).toLocaleString() : '',
+        s.completed_at ? new Date(s.completed_at).toLocaleString() : '',
+        `"${(s.created_by_name || '').replace(/"/g, '""')}"`,
+        String(s.total_steps || 0),
+      ]);
+      csvContent = [headers.join(','), ...csvRows.map((r) => r.join(','))].join('\n');
+    } else {
+      const headers = ['WorkForm', 'Status', 'Started', 'Completed', 'Started By'];
+      const csvRows = (rows as WorkFormExecution[]).map((e) => [
+        `"${(e.workform_name || '').replace(/"/g, '""')}"`,
+        e.status || '',
+        e.started_at ? new Date(e.started_at).toLocaleString() : '',
+        e.completed_at ? new Date(e.completed_at).toLocaleString() : '',
+        `"${(e.started_by_name || '').replace(/"/g, '""')}"`,
+      ]);
+      csvContent = [headers.join(','), ...csvRows.map((r) => r.join(','))].join('\n');
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${activeTab === 'submissions' ? 'form-submissions' : 'workflow-executions'}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
   
   const totalPages = Math.ceil(totalCount / pageSize);
