@@ -617,6 +617,8 @@ const checkWSEndpointReachable = async (): Promise<boolean> => {
     });
     // 404 means the path isn't routed at all — WS will definitely fail
     if (response.status === 404) return false;
+    // 502/503/504 means the WS backend (ASGI server) is not running
+    if (response.status >= 502 && response.status <= 504) return false;
     // Any other HTTP response means the path exists (even 400/403/426 is fine)
     return true;
   } catch {
@@ -1136,10 +1138,13 @@ export const AIAgentWidget: React.FC = () => {
             firstFailureTimeRef.current = Date.now();
           }
 
-          // Only show degraded after 5s of continuous failure to prevent UI jitter
-          const failureDuration = Date.now() - (firstFailureTimeRef.current ?? Date.now());
-          if (failureDuration >= 5000) {
-            setAiInboxRealtimeStatus('degraded');
+          // Only show degraded if WS has connected before (intermittent failure).
+          // If WS has NEVER connected, stay idle — no point alarming the user.
+          if (wsEverConnectedRef.current) {
+            const failureDuration = Date.now() - (firstFailureTimeRef.current ?? Date.now());
+            if (failureDuration >= 5000) {
+              setAiInboxRealtimeStatus('degraded');
+            }
           }
 
           // Auth rejection — try refreshing token once
@@ -1152,7 +1157,9 @@ export const AIAgentWidget: React.FC = () => {
           scheduleReconnect(false);
         };
       } catch {
-        setAiInboxRealtimeStatus('degraded');
+        if (wsEverConnectedRef.current) {
+          setAiInboxRealtimeStatus('degraded');
+        }
         scheduleReconnect(attemptRefresh);
       } finally {
         connectingLockRef.current = false;
@@ -1162,10 +1169,12 @@ export const AIAgentWidget: React.FC = () => {
     // Reconnect when tab becomes visible again (if socket is dead)
     const handleVisibilityChange = () => {
       if (!document.hidden && !disposed) {
+        // If WS permanently failed (never connected), don't retry on visibility
+        if (wsPermanentlyFailedRef.current) return;
+
         const socket = inboxSocketRef.current;
         if (!socket || socket.readyState === WebSocket.CLOSED) {
           inboxReconnectAttemptsRef.current = 0;
-          wsEndpointCheckedRef.current = false; // Re-check endpoint on visibility
           void connect(true);
         }
       }
