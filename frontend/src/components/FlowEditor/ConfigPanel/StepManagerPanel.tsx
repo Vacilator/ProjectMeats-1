@@ -290,17 +290,24 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
   // Build step info list
   const steps: StepInfo[] = childNodes.map(node => {
     const stepNumber = stepOrder.get(node.id) || null;
-    const selectedFields = (node.data as any)?.selectedFields;
+    const selectedFields = (node.data as Record<string, unknown> | undefined)?.selectedFields;
     const hasSelectedFields = Array.isArray(selectedFields) && selectedFields.length > 0;
 
-    const hasErrors = !Boolean((node.data as any)?.entityType) && !hasSelectedFields && node.type !== 'trigger';
+    const data = node.data as Record<string, unknown> | undefined;
+    const hasEntityType = Boolean(data?.entityType);
+    const hasLabel = Boolean(data?.label || data?.name);
+    const isTrigger = node.type === 'trigger';
+
+    const hasErrors = !isTrigger && !hasEntityType && !hasSelectedFields;
+    const isConfigured = hasEntityType || hasSelectedFields;
+
     return {
       id: node.id,
       type: node.type || 'unknown',
-      label: String((node.data as any)?.label ?? (node.data as any)?.name ?? `${node.type || 'Node'} ${node.id.slice(0, 8)}`),
+      label: String(data?.label ?? data?.name ?? `${node.type || 'Node'} ${node.id.slice(0, 8)}`),
       stepNumber,
       hasErrors,
-      isConfigured: Boolean((node.data as any)?.entityType) || hasSelectedFields,
+      isConfigured,
     };
   }).sort((a, b) => {
     // Sort by step number (nulls at end)
