@@ -18,7 +18,7 @@ import { useFormBuilderStore } from './store';
 const Overlay = styled.div<{ isOpen: boolean }>`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: ${props => props.isOpen ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;

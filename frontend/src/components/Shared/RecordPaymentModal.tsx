@@ -59,7 +59,7 @@ const Overlay = styled.div<{ isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   z-index: 1000;
   align-items: center;
   justify-content: center;
@@ -73,7 +73,7 @@ const Modal = styled.div`
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1), 0 10px 10px -5px rgba(var(--color-overlay), 0.04);
 `;
 
 const ModalHeader = styled.div`
@@ -208,7 +208,7 @@ const HelpText = styled.div`
 
 const ErrorText = styled.div`
   font-size: 0.75rem;
-  color: rgba(239, 68, 68, 1);
+  color: rgb(var(--color-error));
   margin-top: 0.25rem;
 `;
 
@@ -342,7 +342,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               <InfoValue>{entityReference}</InfoValue>
               <div style={{ marginTop: '0.5rem' }}>
                 <InfoLabel>Outstanding Balance:</InfoLabel>
-                <InfoValue style={{ color: 'rgba(239, 68, 68, 1)' }}>
+                <InfoValue style={{ color: 'rgb(var(--color-error))' }}>
                   {formatCurrency(outstandingAmount)}
                 </InfoValue>
               </div>

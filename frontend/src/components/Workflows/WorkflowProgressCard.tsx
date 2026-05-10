@@ -65,7 +65,7 @@ const pulse = keyframes`
 const Card = styled.div<{ $clickable: boolean; $compact: boolean }>`
   background: rgb(var(--color-surface, 255 255 255));
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(var(--color-overlay), 0.1);
   padding: ${props => props.$compact ? '16px' : '20px 24px'};
   transition: all 0.2s ease;
   
@@ -73,7 +73,7 @@ const Card = styled.div<{ $clickable: boolean; $compact: boolean }>`
     cursor: pointer;
     
     &:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
       transform: translateY(-2px);
     }
   `}
@@ -315,7 +315,7 @@ const ActionLink = styled.button`
   transition: background 0.15s ease;
   
   &:hover {
-    background: rgba(102, 126, 234, 0.1);
+    background: rgba(var(--color-primary), 0.1);
   }
 `;
 

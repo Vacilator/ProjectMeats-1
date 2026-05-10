@@ -90,7 +90,7 @@ const TemplateCard = styled.div<{ $isInactive?: boolean }>`
 
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
 `;
 

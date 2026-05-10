@@ -246,7 +246,7 @@ const SubmitButton = styled.button<{ $variant: 'approve' | 'reject' }>`
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.2);
   }
 
   &:active:not(:disabled) {

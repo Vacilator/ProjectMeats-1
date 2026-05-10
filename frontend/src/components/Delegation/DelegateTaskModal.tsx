@@ -86,7 +86,7 @@ const slideUp = keyframes`
 const Overlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: ${props => props.$isOpen ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;
@@ -371,7 +371,7 @@ const ErrorMessage = styled.div`
   font-size: 0.875rem;
   margin-top: 0.5rem;
   padding: 0.5rem;
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(var(--color-error), 0.1);
   border-radius: var(--radius-md);
 `;
 

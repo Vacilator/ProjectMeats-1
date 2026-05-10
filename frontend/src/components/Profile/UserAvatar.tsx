@@ -115,11 +115,11 @@ const AvatarCircle = styled.div<{ $size: number; $theme: Theme; $hasImage: boole
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.15);
   transition: all 0.3s ease;
 
   &:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 6px 16px rgba(var(--color-overlay), 0.2);
   }
 `;
 
@@ -150,13 +150,13 @@ const UploadOverlay = styled.div<{ $size: number; $theme: Theme }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.3);
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
     transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.4);
   }
 
   &:active {

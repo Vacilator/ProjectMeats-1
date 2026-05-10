@@ -78,7 +78,7 @@ const SubmissionCard = styled.div`
   transition: box-shadow 0.15s ease;
 
   &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.08);
   }
 
   @media (max-width: 768px) {

@@ -113,7 +113,7 @@ const AccountCard = styled.div<{ $status: string }>`
   transition: all 0.2s ease;
 
   &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.1);
   }
 `;
 
@@ -131,7 +131,7 @@ const AccountInfo = styled.div`
 const ProviderBadge = styled.span<{ $provider: string }>`
   display: inline-block;
   padding: 3px 8px;
-  background: ${props => props.$provider === 'outlook' ? 'rgba(0, 120, 212, 0.1)' : 'rgba(234, 67, 53, 0.1)'};
+  background: ${props => props.$provider === 'outlook' ? 'rgba(var(--color-info), 0.1)' : 'rgba(var(--color-error), 0.1)'};
   color: ${props => props.$provider === 'outlook' ? 'rgb(var(--color-info))' : 'rgb(var(--color-error))'};
   border-radius: var(--radius-sm);
   font-size: 11px;
@@ -167,7 +167,7 @@ const StatusIndicator = styled.div<{ $status: string }>`
       case 'expired': return 'rgba(var(--color-warning), 0.1)';
       case 'error':
       case 'revoked': return 'rgba(var(--color-error), 0.1)';
-      default: return 'rgba(148, 163, 184, 0.1)';
+      default: return 'rgba(var(--color-text-muted), 0.1)';
     }
   }};
   color: ${props => {
@@ -176,7 +176,7 @@ const StatusIndicator = styled.div<{ $status: string }>`
       case 'expired': return 'rgb(var(--color-warning))';
       case 'error':
       case 'revoked': return 'rgb(var(--color-error))';
-      default: return 'rgb(148, 163, 184)';
+      default: return 'rgb(var(--color-text-muted))';
     }
   }};
 
@@ -227,7 +227,7 @@ const ActionButton = styled.button<{ $variant?: 'danger' | 'primary' }>`
 
   &:hover {
     opacity: 0.8;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 4px rgba(var(--color-overlay), 0.1);
   }
 
   &:disabled {

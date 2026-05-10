@@ -194,7 +194,7 @@ const Trigger = styled.button<{ $disabled: boolean; $isOpen: boolean }>`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -232,7 +232,7 @@ const Dropdown = styled.div`
   background: white;
   border: 1px solid rgb(var(--color-border));
   border-radius: 10px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.15);
   z-index: 1000;
   max-height: 400px;
   display: flex;
@@ -255,7 +255,7 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {

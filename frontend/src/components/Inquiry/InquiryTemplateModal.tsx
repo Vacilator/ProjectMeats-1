@@ -176,7 +176,7 @@ const RemoveButton = styled.button`
   font-size: 1.1rem;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(var(--color-error), 0.1);
     border-radius: 4px;
   }
 `;

@@ -83,7 +83,7 @@ const ApprovalCard = styled.div<{ $expanded?: boolean }>`
   transition: box-shadow 0.15s;
 
   ${(p) => p.$expanded && `
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.06);
     border-color: rgba(var(--color-warning), 0.4);
   `}
 `;

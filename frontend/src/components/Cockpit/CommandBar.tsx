@@ -102,7 +102,7 @@ const ShortcutBadge = styled.kbd`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(var(--color-overlay), 0.05);
   white-space: nowrap;
   
   @media (max-width: 640px) {

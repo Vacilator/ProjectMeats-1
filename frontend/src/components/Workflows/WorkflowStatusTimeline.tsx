@@ -222,17 +222,17 @@ const StepBadge = styled.span<{ $status: TimelineStepStatus }>`
       case 'blocked':
         return css`
           background: rgba(var(--color-warning), 0.1);
-          color: rgb(180, 140, 8);
+          color: rgb(var(--color-warning));
         `;
       case 'skipped':
         return css`
-          background: rgba(127, 140, 141, 0.1);
-          color: rgb(127, 140, 141);
+          background: rgba(var(--color-text-muted), 0.1);
+          color: rgb(var(--color-text-muted));
         `;
       default:
         return css`
-          background: rgba(127, 140, 141, 0.1);
-          color: rgb(127, 140, 141);
+          background: rgba(var(--color-text-muted), 0.1);
+          color: rgb(var(--color-text-muted));
         `;
     }
   }}

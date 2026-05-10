@@ -147,7 +147,7 @@ interface SaveResult {
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(var(--color-overlay), 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,7 +159,7 @@ const ModalOverlay = styled.div`
 const ModalContent = styled.div`
   background: white;
   border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 25px 50px -12px rgba(var(--color-overlay), 0.35);
   width: 100%;
   max-width: 900px;
   max-height: 90vh;
@@ -205,7 +205,7 @@ const FormIcon = styled.div`
   justify-content: center;
   color: rgb(var(--color-text-inverse));
   font-size: 24px;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
 `;
 
 const HeaderTitle = styled.div`
@@ -279,7 +279,7 @@ const ProgressNumber = styled.span<{ $active: boolean; $completed: boolean }>`
   justify-content: center;
   font-size: 13px;
   font-weight: 600;
-  background: ${p => p.$active ? 'rgba(255,255,255,0.2)' : p.$completed ? 'rgb(var(--color-success))' : 'rgb(var(--color-surface-hover))'};
+  background: ${p => p.$active ? 'rgba(var(--color-surface-raw, 255, 255, 255), 0.2)' : p.$completed ? 'rgb(var(--color-success))' : 'rgb(var(--color-surface-hover))'};
   color: ${p => p.$active ? 'white' : p.$completed ? 'white' : 'rgb(var(--color-text-muted))'};
 `;
 
@@ -352,12 +352,12 @@ const FieldCard = styled.div`
 
   &:hover {
     border-color: rgb(var(--color-border));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.04);
   }
 
   &:focus-within {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -431,7 +431,7 @@ const inputStyles = css<{ $hasError?: boolean }>`
   &:focus {
     outline: none;
     border-color: ${p => p.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${p => p.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'};
+    box-shadow: 0 0 0 3px ${p => p.$hasError ? 'rgba(var(--color-error), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
 
   &::placeholder {
@@ -498,7 +498,7 @@ const QuickAddButton = styled.button`
   &:hover {
     background: linear-gradient(135deg, rgb(var(--color-success)) 0%, rgb(var(--color-success)) 100%);
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 2px 8px rgba(var(--color-success), 0.3);
   }
 
   &:active {
@@ -790,7 +790,7 @@ const ScreenReaderAnnouncement = styled.div`
 const ConfirmOverlay = styled.div`
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -802,7 +802,7 @@ const ConfirmDialog = styled.div`
   border-radius: 16px;
   padding: 24px;
   max-width: 400px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 25px 50px -12px rgba(var(--color-overlay), 0.35);
 
   h3 {
     margin: 0 0 12px;

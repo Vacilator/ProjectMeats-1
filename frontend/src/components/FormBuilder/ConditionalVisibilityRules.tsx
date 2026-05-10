@@ -166,7 +166,7 @@ const LogicalOperatorBadge = styled.div<{ $operator: LogicalOperator }>`
     color: rgb(var(--color-info));
   ` : css`
     background: rgba(var(--color-warning), 0.1);
-    color: rgb(180, 140, 8);
+    color: rgb(var(--color-warning));
   `}
 `;
 
@@ -181,7 +181,7 @@ const Select = styled.select`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -195,7 +195,7 @@ const Input = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary, 102 126 234));
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 `;
 
@@ -229,7 +229,7 @@ const AddConditionButton = styled.button`
   &:hover {
     border-color: rgb(var(--color-primary, 102 126 234));
     color: rgb(var(--color-primary, 102 126 234));
-    background: rgba(102, 126, 234, 0.05);
+    background: rgba(var(--color-primary), 0.05);
   }
 `;
 
@@ -274,7 +274,7 @@ const AddRuleButton = styled.button`
   &:hover {
     border-color: rgb(var(--color-primary, 102 126 234));
     color: rgb(var(--color-primary, 102 126 234));
-    background: rgba(102, 126, 234, 0.05);
+    background: rgba(var(--color-primary), 0.05);
   }
 `;
 

@@ -154,7 +154,7 @@ const Tab = styled.button<{ $active?: boolean }>`
   white-space: nowrap;
   background: ${(p) => (p.$active ? 'rgb(var(--color-surface))' : 'transparent')};
   color: ${(p) => (p.$active ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-secondary))')};
-  box-shadow: ${(p) => (p.$active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none')};
+  box-shadow: ${(p) => (p.$active ? '0 1px 3px rgba(var(--color-overlay),0.08)' : 'none')};
 
   &:hover {
     background: ${(p) => (p.$active ? 'rgb(var(--color-surface))' : 'rgba(var(--color-border), 0.5)')};

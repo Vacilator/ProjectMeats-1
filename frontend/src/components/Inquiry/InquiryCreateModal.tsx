@@ -59,7 +59,7 @@ const Overlay = styled.div<{ $open: boolean }>`
   display: ${(p) => (p.$open ? 'flex' : 'none')};
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   z-index: 1100;
   align-items: center;
   justify-content: center;
@@ -73,7 +73,7 @@ const Modal = styled.div`
   max-width: 940px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   display: flex;
   flex-direction: column;
 `;

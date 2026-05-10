@@ -121,7 +121,7 @@ const KPICard = styled.div`
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
 `;
 
@@ -340,7 +340,7 @@ export const Metrics: React.FC = () => {
         <KPICard>
           <KPIHeader>
             <KPILabel>Form Submissions</KPILabel>
-            <KPIIcon $color="rgb(168, 85, 247)">
+            <KPIIcon $color="rgb(var(--color-accent))">
               <FileText size={20} />
             </KPIIcon>
           </KPIHeader>
@@ -359,7 +359,7 @@ export const Metrics: React.FC = () => {
           <ChartTitle>Daily Usage Trends (Last 30 Days)</ChartTitle>
           <ResponsiveContainer width="100%" height={300} minWidth={1} minHeight={1} debounce={150}>
             <LineChart data={workflowMetrics.daily_usage}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--color-overlay),0.1)" />
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 12 }}
@@ -403,7 +403,7 @@ export const Metrics: React.FC = () => {
               { name: 'In Progress', value: workflowMetrics.in_progress_executions },
               { name: 'Failed', value: workflowMetrics.failed_executions },
             ]}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--color-overlay),0.1)" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />

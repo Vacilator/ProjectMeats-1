@@ -116,7 +116,7 @@ const inputStyles = `
   &:focus {
     outline: none;
     border-color: var(--color-primary, rgb(var(--color-primary)));
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(var(--color-primary), 0.25);
   }
 
   &:disabled {

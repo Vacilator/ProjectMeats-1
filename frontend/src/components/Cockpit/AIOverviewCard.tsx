@@ -74,7 +74,7 @@ const Fade = styled.div<{ $expanded: boolean }>`
   right: 0;
   bottom: 0;
   height: 2.2em;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgb(var(--color-surface)) 70%);
+  background: linear-gradient(180deg, rgba(var(--color-surface-raw, 255, 255, 255), 0) 0%, rgb(var(--color-surface)) 70%);
 `;
 
 const Actions = styled.div`

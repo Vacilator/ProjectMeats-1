@@ -92,7 +92,7 @@ const Overlay = styled.div<{ isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(var(--color-overlay), 0.6);
   z-index: 1000;
   align-items: center;
   justify-content: center;

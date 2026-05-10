@@ -179,7 +179,7 @@ const Card = styled.div`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 10px rgba(var(--color-overlay), 0.06);
   overflow: hidden;
 `;
 
@@ -380,7 +380,7 @@ const NewButton = styled.button`
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.6);
+    outline: 2px solid rgba(var(--color-surface-raw, 255, 255, 255), 0.6);
     outline-offset: 2px;
   }
 `;
@@ -391,7 +391,7 @@ const Menu = styled.div`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 32px rgba(var(--color-overlay), 0.12);
   overflow: hidden;
 `;
 

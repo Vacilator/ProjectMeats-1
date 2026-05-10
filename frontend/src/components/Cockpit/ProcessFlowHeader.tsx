@@ -127,7 +127,7 @@ const StatusBadge = styled.span<{ $variant: 'success' | 'warning' | 'error' | 'i
       case 'info':
         return 'background: rgba(var(--color-info), 0.1); color: rgb(var(--color-info));';
       default:
-        return 'background: rgba(156, 163, 175, 0.1); color: rgb(156, 163, 175);';
+        return 'background: rgba(var(--color-text-tertiary), 0.1); color: rgb(var(--color-text-tertiary));';
     }
   }}
 `;
@@ -191,7 +191,7 @@ const PopoverOverlay = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(var(--color-overlay), 0.3);
 `;
 
 const PopoverCard = styled.div`
@@ -201,7 +201,7 @@ const PopoverCard = styled.div`
   padding: 20px;
   min-width: 320px;
   max-width: 420px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 40px rgba(var(--color-overlay), 0.15);
 `;
 
 const PopoverHeader = styled.div`

@@ -43,7 +43,7 @@ const StepContainer = styled.div<{ isActive?: boolean }>`
 
   ${({ isActive }) => isActive && `
     border-color: var(--color-primary, rgb(var(--color-primary)));
-    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   `}
 `;
 

@@ -177,7 +177,7 @@ const CommandInput = styled.input`
     outline: none;
     border-color: rgb(var(--color-info));
     background: rgb(var(--color-surface));
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
 
   &::placeholder {
@@ -189,7 +189,7 @@ const SuggestionsList = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   background: rgb(var(--color-surface));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   overflow: hidden;
 `;
 
@@ -264,7 +264,7 @@ const TipText = styled.div`
   color: rgb(var(--color-text-muted));
   font-style: italic;
   padding: 12px;
-  background: rgba(52, 152, 219, 0.1);
+  background: rgba(var(--color-primary), 0.1);
   border-radius: 6px;
   border-left: 3px solid rgb(var(--color-info));
 `;

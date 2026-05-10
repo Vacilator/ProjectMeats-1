@@ -68,7 +68,7 @@ const Label = styled.label`
 `;
 
 const Required = styled.span`
-  color: rgba(239, 68, 68, 1);
+  color: rgb(var(--color-error));
   margin-left: 0.25rem;
 `;
 
@@ -81,7 +81,7 @@ const Input = styled.input<{ $hasError?: boolean }>`
   width: 100%;
   padding: 0.75rem 2.5rem 0.75rem 0.75rem;
   background: rgb(var(--color-background));
-  border: 1px solid ${props => props.$hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-border))'};
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
@@ -89,7 +89,7 @@ const Input = styled.input<{ $hasError?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.$hasError ? 'rgba(239, 68, 68, 1)' : 'rgb(var(--color-primary))'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
   }
   
   &::placeholder {
@@ -124,7 +124,7 @@ const DropdownList = styled.ul<{ $isOpen: boolean }>`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 6px -1px rgba(var(--color-overlay), 0.1), 0 2px 4px -1px rgba(var(--color-overlay), 0.06);
   z-index: 100;
   margin: 0;
   padding: 0;
@@ -204,7 +204,7 @@ const Spinner = styled.div`
 
 const ErrorText = styled.div`
   font-size: 0.75rem;
-  color: rgba(239, 68, 68, 1);
+  color: rgb(var(--color-error));
   margin-top: 0.25rem;
 `;
 

@@ -60,7 +60,7 @@ const StatButton = styled.button<{ $color: string }>`
 
   &:hover {
     border-color: ${props => props.$color};
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(var(--color-overlay), 0.05);
   }
 
   &:focus-visible {
@@ -138,7 +138,7 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       label: 'Total Customers',
       value: stats.quick_stats.total_customers.toLocaleString(),
       icon: <Users size={16} />,
-      color: 'rgb(168, 85, 247)',
+      color: 'rgb(var(--color-accent, 168, 85, 247))',
       href: '/customers',
     },
     {

@@ -106,7 +106,7 @@ const Overlay = styled.div<{ isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   z-index: 1000;
   align-items: center;
   justify-content: center;
@@ -120,7 +120,7 @@ const Modal = styled.div`
   max-width: 550px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(var(--color-overlay), 0.1), 0 10px 10px -5px rgba(var(--color-overlay), 0.04);
 `;
 
 const ModalHeader = styled.div`
@@ -268,7 +268,7 @@ const ErrorMessage = styled.div`
   font-size: 0.875rem;
   margin-top: 0.5rem;
   padding: 0.5rem;
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(var(--color-error), 0.1);
   border-radius: var(--radius-md);
 `;
 

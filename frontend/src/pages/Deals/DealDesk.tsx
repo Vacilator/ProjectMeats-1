@@ -176,7 +176,7 @@ const StatusBadge = styled.span<{ status: DealStatus }>`
         return 'background: rgba(var(--color-info), 0.12); color: rgb(var(--color-info));';
       case 'draft':
       default:
-        return 'background: rgba(148, 163, 184, 0.18); color: rgb(71, 85, 105);';
+        return 'background: rgba(var(--color-text-tertiary), 0.18); color: rgb(var(--color-text-secondary));';
     }
   }}
 `;

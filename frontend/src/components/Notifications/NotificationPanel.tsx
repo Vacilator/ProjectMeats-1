@@ -29,7 +29,7 @@ const Panel = styled.div`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.15);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -338,10 +338,10 @@ function getIconBackground(type: NotificationType): string {
       return 'rgba(var(--color-warning), 0.1)';
     case 'mention':
     case 'comment':
-      return 'rgb(139, 92, 246, 0.1)';
+      return 'rgba(var(--color-primary), 0.1)';
     case 'status_change':
     case 'workflow_trigger':
-      return 'rgb(14, 165, 233, 0.1)';
+      return 'rgba(var(--color-info), 0.1)';
     case 'system':
     default:
       return 'rgb(var(--color-text-tertiary) / 0.1)';
@@ -364,10 +364,10 @@ function getIconColor(type: NotificationType): string {
       return 'rgb(var(--color-warning))';
     case 'mention':
     case 'comment':
-      return 'rgb(139, 92, 246)';
+      return 'rgb(var(--color-primary))';
     case 'status_change':
     case 'workflow_trigger':
-      return 'rgb(14, 165, 233)';
+      return 'rgb(var(--color-info))';
     case 'system':
     default:
       return 'rgb(var(--color-text-tertiary))';

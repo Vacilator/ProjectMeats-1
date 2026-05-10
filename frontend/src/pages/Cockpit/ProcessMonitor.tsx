@@ -216,7 +216,7 @@ const EmptyState = styled.div`
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(var(--color-overlay), 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -288,7 +288,7 @@ const EditorPane = styled.div`
 
   /* Highlight wrapper-level react-flow nodes */
   .react-flow__node.pm-active-node {
-    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.35), 0 10px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.35), 0 10px 24px rgba(var(--color-overlay), 0.12);
     border-radius: 12px;
   }
 

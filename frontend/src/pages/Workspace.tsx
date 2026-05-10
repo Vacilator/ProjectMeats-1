@@ -290,7 +290,7 @@ const EmptyState = styled.div`
 const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--color-overlay), 0.5);
   display: ${props => props.$isOpen ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;
@@ -304,7 +304,7 @@ const ModalContent = styled.div`
   max-width: 480px;
   max-height: 80vh;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
 `;
 
 const ModalHeader = styled.div`

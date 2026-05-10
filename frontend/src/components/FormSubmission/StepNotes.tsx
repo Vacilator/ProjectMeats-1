@@ -147,7 +147,7 @@ const NoteTextarea = styled.textarea`
   &:focus {
     outline: none;
     border-color: var(--color-primary, rgb(var(--color-primary)));
-    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.1);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.1);
   }
 
   &::placeholder {

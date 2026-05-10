@@ -66,7 +66,7 @@ const Header = styled.div`
 const HeaderText = styled.span`
   font-size: 13px;
   font-weight: 600;
-  color: rgb(161, 98, 7);
+  color: rgb(var(--color-warning));
 `;
 
 const DepList = styled.div`

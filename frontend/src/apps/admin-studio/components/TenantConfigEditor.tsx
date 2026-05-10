@@ -28,8 +28,8 @@ const KeyboardShortcut: React.FC<{ keys: string }> = ({ keys }) => (
     padding: '0.125rem 0.375rem',
     fontSize: '0.65rem',
     fontFamily: 'monospace',
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    border: '1px solid rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(var(--color-overlay), 0.05)',
+    border: '1px solid rgba(var(--color-overlay), 0.1)',
     borderRadius: '3px',
     marginLeft: '8px',
   }}>{keys}</kbd>

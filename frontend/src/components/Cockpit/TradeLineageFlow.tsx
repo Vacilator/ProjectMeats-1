@@ -88,7 +88,7 @@ const STATUS_COLORS: Record<string, string> = {
   ordered: 'rgb(var(--color-success))',
   completed: 'rgb(var(--color-success))',
   approved: 'rgb(var(--color-success))',
-  draft: 'rgb(156, 163, 175)',
+  draft: 'rgb(var(--color-text-tertiary))',
   cancelled: 'rgb(var(--color-error))',
   halted: 'rgb(var(--color-error))',
   initiated: 'rgb(var(--color-warning))',
@@ -96,7 +96,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const getStatusColor = (status: string): string =>
-  STATUS_COLORS[status?.toLowerCase()] ?? 'rgb(156, 163, 175)';
+  STATUS_COLORS[status?.toLowerCase()] ?? 'rgb(var(--color-text-tertiary))';
 
 const ENTITY_ICONS: Record<string, React.FC<{ size?: number }>> = {
   inquiry: FileText,
@@ -186,7 +186,7 @@ const NodeWrapper = styled.div<{ $color: string; $isActive: boolean; $isEmpty: b
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: ${(p) =>
-    p.$isActive ? `0 0 0 3px ${p.$color}30, 0 4px 12px ${p.$color}20` : '0 1px 4px rgba(0,0,0,0.08)'};
+    p.$isActive ? `0 0 0 3px ${p.$color}30, 0 4px 12px ${p.$color}20` : '0 1px 4px rgba(var(--color-overlay),0.08)'};
 
   &:hover {
     transform: translateY(-1px);

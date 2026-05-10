@@ -173,7 +173,7 @@ const ConnectionCard = styled.div<{ color: string }>`
 
   &:hover {
     border-color: ${props => props.color}33;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
 `;
 
@@ -343,7 +343,7 @@ const ComingSoonBadge = styled.div`
 const Spinner = styled.div`
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(var(--color-surface-raw, 255, 255, 255), 0.3);
   border-top-color: rgb(var(--color-text-inverse));
   border-radius: 50%;
   animation: spin 0.8s linear infinite;

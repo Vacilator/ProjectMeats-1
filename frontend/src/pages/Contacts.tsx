@@ -58,7 +58,7 @@ const StatCard = styled.div`
   color: rgb(var(--color-surface-foreground));
   padding: 24px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.1);
   text-align: center;
 `;
 
@@ -130,7 +130,7 @@ const Table = styled.table`
   color: rgb(var(--color-surface-foreground));
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(var(--color-overlay), 0.1);
 `;
 
 const TableHeader = styled.thead`

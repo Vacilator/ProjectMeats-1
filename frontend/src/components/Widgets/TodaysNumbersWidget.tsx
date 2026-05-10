@@ -66,7 +66,7 @@ const MetricCard = styled.div<{ $color: string; $clickable: boolean }>`
     &:hover {
       border-color: ${props.$color};
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.05);
     }
   `}
 `;
@@ -154,7 +154,7 @@ export const TodaysNumbersWidget: React.FC<TodaysNumbersWidgetProps> = () => {
       value: stats.todays_numbers.active_customers,
       formattedValue: stats.todays_numbers.active_customers.toLocaleString(),
       icon: <Users size={18} />,
-      color: 'rgb(168, 85, 247)',
+      color: 'rgb(var(--color-accent, 168, 85, 247))',
       link: '/customers',
     },
   ] : [];

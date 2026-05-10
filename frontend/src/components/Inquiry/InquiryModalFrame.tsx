@@ -5,7 +5,7 @@ export const InquiryModalOverlay = styled.div<{ $open: boolean }>`
   display: ${(p) => (p.$open ? 'flex' : 'none')};
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(var(--color-overlay), 0.55);
   z-index: 1100;
   align-items: center;
   justify-content: center;
@@ -19,7 +19,7 @@ export const InquiryModalContainer = styled.div<{ $maxWidth?: number }>`
   max-width: ${(p) => (p.$maxWidth ? `${p.$maxWidth}px` : '900px')};
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(var(--color-overlay), 0.3);
   display: flex;
   flex-direction: column;
 `;

@@ -34,7 +34,7 @@ const CardItem = styled.div`
   &:hover {
     border-color: rgb(var(--color-primary, 99 102 241) / 0.3);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.04);
   }
 `;
 

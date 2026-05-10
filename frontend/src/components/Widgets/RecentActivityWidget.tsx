@@ -158,7 +158,7 @@ const getColorForEntityType = (entityType: string) => {
     case 'purchase_order':
       return 'rgb(var(--color-info))';
     case 'sales_order':
-      return 'rgb(168, 85, 247)';
+      return 'rgb(var(--color-accent, 168, 85, 247))';
     case 'customer':
       return 'rgb(var(--color-success))';
     case 'supplier':
