@@ -190,3 +190,230 @@ class AutoPipelineTaskTestCase(TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result['action'], 'skipped')
         self.assertEqual(result['reason'], 'no_customer')
+
+    # ------------------------------------------------------------------
+    # Contact / Company pipeline tests (PR #5268 coverage)
+    # ------------------------------------------------------------------
+
+    def _make_contact_email_log(self, contact_name="Jane Doe", company="", status="draft_created"):
+        """Create a mock EmailLog for contact pipeline."""
+        email = MagicMock()
+        email.id = 100
+        email.tenant_id = self.tenant_id
+        email.status = status
+        email.subject = "Contact Info — Jane Doe"
+        email.extracted_data = {
+            'confidence': 0.99,
+            'draft_type': 'contact',
+            'contact_name': contact_name,
+            'contact_company': company,
+            'sender_email': 'jane@example.com',
+        }
+        return email
+
+    def _make_company_email_log(self, company_name="Acme Corp", status="draft_created"):
+        """Create a mock EmailLog for company pipeline."""
+        email = MagicMock()
+        email.id = 200
+        email.tenant_id = self.tenant_id
+        email.status = status
+        email.subject = "Company Profile — Acme Corp"
+        email.extracted_data = {
+            'confidence': 0.99,
+            'draft_type': 'company',
+            'contact_company': company_name,
+            'sender_email': 'info@acme.com',
+        }
+        return email
+
+    # --- create_contact_from_email ---
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_contact_success(self, mock_email_cls):
+        """Contact is created from email with first/last name split."""
+        from apps.integrations.auto_pipeline import create_contact_from_email
+
+        email = self._make_contact_email_log(contact_name="Jane Doe")
+        mock_email_cls.objects.get.return_value = email
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            with patch('tenant_apps.contacts.models.Contact') as mock_contact_cls:
+                mock_contact_cls.objects.filter.return_value.first.return_value = None
+                mock_contact = MagicMock()
+                mock_contact.id = 501
+                mock_contact_cls.return_value = mock_contact
+
+                result = create_contact_from_email(100, self.tenant_id)
+
+        self.assertEqual(result, 501)
+        mock_contact.save.assert_called_once()
+        email.mark_as_completed.assert_called_once()
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_contact_single_name(self, mock_email_cls):
+        """Single-word name uses it as first_name with empty last_name."""
+        from apps.integrations.auto_pipeline import create_contact_from_email
+
+        email = self._make_contact_email_log(contact_name="Madonna")
+        mock_email_cls.objects.get.return_value = email
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            with patch('tenant_apps.contacts.models.Contact') as mock_contact_cls:
+                mock_contact_cls.objects.filter.return_value.first.return_value = None
+                mock_contact = MagicMock()
+                mock_contact.id = 502
+                mock_contact_cls.return_value = mock_contact
+
+                result = create_contact_from_email(100, self.tenant_id)
+
+        self.assertEqual(result, 502)
+        call_kwargs = mock_contact_cls.call_args[1]
+        self.assertEqual(call_kwargs['first_name'], 'Madonna')
+        self.assertEqual(call_kwargs['last_name'], '')
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_contact_duplicate_returns_existing(self, mock_email_cls):
+        """Existing contact is returned without creating a new one."""
+        from apps.integrations.auto_pipeline import create_contact_from_email
+
+        email = self._make_contact_email_log(contact_name="Jane Doe")
+        mock_email_cls.objects.get.return_value = email
+
+        existing = MagicMock()
+        existing.id = 999
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            with patch('tenant_apps.contacts.models.Contact') as mock_contact_cls:
+                mock_contact_cls.objects.filter.return_value.first.return_value = existing
+
+                result = create_contact_from_email(100, self.tenant_id)
+
+        self.assertEqual(result, 999)
+        email.mark_as_completed.assert_called_once()
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_contact_skips_empty_name(self, mock_email_cls):
+        """Contact with blank name is skipped."""
+        from apps.integrations.auto_pipeline import create_contact_from_email
+
+        email = self._make_contact_email_log(contact_name="")
+        mock_email_cls.objects.get.return_value = email
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            result = create_contact_from_email(100, self.tenant_id)
+
+        self.assertIsNone(result)
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_contact_idempotent_skips_order_created(self, mock_email_cls):
+        """EmailLog with status 'order_created' is skipped."""
+        from apps.integrations.auto_pipeline import create_contact_from_email
+
+        email = self._make_contact_email_log(status="order_created")
+        mock_email_cls.objects.get.return_value = email
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            result = create_contact_from_email(100, self.tenant_id)
+
+        self.assertIsNone(result)
+
+    # --- create_company_from_email ---
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_company_success(self, mock_email_cls):
+        """Customer record is created from company email."""
+        from apps.integrations.auto_pipeline import create_company_from_email
+
+        email = self._make_company_email_log(company_name="Acme Corp")
+        mock_email_cls.objects.get.return_value = email
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            with patch('tenant_apps.customers.models.Customer') as mock_customer_cls:
+                mock_customer_cls.objects.filter.return_value.first.return_value = None
+                mock_customer = MagicMock()
+                mock_customer.id = 601
+                mock_customer_cls.return_value = mock_customer
+
+                result = create_company_from_email(200, self.tenant_id)
+
+        self.assertEqual(result, 601)
+        mock_customer.save.assert_called_once()
+        email.mark_as_completed.assert_called_once()
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_company_duplicate_returns_existing(self, mock_email_cls):
+        """Existing customer is returned without creating a new one."""
+        from apps.integrations.auto_pipeline import create_company_from_email
+
+        email = self._make_company_email_log(company_name="Acme Corp")
+        mock_email_cls.objects.get.return_value = email
+
+        existing = MagicMock()
+        existing.id = 888
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            with patch('tenant_apps.customers.models.Customer') as mock_customer_cls:
+                mock_customer_cls.objects.filter.return_value.first.return_value = existing
+
+                result = create_company_from_email(200, self.tenant_id)
+
+        self.assertEqual(result, 888)
+        email.mark_as_completed.assert_called_once()
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_company_skips_empty_name(self, mock_email_cls):
+        """Company with blank name is skipped."""
+        from apps.integrations.auto_pipeline import create_company_from_email
+
+        email = self._make_company_email_log(company_name="")
+        mock_email_cls.objects.get.return_value = email
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            result = create_company_from_email(200, self.tenant_id)
+
+        self.assertIsNone(result)
+
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    def test_create_company_idempotent_skips_order_created(self, mock_email_cls):
+        """EmailLog with status 'order_created' is skipped."""
+        from apps.integrations.auto_pipeline import create_company_from_email
+
+        email = self._make_company_email_log(status="order_created")
+        mock_email_cls.objects.get.return_value = email
+
+        with patch('apps.integrations.auto_pipeline.tenant_rls'):
+            result = create_company_from_email(200, self.tenant_id)
+
+        self.assertIsNone(result)
+
+    # --- Sweep dispatch for contact/company types ---
+
+    @patch('apps.integrations.auto_pipeline.create_contact_from_email')
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    @patch('apps.integrations.auto_pipeline.Tenant')
+    def test_sweep_dispatches_contact(self, mock_tenant_cls, mock_email_cls, mock_task):
+        """Sweep dispatches contact pipeline for contact draft type."""
+        from apps.integrations.auto_pipeline import auto_process_approved_emails
+
+        mock_tenant_cls.objects.filter.return_value.values_list.return_value = [self.tenant_id]
+        mock_email_cls.objects.filter.return_value.exclude.return_value.values_list.return_value = [
+            (100, {'confidence': 0.99, 'draft_type': 'contact'}),
+        ]
+
+        result = auto_process_approved_emails()
+        self.assertEqual(result['dispatched'], 1)
+
+    @patch('apps.integrations.auto_pipeline.create_company_from_email')
+    @patch('apps.integrations.auto_pipeline.EmailLog')
+    @patch('apps.integrations.auto_pipeline.Tenant')
+    def test_sweep_dispatches_company(self, mock_tenant_cls, mock_email_cls, mock_task):
+        """Sweep dispatches company pipeline for company draft type."""
+        from apps.integrations.auto_pipeline import auto_process_approved_emails
+
+        mock_tenant_cls.objects.filter.return_value.values_list.return_value = [self.tenant_id]
+        mock_email_cls.objects.filter.return_value.exclude.return_value.values_list.return_value = [
+            (200, {'confidence': 0.99, 'draft_type': 'company'}),
+        ]
+
+        result = auto_process_approved_emails()
+        self.assertEqual(result['dispatched'], 1)
