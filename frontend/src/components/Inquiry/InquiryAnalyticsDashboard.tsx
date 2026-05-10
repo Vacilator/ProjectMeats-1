@@ -343,24 +343,24 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-weight: 500;
   background: ${props => {
     switch (props.$status) {
-      case 'draft': return 'rgba(156, 163, 175, 0.1)';
+      case 'draft': return 'rgba(var(--color-neutral), 0.1)';
       case 'pending': return 'rgba(var(--color-warning), 0.1)';
       case 'quoted': return 'rgba(var(--color-info), 0.1)';
       case 'accepted': return 'rgba(var(--color-success), 0.1)';
       case 'rejected': return 'rgba(var(--color-error), 0.1)';
-      case 'fulfilled': return 'rgba(147, 51, 234, 0.1)';
+      case 'fulfilled': return 'rgba(var(--color-accent), 0.1)';
       case 'cancelled': return 'rgba(var(--color-neutral), 0.1)';
-      default: return 'rgba(156, 163, 175, 0.1)';
+      default: return 'rgba(var(--color-neutral), 0.1)';
     }
   }};
   color: ${props => {
     switch (props.$status) {
       case 'draft': return 'rgb(var(--color-neutral))';
-      case 'pending': return 'rgb(180, 83, 9)';
+      case 'pending': return 'rgb(var(--color-warning))';
       case 'quoted': return 'rgb(var(--color-info))';
       case 'accepted': return 'rgb(var(--color-success))';
       case 'rejected': return 'rgb(var(--color-error))';
-      case 'fulfilled': return 'rgb(126, 34, 206)';
+      case 'fulfilled': return 'rgb(var(--color-accent))';
       case 'cancelled': return 'rgb(var(--color-neutral))';
       default: return 'rgb(var(--color-neutral))';
     }

@@ -16,6 +16,7 @@ import { OperationalDocumentActions } from '@/components/Operations/OperationalD
 import { EntityFormSurface } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { buildCsv, downloadCsv } from '@/utils/csv';
 import type { TradeTimelinePayload, TradeWeightPayload } from '@/utils/trade';
 import { formatTradeDate, formatTradeWeight } from '@/utils/trade';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -85,6 +86,27 @@ const FreightOrders: React.FC = () => {
     setEditingOrderId(null);
     void freightOrdersQuery.refetch();
   }, [freightOrdersQuery]);
+
+  const orders = freightOrdersQuery.data ?? [];
+
+  const handleExportCSV = useCallback(() => {
+    if (!orders.length) return;
+    const csv = buildCsv({
+      headers: ['Freight Order #', 'Carrier', 'Pickup Date', 'Delivery Date', 'Status', 'Protein Type', 'Quantity', 'Weight', 'Unit'],
+      rows: orders.map((o) => [
+        o.our_carrier_po_num ?? String(o.id),
+        o.carrier_name ?? '',
+        o.pick_up_date ?? '',
+        o.delivery_date ?? '',
+        o.status ?? 'draft',
+        o.type_of_protein ?? '',
+        o.quantity != null ? String(o.quantity) : '',
+        o.total_weight ?? '',
+        o.weight_unit ?? '',
+      ]),
+    });
+    downloadCsv(`freight-orders-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }, [orders]);
 
   const columns = useMemo<ColumnsType<FreightOrder>>(
     () => [
@@ -161,9 +183,14 @@ const FreightOrders: React.FC = () => {
             Manage carrier purchase orders, dispatch workflow, PDFs, and audit history.
           </Text>
         </div>
-        <Button type="primary" onClick={() => setIsCreateOpen(true)}>
-          New Freight Order
-        </Button>
+        <Space>
+          <Button onClick={handleExportCSV} disabled={!orders.length}>
+            Export CSV
+          </Button>
+          <Button type="primary" onClick={() => setIsCreateOpen(true)}>
+            New Freight Order
+          </Button>
+        </Space>
       </div>
 
       <Card size="small">
