@@ -1,12 +1,13 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Collapse, Modal, Spin } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { Alert, Button, Card, Collapse, message, Modal, Spin } from 'antd';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
 const UnifiedFlowEditor = lazy(() => import('@/components/FlowEditor/UnifiedFlowEditor').then(m => ({ default: m.UnifiedFlowEditor })));
 import {
   workformExecutionService,
+  type NodeActionType,
   type WorkFormExecution,
   type WorkFormExecutionAuditEvent,
 } from '@/services/workformExecutionService';
@@ -67,6 +68,7 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const activeTab = searchParams.get('tab');
   const shouldAutoOpenFlow = searchParams.get('viewProcessFlow') === '1';
@@ -141,6 +143,43 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
   const handleFlowNodeClick = useCallback((_event: React.MouseEvent, node: { id: string; data?: Record<string, unknown> }) => {
     setClickedNodeId(node.id);
   }, []);
+
+  const nodeActionMutation = useMutation({
+    mutationFn: ({ executionId, nodeId, action, comment }: {
+      executionId: string;
+      nodeId: string;
+      action: NodeActionType;
+      comment?: string;
+    }) => workformExecutionService.nodeAction(executionId, {
+      node_id: nodeId,
+      action,
+      comment,
+    }),
+    onSuccess: (_data, variables) => {
+      const verb = variables.action === 'approve' ? 'approved' : 'rejected';
+      message.success(`Node ${verb} successfully.`);
+      queryClient.invalidateQueries({
+        queryKey: withTenantQueryKey('entity-workflow-status', entityType, entityId),
+      });
+      setClickedNodeId(null);
+    },
+    onError: (error: unknown) => {
+      const msg = getErrorMessage(error);
+      message.error(msg);
+    },
+  });
+
+  const handleNodeAction = useCallback(
+    (action: NodeActionType) => {
+      if (!selectedExecution || !clickedNodeId) return;
+      nodeActionMutation.mutate({
+        executionId: selectedExecution.id,
+        nodeId: clickedNodeId,
+        action,
+      });
+    },
+    [selectedExecution, clickedNodeId, nodeActionMutation],
+  );
 
   const renderNodeStatuses = (execution: WorkFormExecution) => {
     const map = execution.node_statuses;
@@ -388,10 +427,22 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
                   {/* Node-level Approve / Reject actions */}
                   {(node.type === 'approvalGate' || node.id === selectedExecution?.current_node_id) && (
                     <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                      <Button type="primary" size="small" onClick={() => setClickedNodeId(null)}>
+                      <Button
+                        type="primary"
+                        size="small"
+                        loading={nodeActionMutation.isPending && nodeActionMutation.variables?.action === 'approve'}
+                        disabled={nodeActionMutation.isPending}
+                        onClick={() => handleNodeAction('approve')}
+                      >
                         ✓ Approve
                       </Button>
-                      <Button size="small" danger onClick={() => setClickedNodeId(null)}>
+                      <Button
+                        size="small"
+                        danger
+                        loading={nodeActionMutation.isPending && nodeActionMutation.variables?.action === 'reject'}
+                        disabled={nodeActionMutation.isPending}
+                        onClick={() => handleNodeAction('reject')}
+                      >
                         ✗ Reject
                       </Button>
                     </div>

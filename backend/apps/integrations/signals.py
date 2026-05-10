@@ -174,10 +174,11 @@ def _notify_actionable_email(instance: EmailLog, draft: EmailReviewDraft, classi
 @receiver(post_save, sender=EmailLog)
 def trigger_ai_extraction(sender, instance, created, **kwargs):
     """
-    Automatically trigger AI extraction when a new EmailLog is created.
+    Dispatch async AI classification when a new EmailLog is created.
 
-    This signal fires after an email is logged from OAuth sync.
-    In production, should be replaced with Celery task for async processing.
+    Marks the email as 'processing' and dispatches a Celery task.
+    The actual classification (OpenAI call, dependency drafts, lineage) runs
+    in the background worker to avoid blocking the save transaction.
     """
     if not created:
         return
@@ -187,197 +188,14 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
 
     try:
         instance.mark_as_processing()
-
-        supplier_reply = parse_supplier_quote_reply(email_log=instance)
-        if supplier_reply is not None:
-            _upsert_action_required_feedback(instance, supplier_reply)
-            supplier_reply_parse = supplier_reply.get('supplier_reply_parse') or {}
-            supplier_lineage = supplier_reply_parse.get('lineage') or {}
-            _record_email_lineage_event(
-                instance,
-                event_type='supplier_reply_parsed',
-                summary=str(supplier_reply.get('summary') or 'AI parsed supplier quote reply.'),
-                target_type='inquiry' if supplier_lineage.get('inquiry_id') else '',
-                target_id=str(supplier_lineage.get('inquiry_id') or ''),
-                metadata={
-                    'category': str(supplier_reply.get('category') or ''),
-                    'parse_status': str(supplier_reply_parse.get('parse_status') or ''),
-                    'correlation_status': str(supplier_reply_parse.get('correlation_status') or ''),
-                    'supplier_id': supplier_lineage.get('supplier_id'),
-                    'rfq_id': supplier_lineage.get('rfq_id'),
-                    'inquiry_id': supplier_lineage.get('inquiry_id'),
-                },
-            )
-            logger.info(
-                'Email %s matched supplier RFQ reply flow with parse_status=%s',
-                instance.id,
-                supplier_reply.get('supplier_reply_parse', {}).get('parse_status'),
-            )
-            instance.mark_as_completed(extracted_data=supplier_reply)
-            return
-
-        # Build combined attachment text from stored attachment_data
-        attachment_text = ''
-        attachment_meta = []
-        if instance.attachment_data and isinstance(instance.attachment_data, dict):
-            files = instance.attachment_data.get('files') or []
-            text_parts = []
-            for f in files:
-                extracted = f.get('extracted_text', '')
-                fname = f.get('name', 'attachment')
-                attachment_meta.append({
-                    'name': fname,
-                    'content_type': f.get('content_type', ''),
-                    'size': f.get('size', 0),
-                    'extraction_status': f.get('extraction_status', ''),
-                })
-                if extracted and f.get('extraction_status') == 'success':
-                    text_parts.append(f"--- {fname} ---\n{extracted}")
-            attachment_text = '\n\n'.join(text_parts)
-
-        if attachment_meta:
-            _record_email_lineage_event(
-                instance,
-                event_type='email_attachments_extracted',
-                summary=f'Processed {len(attachment_meta)} attachment(s) for AI extraction.',
-                target_type='',
-                target_id='',
-                metadata={
-                    'attachment_count': len(attachment_meta),
-                    'attachment_names': [a['name'] for a in attachment_meta],
-                    'extraction_statuses': [a['extraction_status'] for a in attachment_meta],
-                },
-            )
-
-        classification = classify_ingested_email(
-            subject=instance.subject,
-            body_text=instance.body_text,
-            sender_email=instance.sender_email,
-            has_attachments=instance.has_attachments,
-            attachment_text=attachment_text,
+        from apps.integrations.tasks import classify_email_async
+        classify_email_async.apply_async(
+            args=[str(instance.pk), str(instance.tenant_id)],
+            countdown=1,
         )
-
-        # Enrich classification with attachment metadata for downstream display
-        if attachment_meta:
-            classification['attachment_count'] = len(attachment_meta)
-            classification['attachment_filenames'] = [a['name'] for a in attachment_meta]
-            classification['attachment_details'] = attachment_meta
-
-        # Build dependency-aware related entity drafts
-        try:
-            related_drafts = build_related_entity_drafts(
-                classification=classification,
-                email_log=instance,
-                tenant=instance.tenant,
-            )
-            if related_drafts:
-                classification['related_entity_drafts'] = related_drafts
-                _record_email_lineage_event(
-                    instance,
-                    event_type='dependency_drafts_proposed',
-                    summary=f'Proposed {len(related_drafts)} related entity draft(s) from email.',
-                    target_type='',
-                    target_id='',
-                    metadata={
-                        'draft_count': len(related_drafts),
-                        'entity_types': [d['entity_type'] for d in related_drafts],
-                        'statuses': [d['status'] for d in related_drafts],
-                    },
-                )
-        except Exception:
-            logger.warning(
-                'Dependency draft proposal failed for email %s; continuing without related drafts',
-                instance.id,
-                exc_info=True,
-            )
-
-        inquiry, _ = upsert_inquiry_draft_from_email(instance, classification)
-        if inquiry is not None:
-            classification = {
-                **classification,
-                'inquiry_id': str(inquiry.id),
-                'inquiry_number': inquiry.inquiry_number,
-            }
-            _record_email_lineage_event(
-                instance,
-                event_type='inquiry_draft_created_from_email',
-                summary=f'Created inquiry draft {inquiry.inquiry_number} from inbound email.',
-                target_type='inquiry',
-                target_id=str(inquiry.id),
-                metadata={
-                    'inquiry_id': str(inquiry.id),
-                    'inquiry_number': str(inquiry.inquiry_number or ''),
-                    'draft_type': str(classification.get('draft_type') or ''),
-                    'category': str(classification.get('category') or ''),
-                },
-            )
-
-        _upsert_action_required_feedback(instance, classification)
-        # Build summary with file count
-        base_summary = str(classification.get('summary') or 'AI classified inbound email.')
-        att_data = getattr(instance, 'attachment_data', None)
-        att_count = 0
-        if isinstance(att_data, list):
-            att_count = len(att_data)
-        elif isinstance(att_data, dict) and att_data.get('files'):
-            att_count = len(att_data['files'])
-        if att_count > 0:
-            base_summary = f'Email + {att_count} file(s) processed. {base_summary}'
-        _record_email_lineage_event(
-            instance,
-            event_type='email_classified',
-            summary=base_summary,
-            target_type='inquiry' if inquiry is not None else '',
-            target_id=str(getattr(inquiry, 'id', '') or ''),
-            metadata={
-                'category': str(classification.get('category') or ''),
-                'draft_type': str(classification.get('draft_type') or ''),
-                'actionable': bool(classification.get('actionable')),
-                'confidence_score': classification.get('confidence_score') or classification.get('confidence'),
-                'inquiry_id': str(getattr(inquiry, 'id', '') or ''),
-                'inquiry_number': str(getattr(inquiry, 'inquiry_number', '') or ''),
-            },
-        )
-
-        if classification.get('actionable') and classification.get('draft_type'):
-            draft, _ = EmailReviewDraft.objects.update_or_create(
-                email_log=instance,
-                defaults={
-                    'tenant': instance.tenant,
-                    'draft_type': classification['draft_type'],
-                    'summary': str(classification.get('summary') or '').strip(),
-                    'extracted_payload': classification,
-                    'classification_confidence': float(
-                        classification.get('confidence_score') or classification.get('confidence') or 0.0
-                    ),
-                    'status': 'pending_review',
-                },
-            )
-            _record_email_lineage_event(
-                instance,
-                event_type='email_review_draft_created',
-                summary=f'Created AI review draft for {draft.get_draft_type_display()}.',
-                target_type='email_review_draft',
-                target_id=str(draft.id),
-                metadata={
-                    'draft_id': str(draft.id),
-                    'draft_type': str(draft.draft_type or ''),
-                    'category': str(classification.get('category') or ''),
-                    'confidence_score': classification.get('confidence_score') or classification.get('confidence'),
-                },
-            )
-            _notify_actionable_email(instance, draft, classification)
-            instance.mark_as_draft_created(extracted_data=classification)
-        else:
-            logger.info(
-                'Email %s classified as %s; leaving operator-visible for follow-up',
-                instance.id,
-                classification.get('category'),
-            )
-            instance.mark_as_completed(extracted_data=classification)
-
+        logger.info('Dispatched async AI classification for email %s', instance.id)
     except Exception as e:
-        logger.exception('AI extraction failed for email %s', instance.id)
+        logger.exception('Failed to dispatch AI classification for email %s', instance.id)
         instance.mark_as_failed(str(e))
 
 
