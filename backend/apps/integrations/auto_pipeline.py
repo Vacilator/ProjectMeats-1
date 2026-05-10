@@ -1,9 +1,12 @@
 """
-Celery task chain for end-to-end email-to-fulfillment auto-processing.
+Celery task chain for end-to-end email-to-entity auto-processing.
 
-Pipeline: EmailLog → PO draft → (human review if <98% confidence) → PO → SO → Fulfillment
+Pipeline chains:
+  - PO:      EmailLog → PO draft → SO → Fulfillment → Invoice
+  - Contact: EmailLog → Contact record
+  - Company: EmailLog → Customer record
 
-Each step is idempotent, emits telemetry via ExecutionEventLog pattern,
+Each step is idempotent, emits telemetry via structured logging,
 and respects tenant RLS isolation.
 
 AUTO-21.1 – Phase 21: Full End-to-End Automation
@@ -96,23 +99,35 @@ def auto_process_approved_emails(self):
                 if isinstance(extracted_data, dict):
                     draft_type = extracted_data.get("draft_type", "")
 
-                if draft_type != "purchase_order":
+                if draft_type not in ("purchase_order", "contact", "company"):
                     _log_pipeline_event(
                         tid,
                         email_log_id,
-                        "skip_non_po",
+                        "skip_unsupported_type",
                         "info",
                         {"draft_type": draft_type},
                     )
                     continue
 
-                # Dispatch the pipeline chain for this email
-                pipeline = chain(
-                    create_purchase_order_from_email.s(email_log_id, tid),
-                    generate_sales_order_from_po.s(tid),
-                    trigger_fulfillment.s(tid),
-                    generate_invoice_from_so.s(tid),
-                )
+                # Dispatch the appropriate pipeline chain
+                if draft_type == "purchase_order":
+                    pipeline = chain(
+                        create_purchase_order_from_email.s(email_log_id, tid),
+                        generate_sales_order_from_po.s(tid),
+                        trigger_fulfillment.s(tid),
+                        generate_invoice_from_so.s(tid),
+                    )
+                elif draft_type == "contact":
+                    pipeline = chain(
+                        create_contact_from_email.s(email_log_id, tid),
+                    )
+                elif draft_type == "company":
+                    pipeline = chain(
+                        create_company_from_email.s(email_log_id, tid),
+                    )
+                else:
+                    continue
+
                 pipeline.apply_async()
                 dispatched += 1
 
@@ -557,4 +572,138 @@ def generate_invoice_from_so(self, fulfillment_result: dict | None, tenant_id: s
     except Exception as e:
         _log_pipeline_event(tenant_id, so_id, "generate_invoice", "failed", {"error": str(e)})
         logger.error("generate_invoice_from_so failed: %s", str(e), exc_info=True)
+        raise self.retry(exc=e, countdown=30 * (2**self.request.retries))
+
+
+@shared_task(
+    name="integrations.create_contact_from_email",
+    bind=True,
+    max_retries=3,
+    soft_time_limit=60,
+    time_limit=90,
+)
+def create_contact_from_email(self, email_log_id: int, tenant_id: str):
+    """Create a Contact from a parsed EmailLog entry.
+
+    Idempotent: if the EmailLog already has status 'order_created', returns early.
+    """
+    from tenant_apps.contacts.models import Contact
+
+    try:
+        with tenant_rls(tenant_id):
+            email_log = EmailLog.objects.get(id=email_log_id, tenant_id=tenant_id)
+
+            if email_log.status == "order_created":
+                _log_pipeline_event(tenant_id, email_log_id, "create_contact", "skipped", {"reason": "already_created"})
+                return None
+
+            extracted = email_log.extracted_data or {}
+            contact_name = extracted.get("contact_name", "").strip()
+            if not contact_name:
+                _log_pipeline_event(tenant_id, email_log_id, "create_contact", "skipped", {"reason": "no_name"})
+                return None
+
+            # Split name into first/last
+            parts = contact_name.split(None, 1)
+            first_name = parts[0] if parts else contact_name
+            last_name = parts[1] if len(parts) > 1 else ""
+
+            # Check for existing contact by name
+            existing = Contact.objects.filter(
+                tenant_id=tenant_id,
+                first_name__iexact=first_name,
+                last_name__iexact=last_name,
+            ).first()
+
+            if existing:
+                _log_pipeline_event(tenant_id, email_log_id, "create_contact", "skipped", {"reason": "duplicate", "contact_id": existing.id})
+                email_log.mark_as_completed(extracted_data=extracted)
+                return existing.id
+
+            with transaction.atomic():
+                contact = Contact(
+                    tenant_id=tenant_id,
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=extracted.get("sender_email", ""),
+                    company=extracted.get("contact_company", ""),
+                    notes=f"Auto-created from email: {email_log.subject}",
+                )
+                contact.save()
+
+                email_log.mark_as_completed(extracted_data=extracted)
+
+            _log_pipeline_event(tenant_id, email_log_id, "create_contact", "success", {"contact_id": contact.id, "name": contact_name})
+            return contact.id
+
+    except EmailLog.DoesNotExist:
+        _log_pipeline_event(tenant_id, email_log_id, "create_contact", "failed", {"reason": "email_not_found"})
+        return None
+
+    except Exception as e:
+        _log_pipeline_event(tenant_id, email_log_id, "create_contact", "failed", {"error": str(e)})
+        logger.error("create_contact_from_email failed: %s", str(e), exc_info=True)
+        raise self.retry(exc=e, countdown=30 * (2**self.request.retries))
+
+
+@shared_task(
+    name="integrations.create_company_from_email",
+    bind=True,
+    max_retries=3,
+    soft_time_limit=60,
+    time_limit=90,
+)
+def create_company_from_email(self, email_log_id: int, tenant_id: str):
+    """Create a Customer (company) from a parsed EmailLog entry.
+
+    Idempotent: if the EmailLog already has status 'order_created', returns early.
+    """
+    from tenant_apps.customers.models import Customer
+
+    try:
+        with tenant_rls(tenant_id):
+            email_log = EmailLog.objects.get(id=email_log_id, tenant_id=tenant_id)
+
+            if email_log.status == "order_created":
+                _log_pipeline_event(tenant_id, email_log_id, "create_company", "skipped", {"reason": "already_created"})
+                return None
+
+            extracted = email_log.extracted_data or {}
+            company_name = extracted.get("contact_company", "").strip()
+            if not company_name:
+                _log_pipeline_event(tenant_id, email_log_id, "create_company", "skipped", {"reason": "no_company_name"})
+                return None
+
+            # Check for existing customer by company name
+            existing = Customer.objects.filter(
+                tenant_id=tenant_id,
+                name__iexact=company_name,
+            ).first()
+
+            if existing:
+                _log_pipeline_event(tenant_id, email_log_id, "create_company", "skipped", {"reason": "duplicate", "customer_id": existing.id})
+                email_log.mark_as_completed(extracted_data=extracted)
+                return existing.id
+
+            with transaction.atomic():
+                customer = Customer(
+                    tenant_id=tenant_id,
+                    name=company_name,
+                    email=extracted.get("sender_email", ""),
+                    notes=f"Auto-created from email: {email_log.subject}",
+                )
+                customer.save()
+
+                email_log.mark_as_completed(extracted_data=extracted)
+
+            _log_pipeline_event(tenant_id, email_log_id, "create_company", "success", {"customer_id": customer.id, "name": company_name})
+            return customer.id
+
+    except EmailLog.DoesNotExist:
+        _log_pipeline_event(tenant_id, email_log_id, "create_company", "failed", {"reason": "email_not_found"})
+        return None
+
+    except Exception as e:
+        _log_pipeline_event(tenant_id, email_log_id, "create_company", "failed", {"error": str(e)})
+        logger.error("create_company_from_email failed: %s", str(e), exc_info=True)
         raise self.retry(exc=e, countdown=30 * (2**self.request.retries))
