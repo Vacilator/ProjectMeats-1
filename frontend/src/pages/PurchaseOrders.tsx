@@ -288,9 +288,12 @@ const PurchaseOrders: React.FC = () => {
     setEditingPurchaseOrder(null);
     setShowForm(true);
 
-    // Clear params so refresh doesn't keep reopening.
-    ['action', 'supplier_id', 'cockpit_q'].forEach((key) => searchParams.delete(key));
-    setSearchParams(searchParams);
+    // Clear params so refresh doesn't keep reopening — functional update avoids stale ref
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      ['action', 'supplier_id', 'cockpit_q'].forEach((key) => next.delete(key));
+      return next;
+    });
   }, [searchParams, setSearchParams, cockpitPrefill]);
 
   useEffect(() => {

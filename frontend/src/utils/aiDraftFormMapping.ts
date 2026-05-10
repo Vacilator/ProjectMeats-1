@@ -115,6 +115,18 @@ export const resolveDraftEntityType = (item: PendingReviewItem | null): string =
   if (['supplier', 'new_supplier', 'vendor', 'supplier_note'].includes(documentType)) {
     return 'supplier';
   }
+  if (['company', 'new_company', 'organization'].includes(documentType)) {
+    return 'customer';
+  }
+  if (['plant', 'new_plant', 'facility', 'warehouse', 'processing_plant'].includes(documentType)) {
+    return 'plant';
+  }
+  if (['department', 'new_department', 'division'].includes(documentType)) {
+    return 'department';
+  }
+  if (['carrier', 'new_carrier', 'logistics', 'freight'].includes(documentType)) {
+    return 'carrier';
+  }
   if (['trade', 'deal', 'trade_intent', 'trade_session'].includes(documentType)) {
     return 'inquiry';
   }
@@ -295,6 +307,36 @@ export const mapDraftToInitialValues = (
       invoice_number: firstString(payload.invoice_number, payload.po_number),
       total_amount: firstString(payload.total_amount, payload.amount),
       vendor_name: firstString(payload.vendor_name, payload.supplier_name, payload.contact_company),
+      notes: summary,
+    };
+  }
+
+  if (entityType === 'plant') {
+    return {
+      status: 'active',
+      name: firstString(payload.name, payload.plant_name, payload.facility_name) || 'New Plant',
+      address: firstString(payload.address, payload.location),
+      city: firstString(payload.city),
+      state: firstString(payload.state),
+      country: firstString(payload.country),
+      notes: summary,
+    };
+  }
+
+  if (entityType === 'department') {
+    return {
+      name: firstString(payload.name, payload.department_name, payload.division_name) || 'New Department',
+      notes: summary,
+    };
+  }
+
+  if (entityType === 'carrier') {
+    return {
+      status: 'active',
+      name: firstString(payload.name, payload.carrier_name, payload.company_name) || 'New Carrier',
+      contact_name: firstString(payload.contact_name),
+      contact_email: firstString(payload.contact_email, payload.email),
+      contact_phone: firstString(payload.contact_phone, payload.phone),
       notes: summary,
     };
   }

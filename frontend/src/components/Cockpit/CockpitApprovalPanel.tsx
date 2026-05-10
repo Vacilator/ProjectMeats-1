@@ -25,6 +25,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { message } from 'antd';
 import { businessApi } from '../../services/businessApi';
 import { withTenantQueryKey } from '../../utils/queryKeys';
 import { getValidTenantId } from '../../utils/tenantId';
@@ -297,7 +298,11 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
       return businessApi.post(`/workflows/approvals/${gateId}/approve/`, { comment });
     },
     onSuccess: () => {
+      message.success('Approval submitted');
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('cockpit-pending-approvals') });
+    },
+    onError: () => {
+      message.error('Failed to approve — please try again');
     },
   });
 
@@ -307,7 +312,11 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
       return businessApi.post(`/workflows/approvals/${gateId}/reject/`, { comment });
     },
     onSuccess: () => {
+      message.success('Rejection submitted');
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('cockpit-pending-approvals') });
+    },
+    onError: () => {
+      message.error('Failed to reject — please try again');
     },
   });
 
