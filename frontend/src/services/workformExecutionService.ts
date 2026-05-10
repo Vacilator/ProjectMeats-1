@@ -106,6 +106,23 @@ export interface WorkFormExecutionAnalyticsResponse {
   slowest_actions: WorkFormExecutionAnalyticsNodeRow[];
 }
 
+export type NodeActionType = 'approve' | 'reject';
+
+export interface NodeActionPayload {
+  node_id: string;
+  action: NodeActionType;
+  comment?: string;
+}
+
+export interface NodeActionResponse {
+  success: boolean;
+  execution_id: string;
+  node_id: string;
+  action: NodeActionType;
+  new_status?: string;
+  message?: string;
+}
+
 export class WorkFormExecutionService {
   private baseUrl = '/workflows/workform-executions/';
 
@@ -144,6 +161,15 @@ export class WorkFormExecutionService {
 
   async getAnalytics(params?: { days?: number; limit?: number }): Promise<WorkFormExecutionAnalyticsResponse> {
     const response = await businessApi.get(`${this.baseUrl}analytics/`, { params });
+    return response.data;
+  }
+
+  /** Submit approve/reject decision for a node within an execution. */
+  async nodeAction(executionId: string, payload: NodeActionPayload): Promise<NodeActionResponse> {
+    const response = await businessApi.post<NodeActionResponse>(
+      `${this.baseUrl}${executionId}/node-action/`,
+      payload,
+    );
     return response.data;
   }
 }
