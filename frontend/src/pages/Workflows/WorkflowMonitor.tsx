@@ -15,6 +15,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { logger } from '@/utils/logger';
 import { formatToLocal } from '@/utils/formatters';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 
 interface WorkflowRun {
@@ -351,6 +352,7 @@ const LoadingState = styled.div`
 /* === Main Component === */
 
 export const WorkflowMonitor: React.FC = () => {
+  useDocumentTitle('Workflow Monitor');
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);

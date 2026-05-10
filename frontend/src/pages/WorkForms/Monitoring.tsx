@@ -22,6 +22,7 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { workformExecutionService } from '@/services/workformExecutionService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import ProcessMonitor from '../Cockpit/ProcessMonitor';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const formatDuration = (value: number | null | undefined) => {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—';
@@ -30,6 +31,7 @@ const formatDuration = (value: number | null | undefined) => {
 };
 
 export const Monitoring: React.FC = () => {
+  useDocumentTitle('WorkForm Monitoring');
   const analyticsQuery = useQuery({
     queryKey: withTenantQueryKey('workform-executions', 'analytics'),
     queryFn: async () => workformExecutionService.getAnalytics({ days: 30, limit: 5 }),

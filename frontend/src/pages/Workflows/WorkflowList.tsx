@@ -5,7 +5,7 @@
  * Displays published blueprints as cards with "Start Workflow" actions.
  */
 import React, { useState } from 'react';
-import { Skeleton } from 'antd';
+import { Skeleton, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { showAlert } from '@/utils/uiDialogs';
@@ -137,6 +137,7 @@ export const WorkflowList: React.FC = () => {
       return response.data;
     },
     onSuccess: (data) => {
+      message.success('Workflow started successfully');
       navigate(`/workflows/run/${data.run_id}`);
     },
     onError: (error: any) => {

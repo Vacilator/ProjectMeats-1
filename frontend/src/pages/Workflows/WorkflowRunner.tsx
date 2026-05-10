@@ -14,6 +14,7 @@ import { DynamicFormEngine } from '../../features/system/DynamicFormEngine';
 import { Card } from '../../components/ui/Card';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { withTenantQueryKey } from '../../utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface WorkflowRunResponse {
   id: string;
@@ -106,6 +107,7 @@ const ErrorMessage = styled.div`
 
 
 export const WorkflowRunner: React.FC = () => {
+  useDocumentTitle('Workflow Runner');
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
   const [currentSchema, setCurrentSchema] = useState<any>(null);

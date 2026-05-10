@@ -8,6 +8,7 @@ import EmailIngestionCockpitPanel from '../../components/Cockpit/EmailIngestionC
 import EmailConfidenceDashboard from '../../components/Cockpit/EmailConfidenceDashboard';
 import { businessApi } from '../../services/businessApi';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 const UnifiedFlowEditor = lazy(() => import('../../components/FlowEditor/UnifiedFlowEditor').then(m => ({ default: m.UnifiedFlowEditor })));
 import { withTenantQueryKey } from '../../utils/queryKeys';
 
@@ -380,6 +381,7 @@ function pickActiveNodeId(nodes: any[], item: ProcessMonitorItem): string | null
 // ============================================================================
 
 const ProcessMonitor: React.FC = () => {
+  useDocumentTitle('Process Monitor');
   const { user } = useAuth();
   const isStaff = !!user?.is_staff || !!user?.is_superuser;
 

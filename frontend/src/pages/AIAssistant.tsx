@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import ChatWindow from '../components/ChatInterface/ChatWindow';
 import { ChatSession } from '../types';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const AIAssistant: React.FC = () => {
+  useDocumentTitle('AI Assistant');
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
 
   return (

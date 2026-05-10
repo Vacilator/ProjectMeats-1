@@ -6,6 +6,7 @@ import type { DealDeskRow, DealStatus } from '../../types/deals';
 import { dealsService } from '../../services/dealsService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const PageContainer = styled.div`
   display: flex;
@@ -219,6 +220,7 @@ const prettifyStatus = (status: DealStatus | 'all') =>
 const parseMoney = (value: string) => Number.parseFloat(value || '0');
 
 const DealDesk: React.FC = () => {
+  useDocumentTitle('Deal Desk');
   const [deals, setDeals] = useState<DealDeskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

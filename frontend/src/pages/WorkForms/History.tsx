@@ -30,6 +30,7 @@ import { workformExecutionService, WorkFormExecution } from '@/services/workform
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { formatDateLocal } from '@/utils/formatters';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // Types
@@ -398,6 +399,7 @@ const ExpandedContent = styled.td`
 // ============================================================================
 
 const FormsFlowsHistory: React.FC = () => {
+  useDocumentTitle('WorkForm History');
   // Tab state
   const [activeTab, setActiveTab] = useState<'submissions' | 'workflows'>('submissions');
   const navigate = useNavigate();

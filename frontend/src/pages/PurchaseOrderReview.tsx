@@ -12,6 +12,7 @@ import {
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { formatDateLocal } from '@/utils/formatters';
 import { TradeLineageFlow } from '@/components/Cockpit/TradeLineageFlow';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -55,6 +56,7 @@ const ReviewDetails: React.FC<{
 );
 
 export const PurchaseOrderReview: React.FC = () => {
+  useDocumentTitle('Purchase Order Review');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

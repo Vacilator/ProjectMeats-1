@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { adminClient } from '../../services/apiService';
 import { Clock, CheckCircle, Activity, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 
 interface StepDetail {
@@ -24,6 +25,7 @@ interface ExecutionLogEntry {
 }
 
 export const WorkflowExecutionDetails: React.FC = () => {
+  useDocumentTitle('Workflow Execution');
   const { runId } = useParams<{ runId: string }>();
   const [runData, setRunData] = useState<any>(null);
   const [executionLog, setExecutionLog] = useState<ExecutionLogEntry[]>([]);

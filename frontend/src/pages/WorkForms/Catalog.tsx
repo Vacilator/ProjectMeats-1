@@ -23,6 +23,7 @@ import { showAlert } from '@/utils/uiDialogs';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { ApiErrorContent } from '@/components/errors/ApiErrorContent';
 import { formatDateLocal } from '@/utils/formatters';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -546,6 +547,7 @@ const LoadingState = styled.div`
 // ============================================================================
 
 const FormsFlowsCatalog: React.FC = () => {
+  useDocumentTitle('WorkForms');
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');

@@ -3,6 +3,7 @@ import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface SignUpFormData {
   username: string;
@@ -14,6 +15,7 @@ interface SignUpFormData {
 }
 
 const SignUp: React.FC = () => {
+  useDocumentTitle('Sign Up');
   const [formData, setFormData] = useState<SignUpFormData>({
     username: '',
     email: '',

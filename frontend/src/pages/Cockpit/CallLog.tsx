@@ -29,6 +29,7 @@ import { InquiryCallModal } from '../../components/Calls/InquiryCallModal';
 import { businessApi } from '../../services/businessApi';
 import { formatToLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -648,6 +649,7 @@ const WeekTimeSlot = styled.div`
 // ============================================================================
 
 export const CallLog: React.FC = () => {
+  useDocumentTitle('Call Log');
   // Existing state
   const [calls, setCalls] = useState<ScheduledCall[]>([]);
   const [loading, setLoading] = useState(true);

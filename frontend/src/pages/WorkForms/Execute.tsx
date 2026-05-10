@@ -19,6 +19,7 @@ import {
   type WorkFormExecuteResponse,
 } from '@/services/workformsApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type ExecuteResult =
   | { kind: 'workform'; execution: WorkFormExecuteResponse }
@@ -48,6 +49,7 @@ function getCircuitBreakerRetryAfter(error: unknown): number | undefined {
 }
 
 export const ExecuteWorkForm: React.FC = () => {
+  useDocumentTitle('Execute WorkForm');
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();

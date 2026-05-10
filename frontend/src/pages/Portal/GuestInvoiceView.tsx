@@ -12,6 +12,7 @@ import {
   PortalInvoiceSummary,
 } from '../../services/portalService';
 import { formatCurrency } from '../../shared/utils';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const PORTAL_TOKEN_QUERY_PARAM = 'token';
 
@@ -236,6 +237,7 @@ const renderPortalContent = (snapshot: PortalGrantSnapshot) => (
 );
 
 const GuestInvoiceView: React.FC = () => {
+  useDocumentTitle('Invoice');
   const { tenantId = '', grantId = '' } = useParams<{ tenantId: string; grantId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const storageKey = useMemo(() => getPortalSessionStorageKey(tenantId, grantId), [tenantId, grantId]);
