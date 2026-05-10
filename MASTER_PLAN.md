@@ -127,6 +127,16 @@ All 10 items from the squad deep-dive plan have been completed:
 - ✅ AITradeProposals empty state card instead of returning null (PR #5263)
 - ✅ TypeScript: 0 errors across all changes
 
+### Phase 29: Pipeline Expansion & Full Theme Compliance ✅ SHIPPED
+- ✅ CockpitAnalyticsDashboard error state with retry button (PR #5267)
+- ✅ WorkForms History CSV export — replaced "Coming soon" stub with working export (PR #5267)
+- ✅ Email auto-pipeline expanded: Contact + Company draft types (was PO-only) with idempotent Celery tasks, deduplication, tenant RLS (PR #5268)
+- ✅ Smarter spam reclassification: PO#+amount→PO, BOL#→BOL, Invoice#+amount→Invoice, Product+qty→PO (PR #5268)
+- ✅ 4 new reclassification tests (12 total), all 52 integration tests pass (PR #5268)
+- ✅ Keyboard accessibility: CommandPalette close aria-label, AuditLogViewer row role/tabIndex/onKeyDown, VersionHistory compare-mode keyboard activation (PR #5269)
+- ✅ Admin-studio complete theme token compliance: 342+ hardcoded Tailwind colors → CSS custom properties across 10 files (PR #5270)
+- ✅ TypeScript: 0 errors across all changes
+
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
 - No breaking migrations.
