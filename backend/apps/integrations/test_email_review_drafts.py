@@ -38,9 +38,27 @@ class EmailReviewDraftSignalTests(TestCase):
         self.provider.set_encrypted_token('refresh', 'refresh-token')
         self.provider.save()
 
-    @patch('apps.integrations.signals.classify_ingested_email')
-    def test_actionable_email_creates_review_draft_and_notification(self, classify_ingested_email):
-        classify_ingested_email.return_value = {
+        # Prevent the signal from dispatching a real Celery task (no broker in tests).
+        # The signal does a local import of classify_email_async from tasks,
+        # so we patch the method on the task object itself.
+        self._signal_patch = patch(
+            'apps.integrations.tasks.classify_email_async.apply_async',
+        )
+        self._signal_patch.start()
+
+    def tearDown(self):
+        self._signal_patch.stop()
+
+    def _run_classification_sync(self, email_log, classify_mock, parse_supplier_mock=None):
+        """Run the async classification task synchronously for testing."""
+        from apps.integrations.tasks import classify_email_async
+        # Use .apply() to run bound task synchronously (handles self param)
+        classify_email_async.apply(args=[str(email_log.pk), str(email_log.tenant_id)])
+
+    @patch('tenant_apps.inquiries.services.parse_supplier_quote_reply', return_value=None)
+    @patch('apps.integrations.ai_classification.classify_ingested_email')
+    def test_actionable_email_creates_review_draft_and_notification(self, classify_mock, _):
+        classify_mock.return_value = {
             'category': 'Purchase Order',
             'draft_type': 'purchase_order',
             'confidence': 0.91,
@@ -65,6 +83,7 @@ class EmailReviewDraftSignalTests(TestCase):
             status='logged',
         )
 
+        self._run_classification_sync(email_log, classify_mock)
         email_log.refresh_from_db()
         draft = EmailReviewDraft.objects.get(email_log=email_log)
         notification = UserNotification.objects.get(tenant=self.tenant, user=self.user)
@@ -80,9 +99,10 @@ class EmailReviewDraftSignalTests(TestCase):
         self.assertIn('email_review_draft_created', lineage_events)
         self.assertIn('email_review_notification_queued', lineage_events)
 
-    @patch('apps.integrations.signals.classify_ingested_email')
-    def test_demand_email_creates_draft_inquiry_with_lineage(self, classify_ingested_email):
-        classify_ingested_email.return_value = {
+    @patch('tenant_apps.inquiries.services.parse_supplier_quote_reply', return_value=None)
+    @patch('apps.integrations.ai_classification.classify_ingested_email')
+    def test_demand_email_creates_draft_inquiry_with_lineage(self, classify_mock, _):
+        classify_mock.return_value = {
             'category': 'Purchase Order',
             'draft_type': 'purchase_order',
             'confidence': 0.91,
@@ -114,6 +134,7 @@ class EmailReviewDraftSignalTests(TestCase):
             status='logged',
         )
 
+        self._run_classification_sync(email_log, classify_mock)
         email_log.refresh_from_db()
         inquiry = Inquiry.objects.get(tenant=self.tenant, source_email=email_log)
         draft = EmailReviewDraft.objects.get(email_log=email_log)
@@ -142,14 +163,14 @@ class EmailReviewDraftSignalTests(TestCase):
         self.assertEqual(draft.extracted_payload['inquiry_number'], inquiry.inquiry_number)
         self.assertIn(inquiry.inquiry_number, inquiry_lineage.summary)
 
-    @patch('apps.integrations.signals.classify_ingested_email')
-    @patch('apps.integrations.signals.parse_supplier_quote_reply')
+    @patch('apps.integrations.ai_classification.classify_ingested_email')
+    @patch('tenant_apps.inquiries.services.parse_supplier_quote_reply')
     def test_supplier_quote_reply_bypasses_generic_classifier(
         self,
-        parse_supplier_quote_reply,
-        classify_ingested_email,
+        parse_supplier_quote_reply_mock,
+        classify_mock,
     ):
-        parse_supplier_quote_reply.return_value = {
+        parse_supplier_quote_reply_mock.return_value = {
             'category': 'supplier_quote_reply',
             'draft_type': '',
             'actionable': False,
@@ -204,6 +225,7 @@ class EmailReviewDraftSignalTests(TestCase):
             status='logged',
         )
 
+        self._run_classification_sync(email_log, classify_mock)
         email_log.refresh_from_db()
         feedback = AIFeedbackLog.objects.get(
             tenant=self.tenant,
@@ -221,11 +243,12 @@ class EmailReviewDraftSignalTests(TestCase):
         self.assertFalse(EmailReviewDraft.objects.filter(email_log=email_log).exists())
         self.assertEqual(feedback.document_type, 'supplier_quote_reply')
         self.assertEqual(lineage_event.metadata.get('parse_status'), 'parsed')
-        classify_ingested_email.assert_not_called()
+        classify_mock.assert_not_called()
 
-    @patch('apps.integrations.signals.classify_ingested_email')
-    def test_bol_email_does_not_create_inquiry_draft(self, classify_ingested_email):
-        classify_ingested_email.return_value = {
+    @patch('tenant_apps.inquiries.services.parse_supplier_quote_reply', return_value=None)
+    @patch('apps.integrations.ai_classification.classify_ingested_email')
+    def test_bol_email_does_not_create_inquiry_draft(self, classify_mock, _):
+        classify_mock.return_value = {
             'category': 'BOL',
             'draft_type': 'bill_of_lading',
             'confidence': 0.88,
@@ -256,6 +279,8 @@ class EmailReviewDraftSignalTests(TestCase):
             attachment_count=1,
             status='logged',
         )
+
+        self._run_classification_sync(email_log, classify_mock)
 
         self.assertFalse(Inquiry.objects.filter(tenant=self.tenant, source_email=email_log).exists())
         self.assertTrue(EmailReviewDraft.objects.filter(email_log=email_log).exists())
@@ -341,9 +366,10 @@ class EmailReviewDraftSignalTests(TestCase):
         )
 
     @patch('tenant_apps.ai_assistant.tasks.watchdog.broadcast_ai_inbox_event')
-    @patch('apps.integrations.signals.classify_ingested_email')
-    def test_watchdog_sync_mirrors_pending_drafts_into_ai_feedback(self, classify_ingested_email, broadcast_ai_inbox_event):
-        classify_ingested_email.return_value = {
+    @patch('tenant_apps.inquiries.services.parse_supplier_quote_reply', return_value=None)
+    @patch('apps.integrations.ai_classification.classify_ingested_email')
+    def test_watchdog_sync_mirrors_pending_drafts_into_ai_feedback(self, classify_mock, _, broadcast_ai_inbox_event):
+        classify_mock.return_value = {
             'category': 'Purchase Order',
             'draft_type': 'purchase_order',
             'confidence': 0.73,
@@ -374,6 +400,8 @@ class EmailReviewDraftSignalTests(TestCase):
             attachment_count=1,
             status='logged',
         )
+
+        self._run_classification_sync(email_log, classify_mock)
 
         draft = EmailReviewDraft.objects.get(email_log=email_log)
 
