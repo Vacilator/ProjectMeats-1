@@ -18,6 +18,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
 import { confirmDialog } from '@/utils/uiDialogs';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -158,6 +159,7 @@ const SupplierLink = styled.a`
 // ============================================================================
 
 const Plants: React.FC = () => {
+  useDocumentTitle('Supplier Plants');
   const location = useLocation();
   const navigate = useNavigate();
   const { supplierId } = useParams<{ supplierId?: string }>();

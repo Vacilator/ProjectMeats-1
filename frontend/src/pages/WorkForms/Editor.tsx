@@ -13,6 +13,7 @@ import { Node, Edge } from '@xyflow/react';
 import { useQuery } from '@tanstack/react-query';
 import { Wand2, Eye, Code2, Lock } from 'lucide-react';
 
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { toApiErrorText } from '@/services/apiErrorPresentation';
@@ -298,6 +299,7 @@ const PrimaryButton = styled.button`
 // ============================================================================
 
 export const WorkFormsEditor: React.FC = () => {
+  useDocumentTitle('WorkForm Editor');
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();

@@ -24,6 +24,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { useHealth } from '@/hooks/useHealth';
 import { useAuth } from '@/contexts/AuthContext';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { Modal as AntModal } from 'antd';
 
 interface TenantUser {
@@ -57,6 +58,7 @@ interface Invitation {
 }
 
 const UsersPage: React.FC = () => {
+  useDocumentTitle('User Management');
   const toast = useToast();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();

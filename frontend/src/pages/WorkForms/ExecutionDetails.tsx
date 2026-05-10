@@ -15,9 +15,11 @@ import { workformExecutionService } from '@/services/workformExecutionService';
 import { formSubmissionService } from '@/services/quickActionsService';
 import { getWorkformsErrorUi } from '@/features/workforms/workformsErrors';
 import { ExecutionStoryView } from '@/features/workforms/ExecutionStoryView';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
 export const WorkFormExecutionDetails: React.FC = () => {
+  useDocumentTitle('Execution Details');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 

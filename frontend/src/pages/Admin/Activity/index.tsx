@@ -24,6 +24,7 @@ import { AdminGuard, AdminPage, AdminSection, EmptyState, LoadingSkeleton } from
 import { Button } from '@/components/ui/Button';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { logger } from '@/utils/logger';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatToLocal } from '@/utils/formatters';
 
 interface ActivityLog {
@@ -88,6 +89,7 @@ const getActionTone = (action: string): Tone => {
 };
 
 const ActivityPage: React.FC = () => {
+  useDocumentTitle('Activity Log');
   const { permissions } = useAdminPermissions();
   const canView = permissions.can_view_audit_logs;
 

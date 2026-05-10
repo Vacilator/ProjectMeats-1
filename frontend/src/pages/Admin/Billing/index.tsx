@@ -23,6 +23,7 @@ import { DownloadOutlined } from '@ant-design/icons';
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { Text } = Typography;
 
@@ -75,6 +76,7 @@ const BILLING_CONFIG_KEYS = {
 } as const;
 
 const BillingPage: React.FC = () => {
+  useDocumentTitle('Billing');
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: withTenantQueryKey('tenants', 'current', 'billing-dashboard'),
     queryFn: async () => {
