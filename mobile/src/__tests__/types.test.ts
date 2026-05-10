@@ -104,7 +104,7 @@ describe('WorkForm type', () => {
       node_count: 1,
       updated_at: '2026-01-02T00:00:00Z',
       workflow_definition: {
-        nodes: [{ id: 'n-1' }],
+        nodes: [{ id: 'n-1', type: 'start', position: { x: 0, y: 0 }, data: {} }],
         edges: [],
       },
     };

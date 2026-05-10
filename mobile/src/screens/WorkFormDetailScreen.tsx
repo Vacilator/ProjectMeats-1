@@ -14,7 +14,7 @@ import { RouteProp } from '@react-navigation/native';
 
 import { ApiService } from '../services/ApiService';
 import { toApiErrorText } from '../services/apiErrorPresentation';
-import { RootStackParamList, WorkForm, WorkflowDefinition } from '../types';
+import { RootStackParamList, WorkForm, WorkFormExecution, WorkflowDefinition } from '../types';
 import { colors } from '../theme';
 
 type WorkFormDetailNavigationProp = StackNavigationProp<RootStackParamList, 'WorkFormDetail'>;
@@ -87,6 +87,8 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [executing, setExecuting] = useState(false);
+  const [executions, setExecutions] = useState<WorkFormExecution[]>([]);
+  const [executionsLoading, setExecutionsLoading] = useState(false);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -101,6 +103,13 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
       try {
         const detail = await ApiService.getWorkForm(id);
         setForm(detail);
+
+        // Load recent executions (non-blocking)
+        setExecutionsLoading(true);
+        ApiService.getWorkFormExecutions(id)
+          .then((resp) => setExecutions(resp.results.slice(0, 5)))
+          .catch(() => setExecutions([]))
+          .finally(() => setExecutionsLoading(false));
       } catch (error) {
         setError(
           toApiErrorText(error, {
@@ -283,6 +292,41 @@ export default function WorkFormDetailScreen({ navigation, route }: Props) {
                 {definitionPreview ? <Text style={styles.sectionBody}>{definitionPreview.hint}</Text> : null}
                 {definitionPreview ? <Text style={styles.codeBlock}>{definitionPreview.preview}</Text> : null}
               </>
+            )}
+          </View>
+        ) : null}
+
+        {form ? (
+          <View style={styles.card} accessibilityLabel="Recent executions section">
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              Recent Executions
+            </Text>
+
+            {executionsLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : executions.length === 0 ? (
+              <Text style={styles.sectionBody}>No executions yet.</Text>
+            ) : (
+              executions.map((exec) => (
+                <View key={exec.id} style={styles.executionRow}>
+                  <View style={styles.executionInfo}>
+                    <View
+                      style={[
+                        styles.executionDot,
+                        exec.status === 'completed'
+                          ? styles.dotSuccess
+                          : exec.status === 'failed'
+                            ? styles.dotError
+                            : styles.dotPending,
+                      ]}
+                    />
+                    <Text style={styles.executionStatus}>{exec.status}</Text>
+                  </View>
+                  <Text style={styles.executionDate}>
+                    {formatDate(exec.started_at)}
+                  </Text>
+                </View>
+              ))
             )}
           </View>
         ) : null}
@@ -473,5 +517,42 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: colors.textSecondary,
     fontSize: 12,
+  },
+  executionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceMuted,
+  },
+  executionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  executionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  dotSuccess: {
+    backgroundColor: colors.success,
+  },
+  dotError: {
+    backgroundColor: colors.errorDark,
+  },
+  dotPending: {
+    backgroundColor: colors.warning,
+  },
+  executionStatus: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    textTransform: 'capitalize',
+  },
+  executionDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });
