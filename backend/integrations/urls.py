@@ -1,15 +1,13 @@
-from django.urls import path
-from .views.oauth import OAuthAuthorizeView, OAuthCallbackView
+"""
+Stable URL shim that delegates to the canonical app URLConf.
+
+Historical note: this file previously duplicated oauth/authorize/ and
+oauth/callback/<provider>/ before including apps.integrations.urls, which
+shadowed the canonical routes. Consolidated to a single include so OAuth
+callback routes are defined in exactly one place (apps.integrations.urls).
+"""
+from django.urls import include, path
 
 urlpatterns = [
-    path('oauth/authorize/', OAuthAuthorizeView.as_view(), name='oauth_authorize'),
-    path('oauth/callback/<str:provider>/', OAuthCallbackView.as_view(), name='oauth_callback'),
-]
-
-# Preserve existing integrations endpoints (status, disconnect, etc.) by including the
-# canonical app URLConf behind this stable shim.
-from django.urls import include  # noqa: E402
-
-urlpatterns += [
     path('', include('apps.integrations.urls')),
 ]
