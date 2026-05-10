@@ -36,11 +36,20 @@ def classify_ingested_email(
     has_attachments: bool,
     attachment_text: str = "",
 ) -> dict[str, Any]:
-    """Classify an ingested email into a lightweight operator review bucket."""
+    """Classify an ingested email into a lightweight operator review bucket.
+
+    Returns a safe fallback when OpenAI is not configured rather than raising,
+    so the email ingestion pipeline degrades gracefully.
+    """
 
     openai_api_key = getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY")
     if not openai_api_key:
-        raise RuntimeError("OpenAI is not configured on the server.")
+        import logging
+        logging.getLogger(__name__).warning(
+            "OpenAI is not configured — returning manual-review fallback for email '%s'",
+            subject[:80],
+        )
+        return _manual_review_fallback(subject=subject, sender_email=sender_email, sender_name=sender_name)
 
     from openai import OpenAI
 
@@ -269,4 +278,34 @@ def classify_ingested_email(
         "bol_number": str(parsed.get("bol_number") or "").strip(),
         "total_amount": total_amount,
         "attachment_document_types": parsed.get("attachment_document_types") or [],
+    }
+
+
+def _manual_review_fallback(
+    *, subject: str, sender_email: str, sender_name: str
+) -> dict[str, Any]:
+    """Return a safe classification when AI is unavailable.
+
+    Marks the email as non-actionable with zero confidence so operators
+    see it in the review queue without the pipeline crashing.
+    """
+    return {
+        "category": "Spam/Other",
+        "draft_type": "",
+        "confidence": 0.0,
+        "summary": "AI classification unavailable — manual review required.",
+        "rationale": "OpenAI API key is not configured; email queued for manual triage.",
+        "actionable": False,
+        "inquiry_candidate": False,
+        "contact_name": sender_name or "",
+        "contact_company": "",
+        "requested_product_name": "",
+        "requested_protein": "",
+        "requested_quantity": "",
+        "requested_uom": "",
+        "po_number": "",
+        "bol_number": "",
+        "total_amount": "",
+        "attachment_document_types": [],
+        "_ai_unavailable": True,
     }

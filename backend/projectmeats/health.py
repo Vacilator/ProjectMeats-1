@@ -137,7 +137,7 @@ def health_check(request):
         integration_warnings.append(
             {
                 "code": "openai_not_configured",
-                "message": "OpenAI not configured (missing OPENAI_API_KEY). AI features will return AI_NOT_CONFIGURED (503).",
+                "message": "OpenAI not configured (missing OPENAI_API_KEY). AI features will degrade gracefully (manual review fallback).",
             }
         )
     if semantic_indexing.get("required") and not semantic_indexing.get("available"):
