@@ -97,7 +97,7 @@ const HeaderBadge = styled.span<{ $variant: 'default' | 'danger' | 'warning' | '
       default: return 'rgb(var(--color-primary))';
     }
   }};
-  color: ${props => props.$variant === 'warning' ? 'black' : 'white'};
+  color: ${props => props.$variant === 'warning' ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-inverse))'};
 `;
 
 const HeaderActions = styled.div`

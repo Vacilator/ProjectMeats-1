@@ -110,7 +110,7 @@ const Toggle = styled.button<{ $active: boolean; $disabled?: boolean }>`
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: white;
+    background: rgb(var(--color-bg-primary));
     box-shadow: 0 1px 3px rgba(var(--color-overlay), 0.2);
     transition: left 0.2s ease;
   }

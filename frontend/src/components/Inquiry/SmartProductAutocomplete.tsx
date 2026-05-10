@@ -68,7 +68,7 @@ const SearchInput = styled.input<{ $error?: boolean; $hasValue?: boolean }>`
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   
   &:focus {
     outline: none;
@@ -123,7 +123,7 @@ const Dropdown = styled.div<{ $isOpen: boolean }>`
   right: 0;
   max-height: 400px;
   overflow-y: auto;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.15);
@@ -169,7 +169,7 @@ const ResultItem = styled.div<{ $isSelected?: boolean; $isSuggested?: boolean }>
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 1px solid rgb(var(--color-border-light));
-  background: ${props => props.$isSelected ? 'rgba(var(--color-primary), 0.08)' : 'white'};
+  background: ${props => props.$isSelected ? 'rgba(var(--color-primary), 0.08)' : 'rgb(var(--color-bg-primary))'};
   
   &:hover {
     background: ${props => props.$isSelected ? 'rgba(var(--color-primary), 0.12)' : 'rgba(var(--color-primary), 0.05)'};

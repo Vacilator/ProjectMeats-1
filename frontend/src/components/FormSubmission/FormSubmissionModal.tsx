@@ -157,7 +157,7 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContent = styled.div`
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border-radius: 16px;
   box-shadow: 0 25px 50px -12px rgba(var(--color-overlay), 0.35);
   width: 100%;
@@ -261,7 +261,7 @@ const ProgressStep = styled.div<{ $active: boolean; $completed: boolean }>`
   border-radius: 24px;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${p => p.$active ? 'rgb(var(--color-primary))' : p.$completed ? 'rgba(var(--color-success), 0.14)' : 'white'};
+  background: ${p => p.$active ? 'rgb(var(--color-primary))' : p.$completed ? 'rgba(var(--color-success), 0.14)' : 'rgb(var(--color-bg-primary))'};
   border: 2px solid ${p => p.$active ? 'rgb(var(--color-primary))' : p.$completed ? 'rgb(var(--color-success))' : 'rgb(var(--color-border))'};
 
   &:hover {
@@ -421,7 +421,7 @@ const inputStyles = css<{ $hasError?: boolean }>`
   border-radius: 8px;
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  background: ${p => p.$hasError ? 'rgba(var(--color-error), 0.14)' : 'white'};
+  background: ${p => p.$hasError ? 'rgba(var(--color-error), 0.14)' : 'rgb(var(--color-bg-primary))'};
   transition: all 0.15s;
 
   &:hover {
@@ -521,7 +521,7 @@ const CheckboxWrapper = styled.label`
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   cursor: pointer;
@@ -550,7 +550,7 @@ const CheckboxWrapper = styled.label`
 const MultiSelectContainer = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   overflow: hidden;
 `;
 
@@ -734,7 +734,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>
   `}
 
   ${p => (!p.$variant || p.$variant === 'secondary') && `
-    background: white;
+    background: rgb(var(--color-bg-primary));
     color: rgb(var(--color-text-secondary));
     border: 1px solid rgb(var(--color-border));
 
@@ -798,7 +798,7 @@ const ConfirmOverlay = styled.div`
 `;
 
 const ConfirmDialog = styled.div`
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border-radius: 16px;
   padding: 24px;
   max-width: 400px;
