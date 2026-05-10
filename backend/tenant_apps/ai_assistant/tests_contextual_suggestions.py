@@ -149,7 +149,7 @@ class TestSupplierSuggestions(TestCase):
         req = SuggestionRequest(
             entity_type="supplier",
             entity_id="sup-002",
-            current_state={"contact_count": 3},
+            current_state={"contact_count": 3, "plant_count": 1},
         )
         result = get_contextual_suggestions(req)
         self.assertEqual(len(result.suggestions), 0)
