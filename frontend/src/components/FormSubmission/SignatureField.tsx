@@ -67,7 +67,7 @@ const ActionButton = styled.button`
   font-size: 13px;
   border-radius: 6px;
   border: 1px solid rgb(var(--color-border));
-  background: white;
+  background: rgb(var(--color-bg-primary));
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.15s ease;

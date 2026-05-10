@@ -101,7 +101,7 @@ const FileItem = styled.div<{ $isUploading?: boolean }>`
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   

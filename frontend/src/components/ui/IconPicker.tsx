@@ -181,7 +181,7 @@ const Trigger = styled.button<{ $disabled: boolean; $isOpen: boolean }>`
   gap: 10px;
   width: 100%;
   padding: 10px 12px;
-  background: ${p => p.$disabled ? 'rgb(var(--color-surface-hover))' : 'white'};
+  background: ${p => p.$disabled ? 'rgb(var(--color-surface-hover))' : 'rgb(var(--color-bg-primary))'};
   border: 1px solid ${p => p.$isOpen ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: 8px;
   cursor: ${p => p.$disabled ? 'not-allowed' : 'pointer'};
@@ -229,7 +229,7 @@ const Dropdown = styled.div`
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border: 1px solid rgb(var(--color-border));
   border-radius: 10px;
   box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.15);

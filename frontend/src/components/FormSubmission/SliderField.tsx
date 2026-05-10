@@ -69,7 +69,7 @@ const SliderThumb = styled.div<{ $percent: number }>`
   transform: translate(-50%, -50%);
   width: 24px;
   height: 24px;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border: 3px solid rgb(var(--color-primary));
   border-radius: 50%;
   pointer-events: none;

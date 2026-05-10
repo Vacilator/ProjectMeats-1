@@ -61,7 +61,7 @@ const SelectTrigger = styled.button<{ $hasError?: boolean; $isOpen?: boolean }>`
   line-height: 1.5;
   color: rgb(var(--color-text-primary));
   text-align: left;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border: 1.5px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : props.$isOpen ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: 8px;
   cursor: pointer;
@@ -103,7 +103,7 @@ const Dropdown = styled.div<{ $isOpen: boolean }>`
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: white;
+  background: rgb(var(--color-bg-primary));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(var(--color-overlay), 0.15);
@@ -124,7 +124,7 @@ const SearchInput = styled.input`
   
   &:focus {
     outline: none;
-    background: white;
+    background: rgb(var(--color-bg-primary));
   }
   
   &::placeholder {

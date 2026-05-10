@@ -226,7 +226,7 @@ const HeaderBtn = styled.button<{ $expanded: boolean }>`
   border: none;
   cursor: pointer;
   background: ${(p) => (p.$expanded ? 'rgb(var(--color-surface))' : 'rgb(var(--color-primary))')};
-  color: ${(p) => (p.$expanded ? 'rgb(var(--color-text-primary))' : 'white')};
+  color: ${(p) => (p.$expanded ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-inverse))')};
 
   &:hover {
     background: ${(p) => (p.$expanded ? 'rgb(var(--color-primary) / 0.10)' : 'rgb(var(--color-primary))')};
