@@ -384,23 +384,23 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   if (loading && !selectedList) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'rgb(var(--color-primary))' }} />
       </div>
     );
   }
 
   return (
-    <div className="flex h-full bg-gray-50">
+    <div className="flex h-full" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
       {/* Sidebar - List Selection */}
-      <div className="w-72 bg-white border-r flex flex-col">
+      <div className="w-72 border-r flex flex-col" style={{ background: 'rgb(var(--color-bg-primary))' }}>
         <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">📋 Choice Lists</h2>
+          <h2 className="text-lg font-semibold mb-3" style={{ color: 'rgb(var(--color-text-primary))' }}>📋 Choice Lists</h2>
           <input
             type="text"
             placeholder="Search lists..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -408,24 +408,25 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
             <button type="button"
               key={list.id}
               onClick={() => void handleSelectList(list)}
-              className={`w-full text-left p-3 border-b hover:bg-gray-50 transition-colors ${
-                selectedList?.id === list.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+              className={`w-full text-left p-3 border-b hover:bg-[rgb(var(--color-bg-secondary))] transition-colors ${
+                selectedList?.id === list.id ? 'border-l-4' : ''
               }`}
+              style={selectedList?.id === list.id ? { background: 'rgb(var(--color-info-bg))', borderLeftColor: 'rgb(var(--color-primary))' } : undefined}
             >
-              <div className="font-medium text-gray-900">{list.name}</div>
-              <div className="text-xs text-gray-500 font-mono">{list.slug}</div>
+              <div className="font-medium" style={{ color: 'rgb(var(--color-text-primary))' }}>{list.name}</div>
+              <div className="text-xs font-mono" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{list.slug}</div>
               <div className="flex gap-2 mt-1">
                 <span
-                  className={`text-xs px-1.5 py-0.5 rounded ${
-                    list.is_extensible
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-blue-100 text-blue-700'
-                  }`}
+                  className="text-xs px-1.5 py-0.5 rounded"
+                  style={{
+                    background: list.is_extensible ? 'rgb(var(--color-warning-bg))' : 'rgb(var(--color-info-bg))',
+                    color: list.is_extensible ? 'rgb(var(--color-warning))' : 'rgb(var(--color-primary))',
+                  }}
                 >
                   {list.is_extensible ? '🏢' : '🔒'}
                 </span>
                 {list.is_reorderable && (
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}>
                     ↕️
                   </span>
                 )}
@@ -440,32 +441,32 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         {selectedList ? (
           <>
             {/* Header */}
-            <div className="bg-white border-b p-4">
+            <div className="border-b p-4" style={{ background: 'rgb(var(--color-bg-primary))' }}>
               <div className="flex justify-between items-start">
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">{selectedList.name}</h1>
-                  <p className="text-sm text-gray-500 font-mono">{selectedList.slug}</p>
+                  <h1 className="text-xl font-bold" style={{ color: 'rgb(var(--color-text-primary))' }}>{selectedList.name}</h1>
+                  <p className="text-sm font-mono" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{selectedList.slug}</p>
                   {selectedList.description && (
-                    <p className="text-sm text-gray-600 mt-1">{selectedList.description}</p>
+                    <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>{selectedList.description}</p>
                   )}
                 </div>
                 <div className="flex gap-2">
                   <button type="button"
                     onClick={handleImportJson}
-                    className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                    className="px-3 py-1.5 text-sm rounded hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
                   >
                     📥 Import
                   </button>
                   <button type="button"
                     onClick={handleExportJson}
-                    className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                    className="px-3 py-1.5 text-sm rounded hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
                   >
                     📤 Export
                   </button>
                   {onClose && (
                     <button type="button"
                       onClick={onClose}
-                      className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                      className="px-3 py-1.5 text-sm rounded hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
                     >
                       ✕
                     </button>
@@ -475,12 +476,12 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
 
               {/* Status Messages */}
               {error && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                <div className="mt-3 p-3 border rounded-lg text-sm" style={{ background: 'rgb(var(--color-error-bg))', borderColor: 'rgb(var(--color-error))', color: 'rgb(var(--color-error))' }}>
                   {error}
                 </div>
               )}
               {successMessage && (
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+                <div className="mt-3 p-3 border rounded-lg text-sm" style={{ background: 'rgb(var(--color-success-bg))', borderColor: 'rgb(var(--color-success))', color: 'rgb(var(--color-success))' }}>
                   {successMessage}
                 </div>
               )}
@@ -488,9 +489,9 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
 
             {/* Items Table */}
             <div className="flex-1 overflow-y-auto p-4">
-              <table className="w-full bg-white rounded-lg shadow-sm border">
+              <table className="w-full rounded-lg shadow-sm border" style={{ background: 'rgb(var(--color-bg-primary))' }}>
                 <thead>
-                  <tr className="bg-gray-50 text-left text-sm font-medium text-gray-600">
+                  <tr className="text-left text-sm font-medium" style={{ background: 'rgb(var(--color-bg-secondary))', color: 'rgb(var(--color-text-secondary))' }}>
                     <th className="px-4 py-3 w-10" />
                     <th className="px-4 py-3">Value</th>
                     <th className="px-4 py-3">Label</th>
@@ -507,11 +508,14 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                       onDragStart={() => handleDragStart(index)}
                       onDragOver={(e) => handleDragOver(e, index)}
                       onDragEnd={handleDragEnd}
-                      className={`border-t hover:bg-gray-50 transition-colors ${
-                        draggedIndex === index ? 'opacity-50 bg-blue-50' : ''
-                      } ${item.is_new ? 'bg-green-50' : ''}`}
+                      className={`border-t hover:bg-[rgb(var(--color-bg-secondary))] transition-colors ${
+                        draggedIndex === index ? 'opacity-50' : ''
+                      }`}
+                      style={{
+                        background: draggedIndex === index ? 'rgb(var(--color-info-bg))' : item.is_new ? 'rgb(var(--color-success-bg))' : undefined,
+                      }}
                     >
-                      <td className="px-4 py-2 text-gray-400 cursor-move">
+                      <td className="px-4 py-2 cursor-move" style={{ color: 'rgb(var(--color-text-quaternary))' }}>
                         {selectedList.is_reorderable && '⋮⋮'}
                       </td>
                       <td className="px-4 py-2">
@@ -519,7 +523,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                           type="text"
                           value={item.value}
                           onChange={(e) => handleItemChange(index, 'value', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm font-mono focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 border rounded text-sm font-mono focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
                           placeholder="value"
                         />
                       </td>
@@ -528,7 +532,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                           type="text"
                           value={item.label}
                           onChange={(e) => handleItemChange(index, 'label', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
                           placeholder="Display label"
                         />
                       </td>
@@ -537,16 +541,16 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                           type="checkbox"
                           checked={item.is_active}
                           onChange={(e) => handleItemChange(index, 'is_active', e.target.checked)}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                          className="w-4 h-4 rounded focus:ring-[rgb(var(--color-primary))]" style={{ color: 'rgb(var(--color-primary))' }}
                         />
                       </td>
-                      <td className="px-4 py-2 text-center text-sm text-gray-500">
+                      <td className="px-4 py-2 text-center text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                         {item.sort_order}
                       </td>
                       <td className="px-4 py-2 text-center">
                         <button type="button"
                           onClick={() => void handleDeleteItem(index)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="hover:text-[rgb(var(--color-error))] text-sm" style={{ color: 'rgb(var(--color-error))' }}
                           title="Delete item"
                         >
                           🗑️
@@ -556,7 +560,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
                   ))}
                   {items.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={6} className="px-4 py-8 text-center" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                         No items. Click "Add Item" to create one.
                       </td>
                     </tr>
@@ -566,26 +570,30 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
             </div>
 
             {/* Footer Actions */}
-            <div className="bg-white border-t p-4 flex justify-between items-center">
+            <div className="border-t p-4 flex justify-between items-center" style={{ background: 'rgb(var(--color-bg-primary))' }}>
               <button type="button"
                 onClick={handleAddItem}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                className="px-4 py-2 rounded-lg hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors text-sm font-medium" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
               >
                 + Add Item
                 <KeyboardShortcut keys="⌘N" />
               </button>
               <div className="flex gap-3 items-center">
                 {hasChanges && (
-                  <span className="text-sm text-orange-600">● Unsaved changes</span>
+                  <span className="text-sm" style={{ color: 'rgb(var(--color-warning))' }}>● Unsaved changes</span>
                 )}
                 <button type="button"
                   onClick={handleSave}
                   disabled={!hasChanges || saving}
                   className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
                     hasChanges && !saving
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'text-[rgb(var(--color-text-inverse))] hover:bg-[rgb(var(--color-primary-hover))]'
+                      : 'cursor-not-allowed'
                   }`}
+                  style={{
+                    background: hasChanges && !saving ? 'rgb(var(--color-primary))' : 'rgb(var(--color-bg-quaternary))',
+                    color: hasChanges && !saving ? undefined : 'rgb(var(--color-text-quaternary))',
+                  }}
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                   <KeyboardShortcut keys="⌘S" />
@@ -594,7 +602,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="flex-1 flex items-center justify-center" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             <div className="text-center">
               <div className="text-4xl mb-4">📋</div>
               <p className="text-lg">Select a choice list to edit</p>

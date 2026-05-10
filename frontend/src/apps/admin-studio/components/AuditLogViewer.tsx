@@ -31,13 +31,13 @@ interface AuditLogViewerProps {
   onClose?: () => void;
 }
 
-// Change type badge colors
-const CHANGE_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  CREATE: { bg: 'bg-green-100', text: 'text-green-800' },
-  UPDATE: { bg: 'bg-amber-100', text: 'text-amber-800' },
-  DELETE: { bg: 'bg-red-100', text: 'text-red-800' },
-  IMPORT: { bg: 'bg-blue-100', text: 'text-blue-800' },
-  EXPORT: { bg: 'bg-purple-100', text: 'text-purple-800' },
+// Change type badge colors (theme tokens)
+const CHANGE_TYPE_COLORS: Record<string, { background: string; color: string }> = {
+  CREATE: { background: 'rgb(var(--color-success-bg))', color: 'rgb(var(--color-success))' },
+  UPDATE: { background: 'rgb(var(--color-warning-bg))', color: 'rgb(var(--color-warning))' },
+  DELETE: { background: 'rgb(var(--color-error-bg))', color: 'rgb(var(--color-error))' },
+  IMPORT: { background: 'rgb(var(--color-info-bg))', color: 'rgb(var(--color-primary))' },
+  EXPORT: { background: 'rgb(var(--color-info-bg))', color: 'rgb(var(--color-primary))' },
 };
 
 // Entity type icons
@@ -167,9 +167,12 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   
   // Get change type badge
   const getChangeTypeBadge = (changeType: string) => {
-    const colors = CHANGE_TYPE_COLORS[changeType] || { bg: 'bg-gray-100', text: 'text-gray-800' };
+    const colors = CHANGE_TYPE_COLORS[changeType] || { background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-primary))' };
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors.bg} ${colors.text}`}>
+      <span
+        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+        style={{ background: colors.background, color: colors.color }}
+      >
         {changeType}
       </span>
     );
@@ -177,10 +180,10 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   
   // Render JSON diff
   const renderValue = (value: unknown) => {
-    if (value === null || value === undefined) return <span className="text-gray-400 italic">null</span>;
+    if (value === null || value === undefined) return <span className="italic" style={{ color: 'rgb(var(--color-text-quaternary))' }}>null</span>;
     if (typeof value === 'object') {
       return (
-        <pre className="text-xs bg-gray-50 p-2 rounded overflow-x-auto">
+        <pre className="text-xs p-2 rounded overflow-x-auto" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
           {JSON.stringify(value, null, 2)}
         </pre>
       );
@@ -189,27 +192,27 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   };
   
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
       {/* Header */}
-      <div className="bg-white border-b p-4">
+      <div className="border-b p-4" style={{ background: 'rgb(var(--color-bg-primary))' }}>
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'rgb(var(--color-text-primary))' }}>
               📜 Audit Log
               {totalCount > 0 && (
-                <span className="text-sm font-normal text-gray-500">
+                <span className="text-sm font-normal" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                   ({totalCount.toLocaleString()} entries)
                 </span>
               )}
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
               Track all configuration changes with complete history
             </p>
           </div>
           {onClose && (
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              className="px-3 py-1.5 text-sm rounded hover:bg-[rgb(var(--color-bg-quaternary))] transition-colors" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}
             >
               ✕ Close
             </button>
@@ -225,7 +228,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
               placeholder="Search by entity name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[rgb(var(--color-primary))] text-sm"
             />
           </form>
           
@@ -233,7 +236,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
           <select
             value={filters.entity_type || ''}
             onChange={(e) => handleFilterChange('entity_type', e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
           >
             <option value="">All Entity Types</option>
             <option value="TenantConfig">⚙️ TenantConfig</option>
@@ -246,7 +249,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
           <select
             value={filters.change_type || ''}
             onChange={(e) => handleFilterChange('change_type', e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
           >
             <option value="">All Changes</option>
             <option value="CREATE">✨ Created</option>
@@ -261,21 +264,21 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
             placeholder="From"
           />
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[rgb(var(--color-primary))]"
             placeholder="To"
           />
           
           {/* Refresh Button */}
           <button
             onClick={loadLogs}
-            className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+            className="px-4 py-2 rounded-lg hover:bg-[rgb(var(--color-info-bg))] transition-colors text-sm" style={{ background: 'rgb(var(--color-info-bg))', color: 'rgb(var(--color-primary))' }}
           >
             🔄 Refresh
           </button>
@@ -284,11 +287,11 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       
       {/* Summary Stats (collapsible) */}
       {summary && !compact && (
-        <div className="bg-white border-b p-4">
+        <div className="border-b p-4" style={{ background: 'rgb(var(--color-bg-primary))' }}>
           <div className="grid grid-cols-4 gap-4">
             {/* Change Type Breakdown */}
-            <div className="bg-gray-50 rounded-lg p-3">
-              <h3 className="text-xs font-medium text-gray-500 mb-2">By Change Type</h3>
+            <div className="rounded-lg p-3" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+              <h3 className="text-xs font-medium mb-2" style={{ color: 'rgb(var(--color-text-tertiary))' }}>By Change Type</h3>
               <div className="space-y-1">
                 {summary.by_change_type.slice(0, 4).map((item) => (
                   <div key={item.change_type} className="flex justify-between text-sm">
@@ -300,8 +303,8 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             </div>
             
             {/* Entity Type Breakdown */}
-            <div className="bg-gray-50 rounded-lg p-3">
-              <h3 className="text-xs font-medium text-gray-500 mb-2">By Entity Type</h3>
+            <div className="rounded-lg p-3" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+              <h3 className="text-xs font-medium mb-2" style={{ color: 'rgb(var(--color-text-tertiary))' }}>By Entity Type</h3>
               <div className="space-y-1">
                 {summary.by_entity_type.slice(0, 4).map((item) => (
                   <div key={item.entity_type} className="flex justify-between text-sm">
@@ -313,8 +316,8 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             </div>
             
             {/* Top Users */}
-            <div className="bg-gray-50 rounded-lg p-3">
-              <h3 className="text-xs font-medium text-gray-500 mb-2">Top Users</h3>
+            <div className="rounded-lg p-3" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+              <h3 className="text-xs font-medium mb-2" style={{ color: 'rgb(var(--color-text-tertiary))' }}>Top Users</h3>
               <div className="space-y-1">
                 {summary.by_user.slice(0, 4).map((item) => (
                   <div key={item.user_email} className="flex justify-between text-sm">
@@ -328,9 +331,9 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             </div>
             
             {/* Total */}
-            <div className="bg-blue-50 rounded-lg p-3 flex flex-col justify-center items-center">
-              <span className="text-3xl font-bold text-blue-700">{summary.total_count}</span>
-              <span className="text-xs text-blue-600">Total Changes</span>
+            <div className="rounded-lg p-3 flex flex-col justify-center items-center" style={{ background: 'rgb(var(--color-info-bg))' }}>
+              <span className="text-3xl font-bold" style={{ color: 'rgb(var(--color-primary))' }}>{summary.total_count}</span>
+              <span className="text-xs" style={{ color: 'rgb(var(--color-primary))' }}>Total Changes</span>
             </div>
           </div>
         </div>
@@ -338,15 +341,15 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       
       {/* Error State */}
       {error && (
-        <div className="p-4 bg-red-50 border-b border-red-100">
-          <div className="text-red-700 text-sm">{error}</div>
+        <div className="p-4 border-b" style={{ background: 'rgb(var(--color-error-bg))', borderColor: 'rgb(var(--color-error))' }}>
+          <div className="text-sm" style={{ color: 'rgb(var(--color-error))' }}>{error}</div>
         </div>
       )}
       
       {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'rgb(var(--color-primary))' }} />
         </div>
       )}
       
@@ -355,7 +358,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
         <div className="flex-1 overflow-y-auto">
           <div className="divide-y divide-gray-100">
             {logs.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                 <div className="text-4xl mb-4">📜</div>
                 <p>No audit logs found</p>
                 <p className="text-sm mt-2">Try adjusting your filters</p>
@@ -368,7 +371,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                   tabIndex={0}
                   onClick={() => loadLogDetail(log.id)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadLogDetail(log.id); } }}
-                  className="p-4 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="p-4 hover:bg-[rgb(var(--color-bg-secondary))] cursor-pointer transition-colors" style={{ background: 'rgb(var(--color-bg-primary))' }}
                 >
                   <div className="flex items-start gap-4">
                     {/* Entity Icon */}
@@ -378,17 +381,17 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         {getChangeTypeBadge(log.change_type)}
-                        <span className="font-medium text-gray-900 truncate">
+                        <span className="font-medium truncate" style={{ color: 'rgb(var(--color-text-primary))' }}>
                           {log.entity_name}
                         </span>
                         {log.field_name && (
-                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                          <span className="text-xs px-2 py-0.5 rounded" style={{ color: 'rgb(var(--color-text-tertiary))', background: 'rgb(var(--color-bg-tertiary))' }}>
                             {log.field_name}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-sm text-gray-500">
-                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                      <div className="flex items-center gap-3 text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                        <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'rgb(var(--color-bg-tertiary))' }}>
                           {log.entity_type}
                         </span>
                         <span>by {log.user_display}</span>
@@ -396,7 +399,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                     </div>
                     
                     {/* Timestamp */}
-                    <div className="text-sm text-gray-500 whitespace-nowrap">
+                    <div className="text-sm whitespace-nowrap" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                       {formatTimestamp(log.created_at)}
                     </div>
                   </div>
@@ -409,22 +412,22 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="bg-white border-t p-4 flex justify-between items-center">
-          <div className="text-sm text-gray-500">
+        <div className="border-t p-4 flex justify-between items-center" style={{ background: 'rgb(var(--color-bg-primary))' }}>
+          <div className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             Page {filters.page} of {totalPages}
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => handlePageChange((filters.page || 1) - 1)}
               disabled={(filters.page || 1) <= 1}
-              className="px-3 py-1 border rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1 border rounded text-sm hover:bg-[rgb(var(--color-bg-secondary))] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               ← Previous
             </button>
             <button
               onClick={() => handlePageChange((filters.page || 1) + 1)}
               disabled={(filters.page || 1) >= totalPages}
-              className="px-3 py-1 border rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1 border rounded text-sm hover:bg-[rgb(var(--color-bg-secondary))] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next →
             </button>
@@ -434,22 +437,22 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       
       {/* Detail Modal */}
       {selectedLog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-[rgba(var(--color-overlay),0.5)] flex items-center justify-center z-50">
+          <div className="rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden" style={{ background: 'rgb(var(--color-bg-primary))' }}>
             {/* Modal Header */}
             <div className="px-6 py-4 border-b flex justify-between items-center">
               <div>
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'rgb(var(--color-text-primary))' }}>
                   {getEntityIcon(selectedLog.entity_type)}
                   {selectedLog.entity_name}
                 </h2>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
                   {selectedLog.change_type_display} by {selectedLog.user_display}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedLog(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="hover:text-[rgb(var(--color-text-secondary))]" style={{ color: 'rgb(var(--color-text-quaternary))' }}
               >
                 ✕
               </button>
@@ -461,22 +464,22 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 {/* Metadata */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Entity Type:</span>
+                    <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Entity Type:</span>
                     <span className="ml-2 font-medium">{selectedLog.entity_type}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Change Type:</span>
+                    <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Change Type:</span>
                     <span className="ml-2">{getChangeTypeBadge(selectedLog.change_type)}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Timestamp:</span>
+                    <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Timestamp:</span>
                     <span className="ml-2 font-medium">
                       {new Date(selectedLog.created_at).toLocaleString()}
                     </span>
                   </div>
                   {selectedLog.ip_address && (
                     <div>
-                      <span className="text-gray-500">IP Address:</span>
+                      <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>IP Address:</span>
                       <span className="ml-2 font-mono text-xs">{selectedLog.ip_address}</span>
                     </div>
                   )}
@@ -485,16 +488,16 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 {/* Field Change (for UPDATE) */}
                 {selectedLog.field_name && (
                   <div className="border rounded-lg p-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">
-                      Field Changed: <code className="bg-gray-100 px-1">{selectedLog.field_name}</code>
+                    <h3 className="text-sm font-medium mb-2" style={{ color: 'rgb(var(--color-text-secondary))' }}>
+                      Field Changed: <code className="px-1" style={{ background: 'rgb(var(--color-bg-tertiary))' }}>{selectedLog.field_name}</code>
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="text-xs text-red-600 font-medium mb-1">Before:</div>
+                        <div className="text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-error))' }}>Before:</div>
                         {renderValue(selectedLog.old_value)}
                       </div>
                       <div>
-                        <div className="text-xs text-green-600 font-medium mb-1">After:</div>
+                        <div className="text-xs font-medium mb-1" style={{ color: 'rgb(var(--color-success))' }}>After:</div>
                         {renderValue(selectedLog.new_value)}
                       </div>
                     </div>
@@ -504,7 +507,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 {/* Snapshot Before (for DELETE/complex changes) */}
                 {selectedLog.snapshot_before && (
                   <div className="border rounded-lg p-4">
-                    <h3 className="text-sm font-medium text-red-700 mb-2">Previous State</h3>
+                    <h3 className="text-sm font-medium mb-2" style={{ color: 'rgb(var(--color-error))' }}>Previous State</h3>
                     {renderValue(selectedLog.snapshot_before)}
                   </div>
                 )}
@@ -512,26 +515,26 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 {/* Snapshot After (for CREATE/complex changes) */}
                 {selectedLog.snapshot_after && (
                   <div className="border rounded-lg p-4">
-                    <h3 className="text-sm font-medium text-green-700 mb-2">New State</h3>
+                    <h3 className="text-sm font-medium mb-2" style={{ color: 'rgb(var(--color-success))' }}>New State</h3>
                     {renderValue(selectedLog.snapshot_after)}
                   </div>
                 )}
                 
                 {/* Notes */}
                 {selectedLog.notes && (
-                  <div className="border rounded-lg p-4 bg-gray-50">
-                    <h3 className="text-sm font-medium text-gray-700 mb-1">Notes</h3>
-                    <p className="text-sm text-gray-600">{selectedLog.notes}</p>
+                  <div className="border rounded-lg p-4" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
+                    <h3 className="text-sm font-medium mb-1" style={{ color: 'rgb(var(--color-text-secondary))' }}>Notes</h3>
+                    <p className="text-sm" style={{ color: 'rgb(var(--color-text-secondary))' }}>{selectedLog.notes}</p>
                   </div>
                 )}
               </div>
             </div>
             
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
+            <div className="px-6 py-4 border-t flex justify-end" style={{ background: 'rgb(var(--color-bg-secondary))' }}>
               <button
                 onClick={() => setSelectedLog(null)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                className="px-4 py-2 rounded-lg hover:bg-[rgb(var(--color-bg-tertiary))] transition-colors text-sm" style={{ background: 'rgb(var(--color-bg-quaternary))', color: 'rgb(var(--color-text-primary))' }}
               >
                 Close
               </button>

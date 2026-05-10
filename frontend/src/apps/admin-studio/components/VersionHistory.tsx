@@ -111,8 +111,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
 
   if (loading) {
     return (
-      <div className="p-6 text-center text-gray-500">
-        <div className="animate-spin inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+      <div className="p-6 text-center" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+        <div className="animate-spin inline-block w-6 h-6 border-2 border-t-transparent rounded-full" style={{ borderColor: 'rgb(var(--color-primary))' }} />
         <p className="mt-2">Loading version history...</p>
       </div>
     );
@@ -129,22 +129,22 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
               setCompareMode(false);
               setSelectedForCompare(null);
             }}
-            className="text-gray-500 hover:text-gray-700"
+            className="hover:text-[rgb(var(--color-text-secondary))]" style={{ color: 'rgb(var(--color-text-tertiary))' }}
           >
             <X size={20} />
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="p-3 bg-blue-50 rounded-lg">
+          <div className="p-3 rounded-lg" style={{ background: 'rgb(var(--color-info-bg))' }}>
             <div className="font-semibold">Version {comparisonData.version_a.version}</div>
-            <div className="text-sm text-gray-600">{formatToLocal(comparisonData.version_a.created_at)}</div>
-            <div className="text-xs text-gray-500 mt-1">{comparisonData.version_a.status}</div>
+            <div className="text-sm" style={{ color: 'rgb(var(--color-text-secondary))' }}>{formatToLocal(comparisonData.version_a.created_at)}</div>
+            <div className="text-xs mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{comparisonData.version_a.status}</div>
           </div>
-          <div className="p-3 bg-purple-50 rounded-lg">
+          <div className="p-3 bg-[rgb(var(--color-info-bg))] rounded-lg">
             <div className="font-semibold">Version {comparisonData.version_b.version}</div>
-            <div className="text-sm text-gray-600">{formatToLocal(comparisonData.version_b.created_at)}</div>
-            <div className="text-xs text-gray-500 mt-1">{comparisonData.version_b.status}</div>
+            <div className="text-sm" style={{ color: 'rgb(var(--color-text-secondary))' }}>{formatToLocal(comparisonData.version_b.created_at)}</div>
+            <div className="text-xs mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>{comparisonData.version_b.status}</div>
           </div>
         </div>
 
@@ -153,11 +153,11 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             <h4 className="font-semibold mb-2">Schema Changes</h4>
             <div className="space-y-2 text-sm">
               {comparisonData.differences.schema.added_fields.length > 0 && (
-                <div className="p-2 bg-green-50 rounded">
-                  <div className="font-medium text-green-800">
+                <div className="p-2 rounded" style={{ background: 'rgb(var(--color-success-bg))' }}>
+                  <div className="font-medium" style={{ color: 'rgb(var(--color-success))' }}>
                     + {comparisonData.differences.schema.added_fields.length} fields added
                   </div>
-                  <ul className="ml-4 mt-1 text-green-700">
+                  <ul className="ml-4 mt-1" style={{ color: 'rgb(var(--color-success))' }}>
                     {comparisonData.differences.schema.added_fields.map((field: any) => (
                       <li key={field.key}>• {field.label} ({field.type})</li>
                     ))}
@@ -165,11 +165,11 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                 </div>
               )}
               {comparisonData.differences.schema.removed_fields.length > 0 && (
-                <div className="p-2 bg-red-50 rounded">
-                  <div className="font-medium text-red-800">
+                <div className="p-2 rounded" style={{ background: 'rgb(var(--color-error-bg))' }}>
+                  <div className="font-medium" style={{ color: 'rgb(var(--color-error))' }}>
                     - {comparisonData.differences.schema.removed_fields.length} fields removed
                   </div>
-                  <ul className="ml-4 mt-1 text-red-700">
+                  <ul className="ml-4 mt-1" style={{ color: 'rgb(var(--color-error))' }}>
                     {comparisonData.differences.schema.removed_fields.map((field: any) => (
                       <li key={field.key}>• {field.label} ({field.type})</li>
                     ))}
@@ -177,8 +177,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                 </div>
               )}
               {comparisonData.differences.schema.modified_fields.length > 0 && (
-                <div className="p-2 bg-yellow-50 rounded">
-                  <div className="font-medium text-yellow-800">
+                <div className="p-2 rounded" style={{ background: 'rgb(var(--color-warning-bg))' }}>
+                  <div className="font-medium" style={{ color: 'rgb(var(--color-warning))' }}>
                     ~ {comparisonData.differences.schema.modified_fields.length} fields modified
                   </div>
                 </div>
@@ -186,7 +186,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
               {comparisonData.differences.schema.added_fields.length === 0 &&
                 comparisonData.differences.schema.removed_fields.length === 0 &&
                 comparisonData.differences.schema.modified_fields.length === 0 && (
-                  <div className="text-gray-500">No schema changes</div>
+                  <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No schema changes</div>
                 )}
             </div>
           </div>
@@ -195,22 +195,22 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             <h4 className="font-semibold mb-2">Workflow Changes</h4>
             <div className="space-y-2 text-sm">
               {comparisonData.differences.workflow.added_steps.length > 0 && (
-                <div className="p-2 bg-green-50 rounded">
-                  <div className="font-medium text-green-800">
+                <div className="p-2 rounded" style={{ background: 'rgb(var(--color-success-bg))' }}>
+                  <div className="font-medium" style={{ color: 'rgb(var(--color-success))' }}>
                     + {comparisonData.differences.workflow.added_steps.length} steps added
                   </div>
                 </div>
               )}
               {comparisonData.differences.workflow.removed_steps.length > 0 && (
-                <div className="p-2 bg-red-50 rounded">
-                  <div className="font-medium text-red-800">
+                <div className="p-2 rounded" style={{ background: 'rgb(var(--color-error-bg))' }}>
+                  <div className="font-medium" style={{ color: 'rgb(var(--color-error))' }}>
                     - {comparisonData.differences.workflow.removed_steps.length} steps removed
                   </div>
                 </div>
               )}
               {comparisonData.differences.workflow.modified_steps.length > 0 && (
-                <div className="p-2 bg-yellow-50 rounded">
-                  <div className="font-medium text-yellow-800">
+                <div className="p-2 rounded" style={{ background: 'rgb(var(--color-warning-bg))' }}>
+                  <div className="font-medium" style={{ color: 'rgb(var(--color-warning))' }}>
                     ~ {comparisonData.differences.workflow.modified_steps.length} steps modified
                   </div>
                 </div>
@@ -218,7 +218,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
               {comparisonData.differences.workflow.added_steps.length === 0 &&
                 comparisonData.differences.workflow.removed_steps.length === 0 &&
                 comparisonData.differences.workflow.modified_steps.length === 0 && (
-                  <div className="text-gray-500">No workflow changes</div>
+                  <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No workflow changes</div>
                 )}
             </div>
           </div>
@@ -241,16 +241,17 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
           }}
           className={`px-3 py-1 text-sm rounded ${
             compareMode
-              ? 'bg-purple-500 text-white'
-              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+              ? 'bg-[rgb(var(--color-info-bg))]0 text-[rgb(var(--color-text-inverse))]'
+              : 'border hover:bg-[rgb(var(--color-bg-secondary))]'
           }`}
+          style={!compareMode ? { borderColor: 'rgb(var(--color-border-secondary))', color: 'rgb(var(--color-text-secondary))' } : undefined}
         >
           {compareMode ? 'Cancel Compare' : 'Compare Versions'}
         </button>
       </div>
 
       {compareMode && (
-        <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded text-sm">
+        <div className="mb-4 p-3 bg-[rgb(var(--color-info-bg))] border border-[rgb(var(--color-border-primary))] rounded text-sm">
           {selectedForCompare
             ? 'Select another version to compare with'
             : 'Select first version to compare'}
@@ -264,10 +265,12 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             role={compareMode ? 'button' : undefined}
             tabIndex={compareMode ? 0 : undefined}
             className={`p-4 border rounded-lg transition-all ${
-              version.id === currentVersionId
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
-            } ${compareMode ? 'cursor-pointer' : ''}`}
+              compareMode ? 'cursor-pointer' : ''
+            }`}
+            style={{
+              borderColor: version.id === currentVersionId ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border-primary))',
+              background: version.id === currentVersionId ? 'rgb(var(--color-info-bg))' : undefined,
+            }}
             onClick={() => {
               if (compareMode) {
                 if (!selectedForCompare) {
@@ -291,31 +294,31 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <GitBranch size={16} className="text-gray-400" />
+                  <GitBranch size={16} style={{ color: 'rgb(var(--color-text-quaternary))' }} />
                   <span className="font-semibold">Version {version.version}</span>
                   {version.is_published && (
-                    <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">
+                    <span className="px-2 py-0.5 text-xs rounded" style={{ background: 'rgb(var(--color-success-bg))', color: 'rgb(var(--color-success))' }}>
                       Published
                     </span>
                   )}
                   {version.status === 'DRAFT' && (
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                    <span className="px-2 py-0.5 text-xs rounded" style={{ background: 'rgb(var(--color-bg-tertiary))', color: 'rgb(var(--color-text-secondary))' }}>
                       Draft
                     </span>
                   )}
                   {version.id === currentVersionId && (
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
+                    <span className="px-2 py-0.5 text-xs rounded" style={{ background: 'rgb(var(--color-info-bg))', color: 'rgb(var(--color-primary))' }}>
                       Current
                     </span>
                   )}
                   {compareMode && selectedForCompare === version.id && (
-                    <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">
+                    <span className="px-2 py-0.5 bg-[rgb(var(--color-info-bg))] text-[rgb(var(--color-primary))] text-xs rounded">
                       Selected
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                <div className="flex items-center gap-4 text-sm mb-2" style={{ color: 'rgb(var(--color-text-secondary))' }}>
                   <div className="flex items-center gap-1">
                     <Clock size={14} />
                     {formatToLocal(version.created_at)}
@@ -329,7 +332,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                 <div className="flex gap-2">
                   <button
                     onClick={() => onVersionSelect(version.id)}
-                    className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded"
+                    className="px-3 py-1 text-sm hover:bg-[rgb(var(--color-info-bg))] rounded" style={{ color: 'rgb(var(--color-primary))' }}
                   >
                     View
                   </button>
@@ -338,7 +341,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                       e.stopPropagation();
                       handleRollback(version.id, version.version);
                     }}
-                    className="px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded flex items-center gap-1"
+                    className="px-3 py-1 text-sm text-[rgb(var(--color-primary))] hover:bg-[rgb(var(--color-info-bg))] rounded flex items-center gap-1"
                   >
                     <RotateCcw size={14} />
                     Rollback
@@ -350,7 +353,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         ))}
 
         {versions.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             No version history available
           </div>
         )}
