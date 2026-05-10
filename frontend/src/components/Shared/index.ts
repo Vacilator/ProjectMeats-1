@@ -20,6 +20,8 @@ export { CockpitPanel } from './CockpitPanel';
 export { StatCardGrid } from './StatCardGrid';
 export { InlineLoader, QueryFallback, EmptyInline, focusRing, cardHover, fadeIn, srOnly } from './PolishUtils';
 export { ErrorBoundary } from './ErrorBoundary';
+export { ConfidenceBadge, getConfidenceLevel, getConfidenceLabel, CONFIDENCE_THRESHOLDS } from './ConfidenceBadge';
+export type { ConfidenceBadgeProps, ConfidenceLevel } from './ConfidenceBadge';
 export type { CockpitPanelProps } from './CockpitPanel';
 export type { StatCardGridProps, StatCardItem } from './StatCardGrid';
 export type { LocationSelectorProps } from './LocationSelector';

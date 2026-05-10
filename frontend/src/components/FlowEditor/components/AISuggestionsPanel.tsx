@@ -16,7 +16,8 @@ import {
   canonicalizeNodeTypeId,
   NodeSuggestion,
 } from '@/services/aiNodeSuggestionService';
-import { Sparkles, Plus, TrendingUp, Zap, AlertCircle } from 'lucide-react';
+import { Sparkles, Plus, Zap, AlertCircle } from 'lucide-react';
+import { ConfidenceBadge } from '@/components/Shared/ConfidenceBadge';
 import { workformsApi } from '@/services/workformsApi';
 import { useTranslation } from '@/i18n';
 import { logger } from '@/utils/logger';
@@ -142,25 +143,7 @@ const SuggestionLabel = styled.div`
   gap: 6px;
 `;
 
-const ConfidenceBadge = styled.div<{ $confidence: number }>`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  background: ${props => {
-    if (props.$confidence >= 0.8) return 'rgba(var(--color-success), 0.15)';
-    if (props.$confidence >= 0.6) return 'rgba(var(--color-warning), 0.15)';
-    return 'rgba(var(--color-info), 0.15)';
-  }};
-  color: ${props => {
-    if (props.$confidence >= 0.8) return 'rgb(var(--color-success))';
-    if (props.$confidence >= 0.6) return 'rgb(var(--color-warning))';
-    return 'rgb(var(--color-info))';
-  }};
-`;
+
 
 const SuggestionDescription = styled.div`
   font-size: 12px;
@@ -353,9 +336,6 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
     setError(null);
   };
 
-  const formatConfidence = (confidence: number): string => {
-    return `${Math.round(confidence * 100)}%`;
-  };
 
   return (
     <Panel $isVisible={isVisible}>
@@ -418,10 +398,7 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
                   </AddIcon>
                   {suggestion.label}
                 </SuggestionLabel>
-                <ConfidenceBadge $confidence={suggestion.confidence}>
-                  <TrendingUp size={10} />
-                  {formatConfidence(suggestion.confidence)}
-                </ConfidenceBadge>
+                <ConfidenceBadge score={suggestion.confidence} size="small" />
               </SuggestionHeader>
               <SuggestionDescription>
                 {suggestion.description}

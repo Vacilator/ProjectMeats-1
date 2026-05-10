@@ -4,9 +4,11 @@
  * IMPORTANT:
  * - Do NOT create a separate axios/fetch client here.
  * - Use the shared apiService/businessApi so auth refresh + tenant headers are consistent.
+ * - AI calls use withRetry for transient failure resilience.
  */
 
 import { businessApi } from './businessApi';
+import { withRetry } from '../utils/apiRetry';
 import type { ChatMessage, ChatSession, UploadedDocument } from '../types';
 import type {
   ContractAiChatRequest,
@@ -165,18 +167,23 @@ export const chatApi = {
    * Send a message and get AI response.
    *
    * Use the clean endpoint wrapper so server-side routing remains stable.
+   * Retries on transient failures (rate limits, server errors).
    */
   sendMessage: async (data: ChatRequest): Promise<ChatResponse> => {
-    const res = await businessApi.post<ChatResponse>('/ai-assistant/chat/', data);
-    return unwrap(res);
+    return withRetry(async () => {
+      const res = await businessApi.post<ChatResponse>('/ai-assistant/chat/', data);
+      return unwrap(res);
+    });
   },
 
   /**
    * Process a document with AI (compat endpoint).
    */
   processDocument: async (data: DocumentProcessingRequest): Promise<DocumentProcessingResponse> => {
-    const res = await businessApi.post<DocumentProcessingResponse>('/ai-assistant/ai-chat/process_document/', data);
-    return unwrap(res);
+    return withRetry(async () => {
+      const res = await businessApi.post<DocumentProcessingResponse>('/ai-assistant/ai-chat/process_document/', data);
+      return unwrap(res);
+    });
   },
 };
 
@@ -263,11 +270,13 @@ export const ambientAiApi = {
   getContextualSuggestions: async (
     data: ContextualSuggestionRequest,
   ): Promise<ContextualSuggestion[]> => {
-    const res = await businessApi.post<ContextualSuggestionsResponse>(
-      '/ai-assistant/suggestions/contextual/',
-      data,
-    );
-    return unwrap(res).suggestions || [];
+    return withRetry(async () => {
+      const res = await businessApi.post<ContextualSuggestionsResponse>(
+        '/ai-assistant/suggestions/contextual/',
+        data,
+      );
+      return unwrap(res).suggestions || [];
+    });
   },
 };
 
@@ -329,8 +338,10 @@ export const documentsApi = {
 
 export const schemaExtractionApi = {
   extractToSchema: async (data: ExtractToSchemaRequest): Promise<ExtractToSchemaResponse> => {
-    const res = await businessApi.post<ExtractToSchemaResponse>('/ai-assistant/extract-to-schema/', data);
-    return unwrap(res);
+    return withRetry(async () => {
+      const res = await businessApi.post<ExtractToSchemaResponse>('/ai-assistant/extract-to-schema/', data);
+      return unwrap(res);
+    });
   },
 };
 

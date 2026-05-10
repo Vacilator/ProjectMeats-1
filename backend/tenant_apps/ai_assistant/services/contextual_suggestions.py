@@ -219,6 +219,88 @@ def _supplier_rules(state: dict[str, Any]) -> list[Suggestion]:
             is_safe_action=False,
         ))
 
+    # Rule: Supplier without plants
+    if state.get("plant_count", 0) == 0:
+        suggestions.append(Suggestion(
+            id="add-supplier-plant",
+            action_type="create_plant",
+            title="Add supplier plant/facility",
+            description="No plants registered — add at least one facility for order fulfillment",
+            confidence=0.85,
+            rationale="Supplier has no plants, required for logistics and compliance",
+            priority=7,
+            action_payload={},
+            source="heuristic",
+            is_safe_action=False,
+        ))
+
+    # Rule: Supplier with expired certifications
+    if state.get("expired_certifications", 0) > 0:
+        suggestions.append(Suggestion(
+            id="renew-certifications",
+            action_type="update_record",
+            title="Renew expired certifications",
+            description=f"{state.get('expired_certifications')} certification(s) need renewal",
+            confidence=0.9,
+            rationale="Expired certifications may block orders or compliance checks",
+            priority=9,
+            action_payload={},
+            source="heuristic",
+            is_safe_action=False,
+        ))
+
+    return suggestions
+
+
+def _customer_rules(state: dict[str, Any]) -> list[Suggestion]:
+    """Heuristic rules for customer entities."""
+    suggestions: list[Suggestion] = []
+
+    # Rule: New customer without contacts
+    if state.get("contact_count", 0) == 0:
+        suggestions.append(Suggestion(
+            id="add-customer-contacts",
+            action_type="create_contact",
+            title="Add customer contacts",
+            description="No contacts registered — add buyer and shipping contacts",
+            confidence=0.9,
+            rationale="Customer has no contacts, which blocks SO dispatch",
+            priority=8,
+            action_payload={},
+            source="heuristic",
+            is_safe_action=False,
+        ))
+
+    # Rule: Customer without locations
+    if state.get("location_count", 0) == 0:
+        suggestions.append(Suggestion(
+            id="add-customer-location",
+            action_type="create_location",
+            title="Add delivery location",
+            description="No delivery locations registered — add at least one for shipping",
+            confidence=0.85,
+            rationale="Customer has no locations, required for delivery logistics",
+            priority=7,
+            action_payload={},
+            source="heuristic",
+            is_safe_action=False,
+        ))
+
+    # Rule: Customer with open invoices past due
+    if state.get("overdue_invoice_count", 0) > 0:
+        suggestions.append(Suggestion(
+            id="follow-up-overdue-invoices",
+            action_type="follow_up",
+            title="Follow up on overdue invoices",
+            description=f"{state.get('overdue_invoice_count')} invoice(s) past due — consider collection action",
+            confidence=0.85,
+            rationale="Outstanding payments may affect credit and future orders",
+            priority=8,
+            action_payload={"overdue_count": state.get("overdue_invoice_count", 0)},
+            source="heuristic",
+            is_safe_action=True,
+        ))
+
     return suggestions
 
 
@@ -228,6 +310,7 @@ HEURISTIC_RULES: dict[str, Any] = {
     "sales_order": _sales_order_rules,
     "purchase_order": _purchase_order_rules,
     "supplier": _supplier_rules,
+    "customer": _customer_rules,
 }
 
 
@@ -235,23 +318,85 @@ HEURISTIC_RULES: dict[str, Any] = {
 # Main Service
 # -------------------------------------------------------------------
 
+def _llm_fallback_suggestions(request: SuggestionRequest) -> list[Suggestion]:
+    """Generate suggestions via LLM when no heuristic rules match.
+
+    Bounded to a quick, low-cost call. Returns empty on failure.
+    """
+    import os
+    from django.conf import settings as django_settings
+
+    api_key = getattr(django_settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return []
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+
+        prompt = (
+            f"You are an AI assistant for a meat trading platform.\n"
+            f"Given entity type '{request.entity_type}' with current state:\n"
+            f"{request.current_state}\n\n"
+            f"Suggest 1-3 concrete next actions the operator should take.\n"
+            f"Return JSON array of objects with: action, label, confidence (0-1), reason.\n"
+            f"Focus on business-critical actions only. Be specific."
+        )
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            max_tokens=300,
+            timeout=5,
+        )
+
+        import json
+        content = response.choices[0].message.content or "{}"
+        data = json.loads(content)
+        items = data.get("suggestions") or data.get("actions") or (data if isinstance(data, list) else [])
+
+        suggestions = []
+        for i, item in enumerate(items[:3]):
+            suggestions.append(Suggestion(
+                id=f"llm-suggestion-{i}",
+                action_type=str(item.get("action", "review")),
+                title=str(item.get("label", item.get("title", "AI Suggestion"))),
+                description=str(item.get("reason", "")),
+                confidence=min(float(item.get("confidence", 0.6)), 0.85),
+                rationale=str(item.get("reason", "AI-generated suggestion")),
+                priority=5 - i,
+                source="llm",
+                is_safe_action=False,
+            ))
+        return suggestions
+    except Exception:
+        logger.debug("LLM fallback suggestion failed for %s/%s", request.entity_type, request.entity_id, exc_info=True)
+        return []
+
+
 def get_contextual_suggestions(request: SuggestionRequest) -> SuggestionResponse:
     """
     Main entry point for contextual suggestions.
 
-    Evaluates heuristic rules for the entity type, returns sorted suggestions.
-    LLM escalation is deferred to a future iteration when heuristic confidence is low.
+    Evaluates heuristic rules for the entity type. Falls back to LLM
+    when no heuristic rules exist or produce zero suggestions.
     """
     rules_fn = HEURISTIC_RULES.get(request.entity_type)
 
-    if not rules_fn:
-        logger.debug("No rules for entity_type=%s", request.entity_type)
-        return SuggestionResponse(
-            entity_type=request.entity_type,
-            entity_id=request.entity_id,
-        )
+    if rules_fn:
+        suggestions = rules_fn(request.current_state)
+    else:
+        suggestions = []
 
-    suggestions = rules_fn(request.current_state)
+    evaluation_source = "heuristic"
+
+    # LLM fallback when heuristics produce nothing
+    if not suggestions and request.current_state:
+        llm_suggestions = _llm_fallback_suggestions(request)
+        if llm_suggestions:
+            suggestions = llm_suggestions
+            evaluation_source = "llm"
 
     # Sort by priority (desc) then confidence (desc)
     suggestions.sort(key=lambda s: (s.priority, s.confidence), reverse=True)

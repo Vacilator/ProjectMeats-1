@@ -6,8 +6,11 @@
  * - list active trades
  * - advance trade
  * - get trade status
+ *
+ * AI-backed endpoints use withRetry for transient failure resilience.
  */
 import { businessApi } from './businessApi';
+import { withRetry } from '../utils/apiRetry';
 
 // ============================================================================
 // Types
@@ -151,8 +154,10 @@ export const traderService = {
 
   /** Smart initiate — richer payload with AI context suggestions */
   async smartInitiate(data: SmartInitiateRequest): Promise<SmartInitiateResponse> {
-    const response = await businessApi.post('/trades/smart-initiate/', data);
-    return response.data as SmartInitiateResponse;
+    return withRetry(async () => {
+      const response = await businessApi.post('/trades/smart-initiate/', data);
+      return response.data as SmartInitiateResponse;
+    });
   },
 
   /** Advance a trade through the orchestrator */
@@ -177,11 +182,13 @@ export const traderService = {
 
   /** Fetch AI-generated trade proposals for the current tenant */
   async getProposals(): Promise<TradeProposal[]> {
-    const response = await businessApi.get('/trades/proposals/');
-    const payload = response.data;
-    if (Array.isArray(payload)) return payload as TradeProposal[];
-    const results = (payload as { results?: TradeProposal[] } | null)?.results;
-    return Array.isArray(results) ? results : [];
+    return withRetry(async () => {
+      const response = await businessApi.get('/trades/proposals/');
+      const payload = response.data;
+      if (Array.isArray(payload)) return payload as TradeProposal[];
+      const results = (payload as { results?: TradeProposal[] } | null)?.results;
+      return Array.isArray(results) ? results : [];
+    });
   },
 
   /** Execute (approve) an AI trade proposal */
