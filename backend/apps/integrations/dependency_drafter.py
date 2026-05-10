@@ -74,6 +74,15 @@ def build_related_entity_drafts(
         )
         if customer_draft:
             drafts.append(customer_draft)
+    # If category is "Contact Update" but we have no person name and only company
+    # info, also propose a customer draft (smart fallback)
+    elif category == 'Contact Update' and not resolved_person_name and contact_company:
+        customer_draft = _propose_customer(
+            name=contact_company,
+            tenant=tenant,
+        )
+        if customer_draft:
+            drafts.append(customer_draft)
 
     # --- Contact draft (only when we have a real person name or email) ---
     if resolved_person_name and (sender_email or resolved_person_name):
