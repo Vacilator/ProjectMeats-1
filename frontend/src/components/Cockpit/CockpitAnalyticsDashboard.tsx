@@ -364,6 +364,7 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
           className="shadow-sm"
         >
           <Table
+            aria-label="Supplier win rates"
             dataSource={data.supplier_win_rates}
             columns={winRateColumns}
             rowKey="supplier_id"
@@ -418,6 +419,7 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
         className="shadow-sm"
       >
         <Table
+          aria-label="Top contacts"
           dataSource={data.top_contacts}
           columns={contactColumns}
           rowKey="contact_id"

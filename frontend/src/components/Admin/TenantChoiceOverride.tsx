@@ -434,6 +434,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
                   </Space>
 
                   <Table
+                    aria-label="Tenant choice overrides"
                     rowKey="id"
                     columns={columns}
                     dataSource={rows}

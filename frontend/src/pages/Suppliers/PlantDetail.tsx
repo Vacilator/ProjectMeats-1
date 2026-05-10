@@ -421,6 +421,7 @@ export const PlantDetail: React.FC = () => {
                   <Empty description="No contacts for this plant" />
                 ) : (
                   <Table
+                    aria-label="Supplier plant contacts"
                     size="small"
                     columns={columns}
                     dataSource={contacts}

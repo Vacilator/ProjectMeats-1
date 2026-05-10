@@ -268,6 +268,7 @@ export function CockpitFinancialsPanel(): React.ReactElement {
         }
       >
         <Table
+          aria-label="Financial trades"
           dataSource={trades}
           columns={columns}
           rowKey="trade_id"

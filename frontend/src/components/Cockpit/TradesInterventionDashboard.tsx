@@ -344,6 +344,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
         }
       >
         <Table
+          aria-label="Trades requiring intervention"
           dataSource={trades}
           columns={columns}
           rowKey="id"
