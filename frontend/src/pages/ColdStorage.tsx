@@ -94,13 +94,13 @@ const TempBadge = styled.span<{ $zone: string }>`
   font-size: 0.7rem;
   font-weight: 600;
   background: ${(p) =>
-    p.$zone === 'frozen' ? 'rgb(219 234 254)' :
-    p.$zone === 'chilled' ? 'rgb(220 252 231)' :
-    'rgb(254 249 195)'};
+    p.$zone === 'frozen' ? 'rgba(var(--color-info), 0.15)' :
+    p.$zone === 'chilled' ? 'rgba(var(--color-success), 0.15)' :
+    'rgba(var(--color-warning), 0.15)'};
   color: ${(p) =>
-    p.$zone === 'frozen' ? 'rgb(29 78 216)' :
-    p.$zone === 'chilled' ? 'rgb(21 128 61)' :
-    'rgb(161 98 7)'};
+    p.$zone === 'frozen' ? 'rgb(var(--color-info))' :
+    p.$zone === 'chilled' ? 'rgb(var(--color-success))' :
+    'rgb(var(--color-warning))'};
 `;
 
 const DetailGrid = styled.div`

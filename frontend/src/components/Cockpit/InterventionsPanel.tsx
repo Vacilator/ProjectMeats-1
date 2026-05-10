@@ -204,13 +204,13 @@ const StatusBadge = styled.span<{ $status: TradeExceptionStatus }>`
   ${({ $status }) => {
     switch ($status) {
       case 'open':
-        return 'background: rgb(239 68 68 / 0.12); color: rgb(239 68 68);';
+        return 'background: rgba(var(--color-error), 0.12); color: rgb(var(--color-error));';
       case 'retrying':
-        return 'background: rgb(59 130 246 / 0.12); color: rgb(59 130 246);';
+        return 'background: rgba(var(--color-info), 0.12); color: rgb(var(--color-info));';
       case 'resolved':
-        return 'background: rgb(34 197 94 / 0.12); color: rgb(34 197 94);';
+        return 'background: rgba(var(--color-success), 0.12); color: rgb(var(--color-success));';
       case 'exhausted':
-        return 'background: rgb(234 179 8 / 0.16); color: rgb(161 98 7);';
+        return 'background: rgba(var(--color-warning), 0.16); color: rgb(var(--color-warning));';
       default:
         return 'background: rgb(var(--color-border)); color: rgb(var(--color-text-primary));';
     }
@@ -338,8 +338,8 @@ const InlineMessage = styled.div<{ $tone: 'info' | 'error' }>`
   padding: 12px;
   border-radius: var(--radius-md);
   background: ${({ $tone }) =>
-    $tone === 'error' ? 'rgb(239 68 68 / 0.08)' : 'rgb(59 130 246 / 0.08)'};
-  color: ${({ $tone }) => ($tone === 'error' ? 'rgb(239 68 68)' : 'rgb(59 130 246)')};
+    $tone === 'error' ? 'rgba(var(--color-error), 0.08)' : 'rgba(var(--color-info), 0.08)'};
+  color: ${({ $tone }) => ($tone === 'error' ? 'rgb(var(--color-error))' : 'rgb(var(--color-info))')};
   font-size: 13px;
 `;
 

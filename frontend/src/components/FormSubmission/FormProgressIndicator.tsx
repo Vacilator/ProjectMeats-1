@@ -156,7 +156,7 @@ const CompactProgressBar = styled.div`
 const CompactProgressFill = styled.div<{ $progress: number }>`
   height: 100%;
   width: ${props => props.$progress}%;
-  background: linear-gradient(90deg, rgb(var(--color-success)), rgb(102, 126, 234));
+  background: linear-gradient(90deg, rgb(var(--color-success)), rgb(var(--color-primary)));
   border-radius: 3px;
   transition: width 0.3s ease;
 `;

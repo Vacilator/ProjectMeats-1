@@ -191,6 +191,64 @@ const Suppliers: React.FC = () => {
     [handleDelete]
   );
 
+  const handleRowClick = useCallback(
+    (record: SupplierListRow) => {
+      const id = String(record.id ?? '').trim();
+      if (!id) return;
+      navigate(`/suppliers/${encodeURIComponent(id)}`);
+    },
+    [navigate]
+  );
+
+  const onRow = useCallback(
+    (record: SupplierListRow) => ({
+      style: { cursor: 'pointer' } as const,
+      onClick: () => handleRowClick(record),
+    }),
+    [handleRowClick]
+  );
+
+  const expandable = useMemo(
+    () => ({
+      onExpand: (expanded: boolean, record: SupplierListRow) => {
+        if (!expanded) return;
+        if (Array.isArray(record.associated_products) && record.associated_products.length) return;
+        void loadSupplierProducts(record.id ?? '');
+      },
+      expandedRowRender: (record: SupplierListRow) => {
+        const id = String(record.id ?? '').trim();
+        const loading = productsLoadingBySupplierId[id];
+        const products = productsBySupplierId[id] ?? [];
+
+        if (Array.isArray(record.associated_products) && record.associated_products.length) {
+          return null;
+        }
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>Aggregated Products</div>
+            {loading ? (
+              <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Loading…</span>
+            ) : products.length ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {products.map((p) => (
+                  <Tag key={String(p.id)}>{p.product_name || p.name || p.product_code || 'Product'}</Tag>
+                ))}
+              </div>
+            ) : (
+              <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No products found.</span>
+            )}
+          </div>
+        );
+      },
+      rowExpandable: (record: SupplierListRow) => {
+        const hasInline = Array.isArray(record.associated_products) && record.associated_products.length > 0;
+        return !hasInline;
+      },
+    }),
+    [loadSupplierProducts, productsLoadingBySupplierId, productsBySupplierId]
+  );
+
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -233,51 +291,8 @@ const Suppliers: React.FC = () => {
         dataSource={filteredSuppliers}
         loading={suppliersQuery.isLoading}
         pagination={{ pageSize: 25 }}
-        onRow={(record) => ({
-          style: { cursor: 'pointer' },
-          onClick: () => {
-            const id = String(record.id ?? '').trim();
-            if (!id) return;
-            navigate(`/suppliers/${encodeURIComponent(id)}`);
-          },
-        })}
-        expandable={{
-          onExpand: (expanded, record) => {
-            if (!expanded) return;
-            if (Array.isArray(record.associated_products) && record.associated_products.length) return;
-            void loadSupplierProducts(record.id ?? '');
-          },
-          expandedRowRender: (record) => {
-            const id = String(record.id ?? '').trim();
-            const loading = productsLoadingBySupplierId[id];
-            const products = productsBySupplierId[id] ?? [];
-
-            if (Array.isArray(record.associated_products) && record.associated_products.length) {
-              return null;
-            }
-
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>Aggregated Products</div>
-                {loading ? (
-                  <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Loading…</span>
-                ) : products.length ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {products.map((p) => (
-                      <Tag key={String(p.id)}>{p.product_name || p.name || p.product_code || 'Product'}</Tag>
-                    ))}
-                  </div>
-                ) : (
-                  <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>No products found.</span>
-                )}
-              </div>
-            );
-          },
-          rowExpandable: (record) => {
-            const hasInline = Array.isArray(record.associated_products) && record.associated_products.length > 0;
-            return !hasInline;
-          },
-        }}
+        onRow={onRow}
+        expandable={expandable}
       />
       )}
 

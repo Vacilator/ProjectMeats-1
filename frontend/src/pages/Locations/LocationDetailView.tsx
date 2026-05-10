@@ -8,6 +8,7 @@ import { EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiService';
 import { isAuthError } from '@/utils/isAuthError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type RouteParams = { id?: string };
 
@@ -93,6 +94,7 @@ export const LocationDetailView: React.FC = () => {
   const { loading: authLoading, isAuthenticated } = useAuthState();
 
   const locationId = String(id || '').trim();
+  useDocumentTitle(locationId ? `Location ${locationId}` : 'Location Detail');
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
