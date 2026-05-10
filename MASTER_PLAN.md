@@ -145,6 +145,13 @@ Meats Central is the simplest, most powerful end-to-end meat supply-chain platfo
 - **Security: OAuth callback RLS context: SHIPPED.** Set `set_current_tenant()` / `reset_current_tenant()` before tenant-scoped ORM writes in OAuth callback. Prevents stale RLS context on pooled connections (PR #5219).
 - **Email test regression fix: SHIPPED.** Updated `test_new_email_creates_action_required_feedback_log` mock pattern to match Celery async classification (PR #5220).
 - **Last hardcoded color eliminated: SHIPPED.** Replaced `#fff` in Contacts.tsx. `npm run lint:colors` now reports zero violations (PR #5221).
+- **MASTER_PLAN progress update: SHIPPED.** Updated all shipped status markers and PR cross-references (PR #5222).
+- **Security: OAuth de-shadowing + TenantMiddleware regression tests: SHIPPED.** Removed duplicate OAuth callback routes, added 4 middleware regression tests for anonymous tenant injection prevention (PR #5223).
+- **Email provenance badges + retryability hints: SHIPPED.** AI widget displays parse-source, parse-status, and retryability badges with actionable retry CTA (PR #5224).
+- **WorkForms publish readiness preflight: SHIPPED.** ValidationDrawer integrated into toolbar with ShieldCheck button, actionable remediation items, blocks publish on unsupported/misconfigured nodes (PR #5225).
+- **WorkForms A11y + testability: SHIPPED.** ValidationDrawer aria-expanded/role/tabIndex/onKeyDown, DynamicConfigPanel htmlFor/id on labels, toolbar aria-labels/aria-pressed/data-testid selectors (PR #5226).
+- **Cockpit search relevance + lazy-mount: SHIPPED.** Multi-factor relevance scoring (exact/prefix/word-boundary/substring/fuzzy + recency boost), single-char-deletion fuzzy variants, lazy-mount hidden config fields (PR #5227).
+- **Mobile responsiveness: SHIPPED.** useMediaQuery/useIsMobile/useIsTablet hooks, responsive CockpitDashboard grid (1/6/12 cols), touch-target sizing, SmartSearch mobile padding, FlowEditor mobile notice banner, global CSS touch/overflow/modal rules (PR #5228).
 - **AI Widget WebSocket resilience shipped.** Dev-only structured logging, token refresh hardening, close-code diagnostics (PR #5040).
 - **Email sync on login shipped.** Django `user_logged_in` signal fires tenant-scoped Celery sync + frontend status indicator (PR #5041).
 - **Render loop fix shipped.** Stabilized `DynamicFormEngine` dependency tracking with deep-equality ref guard + signature-based visibility effect guard (PR #5038). Comprehensive 11-file sweep eliminates the entire React #185 bug class: engine-level ref-pattern guards in DynamicFormEngine + UniversalEntityForm, page-level useCallback extraction for Suppliers/Customers/Contacts/Carriers/FreightOrders/Inquiries, component-level for UnifiedEntityTable/CustomerDetailView/ScheduleCallModal (PR #5049).
@@ -1058,27 +1065,27 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Workforms Editor:** maintain hook safety, node config save UX, and layout predictability.
 
 ### P0 — Security / tenant isolation (next)
-- **TenantMiddleware hardening:** ignore `X-Tenant-ID` for anonymous requests (prevent tenant context injection on `AllowAny` endpoints); add regression tests.
+- **TenantMiddleware hardening:** ignore `X-Tenant-ID` for anonymous requests (prevent tenant context injection on `AllowAny` endpoints); add regression tests. ✅ shipped (PR #5223). ✅ shipped (PR #5223).
 - **Workflow webhooks tenant-safe:** add a new canonical webhook URL embedding `tenant_id` in the path and set RLS tenant explicitly in the receiver view; keep legacy URL temporarily.
 - **Email webhooks verification (critical):** Outlook requires unpredictable per-subscription `clientState`; Gmail requires request verification (JWT/secret) so forged requests cannot trigger upstream API calls.
 - **Tenant-scope email integration data:** phase in `tenant_id` for EmailAccount/EmailLog (and related tables), then add RLS policies once tenant-scoped.
-- **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure.
+- **OAuth endpoint de-shadowing:** remove/lock down duplicate legacy OAuth callback routes to prevent accidental re-exposure. ✅ shipped (PR #5223). ✅ shipped (PR #5223).
 
 ### P0 — WorkForms editor “industry leader” UX (next)
-- **Publish readiness preflight + support matrix UI:** block publish when unsupported nodes/missing required config; show actionable remediation.
-- **Validation parity:** unify `nodeValidationService` with schema `conditional` + `validationEngine` so hidden fields don’t error and rules match the config panel.
-- **Config safety:** keyValue record-mode must never persist arrays into node data (draft UI-only); add unit + Playwright coverage (actionHTTP headers).
-- **A11y + testability:** section headers keyboard-accessible (`aria-expanded`), labels wired to inputs (`htmlFor`/`id`), stable `data-testid` selectors.
-- **Performance:** lazy-mount heavy hidden fields; debounce text updates to shadow state; remove/gate debug logging.
+- **Publish readiness preflight + support matrix UI:** block publish when unsupported nodes/missing required config; show actionable remediation. ✅ shipped (PR #5225).
+- **Validation parity:** unify `nodeValidationService` with schema `conditional` + `validationEngine` so hidden fields don’t error and rules match the config panel. ✅ verified correct — `_checkIsVisible()` already skips hidden fields; no divergence found.
+- **Config safety:** keyValue record-mode must never persist arrays into node data (draft UI-only); add unit + Playwright coverage (actionHTTP headers). ✅ verified correct — `coerceRecord()` normalizes arrays before persistence.
+- **A11y + testability:** section headers keyboard-accessible (`aria-expanded`), labels wired to inputs (`htmlFor`/`id`), stable `data-testid` selectors. ✅ shipped (PR #5226).
+- **Performance:** lazy-mount heavy hidden fields; debounce text updates to shadow state; remove/gate debug logging. ✅ shipped lazy-mount (PR #5227); debug logging already gated in production.
 
 ### P0 — Business usability
-- **Cockpit Search relevance:** ranking + fuzzy match + recency; persistent favorites that are tenant-safe (RLS-backed).
-- **Mobile responsiveness:** Cockpit + core CRUD forms usable <768px; touch targets; FlowEditor mobile/tablet fallback.
-- **Email ingestion monitor:** correctness, diagnostics, reconnect CTA, progress reporting, attachment-aware detection.
+- **Cockpit Search relevance:** ranking + fuzzy match + recency; persistent favorites that are tenant-safe (RLS-backed). ✅ shipped relevance scoring + fuzzy match (PR #5227); favorites already RLS-backed (PR #4037).
+- **Mobile responsiveness:** Cockpit + core CRUD forms usable <768px; touch targets; FlowEditor mobile/tablet fallback. ✅ shipped (PR #5228).
+- **Email ingestion monitor:** correctness, diagnostics, reconnect CTA, progress reporting, attachment-aware detection. ✅ shipped provenance badges + retryability hints (PR #5224); intelligent classification (PR #5215).
 - **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows.
 
 ### P1 — CI/CD determinism (next)
-- **Remove archived workflows from Actions:** move `.github/workflows/archived/**` out of `.github/workflows/` so they cannot run and bypass guardrails.
+- **Remove archived workflows from Actions:** move `.github/workflows/archived/**` out of `.github/workflows/` so they cannot run and bypass guardrails. ✅ verified — no archived directory exists; all 17 workflows are active and valid.
 - **Immutable CI inputs:** digest-pin workflow `services.*.image` containers (Postgres/pgvector) and stop pushing mutable `latest` tags.
 - **Deployment safety gate:** require PR Validation success for the same SHA for UAT/Prod deployments (even if deploy workflow test jobs are temporarily bypassed).
 
