@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 
 import { Typography } from 'antd';
 
@@ -7,6 +7,8 @@ import { EntityFormSurface } from '../../components/Shared/EntityFormSurface';
 const { Paragraph, Title } = Typography;
 
 export const EntityFormSurfaceSmoke: React.FC = () => {
+  const handleClose = useCallback(() => {}, []);
+
   return (
     <div
       style={{
@@ -28,7 +30,7 @@ export const EntityFormSurfaceSmoke: React.FC = () => {
         mode="edit"
         variant="inline"
         isOpen
-        onClose={() => {}}
+        onClose={handleClose}
         initialValues={{ export_approved: false }}
       />
     </div>

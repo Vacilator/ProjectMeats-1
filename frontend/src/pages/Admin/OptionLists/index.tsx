@@ -7,7 +7,7 @@
  * - AntD Tabs/Table/Card layout
  * - System Choice Lists vs Custom Tenant Lists
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -248,6 +248,12 @@ const OptionListsPage: React.FC = () => {
 
   const [editingCustomList, setEditingCustomList] = useState<CustomTenantList | null>(null);
   const [customModalOpen, setCustomModalOpen] = useState(false);
+
+  const handleEditingListClose = useCallback(() => setEditingList(null), []);
+  const handleCustomModalClose = useCallback(() => {
+    setCustomModalOpen(false);
+    setEditingCustomList(null);
+  }, []);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -1147,7 +1153,7 @@ const OptionListsPage: React.FC = () => {
             isExtensible={editingList.is_extensible}
             isReorderable={editingList.is_reorderable}
             isOpen={!!editingList}
-            onClose={() => setEditingList(null)}
+            onClose={handleEditingListClose}
             onSave={() => {
               void systemChoiceListsQuery.refetch();
               setEditingList(null);
@@ -1159,10 +1165,7 @@ const OptionListsPage: React.FC = () => {
           isOpen={customModalOpen}
           canEdit={canEdit}
           initial={editingCustomList}
-          onClose={() => {
-            setCustomModalOpen(false);
-            setEditingCustomList(null);
-          }}
+          onClose={handleCustomModalClose}
           onSaved={() => void customListsQuery.refetch()}
         />
 

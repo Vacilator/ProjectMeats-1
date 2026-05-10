@@ -307,6 +307,10 @@ export function TemplateLibraryPage(): React.ReactElement {
     });
   }, [selectedTemplate, variantName, cloneMutation]);
 
+  const handleHistoryClose = useCallback(() => {
+    setHistoryModalOpen(false);
+  }, []);
+
   const { systemTemplates, variants } = useMemo(() => {
     if (!templates) return { systemTemplates: [], variants: [] };
     return {
@@ -431,7 +435,7 @@ export function TemplateLibraryPage(): React.ReactElement {
       <VersionHistoryModal
         template={selectedTemplate}
         open={historyModalOpen}
-        onClose={() => setHistoryModalOpen(false)}
+        onClose={handleHistoryClose}
       />
     </div>
   );

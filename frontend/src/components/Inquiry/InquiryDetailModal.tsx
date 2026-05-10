@@ -9,7 +9,7 @@
  * - Clone inquiry
  * - Edit contact and notes
  */
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { formatDateLocal } from '@/utils/formatters';
 import {
@@ -394,6 +394,8 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  const handleFulfillmentClose = useCallback(() => setShowFulfillmentModal(false), []);
+
   if (!isOpen || !inquiry) return null;
 
   const handleStatusUpdate = async (newStatus: InquiryStatus) => {
@@ -690,7 +692,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
       {showFulfillmentModal && (
         <CreateFulfillmentModal
           isOpen={showFulfillmentModal}
-          onClose={() => setShowFulfillmentModal(false)}
+          onClose={handleFulfillmentClose}
           onSuccess={handleFulfillmentSuccess}
           inquiry={inquiry}
         />

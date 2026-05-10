@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Empty, Spin, Tabs, Tag } from 'antd';
 import styled from 'styled-components';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -165,6 +165,10 @@ export const PlantDetailView: React.FC = () => {
     return buckets;
   }, [contacts]);
 
+  const handleViewClose = useCallback(() => {
+    navigate('/plants');
+  }, [navigate]);
+
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
   if (isEditing) {
@@ -203,7 +207,7 @@ export const PlantDetailView: React.FC = () => {
             variant="inline"
             isOpen={true}
             entityId={plantId}
-            onClose={() => navigate('/plants')}
+            onClose={handleViewClose}
           />
         )}
       </ContentSection>

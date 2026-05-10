@@ -252,6 +252,15 @@ export const LocationDetail: React.FC = () => {
     []
   );
 
+  const handleEditClose = useCallback(() => {
+    setShowEditModal(false);
+  }, []);
+
+  const handleEditSuccess = useCallback(() => {
+    setShowEditModal(false);
+    setRefreshKey((k) => k + 1);
+  }, []);
+
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
   return (
@@ -308,11 +317,8 @@ export const LocationDetail: React.FC = () => {
           mode="edit"
           entityId={lid}
           isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          onSuccess={() => {
-            setShowEditModal(false);
-            setRefreshKey((k) => k + 1);
-          }}
+          onClose={handleEditClose}
+          onSuccess={handleEditSuccess}
         />
       )}
 

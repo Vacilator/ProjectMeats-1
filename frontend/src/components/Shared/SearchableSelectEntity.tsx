@@ -237,6 +237,8 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isSearchMode, setIsSearchMode] = useState(forceSearch);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+
+  const handleQuickCreateClose = useCallback(() => setIsQuickCreateOpen(false), []);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -301,6 +303,16 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
       setIsLoading(false);
     }
   };
+
+  const handleQuickCreated = useCallback((entity: { value: string; label: string }) => {
+    setIsQuickCreateOpen(false);
+    setOptions((prev) => {
+      if (prev.some((o) => o.value === entity.value)) return prev;
+      return [{ value: entity.value, label: entity.label }, ...prev];
+    });
+    onChange(entity.value);
+    void loadOptions('');
+  }, [onChange, loadOptions]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -459,16 +471,8 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
         <QuickCreateModal
           entityType={entityType}
           isOpen={isQuickCreateOpen}
-          onClose={() => setIsQuickCreateOpen(false)}
-          onCreated={(entity) => {
-            setIsQuickCreateOpen(false);
-            setOptions((prev) => {
-              if (prev.some((o) => o.value === entity.value)) return prev;
-              return [{ value: entity.value, label: entity.label }, ...prev];
-            });
-            onChange(entity.value);
-            void loadOptions('');
-          }}
+          onClose={handleQuickCreateClose}
+          onCreated={handleQuickCreated}
         />
       )}
     </Container>

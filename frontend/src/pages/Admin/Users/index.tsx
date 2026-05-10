@@ -3,7 +3,7 @@
  *
  * Tenant admin management for users, invitations, and roles.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -81,6 +81,10 @@ const UsersPage: React.FC = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>('user');
   const [editRole, setEditRole] = useState<string>('user');
+
+  const handleBulkRevokeClose = useCallback(() => setShowBulkRevokeConfirm(false), []);
+  const handleDeactivateClose = useCallback(() => setShowDeactivateConfirm(false), []);
+  const handleRemoveClose = useCallback(() => setShowRemoveConfirm(false), []);
 
   const {
     data: users = [],
@@ -685,7 +689,7 @@ const UsersPage: React.FC = () => {
 
       <ConfirmDialog
         isOpen={showBulkRevokeConfirm}
-        onClose={() => setShowBulkRevokeConfirm(false)}
+        onClose={handleBulkRevokeClose}
         onConfirm={() => bulkRevokeMutation.mutate(selectedInvitationIds)}
         title="Revoke invitations"
         message={`Revoke ${selectedInvitationIds.length} pending invitation${selectedInvitationIds.length === 1 ? '' : 's'}? This cannot be undone.`}
@@ -791,7 +795,7 @@ const UsersPage: React.FC = () => {
 
       <ConfirmDialog
         isOpen={showDeactivateConfirm}
-        onClose={() => setShowDeactivateConfirm(false)}
+        onClose={handleDeactivateClose}
         onConfirm={() => {
           if (!selectedUser) return;
           const targetUserId = getUserId(selectedUser);
@@ -810,7 +814,7 @@ const UsersPage: React.FC = () => {
 
       <ConfirmDialog
         isOpen={showRemoveConfirm}
-        onClose={() => setShowRemoveConfirm(false)}
+        onClose={handleRemoveClose}
         onConfirm={() => {
           if (!selectedUser) return;
           const targetUserId = getUserId(selectedUser);

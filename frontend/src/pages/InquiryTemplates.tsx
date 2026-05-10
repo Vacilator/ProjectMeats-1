@@ -338,6 +338,10 @@ const InquiryTemplates: React.FC = () => {
     }
   };
 
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+  }, []);
+
   return (
     <PageContainer>
       <Header>
@@ -450,7 +454,7 @@ const InquiryTemplates: React.FC = () => {
 
       <InquiryTemplateModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleModalClose}
         onSave={handleSaveTemplate}
         template={editingTemplate}
       />

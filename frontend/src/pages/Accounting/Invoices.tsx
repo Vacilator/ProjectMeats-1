@@ -12,7 +12,7 @@
  *
  * Pattern: Follows Claims.tsx/SalesOrders.tsx architecture for consistency
  */
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
@@ -440,6 +440,14 @@ const Invoices: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPortalAccess, setShowPortalAccess] = useState(false);
 
+  const handlePaymentModalClose = useCallback(() => setShowPaymentModal(false), []);
+  const handlePaymentSuccess = useCallback(() => {
+    fetchInvoices();
+    setShowPaymentModal(false);
+  }, []);
+  const handleCreateModalClose = useCallback(() => setIsModalOpen(false), []);
+  const handleCreateSuccess = useCallback(() => fetchInvoices(), []);
+
   // Fetch invoices
   const fetchInvoices = async () => {
     try {
@@ -795,7 +803,7 @@ const Invoices: React.FC = () => {
 
                 <RecordPaymentModal
                   isOpen={showPaymentModal}
-                  onClose={() => setShowPaymentModal(false)}
+                  onClose={handlePaymentModalClose}
                   entityType="invoice"
                   entityId={selectedInvoice.id}
                   entityReference={selectedInvoice.invoice_number}
@@ -804,10 +812,7 @@ const Invoices: React.FC = () => {
                       selectedInvoice.outstanding_amount || selectedInvoice.total_amount
                     ) ?? 0
                   }
-                  onSuccess={() => {
-                    fetchInvoices();
-                    setShowPaymentModal(false);
-                  }}
+                  onSuccess={handlePaymentSuccess}
                 />
               </>
             )}
@@ -820,8 +825,8 @@ const Invoices: React.FC = () => {
         mode="create"
         variant="modal"
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => fetchInvoices()}
+        onClose={handleCreateModalClose}
+        onSuccess={handleCreateSuccess}
       />
     </PageContainer>
   );

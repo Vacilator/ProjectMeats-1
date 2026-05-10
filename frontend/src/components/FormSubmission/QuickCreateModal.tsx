@@ -8,7 +8,7 @@
  * - Keeps the existing QuickCreateModal prop contract so callers don’t need refactors.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 
 import type { EntityFormContext } from '../Shared/EntityFormSurface';
 import { UnifiedForm } from '../UnifiedForm';
@@ -78,6 +78,17 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
     return Object.keys(ctx).length ? ctx : undefined;
   }, [mergedContext]);
 
+  const handleSuccess = useCallback((created: unknown) => {
+    const option = coerceEntityOption(entityType, created);
+    if (!option) {
+      onClose();
+      return;
+    }
+
+    onClose();
+    onCreated(option);
+  }, [entityType, onClose, onCreated]);
+
   if (!isOpen || !entityType) return null;
 
   return (
@@ -89,16 +100,7 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       onClose={onClose}
       context={surfaceContext}
       initialValues={mergedContext}
-      onSuccess={(created) => {
-        const option = coerceEntityOption(entityType, created);
-        if (!option) {
-          onClose();
-          return;
-        }
-
-        onClose();
-        onCreated(option);
-      }}
+      onSuccess={handleSuccess}
     />
   );
 };

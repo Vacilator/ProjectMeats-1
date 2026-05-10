@@ -3,7 +3,7 @@
  *
  * Tenant configuration management with category tabs.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 
@@ -90,6 +90,8 @@ const ConfigurationsPage: React.FC = () => {
     default_value: '',
     is_required: false,
   });
+
+  const handleResetConfirmClose = useCallback(() => setShowResetConfirm(false), []);
 
   useEffect(() => {
     if (!canManage) return;
@@ -603,7 +605,7 @@ const ConfigurationsPage: React.FC = () => {
 
           <ConfirmDialog
             isOpen={showResetConfirm}
-            onClose={() => setShowResetConfirm(false)}
+            onClose={handleResetConfirmClose}
             onConfirm={confirmReset}
             title="Reset Category"
             message={`Reset all configurations in "${CATEGORIES.find((c) => c.key === activeCategory)?.label || activeCategory}" to defaults?`}

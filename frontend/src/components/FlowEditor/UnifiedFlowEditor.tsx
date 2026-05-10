@@ -2480,6 +2480,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [edges, nodes]);
   const [showValidationDrawer, setShowValidationDrawer] = useState(false);
 
+  const handleCloseConfigPanel = useCallback(() => {
+    if (selectedNode) {
+      logger.debug('[Tabbed Config Panel] Closing panel for node:', selectedNode.id);
+    }
+    setSelectedNode(null);
+  }, [selectedNode]);
+
+  const handleCloseContainerModal = useCallback(() => {
+    setContainerModalOpen(false);
+    setSelectedContainer(null);
+  }, []);
+
+  const handleCloseValidationDrawer = useCallback(() => setShowValidationDrawer(false), []);
+
   useEffect(() => {
     if (validationResult.errorCount > 0 && !showValidationDrawer) {
       setShowValidationDrawer(true);
@@ -2803,6 +2817,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [selectedFormStep, setSelectedFormStep] = useState<Node<any> | null>(null);
   const [formStepModalOpen, setFormStepModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<any | null>(null);
+
+  const handleCloseEditingField = useCallback(() => setEditingField(null), []);
   
   // Container configuration (Phase 4.3) - FormProcess special handling
   const [containerModalOpen, setContainerModalOpen] = useState(false);
@@ -2905,6 +2921,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+
+  const handleCloseTemplateModal = useCallback(() => setIsTemplateModalOpen(false), []);
   
   // ============================================================================
   // Workflow Persistence State (Phase 7)
@@ -2934,6 +2952,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false); // Phase 8.2
+
+  const handleCloseWorkflowModal = useCallback(() => setIsWorkflowModalOpen(false), []);
   const [workflowModalMode, setWorkflowModalMode] = useState<'create' | 'edit'>('create'); // Phase 8.2
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false); // Workform Batch 2
   const [workflowSearchQuery, setWorkflowSearchQuery] = useState(''); // Phase 8.3
@@ -8139,10 +8159,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               setNodes={setNodes}
               setEdges={setEdges}
               readOnly={readOnly}
-              onClose={() => {
-                logger.debug('[Tabbed Config Panel] Closing panel for node:', selectedNode.id);
-                setSelectedNode(null);
-              }}
+              onClose={handleCloseConfigPanel}
               onUpdate={handleNodeUpdate}
               onTest={handleNodeTest}
               onSelectNode={(nodeId) => {
@@ -8161,49 +8178,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* Template Selector Modal (Phase 2.5 Integration) */}
       <TemplateSelector
         isOpen={isTemplateModalOpen}
-        onClose={() => setIsTemplateModalOpen(false)}
+        onClose={handleCloseTemplateModal}
         onSelectTemplate={handleTemplateSelect}
         onStartBlank={handleStartBlank}
       />
       
       {/* 
-        NUCLEAR CLEANUP: All hardcoded config panels removed
-        NodeConfigPanelWithShadow (DynamicConfigPanel) is now the ONLY renderer
-        These SidePanel modals are no longer needed - all config handled by the main panel
-      
-      {/* FormStep Configuration Panel (using SidePanel instead of EntityFormStepModal) */}
-      {/* <SidePanel
-        isOpen={formStepModalOpen && !!selectedFormStep}
-        onClose={() => {
-          setFormStepModalOpen(false);
-          setSelectedFormStep(null);
-        }}
-      >
-        {selectedFormStep && (
-          <FormStepConfigPanel
-            step={selectedFormStep.data}
-            nodeId={selectedFormStep.id}
-            onChange={(updatedStepData) => {
-              handleNodeUpdate(selectedFormStep.id, updatedStepData);
-              setFormStepModalOpen(false);
-              setSelectedFormStep(null);
-            }}
-            onClose={() => {
-              setFormStepModalOpen(false);
-              setSelectedFormStep(null);
-            }}
-            availableFields={getPreviousStepFields(selectedFormStep.id)}
-          />
-        )}
-      </SidePanel> */}
+        NUCLEAR CLEANUP: All hardcoded config panels removed.
+        NodeConfigPanelWithShadow (DynamicConfigPanel) is now the ONLY renderer.
+        FormStep/SidePanel config modals removed — all config handled by the main panel.
+      */}
       
       {/* FormMultiStepContainer Configuration Modal (Phase 4.3) - KEEPING THIS */}
       <FormProcessModal
         isOpen={containerModalOpen && !!selectedContainer}
-        onClose={() => {
-          setContainerModalOpen(false);
-          setSelectedContainer(null);
-        }}
+        onClose={handleCloseContainerModal}
         onSave={handleContainerSave}
         initialData={selectedContainer ? convertNodeDataToContainerData(selectedContainer) : undefined}
         nodeId={selectedContainer?.id}
@@ -8212,7 +8201,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* Workflow Management Modal (Phase 8.2) */}
       <WorkflowManagementModal
         isOpen={isWorkflowModalOpen}
-        onClose={() => setIsWorkflowModalOpen(false)}
+        onClose={handleCloseWorkflowModal}
         onSave={handleWorkflowModalSave}
         initialData={{
           name: currentWorkflowName,
@@ -8236,13 +8225,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* FormField Configuration Modal (nested) - From within FormStep */}
       <SidePanel
         isOpen={!!editingField}
-        onClose={() => setEditingField(null)}
+        onClose={handleCloseEditingField}
       >
         {editingField && (
           <FormFieldConfigPanel
             field={editingField}
             onChange={handleFieldUpdate}
-            onClose={() => setEditingField(null)}
+            onClose={handleCloseEditingField}
           />
         )}
       </SidePanel>
@@ -8292,7 +8281,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       <ValidationDrawer
         validation={validationResult}
         isOpen={showValidationDrawer}
-        onClose={() => setShowValidationDrawer(false)}
+        onClose={handleCloseValidationDrawer}
         onNavigateToNode={handleNavigateToNode}
       />
       

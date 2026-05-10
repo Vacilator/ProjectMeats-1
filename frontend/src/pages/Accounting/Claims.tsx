@@ -16,7 +16,7 @@
  * - Buttons: rgb(var(--color-primary)) background
  * - No hardcoded colors
  */
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 
@@ -461,6 +461,10 @@ export const Claims: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | 'all'>('all');
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleModalClose = useCallback(() => setIsModalOpen(false), []);
+  const handleCreateSuccess = useCallback(() => fetchClaims(), []);
+
   const claimCreateInitialValues = useMemo(
     () => ({ claim_type: activeTab } as const),
     [activeTab]
@@ -768,8 +772,8 @@ export const Claims: React.FC = () => {
         entityType="claims"
         mode="create"
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => fetchClaims()}
+        onClose={handleModalClose}
+        onSuccess={handleCreateSuccess}
         initialValues={claimCreateInitialValues as any}
       />
     </PageContainer>

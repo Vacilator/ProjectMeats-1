@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Skeleton } from 'antd';
 import { ClipboardList } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -455,6 +455,10 @@ const PurchaseOrders: React.FC = () => {
     handleFormClose();
   };
 
+  const handleFormSuccessCallback = useCallback(() => {
+    void handleFormSuccess();
+  }, [handleFormSuccess]);
+
   const showingInlineForm = showForm;
   const headerTitle = showingInlineForm
     ? editingPurchaseOrder
@@ -503,9 +507,7 @@ const PurchaseOrders: React.FC = () => {
           variant="inline"
           isOpen={showForm}
           onClose={handleFormClose}
-          onSuccess={() => {
-            void handleFormSuccess();
-          }}
+          onSuccess={handleFormSuccessCallback}
           entityId={editingPurchaseOrder?.id}
           initialValues={editingPurchaseOrder ? undefined : purchaseOrderCreateInitialValues}
         />

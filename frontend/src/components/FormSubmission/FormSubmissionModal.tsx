@@ -1608,6 +1608,25 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     }
   }, [validateCurrentStep, currentStepIndex, autoPopulateFields]);
 
+  const handleCloseQuickCreate = useCallback(() => setQuickCreateField(null), []);
+
+  const handleQuickCreateCreated = useCallback(async (entity: { value: string; label: string }) => {
+    if (!quickCreateField) return;
+    // Set the newly created entity as the field value
+    handleChange(quickCreateField.stepId, quickCreateField.fieldKey, entity.value);
+
+    // Refresh options for this entity type
+    try {
+      const res = await entityOptionsService.getOptions(quickCreateField.entityType);
+      setEntityOptions(prev => ({ ...prev, [quickCreateField.entityType]: res.options || [] }));
+    } catch (e) {
+      logger.error('Failed to refresh options:', e);
+    }
+
+    setQuickCreateField(null);
+    notify.success(`Created new ${entity.label}`);
+  }, [quickCreateField, handleChange]);
+
   // Get field options
   const getFieldOptions = (field: FieldData): { value: string; label: string }[] => {
     // 1. Check for related entity options (ForeignKey)
@@ -2297,22 +2316,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           <QuickCreateModal
             entityType={quickCreateField.entityType}
             isOpen={true}
-            onClose={() => setQuickCreateField(null)}
-            onCreated={async (entity) => {
-              // Set the newly created entity as the field value
-              handleChange(quickCreateField.stepId, quickCreateField.fieldKey, entity.value);
-
-              // Refresh options for this entity type
-              try {
-                const res = await entityOptionsService.getOptions(quickCreateField.entityType);
-                setEntityOptions(prev => ({ ...prev, [quickCreateField.entityType]: res.options || [] }));
-              } catch (e) {
-                logger.error('Failed to refresh options:', e);
-              }
-
-              setQuickCreateField(null);
-              notify.success(`Created new ${entity.label}`);
-            }}
+            onClose={handleCloseQuickCreate}
+            onCreated={handleQuickCreateCreated}
           />
         )}
       </ModalContent>

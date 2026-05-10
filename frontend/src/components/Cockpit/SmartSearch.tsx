@@ -984,6 +984,11 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setQuickCreateConfig({ isOpen: false, type: '', context: {} });
   }, []);
 
+  const handleCloseNotesDrawer = useCallback(() => setIsNotesDrawerOpen(false), []);
+
+  const handleInlineClose = useCallback(() => onInlineCancel?.(), [onInlineCancel]);
+
+
   const formatEntityLabel = useCallback((raw: string) => {
     const cleaned = String(raw || '').replace(/_/g, ' ').trim();
     if (!cleaned) return 'Record';
@@ -1055,6 +1060,87 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       setLoadingRelationTab(prev => (prev === tabKey ? null : prev));
     }
   }, []);
+
+  const handleQuickCreateFormSuccess = useCallback((created: unknown) => {
+    const row = (created && typeof created === 'object' ? created : {}) as Record<string, unknown>;
+    const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
+    const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
+    const createdType =
+      rawType === 'customers'
+        ? 'customer'
+        : rawType === 'suppliers'
+          ? 'supplier'
+          : rawType === 'contacts'
+            ? 'contact'
+            : rawType === 'products'
+              ? 'product'
+              : rawType === 'invoices'
+                ? 'invoice'
+                : rawType;
+
+    const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
+
+    if (createdId) {
+      message.success(
+        `Created ${formatEntityLabel(createdType)}${createdName ? `: ${createdName}` : ''}`
+      );
+    }
+
+    const shouldNavigateToCreated = Boolean(
+      createdId && ['customer', 'supplier', 'contact', 'product', 'invoice'].includes(createdType)
+    );
+
+    if (shouldNavigateToCreated) {
+      handleSelectEntity({
+        id: createdId,
+        type: createdType,
+        name: createdName || `New ${formatEntityLabel(createdType)}`,
+      });
+
+      if (query?.trim()) {
+        void searchEntities(query);
+      }
+
+      closeQuickCreate();
+      return;
+    }
+
+    if (activeEntity) {
+      if (activeRelationTab !== 'more') {
+        void loadRelationshipTab(activeRelationTab, activeEntity);
+      }
+      void loadRelationalChunks(activeEntity);
+    }
+
+    closeQuickCreate();
+  }, [quickCreateConfig.type, formatEntityLabel, handleSelectEntity, query, searchEntities, activeEntity, activeRelationTab, loadRelationshipTab, loadRelationalChunks, closeQuickCreate]);
+
+  const handleInlineFormSuccess = useCallback((created: unknown) => {
+    const row = (created && typeof created === 'object' ? created : {}) as Record<string, unknown>;
+    const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
+    const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
+
+    if (inlineAction?.action === 'create' && createdId) {
+      handleSelectEntity({
+        id: createdId,
+        type: String(inlineAction.entityType || ''),
+        name: createdName || `New ${formatEntityLabel(String(inlineAction.entityType || 'record'))}`,
+      });
+
+      if (query?.trim()) {
+        void searchEntities(query);
+      }
+    }
+
+    if (activeEntity) {
+      if (activeRelationTab !== 'more') {
+        void loadRelationshipTab(activeRelationTab, activeEntity);
+      }
+      void loadRelationalChunks(activeEntity);
+    }
+
+    onInlineSuccess?.(created);
+  }, [inlineAction, handleSelectEntity, formatEntityLabel, query, searchEntities, activeEntity, activeRelationTab, loadRelationshipTab, loadRelationalChunks, onInlineSuccess]);
 
   // Continuous browsing: when the breadcrumb path changes, load the most relevant panel.
   useEffect(() => {
@@ -1357,6 +1443,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  const handleSalesOrderCreateSuccess = useCallback(() => closeInlineSubview(), [closeInlineSubview]);
+
   const tabCTA = useMemo(() => {
     if (!activeEntity || !isPrimaryEntity) return null;
 
@@ -1494,7 +1582,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
         <NotesAndCallsDrawer
           open={isNotesDrawerOpen && Boolean(activeEntity)}
-          onClose={() => setIsNotesDrawerOpen(false)}
+          onClose={handleCloseNotesDrawer}
           entityType={String(activeEntity?.type ?? '')}
           entityId={String(activeEntity?.id ?? '')}
           entityLabel={activeEntity?.name}
@@ -1514,59 +1602,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 supplierId: (quickCreateConfig.context?.supplier ?? quickCreateConfig.context?.supplier_id) as string | undefined,
                 contactId: (quickCreateConfig.context?.contact ?? quickCreateConfig.context?.contact_id) as string | undefined,
               }}
-              onSuccess={(created) => {
-                const row = (created && typeof created === 'object' ? created : {}) as Record<string, unknown>;
-                const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
-                const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
-                const createdType =
-                  rawType === 'customers'
-                    ? 'customer'
-                    : rawType === 'suppliers'
-                      ? 'supplier'
-                      : rawType === 'contacts'
-                        ? 'contact'
-                        : rawType === 'products'
-                          ? 'product'
-                          : rawType === 'invoices'
-                            ? 'invoice'
-                            : rawType;
-
-                const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
-
-                if (createdId) {
-                  message.success(
-                    `Created ${formatEntityLabel(createdType)}${createdName ? `: ${createdName}` : ''}`
-                  );
-                }
-
-                const shouldNavigateToCreated = Boolean(
-                  createdId && ['customer', 'supplier', 'contact', 'product', 'invoice'].includes(createdType)
-                );
-
-                if (shouldNavigateToCreated) {
-                  handleSelectEntity({
-                    id: createdId,
-                    type: createdType,
-                    name: createdName || `New ${formatEntityLabel(createdType)}`,
-                  });
-
-                  if (query?.trim()) {
-                    void searchEntities(query);
-                  }
-
-                  closeQuickCreate();
-                  return;
-                }
-
-                if (activeEntity) {
-                  if (activeRelationTab !== 'more') {
-                    void loadRelationshipTab(activeRelationTab, activeEntity);
-                  }
-                  void loadRelationalChunks(activeEntity);
-                }
-
-                closeQuickCreate();
-              }}
+              onSuccess={handleQuickCreateFormSuccess}
             />
           </div>
         )}
@@ -1584,38 +1620,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               variant="inline"
               forceUniversal
               isOpen={true}
-              onClose={() => onInlineCancel?.()}
+              onClose={handleInlineClose}
               context={{
                 customerId: (inlineAction.contextData?.customer ?? inlineAction.contextData?.customer_id) as string | undefined,
                 supplierId: (inlineAction.contextData?.supplier ?? inlineAction.contextData?.supplier_id) as string | undefined,
                 contactId: (inlineAction.contextData?.contact ?? inlineAction.contextData?.contact_id) as string | undefined,
               }}
-              onSuccess={(created) => {
-                const row = (created && typeof created === 'object' ? created : {}) as Record<string, unknown>;
-                const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
-                const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
-
-                if (inlineAction.action === 'create' && createdId) {
-                  handleSelectEntity({
-                    id: createdId,
-                    type: String(inlineAction.entityType || ''),
-                    name: createdName || `New ${formatEntityLabel(String(inlineAction.entityType || 'record'))}`,
-                  });
-
-                  if (query?.trim()) {
-                    void searchEntities(query);
-                  }
-                }
-
-                if (activeEntity) {
-                  if (activeRelationTab !== 'more') {
-                    void loadRelationshipTab(activeRelationTab, activeEntity);
-                  }
-                  void loadRelationalChunks(activeEntity);
-                }
-
-                onInlineSuccess?.(created);
-              }}
+              onSuccess={handleInlineFormSuccess}
             />
           </div>
         )}
@@ -1627,7 +1638,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             variant="inline"
             isOpen={true}
             onClose={closeInlineSubview}
-            onSuccess={() => closeInlineSubview()}
+            onSuccess={handleSalesOrderCreateSuccess}
             context={{ customerId: String(activeEntity.id) }}
           />
         )}

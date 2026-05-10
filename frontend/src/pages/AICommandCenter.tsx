@@ -547,6 +547,17 @@ const AICommandCenter: React.FC = () => {
     suggestedName?: string;
   } | null>(null);
 
+  const handleQuickCreateClose = useCallback(() => setQuickCreateTarget(null), []);
+
+  const handleQuickCreateCreated = useCallback((_entityId: string, entityName: string) => {
+    if (quickCreateTarget) {
+      message.success(`Created ${quickCreateTarget.entityType}: ${entityName}`);
+      setQuickCreateTarget(null);
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trade-lineage') });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey(quickCreateTarget.entityType + 's') });
+    }
+  }, [quickCreateTarget, queryClient, withTenantQueryKey]);
+
   // ---- Data Queries ----
 
   // Active trades
@@ -1503,14 +1514,8 @@ const AICommandCenter: React.FC = () => {
           open
           entityType={quickCreateTarget.entityType}
           suggestedName={quickCreateTarget.suggestedName}
-          onCreated={(_entityId, entityName) => {
-            message.success(`Created ${quickCreateTarget.entityType}: ${entityName}`);
-            setQuickCreateTarget(null);
-            // Refresh lineage + entities
-            queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trade-lineage') });
-            queryClient.invalidateQueries({ queryKey: withTenantQueryKey(quickCreateTarget.entityType + 's') });
-          }}
-          onClose={() => setQuickCreateTarget(null)}
+          onCreated={handleQuickCreateCreated}
+          onClose={handleQuickCreateClose}
         />
       )}
 

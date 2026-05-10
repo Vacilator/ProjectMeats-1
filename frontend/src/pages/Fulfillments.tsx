@@ -438,6 +438,19 @@ const Fulfillments: React.FC = () => {
     }
   };
 
+  const handleCreateClose = useCallback(() => {
+    setShowCreateModal(false);
+  }, []);
+
+  const handleCreateSuccess = useCallback(() => {
+    setShowCreateModal(false);
+    void fetchFulfillments();
+  }, [fetchFulfillments]);
+
+  const handleDetailClose = useCallback(() => {
+    setSelectedFulfillmentId(null);
+  }, []);
+
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
@@ -575,11 +588,8 @@ const Fulfillments: React.FC = () => {
       {showCreateModal && (
         <CreateFulfillmentModal
           isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            void fetchFulfillments();
-          }}
+          onClose={handleCreateClose}
+          onSuccess={handleCreateSuccess}
         />
       )}
 
@@ -587,7 +597,7 @@ const Fulfillments: React.FC = () => {
       {selectedFulfillmentId && (
         <FulfillmentDetailModal
           isOpen={!!selectedFulfillmentId}
-          onClose={() => setSelectedFulfillmentId(null)}
+          onClose={handleDetailClose}
           fulfillmentId={selectedFulfillmentId}
           onUpdate={fetchFulfillments}
         />

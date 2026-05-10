@@ -269,6 +269,8 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
   // Entity detail modal state
   const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: string } | null>(null);
 
+  const handleEntityDetailClose = useCallback(() => setSelectedEntity(null), []);
+
   const fetchEntities = useCallback(async () => {
     try {
       const grouped = getRecentItems(20).then((items) =>
@@ -411,7 +413,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
       {selectedEntity && (
         <EntityDetailModal
           isOpen={!!selectedEntity}
-          onClose={() => setSelectedEntity(null)}
+          onClose={handleEntityDetailClose}
           entityType={selectedEntity.type}
           entityId={selectedEntity.id}
         />

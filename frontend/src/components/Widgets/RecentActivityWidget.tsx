@@ -14,7 +14,7 @@
  * Theme Compliance:
  * - Uses CSS custom properties
  */
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Activity, Package, Users, FileText, DollarSign } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
@@ -178,6 +178,8 @@ export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = () => {
   const { stats, isLoading, error, refetch } = useCockpitStats();
   const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: number } | null>(null);
 
+  const handleEntityDetailClose = useCallback(() => setSelectedEntity(null), []);
+
   const activities = useMemo(() => stats?.recent_activity ?? [], [stats]);
 
   const handleActivityClick = (activity: ActivityItem) => {
@@ -228,7 +230,7 @@ export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = () => {
           {selectedEntity && (
             <EntityDetailModal
               isOpen={!!selectedEntity}
-              onClose={() => setSelectedEntity(null)}
+              onClose={handleEntityDetailClose}
               entityType={selectedEntity.type}
               entityId={selectedEntity.id}
             />

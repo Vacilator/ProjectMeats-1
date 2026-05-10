@@ -9,7 +9,7 @@
  *
  * Theme Compliance: CSS custom properties only.
  */
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -410,6 +410,8 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
     entityId: string;
   } | null>(null);
 
+  const handleCloseNodeDetail = useCallback(() => setSelectedNode(null), []);
+
   const { data } = useQuery({
     queryKey: withTenantQueryKey('process-header', inquiryId),
     queryFn: async () => {
@@ -499,7 +501,7 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
           entityType={selectedNode.entityType}
           entityId={selectedNode.entityId}
           inquiryId={inquiryId}
-          onClose={() => setSelectedNode(null)}
+          onClose={handleCloseNodeDetail}
         />
       )}
     </>
