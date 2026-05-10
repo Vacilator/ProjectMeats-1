@@ -12,12 +12,15 @@ Phase: 5 - Backend Integration
 
 import hashlib
 import hmac
+import logging
 import secrets
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 from apps.tenants.models import Tenant, TenantUser
 from apps.tenants.rls import set_current_tenant
@@ -302,9 +305,13 @@ class TenantScopedWebhookReceiverAPIView(APIView):
 
 
 class WebhookReceiverAPIView(APIView):
-    """Legacy public workflow webhook receiver (kept for backwards compatibility).
+    """Legacy public workflow webhook receiver — DEPRECATED.
 
     POST /api/v1/workflows/webhooks/{workflow_id}/{webhook_token}/
+
+    Logs a deprecation warning on every call. New integrations MUST use
+    the tenant-scoped URL:
+    POST /api/v1/tenants/{tenant_id}/workflows/webhooks/{workflow_id}/{webhook_token}/
     """
 
     permission_classes = [AllowAny]
@@ -312,6 +319,11 @@ class WebhookReceiverAPIView(APIView):
     throttle_classes = []
 
     def post(self, request, workflow_id, webhook_token):
+        logger.warning(
+            'DEPRECATED legacy webhook endpoint called for workflow %s — '
+            'migrate to /api/v1/tenants/{tenant_id}/workflows/webhooks/...',
+            workflow_id,
+        )
         # Legacy endpoint has no tenant_id in the path.
         # Fail closed unless tenant context is resolvable by middleware/domain.
         tenant = getattr(request, 'tenant', None)

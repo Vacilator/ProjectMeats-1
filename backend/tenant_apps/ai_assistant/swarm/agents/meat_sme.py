@@ -40,12 +40,14 @@ class MeatSMEAgent:
             return ''
 
         if not getattr(settings, 'OPENAI_API_KEY', None):
-            raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
+            logger.warning('[MeatSMEAgent] OpenAI not configured — returning empty result')
+            return ''
 
         try:
             from openai import OpenAI
         except Exception as e:
-            raise RuntimeError('OpenAI client not available on server') from e
+            logger.warning('[MeatSMEAgent] OpenAI package not available: %s', str(e))
+            return ''
 
         from apps.tenants.models import Tenant
         from apps.core.services.universal_search import UniversalSearchService

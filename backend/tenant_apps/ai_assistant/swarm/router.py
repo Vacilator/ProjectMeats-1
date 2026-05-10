@@ -401,7 +401,12 @@ class SwarmOrchestrator:
 
         openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
         if not openai_api_key:
-            raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
+            logger.warning('[SwarmOrchestrator] OpenAI not configured — returning unavailable response')
+            return {
+                'response': 'AI assistant is currently unavailable. Please contact your administrator to configure the OpenAI API key.',
+                'messages': (history or []) + [{'role': 'user', 'content': user_message}],
+                'notes': 'ai_unavailable',
+            }
 
         lessons_block = ''
         try:
@@ -469,7 +474,12 @@ class SwarmOrchestrator:
         try:
             from openai import OpenAI
         except Exception as e:
-            raise RuntimeError('OpenAI client not available on server') from e
+            logger.warning('[SwarmOrchestrator] OpenAI package not available: %s', str(e))
+            return {
+                'response': 'AI assistant is temporarily unavailable. The OpenAI package could not be loaded.',
+                'messages': (history or []) + [{'role': 'user', 'content': user_message}],
+                'notes': 'openai_import_failed',
+            }
 
         client = OpenAI(
             api_key=openai_api_key,

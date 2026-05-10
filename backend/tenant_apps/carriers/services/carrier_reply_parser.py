@@ -224,7 +224,12 @@ def _extract_freight_quote(*, email_log: EmailLog, inquiry: CarrierFreightInquir
     """Use OpenAI structured outputs to normalize a carrier freight reply."""
     openai_api_key = getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY")
     if not openai_api_key:
-        raise RuntimeError("OpenAI is not configured on the server.")
+        import logging
+        logging.getLogger(__name__).warning(
+            "OpenAI not configured — returning empty freight quote payload for email %s",
+            email_log.id,
+        )
+        return {}
 
     from openai import OpenAI
 
