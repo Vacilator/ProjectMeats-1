@@ -183,12 +183,12 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ## Active Backlog (Execution Order)
 
 
-### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 5 tickets)
+### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 4 tickets)
 
 #### Epic UX-35: Command Center as the single operator home
 
-- [ ] **UX-35.1 command-center-information-architecture-and-route-canonicalization**
-  - **Status:** Ready
+- [x] **UX-35.1 command-center-information-architecture-and-route-canonicalization**
+  - **Status:** Shipped on `development` (PR #5309)
   - **Why now:** `/command-center` is already the intended operator hub, but the live app still presents overlapping Cockpit and Process routes that split the user mental model.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
   - **Scope:** Make Command Center the single canonical operator hub in top-level routing/navigation, normalize legacy redirects (`/trader-cockpit`, `/process-cockpit`, `/activity`, `/cockpit/process-monitor`), and align visible labels/deep links without changing backend contracts.
@@ -206,7 +206,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **UX-35.2 canonical-search-entrypoint-unification**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** Search-first UX is fragmented across Header search, SmartSearch, CommandPalette, and keyboard shortcuts, which undermines the canonical Command Center model.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
   - **Scope:** Align Header search, SmartSearch, CommandPalette, and keyboard shortcuts onto one canonical search contract and URL behavior.
@@ -214,7 +214,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/search
   - **Likely touched paths:** `frontend/src/components/Layout/Header.tsx`, `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/components/Cockpit/SmartSearch.tsx`, `frontend/src/pages/Cockpit/CockpitDashboard.tsx`, `frontend/src/components/Cockpit/CommandBar.tsx`, `frontend/src/hooks/useGlobalShortcuts.ts`
   - **Dependencies:** UX-35.1
-  - **Blockers:** UX-35.1 must land first so the canonical destination is stable.
+  - **Blockers:** None
   - **Acceptance criteria:** `Ctrl/Cmd+K` and `/` invoke one canonical search behavior; Header and Cockpit search no longer compete; search URL/query semantics are stable from both the app shell and Command Center surfaces.
   - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/pages/AICommandCenter.test.tsx src/components/Navigation/CommandPalette.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
