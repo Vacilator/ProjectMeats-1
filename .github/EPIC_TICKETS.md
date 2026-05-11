@@ -21,7 +21,7 @@
 |----------|--------|-------|--------|
 | Shipped | UX-36.1 command-center-four-section-ia-and-workflows-demotion | Phase 36 | frontend |
 | Shipped | UX-36.2 workforms-monitoring-single-drill-in-surface | Phase 36 | frontend |
-| Ready | UX-36.3 process-cockpit-legacy-retirement-and-secondary-copy-alignment | Phase 36 | frontend |
+| Shipped | UX-36.3 process-cockpit-legacy-retirement-and-secondary-copy-alignment | Phase 36 | frontend |
 | Shipped | UX-35.1 command-center-ia-route-canonicalization | Phase 35 | frontend |
 | Shipped | UX-35.2 canonical-search-entrypoint-unification | Phase 35 | frontend |
 | Shipped | UX-35.3 shared-command-center-shell-extraction | Phase 35 | frontend |
@@ -61,7 +61,7 @@
 ## Dependency Graph
 
 ```
-Phase 36 (UX-36.1→UX-36.3 operator execution simplification) — next execution lane
+Phase 36 (UX-36.1→UX-36.3 operator execution simplification) — completed on development
 
 Phase 35 (UX-35.1→UX-35.5 frontend simplification) — completed on development
 
@@ -187,12 +187,12 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Active Backlog (Execution Order)
 
-### Phase 36 — Operator Execution Surface Simplification (Remaining: 3 tickets)
+### Phase 36 — Operator Execution Surface Simplification (Remaining: 0 tickets)
 
 #### Epic UX-36: Command Center compression + execution drill-in cleanup
 
-- [ ] **UX-36.1 command-center-four-section-ia-and-workflows-demotion**
-  - **Status:** Ready
+- [x] **UX-36.1 command-center-four-section-ia-and-workflows-demotion**
+  - **Status:** Shipped on `development` (PR #5315)
   - **Why now:** Command Center is now the primary operator home, but it still carries five top-level tabs even though the canonical north star is four sections or fewer and the current Workflows tab overlaps with the separate execution drill-in surface.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 36
   - **Scope:** Reduce `/command-center` to four top-level sections or fewer by demoting the Workflows tab into the surviving execution drill-in path, preserve canonical URL context (`q`, `item`, relevant legacy handoffs), and align visible labels/redirects with that slimmer IA.
@@ -209,8 +209,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Restore the top-level Workflows tab while keeping harmless redirect aliases and canonical search helpers intact.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **UX-36.2 workforms-monitoring-single-drill-in-surface**
-  - **Status:** Blocked on UX-36.1
+- [x] **UX-36.2 workforms-monitoring-single-drill-in-surface**
+  - **Status:** Shipped on `development` (PR #5316)
   - **Why now:** Even after Command Center copy cleanup, `/workforms/monitoring` still mixes execution analytics with a Cockpit-era legacy monitor, so the execution drill-in model is not yet clean.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 36
   - **Scope:** Simplify `/workforms/monitoring` into one execution drill-in surface for analytics, active runs, and explicit step-level follow-through while removing competing queue-shell affordances.
@@ -227,8 +227,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Restore the prior monitoring composition while leaving harmless copy/route improvements in place.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **UX-36.3 process-cockpit-legacy-retirement-and-secondary-copy-alignment**
-  - **Status:** Blocked on UX-36.2
+- [x] **UX-36.3 process-cockpit-legacy-retirement-and-secondary-copy-alignment**
+  - **Status:** Shipped on `development` (PR #5317)
   - **Why now:** After the execution drill-in path is simplified, the remaining ProcessCockpit-era code/tests/comments and secondary workspace labels become pure maintenance and UX drag.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 36
   - **Scope:** Retire dead ProcessCockpit-era surfaces and finish secondary workspace naming cleanup across cockpit/workspace headers, navigation, and residual tests/comments while preserving safe legacy redirects.
@@ -238,7 +238,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Dependencies:** UX-36.2
   - **Blockers:** UX-36.2 must preserve the surviving execution drill-in flow first
   - **Acceptance criteria:** No active route depends on ProcessCockpitPage; secondary workspace copy no longer implies a parallel primary operator home; legacy links keep landing safely.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx src/config/navigation.test.ts src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx src/components/Layout/Header.test.tsx src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
