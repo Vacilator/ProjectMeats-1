@@ -64,7 +64,7 @@ const Header: React.FC<HeaderProps> = () => {
     { label: 'New Supplier', path: '/suppliers/new', icon: '🏭' },
     { label: 'New Customer', path: '/customers/new', icon: '👥' },
     { label: 'New Purchase Order', path: '/purchase-orders/new', icon: '📋' },
-    { label: 'View Dashboard', path: '/', icon: '📊' },
+    { label: 'Open Command Center', path: '/command-center', icon: '⚡' },
   ];
 
   // Close menu when clicking outside
@@ -167,7 +167,7 @@ const Header: React.FC<HeaderProps> = () => {
 
   const cockpitTourStatus = getTourStatus('cockpit');
   const workflowEditorTourStatus = getTourStatus('workflow-editor');
-  const onCockpitRoute = location.pathname.startsWith('/cockpit') || location.pathname === '/';
+  const onCockpitRoute = location.pathname.startsWith('/cockpit');
   const onWorkflowRoute =
     location.pathname.startsWith('/workflows') || location.pathname.startsWith('/workforms');
 
@@ -188,7 +188,7 @@ const Header: React.FC<HeaderProps> = () => {
     setShowOnboardingMenu(false);
 
     if (!onCockpitRoute) {
-      navigate('/cockpit?tour=cockpit');
+      navigate('/cockpit/dashboard?tour=cockpit');
       return;
     }
 

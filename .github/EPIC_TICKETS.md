@@ -198,7 +198,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Dependencies:** None
   - **Blockers:** None
   - **Acceptance criteria:** Command Center is the only primary operator-hub destination in navigation; legacy URLs redirect safely to the correct Command Center state; visible labels and deep links no longer present duplicate top-level homes for the same workflow.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
@@ -216,7 +216,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Dependencies:** UX-35.1
   - **Blockers:** UX-35.1 must land first so the canonical destination is stable.
   - **Acceptance criteria:** `Ctrl/Cmd+K` and `/` invoke one canonical search behavior; Header and Cockpit search no longer compete; search URL/query semantics are stable from both the app shell and Command Center surfaces.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/pages/AICommandCenter.test.tsx src/components/Navigation/CommandPalette.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/pages/AICommandCenter.test.tsx src/components/Navigation/CommandPalette.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
@@ -234,7 +234,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Dependencies:** UX-35.2
   - **Blockers:** UX-35.2 must land first so shared shell behavior follows the canonical search contract.
   - **Acceptance criteria:** Shared shell components own the duplicated layout primitives; Command Center and surviving Cockpit views render with one consistent shell structure; no behavior regression in touched views.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
@@ -252,7 +252,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Dependencies:** UX-35.3
   - **Blockers:** UX-35.3 must land first so the remaining shell and search model are stable before reducing the dashboard.
   - **Acceptance criteria:** The default operator landing surface exposes four top-level sections or fewer; secondary tools remain reachable by drill-in/deep link; loading/empty/error states still behave correctly.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
@@ -270,7 +270,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Dependencies:** UX-35.4
   - **Blockers:** UX-35.4 must land first so the surviving dashboard and shell structure are stable.
   - **Acceptance criteria:** One canonical action-required/process-ops experience remains; legacy routes resolve to the intended Command Center state; visible copy consistently uses the chosen Command Center terminology and clear next-action guidance.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx src/components/Navigation/CommandPalette.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx src/components/Navigation/CommandPalette.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium

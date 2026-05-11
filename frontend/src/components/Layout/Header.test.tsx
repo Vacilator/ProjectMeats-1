@@ -382,7 +382,7 @@ describe('Header', () => {
       fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
       fireEvent.click(screen.getByText('Resume Cockpit Tour'));
 
-      expect(mockNavigate).toHaveBeenCalledWith('/cockpit?tour=cockpit');
+      expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard?tour=cockpit');
     });
   });
 
@@ -416,7 +416,7 @@ describe('Header', () => {
         expect(screen.getByText('New Supplier')).toBeInTheDocument();
         expect(screen.getByText('New Customer')).toBeInTheDocument();
         expect(screen.getByText('New Purchase Order')).toBeInTheDocument();
-        expect(screen.getByText('View Dashboard')).toBeInTheDocument();
+        expect(screen.getByText('Open Command Center')).toBeInTheDocument();
       });
     });
 

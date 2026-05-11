@@ -18,7 +18,7 @@ export const SHORTCUT_REGISTRY: ShortcutDef[] = [
   { keys: '⌘J', label: 'Toggle AI assistant', category: 'general' },
   { keys: 'Esc', label: 'Close modal / panel', category: 'general' },
   { keys: '?', label: 'Keyboard shortcuts help', category: 'general' },
-  { keys: 'g d', label: 'Go to Dashboard', category: 'navigation' },
+  { keys: 'g d', label: 'Go to Command Center', category: 'navigation' },
   { keys: 'g c', label: 'Go to Customers', category: 'navigation' },
   { keys: 'g s', label: 'Go to Suppliers', category: 'navigation' },
   { keys: 'g p', label: 'Go to Purchase Orders', category: 'navigation' },
@@ -73,7 +73,7 @@ export const useGlobalShortcuts = ({
     };
 
     const GO_MAP: Record<string, string> = {
-      d: '/cockpit/dashboard',
+      d: '/command-center',
       c: '/customers',
       s: '/suppliers',
       p: '/purchase-orders',

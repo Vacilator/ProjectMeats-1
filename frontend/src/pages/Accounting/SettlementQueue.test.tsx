@@ -6,6 +6,10 @@ import SettlementQueue from './SettlementQueue';
 
 const listMock = vi.fn();
 const overrideMock = vi.fn();
+const messageMock = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+}));
 
 vi.mock('@/components/Admin', () => ({
   AdminGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -18,6 +22,14 @@ vi.mock('@/services/settlementEventsService', () => ({
     reject: vi.fn(),
   },
 }));
+
+vi.mock('antd', async () => {
+  const actual = await vi.importActual<typeof import('antd')>('antd');
+  return {
+    ...actual,
+    message: messageMock,
+  };
+});
 
 describe('SettlementQueue', () => {
   beforeEach(() => {

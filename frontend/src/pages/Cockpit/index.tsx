@@ -110,13 +110,13 @@ const Content = styled.main``;
 // ============================================================================
 
 const TAB_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', icon: <LayoutGrid size={18} /> },
-  { key: 'process-monitor', label: 'Process Monitor', icon: <Workflow size={18} /> },
+  { key: 'dashboard', label: 'Workspace', icon: <LayoutGrid size={18} /> },
+  { key: 'process-monitor', label: 'Command Center', icon: <Workflow size={18} /> },
   { key: 'calls', label: 'Calls', icon: <PhoneCall size={18} /> },
 ] as const;
 
 const CockpitPage: React.FC = () => {
-  useDocumentTitle('Cockpit');
+  useDocumentTitle('Operations Workspace');
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -157,15 +157,15 @@ const CockpitPage: React.FC = () => {
     <Container>
       <Header>
         <HeaderLeft>
-          <HeaderIcon>
-            <Target size={20} />
-          </HeaderIcon>
-          <HeaderTitleGroup>
-            <HeaderTitle>Cockpit</HeaderTitle>
-            <HeaderSubtitle>Your search-first operational command center</HeaderSubtitle>
-          </HeaderTitleGroup>
-        </HeaderLeft>
-      </Header>
+            <HeaderIcon>
+              <Target size={20} />
+            </HeaderIcon>
+            <HeaderTitleGroup>
+              <HeaderTitle>Operations Workspace</HeaderTitle>
+              <HeaderSubtitle>Secondary dashboards, calls, and reports outside the primary Command Center</HeaderSubtitle>
+            </HeaderTitleGroup>
+          </HeaderLeft>
+        </Header>
 
       <StyledTabs activeKey={activeKey} items={items} onChange={handleTabChange} />
 

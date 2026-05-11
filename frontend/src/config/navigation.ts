@@ -32,12 +32,17 @@ export const navigation: NavigationItem[] = [
     icon: '⚡',
     path: '/command-center',
     badgeKey: 'actionRequired',
-  },
-  {
-    label: 'Cockpit',
-    icon: '🎯',
-    path: '/cockpit',
     children: [
+      {
+        label: 'Overview',
+        icon: '⚡',
+        path: '/command-center',
+      },
+      {
+        label: 'Workspace Dashboard',
+        icon: '🎯',
+        path: '/cockpit/dashboard',
+      },
       {
         label: 'Calls',
         icon: '📞',
