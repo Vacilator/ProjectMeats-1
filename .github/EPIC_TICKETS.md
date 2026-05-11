@@ -183,7 +183,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ## Active Backlog (Execution Order)
 
 
-### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 3 tickets)
+### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 2 tickets)
 
 #### Epic UX-35: Command Center as the single operator home
 
@@ -223,8 +223,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Restore previous shortcut aliases while preserving the shared canonical handler.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **UX-35.3 shared-command-center-shell-extraction**
-  - **Status:** Ready
+- [x] **UX-35.3 shared-command-center-shell-extraction**
+  - **Status:** Shipped on `development` (PR: #5311)
   - **Why now:** `AICommandCenter` and surviving Cockpit surfaces still duplicate shell/header/tab/quick-action layout primitives.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
   - **Scope:** Extract shared operator shell primitives for page header, tab switcher, quick-actions row, and stat layout so the surviving surfaces share one presentation system.
@@ -234,7 +234,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Dependencies:** UX-35.2
   - **Blockers:** None
   - **Acceptance criteria:** Shared shell components own the duplicated layout primitives; Command Center and surviving Cockpit views render with one consistent shell structure; no behavior regression in touched views.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
@@ -242,7 +242,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **UX-35.4 cockpit-dashboard-top-level-surface-reduction**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** `MASTER_PLAN.md` calls for a minimalist cockpit with four top-level sections or fewer, but `CockpitDashboard` still carries widget-catalog and edit-mode complexity as a primary surface.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
   - **Scope:** Reduce the surviving dashboard/operator landing experience to four top-level sections or fewer and demote widget-catalog/edit-mode complexity out of the primary path.
@@ -250,7 +250,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/dashboard
   - **Likely touched paths:** `frontend/src/pages/Cockpit/CockpitDashboard.tsx`, `frontend/src/components/Widgets/index.ts`, `frontend/src/components/Widgets/WidgetCard.tsx`, `frontend/src/components/Cockpit/PinnedToolsBar.tsx`, `frontend/src/hooks/useCockpitStats.ts`
   - **Dependencies:** UX-35.3
-  - **Blockers:** UX-35.3 must land first so the remaining shell and search model are stable before reducing the dashboard.
+  - **Blockers:** None
   - **Acceptance criteria:** The default operator landing surface exposes four top-level sections or fewer; secondary tools remain reachable by drill-in/deep link; loading/empty/error states still behave correctly.
   - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
