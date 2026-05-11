@@ -31,7 +31,6 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { InputRef } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -80,6 +79,10 @@ import {
 import { aiStaffApi, type PendingReviewItem } from '../services/aiService';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { entityListPath } from '../utils/entityTypeRegistry';
+import {
+  buildCanonicalSearchParams,
+  getCanonicalSearchQuery,
+} from '../utils/canonicalSearch';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { Text, Title } = Typography;
@@ -535,8 +538,7 @@ const AICommandCenter: React.FC = () => {
     [setSearchParams],
   );
 
-  // Local state
-  const [searchText, setSearchText] = useState('');
+  const searchText = useMemo(() => getCanonicalSearchQuery(searchParams), [searchParams]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<UnifiedItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -548,6 +550,13 @@ const AICommandCenter: React.FC = () => {
   } | null>(null);
 
   const handleQuickCreateClose = useCallback(() => setQuickCreateTarget(null), []);
+
+  const updateSearchText = useCallback(
+    (nextQuery: string) => {
+      setSearchParams((prev) => buildCanonicalSearchParams(prev, nextQuery), { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const handleQuickCreateCreated = useCallback((_entityId: string, entityName: string) => {
     if (quickCreateTarget) {
@@ -749,8 +758,6 @@ const AICommandCenter: React.FC = () => {
   }, [tradesQuery, reviewsQuery]);
 
   // ---- Keyboard Shortcuts ----
-  const searchInputRef = useRef<InputRef>(null);
-
   useEffect(() => {
     const TAB_MAP: Record<string, HubTab> = {
       '1': 'overview',
@@ -793,12 +800,6 @@ const AICommandCenter: React.FC = () => {
         return;
       }
 
-      // /: Focus search
-      if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-        return;
-      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -916,11 +917,10 @@ const AICommandCenter: React.FC = () => {
         </HeaderLeft>
         <HeaderActions>
           <Input
-            ref={searchInputRef}
-            placeholder="Search… (press /)"
+            placeholder="Search command center…"
             prefix={<Search size={14} />}
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={(e) => updateSearchText(e.target.value)}
             style={{ width: 220, borderRadius: 10 }}
             allowClear
             aria-label="Search command center"

@@ -22,10 +22,25 @@ import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 import { OnboardingProvider } from './components/Onboarding';
 import './i18n/config'; // Initialize i18n
+import { buildCanonicalSearchPath, getCanonicalSearchQuery } from './utils/canonicalSearch';
 
 const MyTasksRedirect: React.FC = () => {
   const location = useLocation();
   return <Navigate to={`/workforms/tasks${location.search || ''}`} replace />;
+};
+
+const CockpitIndexRedirect: React.FC = () => {
+  const location = useLocation();
+
+  return (
+    <Navigate
+      to={buildCanonicalSearchPath({
+        query: getCanonicalSearchQuery(location.search),
+        searchParams: location.search,
+      })}
+      replace
+    />
+  );
 };
 
 // Create QueryClient for data fetching (React Query)
@@ -486,7 +501,7 @@ const App: React.FC = () => {
                     </Suspense>
                   }
                 >
-                  <Route index element={<Navigate to="/command-center" replace />} />
+                  <Route index element={<CockpitIndexRedirect />} />
                   <Route path="dashboard" element={<CockpitDashboard />} />
                   <Route path="process-monitor" element={<Navigate to="/command-center?tab=action-required" replace />} />
                   <Route path="calls" element={<CallLog />} />

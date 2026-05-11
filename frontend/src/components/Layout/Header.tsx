@@ -14,6 +14,11 @@ import { authService } from '../../services/authService';
 import { UserProfile } from '../../types';
 import { NotificationBell } from '../Notifications';
 import debounce from 'lodash/debounce';
+import {
+  buildCanonicalSearchPath,
+  getCanonicalSearchQuery,
+  isCommandCenterPath,
+} from '../../utils/canonicalSearch';
 
 interface HeaderProps {
   // No props needed currently
@@ -86,19 +91,17 @@ const Header: React.FC<HeaderProps> = () => {
     };
   }, [showOnboardingMenu, showQuickMenu]);
 
-  // Global Ctrl+K / ⌘K focuses search input
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
-      }
-    };
+  const searchContextQuery = React.useMemo(() => {
+    if (isCommandCenterPath(location.pathname) || location.pathname.startsWith('/cockpit')) {
+      return getCanonicalSearchQuery(location.search);
+    }
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    return '';
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    setSearchQuery((current) => (current === searchContextQuery ? current : searchContextQuery));
+  }, [searchContextQuery]);
 
   const handleQuickMenuClick = (path: string) => {
     navigate(path);
@@ -127,36 +130,51 @@ const Header: React.FC<HeaderProps> = () => {
     }
   };
 
-  const navigateToCockpitSearch = React.useMemo(
+  const navigateToCanonicalSearch = React.useMemo(
     () =>
       debounce((rawQuery: string) => {
         const q = rawQuery.trim();
 
-        // Clear cockpit search if we're already there
         if (!q) {
-          if (location.pathname.startsWith('/cockpit')) {
-            navigate('/cockpit', { replace: true });
+          if (isCommandCenterPath(location.pathname) || location.pathname.startsWith('/cockpit')) {
+            navigate(
+              buildCanonicalSearchPath({
+                query: '',
+                searchParams: location.search,
+              }),
+              { replace: true },
+            );
           }
           return;
         }
 
-        // Don't navigate for 1-character noise
         if (q.length < 2) return;
 
-        navigate(`/cockpit?q=${encodeURIComponent(q)}`, { replace: true });
+        navigate(
+          buildCanonicalSearchPath({
+            query: q,
+            searchParams: location.search,
+          }),
+          { replace: true },
+        );
       }, 250),
-    [location.pathname, navigate]
+    [location.pathname, location.search, navigate]
   );
 
   useEffect(() => {
-    return () => navigateToCockpitSearch.cancel();
-  }, [navigateToCockpitSearch]);
+    return () => navigateToCanonicalSearch.cancel();
+  }, [navigateToCanonicalSearch]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchQuery.trim();
     if (!q) return;
-    navigate(`/cockpit?q=${encodeURIComponent(q)}`);
+    navigate(
+      buildCanonicalSearchPath({
+        query: q,
+        searchParams: location.search,
+      }),
+    );
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -224,10 +242,10 @@ const Header: React.FC<HeaderProps> = () => {
             onChange={(e) => {
               const v = e.target.value;
               setSearchQuery(v);
-              navigateToCockpitSearch(v);
+              navigateToCanonicalSearch(v);
             }}
             $theme={theme}
-            aria-label="Global search (Ctrl+K)"
+            aria-label="Global search"
           />
         </SearchInputWrapper>
       </SearchForm>

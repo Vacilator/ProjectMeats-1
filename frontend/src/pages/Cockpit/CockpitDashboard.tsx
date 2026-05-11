@@ -19,9 +19,10 @@ import {
   LayoutGrid, Lock, Unlock, Plus,
   RotateCcw, X
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { buildCanonicalSearchPath } from '@/utils/canonicalSearch';
 import {
   WidgetGrid,
   WidgetConfig,
@@ -453,6 +454,7 @@ type InlineActionState = {
 
 export const CockpitDashboard: React.FC = () => {
   useDocumentTitle('Dashboard');
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const { hasCompletedTour, launchTour } = useOnboarding();
   const { stats } = useCockpitStats();
@@ -469,9 +471,22 @@ export const CockpitDashboard: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLayoutLoaded, setIsLayoutLoaded] = useState(false);
 
-  // Header owns global Ctrl+K search. Cockpit reads query from URL.
+  // Command Center owns canonical search; Cockpit only hands legacy query traffic over.
   const [searchParams, setSearchParams] = useSearchParams();
   const cockpitQuery = searchParams.get('q') ?? '';
+
+  useEffect(() => {
+    if (!cockpitQuery.trim()) {
+      return;
+    }
+
+    navigate(
+      buildCanonicalSearchPath({
+        query: cockpitQuery,
+      }),
+      { replace: true },
+    );
+  }, [cockpitQuery, navigate]);
 
   useEffect(() => {
     if (searchParams.get('tour') !== 'cockpit') {
@@ -484,22 +499,18 @@ export const CockpitDashboard: React.FC = () => {
     void launchTour('cockpit', hasCompletedTour('cockpit') ? 'restart' : 'resume');
   }, [hasCompletedTour, launchTour, searchParams, setSearchParams]);
 
-  // Handle search query changes from SmartSearch component
-  // NOTE: use replace=true so typing doesn't spam browser history.
   const handleQueryChange = useCallback((newQuery: string) => {
-    const next = new URLSearchParams(searchParams);
-
-    if (newQuery && newQuery.trim().length > 0) {
-      next.set('q', newQuery);
-    } else {
-      next.delete('q');
+    if (!newQuery.trim() && !cockpitQuery.trim()) {
+      return;
     }
 
-    // This subview is only meaningful when a record context is active.
-    next.delete('cockpit_subview');
-
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+    navigate(
+      buildCanonicalSearchPath({
+        query: newQuery,
+      }),
+      { replace: true },
+    );
+  }, [cockpitQuery, navigate]);
 
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
