@@ -20,8 +20,8 @@
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
 | Shipped | UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction | Phase 37 | frontend |
-| Ready | UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction | Phase 37 | frontend |
-| Blocked | UX-37.3 cockpit-workspace-search-and-catalog-cleanup | Phase 37 | frontend |
+| Shipped | UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction | Phase 37 | frontend |
+| Ready | UX-37.3 cockpit-workspace-search-and-catalog-cleanup | Phase 37 | frontend |
 | Blocked | UX-37.4 workspace-terminology-alignment | Phase 37 | frontend |
 | Blocked | UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening | Phase 37 | frontend |
 | Shipped | UX-36.1 command-center-four-section-ia-and-workflows-demotion | Phase 36 | frontend |
@@ -194,11 +194,11 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Active Backlog (Execution Order)
 
-### Phase 37 — Operator Surface Completion (Remaining: 4 tickets)
+### Phase 37 — Operator Surface Completion (Remaining: 3 tickets)
 
 #### Epic UX-37: AICommandCenter polish + cockpit workspace cleanup
 
-- [ ] **UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction**
+- [x] **UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction**
   - **Status:** Shipped
   - **Why now:** `AICommandCenter.tsx` is now the single primary operator home, but the file still carries a large inline-style cluster around the trade table and detail modal that hides styling drift from the existing standards guardrails.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
@@ -217,8 +217,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
   - **Shipped evidence:** PR #5319
 
-- [ ] **UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction**
-  - **Status:** Ready
+- [x] **UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction**
+  - **Status:** Shipped
   - **Why now:** After the trade-table/modal cluster is extracted, the remaining inline-style debt in `AICommandCenter.tsx` is concentrated in the confidence pill, intent label, open-record button, shortcut hint bar, and minor input/button wrappers.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Finish the remaining `AICommandCenter.tsx` inline-style removal by extracting the confidence score, intent highlight, entity-record opener, shortcut hint bar, and search/refresh wrappers into tokenized styled-components.
@@ -234,9 +234,10 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Risk level:** Medium
   - **Rollback:** Revert the second extraction PR while preserving the already-shipped Phase 37.1 wrappers.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Shipped evidence:** PR #5321
 
 - [ ] **UX-37.3 cockpit-workspace-search-and-catalog-cleanup**
-  - **Status:** Blocked on UX-37.2
+  - **Status:** Ready
   - **Why now:** Once the primary operator surface is styled cleanly again, the next highest-noise pocket is the Cockpit Workspace: it still renders a SmartSearch forwarding stub and still offers new `AILearningMetricsWidget` additions even though that widget was already demoted from the default landing path.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Remove the `SmartSearch` forwarding stub from `CockpitDashboard.tsx`, replace it with static Command Center search guidance, and remove `AILearningMetricsWidget` from new catalog additions while preserving saved-layout rendering for existing users.
@@ -244,7 +245,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/cockpit
   - **Likely touched paths:** `frontend/src/pages/Cockpit/CockpitDashboard.tsx`, `frontend/src/pages/Cockpit/CockpitDashboard.test.tsx`
   - **Dependencies:** UX-37.2
-  - **Blockers:** UX-37.2 keeps the operator-surface cleanup sequence single-threaded
+  - **Blockers:** None
   - **Acceptance criteria:** `CockpitDashboard.tsx` no longer renders the SmartSearch forwarder; new catalog additions cannot add `AILearningMetricsWidget`; saved layouts still render existing widget instances.
   - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
