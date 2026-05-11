@@ -3,7 +3,7 @@
 > **Status:** ordered execution backlog
 > **Canonical priority source:** root `MASTER_PLAN.md`
 > **Standards:** `.github/SDLC_PROTOCOLS.md`
-> **Last Restructured:** 2026-05-07
+> **Last Restructured:** 2026-05-11
 
 ## Operating Rules
 
@@ -19,6 +19,11 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
+| Ready | UX-35.1 command-center-ia-route-canonicalization | Phase 35 | frontend |
+| Blocked | UX-35.2 canonical-search-entrypoint-unification | Phase 35 | frontend |
+| Blocked | UX-35.3 shared-command-center-shell-extraction | Phase 35 | frontend |
+| Blocked | UX-35.4 cockpit-surface-reduction | Phase 35 | frontend |
+| Blocked | UX-35.5 action-required-process-consolidation-and-copy-polish | Phase 35 | frontend |
 | Shipped | CTE-04.1 draft-sales-order-generation | Phase 16 | backend |
 | Shipped | CTE-04.2 sales-order-approval-pdf | Phase 16 | backend |
 | Shipped | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
@@ -53,6 +58,8 @@
 ## Dependency Graph
 
 ```
+Phase 35 (UX-35.1→UX-35.5 frontend simplification) — next execution lane
+
 Phase 16 (CTE-04→CTE-08) ─────────┐
                                     ├──▶ Phase 17 (RT-01→RT-04) ──▶ RT-05
                                     │                                  │
@@ -109,14 +116,14 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 | EH-02.1 | fail-closed-tenant-rls-runtime | #4771 |
 | EH-02.2 | platform-idempotency-keys | #4773/#4776 |
 | EH-02.3 | chat-session-tenant-fk-rls | #4871 |
-| EH-02.4 | atomic-workflow-collaboration-locks | — |
+| EH-02.4 | atomic-workflow-collaboration-locks | #4890 |
 | EH-03.1 | openapi-ai-and-high-churn-surface-coverage | #4775 |
 | EH-03.2 | openapi-ts-mobile-typegen | #4777/#4562 |
 | EH-04.1 | tenant-aware-query-keys-and-cache-clear-removal | #4874 |
 | EH-04.2 | search-contract-unification | #4876 |
 | EH-04.3 | floweditor-decomposition-phase-1 | #4878 |
-| EH-05.1 | non-dev-redis-readiness-gate | — |
-| EH-05.2 | observability-and-rollback-drill | — |
+| EH-05.1 | non-dev-redis-readiness-gate | #4889 |
+| EH-05.2 | observability-and-rollback-drill | #4891 |
 
 </details>
 
@@ -125,8 +132,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 | Ticket | Title | PR |
 |--------|-------|-----|
-| EH-06.1 | autonomous-control-plane-foundation | — |
-| EH-06.2 | semantic-index-lineage-and-durable-exports | — |
+| EH-06.1 | autonomous-control-plane-foundation | #4892 |
+| EH-06.2 | semantic-index-lineage-and-durable-exports | #4893 |
 
 </details>
 
@@ -175,6 +182,100 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Active Backlog (Execution Order)
 
+
+### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 5 tickets)
+
+#### Epic UX-35: Command Center as the single operator home
+
+- [ ] **UX-35.1 command-center-information-architecture-and-route-canonicalization**
+  - **Status:** Ready
+  - **Why now:** `/command-center` is already the intended operator hub, but the live app still presents overlapping Cockpit and Process routes that split the user mental model.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
+  - **Scope:** Make Command Center the single canonical operator hub in top-level routing/navigation, normalize legacy redirects (`/trader-cockpit`, `/process-cockpit`, `/activity`, `/cockpit/process-monitor`), and align visible labels/deep links without changing backend contracts.
+  - **Non-goals:** No KPI redesign, no widget reduction, no backend/API changes, no queue implementation merge yet.
+  - **Primary domain:** frontend/navigation
+  - **Likely touched paths:** `frontend/src/App.tsx`, `frontend/src/config/navigation.ts`, `frontend/src/pages/Cockpit/index.tsx`, `frontend/src/components/Layout/Sidebar.tsx`, `frontend/src/components/Layout/Header.tsx`, `docs/SHORTCUTS.md`
+  - **Dependencies:** None
+  - **Blockers:** None
+  - **Acceptance criteria:** Command Center is the only primary operator-hub destination in navigation; legacy URLs redirect safely to the correct Command Center state; visible labels and deep links no longer present duplicate top-level homes for the same workflow.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Restore previous labels/routes while keeping newly added legacy redirects intact.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-35.2 canonical-search-entrypoint-unification**
+  - **Status:** Blocked
+  - **Why now:** Search-first UX is fragmented across Header search, SmartSearch, CommandPalette, and keyboard shortcuts, which undermines the canonical Command Center model.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
+  - **Scope:** Align Header search, SmartSearch, CommandPalette, and keyboard shortcuts onto one canonical search contract and URL behavior.
+  - **Non-goals:** No search backend contract changes and no new ranking logic.
+  - **Primary domain:** frontend/search
+  - **Likely touched paths:** `frontend/src/components/Layout/Header.tsx`, `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/components/Cockpit/SmartSearch.tsx`, `frontend/src/pages/Cockpit/CockpitDashboard.tsx`, `frontend/src/components/Cockpit/CommandBar.tsx`, `frontend/src/hooks/useGlobalShortcuts.ts`
+  - **Dependencies:** UX-35.1
+  - **Blockers:** UX-35.1 must land first so the canonical destination is stable.
+  - **Acceptance criteria:** `Ctrl/Cmd+K` and `/` invoke one canonical search behavior; Header and Cockpit search no longer compete; search URL/query semantics are stable from both the app shell and Command Center surfaces.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/pages/AICommandCenter.test.tsx src/components/Navigation/CommandPalette.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Restore previous shortcut aliases while preserving the shared canonical handler.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-35.3 shared-command-center-shell-extraction**
+  - **Status:** Blocked
+  - **Why now:** `AICommandCenter` and surviving Cockpit surfaces still duplicate shell/header/tab/quick-action layout primitives.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
+  - **Scope:** Extract shared operator shell primitives for page header, tab switcher, quick-actions row, and stat layout so the surviving surfaces share one presentation system.
+  - **Non-goals:** No new data-fetching behavior and no backend changes.
+  - **Primary domain:** frontend/components
+  - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/pages/Cockpit/CockpitDashboard.tsx`, `frontend/src/components/Shared/CockpitPanel.tsx`, `frontend/src/components/Shared/StatCardGrid.tsx`, `frontend/src/components/Cockpit/CommandBar.tsx`
+  - **Dependencies:** UX-35.2
+  - **Blockers:** UX-35.2 must land first so shared shell behavior follows the canonical search contract.
+  - **Acceptance criteria:** Shared shell components own the duplicated layout primitives; Command Center and surviving Cockpit views render with one consistent shell structure; no behavior regression in touched views.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert individual pages back to local wrappers while retaining any harmless shared primitives.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-35.4 cockpit-dashboard-top-level-surface-reduction**
+  - **Status:** Blocked
+  - **Why now:** `MASTER_PLAN.md` calls for a minimalist cockpit with four top-level sections or fewer, but `CockpitDashboard` still carries widget-catalog and edit-mode complexity as a primary surface.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
+  - **Scope:** Reduce the surviving dashboard/operator landing experience to four top-level sections or fewer and demote widget-catalog/edit-mode complexity out of the primary path.
+  - **Non-goals:** No feature deletion and no downstream entity-page redesign.
+  - **Primary domain:** frontend/dashboard
+  - **Likely touched paths:** `frontend/src/pages/Cockpit/CockpitDashboard.tsx`, `frontend/src/components/Widgets/index.ts`, `frontend/src/components/Widgets/WidgetCard.tsx`, `frontend/src/components/Cockpit/PinnedToolsBar.tsx`, `frontend/src/hooks/useCockpitStats.ts`
+  - **Dependencies:** UX-35.3
+  - **Blockers:** UX-35.3 must land first so the remaining shell and search model are stable before reducing the dashboard.
+  - **Acceptance criteria:** The default operator landing surface exposes four top-level sections or fewer; secondary tools remain reachable by drill-in/deep link; loading/empty/error states still behave correctly.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Restore the prior dashboard layout while preserving any additive shared shell improvements.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-35.5 action-required-process-ops-consolidation-and-copy-polish**
+  - **Status:** Blocked
+  - **Why now:** The repo still has overlapping action-required/process-ops concepts and mixed Command Center/Cockpit terminology across queue surfaces and empty states.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
+  - **Scope:** Consolidate overlapping action-required/process-ops surfaces into one Command Center model and finish the user-facing copy/empty-state/drill-in polish needed to make that model obvious.
+  - **Non-goals:** No trade-engine changes and no new analytics features.
+  - **Primary domain:** frontend/operations
+  - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/pages/Cockpit/ProcessCockpitPage.tsx`, `frontend/src/components/Onboarding/CockpitWelcomeEmptyState.tsx`, `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/App.tsx`
+  - **Dependencies:** UX-35.4
+  - **Blockers:** UX-35.4 must land first so the surviving dashboard and shell structure are stable.
+  - **Acceptance criteria:** One canonical action-required/process-ops experience remains; legacy routes resolve to the intended Command Center state; visible copy consistently uses the chosen Command Center terminology and clear next-action guidance.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `npm -C frontend exec vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx src/components/Navigation/CommandPalette.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Restore prior queue routing/copy while keeping harmless redirect aliases and shared shell helpers.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ### Phase 16 — Core Trading Engine (Remaining: 0 tickets)
 
