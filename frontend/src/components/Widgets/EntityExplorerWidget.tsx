@@ -207,7 +207,7 @@ const FavoriteIcon = styled.div<{ $active: boolean }>`
   color: ${props => props.$active ? 'rgb(var(--color-warning))' : 'rgb(var(--color-text-tertiary))'};
   opacity: ${props => props.$active ? 1 : 0.3};
   cursor: pointer;
-  
+
   &:hover {
     opacity: 1;
     color: rgb(var(--color-warning));
