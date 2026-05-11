@@ -1,9 +1,9 @@
 /**
  * Navigation configuration for ProjectMeats frontend
- * 
+ *
  * Defines the main navigation structure for the application.
  * This is the central location for managing navigation items.
- * 
+ *
  * Updated: 2026-02-04 - Phase 1 Cockpit & WorkForms Enhancement
  * - Changed Cockpit path from /workspace to /cockpit
  * - Renamed "Forms & Flows" to "WorkForms"
@@ -32,12 +32,17 @@ export const navigation: NavigationItem[] = [
     icon: '⚡',
     path: '/command-center',
     badgeKey: 'actionRequired',
-  },
-  {
-    label: 'Cockpit',
-    icon: '🎯',
-    path: '/cockpit',
     children: [
+      {
+        label: 'Overview',
+        icon: '⚡',
+        path: '/command-center',
+      },
+      {
+        label: 'Workspace Dashboard',
+        icon: '🎯',
+        path: '/cockpit/dashboard',
+      },
       {
         label: 'Calls',
         icon: '📞',

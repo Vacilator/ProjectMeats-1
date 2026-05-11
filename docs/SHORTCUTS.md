@@ -21,7 +21,7 @@ Press `g` followed by a letter within 800ms to jump to a page:
 
 | Shortcut | Destination |
 |----------|-------------|
-| `g` then `d` | Dashboard (`/cockpit/dashboard`) |
+| `g` then `d` | Command Center (`/command-center`) |
 | `g` then `c` | Customers (`/customers`) |
 | `g` then `s` | Suppliers (`/suppliers`) |
 | `g` then `p` | Purchase Orders (`/purchase-orders`) |
@@ -68,7 +68,7 @@ When the workflow editor is active:
 | `Ctrl+C` / `⌘C` | Copy selected nodes |
 | `Ctrl+V` / `⌘V` | Paste nodes |
 
-## Cockpit Dashboard
+## Operations Workspace (`/cockpit/dashboard`)
 
 | Shortcut | Action |
 |----------|--------|
@@ -101,5 +101,5 @@ All shortcuts follow WCAG 2.1 AAA guidelines:
 
 ---
 
-**Source files**: `useGlobalShortcuts.ts` (canonical `SHORTCUT_REGISTRY`), `useCommandPalette.ts`, `keyboardNavigation.ts`, `AICommandCenter.tsx`, `ShortcutCheatsheet.tsx`  
-**Last updated**: 2026-05-10
+**Source files**: `useGlobalShortcuts.ts` (canonical `SHORTCUT_REGISTRY`), `useCommandPalette.ts`, `keyboardNavigation.ts`, `AICommandCenter.tsx`, `ShortcutCheatsheet.tsx`
+**Last updated**: 2026-05-11

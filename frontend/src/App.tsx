@@ -267,7 +267,7 @@ const App: React.FC = () => {
                   />
                 )}
               <Route path="/" element={<Layout />}>
-                <Route index element={<Navigate to="/cockpit" replace />} />
+                <Route index element={<Navigate to="/command-center" replace />} />
 
                 {/* Canonical record destination */}
                 <Route path="records/:entityType/:id" element={<UniversalEntityRecordRoute />} />
@@ -477,7 +477,7 @@ const App: React.FC = () => {
                 {/* Backward compatibility redirect */}
                 <Route path="admin/*" element={<Navigate to={`/workspace/${window.location.pathname.replace('/admin/', '')}`} replace />} />
 
-                {/* Cockpit (Command Center Dashboard) */}
+                {/* Secondary operator workspace surfaces */}
                 <Route
                   path="cockpit"
                   element={
@@ -486,7 +486,7 @@ const App: React.FC = () => {
                     </Suspense>
                   }
                 >
-                  <Route index element={<Navigate to="/cockpit/dashboard" replace />} />
+                  <Route index element={<Navigate to="/command-center" replace />} />
                   <Route path="dashboard" element={<CockpitDashboard />} />
                   <Route path="process-monitor" element={<Navigate to="/command-center?tab=action-required" replace />} />
                   <Route path="calls" element={<CallLog />} />

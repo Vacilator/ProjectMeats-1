@@ -180,11 +180,11 @@ All 10 items from the squad deep-dive plan have been completed:
 - ✅ UnifiedEntityTable dynamic aria-label (PR #5291)
 - ✅ Suppliers referential stability: onRow/expandable memoized (PR #5290)
 
-### Phase 35: Frontend Surface Simplification & Command Center Consolidation 🔄 READY
+### Phase 35: Frontend Surface Simplification & Command Center Consolidation 🔄 ACTIVE
 - **Why now:** The executable backlog is clear, but the frontend still exposes overlapping operator-home surfaces (`/command-center`, `/cockpit`, legacy process routes) plus competing search entrypoints. This is the highest-leverage simplification lane left.
 - **Operator north star:** One canonical operator hub (**Command Center**), one canonical search-first entrypoint, four top-level operator sections or fewer, and preserved deep links/legacy redirects.
-- **UX-35.1 Ready** — Command Center IA + route canonicalization: make `/command-center` the single top-level operator hub, align sidebar labels/redirects/deep links, and keep legacy URLs safe.
-- **UX-35.2 Blocked by UX-35.1** — Canonical search entrypoint unification: align Header search, SmartSearch, CommandPalette, and keyboard shortcuts onto one search-first contract.
+- **UX-35.1 Shipped** — Command Center IA + route canonicalization landed in PR #5309: `/` and the `/cockpit` index now resolve to `/command-center`, top-level navigation/shortcuts point to Command Center, and cockpit onboarding links preserve the secondary workspace tour path.
+- **UX-35.2 Ready** — Canonical search entrypoint unification: align Header search, SmartSearch, CommandPalette, and keyboard shortcuts onto one search-first contract.
 - **UX-35.3 Blocked by UX-35.2** — Shared operator shell extraction: reuse one header/tab/quick-action/layout shell across surviving operator surfaces.
 - **UX-35.4 Blocked by UX-35.3** — Cockpit surface reduction: reduce the surviving dashboard/operator landing surface to four top-level sections or fewer and retire widget-catalog complexity from the primary UX.
 - **UX-35.5 Blocked by UX-35.4** — Action-required/process-ops consolidation + copy polish: converge the remaining overlapping queue/process surfaces into one Command Center model and finish naming/empty-state/drill-in cleanup.
@@ -202,7 +202,7 @@ All 10 items from the squad deep-dive plan have been completed:
 --- (as of 2026-05-10)
 
 ### What is true right now
-- **Phases 12-34 complete; Phase 35 is now seeded as the next execution lane.** All 63+ prior EPIC tickets, 10 Squad Deep-Dive items, and all earlier P0/P1 priorities are shipped to `development`.
+- **Phases 12-34 complete; Phase 35 execution is now underway.** UX-35.1 shipped in PR #5309, making Command Center the single primary operator home while preserving cockpit workspace deep links. UX-35.2 search unification is now the next ready ticket.
 - **100% CSS custom property compliance.** Zero hardcoded rgb/rgba/hex color values remain in production frontend code. All semantic colors use CSS variables with WCAG AA+ contrast ratios.
 - **Zero browser-native dialogs.** All `window.confirm()`, `window.alert()`, and `alert()` eliminated → AntD Modal-based wrappers (`confirmDialog`, `showAlert`, `message`).
 - **Full table accessibility.** Every `<Table>` component has a descriptive `aria-label` for screen readers.
@@ -213,7 +213,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Process Cockpit overhaul shipped.** 3-tab structure (All Processes / Action Required / Completed), unified detail modals, Activity page removed from sidebar (PR #5024).
 - **CI/CD pipeline optimized:** DRY composite actions (.github/actions/), nginx template extraction, dev-deploy skip-tests optimization shipped in PRs #5011-#5015. Pipeline fully green (Run #2703).
 - **Industry Leader State vision active:** Phases 20-22 added to MASTER_PLAN.md and EPIC_TICKETS.md — UI/UX minimalism, end-to-end automation, and golden pipeline perfection.
-- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the next highest-leverage lane is now **Phase 35 frontend surface simplification**. Phase 20 UI/UX polish, the follow-on CI/CD determinism work, investor documentation, and the P0 Security/RLS audit are all already shipped. The remaining user-facing simplification gap is converging Command Center/Cockpit information architecture and search-first operations UX.
+- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the next highest-leverage lane remains **Phase 35 frontend surface simplification**. UX-35.1 route/IA canonicalization is shipped; the remaining user-facing simplification gap is now converging search-first behavior and shared operator-shell UX under Command Center.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
 - **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). The Phase 12 hardening follow-on is also fully shipped through `EH-06.2`, so this bullet is historical proof rather than a live handoff.
 - **Phase 15 execution is sealed:** the full `B2B-02` trade-engine rollout (`B2B-02.1` through `B2B-02.4`), the full `B2B-01` guest-portal lane (`B2B-01.1` through `B2B-01.5`), and the full `B2B-03` settlement lane (`B2B-03.1` through `B2B-03.5`) are now shipped on `development`, and the deploy-recovery / pipeline-stabilization follow-ups landed separately in PRs #4918, #4919, #4920, and #4921.
