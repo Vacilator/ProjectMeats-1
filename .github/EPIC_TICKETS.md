@@ -19,8 +19,8 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
-| Ready | UX-36.1 command-center-four-section-ia-and-workflows-demotion | Phase 36 | frontend |
-| Blocked | UX-36.2 workforms-monitoring-single-drill-in-surface | Phase 36 | frontend |
+| Shipped | UX-36.1 command-center-four-section-ia-and-workflows-demotion | Phase 36 | frontend |
+| Ready | UX-36.2 workforms-monitoring-single-drill-in-surface | Phase 36 | frontend |
 | Blocked | UX-36.3 process-cockpit-legacy-retirement-and-secondary-copy-alignment | Phase 36 | frontend |
 | Shipped | UX-35.1 command-center-ia-route-canonicalization | Phase 35 | frontend |
 | Shipped | UX-35.2 canonical-search-entrypoint-unification | Phase 35 | frontend |
