@@ -1,8 +1,8 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)
-**Last Updated**: 2026-05-10
-**Primary Focus**: Industry Leader State execution — all Phase 12-27 backlog items shipped; complete UX polish, code quality, and accessibility sweep.
+**Last Updated**: 2026-05-11
+**Primary Focus**: Phase 35 execution — frontend surface simplification and Command Center consolidation now that Phases 12-34 are shipped.
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -180,6 +180,17 @@ All 10 items from the squad deep-dive plan have been completed:
 - ✅ UnifiedEntityTable dynamic aria-label (PR #5291)
 - ✅ Suppliers referential stability: onRow/expandable memoized (PR #5290)
 
+### Phase 35: Frontend Surface Simplification & Command Center Consolidation 🔄 READY
+- **Why now:** The executable backlog is clear, but the frontend still exposes overlapping operator-home surfaces (`/command-center`, `/cockpit`, legacy process routes) plus competing search entrypoints. This is the highest-leverage simplification lane left.
+- **Operator north star:** One canonical operator hub (**Command Center**), one canonical search-first entrypoint, four top-level operator sections or fewer, and preserved deep links/legacy redirects.
+- **UX-35.1 Ready** — Command Center IA + route canonicalization: make `/command-center` the single top-level operator hub, align sidebar labels/redirects/deep links, and keep legacy URLs safe.
+- **UX-35.2 Blocked by UX-35.1** — Canonical search entrypoint unification: align Header search, SmartSearch, CommandPalette, and keyboard shortcuts onto one search-first contract.
+- **UX-35.3 Blocked by UX-35.2** — Shared operator shell extraction: reuse one header/tab/quick-action/layout shell across surviving operator surfaces.
+- **UX-35.4 Blocked by UX-35.3** — Cockpit surface reduction: reduce the surviving dashboard/operator landing surface to four top-level sections or fewer and retire widget-catalog complexity from the primary UX.
+- **UX-35.5 Blocked by UX-35.4** — Action-required/process-ops consolidation + copy polish: converge the remaining overlapping queue/process surfaces into one Command Center model and finish naming/empty-state/drill-in cleanup.
+- **Validation gate for each ticket:** `npm -C frontend run verify-standards`; focused `vitest` targets listed in `.github/EPIC_TICKETS.md`; `npm -C frontend run test:ci`.
+- **Evidence destination:** `.github/MASTER_PLAN.md` per shipped batch.
+
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
 - No breaking migrations.
@@ -191,7 +202,7 @@ All 10 items from the squad deep-dive plan have been completed:
 --- (as of 2026-05-10)
 
 ### What is true right now
-- **Phases 12-34 complete.** All 63+ EPIC tickets, 10 Squad Deep-Dive items, and all P0/P1 priorities shipped to `development`.
+- **Phases 12-34 complete; Phase 35 is now seeded as the next execution lane.** All 63+ prior EPIC tickets, 10 Squad Deep-Dive items, and all earlier P0/P1 priorities are shipped to `development`.
 - **100% CSS custom property compliance.** Zero hardcoded rgb/rgba/hex color values remain in production frontend code. All semantic colors use CSS variables with WCAG AA+ contrast ratios.
 - **Zero browser-native dialogs.** All `window.confirm()`, `window.alert()`, and `alert()` eliminated → AntD Modal-based wrappers (`confirmDialog`, `showAlert`, `message`).
 - **Full table accessibility.** Every `<Table>` component has a descriptive `aria-label` for screen readers.
@@ -202,9 +213,9 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Process Cockpit overhaul shipped.** 3-tab structure (All Processes / Action Required / Completed), unified detail modals, Activity page removed from sidebar (PR #5024).
 - **CI/CD pipeline optimized:** DRY composite actions (.github/actions/), nginx template extraction, dev-deploy skip-tests optimization shipped in PRs #5011-#5015. Pipeline fully green (Run #2703).
 - **Industry Leader State vision active:** Phases 20-22 added to MASTER_PLAN.md and EPIC_TICKETS.md — UI/UX minimalism, end-to-end automation, and golden pipeline perfection.
-- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified. Phase 20 UI/UX polish complete (color system ✅, inline styles ✅, navigation ✅, cockpit ✅, AntD deprecations ✅, console.log cleanup ✅, copyright ✅, accessibility hardening ✅, type safety ✅, named colors eradicated ✅). Investor documentation complete (README ✅, demo guide ✅, launch checklist ✅, E2E smoke test ✅). P0 Security/RLS audit passed (all endpoints tenant-scoped, email webhook verification ✅, email integration tenant-scoped + RLS ✅). Next focus: P1 CI/CD determinism (digest-pin containers, deployment safety gate).
+- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the next highest-leverage lane is now **Phase 35 frontend surface simplification**. Phase 20 UI/UX polish, the follow-on CI/CD determinism work, investor documentation, and the P0 Security/RLS audit are all already shipped. The remaining user-facing simplification gap is converging Command Center/Cockpit information architecture and search-first operations UX.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
-- **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). Phase 12 has now restarted with `EH-01.1 drift-gate-depth` shipped in PR #4863, the previously merged `EH-01.2 manifest-required-secret-parity` work revalidated from PRs #4751/#4764, the already-merged `EH-01.3 pr-security-gates-and-dependabot-scope` hardening revalidated from PR #4766, `EH-01.4 rollback-release-automation-alignment` revalidated as already shipped via PR #4769, `EH-02.1 fail-closed-tenant-rls-runtime` revalidated as already shipped via PR #4771, `EH-02.2 platform-idempotency-keys` revalidated as already shipped via PRs #4773/#4776, `EH-02.3 chat-session-tenant-fk-rls` shipped in PR #4871, `EH-03.1 openapi-ai-and-high-churn-surface-coverage` revalidated as already shipped via PR #4775, `EH-03.2 openapi-ts-mobile-typegen` revalidated as already shipped via PRs #4777 and #4562, `EH-04.1 tenant-aware-query-keys-and-cache-clear-removal` shipped in PR #4874, `EH-04.2 search-contract-unification` shipped in PR #4876, and `EH-04.3 floweditor-decomposition-phase-1` shipped in PR #4878, promoting `EH-05.1 non-dev-redis-readiness-gate` as the next ready hardening item.
+- **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). The Phase 12 hardening follow-on is also fully shipped through `EH-06.2`, so this bullet is historical proof rather than a live handoff.
 - **Phase 15 execution is sealed:** the full `B2B-02` trade-engine rollout (`B2B-02.1` through `B2B-02.4`), the full `B2B-01` guest-portal lane (`B2B-01.1` through `B2B-01.5`), and the full `B2B-03` settlement lane (`B2B-03.1` through `B2B-03.5`) are now shipped on `development`, and the deploy-recovery / pipeline-stabilization follow-ups landed separately in PRs #4918, #4919, #4920, and #4921.
 - **Phase 16 execution is sealed:** the Core Trading Engine happy-path state machine plus distributed hardening epics are now fully shipped on `development`, including `CTE-08.2 trades-requiring-intervention-dashboard`, which lands the tenant-safe intervention queue APIs and Process Cockpit recovery surface for halted trades.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
@@ -347,12 +358,8 @@ All 10 items from the squad deep-dive plan have been completed:
   - WorkForms analytics dashboard: expose a tenant-safe execution analytics summary from the backend and upgrade the Monitoring page to show telemetry-backed KPIs, top failing steps, slowest actions, and busiest WorkForms.
   - AI email/document hardening: bridge Outlook attachments into `AIDocument`, preflight attachment metadata, persist provenance + same-session dedupe, hard-bind AI sessions/messages/uploads to `request.tenant`, enforce a session-scoped attachment allowlist before ingest, and normalize `parse_document` lifecycle/error handling for operator-visible status metadata (PRs #4733–#4739).
 
-### P0 priorities (next)
-- **Phase 20 — UI/UX Stupidly Simple & Powerful (active execution lane)**
-  - **Next ready ticket:** `UX-20.1 dashboard-simplification-and-4-widget-cap`
-  - **Why now:** All runtime and infrastructure backlog is complete. The biggest remaining impact is user-facing simplicity — reducing cognitive load and making the platform keyboard-first.
-  - **Near-term execution ordering:** `UX-20.1` → `UX-20.2` → `UX-20.3`, then advance to Phase 21 automation.
-  - **Definition of ready:** `.github/EPIC_TICKETS.md` exposes `UX-20.1` as the first unchecked `Ready` ticket.
+### P0 priorities (historical handoff snapshot)
+- **Phase 20 — UI/UX Stupidly Simple & Powerful:** shipped. This subsection is preserved as historical planning context only; the current execution lane now lives in **Phase 35** and `.github/EPIC_TICKETS.md`.
 
 - **Core API reliability**: ✅ shipped (PR #4652). Next: expand smoke coverage for always-on endpoints (health, tenant resolution, auth bootstrap) and keep them in PR gates.
 
@@ -548,9 +555,9 @@ Eliminate the recurring modal-crash, null-formatting, and breadcrumb-clarity def
 Extend ProjectMeats from an internal ERP into a partner-facing B2B network with secure extranet access, deterministic trade math, and automated settlement/reconciliation planning.
 
 ### Architecture status
-- **Execution status:** `B2B-02.1 trade-invariants-contract-and-surface-audit`, `B2B-02.2 backend-trade-engine-service-and-tests`, `B2B-02.3 transactional-api-adoption-for-orders-invoices-fulfillments`, `B2B-02.4 frontend-display-and-input-normalization`, `B2B-01.1 guest-portal-access-contract-and-doc-source-inventory`, `B2B-01.2 portal-grant-and-document-registry-schema`, `B2B-01.3 public-portal-read-apis-and-audit-trail`, `B2B-01.4 frontend-public-portal-shell-and-magic-link-consume`, `B2B-01.5 operator-issue-resend-revoke-controls`, `B2B-03.1 settlement-ingest-contract-and-webhook-first-adapter-plan`, and `B2B-03.2 settlement-event-store-and-public-ingest-endpoint` are shipped, and execution now continues at `B2B-03.3 reconciliation-engine-into-paymenttransaction` in PR #4911.
-- **Backlog placement:** `B2B-03.3` remains the active first unchecked ticket until PR #4911 merges.
-- **Execution order:** trade invariants first, then guest portals, then settlement reconciliation.
+- **Execution status:** historical snapshot only — the full Phase 15 lane is now shipped on `development`; this section remains for architecture and acceptance context.
+- **Backlog placement:** none; shipped historical lane.
+- **Execution order:** historical order was trade invariants first, then guest portals, then settlement reconciliation.
 - **Canonical contract source:** `docs/runbooks/GLOBAL_TRADE_ENGINE.md` plus the non-adopted helper seam in `backend/apps/core/conversions.py`.
 
 ### Deliverables + expected results
@@ -584,7 +591,7 @@ Extend ProjectMeats from an internal ERP into a partner-facing B2B network with 
 ### Acceptance criteria
 1. Phase 15 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
 2. Phase 15 is clearly marked as execution-open for the next reconciliation-engine lane now that the `B2B-02` rollout, the initial guest-portal execution block through operator controls, and the `B2B-03.1`/`B2B-03.2` settlement foundation lanes are complete; no wording implies the full partner network or settlement automation is already shipped.
-3. The backlog has exactly one active first unchecked ticket (`B2B-03.3`, currently in PR #4911), and every downstream Phase 15 ticket remains explicitly blocked behind it.
+3. During execution, the backlog had exactly one active first unchecked ticket (`B2B-03.3`, in PR #4911 at the time), and every downstream Phase 15 ticket remained explicitly blocked behind it.
 4. Each Phase 15 ticket identifies concrete repo paths, validation commands, dependencies, and rollback guidance.
 
 ### Dependencies
@@ -617,7 +624,7 @@ Extend ProjectMeats from an internal ERP into a partner-facing B2B network with 
 
 ## ARCHITECTURE SEALED
 
-**Execution boundary:** the target Phase 15 B2B Network architecture remains frozen at the design level. The `B2B-02` trade engine lane, the `B2B-01.1` access contract, the additive `B2B-01.2` portal grant/document-registry schema lane, `B2B-01.3` public portal read APIs + audit trail, `B2B-01.4` frontend portal shell + magic-link consume, `B2B-01.5` operator issue/resend/revoke controls, `B2B-03.1` settlement ingest/reconciliation contract lane, and `B2B-03.2` settlement raw-event ingress lane are now shipped, and execution currently continues with `B2B-03.3` settlement reconciliation into `PaymentTransaction` in PR #4911. This does **not** mean the partner network or settlement automation is implemented, shipped, or execution-complete. Downstream Phase 15 work and all Phase 16 tickets remain blocked behind the active Phase 15 rollout.
+**Execution boundary:** this is a historical planning snapshot. The `B2B-02` trade engine lane, the `B2B-01` guest-portal lane, and the `B2B-03` settlement lane are now shipped on `development`; this section remains to preserve the design boundary and execution history without implying there is still an active Phase 15 blocker.
 
 ## Phase 16: The Core Trading Engine (End-to-End Automation)
 
@@ -625,9 +632,9 @@ Extend ProjectMeats from an internal ERP into a partner-facing B2B network with 
 Hardcode the exact happy-path B2B trading pipeline around Inquiry intake, routing, sourcing, approval, sales, and logistics so the core trading engine works deterministically before any future visual editor is mapped onto it.
 
 ### Architecture status
-- **Execution status:** active — CTE-01 through CTE-04.3 shipped; CTE-04.4 is next ready ticket.
-- **Backlog placement:** top of `.github/EPIC_TICKETS.md` execution queue.
-- **Execution order:** inquiry intake/routing (shipped) → supplier RFQ brokerage (shipped) → approval/PDF/email (shipped) → sales/logistics cascade (in progress) → distributed hardening/lineage (planned).
+- **Execution status:** historical snapshot only — the full Phase 16 lane is shipped on `development`; this section remains for architecture context.
+- **Backlog placement:** none; shipped historical lane.
+- **Execution order:** historical order was inquiry intake/routing → supplier RFQ brokerage → approval/PDF/email → sales/logistics cascade → distributed hardening/lineage.
 - **Current repo reality:** `Inquiry`, `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` exist with full happy-path seams through CTE-03.3; AI email ingestion, outbound RFQ, supplier reply parsing, draft PO generation, approval state machine, and approved PO dispatch are all shipped.
 
 ### Deliverables + expected results
@@ -691,7 +698,7 @@ Hardcode the exact happy-path B2B trading pipeline around Inquiry intake, routin
 ### Acceptance criteria
 1. Phase 16 is represented consistently across `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, and `.github/EPIC_TICKETS.md`.
 2. Phase 16b hardening epics (Trade Lineage, Event-Driven Saga, Concurrency Locks, Exception Control Tower) are **fully shipped** on `development` — all models, services, Celery consumers, and tests are merged.
-3. The backlog continues to have exactly one first unchecked `Ready` ticket above Phase 16, and every Phase 16 ticket is explicitly blocked.
+3. While this phase was active, the backlog kept exactly one first unchecked `Ready` ticket above Phase 16, and every Phase 16 ticket stayed explicitly blocked.
 4. Phase 16 tickets explicitly tie AI structured outputs, outbound email, and PDF generation to `PurchaseOrder`, `SalesOrder`, and `CarrierPurchaseOrder` state transitions.
 5. Phase 16 hardening tickets explicitly name Celery-driven saga transitions, `select_for_update()` locking, `idempotency_key` enforcement, and trade-lineage propagation.
 
@@ -1034,7 +1041,7 @@ Evolve the AI from a reactive chat surface into an ambient assistant that can si
 ### Acceptance criteria
 1. Phase 19 is represented consistently in `MASTER_PLAN.md`, `.github/MASTER_PLAN.md`, `.github/EPIC_TICKETS.md`, and the session plan without implying execution has started.
 2. The backlog contains atomic `AMB-*` tickets with concrete paths, dependencies, validation commands, risks, and rollback notes.
-3. Ambient AI remains explicitly queued behind the active execution lane; the first unchecked `Ready` ticket above it does not change.
+3. Ambient AI remains explicitly queued behind the canonical execution lane defined in `.github/EPIC_TICKETS.md`.
 4. The plan names the canonical backend/frontend seams for contextual suggestions, anomaly checks, and contextual email drafting so a future implementation pass can start without rediscovery.
 
 ### Dependencies
@@ -1293,7 +1300,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - Runtime reliability depends on explicit, production-grade infrastructure rather than dev fallbacks
 
 **Acceptance criteria**
-- The first unchecked ticket in `.github/EPIC_TICKETS.md` is executable from docs alone
+- The first unchecked ticket in `.github/EPIC_TICKETS.md` is executable from docs alone whenever a new lane is seeded
 - `.github/SDLC_PROTOCOLS.md` lists the mandatory reads, commands, and guardrails for every major change type
 - High-risk enterprise gaps are mapped to discrete epics with dependencies, tests, and rollback notes
 - This file remains the only canonical priority snapshot

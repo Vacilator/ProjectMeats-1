@@ -14,6 +14,8 @@ For current priorities, status, and evidence, see **`MASTER_PLAN.md` (canonical)
 
 This is a lightweight pointer list from squad discovery. **Execute via `MASTER_PLAN.md` (canonical) + `.github/MASTER_PLAN.md` (PR log)**.
 
+- Frontend surface simplification is now tracked canonically as **Phase 35** in `MASTER_PLAN.md` + `.github/EPIC_TICKETS.md`; use that lane instead of extending older Cockpit/widget-catalog planning in this reference snapshot.
+
 - P0 Security/RLS correctness:
   - ✅ Cross-tenant exposure audit passed — all `apps/system` config/choice endpoints filter by `request.tenant` (verified 2026-05-08).
   - ✅ Invitation email Celery task is tenant/RLS safe — passes `tenant_id` and wraps ORM in `tenant_rls(strict=True)` (verified 2026-05-08).
