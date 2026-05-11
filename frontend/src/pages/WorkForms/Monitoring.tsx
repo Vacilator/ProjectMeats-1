@@ -1,13 +1,13 @@
 /**
  * WorkForms Monitoring
  *
- * WorkForms monitoring is the secondary execution drill-in surface.
+ * WorkForms Monitoring is the canonical execution drill-in surface.
  * Command Center owns queue triage and action-required operator work.
  */
 
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
@@ -16,8 +16,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { workformExecutionService } from '@/services/workformExecutionService';
-import { withTenantQueryKey } from '@/utils/queryKeys';
-import ProcessMonitor from '../Cockpit/ProcessMonitor';
+import { getTenantQueryScope, withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const formatDuration = (value: number | null | undefined) => {
@@ -27,16 +26,26 @@ const formatDuration = (value: number | null | undefined) => {
 };
 
 export const Monitoring: React.FC = () => {
-  useDocumentTitle('WorkForm Monitoring');
+  useDocumentTitle('WorkForms Monitoring');
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const tenantQueryScope = getTenantQueryScope();
+  const analyticsQueryKey = useMemo(
+    () => withTenantQueryKey('workform-executions', 'analytics'),
+    [tenantQueryScope],
+  );
+  const activeExecutionsQueryKey = useMemo(
+    () => withTenantQueryKey('workform-executions', 'active'),
+    [tenantQueryScope],
+  );
   const analyticsQuery = useQuery({
-    queryKey: withTenantQueryKey('workform-executions', 'analytics'),
+    queryKey: analyticsQueryKey,
     queryFn: async () => workformExecutionService.getAnalytics({ days: 30, limit: 5 }),
     refetchInterval: 15000,
   });
 
   const activeExecutionsQuery = useQuery({
-    queryKey: withTenantQueryKey('workform-executions', 'active'),
+    queryKey: activeExecutionsQueryKey,
     queryFn: async () => workformExecutionService.getExecutions({ status: 'pending,in_progress', page_size: 25 }),
     refetchInterval: 5000,
   });
@@ -46,9 +55,31 @@ export const Monitoring: React.FC = () => {
   const topWorkforms = analyticsQuery.data?.top_workforms ?? [];
   const topFailedNodes = analyticsQuery.data?.top_failed_nodes ?? [];
   const slowestActions = analyticsQuery.data?.slowest_actions ?? [];
+  const activeExecutionCount = active.length;
 
-    return (
-      <ErrorBoundary>
+  const handleOpenCommandCenter = useCallback(() => {
+    navigate('/command-center?tab=action-required');
+  }, [navigate]);
+
+  const handleOpenWorkFormsHistory = useCallback(() => {
+    navigate('/workforms/history');
+  }, [navigate]);
+
+  const handleOpenWorkFormsCatalog = useCallback(() => {
+    navigate('/workforms/catalog');
+  }, [navigate]);
+
+  const handleRefreshMonitoring = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: analyticsQueryKey });
+    void queryClient.invalidateQueries({ queryKey: activeExecutionsQueryKey });
+  }, [activeExecutionsQueryKey, analyticsQueryKey, queryClient]);
+
+  const handleRefreshActiveExecutions = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: activeExecutionsQueryKey });
+  }, [activeExecutionsQueryKey, queryClient]);
+
+  return (
+    <ErrorBoundary>
       <PageContainer title="WorkForms Monitoring">
         <PageStack>
           <Card padding="lg">
@@ -57,15 +88,29 @@ export const Monitoring: React.FC = () => {
                 <SectionTitle>Execution drill-in</SectionTitle>
                 <SectionSubtitle>
                   Command Center owns action-required triage. Use WorkForms Monitoring
-                  for execution analytics, active runs, and step-level submission detail.
+                  for execution analytics, active runs, failure hotspots, and
+                  submission-level follow-through.
                 </SectionSubtitle>
+                <ExecutionSummaryRow>
+                  <ExecutionSummaryItem>
+                    <strong>{summary?.active_runs ?? activeExecutionCount}</strong> active runs
+                  </ExecutionSummaryItem>
+                  <ExecutionSummaryItem>
+                    <strong>{topFailedNodes.length}</strong> recent failure hotspots
+                  </ExecutionSummaryItem>
+                  <ExecutionSummaryItem>
+                    <strong>{slowestActions.length}</strong> slow-step diagnostics
+                  </ExecutionSummaryItem>
+                </ExecutionSummaryRow>
               </div>
-              <Button
-                variant="secondary"
-                onClick={() => navigate('/command-center?tab=action-required')}
-              >
-                Open Command Center
-              </Button>
+              <ActionButtonGroup>
+                <Button variant="secondary" onClick={handleOpenCommandCenter}>
+                  Open Command Center
+                </Button>
+                <Button variant="secondary" onClick={handleOpenWorkFormsHistory}>
+                  View WorkForms History
+                </Button>
+              </ActionButtonGroup>
             </SectionHeader>
           </Card>
 
@@ -79,10 +124,7 @@ export const Monitoring: React.FC = () => {
               </div>
               <Button
                 variant="secondary"
-                onClick={() => {
-                  void analyticsQuery.refetch();
-                  void activeExecutionsQuery.refetch();
-                }}
+                onClick={handleRefreshMonitoring}
                 disabled={analyticsQuery.isFetching || activeExecutionsQuery.isFetching}
               >
                 Refresh
@@ -177,7 +219,7 @@ export const Monitoring: React.FC = () => {
               <SectionTitle>Active WorkForm Executions</SectionTitle>
               <Button
                 variant="secondary"
-                onClick={() => activeExecutionsQuery.refetch()}
+                onClick={handleRefreshActiveExecutions}
                 disabled={activeExecutionsQuery.isFetching}
               >
                 Refresh
@@ -187,7 +229,12 @@ export const Monitoring: React.FC = () => {
             {activeExecutionsQuery.isLoading ? (
               <LoadingText>Loading…</LoadingText>
             ) : active.length === 0 ? (
-              <EmptyStateText>No active executions.</EmptyStateText>
+              <EmptyStateStack>
+                <EmptyStateText>No active executions.</EmptyStateText>
+                <Button variant="secondary" onClick={handleOpenWorkFormsCatalog}>
+                  Open WorkForms Catalog
+                </Button>
+              </EmptyStateStack>
             ) : (
               <ExecutionList>
                 {active.map((ex) => (
@@ -200,9 +247,6 @@ export const Monitoring: React.FC = () => {
               </ExecutionList>
             )}
           </Card>
-
-          {/* Legacy monitor (FormSubmission-based) */}
-          <ProcessMonitor />
         </PageStack>
       </PageContainer>
     </ErrorBoundary>
@@ -224,6 +268,12 @@ const SectionHeader = styled.div`
   flex-wrap: wrap;
 `;
 
+const ActionButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
 const SectionTitle = styled.div`
   font-weight: 700;
 `;
@@ -232,6 +282,26 @@ const SectionSubtitle = styled.div`
   color: rgb(var(--color-text-secondary));
   font-size: 14px;
   margin-top: 4px;
+`;
+
+const ExecutionSummaryRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+`;
+
+const ExecutionSummaryItem = styled.div`
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-secondary));
+  font-size: 12px;
+  padding: 6px 10px;
+
+  strong {
+    color: rgb(var(--color-text-primary));
+  }
 `;
 
 const LoadingText = styled.div`
@@ -315,8 +385,15 @@ const DetailMeta = styled.div`
 `;
 
 const EmptyStateText = styled.div`
-  margin-top: 12px;
   color: rgb(var(--color-text-secondary));
+`;
+
+const EmptyStateStack = styled.div`
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 `;
 
 const ExecutionList = styled.ul`
