@@ -15,7 +15,7 @@ For current priorities, status, and evidence, see **`MASTER_PLAN.md` (canonical)
 This is a lightweight pointer list from squad discovery. **Execute via `MASTER_PLAN.md` (canonical) + `.github/MASTER_PLAN.md` (PR log)**.
 
 - Frontend surface simplification is now tracked canonically as **Phase 35** in `MASTER_PLAN.md` + `.github/EPIC_TICKETS.md`; use that lane instead of extending older Cockpit/widget-catalog planning in this reference snapshot.
-- **Phase 36 is complete on `development`.** Wait for the next canonical frontend simplification lane in `MASTER_PLAN.md` + `.github/EPIC_TICKETS.md` instead of extending historical Cockpit/process-monitor notes here.
+- The next frontend operator simplification pass is now tracked canonically as **Phase 37** in `MASTER_PLAN.md` + `.github/EPIC_TICKETS.md`; use that lane for operator-surface completion, inline-style extraction, and workspace-cleanup work instead of extending historical Cockpit/process-monitor notes here.
 
 - P0 Security/RLS correctness:
   - ✅ Cross-tenant exposure audit passed — all `apps/system` config/choice endpoints filter by `request.tenant` (verified 2026-05-08).
