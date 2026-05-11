@@ -1,13 +1,17 @@
 import React, { useCallback } from 'react';
 
 import { Typography } from 'antd';
+import { useSearchParams } from 'react-router-dom';
 
 import { EntityFormSurface } from '../../components/Shared/EntityFormSurface';
 
 const { Paragraph, Title } = Typography;
 
 export const EntityFormSurfaceSmoke: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const handleClose = useCallback(() => {}, []);
+  const mode = searchParams.get('mode') === 'create' ? 'create' : 'edit';
+  const isCreateMode = mode === 'create';
 
   return (
     <div
@@ -21,17 +25,21 @@ export const EntityFormSurfaceSmoke: React.FC = () => {
         Entity form smoke
       </Title>
       <Paragraph style={{ color: 'rgb(var(--color-text-secondary))' }}>
-        Production-preview smoke harness for the Plant edit loader boundary.
+        Production-preview smoke harness for the Plant create/edit loader boundary.
       </Paragraph>
 
       <EntityFormSurface
         entityType="plant"
-        entityId="2769"
-        mode="edit"
+        entityId={isCreateMode ? undefined : '2769'}
+        mode={mode}
         variant="inline"
         isOpen
         onClose={handleClose}
-        initialValues={{ export_approved: false }}
+        initialValues={
+          isCreateMode
+            ? { supplier: '123', plant_type: 'processing', country: 'USA', export_approved: false }
+            : { export_approved: false }
+        }
       />
     </div>
   );

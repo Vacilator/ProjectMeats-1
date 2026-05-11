@@ -55,6 +55,9 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 const FK_BATCH_SIGNATURE = JSON.stringify([
   { fieldKey: 'customer', relatedEntity: 'customers.Customer' },
 ]);
+const CREATE_FK_BATCH_SIGNATURE = JSON.stringify([
+  { fieldKey: 'supplier', relatedEntity: 'suppliers.Supplier' },
+]);
 
 describe('EntityFormSurface', () => {
   beforeEach(() => {
@@ -234,6 +237,75 @@ describe('EntityFormSurface', () => {
           | Record<string, Array<{ id: string; name: string }>>
         | undefined
       )?.customer?.[0]?.name
+    ).toBe('Acme Foods');
+  });
+
+  it('keeps plant create forms mounted once when parent rebuilds identical seed values', async () => {
+    const queryClient = createQueryClient();
+
+    queryClient.setQueryData(withTenantQueryKey('entity-form-schema', 'plant'), {
+      name: 'Plant',
+      description: 'Plant schema',
+      fields: [
+        { key: 'name', label: 'Plant Name', type: 'text', required: true },
+        {
+          key: 'supplier',
+          label: 'Supplier',
+          type: 'foreign_key',
+          related_entity: 'suppliers.Supplier',
+        },
+      ],
+    });
+    queryClient.setQueryData(
+      withTenantQueryKey('entity-form-fk-options-batch', 'plant', CREATE_FK_BATCH_SIGNATURE),
+      {
+        supplier: [{ id: '123', name: 'Acme Foods' }],
+      }
+    );
+
+    const Parent: React.FC = () => {
+      const [tick, setTick] = useState(0);
+
+      useEffect(() => {
+        if (tick >= 6) return;
+        setTick((prev) => prev + 1);
+      }, [tick]);
+
+      return (
+        <EntityFormSurface
+          entityType="plant"
+          mode="create"
+          variant="inline"
+          isOpen
+          onClose={() => {}}
+          initialValues={{
+            supplier: '123',
+            plant_type: 'processing',
+            country: 'USA',
+          }}
+        />
+      );
+    };
+
+    renderWithQueryClient(<Parent />, queryClient);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('universal-entity-form')).toBeInTheDocument();
+    });
+
+    expect(businessApiMock.get).not.toHaveBeenCalled();
+    expect(formLifecycle.mounts).toBe(1);
+    expect(formLifecycle.unmounts).toBe(0);
+
+    const latest = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
+    expect(latest?.mode).toBe('create');
+    expect((latest?.initialValues as { supplier?: string } | undefined)?.supplier).toBe('123');
+    expect(
+      (
+        latest?.externalFkOptions as
+          | Record<string, Array<{ id: string; name: string }>>
+          | undefined
+      )?.supplier?.[0]?.name
     ).toBe('Acme Foods');
   });
 

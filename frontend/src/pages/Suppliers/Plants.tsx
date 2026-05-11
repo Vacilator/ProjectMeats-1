@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import type { ColumnsType } from 'antd/es/table';
@@ -163,7 +163,6 @@ const Plants: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { supplierId } = useParams<{ supplierId?: string }>();
-  const [searchParams] = useSearchParams();
   
   // State
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -184,9 +183,10 @@ const Plants: React.FC = () => {
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
     const state = location.state as any;
+    const params = new URLSearchParams(location.search);
 
     const paramId = supplierId ? Number(supplierId) : NaN;
-    const querySupplier = searchParams.get('supplier');
+    const querySupplier = params.get('supplier');
     const queryId = querySupplier ? Number(querySupplier) : NaN;
     const stateId = state?.supplierId ? Number(state.supplierId) : NaN;
 
@@ -196,7 +196,7 @@ const Plants: React.FC = () => {
       (Number.isFinite(stateId) && stateId > 0 ? stateId : null);
 
     setContextSupplierId(nextContext);
-  }, [location.state, supplierId, searchParams]);
+  }, [location.search, location.state, supplierId]);
 
   useEffect(() => {
     loadSuppliers();

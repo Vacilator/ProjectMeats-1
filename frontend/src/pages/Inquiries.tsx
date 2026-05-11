@@ -12,7 +12,7 @@
  * - Create from templates
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -464,6 +464,7 @@ const Inquiries: React.FC = () => {
   useDocumentTitle('Inquiries');
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const didInitFromStateRef = useRef(false);
   const didInitReviewRef = useRef<string | null>(null);
 
@@ -498,6 +499,13 @@ const Inquiries: React.FC = () => {
     [entityTypeFilter, page, pageSize, search, statusFilter]
   );
   const inquiriesQuery = useQuery(inquiriesQueryOptions);
+  const refreshInquiries = useCallback(
+    () =>
+      queryClient.invalidateQueries({
+        queryKey: withTenantQueryKey('inquiries', page, pageSize, search, statusFilter, entityTypeFilter),
+      }),
+    [entityTypeFilter, page, pageSize, queryClient, search, statusFilter]
+  );
 
   const inquiries = inquiriesQuery.data?.items ?? [];
   const totalCount = inquiriesQuery.data?.count ?? 0;
@@ -596,8 +604,8 @@ const Inquiries: React.FC = () => {
 
   const handleCreateSuccess = useCallback(() => {
     setShowCreateModal(false);
-    void inquiriesQuery.refetch();
-  }, [inquiriesQuery]);
+    void refreshInquiries();
+  }, [refreshInquiries]);
 
   const handleCreateClose = useCallback(() => {
     setShowCreateModal(false);
@@ -615,8 +623,8 @@ const Inquiries: React.FC = () => {
 
   const handleUpdateInquiry = useCallback((updatedInquiry: any) => {
     setSelectedInquiry(updatedInquiry);
-    void inquiriesQuery.refetch();
-  }, [inquiriesQuery]);
+    void refreshInquiries();
+  }, [refreshInquiries]);
   
   const handleClone = useCallback((inquiry: any) => {
     setDetailReviewMode(false);
@@ -627,20 +635,20 @@ const Inquiries: React.FC = () => {
   
   const handleCloned = useCallback((newInquiry: any) => {
     setShowCloneModal(false);
-    void inquiriesQuery.refetch();
+    void refreshInquiries();
     setSelectedInquiry(newInquiry);
     setDetailReviewMode(false);
     setShowDetailModal(true);
-  }, [inquiriesQuery]);
+  }, [refreshInquiries]);
   
-  const handleCreateFromTemplate = async (templateId: string) => {
+  const handleCreateFromTemplate = useCallback(async (templateId: string) => {
     setShowTemplateMenu(false);
     try {
       const detail = await inquiryService.createInquiryFromTemplate(templateId);
       setSelectedInquiry(detail);
       setDetailReviewMode(false);
       setShowDetailModal(true);
-      void inquiriesQuery.refetch();
+      void refreshInquiries();
     } catch (err) {
       logger.error('Failed to create inquiry from template:', err);
       showAlert({
@@ -649,7 +657,7 @@ const Inquiries: React.FC = () => {
         content: 'Failed to create inquiry from template',
       });
     }
-  };
+  }, [refreshInquiries]);
 
   const formatCurrency = (value: number | undefined) => {
     if (value === undefined || value === null) return '-';

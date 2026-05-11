@@ -86,24 +86,24 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
-    if (path.endsWith('/system/forms/schema/')) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          name: 'Plant',
-          description: 'Plant schema',
-          fields: [
-            { key: 'name', label: 'Plant Name', type: 'text', required: true },
-            {
-              key: 'customer',
-              label: 'Customer',
-              type: 'foreign_key',
-              related_entity: 'customers.Customer',
-            },
-          ],
-        }),
-      });
+      if (path.endsWith('/system/forms/schema/')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            name: 'Plant',
+            description: 'Plant schema',
+            fields: [
+              { key: 'name', label: 'Plant Name', type: 'text', required: true },
+              {
+                key: 'supplier',
+                label: 'Supplier',
+                type: 'foreign_key',
+                related_entity: 'suppliers.Supplier',
+              },
+            ],
+          }),
+        });
       return;
     }
 
@@ -114,13 +114,13 @@ test.beforeEach(async ({ page }) => {
         body: JSON.stringify({
           id: 2769,
           name: 'North Plant',
-          customer: '123',
+          supplier: '123',
         }),
       });
       return;
     }
 
-    if (path.endsWith('/customers/')) {
+    if (path.endsWith('/suppliers/')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -131,13 +131,13 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
-    if (path.endsWith('/workflows/entity-options/customer/')) {
+    if (path.endsWith('/workflows/entity-options/supplier/')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          entity_type: 'customer',
-          entity_label: 'Customer',
+          entity_type: 'supplier',
+          entity_label: 'Supplier',
           options: [{ value: '123', label: 'Acme Foods' }],
           count: 1,
           total_count: 1,
@@ -183,7 +183,43 @@ test('renders the plant edit form in production preview without hitting max upda
   await expect(page.getByTestId('entity-form-smoke-title')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Plant' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Plant Name *' })).toHaveValue('North Plant');
-  await expect(page.getByText('Customer', { exact: true })).toBeVisible();
+  await expect(page.getByText('Supplier', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Acme Foods/ })).toBeVisible();
+  await expect(page.getByTestId('entity-form-loading')).toHaveCount(0);
+
+  await page.waitForTimeout(3000);
+
+  expect(fatalBrowserErrors).toEqual([]);
+});
+
+test('renders the plant create form in production preview without hitting max update depth', async ({
+  page,
+}) => {
+  const fatalBrowserErrors: string[] = [];
+
+  page.on('console', (msg) => {
+    if (msg.type() !== 'error') {
+      return;
+    }
+
+    const message = msg.text();
+    if (isFatalReactRuntimeMessage(message)) {
+      fatalBrowserErrors.push(`console.error: ${message}`);
+    }
+  });
+
+  page.on('pageerror', (error) => {
+    if (isFatalReactRuntimeMessage(error.message)) {
+      fatalBrowserErrors.push(`pageerror: ${error.message}`);
+    }
+  });
+
+  await page.goto('/diagnostics/entity-form-surface-smoke?mode=create');
+
+  await expect(page.getByTestId('entity-form-smoke-title')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Plant' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Plant Name *' })).toHaveValue('');
+  await expect(page.getByText('Supplier', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Acme Foods/ })).toBeVisible();
   await expect(page.getByTestId('entity-form-loading')).toHaveCount(0);
 

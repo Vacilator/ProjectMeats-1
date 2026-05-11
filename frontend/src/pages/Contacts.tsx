@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logger';
@@ -225,15 +225,21 @@ const Contacts: React.FC = () => {
   useDocumentTitle('Contacts');
   const { supplierId, customerId } = useParams<{ supplierId?: string; customerId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const searchParamsSignature = searchParams.toString();
 
   const contactFilters = useMemo(
-    () => ({
-      supplier: supplierId ?? searchParams.get('supplier') ?? undefined,
-      customer: customerId ?? searchParams.get('customer') ?? undefined,
-      plant: searchParams.get('plant') ?? undefined,
-      location: searchParams.get('location') ?? undefined,
-    }),
-    [customerId, searchParams, supplierId]
+    () => {
+      const params = new URLSearchParams(searchParamsSignature);
+
+      return {
+        supplier: supplierId ?? params.get('supplier') ?? undefined,
+        customer: customerId ?? params.get('customer') ?? undefined,
+        plant: params.get('plant') ?? undefined,
+        location: params.get('location') ?? undefined,
+      };
+    },
+    [customerId, searchParamsSignature, supplierId]
   );
   const contactInitialValues = useMemo(
     () => ({
@@ -263,6 +269,29 @@ const Contacts: React.FC = () => {
 
   const contacts = contactsQuery.data ?? [];
   const loading = contactsQuery.isLoading;
+  const createRequested = useMemo(
+    () => new URLSearchParams(searchParamsSignature).get('create') === '1',
+    [searchParamsSignature]
+  );
+  const invalidateContacts = useCallback(
+    () =>
+      queryClient.invalidateQueries({
+        queryKey: withTenantQueryKey(
+          'contacts',
+          contactFilters.supplier,
+          contactFilters.customer,
+          contactFilters.plant,
+          contactFilters.location
+        ),
+      }),
+    [
+      contactFilters.customer,
+      contactFilters.location,
+      contactFilters.plant,
+      contactFilters.supplier,
+      queryClient,
+    ]
+  );
 
   useEffect(() => {
     if (contactsQuery.error) {
@@ -274,18 +303,19 @@ const Contacts: React.FC = () => {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1') return;
+    if (!createRequested) return;
 
     setEditingContact(null);
     setShowForm(true);
-  }, [searchParams]);
+  }, [createRequested]);
 
   const clearCreateParam = useCallback(() => {
-    if (searchParams.get('create') !== '1') return;
-    const next = new URLSearchParams(searchParams);
-    next.delete('create');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('create');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
 
   const handleEdit = useCallback((contact: Contact) => {
@@ -303,8 +333,8 @@ const Contacts: React.FC = () => {
     setShowForm(false);
     setEditingContact(null);
     clearCreateParam();
-    void contactsQuery.refetch();
-  }, [clearCreateParam, contactsQuery]);
+    void invalidateContacts();
+  }, [clearCreateParam, invalidateContacts]);
 
   const handleDelete = useCallback(async (id: number) => {
     const contact = contacts.find((c) => c.id === id);
@@ -319,7 +349,7 @@ const Contacts: React.FC = () => {
 
     try {
       await apiService.deleteContact(id);
-      await contactsQuery.refetch();
+      await invalidateContacts();
     } catch (error: unknown) {
       logger.error('[Contacts] Error deleting contact:', error);
       const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
@@ -329,7 +359,7 @@ const Contacts: React.FC = () => {
         || 'Failed to delete contact';
       showAlert({ type: 'error', title: 'Error', content: errorMessage });
     }
-  }, [contactsQuery, contacts]);
+  }, [contacts, invalidateContacts]);
 
   const handleExportCsv = useCallback(() => {
     const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Company', 'Position'];

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Input, Result, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DownloadOutlined } from '@ant-design/icons';
 
@@ -27,6 +27,7 @@ const Suppliers: React.FC = () => {
   useDocumentTitle('Suppliers');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
 
   const suppliersQuery = useQuery({
     queryKey: withTenantQueryKey('suppliers'),
@@ -45,21 +46,25 @@ const Suppliers: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<string | number | null>(null);
+  const createAction = searchParams.get('action');
+  const refreshSuppliers = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('suppliers') }),
+    [queryClient]
+  );
 
   const [productsBySupplierId, setProductsBySupplierId] = useState<Record<string, SupplierProduct[]>>({});
   const [productsLoadingBySupplierId, setProductsLoadingBySupplierId] = useState<Record<string, boolean>>({});
 
   // Back-compat: if anything still links to ?action=create
   useEffect(() => {
-    if (searchParams.get('action') === 'create') {
-      setCreateOpen(true);
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('action');
-        return next;
-      });
-    }
-  }, [searchParams, setSearchParams]);
+    if (createAction !== 'create') return;
+    setCreateOpen(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('action');
+      return next;
+    });
+  }, [createAction, setSearchParams]);
 
   const productsByCachedRef = React.useRef(productsBySupplierId);
   productsByCachedRef.current = productsBySupplierId;
@@ -97,12 +102,12 @@ const Suppliers: React.FC = () => {
 
       try {
         await apiService.deleteSupplier(Number(supplierId));
-        void suppliersQuery.refetch();
+        await refreshSuppliers();
       } catch {
         message.error('Failed to delete supplier. Please try again.');
       }
     },
-    [suppliersQuery, suppliers]
+    [refreshSuppliers, suppliers]
   );
 
   const handleExportCsv = useCallback(() => {
@@ -121,8 +126,8 @@ const Suppliers: React.FC = () => {
 
   const handleCreateSuccess = useCallback(() => {
     setCreateOpen(false);
-    void suppliersQuery.refetch();
-  }, [suppliersQuery]);
+    void refreshSuppliers();
+  }, [refreshSuppliers]);
 
   const handleEditClose = useCallback(() => {
     setEditOpen(false);
@@ -132,8 +137,8 @@ const Suppliers: React.FC = () => {
   const handleEditSuccess = useCallback(() => {
     setEditOpen(false);
     setEditingSupplierId(null);
-    void suppliersQuery.refetch();
-  }, [suppliersQuery]);
+    void refreshSuppliers();
+  }, [refreshSuppliers]);
 
   const columns: ColumnsType<SupplierListRow> = useMemo(
     () => [

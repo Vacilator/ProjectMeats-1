@@ -68,6 +68,10 @@ const FreightOrders: React.FC = () => {
     },
     staleTime: 15 * 1000,
   });
+  const refreshFreightOrders = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('freight-orders') }),
+    [queryClient]
+  );
 
   const handleCreateClose = useCallback(() => {
     setIsCreateOpen(false);
@@ -75,8 +79,8 @@ const FreightOrders: React.FC = () => {
 
   const handleCreateSuccess = useCallback(() => {
     setIsCreateOpen(false);
-    void freightOrdersQuery.refetch();
-  }, [freightOrdersQuery]);
+    void refreshFreightOrders();
+  }, [refreshFreightOrders]);
 
   const handleEditClose = useCallback(() => {
     setEditingOrderId(null);
@@ -84,8 +88,8 @@ const FreightOrders: React.FC = () => {
 
   const handleEditSuccess = useCallback(() => {
     setEditingOrderId(null);
-    void freightOrdersQuery.refetch();
-  }, [freightOrdersQuery]);
+    void refreshFreightOrders();
+  }, [refreshFreightOrders]);
 
   const orders = freightOrdersQuery.data ?? [];
 

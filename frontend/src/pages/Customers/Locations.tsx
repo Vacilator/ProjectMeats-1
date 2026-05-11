@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
 import { confirmDialog } from '@/utils/uiDialogs';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
@@ -162,7 +162,6 @@ const CustomerLocations: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { customerId } = useParams<{ customerId?: string }>();
-  const [searchParams] = useSearchParams();
   
   // State
   const [locations, setLocations] = useState<Location[]>([]);
@@ -185,9 +184,10 @@ const CustomerLocations: React.FC = () => {
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
     const state = location.state as any;
+    const params = new URLSearchParams(location.search);
 
     const paramId = customerId ? Number(customerId) : NaN;
-    const queryCustomer = searchParams.get('customer');
+    const queryCustomer = params.get('customer');
     const queryId = queryCustomer ? Number(queryCustomer) : NaN;
     const stateId = state?.customerId ? Number(state.customerId) : NaN;
 
@@ -197,7 +197,7 @@ const CustomerLocations: React.FC = () => {
       (Number.isFinite(stateId) && stateId > 0 ? stateId : null);
 
     setContextCustomerId(nextContext);
-  }, [location.state, customerId, searchParams]);
+  }, [location.search, location.state, customerId]);
 
   useEffect(() => {
     loadCustomers();
