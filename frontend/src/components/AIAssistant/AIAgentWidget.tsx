@@ -594,14 +594,16 @@ const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string |
   return url.toString();
 };
 
+const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([400, 401, 403, 405, 426]);
+
 /**
  * Pre-flight check: verify the WebSocket path is routed before attempting
- * a WebSocket connection.  Probes the actual WS path with a plain HTTP
- * request.  If the path is routed (ASGI/Channels), the server will respond
- * with 200/400/403/426; if the path is not proxied the reverse proxy will
- * return 404/502/504.  Only returns false on network failure or a clear
- * "not found" (404) response — this prevents the browser from logging
- * uncatchable native WebSocket errors for endpoints that don't exist.
+ * a WebSocket connection. Probes the actual WS path with a plain HTTP
+ * request. The backend exposes a matching HTTP probe route that responds
+ * with 426 when the reverse proxy and ASGI stack are wired correctly.
+ * A 200/30x response usually means the SPA fallback or another HTTP
+ * endpoint answered, so fail closed and avoid creating a doomed native
+ * WebSocket.
  */
 const checkWSEndpointReachable = async (): Promise<boolean> => {
   try {
@@ -609,14 +611,16 @@ const checkWSEndpointReachable = async (): Promise<boolean> => {
     const response = await fetch(AI_INBOX_SOCKET_PATH, {
       method: 'GET',
       cache: 'no-store',
+      credentials: 'same-origin',
+      redirect: 'manual',
       signal: AbortSignal.timeout(5000),
     });
-    // 404 means the path isn't routed at all — WS will definitely fail
-    if (response.status === 404) return false;
-    // 502/503/504 means the WS backend (ASGI server) is not running
-    if (response.status >= 502 && response.status <= 504) return false;
-    // Any other HTTP response means the path exists (even 400/403/426 is fine)
-    return true;
+
+    if (response.redirected) {
+      return false;
+    }
+
+    return AI_INBOX_PREFLIGHT_ALLOWED_STATUSES.has(response.status);
   } catch {
     return false;
   }
@@ -988,15 +992,16 @@ export const AIAgentWidget: React.FC = () => {
         // Pre-flight: verify backend API is reachable before opening WebSocket
         // This prevents the browser from logging uncatchable WebSocket errors
         // when the backend is not available (dev, network down, etc.)
-        if (!wsEndpointCheckedRef.current) {
-          wsEndpointCheckedRef.current = true;
-          wsEndpointReachableRef.current = await checkWSEndpointReachable();
+        if (!wsEndpointCheckedRef.current || !wsEndpointReachableRef.current) {
+          const reachable = await checkWSEndpointReachable();
           if (disposed) return;
+          wsEndpointReachableRef.current = reachable;
+          wsEndpointCheckedRef.current = reachable;
         }
 
         if (!wsEndpointReachableRef.current) {
-          // Backend not reachable — stay idle, no error spam
-          setAiInboxRealtimeStatus('idle');
+          setAiInboxRealtimeStatus(wsEverConnectedRef.current ? 'degraded' : 'idle');
+          scheduleReconnect(false);
           return;
         }
 

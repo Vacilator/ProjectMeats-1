@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import uuid
 
-from asgiref.sync import async_to_sync
-from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase, override_settings
+
+from asgiref.sync import async_to_sync
+from channels.testing import WebsocketCommunicator
 from rest_framework_simplejwt.tokens import AccessToken
+from tenant_apps.ai_assistant.models import AIFeedbackLog
 
 from apps.tenants.models import Tenant, TenantUser
 from projectmeats.asgi import application
-from tenant_apps.ai_assistant.models import AIFeedbackLog
 
 
 @override_settings(
@@ -186,3 +187,10 @@ class AIInboxWebsocketTests(TransactionTestCase):
             await communicator.disconnect()
 
         async_to_sync(run)()
+
+    def test_http_probe_route_returns_upgrade_required(self):
+        response = self.client.get("/ws/ai/inbox/")
+
+        self.assertEqual(response.status_code, 426)
+        self.assertEqual(response["Upgrade"], "websocket")
+        self.assertEqual(response["Connection"], "Upgrade")
