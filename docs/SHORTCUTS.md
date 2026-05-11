@@ -101,5 +101,5 @@ All shortcuts follow WCAG 2.1 AAA guidelines:
 
 ---
 
-**Source files**: `useGlobalShortcuts.ts` (canonical `SHORTCUT_REGISTRY`), `useCommandPalette.ts`, `keyboardNavigation.ts`, `AICommandCenter.tsx`, `ShortcutCheatsheet.tsx`  
+**Source files**: `useGlobalShortcuts.ts` (canonical `SHORTCUT_REGISTRY`), `useCommandPalette.ts`, `keyboardNavigation.ts`, `AICommandCenter.tsx`, `ShortcutCheatsheet.tsx`
 **Last updated**: 2026-05-11
