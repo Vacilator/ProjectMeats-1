@@ -51,7 +51,20 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('../../components/Widgets', () => ({
-  WidgetGrid: () => <div data-testid="widget-grid">Widget Grid</div>,
+  WidgetGrid: ({
+    widgets = [],
+    renderWidget,
+  }: {
+    widgets?: Array<{ id: string }>;
+    renderWidget?: (widget: { id: string }) => React.ReactNode;
+  }) => (
+    <div data-testid="widget-grid">
+      Widget Grid
+      {widgets.map(widget => (
+        <div key={widget.id}>{renderWidget?.(widget)}</div>
+      ))}
+    </div>
+  ),
   QuickStatsWidget: () => <div />,
   RecentActivityWidget: () => <div />,
   UpcomingCallsWidget: () => <div />,
@@ -262,6 +275,26 @@ describe('CockpitDashboard empty states', () => {
 
     expect(await screen.findByText('No widgets configured')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /customize dashboard/i })).toBeInTheDocument();
+  });
+
+  it('keeps AI learning metrics off the default populated landing surface until customize mode', async () => {
+    renderDashboard();
+
+    expect(await screen.findByTestId('widget-grid')).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-learning-metrics')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /customize workspace/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save & lock/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps AI learning metrics reachable through customization', async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await user.click(await screen.findByRole('button', { name: /customize workspace/i }));
+    await user.click(await screen.findByRole('button', { name: /add widget/i }));
+    await user.click(await screen.findByText('AI Learning Metrics'));
+
+    expect(await screen.findByTestId('ai-learning-metrics')).toBeInTheDocument();
   });
 
   it('lets Customize Dashboard dismiss the welcome and reveal the editable widget surface', async () => {

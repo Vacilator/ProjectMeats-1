@@ -196,6 +196,13 @@ const WIDGET_CATALOG = [
     category: 'metrics',
     icon: '🧠',
   },
+  {
+    type: 'AILearningMetricsWidget',
+    title: 'AI Learning Metrics',
+    description: 'Track AI learning progress and suggestion quality',
+    category: 'metrics',
+    icon: '📚',
+  },
 ];
 
 const WIDGET_CATEGORIES: Record<string, string> = {
@@ -742,6 +749,8 @@ export const CockpitDashboard: React.FC = () => {
         return <EmailIngestionMonitorWidget />;
       case 'ConfidenceScoringWidget':
         return <ConfidenceScoringWidget />;
+      case 'AILearningMetricsWidget':
+        return <AILearningMetricsWidget />;
       default:
         logger.warn('Unknown cockpit widget type encountered', {
           component: 'CockpitDashboard',
@@ -840,12 +849,6 @@ export const CockpitDashboard: React.FC = () => {
         </OperatorInsetSection>
       )}
 
-      {showDashboardWidgets && !showWelcomeEmptyState && (
-        <OperatorInsetSection maxWidth="full">
-          <AILearningMetricsWidget />
-        </OperatorInsetSection>
-      )}
-
       {/* Widget layout toolbar (applies to widgets only) */}
       {showDashboardWidgets && !showWelcomeEmptyState && (
         <OperatorActionRow surface="card">
@@ -872,7 +875,7 @@ export const CockpitDashboard: React.FC = () => {
             ) : (
               <ActionButton onClick={() => setIsEditing(true)}>
                 <Unlock size={16} />
-                Customize
+                Customize Workspace
               </ActionButton>
             )}
           </OperatorActionGroup>
