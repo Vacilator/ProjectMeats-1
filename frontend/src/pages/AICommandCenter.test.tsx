@@ -52,8 +52,8 @@ vi.mock('@/components/Trader/OperationsPanel', () => ({
 }));
 
 vi.mock('@/components/Shared/StatCardGrid', () => ({
-  StatCardGrid: ({ stats }: { stats: Array<{ label: string }> }) => (
-    <div data-testid="stat-grid">{stats?.map(s => s.label).join(',')}</div>
+  StatCardGrid: ({ items }: { items: Array<{ label: string }> }) => (
+    <div data-testid="stat-grid">{items?.map(s => s.label).join(',')}</div>
   ),
 }));
 
@@ -264,6 +264,22 @@ describe('AICommandCenter', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('ai-proposals')).not.toBeInTheDocument();
       expect(screen.getByText('No active trades')).toBeInTheDocument();
+    });
+  });
+
+  it('preserves q when switching tabs', async () => {
+    const user = userEvent.setup();
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=overview&q=steel'),
+    });
+
+    const pipelineOption = screen.getByText('Live Pipeline');
+    await user.click(pipelineOption);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?tab=pipeline&q=steel',
+      );
     });
   });
 

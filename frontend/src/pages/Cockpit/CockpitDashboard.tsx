@@ -24,6 +24,12 @@ import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { buildCanonicalSearchPath } from '@/utils/canonicalSearch';
 import {
+  OperatorActionGroup,
+  OperatorActionRow,
+  OperatorInsetSection,
+  OperatorShell,
+} from '@/components/Shared/OperatorShell';
+import {
   WidgetGrid,
   WidgetConfig,
   WidgetLayout,
@@ -203,40 +209,6 @@ const WIDGET_CATEGORIES: Record<string, string> = {
 // Styled Components
 // ============================================================================
 
-const Container = styled.div`
-  min-height: calc(100vh - 180px);
-  background: rgb(var(--color-background));
-`;
-
-const ToolbarWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  margin: 16px 24px 0;
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
-
-  @media (max-width: 640px) {
-    margin: 12px 16px 0;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-`;
-
-const ToolbarLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const ToolbarActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
 const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'danger' }>`
   display: flex;
   align-items: center;
@@ -286,24 +258,6 @@ const EditBadge = styled.span`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-`;
-
-const GridWrapper = styled.div`
-  padding: 24px;
-
-  @media (max-width: 640px) {
-    padding: 16px;
-  }
-`;
-
-const HeroSearchSection = styled.div`
-  padding: 20px 24px 12px;
-  background: rgb(var(--color-surface));
-  border-bottom: 1px solid rgb(var(--color-border));
-
-  @media (max-width: 640px) {
-    padding: 16px;
-  }
 `;
 
 const HeroSearchInner = styled.div`
@@ -808,7 +762,7 @@ export const CockpitDashboard: React.FC = () => {
   }, []);
 
   return (
-    <Container>
+    <OperatorShell maxWidth="full">
       {/* Guided Tour */}
       <CockpitTour
         enabled={true}
@@ -818,7 +772,7 @@ export const CockpitDashboard: React.FC = () => {
 
       {/* Breadcrumb navigation bar - Elevated above search and grid */}
       {navigation.path.length > 0 && (
-        <div style={{ padding: '16px 24px 0 24px' }}>
+        <OperatorInsetSection maxWidth="full">
           <BreadcrumbBar
             extraCrumbs={
               inlineAction?.action === 'create'
@@ -836,11 +790,11 @@ export const CockpitDashboard: React.FC = () => {
                   : []
             }
           />
-        </div>
+        </OperatorInsetSection>
       )}
 
       {/* Hero Search (SmartSearch) */}
-      <HeroSearchSection>
+      <OperatorInsetSection surface="section" maxWidth="wide">
         <HeroSearchInner>
           <SmartSearch
             query={cockpitQuery}
@@ -871,35 +825,35 @@ export const CockpitDashboard: React.FC = () => {
             onOpenInlineCreate={openInlineCreate}
           />
         </HeroSearchInner>
-      </HeroSearchSection>
+      </OperatorInsetSection>
 
       {/* AI-suggested next-action chips */}
       {showDashboardWidgets && !showWelcomeEmptyState && <NextActionChips />}
 
       {/* Phase 3: AI Learning Metrics */}
       {showDashboardWidgets && showWelcomeEmptyState && (
-        <div style={{ padding: '16px 24px 0' }}>
+        <OperatorInsetSection maxWidth="full">
           <CockpitWelcomeEmptyState
             onCustomizeDashboard={() => setIsEditing(true)}
             onStartTour={handleStartCockpitTour}
           />
-        </div>
+        </OperatorInsetSection>
       )}
 
       {showDashboardWidgets && !showWelcomeEmptyState && (
-        <div style={{ padding: '16px 24px 0' }}>
+        <OperatorInsetSection maxWidth="full">
           <AILearningMetricsWidget />
-        </div>
+        </OperatorInsetSection>
       )}
 
       {/* Widget layout toolbar (applies to widgets only) */}
       {showDashboardWidgets && !showWelcomeEmptyState && (
-        <ToolbarWrapper>
-          <ToolbarLeft>
+        <OperatorActionRow surface="card">
+          <OperatorActionGroup>
             {isEditing && <EditBadge>Editing Layout</EditBadge>}
-          </ToolbarLeft>
+          </OperatorActionGroup>
 
-          <ToolbarActions>
+          <OperatorActionGroup>
             {isEditing ? (
               <>
                 <ActionButton onClick={() => setIsCatalogOpen(true)}>
@@ -921,51 +875,53 @@ export const CockpitDashboard: React.FC = () => {
                 Customize
               </ActionButton>
             )}
-          </ToolbarActions>
-        </ToolbarWrapper>
+          </OperatorActionGroup>
+        </OperatorActionRow>
       )}
 
       {/* Widget Grid (hidden when searching or a record is active) */}
       {showDashboardWidgets && !showWelcomeEmptyState && (
-        <GridWrapper
-          ref={containerRef}
-          id="tour-cockpit-grid"
-          data-testid="tour-cockpit-grid"
-          data-tour="search-results"
-        >
-          {widgets.length === 0 ? (
-            <EmptyState
-              icon={<LayoutGrid size={48} />}
-              title="No widgets configured"
-              message="Add widgets to build your personalized dashboard."
-              actions={[
-                {
-                  label: 'Customize Dashboard',
-                  onClick: () => setIsEditing(true),
-                  variant: 'primary',
-                },
-                {
-                  label: 'Restart Cockpit Tour',
-                  onClick: handleStartCockpitTour,
-                  variant: 'secondary',
-                },
-              ]}
-            />
-          ) : (
-            <WidgetGrid
-              widgets={widgets}
-              layout={layout}
-              onLayoutChange={handleLayoutChange}
-              onRemoveWidget={handleRemoveWidget}
-              onPinWidget={handlePinWidget}
-              renderWidget={renderWidget}
-              width={gridWidth}
-              cols={gridCols}
-              rowHeight={gridRowHeight}
-              isEditing={isEditing}
-            />
-          )}
-        </GridWrapper>
+        <OperatorInsetSection as="div" maxWidth="full">
+          <div
+            ref={containerRef}
+            id="tour-cockpit-grid"
+            data-testid="tour-cockpit-grid"
+            data-tour="search-results"
+          >
+            {widgets.length === 0 ? (
+              <EmptyState
+                icon={<LayoutGrid size={48} />}
+                title="No widgets configured"
+                message="Add widgets to build your personalized dashboard."
+                actions={[
+                  {
+                    label: 'Customize Dashboard',
+                    onClick: () => setIsEditing(true),
+                    variant: 'primary',
+                  },
+                  {
+                    label: 'Restart Cockpit Tour',
+                    onClick: handleStartCockpitTour,
+                    variant: 'secondary',
+                  },
+                ]}
+              />
+            ) : (
+              <WidgetGrid
+                widgets={widgets}
+                layout={layout}
+                onLayoutChange={handleLayoutChange}
+                onRemoveWidget={handleRemoveWidget}
+                onPinWidget={handlePinWidget}
+                renderWidget={renderWidget}
+                width={gridWidth}
+                cols={gridCols}
+                rowHeight={gridRowHeight}
+                isEditing={isEditing}
+              />
+            )}
+          </div>
+        </OperatorInsetSection>
       )}
 
       {/* Widget Catalog Modal */}
@@ -1005,7 +961,7 @@ export const CockpitDashboard: React.FC = () => {
           </ModalBody>
         </ModalContent>
       </ModalOverlay>
-    </Container>
+    </OperatorShell>
   );
 };
 
