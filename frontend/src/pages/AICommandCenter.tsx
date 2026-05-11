@@ -8,8 +8,10 @@
  *   1. Overview   — KPIs, quick actions, AI proposals
  *   2. Action Required — Items needing human attention (AI inbox + interventions)
  *   3. Live Pipeline — Active trade sessions
- *   4. Workflows  — WorkForms monitoring (active executions)
- *   5. History    — Completed trades, resolved reviews
+ *   4. History    — Completed trades, resolved reviews
+ *
+ * Execution drill-ins live in WorkForms Monitoring instead of competing as a
+ * fifth top-level Command Center section.
  *
  * Theme: CSS custom properties only.
  * Service Layer: businessApi / traderService / aiStaffApi.
@@ -32,7 +34,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -57,7 +59,6 @@ import {
 import { TradePipelineTracker } from '../components/Trader/TradePipelineTracker';
 import { SmartTradeCreator } from '../components/Trader/SmartTradeCreator';
 import { AITradeProposals } from '../components/Trader/AITradeProposals';
-import { OperationsPanel } from '../components/Trader/OperationsPanel';
 import { StatCardGrid } from '../components/Shared/StatCardGrid';
 import { CockpitPanel } from '../components/Shared/CockpitPanel';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
@@ -384,7 +385,12 @@ const STATUS_COLORS: Record<string, string> = {
   halted: 'red',
 };
 
-type HubTab = 'overview' | 'action-required' | 'pipeline' | 'workflows' | 'history';
+const HUB_TABS = ['overview', 'action-required', 'pipeline', 'history'] as const;
+type HubTab = (typeof HUB_TABS)[number];
+
+function isHubTab(value: string | null): value is HubTab {
+  return value !== null && HUB_TABS.includes(value as HubTab);
+}
 
 // ============================================================================
 // Unified Item type (from Process Monitor)
@@ -468,15 +474,15 @@ const AICommandCenter: React.FC = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
 
   // Tab from URL
   const activeTab = useMemo<HubTab>(() => {
-    const tab = searchParams.get('tab');
-    if (tab && ['overview', 'action-required', 'pipeline', 'workflows', 'history'].includes(tab)) {
-      return tab as HubTab;
+    if (isHubTab(requestedTab)) {
+      return requestedTab;
     }
     return 'overview';
-  }, [searchParams]);
+  }, [requestedTab]);
 
   const setActiveTab = useCallback(
     (tab: HubTab) => {
@@ -704,9 +710,11 @@ const AICommandCenter: React.FC = () => {
   }, [navigate, handleModalClose]);
 
   const handleRefreshAll = useCallback(() => {
-    tradesQuery.refetch();
-    reviewsQuery.refetch();
-  }, [tradesQuery, reviewsQuery]);
+    void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-trades') });
+    void queryClient.invalidateQueries({
+      queryKey: withTenantQueryKey('command-center-ai-reviews'),
+    });
+  }, [queryClient]);
 
   const handleOpenWorkFormsMonitoring = useCallback(() => {
     navigate('/workforms/monitoring');
@@ -757,15 +765,6 @@ const AICommandCenter: React.FC = () => {
       {
         label: (
           <Space size={6}>
-            <Workflow size={13} />
-            <span>Workflows</span>
-          </Space>
-        ),
-        value: 'workflows',
-      },
-      {
-        label: (
-          <Space size={6}>
             <Clock size={13} />
             <span>History</span>
           </Space>
@@ -782,8 +781,7 @@ const AICommandCenter: React.FC = () => {
       '1': 'overview',
       '2': 'action-required',
       '3': 'pipeline',
-      '4': 'workflows',
-      '5': 'history',
+      '4': 'history',
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -798,7 +796,7 @@ const AICommandCenter: React.FC = () => {
         return;
       }
 
-      // Alt+1 through Alt+5: Switch tabs
+      // Alt+1 through Alt+4: Switch tabs
       if (e.altKey && TAB_MAP[e.key]) {
         e.preventDefault();
         setActiveTab(TAB_MAP[e.key]);
@@ -826,7 +824,7 @@ const AICommandCenter: React.FC = () => {
   }, [setActiveTab, handleNewTrade, handleRefreshAll]);
 
   // Advance trade mutation
-  const advanceMutation = useMutation({
+  const { mutate: advanceTrade, isPending: isAdvancePending } = useMutation({
     mutationFn: (tradeSessionId: string) => traderService.advanceTrade(tradeSessionId),
     onSuccess: (result) => {
       if (result.completed) {
@@ -906,21 +904,36 @@ const AICommandCenter: React.FC = () => {
             style={{ borderRadius: 8 }}
             onClick={(e) => {
               e.stopPropagation();
-              advanceMutation.mutate(record.id);
+              advanceTrade(record.id);
             }}
-            loading={advanceMutation.isPending}
+            loading={isAdvancePending}
           >
             Advance
           </Button>
         ),
       },
     ],
-    [advanceMutation],
+    [advanceTrade, isAdvancePending],
   );
+
+  const workflowRedirectSearch = useMemo(() => {
+    if (requestedTab !== 'workflows') {
+      return '';
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    const query = next.toString();
+    return query ? `?${query}` : '';
+  }, [requestedTab, searchParams]);
 
   // ============================================================================
   // Render
   // ============================================================================
+
+  if (requestedTab === 'workflows') {
+    return <Navigate to={`/workforms/monitoring${workflowRedirectSearch}`} replace />;
+  }
 
   return (
     <OperatorShell role="main" aria-label="AI Command Center">
@@ -981,6 +994,12 @@ const AICommandCenter: React.FC = () => {
             AI Suggestions
           </QuickActionButton>
         </Tooltip>
+        <QuickActionButton
+          icon={<Workflow size={15} />}
+          onClick={handleOpenWorkFormsMonitoring}
+        >
+          Execution Monitoring
+        </QuickActionButton>
         {aiInboxItems.length > 0 && (
           <QuickActionButton
             icon={<Mail size={15} />}
@@ -1026,6 +1045,20 @@ const AICommandCenter: React.FC = () => {
               />
             </ErrorBoundary>
           </div>
+
+          <CockpitPanel
+            title="Execution Drill-In"
+            extra={(
+              <Button type="link" size="small" onClick={handleOpenWorkFormsMonitoring}>
+                Open monitoring →
+              </Button>
+            )}
+          >
+            <Text type="secondary">
+              WorkForms Monitoring is the dedicated drill-in for active executions,
+              run analytics, and step-level follow-through.
+            </Text>
+          </CockpitPanel>
 
           {/* Needs Attention preview */}
           {tradeStats.blocked > 0 && (
@@ -1229,28 +1262,6 @@ const AICommandCenter: React.FC = () => {
         </CockpitPanel>
       )}
 
-      {/* ======== Workflows Tab ======== */}
-      {activeTab === 'workflows' && (
-        <CockpitPanel
-          title="Workflow Operations"
-          extra={(
-            <Button size="small" onClick={handleOpenWorkFormsMonitoring}>
-              Open WorkForms Monitoring
-            </Button>
-          )}
-        >
-          <Space direction="vertical" size={12} style={{ display: 'flex' }}>
-            <Text type="secondary">
-              Command Center stays focused on queue triage. Use WorkForms Monitoring
-              for active execution details and submission-level drill-ins.
-            </Text>
-            <ErrorBoundary fallbackMessage="Operations data could not be loaded.">
-              <OperationsPanel />
-            </ErrorBoundary>
-          </Space>
-        </CockpitPanel>
-      )}
-
       {/* ======== History Tab ======== */}
       {activeTab === 'history' && (
         <CockpitPanel title="Completed Trades">
@@ -1319,9 +1330,9 @@ const AICommandCenter: React.FC = () => {
             icon={<ArrowRight size={14} />}
             style={{ borderRadius: 8 }}
             onClick={() => {
-              if (selectedTrade) advanceMutation.mutate(selectedTrade.id);
-            }}
-            loading={advanceMutation.isPending}
+                if (selectedTrade) advanceTrade(selectedTrade.id);
+              }}
+              loading={isAdvancePending}
           >
             Advance
           </Button>,
@@ -1513,7 +1524,7 @@ const AICommandCenter: React.FC = () => {
         <span className="separator">•</span>
         <kbd>R</kbd> Refresh
         <span className="separator">•</span>
-        <kbd>Alt+1‑5</kbd> Switch Tab
+        <kbd>Alt+1‑4</kbd> Switch Tab
       </ShortcutHintBar>
     </OperatorShell>
   );

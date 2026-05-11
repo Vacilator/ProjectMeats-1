@@ -256,6 +256,18 @@ describe('AICommandCenter', () => {
     });
   });
 
+  it('redirects removed workflows tab entries to WorkForms Monitoring', async () => {
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=workflows&q=steel&item=review-abc'),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/workforms/monitoring?q=steel&item=review-abc',
+      );
+    });
+  });
+
   it('renders pipeline tab with empty state when no trades', async () => {
     render(<AICommandCenter />, {
       wrapper: createWrapper('/command-center?tab=pipeline'),
@@ -282,6 +294,18 @@ describe('AICommandCenter', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('ai-proposals')).not.toBeInTheDocument();
       expect(screen.getByText('No active trades')).toBeInTheDocument();
+    });
+  });
+
+  it('opens WorkForms Monitoring from the execution monitoring quick action', async () => {
+    const user = userEvent.setup();
+
+    render(<AICommandCenter />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole('button', { name: /Execution Monitoring/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/workforms/monitoring');
     });
   });
 
@@ -543,5 +567,6 @@ describe('AICommandCenter', () => {
     expect(hintBar.textContent).toContain('New Trade');
     expect(hintBar.textContent).toContain('Refresh');
     expect(hintBar.textContent).toContain('Switch Tab');
+    expect(hintBar.textContent).toContain('Alt+1‑4');
   });
 });
