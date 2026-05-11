@@ -122,6 +122,9 @@ urlpatterns = [
 
 # Optional apps
 if 'tenant_apps.ai_assistant' in settings.INSTALLED_APPS:
+    from tenant_apps.ai_assistant.http_views import ai_inbox_websocket_probe
+
+    urlpatterns.append(path("ws/ai/inbox/", ai_inbox_websocket_probe, name="ai-inbox-websocket-probe"))
     urlpatterns.append(path("api/v1/ai-assistant/", include("tenant_apps.ai_assistant.urls")))
 
 # Serve media files in development

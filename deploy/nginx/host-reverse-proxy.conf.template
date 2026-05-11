@@ -103,7 +103,18 @@ server {
         expires 7d;
         add_header Cache-Control "public, immutable";
     }
-    
+
+    # Websocket routes (AI inbox and future real-time features)
+    location /ws/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_buffering off;
+    }
+
     # Health check endpoint (bypass frontend)
     location /health {
         access_log off;

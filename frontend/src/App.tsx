@@ -87,6 +87,7 @@ import ApiTestComponent from './components/ApiTestComponent';
 import { WorkflowRunner, PerfHarness } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
 import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
+import AIAgentWidgetSocketSmoke from './pages/Diagnostics/AIAgentWidgetSocketSmoke';
 import EntityFormSurfaceSmoke from './pages/Diagnostics/EntityFormSurfaceSmoke';
 import OperationalStatusReplaySmoke from './pages/Diagnostics/OperationalStatusReplaySmoke';
 import { FormSubmissionModal } from './components/FormSubmission';
@@ -247,6 +248,12 @@ const App: React.FC = () => {
                   path="/portal/tenants/:tenantId/grants/:grantId"
                   element={<GuestInvoiceView />}
                 />
+                {enableEntityFormSmokeRoute && (
+                  <Route
+                    path="/diagnostics/ai-widget-websocket-smoke"
+                    element={<AIAgentWidgetSocketSmoke />}
+                  />
+                )}
                 {enableEntityFormSmokeRoute && (
                   <Route
                     path="/diagnostics/entity-form-surface-smoke"

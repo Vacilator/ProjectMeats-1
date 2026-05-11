@@ -2,6 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AI_INBOX_REFRESH_EVENT } from '../../services/aiService';
 
 const toastMock = vi.hoisted(() => ({
   success: vi.fn(),
@@ -36,6 +37,8 @@ class MockWebSocket {
   close() {
     this.readyState = MockWebSocket.CLOSED;
   }
+
+  send = vi.fn();
 
   emitMessage(payload: unknown) {
     this.onmessage?.(
@@ -111,7 +114,13 @@ describe('AIAgentWidget', () => {
     vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
     vi.stubGlobal('scrollTo', vi.fn());
     // Mock fetch for the WS pre-flight health check
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        status: 426,
+        redirected: false,
+      }),
+    );
     localStorage.clear();
     Object.defineProperty(Element.prototype, 'scrollIntoView', {
       configurable: true,
@@ -252,5 +261,68 @@ describe('AIAgentWidget', () => {
     } finally {
       randomSpy.mockRestore();
     }
+  });
+
+  it('fails closed when the websocket preflight resolves to the SPA fallback', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      redirected: false,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <MemoryRouter>
+        <AIAgentWidget />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/ws/ai/inbox/',
+        expect.objectContaining({
+          method: 'GET',
+          redirect: 'manual',
+        }),
+      );
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(websocketInstances).toHaveLength(0);
+
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(websocketInstances).toHaveLength(0);
+  });
+
+  it('requests an updated inbox count when the sync refresh event fires', async () => {
+    render(
+      <MemoryRouter>
+        <AIAgentWidget />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(websocketInstances).toHaveLength(1);
+    });
+
+    websocketInstances[0].readyState = MockWebSocket.OPEN;
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AI_INBOX_REFRESH_EVENT));
+    });
+
+    expect(websocketInstances[0].send).toHaveBeenCalledWith(
+      JSON.stringify({ type: 'request_count' }),
+    );
   });
 });

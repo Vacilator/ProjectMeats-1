@@ -186,3 +186,10 @@ class AIInboxWebsocketTests(TransactionTestCase):
             await communicator.disconnect()
 
         async_to_sync(run)()
+
+    def test_http_probe_route_returns_upgrade_required(self):
+        response = self.client.get("/ws/ai/inbox/")
+
+        self.assertEqual(response.status_code, 426)
+        self.assertEqual(response["Upgrade"], "websocket")
+        self.assertEqual(response["Connection"], "Upgrade")

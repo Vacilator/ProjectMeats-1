@@ -86,19 +86,15 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s \
   CMD curl -fsS http://127.0.0.1:8000/api/v1/health/ || exit 1
 
-# Start Gunicorn with debug logging, preload, and error handling
+# Start Daphne so the container serves both HTTP and websocket traffic via ASGI.
 # Use exec form for proper signal handling
 # NOTE: Heavy operations (setup_superuser, seed_tenants, collectstatic) moved to migration job
 CMD ["sh", "-c", "set -x && \
     echo \"Starting container at $(date)\" && \
     python manage.py check && \
-    echo \"Django check passed - starting Gunicorn\" && \
-    exec gunicorn projectmeats.wsgi:application \
-      --bind 0.0.0.0:8000 \
-      --workers ${GUNICORN_WORKERS:-3} \
-      --timeout ${GUNICORN_TIMEOUT:-120} \
-      --preload \
-      --log-level debug \
-      --capture-output \
-      --access-logfile - \
-      --error-logfile -"]
+    echo \"Django check passed - starting Daphne\" && \
+    exec daphne \
+      --bind 0.0.0.0 \
+      --port 8000 \
+      --proxy-headers \
+      projectmeats.asgi:application"]
