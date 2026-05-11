@@ -19,6 +19,11 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
+| Ready | UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction | Phase 37 | frontend |
+| Blocked | UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction | Phase 37 | frontend |
+| Blocked | UX-37.3 cockpit-workspace-search-and-catalog-cleanup | Phase 37 | frontend |
+| Blocked | UX-37.4 workspace-terminology-alignment | Phase 37 | frontend |
+| Blocked | UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening | Phase 37 | frontend |
 | Shipped | UX-36.1 command-center-four-section-ia-and-workflows-demotion | Phase 36 | frontend |
 | Shipped | UX-36.2 workforms-monitoring-single-drill-in-surface | Phase 36 | frontend |
 | Shipped | UX-36.3 process-cockpit-legacy-retirement-and-secondary-copy-alignment | Phase 36 | frontend |
@@ -61,6 +66,8 @@
 ## Dependency Graph
 
 ```
+Phase 37 (UX-37.1→UX-37.5 operator surface completion) — next execution lane
+
 Phase 36 (UX-36.1→UX-36.3 operator execution simplification) — completed on development
 
 Phase 35 (UX-35.1→UX-35.5 frontend simplification) — completed on development
@@ -186,6 +193,100 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ---
 
 ## Active Backlog (Execution Order)
+
+### Phase 37 — Operator Surface Completion (Remaining: 5 tickets)
+
+#### Epic UX-37: AICommandCenter polish + cockpit workspace cleanup
+
+- [ ] **UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction**
+  - **Status:** Ready
+  - **Why now:** `AICommandCenter.tsx` is now the single primary operator home, but the file still carries a large inline-style cluster around the trade table and detail modal that hides styling drift from the existing standards guardrails.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
+  - **Scope:** Convert the trade-table cells, route tags, modal metadata rows, inquiry/source links, and related action-row inline styles in `AICommandCenter.tsx` into named styled-components without changing behavior.
+  - **Non-goals:** No query logic changes, no shortcut behavior changes, and no cockpit/dashboard work in this ticket.
+  - **Primary domain:** frontend/command-center
+  - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/pages/AICommandCenter.test.tsx`
+  - **Dependencies:** Phase 36 shipped on `development`
+  - **Blockers:** None
+  - **Acceptance criteria:** The first half of the `AICommandCenter.tsx` inline-style cluster is extracted into named styled-components; no behavior or copy changes regress in the trade table or detail modal.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the styled-component extraction PR while keeping the Phase 35/36 routing model intact.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction**
+  - **Status:** Blocked on UX-37.1
+  - **Why now:** After the trade-table/modal cluster is extracted, the remaining inline-style debt in `AICommandCenter.tsx` is concentrated in the confidence pill, intent label, open-record button, shortcut hint bar, and minor input/button wrappers.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
+  - **Scope:** Finish the remaining `AICommandCenter.tsx` inline-style removal by extracting the confidence score, intent highlight, entity-record opener, shortcut hint bar, and search/refresh wrappers into tokenized styled-components.
+  - **Non-goals:** No cockpit/dashboard cleanup and no new shortcut coverage yet.
+  - **Primary domain:** frontend/command-center
+  - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/pages/AICommandCenter.test.tsx`
+  - **Dependencies:** UX-37.1
+  - **Blockers:** UX-37.1 must clear the table/modal cluster first
+  - **Acceptance criteria:** `AICommandCenter.tsx` has no remaining `style={{}}` operator-surface drift; confidence/intent/shortcut surfaces render through named tokenized wrappers.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the second extraction PR while preserving the already-shipped Phase 37.1 wrappers.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-37.3 cockpit-workspace-search-and-catalog-cleanup**
+  - **Status:** Blocked on UX-37.2
+  - **Why now:** Once the primary operator surface is styled cleanly again, the next highest-noise pocket is the Cockpit Workspace: it still renders a SmartSearch forwarding stub and still offers new `AILearningMetricsWidget` additions even though that widget was already demoted from the default landing path.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
+  - **Scope:** Remove the `SmartSearch` forwarding stub from `CockpitDashboard.tsx`, replace it with static Command Center search guidance, and remove `AILearningMetricsWidget` from new catalog additions while preserving saved-layout rendering for existing users.
+  - **Non-goals:** No changes to widget-grid layout behavior, pinned tools, or route structure.
+  - **Primary domain:** frontend/cockpit
+  - **Likely touched paths:** `frontend/src/pages/Cockpit/CockpitDashboard.tsx`, `frontend/src/pages/Cockpit/CockpitDashboard.test.tsx`
+  - **Dependencies:** UX-37.2
+  - **Blockers:** UX-37.2 keeps the operator-surface cleanup sequence single-threaded
+  - **Acceptance criteria:** `CockpitDashboard.tsx` no longer renders the SmartSearch forwarder; new catalog additions cannot add `AILearningMetricsWidget`; saved layouts still render existing widget instances.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Restore the SmartSearch/catalog entry while keeping the Command Center-first redirects intact.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-37.4 workspace-terminology-alignment**
+  - **Status:** Blocked on UX-37.3
+  - **Why now:** After the cockpit search/catalog cleanup, the remaining operator drift is almost entirely naming: Header onboarding labels, workspace document titles, and tour copy still have room to standardize around the Command Center-first model.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
+  - **Scope:** Align the surviving Header/Cockpit workspace/tour copy so the secondary workspace terminology is consistent everywhere it remains user-facing.
+  - **Non-goals:** No route changes, no tour logic changes, and no new data-fetching work.
+  - **Primary domain:** frontend/copy
+  - **Likely touched paths:** `frontend/src/components/Layout/Header.tsx`, `frontend/src/components/Layout/Header.test.tsx`, `frontend/src/pages/Cockpit/index.tsx`, `frontend/src/components/Cockpit/CockpitTour.tsx`, `frontend/src/components/Onboarding/CockpitWelcomeEmptyState.tsx`
+  - **Dependencies:** UX-37.3
+  - **Blockers:** UX-37.3 must settle the surviving cockpit shell before the last terminology pass
+  - **Acceptance criteria:** Surviving workspace labels/tour strings are consistent with the Command Center-first model; related tests are updated in the same PR.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/components/Layout/Header.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Revert the terminology-only PR without touching routes or workspace logic.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening**
+  - **Status:** Blocked on UX-37.4
+  - **Why now:** Once the operator-surface refactors land, the remaining gap is guardrail coverage: `AICommandCenter.test.tsx` still lacks dedicated shortcut, `?item=` deep-link, and confidence-threshold assertions for the Command Center-first flow.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
+  - **Scope:** Add focused `AICommandCenter.test.tsx` coverage for Alt+1-4 shortcuts, `?item=` modal routing, confidence-threshold variants, and overview AI inbox preview limits.
+  - **Non-goals:** No production code change unless a newly exposed bug requires a targeted fix.
+  - **Primary domain:** frontend/tests
+  - **Likely touched paths:** `frontend/src/pages/AICommandCenter.test.tsx`
+  - **Dependencies:** UX-37.4
+  - **Blockers:** UX-37.4 keeps the one-ready-ticket rule intact before the additive guardrail batch
+  - **Acceptance criteria:** The Command Center shortcut/deep-link/confidence flows have dedicated regression coverage that fails if future simplification work reintroduces drift.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Low
+  - **Rollback:** Revert the additive test-only PR if necessary while keeping prior production simplifications in place.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ### Phase 36 — Operator Execution Surface Simplification (Remaining: 0 tickets)
 

@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)
 **Last Updated**: 2026-05-11
-**Primary Focus**: Backlog reseeding after Phase 36 operator execution surface simplification completed on `development`.
+**Primary Focus**: Phase 37 execution — operator surface completion across AICommandCenter, Cockpit Workspace, and the remaining frontend guardrails.
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -209,6 +209,26 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Testing strategy:** for docs-only seeding, use `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`; for each frontend ticket, require `npm -C frontend run verify-standards`, focused `vitest` commands listed in `.github/EPIC_TICKETS.md`, and `npm -C frontend run test:ci`.
 - **Rollback / safe-change plan:** revert the specific ticket PR, keep harmless redirect aliases in place, and preserve the already-shipped Phase 35 route canonicalization.
 
+### Phase 37: Operator Surface Completion 🔄 ACTIVE
+- **Why now:** Phases 35 and 36 resolved the top-level operator-home split, but the next audit shows the remaining simplification debt is now concentrated inside the surviving operator surface files: `AICommandCenter.tsx` still carries a large inline-style cluster plus under-tested shortcut/confidence branches, `CockpitDashboard.tsx` still exposes a search-forwarding stub and a catalog-only AI-learning entry that adds noise, and a few surviving workspace labels can still drift away from the Command Center-first model.
+- **Operator north star:** zero inline-style drift in the surviving operator surfaces, no redundant Cockpit search/catalog affordances, and explicit regression coverage for the keyboard/deep-link/confidence behaviors that now define the Command Center experience.
+- **Deliverables + expected results:**
+  1. **AICommandCenter inline-style extraction** — remove the remaining `style={{}}` clusters from the trade table, detail modal, confidence pill, and shortcut surfaces; result: theme-token compliance becomes auditable again and the main operator file is easier to maintain.
+  2. **Cockpit workspace cleanup** — remove the SmartSearch forwarding stub and stop offering new `AILearningMetrics` catalog additions while preserving saved-layout rendering; result: less cognitive noise in the secondary workspace.
+  3. **Workspace terminology + test hardening** — align the surviving workspace labels/tours with the Command Center-first model and add focused regression coverage for shortcuts, `?item=` drill-ins, and confidence variants; result: less naming drift and stronger “never miss again” guardrails.
+- **UX-37.1 Ready** — AICommandCenter trade-table + detail-modal inline-style extraction: convert the first half of the `AICommandCenter.tsx` inline-style cluster into named styled-components without changing behavior.
+- **UX-37.2 Blocked** — AICommandCenter confidence-pill + intent-label + record-button extraction: finish the remaining inline-style removal in `AICommandCenter.tsx` and bring the confidence/shortcut surfaces under explicit tokenized wrappers.
+- **UX-37.3 Blocked** — Cockpit workspace search/catalog cleanup: remove the `SmartSearch` forwarding stub from `CockpitDashboard.tsx` and keep `AILearningMetricsWidget` render-safe for existing layouts while removing it from new catalog additions.
+- **UX-37.4 Blocked** — Workspace terminology alignment: finish the surviving Header/Cockpit tour/workspace wording cleanup so the secondary workspace terminology is consistent everywhere it remains user-facing.
+- **UX-37.5 Blocked** — AICommandCenter shortcut/deep-link/confidence regression hardening: add focused coverage for Alt+1-4 shortcuts, `?item=` modal routing, confidence thresholds, and overview inbox-preview limits.
+- **Dependencies:** Phase 36 complete on `development`; no backend/API dependency required for ticket seeding.
+- **Risk register + mitigations:**
+  - **Styled-component extraction risk (Low × High):** keep conversions additive, preserve existing markup structure where possible, and validate the touched paths with focused Command Center tests before running the full suite.
+  - **Cockpit behavior drift risk (Low × Medium):** preserve saved-layout widget rendering, remove only the redundant forwarder/catalog entrypoints, and keep all legacy redirects/routes untouched.
+  - **Terminology/test drift risk (Medium × Medium):** update strings and regression coverage in the same ticket so user-facing copy and expectations do not fall out of sync again.
+- **Testing strategy:** for docs-only seeding, use `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`; for each frontend ticket, require `npm -C frontend run verify-standards`, focused `vitest` commands listed in `.github/EPIC_TICKETS.md`, and `npm -C frontend run test:ci`.
+- **Rollback / safe-change plan:** revert the specific ticket PR, keep the Phase 35/36 redirect aliases intact, and preserve saved-layout compatibility for already-added widgets even when the catalog is simplified.
+
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
 - No breaking migrations.
@@ -222,6 +242,7 @@ All 10 items from the squad deep-dive plan have been completed:
 ### What is true right now
 - **Phases 12-35 complete.** Phase 35 is now fully shipped on `development`: Command Center is the single primary operator home, canonical search entrypoints converge on `/command-center?q=...`, the surviving operator pages share one additive shell layer, the Cockpit landing path is reduced to the intended minimal surface, and the remaining action-required/process-ops drift has been consolidated under the Command Center model.
 - **Phase 36 is complete on `development`.** Command Center is down to four top-level sections, WorkForms Monitoring is the single execution drill-in surface, and the dead ProcessCockpit-era pages/tests plus the last conflicting secondary-workspace labels have been retired.
+- **Phase 37 is now the active execution lane.** The next frontend simplification work is concentrated inside the surviving operator surface files: extracting the remaining `AICommandCenter` inline styles, removing the Cockpit SmartSearch/catalog noise that no longer serves a distinct purpose, and hardening the shortcut/deep-link/confidence regressions that now define the Command Center-first flow.
 - **100% CSS custom property compliance.** Zero hardcoded rgb/rgba/hex color values remain in production frontend code. All semantic colors use CSS variables with WCAG AA+ contrast ratios.
 - **Zero browser-native dialogs.** All `window.confirm()`, `window.alert()`, and `alert()` eliminated → AntD Modal-based wrappers (`confirmDialog`, `showAlert`, `message`).
 - **Full table accessibility.** Every `<Table>` component has a descriptive `aria-label` for screen readers.
@@ -232,7 +253,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Process Cockpit overhaul shipped.** 3-tab structure (All Processes / Action Required / Completed), unified detail modals, Activity page removed from sidebar (PR #5024).
 - **CI/CD pipeline optimized:** DRY composite actions (.github/actions/), nginx template extraction, dev-deploy skip-tests optimization shipped in PRs #5011-#5015. Pipeline fully green (Run #2703).
 - **Industry Leader State vision active:** Phases 20-22 added to MASTER_PLAN.md and EPIC_TICKETS.md — UI/UX minimalism, end-to-end automation, and golden pipeline perfection.
-- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the current canonical backlog is exhausted through Phase 36. The next concrete task is to seed the next highest-leverage simplification lane in `MASTER_PLAN.md` + `.github/EPIC_TICKETS.md` instead of reviving stale roadmap items.
+- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the next highest-leverage lane is now **Phase 37 operator surface completion**. The next concrete task is **UX-37.1 AICommandCenter trade-table + detail-modal inline-style extraction** on top of the newly completed Phase 36 baseline.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
 - **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). The Phase 12 hardening follow-on is also fully shipped through `EH-06.2`, so this bullet is historical proof rather than a live handoff.
 - **Phase 15 execution is sealed:** the full `B2B-02` trade-engine rollout (`B2B-02.1` through `B2B-02.4`), the full `B2B-01` guest-portal lane (`B2B-01.1` through `B2B-01.5`), and the full `B2B-03` settlement lane (`B2B-03.1` through `B2B-03.5`) are now shipped on `development`, and the deploy-recovery / pipeline-stabilization follow-ups landed separately in PRs #4918, #4919, #4920, and #4921.
