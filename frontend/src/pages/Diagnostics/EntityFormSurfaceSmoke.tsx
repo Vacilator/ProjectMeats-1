@@ -13,12 +13,12 @@ export const EntityFormSurfaceSmoke: React.FC = () => {
   const handleClose = useCallback(() => {}, []);
   const mode = searchParams.get('mode') === 'create' ? 'create' : 'edit';
   const isCreateMode = mode === 'create';
-  const [supplierChildModalOpen, setSupplierChildModalOpen] = useState(false);
-  const openSupplierChildModal = useCallback(() => {
-    setSupplierChildModalOpen(true);
+  const [supplierChildCreateOpen, setSupplierChildCreateOpen] = useState(false);
+  const openSupplierChildCreate = useCallback(() => {
+    setSupplierChildCreateOpen(true);
   }, []);
-  const closeSupplierChildModal = useCallback(() => {
-    setSupplierChildModalOpen(false);
+  const closeSupplierChildCreate = useCallback(() => {
+    setSupplierChildCreateOpen(false);
   }, []);
 
   if (scenario === 'supplier-child') {
@@ -34,25 +34,27 @@ export const EntityFormSurfaceSmoke: React.FC = () => {
           Supplier child create smoke
         </Title>
         <Paragraph style={{ color: 'rgb(var(--color-text-secondary))' }}>
-          Production-preview smoke harness for the supplier record New Plant modal path.
+          Production-preview smoke harness for the supplier record New Plant Air Gap path.
         </Paragraph>
 
-        <Button type="primary" data-testid="supplier-child-open" onClick={openSupplierChildModal}>
+        <Button type="primary" data-testid="supplier-child-open" onClick={openSupplierChildCreate}>
           New Plant
         </Button>
 
-        <EntityFormSurface
-          entityType="plant"
-          mode="create"
-          variant="modal"
-          isOpen={supplierChildModalOpen}
-          onClose={closeSupplierChildModal}
-          initialValues={{
-            supplier: '123',
-            plant_type: 'processing',
-            country: 'USA',
-          }}
-        />
+        {supplierChildCreateOpen ? (
+          <EntityFormSurface
+            entityType="plant"
+            mode="create"
+            variant="inline"
+            isOpen
+            onClose={closeSupplierChildCreate}
+            initialValues={{
+              supplier: '123',
+              plant_type: 'processing',
+              country: 'USA',
+            }}
+          />
+        ) : null}
       </div>
     );
   }
