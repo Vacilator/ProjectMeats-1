@@ -3,7 +3,7 @@
  *
  * Shows auto-approve vs manual-review rates, confidence distribution histogram,
  * category breakdown, and average confidence for the current tenant.
- * Embedded in Process Cockpit to help operators tune classification thresholds.
+ * Embedded in the Cockpit workspace to help operators tune classification thresholds.
  */
 
 import React, { useMemo } from 'react';

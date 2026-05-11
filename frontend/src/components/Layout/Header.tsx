@@ -299,7 +299,7 @@ const Header: React.FC<HeaderProps> = () => {
                 }}
               >
                 <IconWrapper>🏠</IconWrapper>
-                <span>Open Workspace Dashboard</span>
+                <span>Open Cockpit Workspace</span>
               </QuickMenuItem>
             </QuickMenuDropdown>
           )}

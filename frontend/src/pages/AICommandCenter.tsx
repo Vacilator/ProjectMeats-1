@@ -1,7 +1,7 @@
 /**
  * AI Command Center — Unified Hub
  *
- * Consolidates Process Monitor, Trader Cockpit, and WorkForms AI Inbox
+ * Consolidates legacy process surfaces, Trader Cockpit, and WorkForms AI Inbox
  * into a single operational command center.
  *
  * Tabs:
@@ -393,7 +393,7 @@ function isHubTab(value: string | null): value is HubTab {
 }
 
 // ============================================================================
-// Unified Item type (from Process Monitor)
+// Unified operator item type
 // ============================================================================
 
 interface UnifiedItem {

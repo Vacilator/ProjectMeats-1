@@ -415,7 +415,7 @@ describe('Header', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard?tour=cockpit');
     });
 
-    it('links the onboarding menu to the workspace dashboard', () => {
+    it('links the onboarding menu to the Cockpit workspace', () => {
       render(
         <MemoryRouter initialEntries={['/sales-orders']}>
           <Header />
@@ -423,7 +423,7 @@ describe('Header', () => {
       );
 
       fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
-      fireEvent.click(screen.getByText('Open Workspace Dashboard'));
+      fireEvent.click(screen.getByText('Open Cockpit Workspace'));
 
       expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard');
     });

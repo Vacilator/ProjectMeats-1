@@ -1,5 +1,5 @@
 /**
- * CockpitFinancialsPanel - Financial Snapshot for the Process Cockpit
+ * CockpitFinancialsPanel - Financial snapshot for the Cockpit workspace
  *
  * Displays live-calculated financial metrics for active trades:
  * - Margin %, Outstanding Amount, Credit Risk, Supplier Risk
