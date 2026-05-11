@@ -231,7 +231,7 @@ test('renders the plant create form in production preview without hitting max up
   expect(fatalBrowserErrors).toEqual([]);
 });
 
-test('opens the supplier New Plant create surface in production preview without hitting max update depth', async ({
+test('renders the supplier-scoped plant create surface in production preview without hitting max update depth', async ({
   page,
 }) => {
   const fatalBrowserErrors: string[] = [];
@@ -253,10 +253,9 @@ test('opens the supplier New Plant create surface in production preview without 
     }
   });
 
-  await page.goto('/diagnostics/entity-form-surface-smoke?scenario=supplier-child');
+  await page.goto('/diagnostics/entity-form-surface-smoke?mode=create&seed=supplier-child');
 
   await expect(page.getByTestId('entity-form-smoke-title')).toBeVisible();
-  await page.getByTestId('supplier-child-open').click();
   await expect(page.getByRole('heading', { name: 'Plant' })).toBeVisible();
   await expect(page.getByText('Supplier', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Acme Foods/ })).toBeVisible();

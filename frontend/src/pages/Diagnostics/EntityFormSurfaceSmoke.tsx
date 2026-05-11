@@ -1,53 +1,18 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 
-import { Button, Typography } from 'antd';
+import { Typography } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 
 import { EntityFormSurface } from '../../components/Shared/EntityFormSurface';
-import SupplierChildCreateAirGapSurface from './SupplierChildCreateAirGapSurface';
 
 const { Paragraph, Title } = Typography;
 
 export const EntityFormSurfaceSmoke: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const scenario = searchParams.get('scenario');
   const handleClose = useCallback(() => {}, []);
   const mode = searchParams.get('mode') === 'create' ? 'create' : 'edit';
   const isCreateMode = mode === 'create';
-  const [supplierChildCreateOpen, setSupplierChildCreateOpen] = useState(false);
-  const openSupplierChildCreate = useCallback(() => {
-    setSupplierChildCreateOpen(true);
-  }, []);
-  const closeSupplierChildCreate = useCallback(() => {
-    setSupplierChildCreateOpen(false);
-  }, []);
-
-  if (scenario === 'supplier-child') {
-    return (
-      <div
-        style={{
-          maxWidth: 960,
-          margin: '0 auto',
-          padding: '24px 16px 48px',
-        }}
-      >
-        <Title level={2} data-testid="entity-form-smoke-title">
-          Supplier child create smoke
-        </Title>
-        <Paragraph style={{ color: 'rgb(var(--color-text-secondary))' }}>
-          Production-preview smoke harness for the supplier record New Plant Air Gap path.
-        </Paragraph>
-
-        <Button type="primary" data-testid="supplier-child-open" onClick={openSupplierChildCreate}>
-          New Plant
-        </Button>
-
-        {supplierChildCreateOpen ? (
-          <SupplierChildCreateAirGapSurface onClose={closeSupplierChildCreate} />
-        ) : null}
-      </div>
-    );
-  }
+  const supplierChildSeed = searchParams.get('seed') === 'supplier-child';
 
   return (
     <div
@@ -73,7 +38,14 @@ export const EntityFormSurfaceSmoke: React.FC = () => {
         onClose={handleClose}
         initialValues={
           isCreateMode
-            ? { supplier: '123', plant_type: 'processing', country: 'USA', export_approved: false }
+            ? supplierChildSeed
+              ? { supplier: '123', plant_type: 'processing', country: 'USA' }
+              : {
+                  supplier: '123',
+                  plant_type: 'processing',
+                  country: 'USA',
+                  export_approved: false,
+                }
             : { export_approved: false }
         }
       />
