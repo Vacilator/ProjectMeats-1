@@ -4,6 +4,7 @@ import { Button, Typography } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 
 import { EntityFormSurface } from '../../components/Shared/EntityFormSurface';
+import SupplierChildCreateAirGapSurface from './SupplierChildCreateAirGapSurface';
 
 const { Paragraph, Title } = Typography;
 
@@ -42,18 +43,7 @@ export const EntityFormSurfaceSmoke: React.FC = () => {
         </Button>
 
         {supplierChildCreateOpen ? (
-          <EntityFormSurface
-            entityType="plant"
-            mode="create"
-            variant="inline"
-            isOpen
-            onClose={closeSupplierChildCreate}
-            initialValues={{
-              supplier: '123',
-              plant_type: 'processing',
-              country: 'USA',
-            }}
-          />
+          <SupplierChildCreateAirGapSurface onClose={closeSupplierChildCreate} />
         ) : null}
       </div>
     );
