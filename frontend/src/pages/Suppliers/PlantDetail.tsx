@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
@@ -39,7 +39,6 @@ const asRows = (payload: unknown): any[] => {
 export const PlantDetail: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { supplierId, plantId } = useParams<RouteParams>();
   const startEditing = Boolean(
     (location.state as { startEditing?: boolean } | null)?.startEditing
@@ -51,7 +50,10 @@ export const PlantDetail: React.FC = () => {
   useDocumentTitle(pid ? `Plant ${pid}` : 'Plant Detail');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isEditing, setIsEditing] = useState(startEditing);
-  const isCreatingDepartmentContact = searchParams.get('createDeptContact') === '1';
+  const isCreatingDepartmentContact = useMemo(
+    () => new URLSearchParams(location.search).get('createDeptContact') === '1',
+    [location.search]
+  );
 
   const [loading, setLoading] = useState(true);
   const [supplier, setSupplier] = useState<SupplierRow | null>(null);
@@ -275,7 +277,7 @@ export const PlantDetail: React.FC = () => {
   );
   const setDepartmentContactCreateRoute = useCallback(
     (open: boolean) => {
-      const next = new URLSearchParams(searchParams);
+      const next = new URLSearchParams(location.search);
       if (open) {
         next.set('createDeptContact', '1');
       } else {
@@ -290,9 +292,22 @@ export const PlantDetail: React.FC = () => {
         { replace: !open }
       );
     },
-    [location.pathname, navigate, searchParams]
+    [location.pathname, location.search, navigate]
   );
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
+
+  const handleEditOpen = useCallback(() => {
+    setIsEditing(true);
+  }, []);
+
+  const handleEditCancel = useCallback(() => {
+    setIsEditing(false);
+  }, []);
+
+  const handleEditSaved = useCallback(() => {
+    setIsEditing(false);
+    setRefreshKey((key) => key + 1);
+  }, []);
 
   const handleDeptContactClose = useCallback(() => {
     setDepartmentContactCreateRoute(false);
@@ -307,11 +322,8 @@ export const PlantDetail: React.FC = () => {
     return (
       <StandalonePlantEditForm
         plantId={pid}
-        onCancel={() => setIsEditing(false)}
-        onSaved={() => {
-          setIsEditing(false);
-          setRefreshKey((key) => key + 1);
-        }}
+        onCancel={handleEditCancel}
+        onSaved={handleEditSaved}
       />
     );
   }
@@ -358,7 +370,7 @@ export const PlantDetail: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={() => setIsEditing(true)} disabled={!pid || loading || showAuthFallback}>
+          <Button type="primary" onClick={handleEditOpen} disabled={!pid || loading || showAuthFallback}>
             Edit Plant
           </Button>
         </div>

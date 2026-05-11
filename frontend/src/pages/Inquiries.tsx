@@ -1,6 +1,6 @@
 /**
  * Inquiries Page
- * 
+ *
  * List and manage product inquiries.
  * Features:
  * - Inquiry list with search and filters
@@ -12,7 +12,7 @@
  * - Create from templates
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -88,7 +88,7 @@ const CreateButton = styled.button`
     width: 100%;
     justify-content: center;
   }
-  
+
   &:hover {
     opacity: 0.9;
   }
@@ -112,7 +112,7 @@ const SecondaryButton = styled.button`
     width: 100%;
     justify-content: center;
   }
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.05);
     border-color: rgb(var(--color-primary));
@@ -157,11 +157,11 @@ const DropdownItem = styled.button`
   font-size: 0.875rem;
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.1);
   }
-  
+
   &:not(:last-child) {
     border-bottom: 1px solid rgb(var(--color-border));
   }
@@ -206,13 +206,13 @@ const SearchInput = styled.input`
     width: 100%;
     font-size: 16px; /* iOS Safari zoom-on-focus prevention */
   }
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-secondary));
   }
@@ -233,7 +233,7 @@ const FilterSelect = styled.select`
     width: 100%;
     font-size: 16px; /* iOS Safari zoom-on-focus prevention */
   }
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -299,11 +299,11 @@ const TableRow = styled.div`
       display: none;
     }
   }
-  
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
@@ -319,7 +319,7 @@ const EntityInfo = styled.div`
     font-weight: 500;
     color: rgb(var(--color-text-primary));
   }
-  
+
   .contact {
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
@@ -378,19 +378,19 @@ const EmptyState = styled.div`
   padding: 3rem;
   text-align: center;
   color: rgb(var(--color-text-secondary));
-  
+
   .icon {
     font-size: 3rem;
     margin-bottom: 1rem;
   }
-  
+
   .title {
     font-size: 1.125rem;
     font-weight: 500;
     color: rgb(var(--color-text-primary));
     margin-bottom: 0.5rem;
   }
-  
+
   .description {
     font-size: 0.875rem;
     margin-bottom: 1.5rem;
@@ -445,11 +445,11 @@ const PaginationButton = styled.button`
   font-size: 0.875rem;
   cursor: pointer;
   min-height: 44px;
-  
+
   &:hover:not(:disabled) {
     background: rgba(var(--color-primary), 0.05);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -464,17 +464,18 @@ const Inquiries: React.FC = () => {
   useDocumentTitle('Inquiries');
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const didInitFromStateRef = useRef(false);
   const didInitReviewRef = useRef<string | null>(null);
 
   const [prefillEntityType, setPrefillEntityType] = useState<'customer' | 'supplier' | undefined>(undefined);
   const [prefillEntityId, setPrefillEntityId] = useState<string | undefined>(undefined);
-  
+
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<InquiryStatus | ''>('');
   const [entityTypeFilter, setEntityTypeFilter] = useState<'customer' | 'supplier' | ''>('');
-  
+
   // Pagination
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -498,6 +499,13 @@ const Inquiries: React.FC = () => {
     [entityTypeFilter, page, pageSize, search, statusFilter]
   );
   const inquiriesQuery = useQuery(inquiriesQueryOptions);
+  const refreshInquiries = useCallback(
+    () =>
+      queryClient.invalidateQueries({
+        queryKey: withTenantQueryKey('inquiries', page, pageSize, search, statusFilter, entityTypeFilter),
+      }),
+    [entityTypeFilter, page, pageSize, queryClient, search, statusFilter]
+  );
 
   const inquiries = inquiriesQuery.data?.items ?? [];
   const totalCount = inquiriesQuery.data?.count ?? 0;
@@ -509,14 +517,14 @@ const Inquiries: React.FC = () => {
       logger.error('[Inquiries] Failed to fetch inquiries:', inquiriesQuery.error);
     }
   }, [inquiriesQuery.error]);
-  
+
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [detailReviewMode, setDetailReviewMode] = useState(false);
-  
+
   // Templates
   const [templates, setTemplates] = useState<InquiryTemplateListItem[]>([]);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
@@ -524,7 +532,7 @@ const Inquiries: React.FC = () => {
   const reviewInquiryId = reviewSearchParams.get('inquiry');
   const isReviewLink = reviewSearchParams.get('review') === 'inquiry';
 
-  
+
   // Fetch templates on mount
   useEffect(() => {
     inquiryService.listInquiryTemplates()
@@ -596,8 +604,8 @@ const Inquiries: React.FC = () => {
 
   const handleCreateSuccess = useCallback(() => {
     setShowCreateModal(false);
-    void inquiriesQuery.refetch();
-  }, [inquiriesQuery]);
+    void refreshInquiries();
+  }, [refreshInquiries]);
 
   const handleCreateClose = useCallback(() => {
     setShowCreateModal(false);
@@ -615,32 +623,32 @@ const Inquiries: React.FC = () => {
 
   const handleUpdateInquiry = useCallback((updatedInquiry: any) => {
     setSelectedInquiry(updatedInquiry);
-    void inquiriesQuery.refetch();
-  }, [inquiriesQuery]);
-  
+    void refreshInquiries();
+  }, [refreshInquiries]);
+
   const handleClone = useCallback((inquiry: any) => {
     setDetailReviewMode(false);
     setSelectedInquiry(inquiry);
     setShowDetailModal(false);
     setShowCloneModal(true);
   }, []);
-  
+
   const handleCloned = useCallback((newInquiry: any) => {
     setShowCloneModal(false);
-    void inquiriesQuery.refetch();
+    void refreshInquiries();
     setSelectedInquiry(newInquiry);
     setDetailReviewMode(false);
     setShowDetailModal(true);
-  }, [inquiriesQuery]);
-  
-  const handleCreateFromTemplate = async (templateId: string) => {
+  }, [refreshInquiries]);
+
+  const handleCreateFromTemplate = useCallback(async (templateId: string) => {
     setShowTemplateMenu(false);
     try {
       const detail = await inquiryService.createInquiryFromTemplate(templateId);
       setSelectedInquiry(detail);
       setDetailReviewMode(false);
       setShowDetailModal(true);
-      void inquiriesQuery.refetch();
+      void refreshInquiries();
     } catch (err) {
       logger.error('Failed to create inquiry from template:', err);
       showAlert({
@@ -649,7 +657,7 @@ const Inquiries: React.FC = () => {
         content: 'Failed to create inquiry from template',
       });
     }
-  };
+  }, [refreshInquiries]);
 
   const formatCurrency = (value: number | undefined) => {
     if (value === undefined || value === null) return '-';
@@ -694,7 +702,7 @@ const Inquiries: React.FC = () => {
               <DropdownMenu $isOpen={showTemplateMenu}>
                 <DropdownLabel>Templates</DropdownLabel>
                 {templates.map(template => (
-                  <DropdownItem 
+                  <DropdownItem
                     key={template.id}
                     onClick={() => handleCreateFromTemplate(template.id)}
                   >
@@ -724,7 +732,7 @@ const Inquiries: React.FC = () => {
             setPage(1);
           }}
         />
-        
+
         <FilterSelect
           value={statusFilter}
           onChange={(e) => {
@@ -741,7 +749,7 @@ const Inquiries: React.FC = () => {
           <option value="expired">Expired</option>
           <option value="fulfilled">Fulfilled</option>
         </FilterSelect>
-        
+
         <FilterSelect
           value={entityTypeFilter}
           onChange={(e) => {
@@ -782,7 +790,7 @@ const Inquiries: React.FC = () => {
             <div className="icon">📋</div>
             <div className="title">No Inquiries Found</div>
             <div className="description">
-              {search || statusFilter || entityTypeFilter 
+              {search || statusFilter || entityTypeFilter
                 ? 'Try adjusting your filters'
                 : 'Create your first inquiry to get started'}
             </div>
@@ -868,7 +876,7 @@ const Inquiries: React.FC = () => {
           onClone={handleClone}
         />
       ) : null}
-      
+
       {/* Clone Inquiry Modal */}
       {showCloneModal && selectedInquiry ? (
         <CloneInquiryModal

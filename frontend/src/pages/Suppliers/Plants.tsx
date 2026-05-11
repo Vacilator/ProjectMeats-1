@@ -1,6 +1,6 @@
 /**
  * Plants Management Page - Table View
- * 
+ *
  * Features:
  * - Table layout with sorting, pagination, and search
  * - Full CRUD operations (Create, Read, Update, Delete)
@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import type { ColumnsType } from 'antd/es/table';
@@ -95,7 +95,7 @@ const ContextBanner = styled.div`
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -113,30 +113,30 @@ const StyledTable = styled(Table)`
     border: 1px solid rgb(var(--color-border));
     border-radius: var(--radius-lg);
   }
-  
+
   .ant-table-thead > tr > th {
     background: rgb(var(--color-surface));
     color: rgb(var(--color-text-primary));
     font-weight: 600;
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr > td {
     color: rgb(var(--color-text-primary));
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr:hover > td {
     background: rgb(var(--color-surface-hover));
   }
-  
+
   .ant-pagination {
     margin-top: 1rem;
   }
-  
+
   .ant-pagination-item-active {
     border-color: rgb(var(--color-primary));
-    
+
     a {
       color: rgb(var(--color-primary));
     }
@@ -148,7 +148,7 @@ const SupplierLink = styled.a`
   text-decoration: none;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     text-decoration: underline;
   }
@@ -163,8 +163,7 @@ const Plants: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { supplierId } = useParams<{ supplierId?: string }>();
-  const [searchParams] = useSearchParams();
-  
+
   // State
   const [plants, setPlants] = useState<Plant[]>([]);
   const [, setSuppliers] = useState<Supplier[]>([]);
@@ -184,9 +183,10 @@ const Plants: React.FC = () => {
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
     const state = location.state as any;
+    const params = new URLSearchParams(location.search);
 
     const paramId = supplierId ? Number(supplierId) : NaN;
-    const querySupplier = searchParams.get('supplier');
+    const querySupplier = params.get('supplier');
     const queryId = querySupplier ? Number(querySupplier) : NaN;
     const stateId = state?.supplierId ? Number(state.supplierId) : NaN;
 
@@ -196,7 +196,7 @@ const Plants: React.FC = () => {
       (Number.isFinite(stateId) && stateId > 0 ? stateId : null);
 
     setContextSupplierId(nextContext);
-  }, [location.state, supplierId, searchParams]);
+  }, [location.search, location.state, supplierId]);
 
   useEffect(() => {
     loadSuppliers();

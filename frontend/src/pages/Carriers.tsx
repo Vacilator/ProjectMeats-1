@@ -7,7 +7,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Button, Card, Input, Skeleton, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Truck, Search, Plus, Shield, AlertTriangle, AlertCircle } from 'lucide-react';
 import styled from 'styled-components';
 
@@ -75,6 +75,7 @@ const isInsuranceExpired = (expiry?: string): boolean => {
 
 const Carriers: React.FC = () => {
   useDocumentTitle('Carriers');
+  const queryClient = useQueryClient();
   const [searchText, setSearchText] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCarrierId, setEditingCarrierId] = useState<string | null>(null);
@@ -92,6 +93,10 @@ const Carriers: React.FC = () => {
   });
 
   const carriers = carriersQuery.data || [];
+  const refreshCarriers = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('carriers') }),
+    [queryClient]
+  );
 
   const handleExportCsv = useCallback(() => {
     const headers = ['Name', 'Code', 'Type', 'Contact Person', 'Phone', 'Email', 'MC Number'];
@@ -109,8 +114,8 @@ const Carriers: React.FC = () => {
 
   const handleCreateSuccess = useCallback(() => {
     setIsCreateOpen(false);
-    void carriersQuery.refetch();
-  }, [carriersQuery]);
+    void refreshCarriers();
+  }, [refreshCarriers]);
 
   const handleEditClose = useCallback(() => {
     setEditingCarrierId(null);
@@ -118,8 +123,8 @@ const Carriers: React.FC = () => {
 
   const handleEditSuccess = useCallback(() => {
     setEditingCarrierId(null);
-    void carriersQuery.refetch();
-  }, [carriersQuery]);
+    void refreshCarriers();
+  }, [refreshCarriers]);
 
   const filteredCarriers = useMemo(() => {
     if (!searchText.trim()) return carriers;

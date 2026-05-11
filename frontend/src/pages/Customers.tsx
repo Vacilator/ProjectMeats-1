@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Input, Result, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { DownloadOutlined } from '@ant-design/icons';
@@ -85,6 +85,7 @@ const Customers: React.FC = () => {
   useDocumentTitle('Customers');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
 
   const customersQuery = useQuery({
     queryKey: withTenantQueryKey('customers'),
@@ -103,19 +104,25 @@ const Customers: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingCustomerId, setEditingCustomerId] = useState<string | number | null>(null);
+  const createAction = searchParams.get('action');
+  const refreshCustomers = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('customers') }),
+    [queryClient]
+  );
 
   const [productsByCustomerId, setProductsByCustomerId] = useState<Record<string, CustomerProduct[]>>({});
   const [productsLoadingByCustomerId, setProductsLoadingByCustomerId] = useState<Record<string, boolean>>({});
 
   // Back-compat: if anything still links to ?action=create
   useEffect(() => {
-    if (searchParams.get('action') === 'create') {
-      setCreateOpen(true);
-      const next = new URLSearchParams(searchParams);
+    if (createAction !== 'create') return;
+    setCreateOpen(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
       next.delete('action');
-      setSearchParams(next);
-    }
-  }, [searchParams, setSearchParams]);
+      return next;
+    });
+  }, [createAction, setSearchParams]);
 
   const productsByCachedRef = React.useRef(productsByCustomerId);
   productsByCachedRef.current = productsByCustomerId;
@@ -153,12 +160,12 @@ const Customers: React.FC = () => {
 
       try {
         await apiService.deleteCustomer(Number(customerId));
-        void customersQuery.refetch();
+        await refreshCustomers();
       } catch {
         message.error('Failed to delete customer. Please try again.');
       }
     },
-    [customersQuery, customers]
+    [customers, refreshCustomers]
   );
 
   const handleExportCsv = useCallback(() => {
@@ -178,8 +185,8 @@ const Customers: React.FC = () => {
 
   const handleCreateSuccess = useCallback(() => {
     setCreateOpen(false);
-    void customersQuery.refetch();
-  }, [customersQuery]);
+    void refreshCustomers();
+  }, [refreshCustomers]);
 
   const handleEditClose = useCallback(() => {
     setEditOpen(false);
@@ -189,8 +196,8 @@ const Customers: React.FC = () => {
   const handleEditSuccess = useCallback(() => {
     setEditOpen(false);
     setEditingCustomerId(null);
-    void customersQuery.refetch();
-  }, [customersQuery]);
+    void refreshCustomers();
+  }, [refreshCustomers]);
 
   const columns: ColumnsType<CustomerListRow> = useMemo(
     () => [

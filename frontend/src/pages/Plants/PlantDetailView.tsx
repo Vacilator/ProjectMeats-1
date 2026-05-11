@@ -169,16 +169,26 @@ export const PlantDetailView: React.FC = () => {
     navigate('/plants');
   }, [navigate]);
 
+  const handleEditOpen = useCallback(() => {
+    setIsEditing(true);
+  }, []);
+
+  const handleEditCancel = useCallback(() => {
+    setIsEditing(false);
+  }, []);
+
+  const handleEditSaved = useCallback(() => {
+    setIsEditing(false);
+  }, []);
+
   const showAuthFallback = !authLoading && (!isAuthenticated || authError);
 
   if (isEditing) {
     return (
       <StandalonePlantEditForm
         plantId={plantId}
-        onCancel={() => setIsEditing(false)}
-        onSaved={() => {
-          setIsEditing(false);
-        }}
+        onCancel={handleEditCancel}
+        onSaved={handleEditSaved}
       />
     );
   }
@@ -192,7 +202,7 @@ export const PlantDetailView: React.FC = () => {
         </TitleGroup>
         <Button
           type="primary"
-          onClick={() => setIsEditing(true)}
+          onClick={handleEditOpen}
           disabled={!plantId || showAuthFallback}
         >
           Edit Plant
