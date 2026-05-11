@@ -414,6 +414,19 @@ describe('Header', () => {
 
       expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard?tour=cockpit');
     });
+
+    it('links the onboarding menu to the workspace dashboard', () => {
+      render(
+        <MemoryRouter initialEntries={['/sales-orders']}>
+          <Header />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
+      fireEvent.click(screen.getByText('Open Workspace Dashboard'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard');
+    });
   });
 
   describe('Quick Actions Menu', () => {

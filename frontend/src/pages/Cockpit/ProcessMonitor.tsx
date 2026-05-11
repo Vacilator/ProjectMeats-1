@@ -4,8 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { X, RefreshCw } from 'lucide-react';
 import { message } from 'antd';
 
-import EmailIngestionCockpitPanel from '../../components/Cockpit/EmailIngestionCockpitPanel';
-import EmailConfidenceDashboard from '../../components/Cockpit/EmailConfidenceDashboard';
 import { businessApi } from '../../services/businessApi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -381,7 +379,7 @@ function pickActiveNodeId(nodes: any[], item: ProcessMonitorItem): string | null
 // ============================================================================
 
 const ProcessMonitor: React.FC = () => {
-  useDocumentTitle('Process Monitor');
+  useDocumentTitle('WorkForm Submission Queue');
   const { user } = useAuth();
   const isStaff = !!user?.is_staff || !!user?.is_superuser;
 
@@ -481,9 +479,10 @@ const ProcessMonitor: React.FC = () => {
     <Container>
       <Header>
         <TitleGroup>
-          <Title>Process Monitor</Title>
+          <Title>Active Submission Queue</Title>
           <Subtitle>
-            Live view of in-flight WorkForms. Click a row to pivot into a read-only flow view focused on the active step.
+            Live view of in-flight WorkForms. Command Center owns action-required inbox
+            work; this queue is for step-by-step execution drill-ins.
           </Subtitle>
         </TitleGroup>
 
@@ -507,18 +506,16 @@ const ProcessMonitor: React.FC = () => {
         </Controls>
       </Header>
 
-      <EmailIngestionCockpitPanel />
-      <EmailConfidenceDashboard />
-
       {listQuery.isLoading ? (
         <EmptyState>Loading…</EmptyState>
       ) : listQuery.isError ? (
         <EmptyState>
-          Failed to load process monitor data. Check console/network for details.
+          Failed to load submission queue data. Check console/network for details.
         </EmptyState>
       ) : results.length === 0 ? (
         <EmptyState>
-          No active submissions found. If you expected items here, try switching Mine/All or start a new WorkForm.
+          No active submissions found. If you expected items here, try switching Mine/All
+          or start a new WorkForm.
         </EmptyState>
       ) : (
         <Table>
@@ -623,7 +620,7 @@ const ProcessMonitor: React.FC = () => {
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgb(var(--color-text-secondary))', fontSize: 12 }}
                       aria-label="Back to process details"
                     >
-                      ← Process Details
+                      ← Queue Details
                     </button>
                   </div>
                   <DetailRow>

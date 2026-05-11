@@ -169,7 +169,7 @@ describe('AICommandCenter', () => {
   it('renders page title and subtitle', async () => {
     render(<AICommandCenter />, { wrapper: createWrapper() });
     expect(screen.getByText(/Command Center/)).toBeInTheDocument();
-    expect(screen.getByText(/unified hub/i)).toBeInTheDocument();
+    expect(screen.getByText(/Primary operator queue/i)).toBeInTheDocument();
   });
 
   it('renders quick action buttons', async () => {
@@ -235,6 +235,24 @@ describe('AICommandCenter', () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId('ai-proposals')).not.toBeInTheDocument();
+    });
+  });
+
+  it('links the empty action-required state to WorkForms Monitoring', async () => {
+    const user = userEvent.setup();
+
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=action-required'),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Operator queue is clear/i)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /Open WorkForms Monitoring/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/workforms/monitoring');
     });
   });
 

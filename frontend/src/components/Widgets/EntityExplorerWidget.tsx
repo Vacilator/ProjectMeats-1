@@ -330,7 +330,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
         subtitle: entity.subtitle,
       });
 
-      navigate('/cockpit');
+      navigate('/cockpit/dashboard');
       return;
     }
 

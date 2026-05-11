@@ -295,11 +295,11 @@ const Header: React.FC<HeaderProps> = () => {
                 $theme={theme}
                 onClick={() => {
                   setShowOnboardingMenu(false);
-                  navigate('/cockpit');
+                  navigate('/cockpit/dashboard');
                 }}
               >
                 <IconWrapper>🏠</IconWrapper>
-                <span>Open Cockpit</span>
+                <span>Open Workspace Dashboard</span>
               </QuickMenuItem>
             </QuickMenuDropdown>
           )}

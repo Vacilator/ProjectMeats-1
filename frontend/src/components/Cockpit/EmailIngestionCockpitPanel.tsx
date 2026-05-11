@@ -274,7 +274,7 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
   return (
     <Card
       size="small"
-      title="Email Ingestion + Action Required"
+      title="Command Center Email Intake"
       extra={
         <Space>
           <Button onClick={() => refetchAll()} icon={<SyncOutlined />} disabled={emailsQuery.isFetching || pendingReviewsQuery.isFetching}>
@@ -286,10 +286,12 @@ export const EmailIngestionCockpitPanel: React.FC = () => {
         </Space>
       }
     >
-      <div style={{ display: 'grid', gap: 16 }}>
-        <Paragraph style={{ marginBottom: 0 }}>
-          Recent inbox intake and operator review now live in Process Cockpit. Expand an action-required item to inspect the parsed payload and edit the draft inline.
-        </Paragraph>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <Paragraph style={{ marginBottom: 0 }}>
+            Recent inbox intake and operator review now live in Command Center. Expand
+            an action-required item to inspect the parsed payload and edit the draft
+            inline.
+          </Paragraph>
 
         <div
           style={{

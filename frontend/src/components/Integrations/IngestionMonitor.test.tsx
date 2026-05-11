@@ -14,7 +14,7 @@ describe('IngestionMonitor', () => {
     );
 
     expect(
-      screen.getByText(/Email Ingestion now lives in Process Cockpit/i),
+      screen.getByText(/Email intake now lives in Command Center/i),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Open Command Center/i })).toBeInTheDocument();
   });

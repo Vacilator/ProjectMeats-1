@@ -1,18 +1,14 @@
 /**
- * WorkForms Monitoring (alias)
+ * WorkForms Monitoring
  *
- * We intentionally reuse the Cockpit ProcessMonitor implementation to avoid
- * duplicating monitoring logic in multiple places.
- *
- * Route stability:
- * - WorkForms tab keeps using /workforms/monitoring
- * - Cockpit also exposes /cockpit/process-monitor
+ * WorkForms monitoring is the secondary execution drill-in surface.
+ * Command Center owns queue triage and action-required operator work.
  */
 
 import React from 'react';
 
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -32,6 +28,7 @@ const formatDuration = (value: number | null | undefined) => {
 
 export const Monitoring: React.FC = () => {
   useDocumentTitle('WorkForm Monitoring');
+  const navigate = useNavigate();
   const analyticsQuery = useQuery({
     queryKey: withTenantQueryKey('workform-executions', 'analytics'),
     queryFn: async () => workformExecutionService.getAnalytics({ days: 30, limit: 5 }),
@@ -50,10 +47,28 @@ export const Monitoring: React.FC = () => {
   const topFailedNodes = analyticsQuery.data?.top_failed_nodes ?? [];
   const slowestActions = analyticsQuery.data?.slowest_actions ?? [];
 
-  return (
-    <ErrorBoundary>
-      <PageContainer title="Monitoring">
+    return (
+      <ErrorBoundary>
+      <PageContainer title="WorkForms Monitoring">
         <PageStack>
+          <Card padding="lg">
+            <SectionHeader>
+              <div>
+                <SectionTitle>Execution drill-in</SectionTitle>
+                <SectionSubtitle>
+                  Command Center owns action-required triage. Use WorkForms Monitoring
+                  for execution analytics, active runs, and step-level submission detail.
+                </SectionSubtitle>
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => navigate('/command-center?tab=action-required')}
+              >
+                Open Command Center
+              </Button>
+            </SectionHeader>
+          </Card>
+
           <Card padding="lg">
             <SectionHeader>
               <div>

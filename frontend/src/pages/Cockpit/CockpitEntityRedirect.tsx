@@ -34,7 +34,7 @@ export const CockpitEntityRedirect: React.FC = () => {
                       : null;
 
     if (!canonicalType || !entityId) {
-      navigate('/cockpit', { replace: true });
+      navigate('/cockpit/dashboard', { replace: true });
       return;
     }
 
