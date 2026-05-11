@@ -22,7 +22,6 @@ import {
   Button,
   Input,
   Modal,
-  Segmented,
   Skeleton,
   Space,
   Table,
@@ -62,6 +61,12 @@ import { OperationsPanel } from '../components/Trader/OperationsPanel';
 import { StatCardGrid } from '../components/Shared/StatCardGrid';
 import { CockpitPanel } from '../components/Shared/CockpitPanel';
 import { ErrorBoundary } from '../components/Shared/ErrorBoundary';
+import {
+  OperatorActionRow,
+  OperatorHeader,
+  OperatorTabBar,
+  OperatorShell,
+} from '../components/Shared/OperatorShell';
 import { ProcessQuickActions } from '../components/Cockpit/ProcessQuickActions';
 import { TradeLineageFlow } from '../components/Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../components/Cockpit/ProcessFlowHeader';
@@ -91,11 +96,6 @@ const { Text, Title } = Typography;
 // Animations
 // ============================================================================
 
-const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-`;
-
 const pulseGlow = keyframes`
   0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-primary), 0); }
   50%      { box-shadow: 0 0 0 4px rgba(var(--color-primary), 0.15); }
@@ -104,51 +104,6 @@ const pulseGlow = keyframes`
 // ============================================================================
 // Styled Components
 // ============================================================================
-
-const PageContainer = styled.div`
-  padding: 1.5rem 2rem;
-  max-width: 1440px;
-  margin: 0 auto;
-  animation: ${fadeIn} 0.3s ease-out;
-
-  @media (max-width: 640px) {
-    padding: 1rem;
-  }
-`;
-
-const PageHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-`;
-
-const HeaderLeft = styled.div`
-  flex: 1;
-  min-width: 200px;
-`;
-
-const Subtitle = styled(Text)`
-  font-size: 0.82rem;
-  color: rgb(var(--color-text-tertiary, 107 114 128));
-  display: block;
-  margin-top: 2px;
-`;
-
-const HeaderActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const QuickActionsRow = styled.div`
-  display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
-`;
 
 const QuickActionButton = styled(Button)`
   border-radius: 10px;
@@ -164,10 +119,6 @@ const QuickActionButton = styled(Button)`
   &.ant-btn-primary {
     animation: ${pulseGlow} 3s ease-in-out infinite;
   }
-`;
-
-const TabContainer = styled.div`
-  margin-bottom: 1.25rem;
 `;
 
 const WizardModal = styled(Modal)`
@@ -757,6 +708,70 @@ const AICommandCenter: React.FC = () => {
     reviewsQuery.refetch();
   }, [tradesQuery, reviewsQuery]);
 
+  const handleTabChange = useCallback(
+    (value: string | number | undefined) => {
+      if (!value) {
+        return;
+      }
+
+      setActiveTab(value as HubTab);
+    },
+    [setActiveTab],
+  );
+
+  const hubTabOptions = useMemo(
+    () => [
+      {
+        label: (
+          <Space size={6}>
+            <Sparkles size={13} />
+            <span>Overview</span>
+          </Space>
+        ),
+        value: 'overview',
+      },
+      {
+        label: (
+          <Space size={6}>
+            <AlertCircle size={13} />
+            <span>Action Required</span>
+            {aiInboxItems.length > 0 && <Badge count={aiInboxItems.length} size="small" />}
+          </Space>
+        ),
+        value: 'action-required',
+      },
+      {
+        label: (
+          <Space size={6}>
+            <LayoutDashboard size={13} />
+            <span>Live Pipeline</span>
+            {tradeStats.active > 0 && <Badge count={tradeStats.active} size="small" />}
+          </Space>
+        ),
+        value: 'pipeline',
+      },
+      {
+        label: (
+          <Space size={6}>
+            <Workflow size={13} />
+            <span>Workflows</span>
+          </Space>
+        ),
+        value: 'workflows',
+      },
+      {
+        label: (
+          <Space size={6}>
+            <Clock size={13} />
+            <span>History</span>
+          </Space>
+        ),
+        value: 'history',
+      },
+    ],
+    [aiInboxItems.length, tradeStats.active],
+  );
+
   // ---- Keyboard Shortcuts ----
   useEffect(() => {
     const TAB_MAP: Record<string, HubTab> = {
@@ -904,41 +919,41 @@ const AICommandCenter: React.FC = () => {
   // ============================================================================
 
   return (
-    <PageContainer role="main" aria-label="AI Command Center">
+    <OperatorShell role="main" aria-label="AI Command Center">
       {/* Header */}
-      <PageHeader>
-        <HeaderLeft>
+      <OperatorHeader
+        title={(
           <Title level={3} style={{ marginBottom: 0, fontWeight: 800 }}>
             ⚡ Command Center
           </Title>
-          <Subtitle>
-            Your unified hub for trades, AI inbox, and operational oversight.
-          </Subtitle>
-        </HeaderLeft>
-        <HeaderActions>
-          <Input
-            placeholder="Search command center…"
-            prefix={<Search size={14} />}
-            value={searchText}
-            onChange={(e) => updateSearchText(e.target.value)}
-            style={{ width: 220, borderRadius: 10 }}
-            allowClear
-            aria-label="Search command center"
-          />
-          <Tooltip title="Refresh all (R)">
-            <Button
-              icon={<RefreshCw size={14} />}
-              onClick={handleRefreshAll}
-              loading={tradesQuery.isFetching || reviewsQuery.isFetching}
-              style={{ borderRadius: 10 }}
-              aria-label="Refresh all data"
+        )}
+        subtitle="Your unified hub for trades, AI inbox, and operational oversight."
+        actions={(
+          <>
+            <Input
+              placeholder="Search command center…"
+              prefix={<Search size={14} />}
+              value={searchText}
+              onChange={(e) => updateSearchText(e.target.value)}
+              style={{ width: 220, borderRadius: 10 }}
+              allowClear
+              aria-label="Search command center"
             />
-          </Tooltip>
-        </HeaderActions>
-      </PageHeader>
+            <Tooltip title="Refresh all (R)">
+              <Button
+                icon={<RefreshCw size={14} />}
+                onClick={handleRefreshAll}
+                loading={tradesQuery.isFetching || reviewsQuery.isFetching}
+                style={{ borderRadius: 10 }}
+                aria-label="Refresh all data"
+              />
+            </Tooltip>
+          </>
+        )}
+      />
 
       {/* Quick Actions */}
-      <QuickActionsRow role="toolbar" aria-label="Quick actions">
+      <OperatorActionRow role="toolbar" aria-label="Quick actions">
         <Tooltip title="N">
           <QuickActionButton
             type="primary"
@@ -975,67 +990,15 @@ const AICommandCenter: React.FC = () => {
             />
           </QuickActionButton>
         )}
-      </QuickActionsRow>
+      </OperatorActionRow>
 
       {/* Tab Navigation */}
-      <TabContainer role="navigation" aria-label="Command center sections">
-        <Segmented
-          value={activeTab}
-          onChange={(val) => setActiveTab(val as HubTab)}
-          aria-label="Select section"
-          options={[
-            {
-              label: (
-                <Space size={6}>
-                  <Sparkles size={13} />
-                  <span>Overview</span>
-                </Space>
-              ),
-              value: 'overview',
-            },
-            {
-              label: (
-                <Space size={6}>
-                  <AlertCircle size={13} />
-                  <span>Action Required</span>
-                  {aiInboxItems.length > 0 && <Badge count={aiInboxItems.length} size="small" />}
-                </Space>
-              ),
-              value: 'action-required',
-            },
-            {
-              label: (
-                <Space size={6}>
-                  <LayoutDashboard size={13} />
-                  <span>Live Pipeline</span>
-                  {tradeStats.active > 0 && <Badge count={tradeStats.active} size="small" />}
-                </Space>
-              ),
-              value: 'pipeline',
-            },
-            {
-              label: (
-                <Space size={6}>
-                  <Workflow size={13} />
-                  <span>Workflows</span>
-                </Space>
-              ),
-              value: 'workflows',
-            },
-            {
-              label: (
-                <Space size={6}>
-                  <Clock size={13} />
-                  <span>History</span>
-                </Space>
-              ),
-              value: 'history',
-            },
-          ]}
-          style={{ borderRadius: 10 }}
-          block
-        />
-      </TabContainer>
+      <OperatorTabBar
+        value={activeTab}
+        onChange={handleTabChange}
+        options={hubTabOptions}
+        ariaLabel="Command center sections"
+      />
 
       {/* ======== Overview Tab ======== */}
       {activeTab === 'overview' && (
@@ -1529,7 +1492,7 @@ const AICommandCenter: React.FC = () => {
         <span className="separator">•</span>
         <kbd>Alt+1‑5</kbd> Switch Tab
       </ShortcutHintBar>
-    </PageContainer>
+    </OperatorShell>
   );
 };
 
