@@ -183,7 +183,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ## Active Backlog (Execution Order)
 
 
-### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 2 tickets)
+### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 1 ticket)
 
 #### Epic UX-35: Command Center as the single operator home
 
@@ -241,8 +241,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Revert individual pages back to local wrappers while retaining any harmless shared primitives.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **UX-35.4 cockpit-dashboard-top-level-surface-reduction**
-  - **Status:** Ready
+- [x] **UX-35.4 cockpit-dashboard-top-level-surface-reduction**
+  - **Status:** Shipped on `development` (PR: #5312)
   - **Why now:** `MASTER_PLAN.md` calls for a minimalist cockpit with four top-level sections or fewer, but `CockpitDashboard` still carries widget-catalog and edit-mode complexity as a primary surface.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
   - **Scope:** Reduce the surviving dashboard/operator landing experience to four top-level sections or fewer and demote widget-catalog/edit-mode complexity out of the primary path.
@@ -252,7 +252,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Dependencies:** UX-35.3
   - **Blockers:** None
   - **Acceptance criteria:** The default operator landing surface exposes four top-level sections or fewer; secondary tools remain reachable by drill-in/deep link; loading/empty/error states still behave correctly.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `cd frontend && npm exec -- vitest run src/pages/Cockpit/CockpitDashboard.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run verify-standards`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium
@@ -260,7 +260,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 - [ ] **UX-35.5 action-required-process-ops-consolidation-and-copy-polish**
-  - **Status:** Blocked
+  - **Status:** Ready
   - **Why now:** The repo still has overlapping action-required/process-ops concepts and mixed Command Center/Cockpit terminology across queue surfaces and empty states.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
   - **Scope:** Consolidate overlapping action-required/process-ops surfaces into one Command Center model and finish the user-facing copy/empty-state/drill-in polish needed to make that model obvious.
@@ -268,7 +268,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/operations
   - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/pages/Cockpit/ProcessCockpitPage.tsx`, `frontend/src/components/Onboarding/CockpitWelcomeEmptyState.tsx`, `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/App.tsx`
   - **Dependencies:** UX-35.4
-  - **Blockers:** UX-35.4 must land first so the surviving dashboard and shell structure are stable.
+  - **Blockers:** None
   - **Acceptance criteria:** One canonical action-required/process-ops experience remains; legacy routes resolve to the intended Command Center state; visible copy consistently uses the chosen Command Center terminology and clear next-action guidance.
   - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx src/components/Navigation/CommandPalette.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
