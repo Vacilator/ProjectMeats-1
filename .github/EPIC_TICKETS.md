@@ -19,8 +19,8 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
-| Ready | UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction | Phase 37 | frontend |
-| Blocked | UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction | Phase 37 | frontend |
+| Shipped | UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction | Phase 37 | frontend |
+| Ready | UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction | Phase 37 | frontend |
 | Blocked | UX-37.3 cockpit-workspace-search-and-catalog-cleanup | Phase 37 | frontend |
 | Blocked | UX-37.4 workspace-terminology-alignment | Phase 37 | frontend |
 | Blocked | UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening | Phase 37 | frontend |
@@ -194,12 +194,12 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Active Backlog (Execution Order)
 
-### Phase 37 — Operator Surface Completion (Remaining: 5 tickets)
+### Phase 37 — Operator Surface Completion (Remaining: 4 tickets)
 
 #### Epic UX-37: AICommandCenter polish + cockpit workspace cleanup
 
 - [ ] **UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction**
-  - **Status:** Ready
+  - **Status:** Shipped
   - **Why now:** `AICommandCenter.tsx` is now the single primary operator home, but the file still carries a large inline-style cluster around the trade table and detail modal that hides styling drift from the existing standards guardrails.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Convert the trade-table cells, route tags, modal metadata rows, inquiry/source links, and related action-row inline styles in `AICommandCenter.tsx` into named styled-components without changing behavior.
@@ -215,9 +215,10 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Risk level:** Medium
   - **Rollback:** Revert the styled-component extraction PR while keeping the Phase 35/36 routing model intact.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Shipped evidence:** PR #5319
 
 - [ ] **UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction**
-  - **Status:** Blocked on UX-37.1
+  - **Status:** Ready
   - **Why now:** After the trade-table/modal cluster is extracted, the remaining inline-style debt in `AICommandCenter.tsx` is concentrated in the confidence pill, intent label, open-record button, shortcut hint bar, and minor input/button wrappers.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Finish the remaining `AICommandCenter.tsx` inline-style removal by extracting the confidence score, intent highlight, entity-record opener, shortcut hint bar, and search/refresh wrappers into tokenized styled-components.

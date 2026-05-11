@@ -323,6 +323,50 @@ const DetailModalContent = styled.div`
   gap: 1rem;
 `;
 
+const TradeIdText = styled(Text)`
+  font-size: 0.8rem;
+`;
+
+const TableTradeTag = styled(Tag)`
+  margin: 0;
+  border-radius: 6px;
+`;
+
+const TradeStepText = styled(Text)`
+  font-size: 0.75rem;
+`;
+
+const RoundedActionButton = styled(Button)`
+  border-radius: 8px;
+`;
+
+const RoundedTradeTag = styled(Tag)`
+  border-radius: 6px;
+`;
+
+const TradeDetailMetaRow = styled(Space)`
+  margin-top: 8px;
+`;
+
+const TradeDetailCustomerText = styled(Text)`
+  font-size: 0.8rem;
+`;
+
+const TradeDetailMetaText = styled(Text)`
+  font-size: 0.75rem;
+`;
+
+const TradeDetailSourceText = styled(TradeDetailMetaText)`
+  display: block;
+  margin-top: 4px;
+`;
+
+const RelatedInquiryButton = styled(Button)`
+  padding: 0;
+  margin-top: 4px;
+  font-size: 0.8rem;
+`;
+
 const ShortcutHintBar = styled.div`
   position: fixed;
   bottom: 0;
@@ -849,7 +893,7 @@ const AICommandCenter: React.FC = () => {
         dataIndex: 'trade_id',
         key: 'trade_id',
         width: 130,
-        render: (value: string) => <Text strong style={{ fontSize: '0.8rem' }}>{value}</Text>,
+        render: (value: string) => <TradeIdText strong>{value}</TradeIdText>,
       },
       {
         title: 'Customer',
@@ -864,9 +908,7 @@ const AICommandCenter: React.FC = () => {
         key: 'route',
         width: 85,
         render: (value: string) => (
-          <Tag color={value === 'BROKER' ? 'purple' : 'blue'} style={{ margin: 0, borderRadius: 6 }}>
-            {value || 'FULFILL'}
-          </Tag>
+          <TableTradeTag color={value === 'BROKER' ? 'purple' : 'blue'}>{value || 'FULFILL'}</TableTradeTag>
         ),
       },
       {
@@ -875,9 +917,9 @@ const AICommandCenter: React.FC = () => {
         key: 'status',
         width: 95,
         render: (value: string) => (
-          <Tag color={STATUS_COLORS[value] || 'default'} style={{ margin: 0, borderRadius: 6 }}>
+          <TableTradeTag color={STATUS_COLORS[value] || 'default'}>
             {value.charAt(0).toUpperCase() + value.slice(1)}
-          </Tag>
+          </TableTradeTag>
         ),
       },
       {
@@ -886,9 +928,7 @@ const AICommandCenter: React.FC = () => {
         key: 'current_step',
         ellipsis: true,
         render: (value: string) => (
-          <Text style={{ fontSize: '0.75rem' }}>
-            {STEP_LABELS[value] || value}
-          </Text>
+          <TradeStepText>{STEP_LABELS[value] || value}</TradeStepText>
         ),
       },
       {
@@ -896,12 +936,11 @@ const AICommandCenter: React.FC = () => {
         key: 'actions',
         width: 100,
         render: (_: unknown, record: TradeSession) => (
-          <Button
+          <RoundedActionButton
             size="small"
             type="primary"
             ghost
             icon={<ArrowRight size={12} />}
-            style={{ borderRadius: 8 }}
             onClick={(e) => {
               e.stopPropagation();
               advanceTrade(record.id);
@@ -909,7 +948,7 @@ const AICommandCenter: React.FC = () => {
             loading={isAdvancePending}
           >
             Advance
-          </Button>
+          </RoundedActionButton>
         ),
       },
     ],
@@ -1314,28 +1353,27 @@ const AICommandCenter: React.FC = () => {
           <Space>
             <Text strong>{selectedTrade?.trade_id}</Text>
             {selectedTrade && (
-              <Tag color={STATUS_COLORS[selectedTrade.status] || 'default'} style={{ borderRadius: 6 }}>
+              <RoundedTradeTag color={STATUS_COLORS[selectedTrade.status] || 'default'}>
                 {selectedTrade.status}
-              </Tag>
+              </RoundedTradeTag>
             )}
           </Space>
         }
         footer={[
-          <Button key="close" onClick={() => setSelectedTrade(null)} style={{ borderRadius: 8 }}>
+          <RoundedActionButton key="close" onClick={() => setSelectedTrade(null)}>
             Close
-          </Button>,
-          <Button
+          </RoundedActionButton>,
+          <RoundedActionButton
             key="advance"
             type="primary"
             icon={<ArrowRight size={14} />}
-            style={{ borderRadius: 8 }}
             onClick={() => {
                 if (selectedTrade) advanceTrade(selectedTrade.id);
               }}
               loading={isAdvancePending}
           >
             Advance
-          </Button>,
+          </RoundedActionButton>,
         ]}
         width={650}
       >
@@ -1345,39 +1383,38 @@ const AICommandCenter: React.FC = () => {
               currentStep={selectedTrade.current_step}
               route={selectedTrade.route}
             />
-            <Space wrap style={{ marginTop: 8 }}>
-              <Tag color={selectedTrade.route === 'BROKER' ? 'purple' : 'blue'} style={{ borderRadius: 6 }}>
+            <TradeDetailMetaRow wrap>
+              <RoundedTradeTag color={selectedTrade.route === 'BROKER' ? 'purple' : 'blue'}>
                 {selectedTrade.route || 'FULFILL'}
-              </Tag>
+              </RoundedTradeTag>
               {selectedTrade.customer_name && (
-                <Text type="secondary" style={{ fontSize: '0.8rem' }}>
+                <TradeDetailCustomerText type="secondary">
                   Customer: <strong>{selectedTrade.customer_name}</strong>
-                </Text>
+                </TradeDetailCustomerText>
               )}
-            </Space>
+            </TradeDetailMetaRow>
             {selectedTrade.source_email_subject && (
-              <Text type="secondary" style={{ fontSize: '0.75rem', display: 'block', marginTop: 4 }}>
+              <TradeDetailSourceText type="secondary">
                 Source: {selectedTrade.source_email_subject}
-              </Text>
+              </TradeDetailSourceText>
             )}
-            <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+            <TradeDetailMetaText type="secondary">
               Current Step: <strong>{STEP_LABELS[selectedTrade.current_step] || selectedTrade.current_step}</strong>
               {selectedTrade.initiated_at && (
                 <> · Started {new Date(selectedTrade.initiated_at).toLocaleDateString()}</>
               )}
-            </Text>
+            </TradeDetailMetaText>
             {selectedTrade.inquiry_id && (
-              <Button
+              <RelatedInquiryButton
                 type="link"
                 size="small"
-                style={{ padding: 0, marginTop: 4, fontSize: '0.8rem' }}
                 onClick={() => {
                   setSelectedTrade(null);
                   navigate(`/inquiries/${selectedTrade.inquiry_id}`);
                 }}
               >
                 View Related Inquiry →
-              </Button>
+              </RelatedInquiryButton>
             )}
           </DetailModalContent>
         )}
