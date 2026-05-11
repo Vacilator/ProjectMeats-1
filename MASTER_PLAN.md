@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)
 **Last Updated**: 2026-05-11
-**Primary Focus**: Phase 35 is complete on `development`; the canonical backlog is clear pending the next reseeded execution lane.
+**Primary Focus**: Phase 36 execution — Command Center four-section compression and execution drill-in simplification.
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -191,6 +191,24 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Validation gate for each ticket:** `npm -C frontend run verify-standards`; focused `vitest` targets listed in `.github/EPIC_TICKETS.md`; `npm -C frontend run test:ci`.
 - **Evidence destination:** `.github/MASTER_PLAN.md` per shipped batch.
 
+### Phase 36: Operator Execution Surface Simplification 🔄 ACTIVE
+- **Why now:** Phase 35 solved the top-level operator-home split, but the next audit shows the remaining complexity now lives inside the execution surfaces: Command Center still carries five top-level tabs, WorkForms Monitoring still mixes modern execution analytics with a legacy monitor, and ProcessCockpit-era leftovers still make the secondary workspace feel larger than it needs to be.
+- **Operator north star:** Four top-level operator sections or fewer in Command Center, one explicit execution drill-in path, and no dead ProcessCockpit-era surface competing with the canonical model.
+- **Deliverables + expected results:**
+  1. **Command Center top-level IA compression** — reduce `/command-center` to four sections or fewer by demoting the current Workflows tab into the surviving execution drill-in path; result: clearer triage vs execution mental model.
+  2. **WorkForms Monitoring simplification** — keep `/workforms/monitoring` as the single execution drill-in surface for active runs, analytics, and step-level follow-through; result: operators stop bouncing between overlapping queue views.
+  3. **Legacy process-surface retirement** — remove or demote dead ProcessCockpit-era code, tests, comments, and secondary copy that still imply a parallel operator home; result: lower maintenance burden and less user-facing naming drift.
+- **UX-36.1 Ready** — Command Center four-section compression + Workflows demotion: remove the top-level Workflows tab from the primary IA, preserve canonical URL context, and redirect surviving `tab=workflows` entrypoints to the intended execution drill-in destination.
+- **UX-36.2 Blocked on UX-36.1** — WorkForms Monitoring single drill-in surface: simplify `/workforms/monitoring` so it is execution analytics + active-run drill-in only, not a competing queue shell.
+- **UX-36.3 Blocked on UX-36.2** — ProcessCockpit legacy retirement + secondary copy alignment: retire dead ProcessCockpit-era surfaces and finish the remaining secondary workspace naming cleanup.
+- **Dependencies:** Phase 35 complete on `development`; no backend/API dependency required for ticket seeding.
+- **Risk register + mitigations:**
+  - **IA regression risk (Medium × High):** preserve `q` / `item` / deep-link semantics and add focused redirect coverage before removing any top-level tab.
+  - **Operator drill-in loss (Medium × Medium):** keep WorkForms Monitoring alive as the explicit surviving execution surface before retiring ProcessCockpit leftovers.
+  - **Docs drift risk (Low × High):** keep `MASTER_PLAN.md` canonical, `.github/EPIC_TICKETS.md` execution-ordered, and roadmaps reference-only.
+- **Testing strategy:** for docs-only seeding, use `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`; for each frontend ticket, require `npm -C frontend run verify-standards`, focused `vitest` commands listed in `.github/EPIC_TICKETS.md`, and `npm -C frontend run test:ci`.
+- **Rollback / safe-change plan:** revert the specific ticket PR, keep harmless redirect aliases in place, and preserve the already-shipped Phase 35 route canonicalization.
+
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
 - No breaking migrations.
@@ -203,6 +221,7 @@ All 10 items from the squad deep-dive plan have been completed:
 
 ### What is true right now
 - **Phases 12-35 complete.** Phase 35 is now fully shipped on `development`: Command Center is the single primary operator home, canonical search entrypoints converge on `/command-center?q=...`, the surviving operator pages share one additive shell layer, the Cockpit landing path is reduced to the intended minimal surface, and the remaining action-required/process-ops drift has been consolidated under the Command Center model.
+- **Phase 36 is now the active execution lane.** The next simplification target is the execution surface itself: Command Center still needs four-section compression, WorkForms Monitoring still needs legacy-monitor cleanup, and ProcessCockpit-era leftovers still need retirement or demotion.
 - **100% CSS custom property compliance.** Zero hardcoded rgb/rgba/hex color values remain in production frontend code. All semantic colors use CSS variables with WCAG AA+ contrast ratios.
 - **Zero browser-native dialogs.** All `window.confirm()`, `window.alert()`, and `alert()` eliminated → AntD Modal-based wrappers (`confirmDialog`, `showAlert`, `message`).
 - **Full table accessibility.** Every `<Table>` component has a descriptive `aria-label` for screen readers.
@@ -213,7 +232,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Process Cockpit overhaul shipped.** 3-tab structure (All Processes / Action Required / Completed), unified detail modals, Activity page removed from sidebar (PR #5024).
 - **CI/CD pipeline optimized:** DRY composite actions (.github/actions/), nginx template extraction, dev-deploy skip-tests optimization shipped in PRs #5011-#5015. Pipeline fully green (Run #2703).
 - **Industry Leader State vision active:** Phases 20-22 added to MASTER_PLAN.md and EPIC_TICKETS.md — UI/UX minimalism, end-to-end automation, and golden pipeline perfection.
-- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the canonical backlog is now clear after **Phase 35 frontend surface simplification** shipped in full. The next lane should be reseeded from a fresh operator-surface audit rather than continued from legacy roadmap drift.
+- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the next highest-leverage lane is now **Phase 36 operator execution surface simplification**. The first concrete task is reducing Command Center to four top-level sections or fewer while preserving WorkForms Monitoring as the explicit execution drill-in.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
 - **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). The Phase 12 hardening follow-on is also fully shipped through `EH-06.2`, so this bullet is historical proof rather than a live handoff.
 - **Phase 15 execution is sealed:** the full `B2B-02` trade-engine rollout (`B2B-02.1` through `B2B-02.4`), the full `B2B-01` guest-portal lane (`B2B-01.1` through `B2B-01.5`), and the full `B2B-03` settlement lane (`B2B-03.1` through `B2B-03.5`) are now shipped on `development`, and the deploy-recovery / pipeline-stabilization follow-ups landed separately in PRs #4918, #4919, #4920, and #4921.
