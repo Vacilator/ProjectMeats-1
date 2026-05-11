@@ -32,10 +32,6 @@ vi.mock('@/services/workformExecutionService', () => ({
   },
 }));
 
-vi.mock('../Cockpit/ProcessMonitor', () => ({
-  default: () => <div data-testid="process-monitor">submission-queue</div>,
-}));
-
 describe('WorkForms Monitoring', () => {
   const renderPage = () => {
     const queryClient = new QueryClient({
@@ -48,22 +44,43 @@ describe('WorkForms Monitoring', () => {
           <Routes>
             <Route path="/workforms/monitoring" element={<Monitoring />} />
             <Route path="/command-center" element={<div>command-center-route</div>} />
+            <Route path="/workforms/history" element={<div>history-route</div>} />
+            <Route path="/workforms/catalog" element={<div>catalog-route</div>} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
     );
   };
 
-  it('frames the page as a secondary execution drill-in and links back to Command Center', async () => {
+  it('keeps the page focused on execution drill-ins without the legacy submission queue shell', async () => {
     const user = userEvent.setup();
 
     renderPage();
 
     expect(screen.getByText(/Command Center owns action-required triage/i)).toBeInTheDocument();
-    expect(screen.getByTestId('process-monitor')).toHaveTextContent('submission-queue');
+    expect(screen.queryByText(/Active Submission Queue/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/recent failure hotspots/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Open Command Center/i }));
 
     expect(screen.getByText('command-center-route')).toBeInTheDocument();
+  });
+
+  it('offers direct drill-in next steps to history and catalog', async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /View WorkForms History/i }));
+    expect(screen.getByText('history-route')).toBeInTheDocument();
+  });
+
+  it('links empty active-execution state to the WorkForms catalog', async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /Open WorkForms Catalog/i }));
+    expect(screen.getByText('catalog-route')).toBeInTheDocument();
   });
 });
