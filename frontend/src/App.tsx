@@ -128,7 +128,7 @@ import { lazyWithChunkRecovery } from './utils/chunkLoadRecovery';
 import { getValidTenantId } from './utils/tenantId';
 const CockpitPage = lazyWithChunkRecovery(() => import('./pages/Cockpit'), 'App.CockpitPage');
 import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
-// ProcessCockpitPage now redirected to /command-center — import removed
+// Legacy process-cockpit routes now redirect to /command-center — page import removed
 import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)

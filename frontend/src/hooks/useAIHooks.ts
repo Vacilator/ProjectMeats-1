@@ -51,7 +51,7 @@ export interface UseAIPendingReviewsOptions {
  * Fetch pending AI review items with stable query keys.
  *
  * Replaces inline useQuery({ queryKey: [...], queryFn: aiStaffApi.listPendingReviews })
- * patterns used across ProcessCockpitPage, AICommandCenter, MyTasks, etc.
+ * patterns used across AICommandCenter, Cockpit surfaces, MyTasks, etc.
  */
 export function useAIPendingReviews(options: UseAIPendingReviewsOptions = {}) {
   const { highlightedId, refetchInterval = 0, enabled = true } = options;

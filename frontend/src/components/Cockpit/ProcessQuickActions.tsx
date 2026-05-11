@@ -3,7 +3,7 @@
  *
  * Context-aware action buttons for the trading process.
  * Shows only relevant actions based on the current entity state.
- * Used in Process Cockpit sidebar and entity detail pages.
+ * Used in Cockpit workspace panels and entity detail pages.
  *
  * Theme Compliance: CSS custom properties only.
  */

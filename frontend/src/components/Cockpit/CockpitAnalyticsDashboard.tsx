@@ -1,7 +1,7 @@
 /**
  * CockpitAnalyticsDashboard - Trading Performance Analytics
  *
- * Charts and metrics for Process Cockpit:
+ * Charts and metrics for the Cockpit workspace:
  * - Win rate by supplier (horizontal bar)
  * - Average margin trend (line sparkline)
  * - Process cycle time stats

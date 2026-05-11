@@ -282,7 +282,7 @@ describe('CockpitDashboard empty states', () => {
 
     expect(await screen.findByTestId('widget-grid')).toBeInTheDocument();
     expect(screen.queryByTestId('ai-learning-metrics')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /customize workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /customize cockpit/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save & lock/i })).not.toBeInTheDocument();
   });
 
@@ -290,7 +290,7 @@ describe('CockpitDashboard empty states', () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(await screen.findByRole('button', { name: /customize workspace/i }));
+    await user.click(await screen.findByRole('button', { name: /customize cockpit/i }));
     await user.click(await screen.findByRole('button', { name: /add widget/i }));
     await user.click(await screen.findByText('AI Learning Metrics'));
 

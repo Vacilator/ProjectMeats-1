@@ -1,7 +1,7 @@
 /**
  * CockpitApprovalPanel (RT-07.2)
  *
- * Surfaces pending approvals in the Process Cockpit with:
+ * Surfaces pending approvals in the Cockpit workspace with:
  * - Clear list of items awaiting approval
  * - Rule context (why approval is needed)
  * - One-click approve/reject buttons
