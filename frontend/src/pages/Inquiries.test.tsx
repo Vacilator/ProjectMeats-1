@@ -10,38 +10,47 @@ const routerLocation = vi.hoisted(() => ({
   state: {},
 }));
 const refetchMock = vi.hoisted(() => vi.fn());
+const invalidateQueriesMock = vi.hoisted(() => vi.fn());
 const cloneLifecycle = vi.hoisted(() => ({
   mounts: 0,
   unmounts: 0,
 }));
 
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({
-    data: {
-      items: [
-        {
-          id: 1,
-          inquiry_number: 'INQ-1',
-          status: 'pending',
-          entity_type: 'customer',
-          customer_name: 'Acme Foods',
-          supplier_name: '',
-          product_count: 1,
-          total_desired: 12,
-          total_actual: 0,
-          valid_until: null,
-          created_on: '2026-05-04T00:00:00Z',
-          is_expired: false,
-        },
-      ],
-      count: 1,
-    },
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: refetchMock,
-  }),
-}));
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+
+  return {
+    ...actual,
+    useQuery: () => ({
+      data: {
+        items: [
+          {
+            id: 1,
+            inquiry_number: 'INQ-1',
+            status: 'pending',
+            entity_type: 'customer',
+            customer_name: 'Acme Foods',
+            supplier_name: '',
+            product_count: 1,
+            total_desired: 12,
+            total_actual: 0,
+            valid_until: null,
+            created_on: '2026-05-04T00:00:00Z',
+            is_expired: false,
+          },
+        ],
+        count: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    }),
+    useQueryClient: () => ({
+      invalidateQueries: invalidateQueriesMock,
+    }),
+  };
+});
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
@@ -117,6 +126,7 @@ describe('Inquiries page', () => {
     cloneLifecycle.mounts = 0;
     cloneLifecycle.unmounts = 0;
     refetchMock.mockReset();
+    invalidateQueriesMock.mockReset();
     mockNavigate.mockReset();
 
     vi.mocked(inquiryService.listInquiryTemplates).mockResolvedValue([]);

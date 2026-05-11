@@ -1,6 +1,6 @@
 /**
  * Customer Locations Management Page - Table View
- * 
+ *
  * Features:
  * - Table layout with sorting, pagination, and search
  * - Full CRUD operations (Create, Read, Update, Delete)
@@ -94,7 +94,7 @@ const ContextBanner = styled.div`
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -112,30 +112,30 @@ const StyledTable = styled(Table)`
     border: 1px solid rgb(var(--color-border));
     border-radius: var(--radius-lg);
   }
-  
+
   .ant-table-thead > tr > th {
     background: rgb(var(--color-surface));
     color: rgb(var(--color-text-primary));
     font-weight: 600;
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr > td {
     color: rgb(var(--color-text-primary));
     border-bottom: 1px solid rgb(var(--color-border));
   }
-  
+
   .ant-table-tbody > tr:hover > td {
     background: rgb(var(--color-surface-hover));
   }
-  
+
   .ant-pagination {
     margin-top: 1rem;
   }
-  
+
   .ant-pagination-item-active {
     border-color: rgb(var(--color-primary));
-    
+
     a {
       color: rgb(var(--color-primary));
     }
@@ -147,7 +147,7 @@ const CustomerLink = styled.a`
   text-decoration: none;
   font-weight: 500;
   cursor: pointer;
-  
+
   &:hover {
     text-decoration: underline;
   }
@@ -162,7 +162,7 @@ const CustomerLocations: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { customerId } = useParams<{ customerId?: string }>();
-  
+
   // State
   const [locations, setLocations] = useState<Location[]>([]);
   const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
@@ -251,16 +251,16 @@ const CustomerLocations: React.FC = () => {
 
   const filterLocations = () => {
     let filtered = [...locations];
-    
+
     // Filter by context customer
     if (contextCustomerId) {
       filtered = filtered.filter(l => l.customer === contextCustomerId);
     }
-    
+
     // Filter by search text
     if (searchText) {
       const search = searchText.toLowerCase();
-      filtered = filtered.filter(l => 
+      filtered = filtered.filter(l =>
         l.name.toLowerCase().includes(search) ||
         l.code?.toLowerCase().includes(search) ||
         l.customer_name?.toLowerCase().includes(search) ||
@@ -268,7 +268,7 @@ const CustomerLocations: React.FC = () => {
         l.state?.toLowerCase().includes(search)
       );
     }
-    
+
     setFilteredLocations(filtered);
   };
 
