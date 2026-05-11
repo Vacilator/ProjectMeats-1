@@ -15,13 +15,15 @@ export const IngestionMonitor: React.FC = () => {
           <MailOutlined style={{ fontSize: 20, color: 'rgb(var(--color-primary))' }} />
           <div>
             <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>
-              Email Ingestion now lives in Process Cockpit
+              Email intake now lives in Command Center
             </Title>
             <Paragraph style={{ marginBottom: 8 }}>
-              Recent email intake, action-required AI drafts, parsed payloads, and inline review forms are now centralized in the Process Cockpit workflow view.
+              Recent email intake, action-required AI drafts, parsed payloads, and inline
+              review forms are now centralized in the Command Center action queue.
             </Paragraph>
             <Text type="secondary">
-              Use the cockpit to review inquiry and purchase-order drafts without bouncing through a separate monitor page.
+              Use Command Center to review inquiry and purchase-order drafts without
+              bouncing through a separate monitor page.
             </Text>
           </div>
         </Space>

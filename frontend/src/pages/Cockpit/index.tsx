@@ -9,7 +9,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Tabs } from 'antd';
-import { Target, LayoutGrid, Workflow, PhoneCall } from 'lucide-react';
+import { Target, LayoutGrid, PhoneCall } from 'lucide-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ============================================================================
@@ -111,7 +111,6 @@ const Content = styled.main``;
 
 const TAB_ITEMS = [
   { key: 'dashboard', label: 'Workspace', icon: <LayoutGrid size={18} /> },
-  { key: 'process-monitor', label: 'Command Center', icon: <Workflow size={18} /> },
   { key: 'calls', label: 'Calls', icon: <PhoneCall size={18} /> },
 ] as const;
 
@@ -122,18 +121,12 @@ const CockpitPage: React.FC = () => {
 
   const activeKey = React.useMemo(() => {
     const pathname = location.pathname;
-    if (pathname.startsWith('/process-cockpit')) return 'process-monitor';
-    if (pathname.startsWith('/cockpit/process-monitor')) return 'process-monitor';
     if (pathname.startsWith('/cockpit/calls')) return 'calls';
     return 'dashboard';
   }, [location.pathname]);
 
   const handleTabChange = React.useCallback(
     (key: string) => {
-      if (key === 'process-monitor') {
-        navigate('/command-center?tab=action-required');
-        return;
-      }
       navigate(`/cockpit/${key}`);
     },
     [navigate],

@@ -19,11 +19,11 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
-| Ready | UX-35.1 command-center-ia-route-canonicalization | Phase 35 | frontend |
-| Blocked | UX-35.2 canonical-search-entrypoint-unification | Phase 35 | frontend |
-| Blocked | UX-35.3 shared-command-center-shell-extraction | Phase 35 | frontend |
-| Blocked | UX-35.4 cockpit-surface-reduction | Phase 35 | frontend |
-| Blocked | UX-35.5 action-required-process-consolidation-and-copy-polish | Phase 35 | frontend |
+| Shipped | UX-35.1 command-center-ia-route-canonicalization | Phase 35 | frontend |
+| Shipped | UX-35.2 canonical-search-entrypoint-unification | Phase 35 | frontend |
+| Shipped | UX-35.3 shared-command-center-shell-extraction | Phase 35 | frontend |
+| Shipped | UX-35.4 cockpit-surface-reduction | Phase 35 | frontend |
+| Shipped | UX-35.5 action-required-process-consolidation-and-copy-polish | Phase 35 | frontend |
 | Shipped | CTE-04.1 draft-sales-order-generation | Phase 16 | backend |
 | Shipped | CTE-04.2 sales-order-approval-pdf | Phase 16 | backend |
 | Shipped | CTE-04.3 carrier-rfq-match | Phase 16 | backend |
@@ -58,7 +58,7 @@
 ## Dependency Graph
 
 ```
-Phase 35 (UX-35.1→UX-35.5 frontend simplification) — next execution lane
+Phase 35 (UX-35.1→UX-35.5 frontend simplification) — completed on development
 
 Phase 16 (CTE-04→CTE-08) ─────────┐
                                     ├──▶ Phase 17 (RT-01→RT-04) ──▶ RT-05
@@ -183,7 +183,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 ## Active Backlog (Execution Order)
 
 
-### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 1 ticket)
+### Phase 35 — Frontend Surface Simplification & Command Center Consolidation (Remaining: 0 tickets)
 
 #### Epic UX-35: Command Center as the single operator home
 
@@ -259,18 +259,18 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Rollback:** Restore the prior dashboard layout while preserving any additive shared shell improvements.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
-- [ ] **UX-35.5 action-required-process-ops-consolidation-and-copy-polish**
-  - **Status:** Ready
+- [x] **UX-35.5 action-required-process-ops-consolidation-and-copy-polish**
+  - **Status:** Shipped on `development` (PR: #5313)
   - **Why now:** The repo still has overlapping action-required/process-ops concepts and mixed Command Center/Cockpit terminology across queue surfaces and empty states.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 35
   - **Scope:** Consolidate overlapping action-required/process-ops surfaces into one Command Center model and finish the user-facing copy/empty-state/drill-in polish needed to make that model obvious.
   - **Non-goals:** No trade-engine changes and no new analytics features.
   - **Primary domain:** frontend/operations
-  - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/pages/Cockpit/ProcessCockpitPage.tsx`, `frontend/src/components/Onboarding/CockpitWelcomeEmptyState.tsx`, `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/App.tsx`
+  - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/pages/WorkForms/Monitoring.tsx`, `frontend/src/pages/Cockpit/ProcessMonitor.tsx`, `frontend/src/components/Onboarding/CockpitWelcomeEmptyState.tsx`, `frontend/src/components/Layout/Header.tsx`, `frontend/src/App.tsx`
   - **Dependencies:** UX-35.4
   - **Blockers:** None
   - **Acceptance criteria:** One canonical action-required/process-ops experience remains; legacy routes resolve to the intended Command Center state; visible copy consistently uses the chosen Command Center terminology and clear next-action guidance.
-  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx src/components/Navigation/CommandPalette.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx`; `npm -C frontend run test:ci`
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/pages/Cockpit/ProcessCockpitPage.test.tsx src/pages/Cockpit/ProcessCockpitPage.stability.test.tsx src/components/Navigation/CommandPalette.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx src/components/Layout/Header.test.tsx src/components/Integrations/IngestionMonitor.test.tsx src/pages/WorkForms/Monitoring.test.tsx src/routes/LegacyCommandCenterTabRedirect.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Medium

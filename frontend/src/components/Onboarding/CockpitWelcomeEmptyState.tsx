@@ -42,7 +42,7 @@ export const CockpitWelcomeEmptyState: React.FC<CockpitWelcomeEmptyStateProps> =
   const actions = useMemo(
     () => [
       {
-        label: 'Take the Cockpit Tour',
+        label: 'Take the Workspace Tour',
         onClick: onStartTour,
         variant: 'primary' as const,
       },
@@ -57,7 +57,7 @@ export const CockpitWelcomeEmptyState: React.FC<CockpitWelcomeEmptyStateProps> =
         variant: 'secondary' as const,
       },
       {
-        label: 'Customize Dashboard',
+        label: 'Customize Workspace Dashboard',
         onClick: onCustomizeDashboard,
         variant: 'secondary' as const,
       },
@@ -72,8 +72,8 @@ export const CockpitWelcomeEmptyState: React.FC<CockpitWelcomeEmptyStateProps> =
           <Compass size={36} />
         </IconWrapper>
       }
-      title="Start your cockpit"
-      message="Your dashboard is ready, but the fastest way to get value is to set up a few core records and learn the shortcuts that drive daily work."
+      title="Set up your workspace dashboard"
+      message="Command Center is ready for daily triage. This secondary workspace becomes more useful once you add a few core records and tailor the widgets to your team."
       actions={actions}
     >
       <Checklist>

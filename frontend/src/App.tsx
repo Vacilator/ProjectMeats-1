@@ -23,6 +23,7 @@ import Layout from './components/Layout/Layout';
 import { OnboardingProvider } from './components/Onboarding';
 import './i18n/config'; // Initialize i18n
 import { buildCanonicalSearchPath, getCanonicalSearchQuery } from './utils/canonicalSearch';
+import LegacyCommandCenterTabRedirect from './routes/LegacyCommandCenterTabRedirect';
 
 const MyTasksRedirect: React.FC = () => {
   const location = useLocation();
@@ -368,7 +369,10 @@ const App: React.FC = () => {
                 <Route path="command-center" element={<React.Suspense fallback={<Skeleton active />}><AICommandCenter /></React.Suspense>} />
 
                 {/* Other Pages */}
-                <Route path="trader-cockpit" element={<Navigate to="/command-center?tab=pipeline" replace />} />
+                <Route
+                  path="trader-cockpit/*"
+                  element={<LegacyCommandCenterTabRedirect tab="pipeline" />}
+                />
                 <Route path="cold-storage" element={<ColdStorage />} />
                 <Route path="carriers" element={<Carriers />} />
                 <Route path="freight-orders" element={<FreightOrders />} />
@@ -378,7 +382,10 @@ const App: React.FC = () => {
                 <Route path="call-log" element={<Navigate to="/cockpit/calls" replace />} />
                 <Route path="processes" element={<Navigate to="/workforms/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
-                <Route path="activity" element={<Navigate to="/command-center?tab=action-required" replace />} />
+                <Route
+                  path="activity/*"
+                  element={<LegacyCommandCenterTabRedirect tab="action-required" />}
+                />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/email-integrations" element={<Settings />} />
@@ -481,12 +488,12 @@ const App: React.FC = () => {
                 } />
 
                 <Route
-                  path="process-cockpit"
-                  element={<Navigate to="/command-center?tab=action-required" replace />}
+                  path="process-cockpit/*"
+                  element={<LegacyCommandCenterTabRedirect tab="action-required" />}
                 />
                 <Route
-                  path="cockpit/interventions"
-                  element={<Navigate to="/command-center?tab=action-required" replace />}
+                  path="cockpit/interventions/*"
+                  element={<LegacyCommandCenterTabRedirect tab="action-required" />}
                 />
 
                 {/* Backward compatibility redirect */}
@@ -503,7 +510,10 @@ const App: React.FC = () => {
                 >
                   <Route index element={<CockpitIndexRedirect />} />
                   <Route path="dashboard" element={<CockpitDashboard />} />
-                  <Route path="process-monitor" element={<Navigate to="/command-center?tab=action-required" replace />} />
+                  <Route
+                    path="process-monitor/*"
+                    element={<LegacyCommandCenterTabRedirect tab="action-required" />}
+                  />
                   <Route path="calls" element={<CallLog />} />
                   <Route path="entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
                 </Route>

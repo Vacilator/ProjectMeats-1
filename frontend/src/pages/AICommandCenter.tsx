@@ -708,6 +708,10 @@ const AICommandCenter: React.FC = () => {
     reviewsQuery.refetch();
   }, [tradesQuery, reviewsQuery]);
 
+  const handleOpenWorkFormsMonitoring = useCallback(() => {
+    navigate('/workforms/monitoring');
+  }, [navigate]);
+
   const handleTabChange = useCallback(
     (value: string | number | undefined) => {
       if (!value) {
@@ -927,7 +931,7 @@ const AICommandCenter: React.FC = () => {
             ⚡ Command Center
           </Title>
         )}
-        subtitle="Your unified hub for trades, AI inbox, and operational oversight."
+        subtitle="Primary operator queue for action-required work, live trades, and daily oversight. Use WorkForms Monitoring for execution drill-ins."
         actions={(
           <>
             <Input
@@ -1112,8 +1116,14 @@ const AICommandCenter: React.FC = () => {
           ) : filteredAiInbox.length === 0 ? (
             <EmptyState>
               <CheckCircle2 size={32} strokeWidth={1.5} />
-              <span>You're all caught up!</span>
-              <EmptySubtext>No items require your attention right now.</EmptySubtext>
+              <span>Operator queue is clear.</span>
+              <EmptySubtext>
+                No items need attention right now. Use WorkForms Monitoring for active
+                execution details and step-level drill-ins.
+              </EmptySubtext>
+              <Button onClick={handleOpenWorkFormsMonitoring} style={{ borderRadius: 10 }}>
+                Open WorkForms Monitoring
+              </Button>
             </EmptyState>
           ) : (
             <CardList>
@@ -1221,10 +1231,23 @@ const AICommandCenter: React.FC = () => {
 
       {/* ======== Workflows Tab ======== */}
       {activeTab === 'workflows' && (
-        <CockpitPanel title="Workflow Operations">
-          <ErrorBoundary fallbackMessage="Operations data could not be loaded.">
-            <OperationsPanel />
-          </ErrorBoundary>
+        <CockpitPanel
+          title="Workflow Operations"
+          extra={(
+            <Button size="small" onClick={handleOpenWorkFormsMonitoring}>
+              Open WorkForms Monitoring
+            </Button>
+          )}
+        >
+          <Space direction="vertical" size={12} style={{ display: 'flex' }}>
+            <Text type="secondary">
+              Command Center stays focused on queue triage. Use WorkForms Monitoring
+              for active execution details and submission-level drill-ins.
+            </Text>
+            <ErrorBoundary fallbackMessage="Operations data could not be loaded.">
+              <OperationsPanel />
+            </ErrorBoundary>
+          </Space>
         </CockpitPanel>
       )}
 

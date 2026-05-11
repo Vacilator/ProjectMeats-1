@@ -746,9 +746,9 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       <Page>
         <StickyHeader>
           <HeaderInner>
-            <BreadcrumbTitleButton onClick={() => navigate('/cockpit')} type="button">
+            <BreadcrumbTitleButton onClick={() => navigate('/cockpit/dashboard')} type="button">
               <BreadcrumbTitle>Customer</BreadcrumbTitle>
-              <BreadcrumbHint>Back to Cockpit search</BreadcrumbHint>
+              <BreadcrumbHint>Back to workspace dashboard</BreadcrumbHint>
             </BreadcrumbTitleButton>
           </HeaderInner>
         </StickyHeader>
@@ -840,9 +840,14 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       <StickyHeader>
         <HeaderInner>
           <div style={{ minWidth: 0 }}>
-            <BreadcrumbTitleButton onClick={() => navigate('/cockpit')} type="button" title="Back to Cockpit search" aria-label="Back to Cockpit search">
+            <BreadcrumbTitleButton
+              onClick={() => navigate('/cockpit/dashboard')}
+              type="button"
+              title="Back to workspace dashboard"
+              aria-label="Back to workspace dashboard"
+            >
               <BreadcrumbTitle>{title}</BreadcrumbTitle>
-              <BreadcrumbHint>Click to return to global search / Entity Explorer</BreadcrumbHint>
+              <BreadcrumbHint>Click to return to workspace search and entity explorer</BreadcrumbHint>
             </BreadcrumbTitleButton>
           </div>
         </HeaderInner>

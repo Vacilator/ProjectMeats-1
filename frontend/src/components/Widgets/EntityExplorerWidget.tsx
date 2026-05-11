@@ -1,14 +1,14 @@
 /**
  * Entity Explorer Widget
- * 
+ *
  * Quick navigation to recently accessed or favorite entities.
  * Shows a mini-browser for key entity types.
- * 
+ *
  * Features:
  * - Recent items by entity type
  * - Favorites/pinned items
  * - Quick preview on hover
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */
@@ -16,8 +16,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
-import { 
-  Layers, Package, Users, Building2, FileText, 
+import {
+  Layers, Package, Users, Building2, FileText,
   ChevronRight, Star, Clock
 } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
@@ -207,7 +207,7 @@ const FavoriteIcon = styled.div<{ $active: boolean }>`
   color: ${props => props.$active ? 'rgb(var(--color-warning))' : 'rgb(var(--color-text-tertiary))'};
   opacity: ${props => props.$active ? 1 : 0.3};
   cursor: pointer;
-  
+
   &:hover {
     opacity: 1;
     color: rgb(var(--color-warning));
@@ -265,7 +265,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
   const [activeTab, setActiveTab] = useState<EntityType>('suppliers');
   const [entities, setEntities] = useState<Record<EntityType, RecentEntity[]>>(EMPTY_ENTITIES);
   const [loading, setLoading] = useState(true);
-  
+
   // Entity detail modal state
   const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: string } | null>(null);
 
@@ -330,7 +330,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
         subtitle: entity.subtitle,
       });
 
-      navigate('/cockpit');
+      navigate('/cockpit/dashboard');
       return;
     }
 
@@ -389,7 +389,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
                     <EntitySubtitle>{entity.subtitle}</EntitySubtitle>
                   )}
                 </EntityContent>
-                <FavoriteIcon 
+                <FavoriteIcon
                   $active={!!entity.isFavorite}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -408,7 +408,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
           </ViewAllLink>
         </>
       )}
-      
+
       {/* Entity Detail Modal */}
       {selectedEntity && (
         <EntityDetailModal

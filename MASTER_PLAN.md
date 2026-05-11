@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)
 **Last Updated**: 2026-05-11
-**Primary Focus**: Phase 35 execution — frontend surface simplification and Command Center consolidation now that Phases 12-34 are shipped.
+**Primary Focus**: Phase 35 is complete on `development`; the canonical backlog is clear pending the next reseeded execution lane.
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -180,14 +180,14 @@ All 10 items from the squad deep-dive plan have been completed:
 - ✅ UnifiedEntityTable dynamic aria-label (PR #5291)
 - ✅ Suppliers referential stability: onRow/expandable memoized (PR #5290)
 
-### Phase 35: Frontend Surface Simplification & Command Center Consolidation 🔄 ACTIVE
+### Phase 35: Frontend Surface Simplification & Command Center Consolidation ✅ COMPLETE
 - **Why now:** The executable backlog is clear, but the frontend still exposes overlapping operator-home surfaces (`/command-center`, `/cockpit`, legacy process routes) plus competing search entrypoints. This is the highest-leverage simplification lane left.
 - **Operator north star:** One canonical operator hub (**Command Center**), one canonical search-first entrypoint, four top-level operator sections or fewer, and preserved deep links/legacy redirects.
 - **UX-35.1 Shipped** — Command Center IA + route canonicalization landed in PR #5309: `/` and the `/cockpit` index now resolve to `/command-center`, top-level navigation/shortcuts point to Command Center, and cockpit onboarding links preserve the secondary workspace tour path.
 - **UX-35.2 Shipped** — Canonical search entrypoint unification: Header search, legacy cockpit search handoffs, CommandPalette, and Command Center now converge on one `/command-center?q=...` contract while preserving `tab` / `item` context where it already exists.
 - **UX-35.3 Shipped** — Shared operator shell extraction: Command Center and the surviving Cockpit dashboard now share one additive operator-shell layer for page header, action row, tab bar, and inset section chrome without moving search or data ownership.
 - **UX-35.4 Shipped** — Cockpit surface reduction: the default populated cockpit landing path now stays within four top-level sections, and AI learning metrics have been demoted behind workspace customization instead of occupying the primary landing surface.
-- **UX-35.5 Ready** — Action-required/process-ops consolidation + copy polish: converge the remaining overlapping queue/process surfaces into one Command Center model and finish naming/empty-state/drill-in cleanup.
+- **UX-35.5 Shipped** — Action-required/process-ops consolidation + copy polish landed in PR #5313: wildcard legacy operator routes now converge on the intended Command Center tabs, WorkForms Monitoring is explicitly framed as the secondary execution drill-in, and lingering Cockpit/process copy plus dashboard return paths now consistently reflect the Command Center-first operator model.
 - **Validation gate for each ticket:** `npm -C frontend run verify-standards`; focused `vitest` targets listed in `.github/EPIC_TICKETS.md`; `npm -C frontend run test:ci`.
 - **Evidence destination:** `.github/MASTER_PLAN.md` per shipped batch.
 
@@ -202,7 +202,7 @@ All 10 items from the squad deep-dive plan have been completed:
 --- (as of 2026-05-10)
 
 ### What is true right now
-- **Phases 12-34 complete; Phase 35 execution is now underway.** UX-35.1 through UX-35.4 are shipped on `development`: Command Center is the single primary operator home, canonical search entrypoints converge on `/command-center?q=...`, the surviving operator pages share one additive shell layer, and the Cockpit landing path is reduced to the intended minimal surface. UX-35.5 is now the next ready ticket.
+- **Phases 12-35 complete.** Phase 35 is now fully shipped on `development`: Command Center is the single primary operator home, canonical search entrypoints converge on `/command-center?q=...`, the surviving operator pages share one additive shell layer, the Cockpit landing path is reduced to the intended minimal surface, and the remaining action-required/process-ops drift has been consolidated under the Command Center model.
 - **100% CSS custom property compliance.** Zero hardcoded rgb/rgba/hex color values remain in production frontend code. All semantic colors use CSS variables with WCAG AA+ contrast ratios.
 - **Zero browser-native dialogs.** All `window.confirm()`, `window.alert()`, and `alert()` eliminated → AntD Modal-based wrappers (`confirmDialog`, `showAlert`, `message`).
 - **Full table accessibility.** Every `<Table>` component has a descriptive `aria-label` for screen readers.
@@ -213,7 +213,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Process Cockpit overhaul shipped.** 3-tab structure (All Processes / Action Required / Completed), unified detail modals, Activity page removed from sidebar (PR #5024).
 - **CI/CD pipeline optimized:** DRY composite actions (.github/actions/), nginx template extraction, dev-deploy skip-tests optimization shipped in PRs #5011-#5015. Pipeline fully green (Run #2703).
 - **Industry Leader State vision active:** Phases 20-22 added to MASTER_PLAN.md and EPIC_TICKETS.md — UI/UX minimalism, end-to-end automation, and golden pipeline perfection.
-- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the next highest-leverage lane remains **Phase 35 frontend surface simplification**. Route/IA canonicalization, canonical search unification, shared operator-shell extraction, and cockpit landing-surface reduction are now shipped; the remaining user-facing simplification gap is the final action-required/process-ops consolidation and copy cleanup under Command Center.
+- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the canonical backlog is now clear after **Phase 35 frontend surface simplification** shipped in full. The next lane should be reseeded from a fresh operator-surface audit rather than continued from legacy roadmap drift.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
 - **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). The Phase 12 hardening follow-on is also fully shipped through `EH-06.2`, so this bullet is historical proof rather than a live handoff.
 - **Phase 15 execution is sealed:** the full `B2B-02` trade-engine rollout (`B2B-02.1` through `B2B-02.4`), the full `B2B-01` guest-portal lane (`B2B-01.1` through `B2B-01.5`), and the full `B2B-03` settlement lane (`B2B-03.1` through `B2B-03.5`) are now shipped on `development`, and the deploy-recovery / pipeline-stabilization follow-ups landed separately in PRs #4918, #4919, #4920, and #4921.
