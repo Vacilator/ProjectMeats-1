@@ -315,7 +315,7 @@ describe('Header', () => {
       const form = searchInput.closest('form')!;
       fireEvent.submit(form);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/cockpit?q=test%20query');
+      expect(mockNavigate).toHaveBeenCalledWith('/command-center?q=test+query');
     });
 
     it('does not submit empty search', () => {
@@ -340,6 +340,36 @@ describe('Header', () => {
       );
 
       expect(screen.getByRole('textbox', { name: /global search/i })).toBeInTheDocument();
+    });
+
+    it('hydrates the search input from the canonical command-center query', () => {
+      render(
+        <MemoryRouter initialEntries={['/command-center?tab=pipeline&q=brisket']}>
+          <Header />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('textbox', { name: /global search/i })).toHaveValue('brisket');
+    });
+
+    it('preserves tab and item params when searching from command center', () => {
+      render(
+        <MemoryRouter initialEntries={['/command-center?tab=pipeline&item=review-123']}>
+          <Header />
+        </MemoryRouter>
+      );
+
+      const searchInput = screen.getByRole('textbox', { name: /global search/i });
+      fireEvent.change(searchInput, { target: { value: 'copper' } });
+
+      mockNavigate.mockClear();
+
+      const form = searchInput.closest('form')!;
+      fireEvent.submit(form);
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/command-center?tab=pipeline&item=review-123&q=copper',
+      );
     });
   });
 

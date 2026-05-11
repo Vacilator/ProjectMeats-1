@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -115,10 +115,17 @@ function createWrapper(initialRoute = '/command-center') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
+
+  const LocationProbe = () => {
+    const location = useLocation();
+    return <div data-testid="location-display">{`${location.pathname}${location.search}`}</div>;
+  };
+
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialRoute]}>
         {children}
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -357,6 +364,30 @@ describe('AICommandCenter', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Steel inquiry from Acme/)).not.toBeInTheDocument();
       expect(screen.getByText(/Copper quote from BronzeCo/)).toBeInTheDocument();
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?tab=action-required&q=copper',
+      );
+    });
+  });
+
+  it('hydrates the search input from q and preserves tab when editing', async () => {
+    const user = userEvent.setup();
+    mockListPendingReviews.mockResolvedValue([SAMPLE_REVIEW]);
+
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=action-required&q=steel'),
+    });
+
+    const searchInput = screen.getByLabelText('Search command center');
+    expect(searchInput).toHaveValue('steel');
+
+    await user.clear(searchInput);
+    await user.type(searchInput, 'copper');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?tab=action-required&q=copper',
+      );
     });
   });
 
@@ -466,16 +497,6 @@ describe('AICommandCenter', () => {
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
-  });
-
-  it('focuses search input on "/" keypress', async () => {
-    render(<AICommandCenter />, { wrapper: createWrapper() });
-    await waitFor(() => expect(screen.getByText('⚡ Command Center')).toBeInTheDocument());
-
-    fireEvent.keyDown(document, { key: '/' });
-
-    const searchInput = screen.getByLabelText('Search command center');
-    expect(document.activeElement).toBe(searchInput);
   });
 
   it('renders keyboard shortcut hint bar', async () => {

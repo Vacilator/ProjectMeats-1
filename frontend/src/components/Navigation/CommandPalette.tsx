@@ -16,7 +16,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
 import { logger } from '@/utils/logger';
 import {
@@ -499,7 +498,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const cockpitNavigation = useCockpitNavigation();
 
   // Focus input when opened
   useEffect(() => {
@@ -641,30 +639,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       // Ignore tracking errors
     }
 
-    const rawType = String(item.type ?? '').toLowerCase();
-    const canonicalType = rawType === 'customer' || rawType === 'customers'
-      ? 'customer'
-      : rawType === 'supplier' || rawType === 'suppliers'
-        ? 'supplier'
-        : null;
-
-    // Cockpit default: open the canonical breadcrumb-driven view on /cockpit.
-    if (canonicalType) {
-      cockpitNavigation.clearPath();
-      cockpitNavigation.addStep({
-        id: String(item.id),
-        type: canonicalType,
-        label: item.title,
-        subtitle: item.subtitle,
-      });
-
+    if (item.route) {
       onClose();
-      navigate('/cockpit');
+      navigate(item.route);
       return;
     }
 
     // Preserve existing behavior for other entity types.
-      setSelectedEntity({ type: item.type, id: item.id });
+    setSelectedEntity({ type: item.type, id: item.id });
   };
 
   const handleQuickAction = (action: QuickAction) => {

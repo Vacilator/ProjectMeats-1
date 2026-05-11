@@ -40,6 +40,16 @@ const businessApiMock = vi.hoisted(() => ({
   delete: vi.fn(),
 }));
 
+const mockNavigate = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock('../../components/Widgets', () => ({
   WidgetGrid: () => <div data-testid="widget-grid">Widget Grid</div>,
   QuickStatsWidget: () => <div />,
@@ -57,7 +67,13 @@ vi.mock('../../components/Widgets', () => ({
 
 vi.mock('../../components/Cockpit', () => ({
   CockpitTour: () => <div data-testid="cockpit-tour" />,
-  SmartSearch: () => <div data-testid="smart-search" />,
+  SmartSearch: ({ onQueryChange }: { onQueryChange?: (value: string) => void }) => (
+    <div data-testid="smart-search">
+      <button type="button" onClick={() => onQueryChange?.('brisket')}>
+        Trigger search
+      </button>
+    </div>
+  ),
   BreadcrumbBar: () => <div data-testid="breadcrumb-bar" />,
   COCKPIT_TOUR_SELECTORS: {
     smartSearch: '[data-testid="smart-search"]',
@@ -216,19 +232,21 @@ describe('CockpitDashboard empty states', () => {
     expect(screen.queryByTestId('ai-learning-metrics')).not.toBeInTheDocument();
   });
 
-  it('suppresses the cockpit welcome while search is active', async () => {
-    onboardingMock.hasCompletedTour.mockReturnValue(false);
-    cockpitStatsMock.current = {
-      stats: blankStats,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(async () => {}),
-    };
-
+  it('redirects legacy cockpit q params to the canonical command-center search URL', async () => {
     renderDashboard(['/cockpit?q=brisket']);
 
     expect(await screen.findByTestId('smart-search')).toBeInTheDocument();
-    expect(screen.queryByTestId('cockpit-welcome')).not.toBeInTheDocument();
+    expect(mockNavigate).toHaveBeenCalledWith('/command-center?q=brisket', { replace: true });
+  });
+
+  it('hands SmartSearch queries off to the canonical command-center search URL', async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const searchTrigger = await screen.findByRole('button', { name: /trigger search/i });
+    await user.click(searchTrigger);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/command-center?q=brisket', { replace: true });
   });
 
   it('shows the generic no-widgets branch when stats are populated but the saved widget layout is empty', async () => {

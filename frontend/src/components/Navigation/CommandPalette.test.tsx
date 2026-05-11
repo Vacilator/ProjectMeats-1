@@ -8,7 +8,8 @@ import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
 import { CockpitNavigationProvider } from '../../contexts/CockpitNavigationContext';
 
-vi.mock('@/services/searchService', () => ({
+const mockNavigate = vi.fn();
+const searchServiceMocks = vi.hoisted(() => ({
   getRecentItems: vi.fn().mockResolvedValue([]),
   getSearchColorVar: vi.fn().mockReturnValue('--color-info'),
   searchRanked: vi.fn().mockResolvedValue({
@@ -18,15 +19,25 @@ vi.mock('@/services/searchService', () => ({
     total: 0,
   }),
   trackRecentItem: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+vi.mock('@/services/searchService', () => ({
+  getRecentItems: searchServiceMocks.getRecentItems,
+  getSearchColorVar: searchServiceMocks.getSearchColorVar,
+  searchRanked: searchServiceMocks.searchRanked,
+  trackRecentItem: searchServiceMocks.trackRecentItem,
   searchService: {
-    getRecentItems: vi.fn().mockResolvedValue([]),
-    searchRanked: vi.fn().mockResolvedValue({
-      query: '',
-      results: [],
-      counts: {},
-      total: 0,
-    }),
-    trackRecentItem: vi.fn().mockResolvedValue(undefined),
+    getRecentItems: searchServiceMocks.getRecentItems,
+    searchRanked: searchServiceMocks.searchRanked,
+    trackRecentItem: searchServiceMocks.trackRecentItem,
   },
 }));
 
@@ -51,6 +62,12 @@ describe('CommandPalette', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    searchServiceMocks.searchRanked.mockResolvedValue({
+      query: '',
+      results: [],
+      counts: {},
+      total: 0,
+    });
   });
 
   it('renders when open', () => {
@@ -153,6 +170,55 @@ describe('CommandPalette search behavior', () => {
     
     // Component should not crash during debounce
     expect(input).toHaveValue('test');
+  });
+
+  it('navigates canonical supplier results to their record route instead of /cockpit', async () => {
+    vi.useFakeTimers();
+    try {
+      searchServiceMocks.searchRanked.mockResolvedValue({
+        query: 'acme',
+        total: 1,
+        counts: { supplier: 1 },
+        results: [
+          {
+            id: 'supplier-1',
+            type: 'supplier',
+            title: 'Acme Supplier',
+            subtitle: 'Preferred vendor',
+            icon: 'Building2',
+            colorVar: '--color-primary',
+            route: '/suppliers/supplier-1',
+            score: 99,
+            labels: [],
+            metadata: {},
+          },
+        ],
+      });
+
+      render(
+        <TestWrapper>
+          <CommandPalette isOpen={true} onClose={vi.fn()} />
+        </TestWrapper>
+      );
+
+      const input = screen.getByPlaceholderText(/search/i);
+      fireEvent.change(input, { target: { value: 'acme' } });
+
+      await act(async () => {
+        vi.advanceTimersByTime(250);
+        await Promise.resolve();
+      });
+
+      const result = screen.getByText('Acme Supplier');
+      await act(async () => {
+        fireEvent.click(result);
+        await Promise.resolve();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/suppliers/supplier-1');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('clears search on close and reopen', () => {
