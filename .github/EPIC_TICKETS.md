@@ -22,8 +22,8 @@
 | Shipped | UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction | Phase 37 | frontend |
 | Shipped | UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction | Phase 37 | frontend |
 | Shipped | UX-37.3 cockpit-workspace-search-and-catalog-cleanup | Phase 37 | frontend |
-| Ready | UX-37.4 workspace-terminology-alignment | Phase 37 | frontend |
-| Blocked | UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening | Phase 37 | frontend |
+| Shipped | UX-37.4 workspace-terminology-alignment | Phase 37 | frontend |
+| Shipped | UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening | Phase 37 | frontend |
 | Shipped | UX-36.1 command-center-four-section-ia-and-workflows-demotion | Phase 36 | frontend |
 | Shipped | UX-36.2 workforms-monitoring-single-drill-in-surface | Phase 36 | frontend |
 | Shipped | UX-36.3 process-cockpit-legacy-retirement-and-secondary-copy-alignment | Phase 36 | frontend |
@@ -66,7 +66,7 @@
 ## Dependency Graph
 
 ```
-Phase 37 (UX-37.1→UX-37.5 operator surface completion) — next execution lane
+Phase 37 (UX-37.1→UX-37.5 operator surface completion) — completed on development
 
 Phase 36 (UX-36.1→UX-36.3 operator execution simplification) — completed on development
 
