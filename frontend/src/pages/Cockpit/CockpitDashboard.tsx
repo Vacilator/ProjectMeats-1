@@ -49,10 +49,8 @@ import {
 import {
   CockpitTour,
   COCKPIT_TOUR_SELECTORS,
-  SmartSearch,
   BreadcrumbBar,
 } from '../../components/Cockpit';
-import type { SearchEntity } from '../../components/Cockpit/SmartSearch';
 import { AILearningMetricsWidget } from '../../components/Cockpit/AILearningMetricsWidget';
 import { NextActionChips } from '../../components/Cockpit/NextActionChips';
 import { EmptyState } from '../../components/Admin';
@@ -195,13 +193,6 @@ const WIDGET_CATALOG = [
     description: 'AI parsing confidence metrics and auto-processing stats',
     category: 'metrics',
     icon: '🧠',
-  },
-  {
-    type: 'AILearningMetricsWidget',
-    title: 'AI Learning Metrics',
-    description: 'Track AI learning progress and suggestion quality',
-    category: 'metrics',
-    icon: '📚',
   },
 ];
 
@@ -403,15 +394,54 @@ const WidgetIcon = styled.span`
   font-size: 20px;
 `;
 
+const SearchGuidanceCard = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg, 12px);
+  background: rgb(var(--color-surface));
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+`;
+
+const SearchGuidanceContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const SearchGuidanceEyebrow = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(var(--color-primary));
+`;
+
+const SearchGuidanceTitle = styled.h2`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
+const SearchGuidanceDescription = styled.p`
+  margin: 0;
+  max-width: 720px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgb(var(--color-text-secondary));
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
-
-type InlineActionState = {
-  action: 'create' | 'edit' | 'view';
-  entityType: string;
-  contextData: Record<string, string>;
-} | null;
 
 export const CockpitDashboard: React.FC = () => {
   useDocumentTitle('Dashboard');
@@ -424,7 +454,6 @@ export const CockpitDashboard: React.FC = () => {
   const gridCols = isMobile ? 1 : isTablet ? 6 : 12;
   const gridRowHeight = isMobile ? 80 : 100;
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
-  const [inlineAction, setInlineAction] = useState<InlineActionState>(null);
   const [layout, setLayout] = useState<WidgetLayout[]>(DEFAULT_LAYOUT);
   const [isEditing, setIsEditing] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -460,16 +489,11 @@ export const CockpitDashboard: React.FC = () => {
     void launchTour('cockpit', hasCompletedTour('cockpit') ? 'restart' : 'resume');
   }, [hasCompletedTour, launchTour, searchParams, setSearchParams]);
 
-  const handleQueryChange = useCallback((newQuery: string) => {
-    if (!newQuery.trim() && !cockpitQuery.trim()) {
-      return;
-    }
-
+  const handleOpenCommandCenterSearch = useCallback(() => {
     navigate(
       buildCanonicalSearchPath({
-        query: newQuery,
+        query: cockpitQuery,
       }),
-      { replace: true },
     );
   }, [cockpitQuery, navigate]);
 
@@ -503,53 +527,6 @@ export const CockpitDashboard: React.FC = () => {
     return selectors;
   }, [hasQuickActionsWidget, showDashboardWidgets, showWelcomeEmptyState]);
   const isCockpitLoaded = isLayoutLoaded && gridWidth > 0;
-
-  // If the user edits the search input, we should exit any selected record context
-  // so results refresh immediately on every keystroke.
-  const lastQueryRef = useRef<string>(cockpitQuery);
-  useEffect(() => {
-    if (lastQueryRef.current === cockpitQuery) return;
-    lastQueryRef.current = cockpitQuery;
-
-    if (navigation.path.length > 0) {
-      navigation.clearPath();
-    }
-
-    if (inlineAction) {
-      setInlineAction(null);
-    }
-  }, [cockpitQuery, inlineAction, navigation]);
-
-  const generateSmartContext = useCallback((sourceEntity: SearchEntity, targetType: string) => {
-    if (!sourceEntity) return {};
-
-    const sourceType = sourceEntity.type.toLowerCase();
-    const sourceId = sourceEntity.id.trim();
-    if (!sourceType || !sourceId) return {};
-
-    const context: Record<string, string> = {};
-
-    if (sourceType === 'customer' && (targetType === 'sales_order' || targetType === 'inquiry' || targetType === 'invoice')) {
-      context.customer = sourceId;
-    }
-    if (sourceType === 'supplier' && (targetType === 'purchase_order' || targetType === 'inquiry')) {
-      context.supplier = sourceId;
-    }
-
-    context[`${sourceType}_id`] = sourceId;
-    return context;
-  }, []);
-
-  const openInlineCreate = useCallback(
-    (targetType: string, currentRecord: SearchEntity) => {
-      setInlineAction({
-        action: 'create',
-        entityType: targetType,
-        contextData: generateSmartContext(currentRecord, targetType),
-      });
-    },
-    [generateSmartContext]
-  );
 
   // Exit edit mode whenever the dashboard grid isn't visible (searching or viewing a record)
   useEffect(() => {
@@ -782,57 +759,30 @@ export const CockpitDashboard: React.FC = () => {
       {/* Breadcrumb navigation bar - Elevated above search and grid */}
       {navigation.path.length > 0 && (
         <OperatorInsetSection maxWidth="full">
-          <BreadcrumbBar
-            extraCrumbs={
-              inlineAction?.action === 'create'
-                ? [{
-                    label: `New ${inlineAction.entityType
-                      .replace(/_/g, ' ')
-                      .replace(/\b\w/g, (c) => c.toUpperCase())}`,
-                  }]
-                : inlineAction?.action === 'edit'
-                  ? [{
-                      label: `Edit ${inlineAction.entityType
-                        .replace(/_/g, ' ')
-                        .replace(/\b\w/g, (c) => c.toUpperCase())}`,
-                    }]
-                  : []
-            }
-          />
+          <BreadcrumbBar />
         </OperatorInsetSection>
       )}
 
-      {/* Hero Search (SmartSearch) */}
+      {/* Command Center search guidance */}
       <OperatorInsetSection surface="section" maxWidth="wide">
         <HeroSearchInner>
-          <SmartSearch
-            query={cockpitQuery}
-            onQueryChange={handleQueryChange}
-            inlineAction={inlineAction}
-            onInlineCancel={() => setInlineAction(null)}
-            onInlineSuccess={(created) => {
-              const row = (created && typeof created === 'object' ? created : {}) as Record<string, unknown>;
-              const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
-              const createdType = String(inlineAction?.entityType ?? '').trim();
-
-              if (createdId && createdType) {
-                setInlineAction({
-                  action: 'view',
-                  entityType: createdType,
-                  contextData: { ...(inlineAction?.contextData || {}), entityId: createdId },
-                });
-
-                const next = new URLSearchParams(searchParams);
-                next.set('cockpit_entity_type', createdType);
-                next.set('cockpit_entity_id', createdId);
-                setSearchParams(next, { replace: true });
-                return;
-              }
-
-              setInlineAction(null);
-            }}
-            onOpenInlineCreate={openInlineCreate}
-          />
+          <SearchGuidanceCard
+            id="tour-smart-search"
+            data-testid="smart-search-guidance"
+          >
+            <SearchGuidanceContent>
+              <SearchGuidanceEyebrow>Command Center Search</SearchGuidanceEyebrow>
+              <SearchGuidanceTitle>Search now lives in Command Center.</SearchGuidanceTitle>
+              <SearchGuidanceDescription>
+                Open Command Center to search records and launch related workflows.
+                Cockpit remains focused on saved workspace widgets, monitoring, and
+                secondary operator drill-ins.
+              </SearchGuidanceDescription>
+            </SearchGuidanceContent>
+            <ActionButton $variant="primary" onClick={handleOpenCommandCenterSearch}>
+              Open Command Center Search
+            </ActionButton>
+          </SearchGuidanceCard>
         </HeroSearchInner>
       </OperatorInsetSection>
 

@@ -21,8 +21,8 @@
 |----------|--------|-------|--------|
 | Shipped | UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction | Phase 37 | frontend |
 | Shipped | UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction | Phase 37 | frontend |
-| Ready | UX-37.3 cockpit-workspace-search-and-catalog-cleanup | Phase 37 | frontend |
-| Blocked | UX-37.4 workspace-terminology-alignment | Phase 37 | frontend |
+| Shipped | UX-37.3 cockpit-workspace-search-and-catalog-cleanup | Phase 37 | frontend |
+| Ready | UX-37.4 workspace-terminology-alignment | Phase 37 | frontend |
 | Blocked | UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening | Phase 37 | frontend |
 | Shipped | UX-36.1 command-center-four-section-ia-and-workflows-demotion | Phase 36 | frontend |
 | Shipped | UX-36.2 workforms-monitoring-single-drill-in-surface | Phase 36 | frontend |
@@ -194,7 +194,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Active Backlog (Execution Order)
 
-### Phase 37 — Operator Surface Completion (Remaining: 3 tickets)
+### Phase 37 — Operator Surface Completion (Remaining: 2 tickets)
 
 #### Epic UX-37: AICommandCenter polish + cockpit workspace cleanup
 
@@ -236,8 +236,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
   - **Shipped evidence:** PR #5321
 
-- [ ] **UX-37.3 cockpit-workspace-search-and-catalog-cleanup**
-  - **Status:** Ready
+- [x] **UX-37.3 cockpit-workspace-search-and-catalog-cleanup**
+  - **Status:** Shipped
   - **Why now:** Once the primary operator surface is styled cleanly again, the next highest-noise pocket is the Cockpit Workspace: it still renders a SmartSearch forwarding stub and still offers new `AILearningMetricsWidget` additions even though that widget was already demoted from the default landing path.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Remove the `SmartSearch` forwarding stub from `CockpitDashboard.tsx`, replace it with static Command Center search guidance, and remove `AILearningMetricsWidget` from new catalog additions while preserving saved-layout rendering for existing users.
@@ -253,9 +253,10 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Risk level:** Medium
   - **Rollback:** Restore the SmartSearch/catalog entry while keeping the Command Center-first redirects intact.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Shipped evidence:** PR #5324
 
 - [ ] **UX-37.4 workspace-terminology-alignment**
-  - **Status:** Blocked on UX-37.3
+  - **Status:** Ready
   - **Why now:** After the cockpit search/catalog cleanup, the remaining operator drift is almost entirely naming: Header onboarding labels, workspace document titles, and tour copy still have room to standardize around the Command Center-first model.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Align the surviving Header/Cockpit workspace/tour copy so the secondary workspace terminology is consistent everywhere it remains user-facing.
@@ -263,7 +264,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/copy
   - **Likely touched paths:** `frontend/src/components/Layout/Header.tsx`, `frontend/src/components/Layout/Header.test.tsx`, `frontend/src/pages/Cockpit/index.tsx`, `frontend/src/components/Cockpit/CockpitTour.tsx`, `frontend/src/components/Onboarding/CockpitWelcomeEmptyState.tsx`
   - **Dependencies:** UX-37.3
-  - **Blockers:** UX-37.3 must settle the surviving cockpit shell before the last terminology pass
+  - **Blockers:** None
   - **Acceptance criteria:** Surviving workspace labels/tour strings are consistent with the Command Center-first model; related tests are updated in the same PR.
   - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/components/Layout/Header.test.tsx src/components/Onboarding/CockpitWelcomeEmptyState.test.tsx src/pages/Cockpit/CockpitDashboard.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
