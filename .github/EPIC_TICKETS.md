@@ -253,7 +253,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Risk level:** Medium
   - **Rollback:** Restore the SmartSearch/catalog entry while keeping the Command Center-first redirects intact.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
-  - **Shipped evidence:** PR: pending
+  - **Shipped evidence:** PR #5324
 
 - [ ] **UX-37.4 workspace-terminology-alignment**
   - **Status:** Ready
