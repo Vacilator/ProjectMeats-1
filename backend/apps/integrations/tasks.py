@@ -286,8 +286,17 @@ def classify_email_async(self, email_log_id: str, tenant_id: str):
         logger.exception('AI classification failed for email %s', email_log_id)
         try:
             with tenant_rls(tenant_id):
+                from apps.integrations.email_failure_contract import build_email_failure
+
                 instance = EmailLog.objects.get(pk=email_log_id)
-                instance.mark_as_failed(str(e))
+                instance.mark_as_failed(
+                    failure=build_email_failure(
+                        'EMAIL_PROCESSING_FAILED',
+                        message='AI email classification failed before it could complete.',
+                        stage='ai_classification',
+                        detail_type=e.__class__.__name__,
+                    )
+                )
         except Exception:
             logger.error('Failed to mark email %s as failed', email_log_id, exc_info=True)
         raise self.retry(exc=e, countdown=30)

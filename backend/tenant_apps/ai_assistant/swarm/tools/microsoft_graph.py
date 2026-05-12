@@ -14,6 +14,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+from apps.integrations.email_failure_contract import build_email_failure
 from cryptography.fernet import InvalidToken
 
 
@@ -93,6 +94,7 @@ def build_tool_error_payload(
     hint: str | None = None,
     retryable: bool = False,
     details: str | None = None,
+    extra_error_fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         'ok': False,
@@ -108,6 +110,8 @@ def build_tool_error_payload(
         payload['error']['hint'] = hint
     if details:
         payload['error']['details'] = details
+    if extra_error_fields:
+        payload['error'].update(extra_error_fields)
     return payload
 
 
@@ -118,14 +122,28 @@ def error_payload_from_exception(
     exc: Exception,
 ) -> dict[str, Any]:
     if isinstance(exc, ToolExecutionError):
-        return build_tool_error_payload(
-            tool_name=tool_name,
-            tenant_id=tenant_id,
-            error_code=exc.error_code,
+        failure = build_email_failure(
+            exc.error_code,
             message=exc.message,
             hint=exc.hint,
             retryable=exc.retryable,
+            stage='email_tool',
             details=exc.details,
+        )
+        extra_error_fields = {
+            key: value
+            for key, value in failure.items()
+            if key not in {'code', 'message', 'retryable', 'details'}
+        }
+        return build_tool_error_payload(
+            tool_name=tool_name,
+            tenant_id=tenant_id,
+            error_code=failure['code'],
+            message=failure['message'],
+            hint=failure.get('hint'),
+            retryable=failure['retryable'],
+            details=failure.get('details'),
+            extra_error_fields=extra_error_fields,
         )
 
     if isinstance(exc, ValueError):

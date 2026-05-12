@@ -320,6 +320,17 @@ class EmailLog(models.Model):
         null=True,
         help_text="Error message if processing failed"
     )
+    failure_code = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text="Stable failure code for operator-safe ingest/sync status semantics",
+    )
+    status_metadata = models.JSONField(
+        blank=True,
+        default=dict,
+        help_text="Compact status metadata for structured retryability and failure-state reporting",
+    )
     
     # AI extraction results
     extracted_data = models.JSONField(
@@ -366,8 +377,17 @@ class EmailLog(models.Model):
     def mark_as_processing(self):
         """Update status to AI parsing."""
         self.status = 'ai_parsing'
+        self.processing_error = None
+        self.failure_code = ''
+        self.status_metadata = {}
         self.updated_at = timezone.now()
-        type(self).objects.filter(pk=self.pk).update(status=self.status, updated_at=self.updated_at)
+        type(self).objects.filter(pk=self.pk).update(
+            status=self.status,
+            processing_error=self.processing_error,
+            failure_code=self.failure_code,
+            status_metadata=self.status_metadata,
+            updated_at=self.updated_at,
+        )
     
     def mark_as_completed(self, extracted_data: dict = None, order_id: int = None):
         """Mark email processing as complete.
@@ -379,12 +399,18 @@ class EmailLog(models.Model):
         self.status = 'order_created' if order_id else 'action_required'
         self.extracted_data = extracted_data
         self.related_order_id = order_id
+        self.processing_error = None
+        self.failure_code = ''
+        self.status_metadata = {}
         self.processed_at = timezone.now()
         self.updated_at = self.processed_at
         type(self).objects.filter(pk=self.pk).update(
             status=self.status,
             extracted_data=self.extracted_data,
             related_order_id=self.related_order_id,
+            processing_error=self.processing_error,
+            failure_code=self.failure_code,
+            status_metadata=self.status_metadata,
             processed_at=self.processed_at,
             updated_at=self.updated_at,
         )
@@ -393,24 +419,41 @@ class EmailLog(models.Model):
         """Mark email processing as actionable and awaiting operator review."""
         self.status = 'draft_created'
         self.extracted_data = extracted_data
+        self.processing_error = None
+        self.failure_code = ''
+        self.status_metadata = {}
         self.processed_at = timezone.now()
         self.updated_at = self.processed_at
         type(self).objects.filter(pk=self.pk).update(
             status=self.status,
             extracted_data=self.extracted_data,
+            processing_error=self.processing_error,
+            failure_code=self.failure_code,
+            status_metadata=self.status_metadata,
             processed_at=self.processed_at,
             updated_at=self.updated_at,
         )
     
-    def mark_as_failed(self, error_message: str):
+    def mark_as_failed(self, error_message: str | None = None, *, failure: dict | None = None):
         """Mark email processing as failed."""
+        from .email_failure_contract import build_email_failure
+
+        resolved_failure = failure or build_email_failure(
+            "EMAIL_PROCESSING_FAILED",
+            message=error_message,
+            stage="processing",
+        )
         self.status = 'failed'
-        self.processing_error = error_message
+        self.processing_error = str(resolved_failure.get('message') or error_message or '')
+        self.failure_code = str(resolved_failure.get('code') or '')
+        self.status_metadata = resolved_failure
         self.processed_at = timezone.now()
         self.updated_at = self.processed_at
         type(self).objects.filter(pk=self.pk).update(
             status=self.status,
             processing_error=self.processing_error,
+            failure_code=self.failure_code,
+            status_metadata=self.status_metadata,
             processed_at=self.processed_at,
             updated_at=self.updated_at,
         )

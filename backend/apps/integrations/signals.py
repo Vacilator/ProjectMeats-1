@@ -196,7 +196,16 @@ def trigger_ai_extraction(sender, instance, created, **kwargs):
         logger.info('Dispatched async AI classification for email %s', instance.id)
     except Exception as e:
         logger.exception('Failed to dispatch AI classification for email %s', instance.id)
-        instance.mark_as_failed(str(e))
+        from apps.integrations.email_failure_contract import build_email_failure
+
+        instance.mark_as_failed(
+            failure=build_email_failure(
+                'EMAIL_PROCESSING_FAILED',
+                message='Email processing could not be queued right now.',
+                stage='task_dispatch',
+                detail_type=e.__class__.__name__,
+            )
+        )
 
 
 @receiver(user_logged_in)

@@ -10,6 +10,7 @@ from datetime import timedelta
 from django.core import signing
 from django.shortcuts import redirect
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -17,10 +18,23 @@ from rest_framework.response import Response
 
 from celery.result import AsyncResult
 
+from .email_failure_contract import (
+    EMAIL_INTEGRATIONS_CTA,
+    build_email_failure,
+    build_sync_failure_response,
+    failure_from_log_fields,
+    failure_from_stats,
+)
 from .microsoft.utils import get_microsoft_redirect_uri
 from .models import ExternalAuthProvider
 from .providers import MicrosoftGraphProvider
 from .providers.base import AuthenticationError, EmailProviderError
+from .serializers import (
+    EmailAutoSyncQueuedResponseSerializer,
+    EmailAutoSyncStatusResponseSerializer,
+    EmailLogListResponseSerializer,
+    EmailSyncResponseSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -348,6 +362,13 @@ def disconnect_provider(request):
         return Response({"error": "Provider not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+@extend_schema(
+    tags=["Integrations"],
+    responses={
+        200: EmailAutoSyncQueuedResponseSerializer,
+        202: EmailAutoSyncQueuedResponseSerializer,
+    },
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def schedule_email_sync(request):
@@ -364,14 +385,16 @@ def schedule_email_sync(request):
         is_active=True,
     ).first()
     if not provider:
+        failure = build_email_failure("OUTLOOK_NOT_CONNECTED", stage="sync_queue")
         return Response(
             {
                 "ok": False,
                 "accepted": False,
-                "message": "No active Microsoft account connected.",
+                "message": failure["message"],
                 "code": "not_connected",
                 "tenant_id": tenant_id,
                 "source": source,
+                "failure": failure,
             },
             status=status.HTTP_200_OK,
         )
@@ -387,14 +410,20 @@ def schedule_email_sync(request):
             str(sync_err),
             exc_info=True,
         )
+        failure = build_email_failure(
+            "EMAIL_SYNC_SCHEDULE_FAILED",
+            stage="sync_queue",
+            detail_type=sync_err.__class__.__name__,
+        )
         return Response(
             {
                 "ok": False,
                 "accepted": False,
-                "message": "Email sync could not be queued right now.",
+                "message": failure["message"],
                 "code": "sync_schedule_failed",
                 "tenant_id": tenant_id,
                 "source": source,
+                "failure": failure,
                 "details": {
                     "type": sync_err.__class__.__name__,
                 },
@@ -416,6 +445,7 @@ def schedule_email_sync(request):
     )
 
 
+@extend_schema(tags=["Integrations"], responses={200: EmailAutoSyncStatusResponseSerializer})
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_scheduled_email_sync_status(request, task_id):
@@ -442,6 +472,13 @@ def get_scheduled_email_sync_status(request, task_id):
     return Response(payload, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    tags=["Integrations"],
+    responses={
+        200: EmailSyncResponseSerializer,
+        400: EmailSyncResponseSerializer,
+    },
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def sync_emails(request):
@@ -464,17 +501,16 @@ def sync_emails(request):
         is_active=True,
     ).first()
     if not provider:
+        failure = build_email_failure("OUTLOOK_NOT_CONNECTED", stage="sync_manual")
         return Response(
             {
-                "error": "No active Microsoft account connected.",
+                "error": failure["message"],
                 "code": "not_connected",
                 "error_code": "not_connected",
-                "hint": "Connect Outlook in Settings → Email Integrations, then retry Sync Now.",
-                "cta": {
-                    "label": "Open Email Integrations",
-                    "url": "/settings/email-integrations",
-                },
+                "hint": failure["hint"],
+                "cta": EMAIL_INTEGRATIONS_CTA,
                 "tenant_id": tenant_id,
+                "failure": failure,
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -488,100 +524,36 @@ def sync_emails(request):
         stats = service.poll_tenant_by_id(tenant_id)
 
         if isinstance(stats, dict) and stats.get("error"):
-            return Response(
-                {
-                    "error": stats.get("error"),
-                    "code": "sync_failed",
-                    "error_code": "sync_failed",
-                    "tenant_id": tenant_id,
-                    "provider_email": provider.connected_email,
-                    "stats": stats,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            failure = failure_from_stats(stats, stage="sync_manual") or build_email_failure(
+                "EMAIL_SYNC_FAILED",
+                message=str(stats.get("error") or ""),
+                stage="sync_manual",
             )
+            payload, response_status = build_sync_failure_response(
+                failure,
+                tenant_id=tenant_id,
+                provider_email=provider.connected_email,
+                stats=stats,
+            )
+            if response_status == status.HTTP_200_OK:
+                response_status = status.HTTP_400_BAD_REQUEST
+            return Response(payload, status=response_status)
 
         # If Graph/token/decrypt failed, do NOT report "no new emails".
         # IMPORTANT: This is still an application-level failure, but not a server availability failure.
         # Returning 503 here makes the UI look "broken" even though we have actionable diagnostics.
         if isinstance(stats, dict) and stats.get("errors", 0) and stats.get("emails_scanned", 0) == 0:
-            detail = None
-            try:
-                detail = (stats.get("errors_detail") or [None])[0]
-            except Exception:
-                detail = None
-
-            # Normalize error codes so the frontend can provide a deterministic CTA.
-            error_code = str((stats or {}).get("error_code") or "").strip().lower()
-            if not error_code and isinstance(detail, str):
-                detail_lower = detail.lower()
-                if (
-                    detail.startswith("DECRYPTION_FAILED")
-                    or "decrypt" in detail_lower
-                    or "invalidtoken" in detail_lower
-                ):
-                    error_code = "decryption_failed"
-                elif "token refresh failed" in detail_lower:
-                    error_code = "token_refresh_failed"
-                elif "token is invalid" in detail_lower or "invalid/expired" in detail_lower:
-                    error_code = "token_invalid"
-                elif "no microsoft access token" in detail_lower or "no access token" in detail_lower:
-                    error_code = "token_missing"
-
-            if error_code == "decryption_failed":
-                return Response(
-                    {
-                        "ok": False,
-                        "message": "Email sync requires reconnect",
-                        "error": "Your Outlook connection needs to be refreshed for security reasons.",
-                        "code": "decryption_failed",
-                        "error_code": "decryption_failed",
-                        "hint": "Reconnect Outlook in Settings → Email Integrations, then retry Sync Now.",
-                        "cta": {
-                            "label": "Open Email Integrations",
-                            "url": "/settings/email-integrations",
-                        },
-                        "tenant_id": tenant_id,
-                        "provider_email": provider.connected_email,
-                        "stats": stats,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-
-            # Other failure modes that generally require a reconnect.
-            if error_code in {"token_invalid", "token_refresh_failed", "token_missing"}:
-                return Response(
-                    {
-                        "ok": False,
-                        "message": "Email sync requires reconnect",
-                        "error": detail or "Outlook connection is invalid or expired.",
-                        "code": "sync_failed",
-                        "error_code": error_code,
-                        "hint": "Reconnect Outlook in Settings → Email Integrations, then retry Sync Now.",
-                        "cta": {
-                            "label": "Open Email Integrations",
-                            "url": "/settings/email-integrations",
-                        },
-                        "tenant_id": tenant_id,
-                        "provider_email": provider.connected_email,
-                        "stats": stats,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-
-            return Response(
-                {
-                    "ok": False,
-                    "message": "Email sync completed with errors",
-                    "error": detail or "Email sync failed. Outlook connection may be expired or misconfigured.",
-                    "code": "sync_failed",
-                    "error_code": error_code or "sync_failed",
-                    "hint": "Try reconnecting Outlook in Settings → Email Integrations, then retry Sync Now.",
-                    "tenant_id": tenant_id,
-                    "provider_email": provider.connected_email,
-                    "stats": stats,
-                },
-                status=status.HTTP_200_OK,
+            failure = failure_from_stats(stats, stage="sync_manual") or build_email_failure(
+                "EMAIL_SYNC_FAILED",
+                stage="sync_manual",
             )
+            payload, response_status = build_sync_failure_response(
+                failure,
+                tenant_id=tenant_id,
+                provider_email=provider.connected_email,
+                stats=stats,
+            )
+            return Response(payload, status=response_status)
 
         return Response(
             {
@@ -597,67 +569,28 @@ def sync_emails(request):
     except Exception as e:
         sync_err = e
         logger.error("Failed to sync emails for tenant %s: %s", tenant_id, str(sync_err), exc_info=True)
-
-        # If this is an auth token decryption failure, always return a stable reconnect CTA.
-        # This protects the UX even if downstream code paths change.
-        try:
-            from cryptography.fernet import InvalidToken
-
-            is_decrypt = isinstance(sync_err, InvalidToken) or any(
-                token in str(sync_err).lower()
-                for token in [
-                    "decrypt",
-                    "invalidtoken",
-                    "oauth_encryption_key",
-                ]
+        if "decrypt" in str(sync_err).lower():
+            failure = build_email_failure(
+                "DECRYPTION_FAILED",
+                stage="sync_manual_exception",
+                detail_type=sync_err.__class__.__name__,
             )
-        except Exception:
-            is_decrypt = "decrypt" in str(sync_err).lower()
-
-        if is_decrypt:
-            return Response(
-                {
-                    "ok": False,
-                    "message": "Email sync requires reconnect",
-                    "error": "Your Outlook connection needs to be refreshed for security reasons.",
-                    "code": "decryption_failed",
-                    "error_code": "decryption_failed",
-                    "hint": "Reconnect Outlook in Settings → Email Integrations, then retry Sync Now.",
-                    "cta": {
-                        "label": "Open Email Integrations",
-                        "url": "/settings/email-integrations",
-                    },
-                    "tenant_id": tenant_id,
-                    "provider_email": provider.connected_email,
-                },
-                status=status.HTTP_200_OK,
+        else:
+            failure = build_email_failure(
+                "EMAIL_SYNC_FAILED",
+                stage="sync_manual_exception",
+                detail_type=sync_err.__class__.__name__,
             )
-
-        # This is a user-triggered action. Prefer a 200 + structured failure payload so the UI
-        # can display actionable guidance instead of treating it as a hard outage.
-        # IMPORTANT: Never leak raw decryption/token exception strings to the client.
-        return Response(
-            {
-                "ok": False,
-                "message": "Email sync failed",
-                "error": "Email sync failed. Outlook connection may be expired or misconfigured.",
-                "code": "sync_exception",
-                "error_code": "sync_exception",
-                "hint": "If this persists, reconnect Outlook in Settings → Email Integrations and retry.",
-                "cta": {
-                    "label": "Open Email Integrations",
-                    "url": "/settings/email-integrations",
-                },
-                "tenant_id": tenant_id,
-                "provider_email": provider.connected_email,
-                "details": {
-                    "type": sync_err.__class__.__name__,
-                },
-            },
-            status=status.HTTP_200_OK,
+        payload, response_status = build_sync_failure_response(
+            failure,
+            tenant_id=tenant_id,
+            provider_email=provider.connected_email,
         )
+        payload.setdefault("details", {})["type"] = sync_err.__class__.__name__
+        return Response(payload, status=response_status)
 
 
+@extend_schema(tags=["Integrations"], responses={200: EmailLogListResponseSerializer})
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_email_logs(request):
@@ -722,6 +655,11 @@ def get_email_logs(request):
                     else None
                 ),
                 "error_message": email.processing_error,
+                "failure": failure_from_log_fields(
+                    failure_code=getattr(email, "failure_code", None),
+                    status_metadata=getattr(email, "status_metadata", None),
+                    processing_error=email.processing_error,
+                ),
                 "created_at": email.created_at.isoformat(),
                 "processed_at": email.processed_at.isoformat() if email.processed_at else None,
             }

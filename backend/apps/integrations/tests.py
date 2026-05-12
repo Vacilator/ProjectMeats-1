@@ -54,6 +54,9 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data.get('ok'), False)
         self.assertEqual(resp.data.get('code'), 'sync_exception')
+        self.assertEqual(resp.data.get('failure', {}).get('code'), 'EMAIL_SYNC_FAILED')
+        self.assertEqual(resp.data.get('failure', {}).get('category'), 'processing')
+        self.assertFalse(resp.data.get('failure', {}).get('retryable'))
 
         # Must not leak raw exception strings to callers (security + UX stability)
         self.assertNotIn('boom', resp.data.get('error', ''))
@@ -134,6 +137,9 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get('error_code'), 'not_connected')
         self.assertIn('hint', resp.data)
         self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
+        self.assertEqual(resp.data.get('failure', {}).get('code'), 'OUTLOOK_NOT_CONNECTED')
+        self.assertEqual(resp.data.get('failure', {}).get('category'), 'auth')
+        self.assertFalse(resp.data.get('failure', {}).get('retryable'))
 
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
     def test_sync_emails_soft_fails_when_graph_returns_zero_scanned_with_errors(self, poll_tenant_by_id):
@@ -145,6 +151,17 @@ class EmailSyncTests(APITestCase):
             'emails_fetched': 0,
             'emails_saved': 0,
             'emails_skipped': 0,
+            'failure': {
+                'code': 'OUTLOOK_CONNECTION_EXPIRED',
+                'legacy_error_code': 'token_invalid',
+                'category': 'auth',
+                'state': 'non_retryable_failure',
+                'retryable': False,
+                'message': 'Your Outlook connection has expired.',
+                'hint': 'Reconnect Outlook in Settings → Email Integrations.',
+                'provider': 'microsoft',
+                'stage': 'sync_validate',
+            },
         }
 
         resp = self.client.post(
@@ -156,9 +173,71 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data.get('ok'), False)
         self.assertEqual(resp.data.get('code'), 'sync_failed')
-        self.assertEqual(resp.data.get('error'), 'Token invalid/expired')
+        self.assertEqual(resp.data.get('error'), 'Your Outlook connection has expired.')
         self.assertEqual(resp.data.get('error_code'), 'token_invalid')
         self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
+        self.assertEqual(resp.data.get('failure', {}).get('code'), 'OUTLOOK_CONNECTION_EXPIRED')
+        self.assertEqual(resp.data.get('failure', {}).get('category'), 'auth')
+        self.assertFalse(resp.data.get('failure', {}).get('retryable'))
+
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
+    def test_sync_emails_exposes_retryable_network_failure_contract(self, poll_tenant_by_id):
+        poll_tenant_by_id.return_value = {
+            'errors': 1,
+            'emails_scanned': 0,
+            'failure': {
+                'code': 'GRAPH_TIMEOUT',
+                'legacy_error_code': 'graph_timeout',
+                'category': 'network',
+                'state': 'retryable_failure',
+                'retryable': True,
+                'message': 'Microsoft Graph timed out while syncing email.',
+                'hint': 'Retry the sync. If the problem persists, narrow the request or try again shortly.',
+                'provider': 'microsoft',
+                'stage': 'sync_fetch',
+            },
+        }
+
+        resp = self.client.post(
+            '/api/v1/integrations/email/sync/',
+            {},
+            format='json',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data.get('failure', {}).get('code'), 'GRAPH_TIMEOUT')
+        self.assertEqual(resp.data.get('failure', {}).get('category'), 'network')
+        self.assertTrue(resp.data.get('failure', {}).get('retryable'))
+        self.assertEqual(resp.data.get('error_code'), 'graph_timeout')
+
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
+    def test_sync_emails_soft_fails_for_reconnect_cases(self, poll_tenant_by_id):
+        for legacy_code, canonical_code in (
+            ('decryption_failed', 'DECRYPTION_FAILED'),
+            ('token_refresh_failed', 'OUTLOOK_TOKEN_REFRESH_FAILED'),
+            ('token_missing', 'OUTLOOK_ACCESS_TOKEN_MISSING'),
+        ):
+            with self.subTest(legacy_code=legacy_code):
+                poll_tenant_by_id.return_value = {
+                    'errors': 1,
+                    'emails_scanned': 0,
+                    'error_code': legacy_code,
+                    'errors_detail': ['sample detail'],
+                }
+
+                resp = self.client.post(
+                    '/api/v1/integrations/email/sync/',
+                    {},
+                    format='json',
+                    HTTP_X_TENANT_ID=str(self.tenant.id),
+                )
+
+                self.assertEqual(resp.status_code, status.HTTP_200_OK)
+                self.assertEqual(resp.data.get('failure', {}).get('code'), canonical_code)
+                self.assertFalse(resp.data.get('failure', {}).get('retryable'))
+                self.assertEqual(resp.data.get('error_code'), legacy_code)
+                self.assertEqual(resp.data.get('cta', {}).get('url'), '/settings/email-integrations')
 
     @patch('apps.integrations.tasks.classify_email_async.apply_async')
     @patch('apps.integrations.ai_classification.classify_ingested_email')
@@ -206,6 +285,41 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data.get('count'), 1)
         self.assertEqual(resp.data.get('connections', [])[0].get('provider'), 'microsoft')
+
+    def test_email_logs_include_structured_failure_metadata(self):
+        provider = ExternalAuthProvider.objects.get(tenant=self.tenant, provider_type='microsoft')
+        email = EmailLog.objects.create(
+            tenant=self.tenant,
+            provider=provider,
+            message_id='message-failed',
+            subject='Failed email',
+            sender_email='buyer@example.com',
+            received_at=timezone.now(),
+            body_text='broken',
+        )
+        email.mark_as_failed(
+            failure={
+                'code': 'DECRYPTION_FAILED',
+                'legacy_error_code': 'decryption_failed',
+                'category': 'decrypt',
+                'state': 'non_retryable_failure',
+                'retryable': False,
+                'message': 'Your Outlook connection needs to be refreshed for security reasons.',
+                'hint': 'Reconnect Outlook in Settings → Email Integrations.',
+                'provider': 'microsoft',
+                'stage': 'sync_decrypt',
+            }
+        )
+
+        resp = self.client.get(
+            '/api/v1/integrations/email/logs/',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['emails'][0]['failure']['code'], 'DECRYPTION_FAILED')
+        self.assertEqual(resp.data['emails'][0]['failure']['category'], 'decrypt')
+        self.assertEqual(resp.data['emails'][0]['failure']['state'], 'non_retryable_failure')
 
     def test_oauth_status_refreshes_expired_connection_before_reporting(self):
         provider = ExternalAuthProvider.objects.get(tenant=self.tenant, provider_type='microsoft')

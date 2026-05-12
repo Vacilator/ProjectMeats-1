@@ -462,6 +462,43 @@ class ToolExecutorEmailToolTests(TestCase):
         self.assertEqual(payload['tool'], 'fetch_emails')
         self.assertEqual(payload['error']['code'], 'GRAPH_QUERY_REJECTED')
         self.assertEqual(payload['error']['hint'], 'Try simplifying your search terms.')
+        self.assertEqual(payload['error']['category'], 'processing')
+        self.assertEqual(payload['error']['state'], 'non_retryable_failure')
+        self.assertFalse(payload['error']['retryable'])
+
+    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')
+    def test_execute_returns_structured_email_failure_contracts(self, mock_fetch, _mock_rls):
+        for error_code, retryable, category in (
+            ('OUTLOOK_NOT_CONNECTED', False, 'auth'),
+            ('OUTLOOK_CONNECTION_EXPIRED', False, 'auth'),
+            ('DECRYPTION_FAILED', False, 'decrypt'),
+            ('GRAPH_AUTH_FAILED', False, 'auth'),
+            ('GRAPH_TIMEOUT', True, 'network'),
+            ('GRAPH_REQUEST_FAILED', False, 'network'),
+            ('SESSION_CONTEXT_REQUIRED', False, 'processing'),
+        ):
+            with self.subTest(error_code=error_code):
+                mock_fetch.side_effect = ToolExecutionError(
+                    error_code=error_code,
+                    message=f'{error_code} message',
+                    hint='Try again later.' if retryable else 'Reconnect Outlook.',
+                    retryable=retryable,
+                )
+
+                payload = json.loads(
+                    ToolExecutor().execute(
+                        'fetch_emails',
+                        {'folder': 'inbox'},
+                        self.tenant,
+                    )
+                )
+
+                self.assertFalse(payload['ok'])
+                self.assertEqual(payload['error']['code'], error_code)
+                self.assertEqual(payload['error']['category'], category)
+                self.assertEqual(payload['error']['state'], 'retryable_failure' if retryable else 'non_retryable_failure')
+                self.assertEqual(payload['error']['retryable'], retryable)
 
     @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
     @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')

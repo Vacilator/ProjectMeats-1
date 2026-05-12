@@ -780,12 +780,13 @@ class ToolExecutor:
                 tenant_id=tenant_id or None,
                 exc=e,
             )
+            safe_error_message = str(((error_payload.get('error') or {}).get('message')) or str(e))
             if task is not None:
                 resolved_at = timezone.now()
                 task.status = 'failed'
                 task.executed_at = task.executed_at or resolved_at
                 task.resolved_at = resolved_at
-                task.error_message = str(e)
+                task.error_message = safe_error_message
                 task.output_payload = error_payload
                 task.save(
                     update_fields=[
@@ -800,7 +801,7 @@ class ToolExecutor:
             if run is not None and bypass_approval:
                 run.status = 'failed'
                 run.completed_at = timezone.now()
-                run.error_message = str(e)
+                run.error_message = safe_error_message
                 run.response_text = 'Approved AI task failed during execution.'
                 run.response_payload = error_payload
                 run.save(
