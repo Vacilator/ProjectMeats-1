@@ -410,7 +410,7 @@ describe('Header', () => {
       );
 
       fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
-      fireEvent.click(screen.getByText('Resume Cockpit Tour'));
+      fireEvent.click(screen.getByText('Resume Workspace Tour'));
 
       expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard?tour=cockpit');
     });
@@ -423,7 +423,7 @@ describe('Header', () => {
       );
 
       fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
-      fireEvent.click(screen.getByText('Open Cockpit Workspace'));
+      fireEvent.click(screen.getByText('Open Workspace Dashboard'));
 
       expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard');
     });

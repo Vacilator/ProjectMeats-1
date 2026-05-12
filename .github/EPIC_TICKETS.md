@@ -255,8 +255,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
   - **Shipped evidence:** PR #5324
 
-- [ ] **UX-37.4 workspace-terminology-alignment**
-  - **Status:** Ready
+- [x] **UX-37.4 workspace-terminology-alignment**
+  - **Status:** Shipped
   - **Why now:** After the cockpit search/catalog cleanup, the remaining operator drift is almost entirely naming: Header onboarding labels, workspace document titles, and tour copy still have room to standardize around the Command Center-first model.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Align the surviving Header/Cockpit workspace/tour copy so the secondary workspace terminology is consistent everywhere it remains user-facing.
@@ -272,9 +272,10 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Risk level:** Low
   - **Rollback:** Revert the terminology-only PR without touching routes or workspace logic.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Shipped evidence:** PR #5325
 
 - [ ] **UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening**
-  - **Status:** Blocked on UX-37.4
+  - **Status:** Ready
   - **Why now:** Once the operator-surface refactors land, the remaining gap is guardrail coverage: `AICommandCenter.test.tsx` still lacks dedicated shortcut, `?item=` deep-link, and confidence-threshold assertions for the Command Center-first flow.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Add focused `AICommandCenter.test.tsx` coverage for Alt+1-4 shortcuts, `?item=` modal routing, confidence-threshold variants, and overview AI inbox preview limits.

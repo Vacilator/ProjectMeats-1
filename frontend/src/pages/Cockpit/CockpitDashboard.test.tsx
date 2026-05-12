@@ -106,7 +106,7 @@ vi.mock('../../components/Onboarding', () => ({
   }) => (
     <div data-testid="cockpit-welcome">
       <button type="button" onClick={onStartTour}>
-        Take the Cockpit Tour
+        Take the Workspace Tour
       </button>
       <button type="button" onClick={onCustomizeDashboard}>
         Customize Dashboard
@@ -274,7 +274,7 @@ describe('CockpitDashboard empty states', () => {
 
     expect(await screen.findByTestId('widget-grid')).toBeInTheDocument();
     expect(screen.queryByTestId('ai-learning-metrics')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /customize cockpit/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /customize workspace dashboard/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save & lock/i })).not.toBeInTheDocument();
   });
 
@@ -282,7 +282,7 @@ describe('CockpitDashboard empty states', () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(await screen.findByRole('button', { name: /customize cockpit/i }));
+    await user.click(await screen.findByRole('button', { name: /customize workspace dashboard/i }));
     await user.click(await screen.findByRole('button', { name: /add widget/i }));
 
     expect(screen.queryByText('AI Learning Metrics')).not.toBeInTheDocument();

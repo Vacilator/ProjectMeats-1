@@ -282,7 +282,7 @@ const Header: React.FC<HeaderProps> = () => {
               </QuickMenuHeader>
               <QuickMenuItem onClick={handleCockpitTourClick} $theme={theme}>
                 <IconWrapper>🧭</IconWrapper>
-                <span>{getTourActionLabel('cockpit', 'Cockpit Tour')}</span>
+                <span>{getTourActionLabel('cockpit', 'Workspace Tour')}</span>
               </QuickMenuItem>
               {onWorkflowRoute && (
                 <QuickMenuItem onClick={handleWorkflowTourClick} $theme={theme}>
@@ -299,7 +299,7 @@ const Header: React.FC<HeaderProps> = () => {
                 }}
               >
                 <IconWrapper>🏠</IconWrapper>
-                <span>Open Cockpit Workspace</span>
+                <span>Open Workspace Dashboard</span>
               </QuickMenuItem>
             </QuickMenuDropdown>
           )}
