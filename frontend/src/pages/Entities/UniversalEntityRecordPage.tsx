@@ -223,6 +223,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     setChildCreateOpen(false);
     void loadChildRows();
   }, [loadChildRows]);
+  const handleNavigateToBasePath = useCallback(() => {
+    navigate(basePath);
+  }, [basePath, navigate]);
 
   const handleFormClose = useCallback(() => {
     navigate(basePath);
@@ -412,6 +415,29 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     ],
     [childEntityDisplayName, handleChildCreateOpen, openRelatedContactCreate]
   );
+  const breadcrumbItems = useMemo(
+    () => [
+      {
+        title: (
+          <BreadcrumbLink type="button" onClick={handleNavigateToBasePath}>
+            {sectionLabel}
+          </BreadcrumbLink>
+        ),
+      },
+      {
+        title: (
+          <BreadcrumbTitle>
+            <span title={recordDisplay?.tooltip || title}>{title}</span>
+          </BreadcrumbTitle>
+        ),
+      },
+    ],
+    [handleNavigateToBasePath, recordDisplay?.tooltip, sectionLabel, title]
+  );
+  const childCreateButtonLabel = useMemo(
+    () => `New ${childEntityDisplayName}`,
+    [childEntityDisplayName]
+  );
 
   const renderRelationshipTable = useCallback(
     (relKey: string, label: string) => {
@@ -492,22 +518,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     <PageWrapper>
       <PageToolbar>
         <Breadcrumb
-          items={[
-            {
-              title: (
-                <BreadcrumbLink type="button" onClick={() => navigate(basePath)}>
-                  {sectionLabel}
-                </BreadcrumbLink>
-              ),
-            },
-            {
-              title: (
-                <BreadcrumbTitle>
-                  <span title={recordDisplay?.tooltip || title}>{title}</span>
-                </BreadcrumbTitle>
-              ),
-            },
-          ]}
+          items={breadcrumbItems}
         />
 
         {mode === 'view' && entityId && (
@@ -571,7 +582,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           title={childLabel}
                           extra={
                             <Button type="primary" onClick={handleChildCreateOpen}>
-                              New {childEntityDisplayName}
+                              {childCreateButtonLabel}
                             </Button>
                           }
                         >
