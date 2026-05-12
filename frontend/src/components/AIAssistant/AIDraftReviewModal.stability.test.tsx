@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render, waitFor } from '@testing-library/react';
 
-import { AIDraftReviewModal } from './AIDraftReviewModal';
+import { AIDraftReviewModal } from './AIDraftReviewDialog';
 import type { PendingReviewItem } from '@/services/aiService';
 
 vi.mock('antd', async () => {

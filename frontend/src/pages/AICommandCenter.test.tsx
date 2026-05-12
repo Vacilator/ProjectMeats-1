@@ -99,7 +99,7 @@ vi.mock('@/components/Cockpit/ProcessFlowHeader', () => ({
   ProcessFlowHeader: () => <div data-testid="flow-header">Header</div>,
 }));
 
-vi.mock('@/components/AIAssistant/AIDraftReviewModal', () => ({
+vi.mock('@/components/AIAssistant/AIDraftReviewDialog', () => ({
   AIDraftReviewModal: ({
     open,
     onClose,

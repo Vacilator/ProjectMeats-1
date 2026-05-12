@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { AIDraftReviewModal } from './AIDraftReviewModal';
+import { AIDraftReviewModal } from './AIDraftReviewDialog';
 
 const mockResolvePendingReview = vi.fn();
 const mockMessageSuccess = vi.fn();

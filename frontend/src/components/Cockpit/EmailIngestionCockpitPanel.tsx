@@ -21,7 +21,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { AIDraftReviewContent } from '@/components/AIAssistant/AIDraftReviewModal';
+import { AIDraftReviewContent } from '@/components/AIAssistant/AIDraftReviewContent';
 import {
   AI_INBOX_REFRESH_EVENT,
   aiStaffApi,

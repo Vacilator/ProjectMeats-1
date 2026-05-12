@@ -16,7 +16,7 @@ import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
 import { DelegationHistory } from '../../components/Delegation';
-import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewModal';
+import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewDialog';
 import {
   AIInboxFeedbackActions,
   type AIInboxFeedbackSubmission,

@@ -24,7 +24,7 @@ vi.mock('../../services/workflowExecutionService', () => ({
   },
 }));
 
-vi.mock('../../components/AIAssistant/AIDraftReviewModal', () => ({
+vi.mock('../../components/AIAssistant/AIDraftReviewDialog', () => ({
   default: ({ open, item }: any) => (
     open ? <div data-testid="ai-draft-modal">{item?.id}:{item?.review_entity_type}</div> : null
   ),

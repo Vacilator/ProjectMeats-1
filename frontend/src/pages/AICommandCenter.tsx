@@ -72,7 +72,7 @@ import { ProcessQuickActions } from '../components/Cockpit/ProcessQuickActions';
 import { TradeLineageFlow } from '../components/Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../components/Cockpit/ProcessFlowHeader';
 import { MissingDependencyQuickCreate, type DependencyType } from '../components/Cockpit/MissingDependencyQuickCreate';
-import { AIDraftReviewModal } from '../components/AIAssistant/AIDraftReviewModal';
+import { AIDraftReviewModal } from '../components/AIAssistant/AIDraftReviewDialog';
 import { DocumentAuditBadges } from '../components/AIAssistant/DocumentAuditBadges';
 import {
   TransactionalEmptyState,
