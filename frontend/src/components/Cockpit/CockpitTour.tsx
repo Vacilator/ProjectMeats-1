@@ -91,11 +91,12 @@ const cockpitTourSteps: CockpitTourStep[] = [
     target: 'body',
     content: (
       <div>
-        <h2>Welcome to Cockpit! 🚀</h2>
-        <p>
-          Your central hub for managing customers, suppliers, orders, and inquiries.
-          Let's take a quick tour to get you started!
-        </p>
+         <h2>Welcome to the Workspace Dashboard! 🚀</h2>
+         <p>
+           This secondary workspace dashboard helps you monitor widgets, review calls,
+           and drill into records once Command Center has surfaced what needs attention.
+           Let&apos;s take a quick tour to get you started.
+         </p>
         <p style={{ fontSize: '0.875rem', color: 'rgb(var(--color-text-secondary))' }}>
           This will only take 60 seconds. You can skip anytime.
         </p>
@@ -109,14 +110,14 @@ const cockpitTourSteps: CockpitTourStep[] = [
     requiredSelector: COCKPIT_TOUR_SELECTORS.smartSearch,
     content: (
       <div>
-        <h3>Smart Search</h3>
-        <p>
-          <strong>Type any name to pull up contacts instantly!</strong>
-        </p>
-        <p>
-          Search for customers, suppliers, products, or orders.
-          Results show related records automatically.
-        </p>
+         <h3>Command Center Search</h3>
+         <p>
+           <strong>Use this shortcut to jump into Command Center search fast.</strong>
+         </p>
+         <p>
+           Search for customers, suppliers, products, or orders in Command Center,
+           then return here when you need the secondary dashboard and drill-ins.
+         </p>
         <div style={{ 
           padding: '0.75rem', 
           background: 'rgb(var(--color-info) / 0.1)',
@@ -135,9 +136,9 @@ const cockpitTourSteps: CockpitTourStep[] = [
     requiredSelector: COCKPIT_TOUR_SELECTORS.widgetGrid,
     content: (
       <div>
-        <h3>Widget Dashboard</h3>
+         <h3>Workspace Widgets</h3>
         <p>
-          Your customizable workspace with real-time data:
+           Your customizable workspace dashboard with real-time data:
         </p>
         <ul style={{ paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
           <li>Today's key numbers and metrics</li>
@@ -177,14 +178,15 @@ const cockpitTourSteps: CockpitTourStep[] = [
       <div>
         <h2>You're All Set! ✨</h2>
         <p>
-          You've learned the basics of Cockpit. Here's your quick reference:
-        </p>
-        <ul style={{ paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
-          <li><strong>⌘K</strong> or <strong>Ctrl+K</strong> - Open search anywhere</li>
-          <li><strong>Type a name</strong> - Instant pull-up with relations</li>
-          <li><strong>Customize button</strong> - Rearrange your widgets</li>
-          <li><strong>Quick Actions</strong> - One-click record creation</li>
-        </ul>
+           You&apos;ve learned the basics of the Workspace Dashboard. Here&apos;s your
+           quick reference:
+         </p>
+         <ul style={{ paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
+           <li><strong>⌘K</strong> or <strong>Ctrl+K</strong> - Open Command Center search</li>
+           <li><strong>Open search</strong> - Find records and launch related workflows</li>
+           <li><strong>Customize button</strong> - Rearrange your widgets</li>
+           <li><strong>Quick Actions</strong> - One-click record creation</li>
+         </ul>
         <div style={{ 
           padding: '0.75rem', 
           background: 'rgb(var(--color-success) / 0.1)',

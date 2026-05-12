@@ -17,14 +17,14 @@ describe('CockpitWelcomeEmptyState', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('heading', { name: /set up your cockpit workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /set up your workspace dashboard/i })).toBeInTheDocument();
     expect(
       screen.getByText(/Command Center is ready for daily triage/i)
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /take the cockpit tour/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /take the workspace tour/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add your first customer/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create your first inquiry/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /customize cockpit dashboard/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /customize workspace dashboard/i })).toBeInTheDocument();
   });
 
   it('routes create CTAs and invokes the tour/customize callbacks', async () => {
@@ -50,8 +50,8 @@ describe('CockpitWelcomeEmptyState', () => {
       </MemoryRouter>
     );
 
-    await user.click(screen.getByRole('button', { name: /take the cockpit tour/i }));
-    await user.click(screen.getByRole('button', { name: /customize cockpit dashboard/i }));
+    await user.click(screen.getByRole('button', { name: /take the workspace tour/i }));
+    await user.click(screen.getByRole('button', { name: /customize workspace dashboard/i }));
 
     expect(onStartTour).toHaveBeenCalledTimes(1);
     expect(onCustomizeDashboard).toHaveBeenCalledTimes(1);

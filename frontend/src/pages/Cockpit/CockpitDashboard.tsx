@@ -825,7 +825,7 @@ export const CockpitDashboard: React.FC = () => {
             ) : (
               <ActionButton onClick={() => setIsEditing(true)}>
                 <Unlock size={16} />
-                  Customize Cockpit
+                  Customize Workspace Dashboard
               </ActionButton>
             )}
           </OperatorActionGroup>
@@ -853,7 +853,7 @@ export const CockpitDashboard: React.FC = () => {
                     variant: 'primary',
                   },
                   {
-                    label: 'Restart Cockpit Tour',
+                    label: 'Restart Workspace Tour',
                     onClick: handleStartCockpitTour,
                     variant: 'secondary',
                   },

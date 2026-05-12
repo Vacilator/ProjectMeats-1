@@ -115,7 +115,7 @@ const TAB_ITEMS = [
 ] as const;
 
 const CockpitPage: React.FC = () => {
-  useDocumentTitle('Cockpit Workspace');
+  useDocumentTitle('Workspace Dashboard');
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -154,8 +154,11 @@ const CockpitPage: React.FC = () => {
               <Target size={20} />
             </HeaderIcon>
             <HeaderTitleGroup>
-              <HeaderTitle>Cockpit Workspace</HeaderTitle>
-              <HeaderSubtitle>Secondary dashboards, calls, and entity drill-ins outside the primary Command Center</HeaderSubtitle>
+              <HeaderTitle>Workspace Dashboard</HeaderTitle>
+              <HeaderSubtitle>
+                Secondary workspace dashboards, calls, and entity drill-ins outside the
+                primary Command Center
+              </HeaderSubtitle>
             </HeaderTitleGroup>
           </HeaderLeft>
         </Header>
