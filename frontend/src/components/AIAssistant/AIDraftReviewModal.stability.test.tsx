@@ -1,5 +1,5 @@
 /**
- * Render-stability regression tests for AIDraftReviewModal.
+ * Render-stability regression tests for AIDraftReviewDialog.
  *
  * Guards against React Minified Error #185 (Maximum update depth exceeded)
  * which was caused by:
@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render, waitFor } from '@testing-library/react';
 
-import { AIDraftReviewModal } from './AIDraftReviewDialog';
+import { AIDraftReviewDialog } from './AIDraftReviewDialog';
 import type { PendingReviewItem } from '@/services/aiService';
 
 vi.mock('antd', async () => {
@@ -92,7 +92,7 @@ const makeItem = (overrides?: Partial<PendingReviewItem>): PendingReviewItem => 
   ...overrides,
 } as unknown as PendingReviewItem);
 
-describe('AIDraftReviewModal render stability', () => {
+describe('AIDraftReviewDialog render stability', () => {
   beforeEach(() => {
     unifiedFormRenderCount = 0;
     vi.clearAllMocks();
@@ -117,7 +117,7 @@ describe('AIDraftReviewModal render stability', () => {
 
       return (
         <MemoryRouter>
-          <AIDraftReviewModal
+          <AIDraftReviewDialog
             open={true}
             item={makeItem()}
             onClose={() => {}}
@@ -174,7 +174,7 @@ describe('AIDraftReviewModal render stability', () => {
 
       return (
         <MemoryRouter>
-          <AIDraftReviewModal open={true} item={poItem} onClose={() => {}} />
+          <AIDraftReviewDialog open={true} item={poItem} onClose={() => {}} />
         </MemoryRouter>
       );
     };
@@ -193,7 +193,7 @@ describe('AIDraftReviewModal render stability', () => {
     // uncaught errors when item data is malformed.
     const { container } = render(
       <MemoryRouter>
-        <AIDraftReviewModal open={true} item={makeItem()} onClose={() => {}} />
+        <AIDraftReviewDialog open={true} item={makeItem()} onClose={() => {}} />
       </MemoryRouter>,
     );
 

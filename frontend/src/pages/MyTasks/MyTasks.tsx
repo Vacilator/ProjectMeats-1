@@ -16,7 +16,7 @@ import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
 import { DelegationHistory } from '../../components/Delegation';
-import AIDraftReviewModal from '../../components/AIAssistant/AIDraftReviewDialog';
+import AIDraftReviewDialog from '../../components/AIAssistant/AIDraftReviewDialog';
 import {
   AIInboxFeedbackActions,
   type AIInboxFeedbackSubmission,
@@ -1180,7 +1180,7 @@ export const MyTasks: React.FC = () => {
               )}
             </WorkflowsSection>
 
-          <AIDraftReviewModal
+          <AIDraftReviewDialog
             open={Boolean(selectedReview)}
             item={selectedReview}
             onClose={closeReview}

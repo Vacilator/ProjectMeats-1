@@ -100,7 +100,7 @@ vi.mock('@/components/Cockpit/ProcessFlowHeader', () => ({
 }));
 
 vi.mock('@/components/AIAssistant/AIDraftReviewDialog', () => ({
-  AIDraftReviewModal: ({
+  AIDraftReviewDialog: ({
     open,
     onClose,
     item,

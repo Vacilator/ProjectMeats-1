@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { AIDraftReviewModal } from './AIDraftReviewDialog';
+import { AIDraftReviewDialog } from './AIDraftReviewDialog';
 
 const mockResolvePendingReview = vi.fn();
 const mockMessageSuccess = vi.fn();
@@ -47,7 +47,7 @@ vi.mock('@/components/UnifiedForm', () => ({
   ),
 }));
 
-describe('AIDraftReviewModal', () => {
+describe('AIDraftReviewDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -58,7 +58,7 @@ describe('AIDraftReviewModal', () => {
 
     render(
       <MemoryRouter>
-        <AIDraftReviewModal
+        <AIDraftReviewDialog
           open
           onClose={onClose}
           onResolved={onResolved}
@@ -108,7 +108,7 @@ describe('AIDraftReviewModal', () => {
   it('hydrates inquiry drafts into the inquiry form surface', async () => {
     render(
       <MemoryRouter>
-        <AIDraftReviewModal
+        <AIDraftReviewDialog
           open
           onClose={() => {}}
           item={{
@@ -145,7 +145,7 @@ describe('AIDraftReviewModal', () => {
   it('renders routed contact context when the parsed payload includes contact routing', async () => {
     render(
       <MemoryRouter>
-        <AIDraftReviewModal
+        <AIDraftReviewDialog
           open
           onClose={() => {}}
           item={{
@@ -190,7 +190,7 @@ describe('AIDraftReviewModal', () => {
 
     render(
       <MemoryRouter>
-        <AIDraftReviewModal
+        <AIDraftReviewDialog
           open
           onClose={onClose}
           onResolved={onResolved}
@@ -223,7 +223,7 @@ describe('AIDraftReviewModal', () => {
   it('displays intent banner with confidence badge', async () => {
     render(
       <MemoryRouter>
-        <AIDraftReviewModal
+        <AIDraftReviewDialog
           open
           onClose={() => {}}
           item={{
@@ -249,7 +249,7 @@ describe('AIDraftReviewModal', () => {
   it('renders provenance, retryability, and lineage badges in source context', async () => {
     render(
       <MemoryRouter>
-        <AIDraftReviewModal
+        <AIDraftReviewDialog
           open
           onClose={() => {}}
           item={{
