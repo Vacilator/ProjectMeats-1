@@ -2,7 +2,7 @@
 
 **Status**: 🔄 Living document (canonical source of truth)
 **Last Updated**: 2026-05-12
-**Primary Focus**: Phase 37 shipped; next canonical execution lane pending reseed.
+**Primary Focus**: Phase 38 execution — email automation reliability and operator diagnostics.
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -229,6 +229,26 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Testing strategy:** for docs-only seeding, use `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`; for each frontend ticket, require `npm -C frontend run verify-standards`, focused `vitest` commands listed in `.github/EPIC_TICKETS.md`, and `npm -C frontend run test:ci`.
 - **Rollback / safe-change plan:** revert the specific ticket PR, keep the Phase 35/36 redirect aliases intact, and preserve saved-layout compatibility for already-added widgets even when the catalog is simplified.
 
+### Phase 38: Email Automation Reliability & Operator Diagnostics 🔄 ACTIVE
+- **Why now:** The operator-surface simplification lane is complete, so the highest-leverage remaining canonical gap is the last-mile automation reliability work called out in the plan: end-to-end automation remains the top priority, the sample-email regression lane is still deferred, and the current AI email/document hardening still needs user-visible provenance, parse-status, retryability, and sync-diagnostics surfaces so operators can recover failures without log-diving.
+- **Operator north star:** email ingestion and automation failures should be classifiable, visible, retryable when safe, and covered by deterministic regression fixtures from ingest through PO/SO/fulfillment/invoice flow.
+- **Deliverables + expected results:**
+  1. **Backend ingest/sync error contract** — define stable error/status metadata for auth, decrypt, network, quota, and processing failures; result: operator-facing surfaces and retry logic stop relying on ambiguous backend failure shapes.
+  2. **Operator provenance/status surfaces** — expose compact provenance plus parse-status/retryability badges in AI widget/document surfaces; result: operators can distinguish Outlook/manual sources and retryable parser failures without opening logs.
+  3. **Recoverable retry/progress UX** — add reconnect/retry CTAs and long-sync progress/summary reporting; result: long or interrupted syncs degrade gracefully instead of timing out silently.
+  4. **Sample-email regression coverage** — add deterministic dev regression coverage for the PO→SO→fulfillment→invoice automation chain; result: the explicitly deferred last-mile automation lane is finally protected by repeatable tests.
+- **AUTO-38.1 Ready** — Backend email ingest error contract + status metadata: normalize retryable/non-retryable failure codes plus compact status metadata in the ingest/sync pipeline and align the operator-facing contract for downstream consumers.
+- **AUTO-38.2 Blocked** — AI Inbox provenance/parse-status/retryability badges: surface the new backend contract in the AI widget/document/operator review surfaces so operators can understand source + retryability at a glance.
+- **AUTO-38.3 Blocked** — Recoverable sync retry/reconnect/progress CTA hardening: add safe reconnect/retry actions and long-sync progress summaries on top of the new error/status contract.
+- **AUTO-38.4 Blocked** — Sample-email dev regression for the automation chain: close the deferred end-to-end coverage gap using deterministic sample-email fixtures across the PO/SO/fulfillment/invoice path.
+- **Dependencies:** Phase 37 complete on `development`; no new product-direction decision required beyond the already documented automation/diagnostics gaps.
+- **Risk register + mitigations:**
+  - **Contract drift risk (Medium × High):** land backend error/status semantics before frontend surfaces; keep OpenAPI/client-facing shapes aligned in the same lane.
+  - **Tenant/retry safety risk (Medium × High):** keep retryability fail-closed, preserve tenant-native lineage, and never expose destructive auto-retry without explicit approval rules.
+  - **Fixture brittleness risk (Medium × Medium):** prefer stable sample-email fixtures plus focused integration coverage before broad browser automation.
+- **Testing strategy:** for the docs-only seeding batch, use `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`; for ticket execution require literal validation commands in `.github/EPIC_TICKETS.md`, with backend tickets using `cd backend && python manage.py test <explicit.dotted.module.path>` and frontend/full-stack tickets adding `npm -C frontend run verify-standards` plus `npm -C frontend run test:ci` when behavior changes.
+- **Rollback / safe-change plan:** revert the specific AUTO-38 ticket PR independently, keep the already-shipped automation chain intact, and if the seeding itself proves wrong revert the Phase 38 docs batch to return to the empty-ready-queue state.
+
 **Acceptance Criteria for All Phases**
 - Every change passes golden-state verification scripts.
 - No breaking migrations.
@@ -253,7 +273,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Process Cockpit overhaul shipped.** 3-tab structure (All Processes / Action Required / Completed), unified detail modals, Activity page removed from sidebar (PR #5024).
 - **CI/CD pipeline optimized:** DRY composite actions (.github/actions/), nginx template extraction, dev-deploy skip-tests optimization shipped in PRs #5011-#5015. Pipeline fully green (Run #2703).
 - **Industry Leader State vision active:** Phases 20-22 added to MASTER_PLAN.md and EPIC_TICKETS.md — UI/UX minimalism, end-to-end automation, and golden pipeline perfection.
-- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and **no unchecked `Ready` ticket currently remains in `.github/EPIC_TICKETS.md`** after Phase 37 completion. The next execution lane must be reseeded canonically before autonomous continuation resumes feature delivery.
+- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the next highest-leverage lane is now **Phase 38 email automation reliability and operator diagnostics**. The next concrete task is **AUTO-38.1 backend email ingest error contract + status metadata** so the operator-facing retry/provenance surfaces have a stable contract to build on.
 - **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
 - **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). The Phase 12 hardening follow-on is also fully shipped through `EH-06.2`, so this bullet is historical proof rather than a live handoff.
 - **Phase 15 execution is sealed:** the full `B2B-02` trade-engine rollout (`B2B-02.1` through `B2B-02.4`), the full `B2B-01` guest-portal lane (`B2B-01.1` through `B2B-01.5`), and the full `B2B-03` settlement lane (`B2B-03.1` through `B2B-03.5`) are now shipped on `development`, and the deploy-recovery / pipeline-stabilization follow-ups landed separately in PRs #4918, #4919, #4920, and #4921.

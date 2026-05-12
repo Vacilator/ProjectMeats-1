@@ -19,6 +19,10 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
+| Ready | AUTO-38.1 backend-email-ingest-error-contract-and-status-metadata | Phase 38 | backend/api |
+| Blocked | AUTO-38.2 ai-inbox-provenance-parse-status-and-retryability-badges | Phase 38 | frontend |
+| Blocked | AUTO-38.3 recoverable-sync-retry-reconnect-and-progress-cta | Phase 38 | full-stack |
+| Blocked | AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice | Phase 38 | backend/tests |
 | Shipped | UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction | Phase 37 | frontend |
 | Shipped | UX-37.2 aicommandcenter-confidence-intent-record-inline-style-extraction | Phase 37 | frontend |
 | Shipped | UX-37.3 cockpit-workspace-search-and-catalog-cleanup | Phase 37 | frontend |
@@ -66,6 +70,8 @@
 ## Dependency Graph
 
 ```
+Phase 38 (AUTO-38.1→AUTO-38.4 email automation reliability & operator diagnostics) — next execution lane
+
 Phase 37 (UX-37.1→UX-37.5 operator surface completion) — completed on development
 
 Phase 36 (UX-36.1→UX-36.3 operator execution simplification) — completed on development
@@ -194,7 +200,83 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Active Backlog (Execution Order)
 
-### Phase 37 — Operator Surface Completion (Remaining: 2 tickets)
+### Phase 38 — Email Automation Reliability & Operator Diagnostics (Remaining: 4 tickets)
+
+#### Epic AUTO-38: Email automation reliability + operator diagnostics
+
+- [ ] **AUTO-38.1 backend-email-ingest-error-contract-and-status-metadata**
+  - **Status:** Ready
+  - **Why now:** End-to-end automation remains the highest canonical priority, but the remaining operator reliability gap is the ingest/sync error contract: current AI email/document hardening still needs stable auth/decrypt/network/quota/processing status semantics before retryability and operator diagnostics can be surfaced safely.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 38; `MASTER_PLAN.md` -> priority improvements / AI email-document hardening / email ingestion reliability + diagnostics
+  - **Scope:** Normalize backend ingest/sync failure codes plus compact status metadata for retryable vs non-retryable cases, and align the operator-facing contract used by downstream AI/email consumers.
+  - **Non-goals:** No new end-user UI yet, no semantic-index/autonomy expansion, and no unrelated Outlook provider refactors.
+  - **Primary domain:** backend/api
+  - **Likely touched paths:** `backend/apps/integrations/**`, `backend/apps/ai_assistant/**`, `backend/apps/core/**`, `manifests/openapi/openapi-schema.baseline.json`
+  - **Dependencies:** Phase 37 complete on `development`
+  - **Blockers:** None
+  - **Acceptance criteria:** Retryable/non-retryable ingest states are explicit and stable; operator-facing consumers can distinguish auth/decrypt/network/quota/processing failures without string-matching raw exceptions; OpenAPI-covered surfaces stay aligned.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.ai_assistant --noinput`
+  - **Tenant/RLS impact:** Medium — email/session status metadata must remain tenant-scoped and fail closed.
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the contract PR and fall back to the pre-Phase-38 error/status shape while keeping the existing automation chain intact.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **AUTO-38.2 ai-inbox-provenance-parse-status-and-retryability-badges**
+  - **Status:** Blocked on AUTO-38.1
+  - **Why now:** Once the backend contract is stable, the next operator gap is visibility: the plan explicitly calls for compact provenance + parse-status/retryability badges so operators can distinguish Outlook/manual sources and retryable parser failures without log-diving.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 38; `MASTER_PLAN.md` -> AI email/document hardening next-step note
+  - **Scope:** Surface provenance, parse-status, and retryability indicators in the AI widget/document/operator review surfaces using the new backend contract.
+  - **Non-goals:** No new sync/reconnect behavior yet and no unrelated Command Center IA work.
+  - **Primary domain:** frontend
+  - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/components/AIAssistant/AIAgentWidget.tsx`, `frontend/src/components/AIAssistant/AIDraftReviewModal.tsx`, `frontend/src/services/**`
+  - **Dependencies:** AUTO-38.1
+  - **Blockers:** AUTO-38.1 must define the stable status/retryability contract first
+  - **Acceptance criteria:** Operators can see source provenance plus retryable parse-status state directly in the touched AI/email surfaces without opening logs or inferring from generic errors.
+  - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/components/AIAssistant/AIDraftReviewModal.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** None
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the UI-surface PR while leaving the backend contract in place.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **AUTO-38.3 recoverable-sync-retry-reconnect-and-progress-cta**
+  - **Status:** Blocked on AUTO-38.1 and AUTO-38.2
+  - **Why now:** After the contract and status surfaces land, the remaining operator reliability gap is recovery: reconnect/retry CTAs and progress/summary reporting for long syncs are explicitly called out in the canonical diagnostics gap.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 38; `MASTER_PLAN.md` -> email ingestion reliability + diagnostics
+  - **Scope:** Add safe reconnect/retry actions and long-sync progress/summary reporting across the relevant backend sync/task entrypoints and operator-facing frontend surfaces.
+  - **Non-goals:** No new provider integrations and no destructive auto-retry behavior.
+  - **Primary domain:** full-stack
+  - **Likely touched paths:** `backend/apps/integrations/**`, `backend/apps/ai_assistant/**`, `frontend/src/components/AIAssistant/AIAgentWidget.tsx`, `frontend/src/pages/AICommandCenter.tsx`
+  - **Dependencies:** AUTO-38.1, AUTO-38.2
+  - **Blockers:** AUTO-38.1 and AUTO-38.2 must land first so recovery flows use explicit status semantics and visible operator surfaces
+  - **Acceptance criteria:** Operators get explicit reconnect/retry CTAs for recoverable sync failures and progress/summary reporting for long syncs; silent timeout-style failure paths are removed from the touched flows.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.ai_assistant --noinput`; `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx src/components/AIAssistant/AIAgentWidget.test.tsx`; `npm -C frontend run test:ci`
+  - **Tenant/RLS impact:** Medium — retry/reconnect actions must remain tenant-bound and fail closed.
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the recovery UX/contract follow-up PR while preserving the already-shipped error/status surfaces.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+- [ ] **AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice**
+  - **Status:** Blocked on AUTO-38.1, AUTO-38.2, and AUTO-38.3
+  - **Why now:** The automation chain is shipped, but sample-email end-to-end coverage was explicitly deferred; once the reliability/diagnostics contract is complete, the last-mile guardrail is deterministic regression coverage through the ingest-to-fulfillment path.
+  - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 21 deferred sample-email note; `MASTER_PLAN.md` -> Phase 38
+  - **Scope:** Add deterministic sample-email regression coverage for the PO→SO→fulfillment→invoice chain using stable fixtures and the new reliability semantics.
+  - **Non-goals:** No production feature work unless the new regression coverage exposes a targeted bug that must be fixed.
+  - **Primary domain:** backend/tests
+  - **Likely touched paths:** `backend/apps/integrations/**/tests*`, `tenant_apps/inquiries/**/tests*`, `tenant_apps/purchase_orders/**/tests*`, `tenant_apps/sales_orders/**/tests*`, optional focused frontend/e2e coverage only if a user-visible bug is exposed
+  - **Dependencies:** AUTO-38.1, AUTO-38.2, AUTO-38.3
+  - **Blockers:** AUTO-38.1–AUTO-38.3 must land first so fixtures/assertions target the final reliability contract and operator-visible states
+  - **Acceptance criteria:** Stable sample-email fixtures prove the automation chain from ingest through PO/SO/fulfillment/invoice and fail if the new reliability/diagnostics semantics regress.
+  - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders --noinput`
+  - **Tenant/RLS impact:** Medium — regression fixtures must preserve tenant-native lineage and fail-closed behavior.
+  - **Secrets/infra impact:** None
+  - **Risk level:** Medium
+  - **Rollback:** Revert the additive regression PR while preserving any already-shipped reliability fixes that tests exposed.
+  - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+
+### Phase 37 — Operator Surface Completion (Remaining: 0 tickets)
 
 #### Epic UX-37: AICommandCenter polish + cockpit workspace cleanup
 
