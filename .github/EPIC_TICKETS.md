@@ -274,8 +274,8 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
   - **Shipped evidence:** PR #5325
 
-- [ ] **UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening**
-  - **Status:** Ready
+- [x] **UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening**
+  - **Status:** Shipped
   - **Why now:** Once the operator-surface refactors land, the remaining gap is guardrail coverage: `AICommandCenter.test.tsx` still lacks dedicated shortcut, `?item=` deep-link, and confidence-threshold assertions for the Command Center-first flow.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
   - **Scope:** Add focused `AICommandCenter.test.tsx` coverage for Alt+1-4 shortcuts, `?item=` modal routing, confidence-threshold variants, and overview AI inbox preview limits.
@@ -283,13 +283,14 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/tests
   - **Likely touched paths:** `frontend/src/pages/AICommandCenter.test.tsx`
   - **Dependencies:** UX-37.4
-  - **Blockers:** UX-37.4 keeps the one-ready-ticket rule intact before the additive guardrail batch
+  - **Blockers:** None
   - **Acceptance criteria:** The Command Center shortcut/deep-link/confidence flows have dedicated regression coverage that fails if future simplification work reintroduces drift.
   - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None
   - **Secrets/infra impact:** None
   - **Risk level:** Low
-  - **Rollback:** Revert the additive test-only PR if necessary while keeping prior production simplifications in place.
+  - **Rollback:** Revert the additive guardrail PR if necessary while keeping prior production simplifications in place.
+  - **Shipped evidence:** PR #pending
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ### Phase 36 — Operator Execution Surface Simplification (Remaining: 0 tickets)
