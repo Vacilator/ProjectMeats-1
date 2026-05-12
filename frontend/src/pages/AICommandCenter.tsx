@@ -762,6 +762,7 @@ const AICommandCenter: React.FC = () => {
 
   const handleDraftReviewClose = useCallback(() => {
     setDraftReviewItem(null);
+    suppressDeepLinkReopen.current = true;
     // Reset deep-link guard so future deep-links work
     deepLinkHandled.current = false;
     // Remove ?item= from URL after close
@@ -782,12 +783,16 @@ const AICommandCenter: React.FC = () => {
 
   // Deep link: ?item=xxx auto-opens that AI review item
   const deepLinkHandled = useRef(false);
+  const suppressDeepLinkReopen = useRef(false);
   const deepLinkedItemId = searchParams.get('item');
   useEffect(() => {
     if (!deepLinkedItemId) {
       deepLinkHandled.current = false;
+      suppressDeepLinkReopen.current = false;
       return;
     }
+
+    if (suppressDeepLinkReopen.current) return;
 
     if (deepLinkHandled.current && draftReviewItem?.id === deepLinkedItemId) return;
 
