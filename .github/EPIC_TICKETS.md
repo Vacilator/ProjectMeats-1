@@ -272,7 +272,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Risk level:** Low
   - **Rollback:** Revert the terminology-only PR without touching routes or workspace logic.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
-  - **Shipped evidence:** PR #pending
+  - **Shipped evidence:** PR #5325
 
 - [ ] **UX-37.5 aicommandcenter-shortcut-deeplink-confidence-regression-hardening**
   - **Status:** Ready
