@@ -107,11 +107,19 @@ vi.mock('@/components/AIAssistant/AIDraftReviewModal', () => ({
   }: {
     open: boolean;
     onClose: () => void;
-    item?: { id?: string };
+    item?: {
+      id?: string;
+      source_metadata?: { source?: string };
+      processing_metadata?: { parse_error_code?: string };
+      lineage_summary?: { latest_summary?: string };
+    };
   }) =>
     open ? (
       <div data-testid="draft-modal">
         <span data-testid="draft-modal-item-id">{item?.id}</span>
+        <span data-testid="draft-modal-source">{item?.source_metadata?.source}</span>
+        <span data-testid="draft-modal-error-code">{item?.processing_metadata?.parse_error_code}</span>
+        <span data-testid="draft-modal-lineage">{item?.lineage_summary?.latest_summary}</span>
         <button data-testid="close-draft-modal" onClick={onClose}>Close</button>
       </div>
     ) : null,
@@ -163,6 +171,21 @@ const SAMPLE_REVIEW = {
   original_extracted_data: { supplier: 'Acme Corp', product: 'Steel' },
   sender: 'buyer@example.com',
   source_subject: 'New PO for steel shipment',
+  processing_status: 'failed',
+  source_metadata: {
+    source: 'microsoft_graph_attachment',
+    message_id: 'msg-1',
+  },
+  processing_metadata: {
+    parse_error_code: 'UNSTRUCTURED_UNREACHABLE',
+    parse_error_message: 'Parsing service unavailable',
+  },
+  lineage_summary: {
+    event_count: 2,
+    latest_event_type: 'document_failed',
+    latest_summary: 'Awaiting parser retry.',
+    recent_events: [],
+  },
 };
 
 const createReview = (
@@ -392,6 +415,24 @@ describe('AICommandCenter', () => {
     });
   });
 
+  it('renders provenance and retryability badges for AI inbox review items', async () => {
+    mockListPendingReviews.mockResolvedValue([SAMPLE_REVIEW]);
+
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=action-required'),
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText('Document source: Outlook attachment'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText('Document status: Retry later (UNSTRUCTURED_UNREACHABLE)'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Lineage: Awaiting parser retry. (2 events)')).toBeInTheDocument();
+    });
+  });
+
   it('opens draft review modal when clicking AI inbox item', async () => {
     const user = userEvent.setup();
     mockListPendingReviews.mockResolvedValue([SAMPLE_REVIEW]);
@@ -410,6 +451,9 @@ describe('AICommandCenter', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('draft-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('draft-modal-source')).toHaveTextContent('microsoft_graph_attachment');
+      expect(screen.getByTestId('draft-modal-error-code')).toHaveTextContent('UNSTRUCTURED_UNREACHABLE');
+      expect(screen.getByTestId('draft-modal-lineage')).toHaveTextContent('Awaiting parser retry.');
     });
   });
 

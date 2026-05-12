@@ -7,6 +7,7 @@ import {
   AIInboxFeedbackActions,
   type AIInboxFeedbackSubmission,
 } from '@/components/AIAssistant/AIInboxFeedbackActions';
+import { DocumentAuditBadges } from '@/components/AIAssistant/DocumentAuditBadges';
 import { MissingDependencyQuickCreate, type DependencyType } from '@/components/Cockpit/MissingDependencyQuickCreate';
 import { UnifiedForm } from '@/components/UnifiedForm';
 import { aiStaffApi, type PendingReviewItem } from '@/services/aiService';
@@ -41,7 +42,6 @@ class DraftReviewErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // eslint-disable-next-line no-console
     console.error(
       '[AIDraftReviewModal] Render crash caught by error boundary.',
       {
@@ -320,6 +320,15 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
   const initialValues = useMemo(() => mapDraftToInitialValues(stableItem), [stableItem]);
   const payload = useMemo(() => asRecord(stableItem?.original_extracted_data), [stableItem]);
   const reviewDetailsPath = useMemo(() => buildReviewDetailsPathFromItem(stableItem), [stableItem]);
+  const hasDocumentAuditData = useMemo(
+    () => Boolean(
+      stableItem?.processing_status ||
+      stableItem?.source_metadata ||
+      stableItem?.processing_metadata ||
+      stableItem?.lineage_summary,
+    ),
+    [stableItem],
+  );
   const sourcePreview = useMemo(
     () =>
       firstString(
@@ -830,9 +839,17 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                    {stableItem.source_document_name ? (
                      <Text type="secondary">Attachment: {stableItem.source_document_name}</Text>
                    ) : null}
-                  {payload.po_number ? (
-                    <Text type="secondary">PO #: {String(payload.po_number)}</Text>
-                  ) : null}
+                   {hasDocumentAuditData ? (
+                     <DocumentAuditBadges
+                       processingStatus={stableItem.processing_status}
+                       sourceMetadata={stableItem.source_metadata}
+                       processingMetadata={stableItem.processing_metadata}
+                       lineageSummary={stableItem.lineage_summary}
+                     />
+                   ) : null}
+                   {payload.po_number ? (
+                     <Text type="secondary">PO #: {String(payload.po_number)}</Text>
+                   ) : null}
                   {payload.bol_number ? (
                     <Text type="secondary">BOL #: {String(payload.bol_number)}</Text>
                   ) : null}

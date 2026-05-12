@@ -245,4 +245,51 @@ describe('AIDraftReviewModal', () => {
     expect(intentTexts.length).toBeGreaterThan(0);
     expect(screen.getAllByText(/92%/i).length).toBeGreaterThan(0);
   });
+
+  it('renders provenance, retryability, and lineage badges in source context', async () => {
+    render(
+      <MemoryRouter>
+        <AIDraftReviewModal
+          open
+          onClose={() => {}}
+          item={{
+            id: 'draft-audit',
+            document_id: 'doc-audit',
+            document_type: 'purchase_order',
+            confidence_score: 0.67,
+            precision_delta: 0,
+            created_on: new Date().toISOString(),
+            intent_label: 'Purchase Order',
+            review_entity_type: 'purchase_order',
+            source_subject: 'PO follow-up',
+            source_document_name: 'po-1001.pdf',
+            processing_status: 'failed',
+            source_metadata: {
+              source: 'microsoft_graph_attachment',
+              message_id: 'msg-99',
+            },
+            processing_metadata: {
+              parse_error_code: 'UNSTRUCTURED_UNREACHABLE',
+              parse_error_message: 'Parsing service unavailable',
+            },
+            lineage_summary: {
+              event_count: 3,
+              latest_event_type: 'document_failed',
+              latest_summary: 'Awaiting parser retry.',
+              recent_events: [],
+            },
+            original_extracted_data: {
+              order_number: 'PO-1001',
+            },
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByLabelText('Document source: Outlook attachment')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Document status: Retry later (UNSTRUCTURED_UNREACHABLE)'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Lineage: Awaiting parser retry. (3 events)')).toBeInTheDocument();
+  });
 });

@@ -15,7 +15,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, waitFor } from '@testing-library/react';
 
 import { AIDraftReviewModal } from './AIDraftReviewModal';
-import type { PendingReviewItem } from '@/types/aiStaff';
+import type { PendingReviewItem } from '@/services/aiService';
 
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd');
@@ -62,6 +62,21 @@ const makeItem = (overrides?: Partial<PendingReviewItem>): PendingReviewItem => 
     contact_email: 'buyer@example.com',
     contact_company: 'Acme Foods',
     items: [{ description: 'Brisket', quantity: '5000 lbs' }],
+  },
+  processing_status: 'failed',
+  source_metadata: {
+    source: 'microsoft_graph_attachment',
+    message_id: 'msg-1',
+  },
+  processing_metadata: {
+    parse_error_code: 'UNSTRUCTURED_UNREACHABLE',
+    parse_error_message: 'Parser unavailable',
+  },
+  lineage_summary: {
+    event_count: 1,
+    latest_event_type: 'document_failed',
+    latest_summary: 'Awaiting parser retry.',
+    recent_events: [],
   },
   drafts: [
     {
@@ -173,11 +188,6 @@ describe('AIDraftReviewModal render stability', () => {
   });
 
   it('renders the error boundary fallback instead of crashing the page on render errors', () => {
-    // Verify the DraftReviewErrorBoundary catches component-level errors
-    const ThrowingChild = () => {
-      throw new Error('Maximum update depth exceeded');
-    };
-
     // We can't directly test the boundary wrapping the modal internals
     // without importing it, but we can verify the modal doesn't propagate
     // uncaught errors when item data is malformed.
