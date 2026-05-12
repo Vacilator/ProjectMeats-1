@@ -13,8 +13,6 @@ from django.db import DatabaseError, transaction
 from django.utils import timezone
 
 import requests
-from apps.integrations.email_failure_contract import build_email_failure
-from apps.integrations.models import EmailLog, ExternalAuthProvider
 from tenant_apps.ai_assistant.session_utils import (
     bind_attachment_allowlist,
     get_staged_attachment_status,
@@ -32,6 +30,9 @@ from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     serialize_graph_message,
     validate_graph_attachment_metadata,
 )
+
+from apps.integrations.email_failure_contract import build_email_failure
+from apps.integrations.models import EmailLog, ExternalAuthProvider
 from apps.tenants.models import Tenant
 
 logger = logging.getLogger(__name__)

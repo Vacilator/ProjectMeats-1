@@ -229,7 +229,8 @@ def build_email_failure(
         "state": "retryable_failure" if resolved_retryable else "non_retryable_failure",
         "category": spec.category,
         "code": resolved_code or spec.code,
-        "legacy_error_code": legacy_error_code or (spec.legacy_error_code if resolved_code == spec.code else resolved_code.lower()),
+        "legacy_error_code": legacy_error_code
+        or (spec.legacy_error_code if resolved_code == spec.code else resolved_code.lower()),
         "retryable": resolved_retryable,
         "message": message or spec.default_message,
         "provider": provider,
@@ -322,7 +323,9 @@ def infer_email_failure(
             detail_type=detail_type,
         )
     if normalized in {"graph_timeout"} or "timed out" in detail_lower:
-        return build_email_failure("GRAPH_TIMEOUT", message=normalized_detail or None, stage=stage, detail_type=detail_type)
+        return build_email_failure(
+            "GRAPH_TIMEOUT", message=normalized_detail or None, stage=stage, detail_type=detail_type
+        )
     if normalized in {"graph_rate_limited"} or "rate limit" in detail_lower or "too many requests" in detail_lower:
         return build_email_failure(
             "GRAPH_RATE_LIMITED",
@@ -338,7 +341,9 @@ def infer_email_failure(
             detail_type=detail_type,
         )
     if normalized in {"graph_auth_failed"}:
-        return build_email_failure("GRAPH_AUTH_FAILED", message=normalized_detail or None, stage=stage, detail_type=detail_type)
+        return build_email_failure(
+            "GRAPH_AUTH_FAILED", message=normalized_detail or None, stage=stage, detail_type=detail_type
+        )
     if normalized in {"graph_request_failed"}:
         return build_email_failure(
             "GRAPH_REQUEST_FAILED",
@@ -347,7 +352,9 @@ def infer_email_failure(
             detail_type=detail_type,
         )
     if normalized in {"graph_http_error"}:
-        return build_email_failure("GRAPH_HTTP_ERROR", message=normalized_detail or None, stage=stage, detail_type=detail_type)
+        return build_email_failure(
+            "GRAPH_HTTP_ERROR", message=normalized_detail or None, stage=stage, detail_type=detail_type
+        )
     if normalized in {"attachment_too_large"}:
         return build_email_failure(
             "ATTACHMENT_TOO_LARGE",

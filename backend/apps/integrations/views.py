@@ -10,13 +10,13 @@ from datetime import timedelta
 from django.core import signing
 from django.shortcuts import redirect
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from celery.result import AsyncResult
+from drf_spectacular.utils import extend_schema
 
 from .email_failure_contract import (
     EMAIL_INTEGRATIONS_CTA,
@@ -219,7 +219,7 @@ def oauth_callback(request, provider_type):
         return redirect("/settings?error=permission_denied")
 
     # Set RLS context BEFORE any tenant-scoped ORM writes.
-    from apps.tenants.rls import set_current_tenant, reset_current_tenant
+    from apps.tenants.rls import reset_current_tenant, set_current_tenant
 
     rls_result = set_current_tenant(str(tenant.id))
     if not rls_result.ok:
@@ -681,7 +681,8 @@ def get_email_stats(request):
     if not tenant:
         return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
 
-    from django.db.models import Avg, Count, Q
+    from django.db.models import Avg, Count
+
     from .models import EmailLog, EmailReviewDraft
 
     # Overall email counts by status
@@ -699,22 +700,14 @@ def get_email_stats(request):
 
     # Category breakdown
     category_counts = dict(
-        drafts_qs.values_list("draft_type")
-        .annotate(cnt=Count("id"))
-        .values_list("draft_type", "cnt")
+        drafts_qs.values_list("draft_type").annotate(cnt=Count("id")).values_list("draft_type", "cnt")
     )
 
     # Status breakdown (pending_review / reviewed / dismissed)
-    draft_status_counts = dict(
-        drafts_qs.values_list("status")
-        .annotate(cnt=Count("id"))
-        .values_list("status", "cnt")
-    )
+    draft_status_counts = dict(drafts_qs.values_list("status").annotate(cnt=Count("id")).values_list("status", "cnt"))
 
     # Auto-approved count: reviewed drafts with confidence >= 0.98
-    auto_approved = drafts_qs.filter(
-        status="reviewed", classification_confidence__gte=0.98
-    ).count()
+    auto_approved = drafts_qs.filter(status="reviewed", classification_confidence__gte=0.98).count()
     manual_reviewed = draft_status_counts.get("reviewed", 0) - auto_approved
 
     # Average confidence
@@ -734,14 +727,10 @@ def get_email_stats(request):
                 classification_confidence__gte=low,
                 classification_confidence__lte=high,
             ).count()
-        confidence_buckets.append(
-            {"range": f"{low:.1f}-{high:.1f}", "count": cnt}
-        )
+        confidence_buckets.append({"range": f"{low:.1f}-{high:.1f}", "count": cnt})
 
     # High-confidence rate (>= 0.9)
-    high_confidence_count = drafts_qs.filter(
-        classification_confidence__gte=0.9
-    ).count()
+    high_confidence_count = drafts_qs.filter(classification_confidence__gte=0.9).count()
 
     return Response(
         {
@@ -755,11 +744,7 @@ def get_email_stats(request):
             "dismissed": draft_status_counts.get("dismissed", 0),
             "pending_review": draft_status_counts.get("pending_review", 0),
             "avg_confidence": round(avg_confidence, 3),
-            "high_confidence_rate": (
-                round(high_confidence_count / total_drafts, 3)
-                if total_drafts
-                else 0.0
-            ),
+            "high_confidence_rate": (round(high_confidence_count / total_drafts, 3) if total_drafts else 0.0),
             "confidence_histogram": confidence_buckets,
         }
     )

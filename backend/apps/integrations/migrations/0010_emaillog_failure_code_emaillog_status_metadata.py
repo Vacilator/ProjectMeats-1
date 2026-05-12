@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("integrations", "0009_add_missing_draft_type_choices"),
     ]
