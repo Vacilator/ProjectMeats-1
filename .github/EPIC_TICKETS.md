@@ -290,7 +290,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Secrets/infra impact:** None
   - **Risk level:** Low
   - **Rollback:** Revert the additive guardrail PR if necessary while keeping prior production simplifications in place.
-  - **Shipped evidence:** PR #pending
+  - **Shipped evidence:** PR #5326
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
 
 ### Phase 36 — Operator Execution Surface Simplification (Remaining: 0 tickets)
