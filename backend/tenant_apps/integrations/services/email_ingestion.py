@@ -31,6 +31,7 @@ from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
     validate_graph_attachment_metadata,
 )
 
+from apps.integrations.email_failure_contract import build_email_failure
 from apps.integrations.models import EmailLog, ExternalAuthProvider
 from apps.tenants.models import Tenant
 
@@ -103,8 +104,17 @@ class EmailIngestionService:
             "emails_skipped": 0,
             "errors": 0,
             "errors_detail": [],
+            "failure": None,
             "last_cutoff": None,
         }
+
+    def _record_failure(self, failure: dict[str, Any]) -> dict[str, Any]:
+        self.stats["errors"] += 1
+        self.stats.setdefault("errors_detail", []).append(str(failure.get("message") or "Email sync failed."))
+        self.stats["error_code"] = str(failure.get("legacy_error_code") or "").strip()
+        if not self.stats.get("failure"):
+            self.stats["failure"] = failure
+        return failure
 
     @staticmethod
     def _build_attachment_source_metadata(
@@ -260,10 +270,14 @@ class EmailIngestionService:
                     str(e),
                     exc_info=True,
                 )
-                self.stats["errors"] += 1
-                self.stats.setdefault("errors_detail", []).append(
-                    "Token refresh failed; reconnect Outlook if this persists."
+                self._record_failure(
+                    build_email_failure(
+                        "OUTLOOK_TOKEN_REFRESH_FAILED",
+                        stage="sync_refresh",
+                        detail_type=e.__class__.__name__,
+                    )
                 )
+                return
 
         # Get access token (decrypt errors must not bubble to API)
         try:
@@ -279,17 +293,18 @@ class EmailIngestionService:
                 str(e),
                 exc_info=True,
             )
-            self.stats["errors"] += 1
-            self.stats["error_code"] = "decryption_failed"
-            self.stats.setdefault("errors_detail", []).append(
-                "DECRYPTION_FAILED: Your Outlook connection needs to be refreshed for security reasons."
+            self._record_failure(
+                build_email_failure(
+                    "DECRYPTION_FAILED",
+                    stage="sync_decrypt",
+                    detail_type=e.__class__.__name__,
+                )
             )
             return
 
         if not access_token:
             logger.error(f"No access token for tenant {tenant.name}")
-            self.stats["errors"] += 1
-            self.stats.setdefault("errors_detail", []).append("No Microsoft access token available. Reconnect Outlook.")
+            self._record_failure(build_email_failure("OUTLOOK_ACCESS_TOKEN_MISSING", stage="sync_access_token"))
             return
 
         # Initialize Microsoft Graph provider
@@ -298,16 +313,17 @@ class EmailIngestionService:
         # Validate token before claiming "no emails".
         try:
             if not graph_provider.validate_token(access_token):
-                self.stats["errors"] += 1
-                self.stats.setdefault("errors_detail", []).append(
-                    "Microsoft token is invalid/expired. Reconnect Outlook to re-authorize Mail.ReadWrite."
-                )
+                self._record_failure(build_email_failure("OUTLOOK_CONNECTION_EXPIRED", stage="sync_validate"))
                 return
-        except Exception:
+        except Exception as exc:
             # Don't fail the request, but ensure we don't silently report "no emails".
-            self.stats["errors"] += 1
-            self.stats.setdefault("errors_detail", []).append(
-                "Token validation failed. Outlook connection may be unhealthy."
+            self._record_failure(
+                build_email_failure(
+                    "GRAPH_REQUEST_FAILED",
+                    message="Outlook token validation failed before email sync could continue.",
+                    stage="sync_validate",
+                    detail_type=exc.__class__.__name__,
+                )
             )
             return
 
@@ -315,7 +331,11 @@ class EmailIngestionService:
         cutoff_date = timezone.now() - timedelta(days=14)
         self.stats["last_cutoff"] = cutoff_date.isoformat()
 
-        emails = self._fetch_inbox_messages(graph_provider, access_token, cutoff_date)
+        try:
+            emails = self._fetch_inbox_messages(graph_provider, access_token, cutoff_date)
+        except requests.RequestException as exc:
+            self._record_failure(self._tool_failure_to_contract(self._map_graph_exception(exc), stage="sync_fetch"))
+            return
 
         self.stats["emails_fetched"] += len(emails)
 
@@ -622,12 +642,18 @@ class EmailIngestionService:
             }
         except Exception as e:
             logger.error("Provider polling failed provider_id=%s: %s", provider_id, str(e), exc_info=True)
-            self.stats["errors"] += 1
+            self._record_failure(
+                build_email_failure(
+                    "EMAIL_SYNC_FAILED",
+                    stage="provider_poll",
+                    detail_type=e.__class__.__name__,
+                )
+            )
             return {
                 **self.stats,
                 "tenant_id": str(provider.tenant_id),
                 "provider_id": provider_id,
-                "error": str(e),
+                "error": str(self.stats["failure"].get("message") or "Email sync failed."),
             }
 
     def poll_tenant_by_id(self, tenant_id: str) -> Dict[str, int]:
@@ -647,7 +673,12 @@ class EmailIngestionService:
             return self.stats
         except ExternalAuthProvider.DoesNotExist:
             logger.error(f"No active Microsoft provider for tenant {tenant_id}")
-            return {"error": "No active Microsoft account connected"}
+            failure = build_email_failure("OUTLOOK_NOT_CONNECTED", stage="sync_manual")
+            return {
+                "error": failure["message"],
+                "error_code": failure["legacy_error_code"],
+                "failure": failure,
+            }
 
     # -------------------------------------------------------------------------
     # Phase 6.5: AI Document Understanding + Smart Email Triggers (Scaffolding)
@@ -1427,6 +1458,22 @@ class EmailIngestionService:
                     retryable=False,
                     details=response_text or None,
                 )
+            if status_code == 429:
+                return ToolExecutionError(
+                    error_code="GRAPH_RATE_LIMITED",
+                    message="Microsoft Graph rate-limited the current email request.",
+                    hint="Wait a moment and retry the request.",
+                    retryable=True,
+                    details=response_text or None,
+                )
+            if status_code in {500, 502, 503, 504}:
+                return ToolExecutionError(
+                    error_code="GRAPH_SERVICE_UNAVAILABLE",
+                    message="Microsoft Graph is temporarily unavailable for email sync.",
+                    hint="Retry the request in a few moments.",
+                    retryable=True,
+                    details=response_text or None,
+                )
 
             return ToolExecutionError(
                 error_code="GRAPH_HTTP_ERROR",
@@ -1442,6 +1489,17 @@ class EmailIngestionService:
             hint="Try a simpler request or ask the user to reconnect Outlook if the problem persists.",
             retryable=False,
             details=str(exc),
+        )
+
+    @staticmethod
+    def _tool_failure_to_contract(exc: ToolExecutionError, *, stage: str) -> dict[str, Any]:
+        return build_email_failure(
+            exc.error_code,
+            message=exc.message,
+            hint=exc.hint,
+            retryable=exc.retryable,
+            stage=stage,
+            details=exc.details,
         )
 
     def _download_attachments(self, graph_provider, access_token: str, message_id: str | None) -> List[Dict[str, Any]]:

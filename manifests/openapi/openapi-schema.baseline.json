@@ -625,8 +625,8 @@
             }
         },
         "/api/v1/system/choice-items/{id}/": {
-            "get": {
-                "operationId": "v1_system_choice_items_retrieve",
+            "delete": {
+                "operationId": "v1_system_choice_items_destroy",
                 "description": "ViewSet for managing tenant-specific choice items.\n\nOnly allows modification of tenant-owned items.\nSystem items (tenant=None) are read-only.",
                 "parameters": [
                     {
@@ -652,15 +652,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SystemChoiceItem"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -723,8 +716,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_system_choice_items_destroy",
+            "get": {
+                "operationId": "v1_system_choice_items_retrieve",
                 "description": "ViewSet for managing tenant-specific choice items.\n\nOnly allows modification of tenant-owned items.\nSystem items (tenant=None) are read-only.",
                 "parameters": [
                     {
@@ -750,8 +743,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SystemChoiceItem"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -920,8 +920,8 @@
             }
         },
         "/api/v1/system/field-schemas/{field_path}/": {
-            "get": {
-                "operationId": "v1_system_field_schemas_retrieve",
+            "delete": {
+                "operationId": "v1_system_field_schemas_destroy",
                 "description": "ViewSet for SystemFieldSchema.\n\nGlobal system schema metadata.\n\nRead access is available to authenticated users, but modifications are restricted\nto superusers because these rows affect all tenants.",
                 "parameters": [
                     {
@@ -946,15 +946,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SystemFieldSchema"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -1016,8 +1009,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_system_field_schemas_destroy",
+            "get": {
+                "operationId": "v1_system_field_schemas_retrieve",
                 "description": "ViewSet for SystemFieldSchema.\n\nGlobal system schema metadata.\n\nRead access is available to authenticated users, but modifications are restricted\nto superusers because these rows affect all tenants.",
                 "parameters": [
                     {
@@ -1042,8 +1035,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SystemFieldSchema"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -1240,8 +1240,8 @@
             }
         },
         "/api/v1/system/tenant-configs/{id}/": {
-            "get": {
-                "operationId": "v1_system_tenant_configs_retrieve",
+            "delete": {
+                "operationId": "v1_system_tenant_configs_destroy",
                 "description": "ViewSet for TenantConfig.\n\nTenant admins can manage their own configurations.",
                 "parameters": [
                     {
@@ -1267,15 +1267,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantConfig"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -1338,8 +1331,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_system_tenant_configs_destroy",
+            "get": {
+                "operationId": "v1_system_tenant_configs_retrieve",
                 "description": "ViewSet for TenantConfig.\n\nTenant admins can manage their own configurations.",
                 "parameters": [
                     {
@@ -1365,8 +1358,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantConfig"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -1543,8 +1543,8 @@
             }
         },
         "/api/v1/system/tenant-overrides/{id}/": {
-            "get": {
-                "operationId": "v1_system_tenant_overrides_retrieve",
+            "delete": {
+                "operationId": "v1_system_tenant_overrides_destroy",
                 "description": "CRUD for TenantChoiceOverride (tenant-specific choice visibility and ordering).",
                 "parameters": [
                     {
@@ -1570,15 +1570,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantChoiceOverride"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -1641,8 +1634,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_system_tenant_overrides_destroy",
+            "get": {
+                "operationId": "v1_system_tenant_overrides_retrieve",
                 "description": "CRUD for TenantChoiceOverride (tenant-specific choice visibility and ordering).",
                 "parameters": [
                     {
@@ -1668,8 +1661,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantChoiceOverride"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -2407,8 +2407,8 @@
             }
         },
         "/api/v1/system/products/{id}/": {
-            "get": {
-                "operationId": "v1_system_products_retrieve",
+            "delete": {
+                "operationId": "v1_system_products_destroy",
                 "description": "ViewSet for system-wide products.\n\n- GET is available to authenticated users (tenant visibility rules apply).\n- Writes are restricted to staff users (Admin Workspace power feature).",
                 "parameters": [
                     {
@@ -2434,15 +2434,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SystemProduct"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -2505,8 +2498,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_system_products_destroy",
+            "get": {
+                "operationId": "v1_system_products_retrieve",
                 "description": "ViewSet for system-wide products.\n\n- GET is available to authenticated users (tenant visibility rules apply).\n- Writes are restricted to staff users (Admin Workspace power feature).",
                 "parameters": [
                     {
@@ -2532,8 +2525,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SystemProduct"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -2723,8 +2723,8 @@
             }
         },
         "/api/v1/system/product-preferences/{id}/": {
-            "get": {
-                "operationId": "v1_system_product_preferences_retrieve",
+            "delete": {
+                "operationId": "v1_system_product_preferences_destroy",
                 "description": "ViewSet for managing tenant product preferences.\n\nTenants can:\n- Override display names, pricing, notes\n- Mark favorites\n- Activate/deactivate products (per-tenant)\n\nPermissions:\n- SAFE methods: any authenticated tenant member.\n- Writes: tenant owners/admins (superuser/staff always allowed).",
                 "parameters": [
                     {
@@ -2750,15 +2750,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantProductPreference"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -2821,8 +2814,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_system_product_preferences_destroy",
+            "get": {
+                "operationId": "v1_system_product_preferences_retrieve",
                 "description": "ViewSet for managing tenant product preferences.\n\nTenants can:\n- Override display names, pricing, notes\n- Mark favorites\n- Activate/deactivate products (per-tenant)\n\nPermissions:\n- SAFE methods: any authenticated tenant member.\n- Writes: tenant owners/admins (superuser/staff always allowed).",
                 "parameters": [
                     {
@@ -2848,8 +2841,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantProductPreference"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -3548,8 +3548,8 @@
             }
         },
         "/api/v1/tenants/{id}/": {
-            "get": {
-                "operationId": "v1_tenants_retrieve",
+            "delete": {
+                "operationId": "v1_tenants_destroy",
                 "description": "ViewSet for managing tenants.\nProvides CRUD operations for tenant management.\n\nPermissions:\n- Authenticated users can list and view tenants they belong to\n- Only owners and admins can update/delete tenants",
                 "parameters": [
                     {
@@ -3575,15 +3575,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Tenant"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -3645,8 +3638,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_tenants_destroy",
+            "get": {
+                "operationId": "v1_tenants_retrieve",
                 "description": "ViewSet for managing tenants.\nProvides CRUD operations for tenant management.\n\nPermissions:\n- Authenticated users can list and view tenants they belong to\n- Only owners and admins can update/delete tenants",
                 "parameters": [
                     {
@@ -3672,8 +3665,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tenant"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -4199,9 +4199,9 @@
             }
         },
         "/api/v1/tenant-users/{id}/": {
-            "get": {
-                "operationId": "v1_tenant_users_retrieve",
-                "description": "ViewSet for managing tenant-user associations.\n\nEnhanced with admin workspace features:\n- Search by user name or email\n- Bulk operations (bulk_update_roles, bulk_deactivate)\n- Pagination support",
+            "delete": {
+                "operationId": "v1_tenant_users_destroy",
+                "description": "Delete a tenant-user association.\n\nAdmins/owners can remove users from a tenant, but owners cannot be removed.",
                 "parameters": [
                     {
                         "in": "path",
@@ -4225,15 +4225,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantUser"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -4295,9 +4288,9 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_tenant_users_destroy",
-                "description": "Delete a tenant-user association.\n\nAdmins/owners can remove users from a tenant, but owners cannot be removed.",
+            "get": {
+                "operationId": "v1_tenant_users_retrieve",
+                "description": "ViewSet for managing tenant-user associations.\n\nEnhanced with admin workspace features:\n- Search by user name or email\n- Bulk operations (bulk_update_roles, bulk_deactivate)\n- Pagination support",
                 "parameters": [
                     {
                         "in": "path",
@@ -4321,8 +4314,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantUser"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -4489,8 +4489,8 @@
             }
         },
         "/api/v1/invitations/{id}/": {
-            "get": {
-                "operationId": "v1_invitations_retrieve",
+            "delete": {
+                "operationId": "v1_invitations_destroy",
                 "description": "ViewSet for managing tenant invitations.\n\nOnly tenant admins/owners can create and manage invitations.",
                 "parameters": [
                     {
@@ -4514,15 +4514,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantInvitationDetail"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -4582,8 +4575,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_invitations_destroy",
+            "get": {
+                "operationId": "v1_invitations_retrieve",
                 "description": "ViewSet for managing tenant invitations.\n\nOnly tenant admins/owners can create and manage invitations.",
                 "parameters": [
                     {
@@ -4607,8 +4600,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantInvitationDetail"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -5221,8 +5221,8 @@
             }
         },
         "/api/v1/configurations/{id}/": {
-            "get": {
-                "operationId": "v1_configurations_retrieve",
+            "delete": {
+                "operationId": "v1_configurations_destroy",
                 "description": "ViewSet for managing tenant configurations.\n\nProvides CRUD operations + bulk update and reset actions.\nConfigurations are organized by category and support different data types.\n\nPermissions:\n- Only owners and admins can view/manage configurations\n- System configs can be modified but not deleted",
                 "parameters": [
                     {
@@ -5248,15 +5248,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantConfiguration"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -5319,8 +5312,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_configurations_destroy",
+            "get": {
+                "operationId": "v1_configurations_retrieve",
                 "description": "ViewSet for managing tenant configurations.\n\nProvides CRUD operations + bulk update and reset actions.\nConfigurations are organized by category and support different data types.\n\nPermissions:\n- Only owners and admins can view/manage configurations\n- System configs can be modified but not deleted",
                 "parameters": [
                     {
@@ -5346,8 +5339,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantConfiguration"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -5628,33 +5628,6 @@
                 }
             }
         },
-        "/api/v1/integrations/oauth/callback/{provider}/": {
-            "get": {
-                "operationId": "v1_integrations_oauth_callback_retrieve_2",
-                "description": "Handle OAuth callback from Microsoft and persist tokens.\n\nThis endpoint is invoked by the provider redirect (browser navigation).",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "provider",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "v1"
-                ],
-                "security": [
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "description": "No response body"
-                    }
-                }
-            }
-        },
         "/api/v1/integrations/oauth/callback/{provider_type}/": {
             "get": {
                 "operationId": "v1_integrations_oauth_callback_retrieve",
@@ -5731,7 +5704,7 @@
                 "operationId": "v1_integrations_email_auto_sync_create",
                 "description": "Queue a tenant-scoped email sync for login and background AI inbox refresh.",
                 "tags": [
-                    "v1"
+                    "Integrations"
                 ],
                 "security": [
                     {
@@ -5743,7 +5716,24 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailAutoSyncQueuedResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailAutoSyncQueuedResponse"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -5763,7 +5753,7 @@
                     }
                 ],
                 "tags": [
-                    "v1"
+                    "Integrations"
                 ],
                 "security": [
                     {
@@ -5775,7 +5765,14 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailAutoSyncStatusResponse"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -5785,7 +5782,7 @@
                 "operationId": "v1_integrations_email_sync_create",
                 "description": "Manually trigger email sync for current tenant (synchronous).\n\nThis endpoint backs a user-initiated \"Sync Now\" action, so we execute inline\nand return stats immediately. It should avoid hard-500s for common operational\nissues and instead return clear error payloads.",
                 "tags": [
-                    "v1"
+                    "Integrations"
                 ],
                 "security": [
                     {
@@ -5797,7 +5794,24 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailSyncResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailSyncResponse"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -5806,6 +5820,35 @@
             "get": {
                 "operationId": "v1_integrations_email_logs_retrieve",
                 "description": "Get recent email ingestion logs for current tenant.",
+                "tags": [
+                    "Integrations"
+                ],
+                "security": [
+                    {
+                        "tokenAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailLogListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/integrations/email/stats/": {
+            "get": {
+                "operationId": "v1_integrations_email_stats_retrieve",
+                "description": "Aggregate email classification statistics for current tenant.\n\nReturns confidence-score distribution (histogram buckets), auto-approve\nvs manual-review breakdown, category counts, and success/failure rates.\nUsed by the Cockpit confidence-scoring dashboard widget.",
                 "tags": [
                     "v1"
                 ],
@@ -6247,8 +6290,8 @@
             }
         },
         "/api/v1/workflows/email/email-accounts/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_email_email_accounts_retrieve_2",
+            "delete": {
+                "operationId": "v1_workflows_email_email_accounts_destroy",
                 "description": "CRUD operations for email accounts",
                 "parameters": [
                     {
@@ -6273,7 +6316,7 @@
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "204": {
                         "description": "No response body"
                     }
                 }
@@ -6309,8 +6352,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_email_email_accounts_destroy",
+            "get": {
+                "operationId": "v1_workflows_email_email_accounts_retrieve_2",
                 "description": "CRUD operations for email accounts",
                 "parameters": [
                     {
@@ -6335,7 +6378,7 @@
                     }
                 ],
                 "responses": {
-                    "204": {
+                    "200": {
                         "description": "No response body"
                     }
                 }
@@ -6573,8 +6616,8 @@
             }
         },
         "/api/v1/suppliers/{id}/": {
-            "get": {
-                "operationId": "v1_suppliers_retrieve",
+            "delete": {
+                "operationId": "v1_suppliers_destroy",
                 "description": "ViewSet for managing suppliers with strict tenant isolation.\n\nSecurity Model:\n- Authentication is REQUIRED for all environments\n- Tenant context is MANDATORY - users only see their tenant's data\n- No DEBUG-based bypasses - consistent security across all environments",
                 "parameters": [
                     {
@@ -6599,15 +6642,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Supplier"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -6669,8 +6705,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_suppliers_destroy",
+            "get": {
+                "operationId": "v1_suppliers_retrieve",
                 "description": "ViewSet for managing suppliers with strict tenant isolation.\n\nSecurity Model:\n- Authentication is REQUIRED for all environments\n- Tenant context is MANDATORY - users only see their tenant's data\n- No DEBUG-based bypasses - consistent security across all environments",
                 "parameters": [
                     {
@@ -6695,8 +6731,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Supplier"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -7005,8 +7048,8 @@
             }
         },
         "/api/v1/customers/{id}/": {
-            "get": {
-                "operationId": "v1_customers_retrieve",
+            "delete": {
+                "operationId": "v1_customers_destroy",
                 "description": "ViewSet for managing customers with strict tenant isolation.\n\nSecurity Model:\n- Authentication is REQUIRED for all environments\n- Tenant context is MANDATORY - users only see their tenant's data\n- No DEBUG-based bypasses - consistent security across all environments",
                 "parameters": [
                     {
@@ -7031,15 +7074,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Customer"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -7101,8 +7137,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_customers_destroy",
+            "get": {
+                "operationId": "v1_customers_retrieve",
                 "description": "ViewSet for managing customers with strict tenant isolation.\n\nSecurity Model:\n- Authentication is REQUIRED for all environments\n- Tenant context is MANDATORY - users only see their tenant's data\n- No DEBUG-based bypasses - consistent security across all environments",
                 "parameters": [
                     {
@@ -7127,8 +7163,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Customer"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -7417,8 +7460,8 @@
             }
         },
         "/api/v1/contacts/{id}/": {
-            "get": {
-                "operationId": "v1_contacts_retrieve",
+            "delete": {
+                "operationId": "v1_contacts_destroy",
                 "description": "ViewSet for managing contacts.",
                 "parameters": [
                     {
@@ -7443,15 +7486,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Contact"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -7513,8 +7549,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_contacts_destroy",
+            "get": {
+                "operationId": "v1_contacts_retrieve",
                 "description": "ViewSet for managing contacts.",
                 "parameters": [
                     {
@@ -7539,8 +7575,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -7708,8 +7751,8 @@
             }
         },
         "/api/v1/purchase-orders/{id}/": {
-            "get": {
-                "operationId": "v1_purchase_orders_retrieve",
+            "delete": {
+                "operationId": "v1_purchase_orders_destroy",
                 "description": "ViewSet for managing purchase orders.",
                 "parameters": [
                     {
@@ -7734,15 +7777,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PurchaseOrder"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -7804,8 +7840,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_purchase_orders_destroy",
+            "get": {
+                "operationId": "v1_purchase_orders_retrieve",
                 "description": "ViewSet for managing purchase orders.",
                 "parameters": [
                     {
@@ -7830,8 +7866,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PurchaseOrder"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -8399,8 +8442,8 @@
             }
         },
         "/api/v1/carrier-pos/{id}/": {
-            "get": {
-                "operationId": "v1_carrier_pos_retrieve",
+            "delete": {
+                "operationId": "v1_carrier_pos_destroy",
                 "description": "ViewSet for managing canonical Carrier PO / freight orders.",
                 "parameters": [
                     {
@@ -8425,15 +8468,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/CarrierPurchaseOrder"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -8495,8 +8531,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_carrier_pos_destroy",
+            "get": {
+                "operationId": "v1_carrier_pos_retrieve",
                 "description": "ViewSet for managing canonical Carrier PO / freight orders.",
                 "parameters": [
                     {
@@ -8521,8 +8557,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CarrierPurchaseOrder"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -8890,8 +8933,8 @@
             }
         },
         "/api/v1/sales-orders/{id}/": {
-            "get": {
-                "operationId": "v1_sales_orders_retrieve",
+            "delete": {
+                "operationId": "v1_sales_orders_destroy",
                 "description": "ViewSet for managing sales orders.",
                 "parameters": [
                     {
@@ -8916,15 +8959,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SalesOrder"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -8986,8 +9022,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_sales_orders_destroy",
+            "get": {
+                "operationId": "v1_sales_orders_retrieve",
                 "description": "ViewSet for managing sales orders.",
                 "parameters": [
                     {
@@ -9012,8 +9048,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SalesOrder"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -9501,8 +9544,8 @@
             }
         },
         "/api/v1/deals/{id}/": {
-            "get": {
-                "operationId": "v1_deals_retrieve",
+            "delete": {
+                "operationId": "v1_deals_destroy",
                 "description": "Tenant-safe CRUD API for deals.",
                 "parameters": [
                     {
@@ -9528,15 +9571,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/DealDetail"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -9599,8 +9635,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_deals_destroy",
+            "get": {
+                "operationId": "v1_deals_retrieve",
                 "description": "Tenant-safe CRUD API for deals.",
                 "parameters": [
                     {
@@ -9626,8 +9662,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DealDetail"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -9918,8 +9961,8 @@
             }
         },
         "/api/v1/tenant-webhooks/{id}/": {
-            "get": {
-                "operationId": "v1_tenant_webhooks_retrieve",
+            "delete": {
+                "operationId": "v1_tenant_webhooks_destroy",
                 "description": "Mixin that restricts all access to tenant owners/admins (and staff/superusers).",
                 "parameters": [
                     {
@@ -9944,15 +9987,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantWebhook"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -10014,8 +10050,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_tenant_webhooks_destroy",
+            "get": {
+                "operationId": "v1_tenant_webhooks_retrieve",
                 "description": "Mixin that restricts all access to tenant owners/admins (and staff/superusers).",
                 "parameters": [
                     {
@@ -10040,8 +10076,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantWebhook"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -10269,9 +10312,9 @@
             }
         },
         "/api/v1/tenant-api-keys/{id}/": {
-            "get": {
-                "operationId": "v1_tenant_api_keys_retrieve",
-                "description": "Mixin that restricts all access to tenant owners/admins (and staff/superusers).",
+            "delete": {
+                "operationId": "v1_tenant_api_keys_destroy",
+                "description": "Revoke instead of hard delete.",
                 "parameters": [
                     {
                         "in": "path",
@@ -10295,15 +10338,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantAPIKey"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -10365,9 +10401,9 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_tenant_api_keys_destroy",
-                "description": "Revoke instead of hard delete.",
+            "get": {
+                "operationId": "v1_tenant_api_keys_retrieve",
+                "description": "Mixin that restricts all access to tenant owners/admins (and staff/superusers).",
                 "parameters": [
                     {
                         "in": "path",
@@ -10391,8 +10427,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantAPIKey"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -10560,8 +10603,8 @@
             }
         },
         "/api/v1/settlement-sources/{id}/": {
-            "get": {
-                "operationId": "v1_settlement_sources_retrieve",
+            "delete": {
+                "operationId": "v1_settlement_sources_destroy",
                 "description": "Mixin that restricts all access to tenant owners/admins (and staff/superusers).",
                 "parameters": [
                     {
@@ -10586,15 +10629,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SettlementSource"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -10656,8 +10692,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_settlement_sources_destroy",
+            "get": {
+                "operationId": "v1_settlement_sources_retrieve",
                 "description": "Mixin that restricts all access to tenant owners/admins (and staff/superusers).",
                 "parameters": [
                     {
@@ -10682,8 +10718,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SettlementSource"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -11161,8 +11204,8 @@
             }
         },
         "/api/v1/plants/{id}/": {
-            "get": {
-                "operationId": "v1_plants_retrieve",
+            "delete": {
+                "operationId": "v1_plants_destroy",
                 "parameters": [
                     {
                         "in": "path",
@@ -11186,15 +11229,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Plant"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -11255,8 +11291,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_plants_destroy",
+            "get": {
+                "operationId": "v1_plants_retrieve",
                 "parameters": [
                     {
                         "in": "path",
@@ -11280,8 +11316,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Plant"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -11622,8 +11665,8 @@
             }
         },
         "/api/v1/carriers/{id}/": {
-            "get": {
-                "operationId": "v1_carriers_retrieve",
+            "delete": {
+                "operationId": "v1_carriers_destroy",
                 "parameters": [
                     {
                         "in": "path",
@@ -11647,15 +11690,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Carrier"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -11716,8 +11752,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_carriers_destroy",
+            "get": {
+                "operationId": "v1_carriers_retrieve",
                 "parameters": [
                     {
                         "in": "path",
@@ -11741,8 +11777,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Carrier"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -12029,8 +12072,8 @@
             }
         },
         "/api/v1/products/{id}/": {
-            "get": {
-                "operationId": "v1_products_retrieve",
+            "delete": {
+                "operationId": "v1_products_destroy",
                 "description": "Deprecated alias for system products.\n\nReturns a backwards-compatible payload shape using legacy field names.",
                 "parameters": [
                     {
@@ -12056,15 +12099,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/LegacySystemProduct"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -12127,8 +12163,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_products_destroy",
+            "get": {
+                "operationId": "v1_products_retrieve",
                 "description": "Deprecated alias for system products.\n\nReturns a backwards-compatible payload shape using legacy field names.",
                 "parameters": [
                     {
@@ -12154,8 +12190,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LegacySystemProduct"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -12324,8 +12367,8 @@
             }
         },
         "/api/v1/master-products/{id}/": {
-            "get": {
-                "operationId": "v1_master_products_retrieve",
+            "delete": {
+                "operationId": "v1_master_products_destroy",
                 "description": "CRUD API for tenant-scoped MasterProduct.\n\nThis is the canonical API for the tenant's product definitions used by supplier\navailability (SupplierAvailableItem) and plant associations.\n\nKept separate from /api/v1/products/, which is a deprecated, read-only alias to\n/api/v1/system/products/ (three-tier catalog).",
                 "parameters": [
                     {
@@ -12350,15 +12393,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Product"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -12420,8 +12456,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_master_products_destroy",
+            "get": {
+                "operationId": "v1_master_products_retrieve",
                 "description": "CRUD API for tenant-scoped MasterProduct.\n\nThis is the canonical API for the tenant's product definitions used by supplier\navailability (SupplierAvailableItem) and plant associations.\n\nKept separate from /api/v1/products/, which is a deprecated, read-only alias to\n/api/v1/system/products/ (three-tier catalog).",
                 "parameters": [
                     {
@@ -12446,8 +12482,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Product"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -12615,8 +12658,8 @@
             }
         },
         "/api/v1/invoices/{id}/": {
-            "get": {
-                "operationId": "v1_invoices_retrieve",
+            "delete": {
+                "operationId": "v1_invoices_destroy",
                 "description": "ViewSet for managing invoices with strict tenant isolation.",
                 "parameters": [
                     {
@@ -12641,15 +12684,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Invoice"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -12711,8 +12747,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_invoices_destroy",
+            "get": {
+                "operationId": "v1_invoices_retrieve",
                 "description": "ViewSet for managing invoices with strict tenant isolation.",
                 "parameters": [
                     {
@@ -12737,8 +12773,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Invoice"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -13166,8 +13209,8 @@
             }
         },
         "/api/v1/claims/{id}/": {
-            "get": {
-                "operationId": "v1_claims_retrieve",
+            "delete": {
+                "operationId": "v1_claims_destroy",
                 "description": "ViewSet for managing claims with strict tenant isolation.",
                 "parameters": [
                     {
@@ -13192,15 +13235,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Claim"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -13262,8 +13298,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_claims_destroy",
+            "get": {
+                "operationId": "v1_claims_retrieve",
                 "description": "ViewSet for managing claims with strict tenant isolation.",
                 "parameters": [
                     {
@@ -13288,8 +13324,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Claim"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -13457,8 +13500,8 @@
             }
         },
         "/api/v1/payments/{id}/": {
-            "get": {
-                "operationId": "v1_payments_retrieve",
+            "delete": {
+                "operationId": "v1_payments_destroy",
                 "description": "ViewSet for PaymentTransaction model.\n\nHandles creating payment transactions and automatically updating\nthe related order/invoice payment status.",
                 "parameters": [
                     {
@@ -13483,15 +13526,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PaymentTransaction"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -13553,8 +13589,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_payments_destroy",
+            "get": {
+                "operationId": "v1_payments_retrieve",
                 "description": "ViewSet for PaymentTransaction model.\n\nHandles creating payment transactions and automatically updating\nthe related order/invoice payment status.",
                 "parameters": [
                     {
@@ -13579,8 +13615,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentTransaction"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -13748,8 +13791,8 @@
             }
         },
         "/api/v1/accounting/invoices/{id}/": {
-            "get": {
-                "operationId": "v1_accounting_invoices_retrieve",
+            "delete": {
+                "operationId": "v1_accounting_invoices_destroy",
                 "description": "ViewSet for managing invoices with strict tenant isolation.",
                 "parameters": [
                     {
@@ -13774,15 +13817,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Invoice"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -13844,8 +13880,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_accounting_invoices_destroy",
+            "get": {
+                "operationId": "v1_accounting_invoices_retrieve",
                 "description": "ViewSet for managing invoices with strict tenant isolation.",
                 "parameters": [
                     {
@@ -13870,8 +13906,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Invoice"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -14299,8 +14342,8 @@
             }
         },
         "/api/v1/accounting/claims/{id}/": {
-            "get": {
-                "operationId": "v1_accounting_claims_retrieve",
+            "delete": {
+                "operationId": "v1_accounting_claims_destroy",
                 "description": "ViewSet for managing claims with strict tenant isolation.",
                 "parameters": [
                     {
@@ -14325,15 +14368,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Claim"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -14395,8 +14431,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_accounting_claims_destroy",
+            "get": {
+                "operationId": "v1_accounting_claims_retrieve",
                 "description": "ViewSet for managing claims with strict tenant isolation.",
                 "parameters": [
                     {
@@ -14421,8 +14457,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Claim"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -14590,8 +14633,8 @@
             }
         },
         "/api/v1/accounting/payments/{id}/": {
-            "get": {
-                "operationId": "v1_accounting_payments_retrieve",
+            "delete": {
+                "operationId": "v1_accounting_payments_destroy",
                 "description": "ViewSet for PaymentTransaction model.\n\nHandles creating payment transactions and automatically updating\nthe related order/invoice payment status.",
                 "parameters": [
                     {
@@ -14616,15 +14659,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PaymentTransaction"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -14686,8 +14722,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_accounting_payments_destroy",
+            "get": {
+                "operationId": "v1_accounting_payments_retrieve",
                 "description": "ViewSet for PaymentTransaction model.\n\nHandles creating payment transactions and automatically updating\nthe related order/invoice payment status.",
                 "parameters": [
                     {
@@ -14712,8 +14748,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentTransaction"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -14881,8 +14924,8 @@
             }
         },
         "/api/v1/locations/{id}/": {
-            "get": {
-                "operationId": "v1_locations_retrieve",
+            "delete": {
+                "operationId": "v1_locations_destroy",
                 "description": "ViewSet for managing Location instances with tenant isolation.",
                 "parameters": [
                     {
@@ -14907,15 +14950,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Location"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -14977,8 +15013,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_locations_destroy",
+            "get": {
+                "operationId": "v1_locations_retrieve",
                 "description": "ViewSet for managing Location instances with tenant isolation.",
                 "parameters": [
                     {
@@ -15003,8 +15039,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Location"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -16668,33 +16711,6 @@
             }
         },
         "/api/v1/preferences/me/": {
-            "get": {
-                "operationId": "v1_preferences_me_retrieve",
-                "description": "Get or update preferences for the current user.\n\nGET: Returns current user's preferences (creates if not exists)\nPUT/PATCH: Updates current user's preferences",
-                "tags": [
-                    "v1"
-                ],
-                "security": [
-                    {
-                        "tokenAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UserPreferences"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            },
             "put": {
                 "operationId": "v1_preferences_me_update",
                 "description": "Get or update preferences for the current user.\n\nGET: Returns current user's preferences (creates if not exists)\nPUT/PATCH: Updates current user's preferences",
@@ -16720,6 +16736,33 @@
                         }
                     }
                 },
+                "security": [
+                    {
+                        "tokenAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserPreferences"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "get": {
+                "operationId": "v1_preferences_me_retrieve",
+                "description": "Get or update preferences for the current user.\n\nGET: Returns current user's preferences (creates if not exists)\nPUT/PATCH: Updates current user's preferences",
+                "tags": [
+                    "v1"
+                ],
                 "security": [
                     {
                         "tokenAuth": []
@@ -16789,8 +16832,8 @@
             }
         },
         "/api/v1/preferences/{id}/": {
-            "get": {
-                "operationId": "v1_preferences_retrieve",
+            "delete": {
+                "operationId": "v1_preferences_destroy",
                 "description": "ViewSet for UserPreferences.\n\nProvides CRUD operations for user preferences.\nUsers can only access/modify their own preferences.",
                 "parameters": [
                     {
@@ -16814,15 +16857,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UserPreferences"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -16882,8 +16918,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_preferences_destroy",
+            "get": {
+                "operationId": "v1_preferences_retrieve",
                 "description": "ViewSet for UserPreferences.\n\nProvides CRUD operations for user preferences.\nUsers can only access/modify their own preferences.",
                 "parameters": [
                     {
@@ -16907,8 +16943,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserPreferences"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -17153,8 +17196,8 @@
             }
         },
         "/api/v1/favorites/{id}/": {
-            "get": {
-                "operationId": "v1_favorites_retrieve",
+            "delete": {
+                "operationId": "v1_favorites_destroy",
                 "description": "ViewSet for managing user favorites.",
                 "parameters": [
                     {
@@ -17179,15 +17222,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UserFavorite"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -17249,8 +17285,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_favorites_destroy",
+            "get": {
+                "operationId": "v1_favorites_retrieve",
                 "description": "ViewSet for managing user favorites.",
                 "parameters": [
                     {
@@ -17275,8 +17311,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserFavorite"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -17598,6 +17641,36 @@
             }
         },
         "/api/v1/comments/{id}/": {
+            "delete": {
+                "operationId": "v1_comments_destroy",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this comment.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {
+                        "tokenAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            },
             "get": {
                 "operationId": "v1_comments_retrieve",
                 "parameters": [
@@ -17632,36 +17705,6 @@
                             }
                         },
                         "description": ""
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "v1_comments_destroy",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "description": "A unique integer value identifying this comment.",
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "v1"
-                ],
-                "security": [
-                    {
-                        "tokenAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No response body"
                     }
                 }
             },
@@ -17828,8 +17871,8 @@
             }
         },
         "/api/v1/tenant-forms/{id}/": {
-            "get": {
-                "operationId": "v1_tenant_forms_retrieve",
+            "delete": {
+                "operationId": "v1_tenant_forms_destroy",
                 "description": "ViewSet for TenantForm CRUD operations.\n\nEndpoints:\n- GET    /api/v1/tenant-forms/           - List forms\n- POST   /api/v1/tenant-forms/           - Create form\n- GET    /api/v1/tenant-forms/{id}/      - Retrieve form\n- PUT    /api/v1/tenant-forms/{id}/      - Update form\n- DELETE /api/v1/tenant-forms/{id}/      - Delete form\n\nFilters:\n- type: single_step | multi_step\n- entity_type: supplier | customer | etc.",
                 "parameters": [
                     {
@@ -17855,15 +17898,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantForm"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -17926,8 +17962,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_tenant_forms_destroy",
+            "get": {
+                "operationId": "v1_tenant_forms_retrieve",
                 "description": "ViewSet for TenantForm CRUD operations.\n\nEndpoints:\n- GET    /api/v1/tenant-forms/           - List forms\n- POST   /api/v1/tenant-forms/           - Create form\n- GET    /api/v1/tenant-forms/{id}/      - Retrieve form\n- PUT    /api/v1/tenant-forms/{id}/      - Update form\n- DELETE /api/v1/tenant-forms/{id}/      - Delete form\n\nFilters:\n- type: single_step | multi_step\n- entity_type: supplier | customer | etc.",
                 "parameters": [
                     {
@@ -17953,8 +17989,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantForm"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -18225,8 +18268,8 @@
             }
         },
         "/api/v1/tenant-workforms/{id}/": {
-            "get": {
-                "operationId": "v1_tenant_workforms_retrieve",
+            "delete": {
+                "operationId": "v1_tenant_workforms_destroy",
                 "description": "ViewSet for TenantWorkForm CRUD operations.\n\nEndpoints:\n- GET    /api/v1/tenant-workforms/           - List workflows\n- POST   /api/v1/tenant-workforms/           - Create workflow\n- GET    /api/v1/tenant-workforms/{id}/      - Retrieve workflow\n- PUT    /api/v1/tenant-workforms/{id}/      - Update workflow\n- DELETE /api/v1/tenant-workforms/{id}/      - Delete workflow\n- POST   /api/v1/tenant-workforms/{id}/clone/ - Clone workflow\n- GET    /api/v1/tenant-workforms/{id}/usage/ - Get usage info\n- POST   /api/v1/tenant-workforms/{id}/validate/ - Validate workflow\n\nFilters:\n- status: draft | active | archived",
                 "parameters": [
                     {
@@ -18252,15 +18295,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantWorkForm"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -18323,8 +18359,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_tenant_workforms_destroy",
+            "get": {
+                "operationId": "v1_tenant_workforms_retrieve",
                 "description": "ViewSet for TenantWorkForm CRUD operations.\n\nEndpoints:\n- GET    /api/v1/tenant-workforms/           - List workflows\n- POST   /api/v1/tenant-workforms/           - Create workflow\n- GET    /api/v1/tenant-workforms/{id}/      - Retrieve workflow\n- PUT    /api/v1/tenant-workforms/{id}/      - Update workflow\n- DELETE /api/v1/tenant-workforms/{id}/      - Delete workflow\n- POST   /api/v1/tenant-workforms/{id}/clone/ - Clone workflow\n- GET    /api/v1/tenant-workforms/{id}/usage/ - Get usage info\n- POST   /api/v1/tenant-workforms/{id}/validate/ - Validate workflow\n\nFilters:\n- status: draft | active | archived",
                 "parameters": [
                     {
@@ -18350,8 +18386,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantWorkForm"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -19006,8 +19049,8 @@
             }
         },
         "/api/v1/bug-reports/{id}/": {
-            "get": {
-                "operationId": "v1_bug_reports_retrieve",
+            "delete": {
+                "operationId": "v1_bug_reports_destroy",
                 "description": "API endpoint for managing bug reports.\n\nProvides CRUD operations for bug reports with strict tenant isolation.",
                 "parameters": [
                     {
@@ -19032,15 +19075,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/BugReport"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -19102,8 +19138,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_bug_reports_destroy",
+            "get": {
+                "operationId": "v1_bug_reports_retrieve",
                 "description": "API endpoint for managing bug reports.\n\nProvides CRUD operations for bug reports with strict tenant isolation.",
                 "parameters": [
                     {
@@ -19128,8 +19164,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BugReport"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -19347,8 +19390,8 @@
             }
         },
         "/api/v1/feedback/{id}/": {
-            "get": {
-                "operationId": "v1_feedback_retrieve",
+            "delete": {
+                "operationId": "v1_feedback_destroy",
                 "description": "API endpoint for managing bug reports.\n\nProvides CRUD operations for bug reports with strict tenant isolation.",
                 "parameters": [
                     {
@@ -19373,15 +19416,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/BugReport"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -19443,8 +19479,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_feedback_destroy",
+            "get": {
+                "operationId": "v1_feedback_retrieve",
                 "description": "API endpoint for managing bug reports.\n\nProvides CRUD operations for bug reports with strict tenant isolation.",
                 "parameters": [
                     {
@@ -19469,8 +19505,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BugReport"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -19766,8 +19809,8 @@
             }
         },
         "/api/v1/cockpit/activity-logs/{id}/": {
-            "get": {
-                "operationId": "v1_cockpit_activity_logs_retrieve",
+            "delete": {
+                "operationId": "v1_cockpit_activity_logs_destroy",
                 "description": "ViewSet for Activity Logs with strict tenant isolation.\n\nSupports filtering by entity_type and entity_id for entity-specific note feeds.",
                 "parameters": [
                     {
@@ -19793,15 +19836,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ActivityLog"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -19864,8 +19900,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_cockpit_activity_logs_destroy",
+            "get": {
+                "operationId": "v1_cockpit_activity_logs_retrieve",
                 "description": "ViewSet for Activity Logs with strict tenant isolation.\n\nSupports filtering by entity_type and entity_id for entity-specific note feeds.",
                 "parameters": [
                     {
@@ -19891,8 +19927,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActivityLog"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -20063,8 +20106,8 @@
             }
         },
         "/api/v1/cockpit/scheduled-calls/{id}/": {
-            "get": {
-                "operationId": "v1_cockpit_scheduled_calls_retrieve",
+            "delete": {
+                "operationId": "v1_cockpit_scheduled_calls_destroy",
                 "description": "ViewSet for Scheduled Calls with strict tenant isolation.\n\nSupports filtering by date range and completion status.\nAutomatically creates activity log entries for related entities.",
                 "parameters": [
                     {
@@ -20090,15 +20133,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ScheduledCall"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -20161,8 +20197,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_cockpit_scheduled_calls_destroy",
+            "get": {
+                "operationId": "v1_cockpit_scheduled_calls_retrieve",
                 "description": "ViewSet for Scheduled Calls with strict tenant isolation.\n\nSupports filtering by date range and completion status.\nAutomatically creates activity log entries for related entities.",
                 "parameters": [
                     {
@@ -20188,8 +20224,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScheduledCall"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -20882,8 +20925,8 @@
             }
         },
         "/api/v1/workspace/activity-logs/{id}/": {
-            "get": {
-                "operationId": "v1_workspace_activity_logs_retrieve",
+            "delete": {
+                "operationId": "v1_workspace_activity_logs_destroy",
                 "description": "ViewSet for Activity Logs with strict tenant isolation.\n\nSupports filtering by entity_type and entity_id for entity-specific note feeds.",
                 "parameters": [
                     {
@@ -20909,15 +20952,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ActivityLog"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -20980,8 +21016,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workspace_activity_logs_destroy",
+            "get": {
+                "operationId": "v1_workspace_activity_logs_retrieve",
                 "description": "ViewSet for Activity Logs with strict tenant isolation.\n\nSupports filtering by entity_type and entity_id for entity-specific note feeds.",
                 "parameters": [
                     {
@@ -21007,8 +21043,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActivityLog"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -21179,8 +21222,8 @@
             }
         },
         "/api/v1/workspace/scheduled-calls/{id}/": {
-            "get": {
-                "operationId": "v1_workspace_scheduled_calls_retrieve",
+            "delete": {
+                "operationId": "v1_workspace_scheduled_calls_destroy",
                 "description": "ViewSet for Scheduled Calls with strict tenant isolation.\n\nSupports filtering by date range and completion status.\nAutomatically creates activity log entries for related entities.",
                 "parameters": [
                     {
@@ -21206,15 +21249,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ScheduledCall"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -21277,8 +21313,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workspace_scheduled_calls_destroy",
+            "get": {
+                "operationId": "v1_workspace_scheduled_calls_retrieve",
                 "description": "ViewSet for Scheduled Calls with strict tenant isolation.\n\nSupports filtering by date range and completion status.\nAutomatically creates activity log entries for related entities.",
                 "parameters": [
                     {
@@ -21304,8 +21340,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScheduledCall"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -21997,8 +22040,8 @@
             }
         },
         "/api/v1/inquiries/{id}/": {
-            "get": {
-                "operationId": "v1_inquiries_retrieve",
+            "delete": {
+                "operationId": "v1_inquiries_destroy",
                 "description": "ViewSet for Inquiry CRUD operations.",
                 "parameters": [
                     {
@@ -22023,15 +22066,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/InquiryDetail"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -22093,8 +22129,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_inquiries_destroy",
+            "get": {
+                "operationId": "v1_inquiries_retrieve",
                 "description": "ViewSet for Inquiry CRUD operations.",
                 "parameters": [
                     {
@@ -22119,8 +22155,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InquiryDetail"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -22907,8 +22950,8 @@
             }
         },
         "/api/v1/inquiry-products/{id}/": {
-            "get": {
-                "operationId": "v1_inquiry_products_retrieve",
+            "delete": {
+                "operationId": "v1_inquiry_products_destroy",
                 "description": "ViewSet for InquiryProduct CRUD operations.",
                 "parameters": [
                     {
@@ -22932,15 +22975,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/InquiryProduct"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -23000,8 +23036,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_inquiry_products_destroy",
+            "get": {
+                "operationId": "v1_inquiry_products_retrieve",
                 "description": "ViewSet for InquiryProduct CRUD operations.",
                 "parameters": [
                     {
@@ -23025,8 +23061,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InquiryProduct"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -23193,8 +23236,8 @@
             }
         },
         "/api/v1/inquiry-templates/{id}/": {
-            "get": {
-                "operationId": "v1_inquiry_templates_retrieve",
+            "delete": {
+                "operationId": "v1_inquiry_templates_destroy",
                 "description": "ViewSet for InquiryTemplate CRUD operations.",
                 "parameters": [
                     {
@@ -23218,15 +23261,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/InquiryTemplateDetail"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -23287,8 +23323,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_inquiry_templates_destroy",
+            "get": {
+                "operationId": "v1_inquiry_templates_retrieve",
                 "description": "ViewSet for InquiryTemplate CRUD operations.",
                 "parameters": [
                     {
@@ -23312,8 +23348,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InquiryTemplateDetail"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -23755,8 +23798,8 @@
             }
         },
         "/api/v1/fulfillments/{id}/": {
-            "get": {
-                "operationId": "v1_fulfillments_retrieve",
+            "delete": {
+                "operationId": "v1_fulfillments_destroy",
                 "description": "ViewSet for Fulfillment CRUD operations.",
                 "parameters": [
                     {
@@ -23780,15 +23823,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/FulfillmentDetail"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -23849,8 +23885,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_fulfillments_destroy",
+            "get": {
+                "operationId": "v1_fulfillments_retrieve",
                 "description": "ViewSet for Fulfillment CRUD operations.",
                 "parameters": [
                     {
@@ -23874,8 +23910,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FulfillmentDetail"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -24337,8 +24380,8 @@
             }
         },
         "/api/v1/fulfillment-products/{id}/": {
-            "get": {
-                "operationId": "v1_fulfillment_products_retrieve",
+            "delete": {
+                "operationId": "v1_fulfillment_products_destroy",
                 "description": "ViewSet for FulfillmentProduct CRUD operations.",
                 "parameters": [
                     {
@@ -24362,15 +24405,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/FulfillmentProduct"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -24431,8 +24467,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_fulfillment_products_destroy",
+            "get": {
+                "operationId": "v1_fulfillment_products_retrieve",
                 "description": "ViewSet for FulfillmentProduct CRUD operations.",
                 "parameters": [
                     {
@@ -24456,8 +24492,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FulfillmentProduct"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -24675,8 +24718,8 @@
             }
         },
         "/api/v1/workflows/lists/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_lists_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_lists_destroy",
                 "description": "API endpoint for Tenant Lists.\n\nTenant-specific option lists for dropdown/multi-select fields.",
                 "parameters": [
                     {
@@ -24702,15 +24745,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantList"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -24773,8 +24809,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_lists_destroy",
+            "get": {
+                "operationId": "v1_workflows_lists_retrieve",
                 "description": "API endpoint for Tenant Lists.\n\nTenant-specific option lists for dropdown/multi-select fields.",
                 "parameters": [
                     {
@@ -24800,8 +24836,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantList"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -24970,8 +25013,8 @@
             }
         },
         "/api/v1/workflows/forms/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_forms_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_forms_destroy",
                 "description": "API endpoint for Tenant Forms.\n\nNOTE (Phase 7): Creation via POST /api/v1/workflows/forms/ is deprecated.\nWorkForms persistence is now handled via /api/v1/tenant-workforms/.\n\nCustom forms that tenants can create for entity record creation/editing.\n\nPhase 4.2: Uses role-based permissions:\n- owner/admin: Full access\n- manager: Can edit own forms only\n- user/readonly: Read-only access",
                 "parameters": [
                     {
@@ -24997,15 +25040,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantForm"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -25068,8 +25104,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_forms_destroy",
+            "get": {
+                "operationId": "v1_workflows_forms_retrieve",
                 "description": "API endpoint for Tenant Forms.\n\nNOTE (Phase 7): Creation via POST /api/v1/workflows/forms/ is deprecated.\nWorkForms persistence is now handled via /api/v1/tenant-workforms/.\n\nCustom forms that tenants can create for entity record creation/editing.\n\nPhase 4.2: Uses role-based permissions:\n- owner/admin: Full access\n- manager: Can edit own forms only\n- user/readonly: Read-only access",
                 "parameters": [
                     {
@@ -25095,8 +25131,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantForm"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -25754,8 +25797,8 @@
             }
         },
         "/api/v1/workflows/form-entities/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_form_entities_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_form_entities_destroy",
                 "description": "API endpoint for Form Entities (steps in multi-step forms).",
                 "parameters": [
                     {
@@ -25781,15 +25824,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantFormEntity"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -25852,8 +25888,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_form_entities_destroy",
+            "get": {
+                "operationId": "v1_workflows_form_entities_retrieve",
                 "description": "API endpoint for Form Entities (steps in multi-step forms).",
                 "parameters": [
                     {
@@ -25879,8 +25915,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantFormEntity"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -26110,8 +26153,8 @@
             }
         },
         "/api/v1/workflows/form-fields/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_form_fields_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_form_fields_destroy",
                 "description": "API endpoint for Form Fields.",
                 "parameters": [
                     {
@@ -26137,15 +26180,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantFormField"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -26208,8 +26244,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_form_fields_destroy",
+            "get": {
+                "operationId": "v1_workflows_form_fields_retrieve",
                 "description": "API endpoint for Form Fields.",
                 "parameters": [
                     {
@@ -26235,8 +26271,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantFormField"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -26445,8 +26488,8 @@
             }
         },
         "/api/v1/workflows/form-rules/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_form_rules_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_form_rules_destroy",
                 "description": "API endpoint for Form Rules (conditional logic).",
                 "parameters": [
                     {
@@ -26472,15 +26515,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantFormRule"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -26542,8 +26578,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_form_rules_destroy",
+            "get": {
+                "operationId": "v1_workflows_form_rules_retrieve",
                 "description": "API endpoint for Form Rules (conditional logic).",
                 "parameters": [
                     {
@@ -26569,8 +26605,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantFormRule"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -26817,8 +26860,8 @@
             }
         },
         "/api/v1/workflows/workflows/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_workflows_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_workflows_destroy",
                 "description": "API endpoint for Tenant Workflows.\n\nAutomation rules with triggers and actions.",
                 "parameters": [
                     {
@@ -26844,15 +26887,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantWorkflow"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -26915,8 +26951,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_workflows_destroy",
+            "get": {
+                "operationId": "v1_workflows_workflows_retrieve",
                 "description": "API endpoint for Tenant Workflows.\n\nAutomation rules with triggers and actions.",
                 "parameters": [
                     {
@@ -26942,8 +26978,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantWorkflow"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -27677,8 +27720,8 @@
             }
         },
         "/api/v1/workflows/workflow-conditions/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_workflow_conditions_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_workflow_conditions_destroy",
                 "description": "API endpoint for Workflow Conditions.",
                 "parameters": [
                     {
@@ -27704,15 +27747,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantWorkflowCondition"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -27775,8 +27811,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_workflow_conditions_destroy",
+            "get": {
+                "operationId": "v1_workflows_workflow_conditions_retrieve",
                 "description": "API endpoint for Workflow Conditions.",
                 "parameters": [
                     {
@@ -27802,8 +27838,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantWorkflowCondition"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -27972,8 +28015,8 @@
             }
         },
         "/api/v1/workflows/workflow-actions/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_workflow_actions_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_workflow_actions_destroy",
                 "description": "API endpoint for Workflow Actions.",
                 "parameters": [
                     {
@@ -27999,15 +28042,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/TenantWorkflowAction"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -28070,8 +28106,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_workflow_actions_destroy",
+            "get": {
+                "operationId": "v1_workflows_workflow_actions_retrieve",
                 "description": "API endpoint for Workflow Actions.",
                 "parameters": [
                     {
@@ -28097,8 +28133,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantWorkflowAction"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -28395,8 +28438,8 @@
             }
         },
         "/api/v1/workflows/form-submissions/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_form_submissions_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_form_submissions_destroy",
                 "description": "ViewSet for managing form submissions.\n\nEndpoints:\n- GET /form-submissions/ - List user's submissions\n- POST /form-submissions/ - Create new submission\n- GET /form-submissions/{id}/ - Get submission details\n- PATCH /form-submissions/{id}/ - Update submission\n- DELETE /form-submissions/{id}/ - Cancel/delete submission\n- POST /form-submissions/{id}/auto-save/ - Auto-save field value\n- POST /form-submissions/{id}/complete-step/ - Mark step as complete\n- POST /form-submissions/{id}/submit/ - Final submission",
                 "parameters": [
                     {
@@ -28422,15 +28465,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/FormSubmissionDetail"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -28493,8 +28529,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_form_submissions_destroy",
+            "get": {
+                "operationId": "v1_workflows_form_submissions_retrieve",
                 "description": "ViewSet for managing form submissions.\n\nEndpoints:\n- GET /form-submissions/ - List user's submissions\n- POST /form-submissions/ - Create new submission\n- GET /form-submissions/{id}/ - Get submission details\n- PATCH /form-submissions/{id}/ - Update submission\n- DELETE /form-submissions/{id}/ - Cancel/delete submission\n- POST /form-submissions/{id}/auto-save/ - Auto-save field value\n- POST /form-submissions/{id}/complete-step/ - Mark step as complete\n- POST /form-submissions/{id}/submit/ - Final submission",
                 "parameters": [
                     {
@@ -28520,8 +28556,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FormSubmissionDetail"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -29266,8 +29309,8 @@
             }
         },
         "/api/v1/workflows/step-assignments/{id}/": {
-            "get": {
-                "operationId": "v1_workflows_step_assignments_retrieve",
+            "delete": {
+                "operationId": "v1_workflows_step_assignments_destroy",
                 "description": "API endpoint for step assignments.\n\nGET /api/v1/workflows/step-assignments/\nPOST /api/v1/workflows/step-assignments/\nPUT/PATCH /api/v1/workflows/step-assignments/{id}/\nDELETE /api/v1/workflows/step-assignments/{id}/",
                 "parameters": [
                     {
@@ -29293,15 +29336,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/StepAssignment"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -29364,8 +29400,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_workflows_step_assignments_destroy",
+            "get": {
+                "operationId": "v1_workflows_step_assignments_retrieve",
                 "description": "API endpoint for step assignments.\n\nGET /api/v1/workflows/step-assignments/\nPOST /api/v1/workflows/step-assignments/\nPUT/PATCH /api/v1/workflows/step-assignments/{id}/\nDELETE /api/v1/workflows/step-assignments/{id}/",
                 "parameters": [
                     {
@@ -29391,8 +29427,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StepAssignment"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -29592,6 +29635,36 @@
             }
         },
         "/api/v1/workflows/notifications/{id}/": {
+            "delete": {
+                "operationId": "v1_workflows_notifications_destroy",
+                "description": "API endpoint for user notifications.\n\nGET /api/v1/workflows/notifications/\nGET /api/v1/workflows/notifications/{id}/\nDELETE /api/v1/workflows/notifications/{id}/\nPOST /api/v1/workflows/notifications/{id}/read/\nPOST /api/v1/workflows/notifications/mark-all-read/",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {
+                        "tokenAuth": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            },
             "get": {
                 "operationId": "v1_workflows_notifications_retrieve",
                 "description": "API endpoint for user notifications.\n\nGET /api/v1/workflows/notifications/\nGET /api/v1/workflows/notifications/{id}/\nDELETE /api/v1/workflows/notifications/{id}/\nPOST /api/v1/workflows/notifications/{id}/read/\nPOST /api/v1/workflows/notifications/mark-all-read/",
@@ -29626,36 +29699,6 @@
                             }
                         },
                         "description": ""
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "v1_workflows_notifications_destroy",
-                "description": "API endpoint for user notifications.\n\nGET /api/v1/workflows/notifications/\nGET /api/v1/workflows/notifications/{id}/\nDELETE /api/v1/workflows/notifications/{id}/\nPOST /api/v1/workflows/notifications/{id}/read/\nPOST /api/v1/workflows/notifications/mark-all-read/",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "id",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "v1"
-                ],
-                "security": [
-                    {
-                        "tokenAuth": []
-                    },
-                    {
-                        "cookieAuth": []
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No response body"
                     }
                 }
             }
@@ -31402,7 +31445,7 @@
         "/api/v1/workflows/webhooks/{workflow_id}/{webhook_token}/": {
             "post": {
                 "operationId": "v1_workflows_webhooks_create",
-                "description": "Legacy public workflow webhook receiver (kept for backwards compatibility).\n\nPOST /api/v1/workflows/webhooks/{workflow_id}/{webhook_token}/",
+                "description": "Legacy public workflow webhook receiver — DEPRECATED.\n\nPOST /api/v1/workflows/webhooks/{workflow_id}/{webhook_token}/\n\nLogs a deprecation warning on every call. New integrations MUST use\nthe tenant-scoped URL:\nPOST /api/v1/tenants/{tenant_id}/workflows/webhooks/{workflow_id}/{webhook_token}/",
                 "parameters": [
                     {
                         "in": "path",
@@ -32103,8 +32146,8 @@
             }
         },
         "/api/v1/ai-assistant/cockpit-drafts/{id}/": {
-            "get": {
-                "operationId": "v1_ai_assistant_cockpit_drafts_retrieve",
+            "delete": {
+                "operationId": "v1_ai_assistant_cockpit_drafts_destroy",
                 "description": "CRUD for cockpit draft forms routed from AI Inbox.\n\nEndpoints:\n- POST /api/v1/ai-assistant/cockpit-drafts/ (create from feedback)\n- GET /api/v1/ai-assistant/cockpit-drafts/ (list for tenant)\n- GET /api/v1/ai-assistant/cockpit-drafts/{id}/ (retrieve)\n- PATCH /api/v1/ai-assistant/cockpit-drafts/{id}/ (update form_data/status)",
                 "parameters": [
                     {
@@ -32130,15 +32173,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/CockpitDraftForm"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -32200,8 +32236,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_ai_assistant_cockpit_drafts_destroy",
+            "get": {
+                "operationId": "v1_ai_assistant_cockpit_drafts_retrieve",
                 "description": "CRUD for cockpit draft forms routed from AI Inbox.\n\nEndpoints:\n- POST /api/v1/ai-assistant/cockpit-drafts/ (create from feedback)\n- GET /api/v1/ai-assistant/cockpit-drafts/ (list for tenant)\n- GET /api/v1/ai-assistant/cockpit-drafts/{id}/ (retrieve)\n- PATCH /api/v1/ai-assistant/cockpit-drafts/{id}/ (update form_data/status)",
                 "parameters": [
                     {
@@ -32227,8 +32263,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CockpitDraftForm"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -32396,8 +32439,8 @@
             }
         },
         "/api/v1/ai-assistant/ai-sessions/{id}/": {
-            "get": {
-                "operationId": "v1_ai_assistant_ai_sessions_retrieve",
+            "delete": {
+                "operationId": "v1_ai_assistant_ai_sessions_destroy",
                 "description": "ViewSet for managing chat sessions.",
                 "parameters": [
                     {
@@ -32423,15 +32466,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ChatSessionDetail"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -32493,8 +32529,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_ai_assistant_ai_sessions_destroy",
+            "get": {
+                "operationId": "v1_ai_assistant_ai_sessions_retrieve",
                 "description": "ViewSet for managing chat sessions.",
                 "parameters": [
                     {
@@ -32520,8 +32556,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChatSessionDetail"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -32722,8 +32765,8 @@
             }
         },
         "/api/v1/ai-assistant/ai-messages/{id}/": {
-            "get": {
-                "operationId": "v1_ai_assistant_ai_messages_retrieve",
+            "delete": {
+                "operationId": "v1_ai_assistant_ai_messages_destroy",
                 "description": "ViewSet for managing chat messages.",
                 "parameters": [
                     {
@@ -32749,15 +32792,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ChatMessage"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -32820,8 +32856,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_ai_assistant_ai_messages_destroy",
+            "get": {
+                "operationId": "v1_ai_assistant_ai_messages_retrieve",
                 "description": "ViewSet for managing chat messages.",
                 "parameters": [
                     {
@@ -32847,8 +32883,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChatMessage"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -33003,8 +33046,8 @@
             }
         },
         "/api/v1/ai-assistant/ai-documents/{id}/": {
-            "get": {
-                "operationId": "v1_ai_assistant_ai_documents_retrieve",
+            "delete": {
+                "operationId": "v1_ai_assistant_ai_documents_destroy",
                 "description": "ViewSet for uploading and listing AI documents.",
                 "parameters": [
                     {
@@ -33028,15 +33071,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/AIDocument"
-                                }
-                            }
-                        },
-                        "description": ""
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             },
@@ -33092,8 +33128,8 @@
                     }
                 }
             },
-            "delete": {
-                "operationId": "v1_ai_assistant_ai_documents_destroy",
+            "get": {
+                "operationId": "v1_ai_assistant_ai_documents_retrieve",
                 "description": "ViewSet for uploading and listing AI documents.",
                 "parameters": [
                     {
@@ -33117,8 +33153,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No response body"
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AIDocument"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             },
@@ -33697,8 +33740,7 @@
                         "in": "path",
                         "name": "feedback_id",
                         "schema": {
-                            "type": "string",
-                            "format": "uuid"
+                            "type": "integer"
                         },
                         "required": true
                     }
@@ -39636,6 +39678,381 @@
                 ],
                 "type": "string",
                 "description": "* `Edible` - Edible\n* `Inedible` - Inedible\n* `Edible & Inedible` - Edible & Inedible"
+            },
+            "EmailAction": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "label",
+                    "url"
+                ]
+            },
+            "EmailAutoSyncQueuedResponse": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "accepted": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "tenant_id": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "provider_email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "task_id": {
+                        "type": "string"
+                    },
+                    "failure": {
+                        "$ref": "#/components/schemas/EmailFailure"
+                    },
+                    "details": {}
+                },
+                "required": [
+                    "accepted",
+                    "message",
+                    "ok",
+                    "source",
+                    "tenant_id"
+                ]
+            },
+            "EmailAutoSyncStatusResponse": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "ready": {
+                        "type": "boolean"
+                    },
+                    "successful": {
+                        "type": "boolean"
+                    },
+                    "failed": {
+                        "type": "boolean"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/EmailAutoSyncTaskResult"
+                    }
+                },
+                "required": [
+                    "failed",
+                    "ready",
+                    "state",
+                    "successful",
+                    "task_id"
+                ]
+            },
+            "EmailAutoSyncTaskResult": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "tenant_id": {
+                        "type": "string"
+                    },
+                    "stats": {
+                        "$ref": "#/components/schemas/EmailSyncStats"
+                    },
+                    "ai_inbox": {}
+                }
+            },
+            "EmailFailure": {
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "legacy_error_code": {
+                        "type": "string"
+                    },
+                    "retryable": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "hint": {
+                        "type": "string"
+                    },
+                    "provider": {
+                        "type": "string"
+                    },
+                    "stage": {
+                        "type": "string"
+                    },
+                    "detail_type": {
+                        "type": "string"
+                    },
+                    "details": {}
+                },
+                "required": [
+                    "category",
+                    "code",
+                    "message",
+                    "retryable",
+                    "state"
+                ]
+            },
+            "EmailLogItem": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "message_id": {
+                        "type": "string"
+                    },
+                    "subject": {
+                        "type": "string"
+                    },
+                    "sender": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "provider_type": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "has_attachments": {
+                        "type": "boolean"
+                    },
+                    "attachment_count": {
+                        "type": "integer"
+                    },
+                    "attachment_filenames": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "extracted_data": {
+                        "nullable": true
+                    },
+                    "related_order_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "draft": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EmailReviewDraftSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "error_message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "failure": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EmailFailure"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "processed_at": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "has_attachments",
+                    "id",
+                    "message_id",
+                    "sender",
+                    "status",
+                    "subject"
+                ]
+            },
+            "EmailLogListResponse": {
+                "type": "object",
+                "properties": {
+                    "emails": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/EmailLogItem"
+                        }
+                    },
+                    "count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "count",
+                    "emails"
+                ]
+            },
+            "EmailReviewDraftSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "draft_type": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "classification_confidence": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "draft_type",
+                    "id",
+                    "status",
+                    "summary"
+                ]
+            },
+            "EmailSyncResponse": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "error_code": {
+                        "type": "string"
+                    },
+                    "tenant_id": {
+                        "type": "string"
+                    },
+                    "provider_email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "hint": {
+                        "type": "string"
+                    },
+                    "cta": {
+                        "$ref": "#/components/schemas/EmailAction"
+                    },
+                    "failure": {
+                        "$ref": "#/components/schemas/EmailFailure"
+                    },
+                    "stats": {
+                        "$ref": "#/components/schemas/EmailSyncStats"
+                    },
+                    "details": {}
+                },
+                "required": [
+                    "code",
+                    "message",
+                    "ok",
+                    "tenant_id"
+                ]
+            },
+            "EmailSyncStats": {
+                "type": "object",
+                "properties": {
+                    "tenants_processed": {
+                        "type": "integer"
+                    },
+                    "emails_scanned": {
+                        "type": "integer"
+                    },
+                    "emails_matched": {
+                        "type": "integer"
+                    },
+                    "emails_fetched": {
+                        "type": "integer"
+                    },
+                    "emails_saved": {
+                        "type": "integer"
+                    },
+                    "emails_skipped": {
+                        "type": "integer"
+                    },
+                    "errors": {
+                        "type": "integer"
+                    },
+                    "errors_detail": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "last_cutoff": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "error_code": {
+                        "type": "string"
+                    },
+                    "failure": {
+                        "$ref": "#/components/schemas/EmailFailure"
+                    },
+                    "total_emails_fetched": {
+                        "type": "integer"
+                    },
+                    "total_emails_saved": {
+                        "type": "integer"
+                    },
+                    "total_errors": {
+                        "type": "integer"
+                    },
+                    "tenant_id": {
+                        "type": "string"
+                    },
+                    "provider_id": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    }
+                }
             },
             "EntityAIOverviewResponse": {
                 "type": "object",
