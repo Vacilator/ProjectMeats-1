@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Button, Modal, Typography } from 'antd';
+import { Alert, Button, Drawer, Typography } from 'antd';
 
 import { AIDraftReviewContent } from './AIDraftReviewContent';
 import type { AIInboxFeedbackSubmission } from '@/components/AIAssistant/AIInboxFeedbackActions';
@@ -85,14 +85,13 @@ export const AIDraftReviewDialog: React.FC<AIDraftReviewDialogProps> = ({
   const [resolving, setResolving] = useState(false);
 
   return (
-    <Modal
+    <Drawer
       open={open}
-      onCancel={resolving ? undefined : onClose}
-      footer={null}
+      onClose={resolving ? undefined : onClose}
       title="AI Inbox Review"
       width={1100}
       destroyOnHidden
-      mask={{ closable: !resolving }}
+      maskClosable={!resolving}
       keyboard={!resolving}
     >
       <DraftReviewErrorBoundary itemId={item?.id}>
@@ -106,7 +105,7 @@ export const AIDraftReviewDialog: React.FC<AIDraftReviewDialogProps> = ({
           onResolvingChange={setResolving}
         />
       </DraftReviewErrorBoundary>
-    </Modal>
+    </Drawer>
   );
 };
 
