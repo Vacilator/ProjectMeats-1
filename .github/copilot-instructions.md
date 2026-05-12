@@ -86,7 +86,8 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
 ### Quick Reference: Common Copilot Agent Tasks
 
 **Before Creating PR:**
-- [ ] **MANDATORY WORKFLOW**: for every batch of changes, ALWAYS: `git switch -c <new-branch>` → open a PR → merge to `Meats-Central/ProjectMeats:development` to trigger Dev deployment (do not leave work unmerged).
+- [ ] **MANDATORY WORKFLOW**: ALWAYS do the following for every batch of changes made: create a new branch, create a new PR, and merge to development.
+- [ ] For every batch of changes, ALWAYS: `git switch -c <new-branch>` → open a PR → merge to `Meats-Central/ProjectMeats:development` to trigger Dev deployment (do not leave work unmerged).
 - [ ] Run `.github/scripts/validate-migrations.sh` (if backend changes)
 - [ ] Run `.github/scripts/validate-environment.sh` (if config changes)
 - [ ] Test migrations on fresh database
