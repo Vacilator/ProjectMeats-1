@@ -374,8 +374,10 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     if (formSubmittingRef.current) return;
     handleClose();
   }, [handleClose]);
-  const maskConfig = useMemo(() => ({ closable: !formSubmitting }), [formSubmitting]);
-
+  const modalMaskConfig = useMemo(
+    () => ({ closable: !formSubmitting }),
+    [formSubmitting]
+  );
   if (variant === 'modal' && !isOpen) {
     return null;
   }
@@ -417,7 +419,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       centered
       onCancel={handleCancel}
       closable={!formSubmitting}
-      mask={maskConfig}
+      mask={modalMaskConfig}
       keyboard={!formSubmitting}
       footer={null}
       width="min(720px, calc(100vw - 32px))"

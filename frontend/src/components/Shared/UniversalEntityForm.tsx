@@ -3105,6 +3105,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   if (variant === 'inline') return content;
 
+  const modalMaskConfig = { closable: !submitting };
+
   return (
     <Modal
       open={isOpen}
@@ -3113,7 +3115,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (submitting) return;
         onClose();
       }}
-      mask={{ closable: !submitting }}
+      closable={!submitting}
+      mask={modalMaskConfig}
       keyboard={!submitting}
       footer={null}
       width="min(720px, calc(100vw - 32px))"

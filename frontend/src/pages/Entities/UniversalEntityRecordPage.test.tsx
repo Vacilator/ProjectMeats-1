@@ -142,9 +142,12 @@ describe('UniversalEntityRecordPage child create defaults', () => {
       </MemoryRouter>
     );
 
+    expect(await screen.findByRole('button', { name: 'Suppliers' })).toBeInTheDocument();
+
     await user.click(await screen.findByRole('button', { name: /new plant/i }));
 
     expect(await screen.findByTestId('entity-form-surface')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Suppliers' })).toBeInTheDocument();
 
     const latestProps = entityFormSurfaceMock.mock.calls.at(-1)?.[0] as
       | {
@@ -163,7 +166,12 @@ describe('UniversalEntityRecordPage child create defaults', () => {
         supplier: '7186',
         plant_type: 'processing',
         country: 'USA',
-      },
+        },
     });
+
+    const openCalls = entityFormSurfaceMock.mock.calls.filter(
+      ([props]) => Boolean((props as { isOpen?: boolean } | undefined)?.isOpen)
+    );
+    expect(openCalls).toHaveLength(1);
   });
 });

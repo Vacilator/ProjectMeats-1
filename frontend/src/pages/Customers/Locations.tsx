@@ -477,17 +477,16 @@ const CustomerLocations: React.FC = () => {
         scroll={{ x: 'max-content' }}
       />
 
-      {showModal && (
-        <EntityFormSurface
-          entityType="location"
-          mode={editingLocation ? 'edit' : 'create'}
-          entityId={editingLocation?.id}
-          isOpen={showModal}
-          onClose={handleFormClose}
-          initialValues={locationInitialValues}
-          onSuccess={handleFormSuccess}
-        />
-      )}
+      <EntityFormSurface
+        entityType="location"
+        mode={editingLocation ? 'edit' : 'create'}
+        variant="modal"
+        entityId={editingLocation?.id}
+        isOpen={showModal}
+        onClose={handleFormClose}
+        initialValues={locationInitialValues}
+        onSuccess={handleFormSuccess}
+      />
     </PageContainer>
   );
 };
