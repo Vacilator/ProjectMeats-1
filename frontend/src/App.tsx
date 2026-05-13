@@ -46,85 +46,88 @@ const queryClient = new QueryClient({
     },
   },
 });
-// Page imports - Note: Dashboard replaced by Workspace, WorkflowList replaced by FormsFlows/Catalog
-import Suppliers from './pages/Suppliers';
-import Customers from './pages/Customers';
-import UniversalEntityRecordPage from './pages/Entities/UniversalEntityRecordPage';
-import UniversalEntityRecordRoute from './pages/Entities/UniversalEntityRecordRoute';
-import PurchaseOrders from './pages/PurchaseOrders';
-import PurchaseOrderReview from './pages/PurchaseOrderReview';
-import SalesOrders from './pages/SalesOrders';
-import AccountsReceivables from './pages/AccountsReceivables';
-import Payables from './pages/Payables';
-import ColdStorage from './pages/ColdStorage';
-import Contacts from './pages/Contacts';
-import Plants from './pages/Suppliers/Plants';
-// AICommandCenter archived — now redirects to Home
-import Home from './pages/Home';
-import SupplierProducts from './pages/Suppliers/Products';
-import CustomerLocations from './pages/Customers/Locations';
-import CustomerProducts from './pages/Customers/Products';
-import PlantProducts from './pages/Plants/Products';
-import PlantDetailView from './pages/Plants/PlantDetailView';
-import StandalonePlantEditRoute from './pages/Plants/StandalonePlantEditRoute';
-import LocationDetailView from './pages/Locations/LocationDetailView';
-import SupplierPlantDetail from './pages/Suppliers/PlantDetail';
-import SupplierPlantContactDetail from './pages/Suppliers/PlantContactDetail';
-import CustomerLocationDetail from './pages/Customers/LocationDetail';
-import CustomerLocationContactDetail from './pages/Customers/LocationContactDetail';
-import Carriers from './pages/Carriers';
-import AIAssistant from './pages/AIAssistant';
-import CallLog from './pages/Cockpit/CallLog';
-import Claims from './pages/Accounting/Claims';
-import PayablePOs from './pages/Accounting/PayablePOs';
-import ReceivableSOs from './pages/Accounting/ReceivableSOs';
-import Invoices from './pages/Accounting/Invoices';
-import SettlementQueue from './pages/Accounting/SettlementQueue';
-import FreightOrders from './pages/FreightOrders';
-import DealDesk from './pages/Deals/DealDesk';
-import Reports from './pages/Reports';
+// Non-lazy imports (auth, layout, utilities)
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import AISettingsPage from './pages/AISettings';
-import GuestInvoiceView from './pages/Portal/GuestInvoiceView';
-import ApiTestComponent from './components/ApiTestComponent';
-import { WorkflowRunner, PerfHarness } from './pages/Workflows';
-import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
-import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
-import AIAgentWidgetSocketSmoke from './pages/Diagnostics/AIAgentWidgetSocketSmoke';
-import EntityFormSurfaceSmoke from './pages/Diagnostics/EntityFormSurfaceSmoke';
-import OperationalStatusReplaySmoke from './pages/Diagnostics/OperationalStatusReplaySmoke';
 import { FormSubmissionModal } from './components/FormSubmission';
 import { useQuickActions } from './contexts/QuickActionsContext';
-import MySubmissions from './pages/MySubmissions';
-import MyTasks from './pages/MyTasks';
-import Inquiries from './pages/Inquiries';
-import Fulfillments from './pages/Fulfillments';
-import InquiryTemplates from './pages/InquiryTemplates';
-import InquiryAnalytics from './pages/InquiryAnalytics';
-import OptionListsPage from './pages/Admin/OptionLists';
-import ConfigurationsPage from './pages/Admin/Configurations';
-import UsersPage from './pages/Admin/Users';
-import AdminProfilePage from './pages/Admin/Profile';
-import BillingPage from './pages/Admin/Billing';
-import ActivityPage from './pages/Admin/Activity';
-import AdminWorkspaceHome from './pages/Admin/Home';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { logger } from './utils/logger';
 import { lazyWithChunkRecovery } from './utils/chunkLoadRecovery';
 import { getValidTenantId } from './utils/tenantId';
-// Cockpit pages archived — routes redirect to Home
-import { NotificationPreferences } from './pages/Settings/index';
+import RequireAuth from './components/Auth/RequireAuth';
+import NotFoundPage from './pages/NotFound';
+
+// Lazy-loaded page components (code-splitting)
+const Suppliers = React.lazy(() => import('./pages/Suppliers'));
+const Customers = React.lazy(() => import('./pages/Customers'));
+const UniversalEntityRecordPage = React.lazy(() => import('./pages/Entities/UniversalEntityRecordPage'));
+const UniversalEntityRecordRoute = React.lazy(() => import('./pages/Entities/UniversalEntityRecordRoute'));
+const PurchaseOrders = React.lazy(() => import('./pages/PurchaseOrders'));
+const PurchaseOrderReview = React.lazy(() => import('./pages/PurchaseOrderReview'));
+const SalesOrders = React.lazy(() => import('./pages/SalesOrders'));
+const AccountsReceivables = React.lazy(() => import('./pages/AccountsReceivables'));
+const Payables = React.lazy(() => import('./pages/Payables'));
+const ColdStorage = React.lazy(() => import('./pages/ColdStorage'));
+const Contacts = React.lazy(() => import('./pages/Contacts'));
+const Plants = React.lazy(() => import('./pages/Suppliers/Plants'));
+const Home = React.lazy(() => import('./pages/Home'));
+const SupplierProducts = React.lazy(() => import('./pages/Suppliers/Products'));
+const CustomerLocations = React.lazy(() => import('./pages/Customers/Locations'));
+const CustomerProducts = React.lazy(() => import('./pages/Customers/Products'));
+const PlantProducts = React.lazy(() => import('./pages/Plants/Products'));
+const PlantDetailView = React.lazy(() => import('./pages/Plants/PlantDetailView'));
+const StandalonePlantEditRoute = React.lazy(() => import('./pages/Plants/StandalonePlantEditRoute'));
+const LocationDetailView = React.lazy(() => import('./pages/Locations/LocationDetailView'));
+const SupplierPlantDetail = React.lazy(() => import('./pages/Suppliers/PlantDetail'));
+const SupplierPlantContactDetail = React.lazy(() => import('./pages/Suppliers/PlantContactDetail'));
+const CustomerLocationDetail = React.lazy(() => import('./pages/Customers/LocationDetail'));
+const CustomerLocationContactDetail = React.lazy(() => import('./pages/Customers/LocationContactDetail'));
+const Carriers = React.lazy(() => import('./pages/Carriers'));
+const AIAssistant = React.lazy(() => import('./pages/AIAssistant'));
+const CallLog = React.lazy(() => import('./pages/Cockpit/CallLog'));
+const Claims = React.lazy(() => import('./pages/Accounting/Claims'));
+const PayablePOs = React.lazy(() => import('./pages/Accounting/PayablePOs'));
+const ReceivableSOs = React.lazy(() => import('./pages/Accounting/ReceivableSOs'));
+const Invoices = React.lazy(() => import('./pages/Accounting/Invoices'));
+const SettlementQueue = React.lazy(() => import('./pages/Accounting/SettlementQueue'));
+const FreightOrders = React.lazy(() => import('./pages/FreightOrders'));
+const DealDesk = React.lazy(() => import('./pages/Deals/DealDesk'));
+const Reports = React.lazy(() => import('./pages/Reports'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const AISettingsPage = React.lazy(() => import('./pages/AISettings'));
+const GuestInvoiceView = React.lazy(() => import('./pages/Portal/GuestInvoiceView'));
+const ApiTestComponent = React.lazy(() => import('./components/ApiTestComponent'));
+const WorkflowRunner = React.lazy(() => import('./pages/Workflows').then(m => ({ default: m.WorkflowRunner })));
+const PerfHarness = React.lazy(() => import('./pages/Workflows').then(m => ({ default: m.PerfHarness })));
+const WorkflowMonitor = React.lazy(() => import('./pages/Workflows/WorkflowMonitor').then(m => ({ default: m.WorkflowMonitor })));
+const WorkflowExecutionDetails = React.lazy(() => import('./pages/Workflows/WorkflowExecutionDetails').then(m => ({ default: m.WorkflowExecutionDetails })));
+const AIAgentWidgetSocketSmoke = React.lazy(() => import('./pages/Diagnostics/AIAgentWidgetSocketSmoke'));
+const EntityFormSurfaceSmoke = React.lazy(() => import('./pages/Diagnostics/EntityFormSurfaceSmoke'));
+const OperationalStatusReplaySmoke = React.lazy(() => import('./pages/Diagnostics/OperationalStatusReplaySmoke'));
+const MySubmissions = React.lazy(() => import('./pages/MySubmissions'));
+const MyTasks = React.lazy(() => import('./pages/MyTasks'));
+const Inquiries = React.lazy(() => import('./pages/Inquiries'));
+const Fulfillments = React.lazy(() => import('./pages/Fulfillments'));
+const InquiryTemplates = React.lazy(() => import('./pages/InquiryTemplates'));
+const InquiryAnalytics = React.lazy(() => import('./pages/InquiryAnalytics'));
+const OptionListsPage = React.lazy(() => import('./pages/Admin/OptionLists'));
+const ConfigurationsPage = React.lazy(() => import('./pages/Admin/Configurations'));
+const UsersPage = React.lazy(() => import('./pages/Admin/Users'));
+const AdminProfilePage = React.lazy(() => import('./pages/Admin/Profile'));
+const BillingPage = React.lazy(() => import('./pages/Admin/Billing'));
+const ActivityPage = React.lazy(() => import('./pages/Admin/Activity'));
+const AdminWorkspaceHome = React.lazy(() => import('./pages/Admin/Home'));
+const NotificationPreferences = React.lazy(() => import('./pages/Settings/index').then(m => ({ default: m.NotificationPreferences })));
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
-import WorkFormsLayout from './pages/WorkForms';
-import WorkFormsCatalog from './pages/WorkForms/Catalog';
-import WorkFormsInProgress from './pages/WorkForms/InProgress';
-import WorkFormsHistory from './pages/WorkForms/History';
-import ExecuteWorkForm from './pages/WorkForms/Execute';
-import WorkFormExecutionDetails from './pages/WorkForms/ExecutionDetails';
+const WorkFormsLayout = React.lazy(() => import('./pages/WorkForms'));
+const WorkFormsCatalog = React.lazy(() => import('./pages/WorkForms/Catalog'));
+const WorkFormsInProgress = React.lazy(() => import('./pages/WorkForms/InProgress'));
+const WorkFormsHistory = React.lazy(() => import('./pages/WorkForms/History'));
+const ExecuteWorkForm = React.lazy(() => import('./pages/WorkForms/Execute'));
+const WorkFormExecutionDetails = React.lazy(() => import('./pages/WorkForms/ExecutionDetails'));
 const WorkFormsEditor = lazyWithChunkRecovery(
   () => import('./pages/WorkForms/Editor'),
   'App.WorkFormsEditor'
@@ -245,6 +248,7 @@ const App: React.FC = () => {
                             <Router>
                             <SessionManagerProvider>
                               <NavigationProvider>
+                    <Suspense fallback={<Skeleton active />}>
                     <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
@@ -270,7 +274,7 @@ const App: React.FC = () => {
                     element={<OperationalStatusReplaySmoke />}
                   />
                 )}
-              <Route path="/" element={<Layout />}>
+              <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
                 <Route index element={<Home />} />
 
                 {/* Canonical record destination */}
@@ -359,7 +363,7 @@ const App: React.FC = () => {
                 {/* Other Pages */}
                 <Route
                   path="trader-cockpit/*"
-                  element={<LegacyCommandCenterTabRedirect tab="pipeline" />}
+                  element={<Navigate to="/" replace />}
                 />
                 <Route path="cold-storage" element={<ColdStorage />} />
                 <Route path="carriers" element={<Carriers />} />
@@ -495,8 +499,12 @@ const App: React.FC = () => {
                 <Route path="cockpit/calls" element={<Navigate to="/calls" replace />} />
                 <Route path="cockpit/entity/:entityType/:entityId" element={<Navigate to="/" replace />} />
                 {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
+
+                {/* 404 catch-all */}
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
+                    </Suspense>
             {/* Form Submission Modal - rendered at app level */}
             <FormSubmissionWrapper />
                               </NavigationProvider>
