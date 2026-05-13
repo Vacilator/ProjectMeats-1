@@ -7,7 +7,8 @@ import styled from 'styled-components';
 import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
-import { apiClient, apiService, type Customer } from '../services/apiService';
+import { apiService, type Customer } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { confirmDialog } from '@/utils/uiDialogs';
@@ -135,7 +136,7 @@ const Customers: React.FC = () => {
 
       setProductsLoadingByCustomerId((prev) => ({ ...prev, [id]: true }));
       try {
-        const resp = await apiClient.get(`/customers/${encodeURIComponent(id)}/products/`);
+        const resp = await businessApi.get(`/customers/${encodeURIComponent(id)}/products/`);
         const raw = resp.data as unknown;
         const rows = Array.isArray(raw) ? (raw as CustomerProduct[]) : [];
         setProductsByCustomerId((prev) => ({ ...prev, [id]: rows }));

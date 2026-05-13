@@ -7,7 +7,7 @@ import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -76,8 +76,8 @@ export const LocationDetail: React.FC = () => {
       setLoadError(null);
       try {
         const [customerResp, locationResp] = await Promise.all([
-          apiClient.get(`customers/${cid}/`),
-          apiClient.get(`locations/${lid}/`),
+          businessApi.get(`customers/${cid}/`),
+          businessApi.get(`locations/${lid}/`),
         ]);
 
         const c = customerResp.data as unknown;
@@ -124,7 +124,7 @@ export const LocationDetail: React.FC = () => {
       setLoadingContacts(true);
       setContactsError(null);
       try {
-        const resp = await apiClient.get('contacts/', {
+        const resp = await businessApi.get('contacts/', {
           params: { location: lid, page_size: 200, limit: 200 },
         });
 

@@ -6,7 +6,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
-import { apiClient, apiService, type Supplier } from '../services/apiService';
+import { apiService, type Supplier } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { confirmDialog } from '@/utils/uiDialogs';
@@ -77,7 +78,7 @@ const Suppliers: React.FC = () => {
 
       setProductsLoadingBySupplierId((prev) => ({ ...prev, [id]: true }));
       try {
-        const resp = await apiClient.get(`/suppliers/${encodeURIComponent(id)}/products/`);
+        const resp = await businessApi.get(`/suppliers/${encodeURIComponent(id)}/products/`);
         const raw = resp.data as unknown;
         const rows = Array.isArray(raw) ? (raw as SupplierProduct[]) : [];
         setProductsBySupplierId((prev) => ({ ...prev, [id]: rows }));

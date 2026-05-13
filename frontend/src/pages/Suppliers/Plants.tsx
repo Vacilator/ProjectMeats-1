@@ -16,7 +16,7 @@ import { Table, Input, Button, message, Tag, Space } from 'antd';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
@@ -231,7 +231,7 @@ const Plants: React.FC = () => {
   const loadPlants = useCallback(async (supplierFilterId: number | null) => {
     try {
       setLoading(true);
-      const response = await apiClient.get('plants/', {
+      const response = await businessApi.get('plants/', {
         params: supplierFilterId ? { supplier: supplierFilterId } : undefined,
       });
       setPlants(response.data.results || response.data);
@@ -245,7 +245,7 @@ const Plants: React.FC = () => {
 
   const loadSuppliers = useCallback(async () => {
     try {
-      const response = await apiClient.get('suppliers/');
+      const response = await businessApi.get('suppliers/');
       setSuppliers(response.data.results || response.data);
     } catch (error) {
       logger.error('Error loading suppliers', { component: 'Plants', metadata: { error } });
@@ -289,7 +289,7 @@ const Plants: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`plants/${plant.id}/`);
+      await businessApi.delete(`plants/${plant.id}/`);
       message.success('Plant deleted successfully');
       loadPlants(contextSupplierId);
     } catch (error: unknown) {
