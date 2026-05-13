@@ -21,6 +21,7 @@ import { getRuntimeConfigBoolean } from '@/config/runtime';
 import { useAuthState } from '@/contexts/AuthContext';
 import { buildEntityCascade, buildRouteHierarchy } from '@/hooks/useEntityCascade';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { applyCascadeFilter, type FkOptionsMap as CascadeFkOptionsMap } from '@/utils/fkCascadeMap';
 
 import UniversalEntityForm, {
   augmentSchemaForFrontend,
@@ -323,7 +324,21 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     [fkFieldSignature, hasAugmentedSchema, normalizedEntityKey, shouldHydrate, stableFkDescriptors]
   );
   const fkOptionsQuery = useQuery(fkOptionsQueryOptions);
-  const fkOptions = useMemo<FkOptionsMap>(() => fkOptionsQuery.data ?? {}, [fkOptionsQuery.data]);
+  const rawFkOptions = useMemo<FkOptionsMap>(() => fkOptionsQuery.data ?? {}, [fkOptionsQuery.data]);
+
+  // Cascade filtering: filter child FK options based on parent field values
+  const [liveFormValues, setLiveFormValues] = useState<Record<string, unknown>>({});
+  const fkOptions = useMemo<FkOptionsMap>(
+    () => applyCascadeFilter(normalizedEntityKey, rawFkOptions as CascadeFkOptionsMap, liveFormValues) as unknown as FkOptionsMap,
+    [normalizedEntityKey, rawFkOptions, liveFormValues],
+  );
+  const handleValuesChange = useCallback(
+    (values: Record<string, unknown>) => {
+      setLiveFormValues(values);
+      onValuesChange?.(values);
+    },
+    [onValuesChange],
+  );
 
   // FK options are NON-BLOCKING: form mounts as soon as schema loads.
   // Dropdowns populate asynchronously when FK options arrive.
@@ -440,7 +455,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         externalLoadError={formLoadError}
         externalFkOptions={fkOptions}
         onSubmittingChange={setFormSubmitting}
-        onValuesChange={onValuesChange}
+        onValuesChange={handleValuesChange}
       />
     );
   }
@@ -476,7 +491,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
           externalLoadError={formLoadError}
           externalFkOptions={fkOptions}
           onSubmittingChange={setFormSubmitting}
-          onValuesChange={onValuesChange}
+          onValuesChange={handleValuesChange}
         />
       ) : formLoadError ? (
         errorBody
