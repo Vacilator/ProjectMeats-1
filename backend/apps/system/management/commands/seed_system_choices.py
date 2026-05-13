@@ -43,6 +43,30 @@ SYSTEM_CHOICE_LISTS = [
             {"value": "Goat", "label": "Goat", "order": 13, "extra_data": {"filter_key": "goat"}},
             {"value": "Mutton", "label": "Mutton", "order": 14, "extra_data": {"filter_key": "mutton"}},
             {"value": "Horse", "label": "Horse", "order": 15, "extra_data": {"filter_key": "horse"}},
+            {"value": "beef", "label": "Beef (Legacy)", "order": 101, "extra_data": {"filter_key": "beef"}},
+            {
+                "value": "chicken",
+                "label": "Chicken (Legacy)",
+                "order": 102,
+                "extra_data": {"filter_key": "chicken"},
+            },
+            {"value": "pork", "label": "Pork (Legacy)", "order": 103, "extra_data": {"filter_key": "pork"}},
+            {
+                "value": "poultry",
+                "label": "Poultry (Legacy)",
+                "order": 104,
+                "extra_data": {"filter_key": "poultry"},
+            },
+            {
+                "value": "seafood",
+                "label": "Seafood (Legacy)",
+                "order": 105,
+                "extra_data": {"filter_key": "seafood"},
+            },
+            {"value": "lamb", "label": "Lamb (Legacy)", "order": 106, "extra_data": {"filter_key": "lamb"}},
+            {"value": "fish", "label": "Fish (Legacy)", "order": 107, "extra_data": {"filter_key": "fish"}},
+            {"value": "horse", "label": "Horse (Legacy)", "order": 108, "extra_data": {"filter_key": "horse"}},
+            {"value": "other", "label": "Other (Legacy)", "order": 109, "extra_data": {"filter_key": "other"}},
         ],
     },
     {
@@ -53,6 +77,8 @@ SYSTEM_CHOICE_LISTS = [
         "items": [
             {"value": "Fresh", "label": "Fresh", "order": 1},
             {"value": "Frozen", "label": "Frozen", "order": 2},
+            {"value": "FRESH", "label": "Fresh (Legacy)", "order": 101},
+            {"value": "FROZEN", "label": "Frozen (Legacy)", "order": 102},
         ],
     },
     {
@@ -67,6 +93,12 @@ SYSTEM_CHOICE_LISTS = [
             {"value": "Nude Block", "label": "Nude Block", "order": 4},
             {"value": "Boxed COV", "label": "Boxed COV", "order": 5},
             {"value": "Boxed CO2", "label": "Boxed CO2", "order": 6},
+            {"value": "COMBO_BIN", "label": "Combo Bin (Legacy)", "order": 101},
+            {"value": "CASES", "label": "Cases (Legacy)", "order": 102},
+            {"value": "BAGS", "label": "Bags (Legacy)", "order": 103},
+            {"value": "BULK", "label": "Bulk (Legacy)", "order": 104},
+            {"value": "VACUUM_SEALED", "label": "Vacuum Sealed (Legacy)", "order": 105},
+            {"value": "OTHER", "label": "Other (Legacy)", "order": 106},
         ],
     },
     {
