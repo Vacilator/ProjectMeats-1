@@ -1,6 +1,3 @@
-import { useContext, useMemo } from 'react';
-import { UNSAFE_LocationContext } from 'react-router-dom';
-
 import type { EntityFormContext } from '@/components/Shared/EntityFormSurface';
 import { normalizeEntityType } from '@/utils/entityTypeRegistry';
 
@@ -54,7 +51,7 @@ const isLikelyEntityIdentifier = (segment: string): boolean => {
   return /^\d+$/.test(normalized) || normalized.toLowerCase().includes('uuid');
 };
 
-const buildRouteHierarchy = (pathname: string) => {
+export const buildRouteHierarchy = (pathname: string) => {
   const pathnames = String(pathname || '')
     .split('/')
     .filter(Boolean);
@@ -119,18 +116,4 @@ export const buildEntityCascade = (
     initialValues: nextValues,
     lockedFieldKeys: Array.from(lockedFieldKeys),
   };
-};
-
-export const useEntityCascade = (
-  initialValues?: Record<string, unknown>,
-  context?: EntityFormContext
-): EntityCascadeResult => {
-  const locationContext = useContext(UNSAFE_LocationContext);
-  const pathname = locationContext?.location.pathname ?? '';
-  const routeHierarchy = useMemo(() => buildRouteHierarchy(pathname), [pathname]);
-
-  return useMemo(
-    () => buildEntityCascade(initialValues, context, routeHierarchy),
-    [context, initialValues, routeHierarchy]
-  );
 };

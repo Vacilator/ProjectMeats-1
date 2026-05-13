@@ -19,7 +19,7 @@ import isEqual from 'lodash/isEqual';
 
 import { getRuntimeConfigBoolean } from '@/config/runtime';
 import { useAuthState } from '@/contexts/AuthContext';
-import { useEntityCascade } from '@/hooks/useEntityCascade';
+import { buildEntityCascade, buildRouteHierarchy } from '@/hooks/useEntityCascade';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
 import UniversalEntityForm, {
@@ -171,15 +171,18 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const derivedInitialValues = useMemo<Record<string, unknown>>(
     () => ({
       ...stableInitialValues,
-      ...(context?.customerId != null ? { customer: String(context.customerId) } : {}),
-      ...(context?.supplierId != null ? { supplier: String(context.supplierId) } : {}),
-      ...(context?.contactId != null ? { contact: String(context.contactId) } : {}),
+      ...(stableContext?.customerId != null ? { customer: String(stableContext.customerId) } : {}),
+      ...(stableContext?.supplierId != null ? { supplier: String(stableContext.supplierId) } : {}),
+      ...(stableContext?.contactId != null ? { contact: String(stableContext.contactId) } : {}),
     }),
-    [context?.contactId, context?.customerId, context?.supplierId, stableInitialValues]
+    [stableContext?.contactId, stableContext?.customerId, stableContext?.supplierId, stableInitialValues]
   );
-  const { initialValues: cascadedInitialValues, lockedFieldKeys } = useEntityCascade(
-    derivedInitialValues,
-    stableContext
+
+  const pathname = typeof window === 'undefined' ? '' : window.location.pathname;
+  const routeHierarchy = useMemo(() => buildRouteHierarchy(pathname), [pathname]);
+  const { initialValues: cascadedInitialValues, lockedFieldKeys } = useMemo(
+    () => buildEntityCascade(derivedInitialValues, stableContext, routeHierarchy),
+    [derivedInitialValues, routeHierarchy, stableContext]
   );
 
   useEffect(() => {
@@ -266,11 +269,11 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
 
   const mergedInitialValues = useMemo(
     () =>
-      sanitizeInitialValuesForSchema(schemaQuery.data ?? null, {
-        ...(recordQuery.data || {}),
-        ...derivedInitialValues,
-      }),
-    [derivedInitialValues, recordQuery.data, schemaQuery.data]
+        sanitizeInitialValuesForSchema(schemaQuery.data ?? null, {
+          ...(recordQuery.data || {}),
+          ...cascadedInitialValues,
+        }),
+    [cascadedInitialValues, recordQuery.data, schemaQuery.data]
   );
 
   const augmentedSchema = useMemo(

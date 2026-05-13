@@ -1,45 +1,29 @@
-import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { renderHook } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 
-import { useEntityCascade } from './useEntityCascade';
+import { buildEntityCascade, buildRouteHierarchy } from './useEntityCascade';
 
-const createWrapper =
-  (initialPath: string) =>
-  ({ children }: { children: React.ReactNode }) => (
-    <MemoryRouter initialEntries={[initialPath]}>{children}</MemoryRouter>
-  );
-
-describe('useEntityCascade', () => {
+describe('entity cascade helpers', () => {
   it('infers supplier context from the current supplier route', () => {
-    const { result } = renderHook(() => useEntityCascade(undefined, undefined), {
-      wrapper: createWrapper('/suppliers/7186/plants'),
-    });
+    const result = buildEntityCascade(undefined, undefined, buildRouteHierarchy('/suppliers/7186/plants'));
 
-    expect(result.current.initialValues).toMatchObject({
+    expect(result.initialValues).toMatchObject({
       supplier: '7186',
       supplier_id: '7186',
     });
-    expect(result.current.lockedFieldKeys).toEqual(
-      expect.arrayContaining(['supplier', 'supplier_id'])
-    );
+    expect(result.lockedFieldKeys).toEqual(expect.arrayContaining(['supplier', 'supplier_id']));
   });
 
   it('keeps explicit context when it matches the active route', () => {
-    const { result } = renderHook(
-      () => useEntityCascade({ supplier: '7186' }, { supplierId: 7186 }),
-      {
-        wrapper: createWrapper('/suppliers/7186/plants'),
-      }
+    const result = buildEntityCascade(
+      { supplier: '7186' },
+      { supplierId: 7186 },
+      buildRouteHierarchy('/suppliers/7186/plants')
     );
 
-    expect(result.current.initialValues).toMatchObject({
+    expect(result.initialValues).toMatchObject({
       supplier: '7186',
       supplier_id: '7186',
     });
-    expect(result.current.lockedFieldKeys).toEqual(
-      expect.arrayContaining(['supplier', 'supplier_id'])
-    );
+    expect(result.lockedFieldKeys).toEqual(expect.arrayContaining(['supplier', 'supplier_id']));
   });
 });
