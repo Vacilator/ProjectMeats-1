@@ -28,6 +28,8 @@ import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
+import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -734,6 +736,14 @@ export const Claims: React.FC = () => {
                     maxHeight="300px"
                   />
                 </div>
+              </DetailSection>
+
+              <DetailSection>
+                <AIEntityInsights entityType="claim" entityId={String(selectedClaim.id)} />
+              </DetailSection>
+
+              <DetailSection>
+                <EntityWorkflowStatusPanel entityType="claim" entityId={String(selectedClaim.id)} />
               </DetailSection>
             </SidePanelContent>
 

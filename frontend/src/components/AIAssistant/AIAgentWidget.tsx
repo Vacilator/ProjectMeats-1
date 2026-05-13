@@ -73,6 +73,7 @@ type ChatMessage = {
   content: string;
   createdAt: number;
   metadata?: Record<string, unknown>;
+  isError?: boolean;
 };
 
 type OutlookStatus = {
@@ -679,6 +680,20 @@ const BubbleMetaPill = styled.span`
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
+`;
+
+const RetryButton = styled.button`
+  background: none;
+  border: 1px solid rgba(var(--color-error), 0.3);
+  color: rgb(var(--color-error));
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 4px;
+  &:hover {
+    background: rgba(var(--color-error), 0.08);
+  }
 `;
 
 const Composer = styled.form`
@@ -2124,7 +2139,7 @@ export const AIAgentWidget: React.FC = () => {
             ? serverError
             : "Sorry — I couldn't reach the AI service. Please try again.";
 
-        setMessages((m) => [...m, { id: newId(), role: 'assistant', content: message, createdAt: Date.now() }]);
+        setMessages((m) => [...m, { id: newId(), role: 'assistant', content: message, createdAt: Date.now(), isError: true }]);
         setState('action_required');
       }
     },
@@ -2596,6 +2611,21 @@ export const AIAgentWidget: React.FC = () => {
                         )}
                       </FeedbackRow>
                     ) : null}
+
+                    {m.isError && (() => {
+                      const prevUserMsg = messages
+                        .slice(0, messages.indexOf(m))
+                        .reverse()
+                        .find((prev) => prev.role === 'user');
+                      return prevUserMsg ? (
+                        <RetryButton
+                          type="button"
+                          onClick={() => void sendText(prevUserMsg.content)}
+                        >
+                          ↻ Retry
+                        </RetryButton>
+                      ) : null;
+                    })()}
                   </Bubble>
                 );
               })}
