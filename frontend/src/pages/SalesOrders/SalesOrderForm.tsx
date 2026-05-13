@@ -29,6 +29,7 @@ import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal'
 type LogisticsScenario = 'customer_pickup' | 'supplier_delivery' | 'we_pickup';
 
 interface ShippingContact {
+  id: string;
   name: string;
   phone: string;
   email: string;
@@ -768,7 +769,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
     ...initialValues,
   }));
   const [shippingContacts, setShippingContacts] = useState<ShippingContact[]>([
-    { name: '', phone: '', email: '' },
+    { id: Date.now().toString(), name: '', phone: '', email: '' },
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [customers, setCustomers] = useState<any[]>([]);
@@ -978,7 +979,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
 
   // Shipping contacts
   const addShippingContact = useCallback(() => {
-    setShippingContacts((prev) => [...prev, { name: '', phone: '', email: '' }]);
+    setShippingContacts((prev) => [...prev, { id: Date.now().toString(), name: '', phone: '', email: '' }]);
   }, []);
 
   const removeShippingContact = useCallback((index: number) => {
@@ -1721,7 +1722,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
                   Shipping Contacts
                 </FieldLabel>
                 {shippingContacts.map((contact, idx) => (
-                  <ContactRow key={idx}>
+                  <ContactRow key={contact.id}>
                     <div>
                       <FieldLabel>Name</FieldLabel>
                       <StyledInput

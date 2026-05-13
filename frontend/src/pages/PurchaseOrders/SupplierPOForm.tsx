@@ -30,6 +30,7 @@ import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal'
 type LogisticsScenario = 'customer_pickup' | 'supplier_delivery' | 'we_pickup';
 
 interface ShippingContact {
+  id: string;
   name: string;
   phone: string;
   email: string;
@@ -109,6 +110,7 @@ const SCENARIO_VISIBILITY: Record<LogisticsScenario, Record<string, boolean>> = 
     deliveryDate: true,
     shippingContacts: true,
     pickupAddress: true,
+    deliveryAddress: true,
     howCarrierAppt: true,
     receivingContact: false,
   },
@@ -117,6 +119,7 @@ const SCENARIO_VISIBILITY: Record<LogisticsScenario, Record<string, boolean>> = 
     deliveryDate: true,
     shippingContacts: false,
     pickupAddress: false,
+    deliveryAddress: true,
     howCarrierAppt: false,
     receivingContact: false,
   },
@@ -125,6 +128,7 @@ const SCENARIO_VISIBILITY: Record<LogisticsScenario, Record<string, boolean>> = 
     deliveryDate: true,
     shippingContacts: true,
     pickupAddress: true,
+    deliveryAddress: true,
     howCarrierAppt: true,
     receivingContact: true,
   },
@@ -761,7 +765,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
     ...initialValues,
   }));
   const [shippingContacts, setShippingContacts] = useState<ShippingContact[]>([
-    { name: '', phone: '', email: '' },
+    { id: Date.now().toString(), name: '', phone: '', email: '' },
   ]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierAutoFilled, setSupplierAutoFilled] = useState(false);
@@ -933,7 +937,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
 
   // Shipping contacts
   const addShippingContact = useCallback(() => {
-    setShippingContacts((prev) => [...prev, { name: '', phone: '', email: '' }]);
+    setShippingContacts((prev) => [...prev, { id: Date.now().toString(), name: '', phone: '', email: '' }]);
   }, []);
 
   const removeShippingContact = useCallback((index: number) => {
@@ -1502,7 +1506,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                 </FieldGroup>
               </ConditionalSection>
 
-              {!visibility.pickupAddress && (
+              <ConditionalSection $visible={visibility.deliveryAddress}>
                 <FieldGroup>
                   <FieldLabel>Delivery Location</FieldLabel>
                   <LocationSelector
@@ -1515,7 +1519,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                     placeholder="Select delivery location…"
                   />
                 </FieldGroup>
-              )}
+              </ConditionalSection>
 
               <ConditionalSection $visible={visibility.howCarrierAppt}>
                 <FieldLabel>How Carrier Makes Appointment</FieldLabel>
@@ -1588,7 +1592,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   Shipping Contacts
                 </FieldLabel>
                 {shippingContacts.map((contact, idx) => (
-                  <ContactRow key={idx}>
+                  <ContactRow key={contact.id}>
                     <div>
                       <FieldLabel>Name</FieldLabel>
                       <StyledInput

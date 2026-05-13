@@ -326,7 +326,7 @@ const EntityInfo = styled.div`
   }
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $status: string }>`
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.625rem;
@@ -334,7 +334,7 @@ const StatusBadge = styled.span<{ status: string }>`
   font-size: 0.75rem;
   font-weight: 500;
   background: ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'accepted': return 'rgba(var(--color-success), 0.12)';
       case 'fulfilled': return 'rgba(var(--color-success), 0.18)';
       case 'pending': return 'rgba(var(--color-warning), 0.12)';
@@ -346,7 +346,7 @@ const StatusBadge = styled.span<{ status: string }>`
     }
   }};
   color: ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'accepted': return 'rgb(var(--color-success))';
       case 'fulfilled': return 'rgb(var(--color-success))';
       case 'pending': return 'rgb(var(--color-warning))';
@@ -813,7 +813,7 @@ const Inquiries: React.FC = () => {
                     <div className="contact">{inquiry.contact_name}</div>
                   )}
                 </EntityInfo>
-                <StatusBadge status={inquiry.status}>
+                <StatusBadge $status={inquiry.status}>
                   {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
                 </StatusBadge>
                 <ProductCount>{inquiry.product_count || 0}</ProductCount>

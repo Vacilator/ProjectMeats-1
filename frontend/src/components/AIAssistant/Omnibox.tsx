@@ -129,8 +129,9 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
             {suggestions.map((suggestion, index) => (
               <SuggestionItem
                 key={suggestion}
-                isSelected={index === selectedSuggestionIndex}
+                $selected={index === selectedSuggestionIndex}
                 onClick={() => handleSuggestionClick(suggestion)}
+                type="button"
               >
                 <SuggestionIcon>💡</SuggestionIcon>
                 <SuggestionText>{suggestion}</SuggestionText>
@@ -193,14 +194,18 @@ const SuggestionsList = styled.div`
   overflow: hidden;
 `;
 
-const SuggestionItem = styled.div<{ isSelected: boolean }>`
+const SuggestionItem = styled.button<{ $selected: boolean }>`
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
+  width: 100%;
+  border: none;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   background: ${(props) =>
-    props.isSelected ? 'rgb(var(--color-primary) / 0.10)' : 'rgb(var(--color-surface))'};
+    props.$selected ? 'rgb(var(--color-primary) / 0.10)' : 'rgb(var(--color-surface))'};
   border-bottom: 1px solid rgb(var(--color-border));
   transition: background-color 0.2s;
 

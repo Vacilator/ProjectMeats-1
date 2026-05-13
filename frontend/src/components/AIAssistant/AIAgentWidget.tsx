@@ -1033,14 +1033,14 @@ function renderChatContent(text: string): React.ReactNode {
 
   while ((match = codeBlockRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(<span key={key++}>{renderInlineMarkdown(text.slice(lastIndex, match.index))}</span>);
+      parts.push(<div key={key++}>{renderInlineMarkdown(text.slice(lastIndex, match.index))}</div>);
     }
     parts.push(<CodeBlock key={key++}>{match[1].trim()}</CodeBlock>);
     lastIndex = match.index + match[0].length;
   }
 
   if (lastIndex < text.length) {
-    parts.push(<span key={key++}>{renderInlineMarkdown(text.slice(lastIndex))}</span>);
+    parts.push(<div key={key++}>{renderInlineMarkdown(text.slice(lastIndex))}</div>);
   }
 
   return <MarkdownContent>{parts}</MarkdownContent>;

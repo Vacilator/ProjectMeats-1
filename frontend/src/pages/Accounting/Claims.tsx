@@ -106,9 +106,9 @@ const PrimaryButton = styled.button`
   }
 `;
 
-const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
+const ContentContainer = styled.div<{ $hasSidePanel?: boolean }>`
   display: grid;
-  grid-template-columns: ${props => props.hasSidePanel ? '1fr 400px' : '1fr'};
+  grid-template-columns: ${props => props.$hasSidePanel ? '1fr 400px' : '1fr'};
   gap: 1.5rem;
   height: calc(100vh - 180px);
   overflow: hidden;
@@ -131,12 +131,12 @@ const TabsContainer = styled.div`
   background: rgb(var(--color-surface));
 `;
 
-const Tab = styled.button<{ isActive?: boolean }>`
+const Tab = styled.button<{ $isActive?: boolean }>`
   padding: 1rem 1.5rem;
   background: transparent;
   border: none;
-  border-bottom: 3px solid ${props => props.isActive ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  border-bottom: 3px solid ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'transparent'};
+  color: ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -156,11 +156,11 @@ const FilterBar = styled.div`
   border-bottom: 1px solid rgb(var(--color-border));
 `;
 
-const FilterButton = styled.button<{ isActive?: boolean }>`
+const FilterButton = styled.button<{ $isActive?: boolean }>`
   padding: 0.5rem 1rem;
-  background: ${props => props.isActive ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
-  color: ${props => props.isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
-  border: 1px solid ${props => props.isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$isActive ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  color: ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  border: 1px solid ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
@@ -210,14 +210,14 @@ const TableHeader = styled.thead`
   z-index: 10;
 `;
 
-const TableRow = styled.tr<{ isSelected?: boolean; isClickable?: boolean }>`
+const TableRow = styled.tr<{ $isSelected?: boolean; $isClickable?: boolean }>`
   border-bottom: 1px solid rgb(var(--color-border));
-  background: ${props => props.isSelected ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
-  cursor: ${props => props.isClickable ? 'pointer' : 'default'};
+  background: ${props => props.$isSelected ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  cursor: ${props => props.$isClickable ? 'pointer' : 'default'};
   transition: background 0.2s ease;
 
   &:hover {
-    background: ${props => props.isClickable ? 'rgb(var(--color-surface-hover))' : 'transparent'};
+    background: ${props => props.$isClickable ? 'rgb(var(--color-surface-hover))' : 'transparent'};
   }
 `;
 
@@ -237,7 +237,7 @@ const TableCell = styled.td`
   color: rgb(var(--color-text-primary));
 `;
 
-const StatusBadge = styled.span<{ status: ClaimStatus }>`
+const StatusBadge = styled.span<{ $status: ClaimStatus }>`
   display: inline-block;
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-sm);
@@ -246,7 +246,7 @@ const StatusBadge = styled.span<{ status: ClaimStatus }>`
   white-space: nowrap;
 
   ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'pending':
         return `
           background: rgba(var(--color-warning), 0.1);
@@ -399,7 +399,7 @@ const SidePanelActions = styled.div`
   background: rgb(var(--color-surface));
 `;
 
-const ActionButton = styled.button<{ variant?: 'approve' | 'deny' | 'settle' | 'cancel' }>`
+const ActionButton = styled.button<{ $variant?: 'approve' | 'deny' | 'settle' | 'cancel' }>`
   padding: 0.75rem 1rem;
   border: none;
   border-radius: var(--radius-md);
@@ -409,7 +409,7 @@ const ActionButton = styled.button<{ variant?: 'approve' | 'deny' | 'settle' | '
   transition: opacity 0.2s ease;
 
   ${props => {
-    switch (props.variant) {
+    switch (props.$variant) {
       case 'approve':
         return `
           background: rgb(var(--color-success));
@@ -550,18 +550,18 @@ export const Claims: React.FC = () => {
         </PrimaryButton>
       </PageHeader>
 
-      <ContentContainer hasSidePanel={selectedClaim !== null}>
+      <ContentContainer $hasSidePanel={selectedClaim !== null}>
         <MainContent>
           {/* Tabs */}
           <TabsContainer>
             <Tab
-              isActive={activeTab === 'payable'}
+              $isActive={activeTab === 'payable'}
               onClick={() => setActiveTab('payable')}
             >
               Payable Claims
             </Tab>
             <Tab
-              isActive={activeTab === 'receivable'}
+              $isActive={activeTab === 'receivable'}
               onClick={() => setActiveTab('receivable')}
             >
               Receivable Claims
@@ -571,31 +571,31 @@ export const Claims: React.FC = () => {
           {/* Status Filters */}
           <FilterBar>
             <FilterButton
-              isActive={statusFilter === 'all'}
+              $isActive={statusFilter === 'all'}
               onClick={() => setStatusFilter('all')}
             >
               All ({statusCounts.all})
             </FilterButton>
             <FilterButton
-              isActive={statusFilter === 'pending'}
+              $isActive={statusFilter === 'pending'}
               onClick={() => setStatusFilter('pending')}
             >
               Pending ({statusCounts.pending})
             </FilterButton>
             <FilterButton
-              isActive={statusFilter === 'approved'}
+              $isActive={statusFilter === 'approved'}
               onClick={() => setStatusFilter('approved')}
             >
               Approved ({statusCounts.approved})
             </FilterButton>
             <FilterButton
-              isActive={statusFilter === 'settled'}
+              $isActive={statusFilter === 'settled'}
               onClick={() => setStatusFilter('settled')}
             >
               Settled ({statusCounts.settled})
             </FilterButton>
             <FilterButton
-              isActive={statusFilter === 'denied'}
+              $isActive={statusFilter === 'denied'}
               onClick={() => setStatusFilter('denied')}
             >
               Denied ({statusCounts.denied})
@@ -633,8 +633,8 @@ export const Claims: React.FC = () => {
                   {filteredClaims.map((claim) => (
                     <TableRow
                       key={claim.id}
-                      isClickable
-                      isSelected={selectedClaim?.id === claim.id}
+                      $isClickable
+                      $isSelected={selectedClaim?.id === claim.id}
                       onClick={() => handleClaimClick(claim)}
                     >
                       <TableCell>{claim.claim_number}</TableCell>
@@ -647,7 +647,7 @@ export const Claims: React.FC = () => {
                       <TableCell>{formatCurrency(parseFloat(claim.claimed_amount))}</TableCell>
                       <TableCell>{claim.description.substring(0, 50)}...</TableCell>
                       <TableCell>
-                        <StatusBadge status={claim.status}>
+                        <StatusBadge $status={claim.status}>
                           {claim.status.toUpperCase()}
                         </StatusBadge>
                       </TableCell>
@@ -672,7 +672,7 @@ export const Claims: React.FC = () => {
             <SidePanelContent>
               <DetailSection>
                 <DetailLabel>Status</DetailLabel>
-                <StatusBadge status={selectedClaim.status}>
+                <StatusBadge $status={selectedClaim.status}>
                   {selectedClaim.status.toUpperCase()}
                 </StatusBadge>
               </DetailSection>
@@ -741,13 +741,13 @@ export const Claims: React.FC = () => {
             {selectedClaim.status === 'pending' && (
               <SidePanelActions>
                 <ActionButton
-                  variant="approve"
+                  $variant="approve"
                   onClick={() => handleStatusUpdate(selectedClaim.id, 'approved', 'Claim approved')}
                 >
                   ✓ Approve Claim
                 </ActionButton>
                 <ActionButton
-                  variant="deny"
+                  $variant="deny"
                   onClick={() => handleStatusUpdate(selectedClaim.id, 'denied', 'Claim denied')}
                 >
                   ✗ Deny Claim
@@ -758,7 +758,7 @@ export const Claims: React.FC = () => {
             {selectedClaim.status === 'approved' && (
               <SidePanelActions>
                 <ActionButton
-                  variant="settle"
+                  $variant="settle"
                   onClick={() => handleStatusUpdate(selectedClaim.id, 'settled', 'Claim settled')}
                 >
                   💰 Mark as Settled

@@ -140,9 +140,9 @@ const SecondaryButton = styled.button`
   }
 `;
 
-const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
+const ContentContainer = styled.div<{ $hasSidePanel?: boolean }>`
   display: grid;
-  grid-template-columns: ${props => props.hasSidePanel ? '1fr 400px' : '1fr'};
+  grid-template-columns: ${props => props.$hasSidePanel ? '1fr 400px' : '1fr'};
   gap: 1.5rem;
   transition: grid-template-columns 0.3s ease;
   flex: 1;
@@ -167,11 +167,11 @@ const FilterBar = styled.div`
   flex-wrap: wrap;
 `;
 
-const FilterButton = styled.button<{ active?: boolean }>`
+const FilterButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 1rem;
-  background: ${props => props.active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))'};
-  color: ${props => props.active ? 'white' : 'rgb(var(--color-text-primary))'};
-  border: 1px solid ${props => props.active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))'};
+  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   cursor: pointer;
@@ -261,14 +261,14 @@ const TableHeader = styled.thead`
   z-index: 10;
 `;
 
-const TableRow = styled.tr<{ clickable?: boolean; selected?: boolean }>`
+const TableRow = styled.tr<{ $clickable?: boolean; $selected?: boolean }>`
   border-bottom: 1px solid rgb(var(--color-border));
-  cursor: ${props => props.clickable ? 'pointer' : 'default'};
-  background: ${props => props.selected ? 'rgba(var(--color-primary), 0.05)' : 'transparent'};
+  cursor: ${props => props.$clickable ? 'pointer' : 'default'};
+  background: ${props => props.$selected ? 'rgba(var(--color-primary), 0.05)' : 'transparent'};
   transition: background 0.15s ease;
 
   &:hover {
-    background: ${props => props.clickable ? 'rgba(var(--color-primary), 0.08)' : 'transparent'};
+    background: ${props => props.$clickable ? 'rgba(var(--color-primary), 0.08)' : 'transparent'};
   }
 
   &:last-child {
@@ -292,14 +292,14 @@ const TableCell = styled.td`
   color: rgb(var(--color-text-primary));
 `;
 
-const StatusBadge = styled.span<{ status: InvoiceStatus }>`
+const StatusBadge = styled.span<{ $status: InvoiceStatus }>`
   display: inline-block;
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
   ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'paid':
         return 'background: rgba(var(--color-success), 0.15); color: rgba(var(--color-success), 1);';
       case 'sent':
@@ -559,25 +559,25 @@ const Invoices: React.FC = () => {
         </HeaderActions>
       </PageHeader>
 
-      <ContentContainer hasSidePanel={!!selectedInvoice}>
+      <ContentContainer $hasSidePanel={!!selectedInvoice}>
         <MainContent>
           <FilterBar>
-            <FilterButton active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>
+            <FilterButton $active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>
               All ({counts.all})
             </FilterButton>
-            <FilterButton active={statusFilter === 'draft'} onClick={() => setStatusFilter('draft')}>
+            <FilterButton $active={statusFilter === 'draft'} onClick={() => setStatusFilter('draft')}>
               Draft ({counts.draft})
             </FilterButton>
-            <FilterButton active={statusFilter === 'sent'} onClick={() => setStatusFilter('sent')}>
+            <FilterButton $active={statusFilter === 'sent'} onClick={() => setStatusFilter('sent')}>
               Sent ({counts.sent})
             </FilterButton>
-            <FilterButton active={statusFilter === 'paid'} onClick={() => setStatusFilter('paid')}>
+            <FilterButton $active={statusFilter === 'paid'} onClick={() => setStatusFilter('paid')}>
               Paid ({counts.paid})
             </FilterButton>
-            <FilterButton active={statusFilter === 'overdue'} onClick={() => setStatusFilter('overdue')}>
+            <FilterButton $active={statusFilter === 'overdue'} onClick={() => setStatusFilter('overdue')}>
               Overdue ({counts.overdue})
             </FilterButton>
-            <FilterButton active={statusFilter === 'cancelled'} onClick={() => setStatusFilter('cancelled')}>
+            <FilterButton $active={statusFilter === 'cancelled'} onClick={() => setStatusFilter('cancelled')}>
               Cancelled ({counts.cancelled})
             </FilterButton>
             <SearchInput
@@ -645,8 +645,8 @@ const Invoices: React.FC = () => {
                     {filteredInvoices.map(invoice => (
                       <TableRow
                         key={invoice.id}
-                        clickable
-                        selected={selectedInvoice?.id === invoice.id}
+                        $clickable
+                        $selected={selectedInvoice?.id === invoice.id}
                         onClick={() => setSelectedInvoice(invoice)}
                       >
                         <TableCell>{invoice.invoice_number}</TableCell>
@@ -668,7 +668,7 @@ const Invoices: React.FC = () => {
                           {formatCurrency(invoice.outstanding_amount || invoice.total_amount)}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={invoice.status}>
+                          <StatusBadge $status={invoice.status}>
                             {invoice.status.toUpperCase()}
                           </StatusBadge>
                         </TableCell>
@@ -772,7 +772,7 @@ const Invoices: React.FC = () => {
                 <DetailSection>
                   <DetailLabel>Status</DetailLabel>
                   <DetailValue>
-                    <StatusBadge status={selectedInvoice.status}>
+                    <StatusBadge $status={selectedInvoice.status}>
                       {selectedInvoice.status.toUpperCase()}
                     </StatusBadge>
                   </DetailValue>
