@@ -1,10 +1,23 @@
-import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
+import React, {
+  ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { useAuth } from './AuthContext';
 import {
   AI_INBOX_AUTO_SYNC_COALESCE_MS,
   AI_INBOX_AUTO_SYNC_INTERVAL_MS,
   AI_INBOX_AUTO_SYNC_STATUS_POLL_MS,
+  type AIInboxSyncAction,
+  type AIInboxSyncFailure,
+  type AIInboxSyncProgress,
+  type AIInboxSyncResult,
   type AIInboxSyncSource,
   aiInboxSyncApi,
   emitAIInboxRefreshEvent,
@@ -20,19 +33,115 @@ interface SyncClaim {
   claimId?: string;
 }
 
+export type AIInboxSyncStatus = 'started' | 'completed' | 'failed' | 'skipped';
+export type AIInboxSyncLifecycleState = 'idle' | 'running' | 'succeeded' | 'failed' | 'skipped';
+
+export interface AIInboxSyncSnapshot {
+  status: AIInboxSyncLifecycleState;
+  source?: AIInboxSyncSource;
+  taskId?: string | null;
+  message?: string;
+  summary?: string | null;
+  retryable?: boolean;
+  action?: AIInboxSyncAction | null;
+  failure?: AIInboxSyncFailure | null;
+  progress?: AIInboxSyncProgress | null;
+  result?: AIInboxSyncResult | null;
+  startedAt?: number;
+  finishedAt?: number;
+}
+
+interface AIInboxSyncContextValue {
+  syncState: AIInboxSyncSnapshot;
+  requestSync: (source: AIInboxSyncSource) => Promise<AIInboxSyncSnapshot>;
+  retryLastSync: () => Promise<AIInboxSyncSnapshot>;
+}
+
+interface AIInboxSyncEventDetail {
+  status: AIInboxSyncStatus;
+  source?: AIInboxSyncSource;
+  message?: string;
+  syncState: AIInboxSyncSnapshot;
+}
+
 const IS_DEV = process.env.NODE_ENV === 'development';
 const SYNC_LOG_CTX = { component: 'AIInboxSyncProvider' } as const;
 const SYNC_CLAIM_SETTLE_MS = 50;
+const SYNC_DEADLINE_MS = 2 * 60 * 1000;
+const DEFAULT_TIMEOUT_MESSAGE = 'Email sync is taking longer than expected. Retry the sync if it remains stuck.';
 
-/** Custom event emitted so the widget can show sync status. */
+const initialSyncState: AIInboxSyncSnapshot = {
+  status: 'idle',
+  taskId: null,
+  summary: null,
+  retryable: false,
+  action: null,
+  failure: null,
+  progress: null,
+  result: null,
+};
+
+/** Custom event emitted so existing listeners can observe sync status. */
 export const AI_INBOX_SYNC_STATUS_EVENT = 'pm.aiInbox.syncStatus';
-export type AIInboxSyncStatus = 'started' | 'completed' | 'failed' | 'skipped';
 
-const emitSyncStatus = (status: AIInboxSyncStatus, source: AIInboxSyncSource, detail?: string) => {
+const AIInboxSyncContext = createContext<AIInboxSyncContextValue | undefined>(undefined);
+
+const normalizeFailure = (failure: unknown): AIInboxSyncFailure | null => {
+  if (!failure || typeof failure !== 'object' || Array.isArray(failure)) {
+    return null;
+  }
+  return failure as AIInboxSyncFailure;
+};
+
+const normalizeAction = (action: unknown): AIInboxSyncAction | null => {
+  if (!action || typeof action !== 'object' || Array.isArray(action)) {
+    return null;
+  }
+  const candidate = action as AIInboxSyncAction;
+  return typeof candidate.label === 'string' && candidate.label.trim() ? candidate : null;
+};
+
+const normalizeProgress = (progress: unknown): AIInboxSyncProgress | null => {
+  if (!progress || typeof progress !== 'object' || Array.isArray(progress)) {
+    return null;
+  }
+  const candidate = progress as AIInboxSyncProgress;
+  if (
+    typeof candidate.phase !== 'string' ||
+    typeof candidate.percent !== 'number' ||
+    typeof candidate.summary !== 'string'
+  ) {
+    return null;
+  }
+  return candidate;
+};
+
+const toEventStatus = (snapshot: AIInboxSyncSnapshot): AIInboxSyncStatus => {
+  if (snapshot.status === 'running') {
+    return 'started';
+  }
+  if (snapshot.status === 'failed') {
+    return 'failed';
+  }
+  if (snapshot.status === 'skipped') {
+    return 'skipped';
+  }
+  return 'completed';
+};
+
+const emitSyncStatus = (snapshot: AIInboxSyncSnapshot) => {
   if (typeof window === 'undefined') return;
+
+  const detail: AIInboxSyncEventDetail = {
+    status: toEventStatus(snapshot),
+    source: snapshot.source,
+    message: snapshot.message,
+    syncState: snapshot,
+  };
+
   window.dispatchEvent(
     new CustomEvent(AI_INBOX_SYNC_STATUS_EVENT, {
-      detail: { status, source, message: detail },
+      detail,
     }),
   );
 };
@@ -77,94 +186,245 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
   const { user, loading } = useAuth();
   const syncInFlightRef = useRef(false);
   const lastLoginSyncRef = useRef<string | null>(null);
+  const [syncState, setSyncState] = useState<AIInboxSyncSnapshot>(initialSyncState);
 
-  const requestSync = useCallback(async (source: AIInboxSyncSource) => {
+  const publishSyncState = useCallback((nextState: AIInboxSyncSnapshot): AIInboxSyncSnapshot => {
+    setSyncState(nextState);
+    emitSyncStatus(nextState);
+    return nextState;
+  }, []);
+
+  const requestSync = useCallback(async (source: AIInboxSyncSource): Promise<AIInboxSyncSnapshot> => {
     const tenantId = getTenantId();
-    if (!user || !tenantId || syncInFlightRef.current) {
+    if (!user || !tenantId || (syncInFlightRef.current && source !== 'manual')) {
       if (IS_DEV) {
         logger.debug(
           `Sync skipped: user=${!!user} tenant=${!!tenantId} inFlight=${syncInFlightRef.current}`,
           SYNC_LOG_CTX,
         );
       }
-      emitSyncStatus('skipped', source, 'precondition not met');
-      return;
+      return publishSyncState({
+        ...initialSyncState,
+        status: 'skipped',
+        source,
+        message: 'Email sync prerequisites were not met.',
+        summary: 'Email sync prerequisites were not met.',
+        finishedAt: Date.now(),
+      });
     }
 
-    const coalesceKey = getCoalesceKey(tenantId);
     const now = Date.now();
-    const previousClaim = parseSyncClaim(window.localStorage.getItem(coalesceKey));
-    if (previousClaim && now - previousClaim.requestedAt < AI_INBOX_AUTO_SYNC_COALESCE_MS) {
-      if (IS_DEV) logger.debug('Sync coalesced (too recent)', SYNC_LOG_CTX);
-      emitSyncStatus('skipped', source, 'coalesced');
-      return;
-    }
+    if (source !== 'manual') {
+      const coalesceKey = getCoalesceKey(tenantId);
+      const previousClaim = parseSyncClaim(window.localStorage.getItem(coalesceKey));
+      if (previousClaim && now - previousClaim.requestedAt < AI_INBOX_AUTO_SYNC_COALESCE_MS) {
+        if (IS_DEV) logger.debug('Sync coalesced (too recent)', SYNC_LOG_CTX);
+        return publishSyncState({
+          ...initialSyncState,
+          status: 'skipped',
+          source,
+          message: 'Email sync was skipped because another request just ran.',
+          summary: 'Email sync was skipped because another request just ran.',
+          finishedAt: now,
+        });
+      }
 
-    const claimId = `${now}:${Math.random().toString(36).slice(2)}`;
-    window.localStorage.setItem(
-      coalesceKey,
-      JSON.stringify({
-        requestedAt: now,
-        claimId,
-      }),
-    );
+      const claimId = `${now}:${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(
+        coalesceKey,
+        JSON.stringify({
+          requestedAt: now,
+          claimId,
+        }),
+      );
 
-    await new Promise((resolve) => window.setTimeout(resolve, SYNC_CLAIM_SETTLE_MS));
-    const settledClaim = parseSyncClaim(window.localStorage.getItem(coalesceKey));
-    if (settledClaim?.claimId !== claimId) {
-      if (IS_DEV) logger.debug('Sync claim lost to another tab', SYNC_LOG_CTX);
-      return;
+      await new Promise((resolve) => window.setTimeout(resolve, SYNC_CLAIM_SETTLE_MS));
+      const settledClaim = parseSyncClaim(window.localStorage.getItem(coalesceKey));
+      if (settledClaim?.claimId !== claimId) {
+        if (IS_DEV) logger.debug('Sync claim lost to another tab', SYNC_LOG_CTX);
+        return publishSyncState({
+          ...initialSyncState,
+          status: 'skipped',
+          source,
+          message: 'Another tab already owns this sync request.',
+          summary: 'Another tab already owns this sync request.',
+          finishedAt: Date.now(),
+        });
+      }
     }
 
     syncInFlightRef.current = true;
+    const runningState = publishSyncState({
+      ...initialSyncState,
+      status: 'running',
+      source,
+      startedAt: now,
+      message: 'Email sync queued. Checking Outlook shortly…',
+      summary: 'Email sync queued. Checking Outlook shortly…',
+      progress: {
+        phase: 'queued',
+        percent: 5,
+        summary: 'Email sync queued. Checking Outlook shortly…',
+      },
+    });
+
     if (IS_DEV) logger.info(`Email sync triggered (source=${source})`, SYNC_LOG_CTX);
-    emitSyncStatus('started', source);
 
     try {
-      const result = await aiInboxSyncApi.trigger({ source });
-      if (!result.accepted) {
-        if (IS_DEV) {
-          logger.debug(
-            `Sync not accepted: ${(result as unknown as Record<string, unknown>).code ?? 'unknown'}`,
-            SYNC_LOG_CTX,
-          );
-        }
-        emitSyncStatus('skipped', source, 'not accepted by backend');
-        return;
+      const triggerResult = await aiInboxSyncApi.trigger({ source });
+      const triggerAction = normalizeAction(triggerResult.action);
+      const triggerFailure = normalizeFailure(triggerResult.failure);
+      const triggerProgress = normalizeProgress(triggerResult.progress) ?? runningState.progress ?? null;
+
+      if (!triggerResult.accepted) {
+        return publishSyncState({
+          ...initialSyncState,
+          status: triggerFailure || triggerAction ? 'failed' : 'skipped',
+          source,
+          startedAt: now,
+          finishedAt: Date.now(),
+          message: triggerResult.message || triggerFailure?.message || 'Email sync was not accepted.',
+          summary: triggerResult.message || triggerFailure?.message || 'Email sync was not accepted.',
+          retryable: Boolean(triggerFailure?.retryable),
+          action: triggerAction,
+          failure: triggerFailure,
+          progress: triggerProgress,
+        });
       }
 
-      const taskId = typeof result.task_id === 'string' ? result.task_id : null;
+      const taskId = typeof triggerResult.task_id === 'string' ? triggerResult.task_id : null;
       if (!taskId) {
         emitAIInboxRefreshEvent(source);
-        emitSyncStatus('completed', source);
-        return;
+        return publishSyncState({
+          ...initialSyncState,
+          status: 'succeeded',
+          source,
+          startedAt: now,
+          finishedAt: Date.now(),
+          message: triggerResult.message || 'Email sync completed.',
+          summary: triggerResult.message || 'Email sync completed.',
+          progress: triggerProgress ?? {
+            phase: 'completed',
+            percent: 100,
+            summary: triggerResult.message || 'Email sync completed.',
+          },
+        });
       }
 
-      const deadline = Date.now() + 2 * 60 * 1000;
+      const deadline = Date.now() + SYNC_DEADLINE_MS;
+      let lastProgress = triggerProgress;
+
       while (Date.now() < deadline) {
         await delay(AI_INBOX_AUTO_SYNC_STATUS_POLL_MS);
         const status = await aiInboxSyncApi.getStatus(taskId);
-        if (status.ready) {
-          emitAIInboxRefreshEvent(source);
-          emitSyncStatus('completed', source);
-          if (IS_DEV) logger.info('Email sync completed', SYNC_LOG_CTX);
-          return;
+        const nextProgress = normalizeProgress(status.progress) ?? lastProgress;
+
+        if (nextProgress) {
+          lastProgress = nextProgress;
+          setSyncState((current) => ({
+            ...current,
+            status: 'running',
+            source,
+            taskId,
+            startedAt: now,
+            message: nextProgress.summary,
+            summary: nextProgress.summary,
+            progress: nextProgress,
+          }));
         }
+
+        if (!status.ready) {
+          continue;
+        }
+
+        const terminalResult = status.result ?? null;
+        const terminalFailure = normalizeFailure(terminalResult?.failure);
+        const terminalAction = normalizeAction(terminalResult?.action);
+        const terminalProgress = normalizeProgress(terminalResult?.progress) ?? lastProgress;
+        const terminalSummary =
+          terminalResult?.summary ||
+          terminalProgress?.summary ||
+          (status.successful ? 'Email sync completed.' : 'Email sync failed.');
+
+        if (status.failed || terminalResult?.success === false) {
+          return publishSyncState({
+            ...initialSyncState,
+            status: 'failed',
+            source,
+            taskId,
+            startedAt: now,
+            finishedAt: Date.now(),
+            message: terminalSummary,
+            summary: terminalSummary,
+            retryable: Boolean(terminalFailure?.retryable),
+            action: terminalAction,
+            failure: terminalFailure,
+            progress: terminalProgress,
+            result: terminalResult,
+          });
+        }
+
+        emitAIInboxRefreshEvent(source);
+        if (IS_DEV) logger.info('Email sync completed', SYNC_LOG_CTX);
+        return publishSyncState({
+          ...initialSyncState,
+          status: 'succeeded',
+          source,
+          taskId,
+          startedAt: now,
+          finishedAt: Date.now(),
+          message: terminalSummary,
+          summary: terminalSummary,
+          progress: terminalProgress,
+          result: terminalResult,
+        });
       }
 
-      emitAIInboxRefreshEvent(source);
-      emitSyncStatus('completed', source, 'deadline reached');
-    } catch (error) {
+      return publishSyncState({
+        ...initialSyncState,
+        status: 'failed',
+        source,
+        taskId,
+        startedAt: now,
+        finishedAt: Date.now(),
+        message: DEFAULT_TIMEOUT_MESSAGE,
+        summary: DEFAULT_TIMEOUT_MESSAGE,
+        retryable: true,
+        action: {
+          type: 'retry_sync',
+          label: 'Retry Sync',
+        },
+        progress: lastProgress,
+      });
+    } catch (_error) {
       logger.warn('AI inbox auto-sync request failed', SYNC_LOG_CTX);
-      emitSyncStatus('failed', source);
+      return publishSyncState({
+        ...initialSyncState,
+        status: 'failed',
+        source,
+        startedAt: now,
+        finishedAt: Date.now(),
+        message: 'Email sync could not be started right now.',
+        summary: 'Email sync could not be started right now.',
+        retryable: true,
+        action: {
+          type: 'retry_sync',
+          label: 'Retry Sync',
+        },
+      });
     } finally {
       syncInFlightRef.current = false;
     }
-  }, [user]);
+  }, [publishSyncState, user]);
+
+  const retryLastSync = useCallback(async (): Promise<AIInboxSyncSnapshot> => {
+    return requestSync('manual');
+  }, [requestSync]);
 
   useEffect(() => {
     if (loading || !user) {
       lastLoginSyncRef.current = null;
+      setSyncState(initialSyncState);
       return;
     }
 
@@ -196,7 +456,25 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
     return () => window.clearInterval(intervalId);
   }, [loading, requestSync, user]);
 
-  return <>{children}</>;
+  const value = useMemo<AIInboxSyncContextValue>(() => ({
+    syncState,
+    requestSync,
+    retryLastSync,
+  }), [requestSync, retryLastSync, syncState]);
+
+  return (
+    <AIInboxSyncContext.Provider value={value}>
+      {children}
+    </AIInboxSyncContext.Provider>
+  );
+};
+
+export const useAIInboxSync = (): AIInboxSyncContextValue => {
+  const context = useContext(AIInboxSyncContext);
+  if (!context) {
+    throw new Error('useAIInboxSync must be used within an AIInboxSyncProvider');
+  }
+  return context;
 };
 
 export default AIInboxSyncProvider;

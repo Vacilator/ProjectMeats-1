@@ -5,16 +5,53 @@ Background tasks for periodic email syncing, AI classification, and order ingest
 """
 import logging
 import random
+from typing import Any
 
 from celery import group, shared_task
 from tenant_apps.ai_assistant.tasks.watchdog import sync_ai_feedback_queue_for_tenant
 from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
+from apps.integrations.email_failure_contract import build_sync_action, failure_from_stats
 from apps.integrations.models import ExternalAuthProvider
 from apps.tenants.models import Tenant
 from apps.tenants.rls import tenant_rls
 
 logger = logging.getLogger(__name__)
+
+
+def _build_sync_progress(*, phase: str, percent: int, summary: str) -> dict[str, Any]:
+    return {
+        "phase": phase,
+        "percent": max(0, min(int(percent), 100)),
+        "summary": summary,
+    }
+
+
+def _summarize_sync_result(*, stats: dict[str, Any] | None, ai_inbox: dict[str, Any] | None) -> str:
+    stats = stats or {}
+    ai_inbox = ai_inbox or {}
+
+    scanned = int(stats.get("emails_scanned") or 0)
+    saved = int(stats.get("emails_saved") or 0)
+    skipped = int(stats.get("emails_skipped") or 0)
+    unread = int(ai_inbox.get("unread_count") or 0)
+
+    if saved > 0:
+        return (
+            f"Saved {saved} new email{'s' if saved != 1 else ''} from {scanned} scanned. "
+            f"AI Inbox now has {unread} pending item{'s' if unread != 1 else ''}."
+        )
+
+    if skipped > 0:
+        return (
+            f"No new emails were saved. {skipped} existing email{'s' if skipped != 1 else ''} "
+            f"were skipped; AI Inbox has {unread} pending item{'s' if unread != 1 else ''}."
+        )
+
+    return (
+        f"Email sync completed after scanning {scanned} email{'s' if scanned != 1 else ''}. "
+        f"AI Inbox has {unread} pending item{'s' if unread != 1 else ''}."
+    )
 
 
 @shared_task(
@@ -415,11 +452,55 @@ def sync_single_tenant(self, tenant_id: str):
     """
     try:
         logger.info("Manual sync triggered for tenant %s", tenant_id)
+        task_request_id = str(getattr(getattr(self, "request", None), "id", "") or "").strip()
+        if task_request_id:
+            self.update_state(
+                state="PROGRESS",
+                meta={
+                    "tenant_id": tenant_id,
+                    "progress": _build_sync_progress(
+                        phase="syncing_outlook",
+                        percent=30,
+                        summary="Syncing Outlook inbox…",
+                    ),
+                },
+            )
 
         with tenant_rls(str(tenant_id)):
             service = EmailIngestionService()
             stats = service.poll_tenant_by_id(tenant_id)
+            if task_request_id:
+                self.update_state(
+                    state="PROGRESS",
+                    meta={
+                        "tenant_id": tenant_id,
+                        "progress": _build_sync_progress(
+                            phase="refreshing_ai_inbox",
+                            percent=80,
+                            summary="Refreshing AI Inbox summaries…",
+                        ),
+                    },
+                )
             ai_inbox = sync_ai_feedback_queue_for_tenant(str(tenant_id))
+
+        failure = failure_from_stats(stats, stage="sync_auto")
+        if failure:
+            return {
+                "success": False,
+                "tenant_id": tenant_id,
+                "stats": stats,
+                "ai_inbox": ai_inbox,
+                "summary": failure.get("message") or "Email sync failed before it could complete.",
+                "failure": failure,
+                "action": build_sync_action(failure, tenant_id=tenant_id),
+                "progress": _build_sync_progress(
+                    phase="failed",
+                    percent=100,
+                    summary=failure.get("message") or "Email sync failed before it could complete.",
+                ),
+            }
+
+        summary = _summarize_sync_result(stats=stats, ai_inbox=ai_inbox)
 
         logger.info(
             "Manual sync completed for tenant %s: saved=%s fetched=%s errors=%s",
@@ -434,6 +515,12 @@ def sync_single_tenant(self, tenant_id: str):
             "tenant_id": tenant_id,
             "stats": stats,
             "ai_inbox": ai_inbox,
+            "summary": summary,
+            "progress": _build_sync_progress(
+                phase="completed",
+                percent=100,
+                summary=summary,
+            ),
         }
 
     except Exception as e:

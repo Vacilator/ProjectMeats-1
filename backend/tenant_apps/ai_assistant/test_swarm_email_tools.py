@@ -500,6 +500,12 @@ class ToolExecutorEmailToolTests(TestCase):
                     payload["error"]["state"], "retryable_failure" if retryable else "non_retryable_failure"
                 )
                 self.assertEqual(payload["error"]["retryable"], retryable)
+                if retryable:
+                    self.assertEqual(payload["error"]["action"]["type"], "retry_sync")
+                elif category in {"auth", "decrypt"}:
+                    self.assertEqual(payload["error"]["action"]["type"], "reconnect_outlook")
+                else:
+                    self.assertNotIn("action", payload["error"])
 
     @patch(
         "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)

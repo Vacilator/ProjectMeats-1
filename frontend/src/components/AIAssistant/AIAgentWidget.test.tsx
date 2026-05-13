@@ -55,6 +55,18 @@ const jwtServiceMock = vi.hoisted(() => ({
   refreshAccessToken: vi.fn(async () => 'refreshed-access-token'),
 }));
 
+const aiInboxSyncContextMock = vi.hoisted(() => ({
+  syncState: {
+    status: 'idle',
+    summary: null,
+    action: null,
+    failure: null,
+    progress: null,
+    retryable: false,
+  },
+  requestSync: vi.fn(),
+}));
+
 vi.mock('../../hooks/useToast', () => ({
   useToast: () => toastMock,
 }));
@@ -84,6 +96,10 @@ vi.mock('@/contexts/CockpitNavigationContext', () => ({
   }),
 }));
 
+vi.mock('@/contexts/AIInboxSyncContext', () => ({
+  useAIInboxSync: () => aiInboxSyncContextMock,
+}));
+
 vi.mock('@/services/aiContext', () => ({
   buildAIPageContext: () => ({}),
 }));
@@ -111,6 +127,15 @@ describe('AIAgentWidget', () => {
     jwtServiceMock.getTenantFromToken.mockReturnValue({ defaultTenantId: 'tenant-123' });
     jwtServiceMock.refreshAccessToken.mockReset();
     jwtServiceMock.refreshAccessToken.mockResolvedValue('refreshed-access-token');
+    aiInboxSyncContextMock.syncState = {
+      status: 'idle',
+      summary: null,
+      action: null,
+      failure: null,
+      progress: null,
+      retryable: false,
+    };
+    aiInboxSyncContextMock.requestSync.mockReset();
     vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
     vi.stubGlobal('scrollTo', vi.fn());
     // Mock fetch for the WS pre-flight health check
@@ -323,6 +348,66 @@ describe('AIAgentWidget', () => {
 
     expect(websocketInstances[0].send).toHaveBeenCalledWith(
       JSON.stringify({ type: 'request_count' }),
+    );
+  });
+
+  it('renders Retry Sync when the shared sync state reports a recoverable failure', async () => {
+    aiInboxSyncContextMock.syncState = {
+      status: 'failed',
+      summary: 'Email sync timed out.',
+      action: { type: 'retry_sync', label: 'Retry Sync' },
+      failure: { retryable: true, hint: 'Retry the sync.' },
+      progress: null,
+      retryable: true,
+    };
+
+    render(
+      <MemoryRouter>
+        <AIAgentWidget />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'AI chat widget' }));
+
+    expect(await screen.findAllByRole('button', { name: 'Retry Sync' })).not.toHaveLength(0);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Retry Sync' })[0]);
+    expect(aiInboxSyncContextMock.requestSync).toHaveBeenCalledWith('manual');
+  });
+
+  it('renders Reconnect Outlook when the shared sync state requires reconnect', async () => {
+    const assignMock = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, assign: assignMock },
+    });
+
+    aiInboxSyncContextMock.syncState = {
+      status: 'failed',
+      summary: 'Outlook needs to be reconnected.',
+      action: {
+        type: 'reconnect_outlook',
+        label: 'Reconnect Outlook',
+        url: '/api/v1/integrations/oauth/authorize/?provider=microsoft&tenant_id=tenant-123&redirect=1',
+      },
+      failure: { retryable: false, hint: 'Reconnect Outlook.' },
+      progress: null,
+      retryable: false,
+    };
+
+    render(
+      <MemoryRouter>
+        <AIAgentWidget />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'AI chat widget' }));
+
+    const reconnectButton = await screen.findByRole('button', { name: 'Reconnect Outlook' });
+    fireEvent.click(reconnectButton);
+
+    expect(assignMock).toHaveBeenCalledWith(
+      '/api/v1/integrations/oauth/authorize/?provider=microsoft&tenant_id=tenant-123&redirect=1',
     );
   });
 });

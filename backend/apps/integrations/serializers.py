@@ -2,8 +2,9 @@ from rest_framework import serializers
 
 
 class EmailActionSerializer(serializers.Serializer):
+    type = serializers.CharField(required=False, allow_blank=True)
     label = serializers.CharField()
-    url = serializers.CharField()
+    url = serializers.CharField(required=False, allow_blank=True)
 
 
 class EmailFailureSerializer(serializers.Serializer):
@@ -49,10 +50,17 @@ class EmailSyncResponseSerializer(serializers.Serializer):
     tenant_id = serializers.CharField()
     provider_email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     hint = serializers.CharField(required=False, allow_blank=True)
+    action = EmailActionSerializer(required=False)
     cta = EmailActionSerializer(required=False)
     failure = EmailFailureSerializer(required=False)
     stats = EmailSyncStatsSerializer(required=False)
     details = serializers.JSONField(required=False)
+
+
+class EmailSyncProgressSerializer(serializers.Serializer):
+    phase = serializers.CharField()
+    percent = serializers.IntegerField()
+    summary = serializers.CharField()
 
 
 class EmailAutoSyncQueuedResponseSerializer(serializers.Serializer):
@@ -64,7 +72,9 @@ class EmailAutoSyncQueuedResponseSerializer(serializers.Serializer):
     source = serializers.CharField()
     provider_email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     task_id = serializers.CharField(required=False, allow_blank=True)
+    action = EmailActionSerializer(required=False)
     failure = EmailFailureSerializer(required=False)
+    progress = EmailSyncProgressSerializer(required=False)
     details = serializers.JSONField(required=False)
 
 
@@ -73,6 +83,10 @@ class EmailAutoSyncTaskResultSerializer(serializers.Serializer):
     tenant_id = serializers.CharField(required=False)
     stats = EmailSyncStatsSerializer(required=False)
     ai_inbox = serializers.JSONField(required=False)
+    summary = serializers.CharField(required=False, allow_blank=True)
+    action = EmailActionSerializer(required=False)
+    failure = EmailFailureSerializer(required=False)
+    progress = EmailSyncProgressSerializer(required=False)
 
 
 class EmailAutoSyncStatusResponseSerializer(serializers.Serializer):
@@ -81,6 +95,7 @@ class EmailAutoSyncStatusResponseSerializer(serializers.Serializer):
     ready = serializers.BooleanField()
     successful = serializers.BooleanField()
     failed = serializers.BooleanField()
+    progress = EmailSyncProgressSerializer(required=False)
     result = EmailAutoSyncTaskResultSerializer(required=False)
 
 
