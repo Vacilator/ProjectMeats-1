@@ -98,6 +98,7 @@ const Reports = React.lazy(() => import('./pages/Reports'));
 const Profile = React.lazy(() => import('./pages/Profile'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const AISettingsPage = React.lazy(() => import('./pages/AISettings'));
+const AIChatPage = React.lazy(() => import('./pages/AIChatPage'));
 const GuestInvoiceView = React.lazy(() => import('./pages/Portal/GuestInvoiceView'));
 const ApiTestComponent = React.lazy(() => import('./components/ApiTestComponent'));
 const WorkflowRunner = React.lazy(() => import('./pages/Workflows').then(m => ({ default: m.WorkflowRunner })));
@@ -381,6 +382,7 @@ const App: React.FC = () => {
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/ai" element={<AISettingsPage />} />
+                <Route path="ai-chat" element={<AIChatPage />} />
                 <Route path="settings/email-integrations" element={<Settings />} />
                 <Route path="settings/notifications" element={<NotificationPreferences />} />
                 <Route path="api-test" element={<ApiTestComponent />} />

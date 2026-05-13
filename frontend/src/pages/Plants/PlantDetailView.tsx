@@ -10,6 +10,7 @@ import { isAuthError } from '@/utils/isAuthError';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import StandalonePlantEditForm from './StandalonePlantEditForm';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
+import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 type RouteParams = { id?: string };
 
@@ -210,6 +211,7 @@ export const PlantDetailView: React.FC = () => {
       </TopBar>
 
       <ContentSection>
+        {plantId && <AIEntityInsights entityType="plant" entityId={plantId} />}
         {!showAuthFallback && (
           <EntityFormSurface
             entityType="plant"

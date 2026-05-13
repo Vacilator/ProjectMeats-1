@@ -1135,6 +1135,47 @@ export const AIAgentWidget: React.FC = () => {
 
   const groupedSessions = useMemo(() => groupChatSessionsByDate(sessions), [sessions]);
 
+  // Persist settings to localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('pm:ai-chat-settings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.sound === 'boolean') setSoundNotifications(parsed.sound);
+        if (typeof parsed.autoExpand === 'boolean') setAutoExpand(parsed.autoExpand);
+      } catch { /* ignore parse error */ }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('pm:ai-chat-settings', JSON.stringify({ sound: soundNotifications, autoExpand }));
+  }, [soundNotifications, autoExpand]);
+
+  // Sound notification + auto-expand on new assistant messages
+  const prevMessageCountRef = useRef(messages.length);
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (messages.length > prevMessageCountRef.current && lastMsg?.role === 'assistant') {
+      if (soundNotifications) {
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 880;
+          gain.gain.value = 0.08;
+          osc.start();
+          osc.stop(ctx.currentTime + 0.12);
+        } catch { /* AudioContext may be restricted */ }
+      }
+      if (autoExpand && !expanded) {
+        setExpanded(true);
+      }
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages.length, soundNotifications, autoExpand, expanded, messages]);
+
   useEffect(() => {
     expandedRef.current = expanded;
   }, [expanded]);
