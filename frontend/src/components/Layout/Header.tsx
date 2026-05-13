@@ -62,8 +62,8 @@ const Header: React.FC<HeaderProps> = () => {
   const defaultMenuItems = [
     { label: 'New Supplier', path: '/suppliers/new', icon: '🏭' },
     { label: 'New Customer', path: '/customers/new', icon: '👥' },
-    { label: 'New Purchase Order', path: '/purchase-orders/new', icon: '📋' },
-    { label: 'Home', path: '/', icon: '🏠' },
+    { label: 'New Purchase Order', path: '/purchase-orders', icon: '📋' },
+    { label: 'New Inquiry', path: '/inquiries', icon: '📨' },
   ];
 
   // Close menu when clicking outside
