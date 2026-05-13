@@ -9,6 +9,11 @@ Uses OrderMethodsMixin for shared order behavior (payment calculations, status c
 from django.conf import settings
 from django.db import models
 from apps.core.models import (
+    EdibleInedibleChoices,
+    FreshOrFrozenChoices,
+    NetOrCatchChoices,
+    PackageTypeChoices,
+    ProteinTypeChoices,
     SoftDeleteModel,
     TenantAwareModel,
     WeightUnitChoices,
@@ -38,6 +43,12 @@ class SalesOrderStatus(models.TextChoices):
     DELIVERED = "delivered", "Delivered"
     INVOICED = "invoiced", "Invoiced"
     CANCELLED = "cancelled", "Cancelled"
+
+
+class SalesOrderLogisticsScenarioChoices(models.TextChoices):
+    CUSTOMER_PICKUP = "customer_pickup", "Customer - Picking Up"
+    SUPPLIER_DELIVERY = "supplier_delivery", "Supplier - Delivering"
+    WE_PICKUP = "we_pickup", "Tenant - Pickup (We Handle Logistics)"
 
 
 # Note: PaymentStatus is now imported from orders.models for consistency
@@ -140,6 +151,12 @@ class SalesOrder(
     )
     
     # Order details
+    logistics_scenario = models.CharField(
+        max_length=50,
+        choices=SalesOrderLogisticsScenarioChoices.choices,
+        default=SalesOrderLogisticsScenarioChoices.SUPPLIER_DELIVERY,
+        help_text="Logistics scenario for this sales order",
+    )
     delivery_po_num = models.CharField(
         max_length=100,
         blank=True,
@@ -169,6 +186,44 @@ class SalesOrder(
         null=True,
         help_text="Quantity of items",
     )
+    type_of_protein = models.CharField(
+        max_length=50,
+        choices=ProteinTypeChoices.choices,
+        blank=True,
+        default='',
+    )
+    description_of_product_item = models.TextField(blank=True, default='')
+    fresh_or_frozen = models.CharField(
+        max_length=20,
+        choices=FreshOrFrozenChoices.choices,
+        blank=True,
+        default='',
+    )
+    package_type = models.CharField(
+        max_length=50,
+        choices=PackageTypeChoices.choices,
+        blank=True,
+        default='',
+    )
+    uom = models.CharField(
+        max_length=10,
+        choices=WeightUnitChoices.choices,
+        default=WeightUnitChoices.LBS,
+    )
+    net_or_catch = models.CharField(
+        max_length=20,
+        choices=NetOrCatchChoices.choices,
+        blank=True,
+        default='',
+    )
+    edible_or_inedible = models.CharField(
+        max_length=50,
+        choices=EdibleInedibleChoices.choices,
+        blank=True,
+        default='',
+    )
+    tested_product = models.BooleanField(default=False)
+    total_net_weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     total_weight = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -210,6 +265,10 @@ class SalesOrder(
         null=True,
         help_text="Total order amount",
     )
+    receiving_contact_name = models.CharField(max_length=255, blank=True, default='')
+    receiving_contact_phone = models.CharField(max_length=20, blank=True, default='')
+    receiving_contact_email = models.EmailField(blank=True, default='')
+    receiving_contact_title = models.CharField(max_length=100, blank=True, default='')
     notes = models.TextField(
         blank=True,
         default='',

@@ -10,6 +10,9 @@ from django.db import models
 from apps.core.models import (
     AccountingPaymentTermsChoices,
     EdibleInedibleChoices,
+    FreshOrFrozenChoices,
+    NetOrCatchChoices,
+    PackageTypeChoices,
     ProteinTypeChoices,
     SoftDeleteModel,
     TenantAwareModel,
@@ -154,6 +157,25 @@ class Invoice(
         null=True,
         help_text="Quantity of items",
     )
+    fresh_or_frozen = models.CharField(
+        max_length=20,
+        choices=FreshOrFrozenChoices.choices,
+        blank=True,
+        default='',
+    )
+    package_type = models.CharField(
+        max_length=50,
+        choices=PackageTypeChoices.choices,
+        blank=True,
+        default='',
+    )
+    net_or_catch = models.CharField(
+        max_length=20,
+        choices=NetOrCatchChoices.choices,
+        blank=True,
+        default='',
+    )
+    total_net_weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     total_weight = models.DecimalField(
         max_digits=10,
         decimal_places=2,

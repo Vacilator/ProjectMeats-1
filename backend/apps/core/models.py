@@ -84,6 +84,20 @@ class CreditLimitChoices(models.TextChoices):
     """Common choices for credit limits."""
 
     WIRE_1_DAY_PRIOR = "Wire 1 day prior", "Wire 1 day prior"
+    WIRE_2_DAY_PRIOR = "Wire 2 day prior", "Wire 2 day prior"
+    WIRE_3_DAY_PRIOR = "Wire 3 day prior", "Wire 3 day prior"
+    WIRE_4_DAY_PRIOR = "Wire 4 day prior", "Wire 4 day prior"
+    WIRE_5_DAY_PRIOR = "Wire 5 day prior", "Wire 5 day prior"
+    ACH_1_DAY_PRIOR = "ACH 1 day prior", "ACH 1 day prior"
+    ACH_2_DAY_PRIOR = "ACH 2 day prior", "ACH 2 day prior"
+    ACH_3_DAY_PRIOR = "ACH 3 day prior", "ACH 3 day prior"
+    ACH_4_DAY_PRIOR = "ACH 4 day prior", "ACH 4 day prior"
+    NET_5_DAYS = "Net 5 days", "Net 5 days"
+    NET_7_DAYS = "Net 7 days", "Net 7 days"
+    NET_10_DAYS = "Net 10 days", "Net 10 days"
+    NET_14_DAYS = "Net 14 days", "Net 14 days"
+    NET_30_DAYS = "Net 30 days", "Net 30 days"
+    # Legacy values kept for backward compatibility with existing records.
     NET_7 = "Net 7", "Net 7"
     NET_15 = "Net 15", "Net 15"
     NET_30 = "Net 30", "Net 30"
@@ -94,6 +108,13 @@ class CreditLimitChoices(models.TextChoices):
 class AccountLineOfCreditChoices(models.TextChoices):
     """Common choices for line of credit amounts."""
 
+    AMOUNT_50K = "$50K", "$50K"
+    RANGE_50K_100K_SHORT = "50K-100K", "50K-100K"
+    RANGE_100K_150K = "100K-150K", "100K-150K"
+    RANGE_150K_200K = "150K-200K", "150K-200K"
+    ETC = "Etc.", "Etc."
+    WIRE = "Wire", "Wire"
+    # Legacy values kept for backward compatibility with existing records.
     RANGE_0_50K = "$0 - $50,000", "$0 - $50,000"
     RANGE_50K_100K = "$50,000 - $100,000", "$50,000 - $100,000"
     RANGE_100K_250K = "$100,000 - $250,000", "$100,000 - $250,000"
@@ -107,10 +128,19 @@ class ProteinTypeChoices(models.TextChoices):
 
     BEEF = "Beef", "Beef"
     CHICKEN = "Chicken", "Chicken"
-    DUCK = "Duck", "Duck"
-    PORK = "Pork", "Pork"
-    LAMB = "Lamb", "Lamb"
+    FOWL = "Fowl", "Fowl"
     TURKEY = "Turkey", "Turkey"
+    LAMB = "Lamb", "Lamb"
+    VEAL = "Veal", "Veal"
+    SEAFOOD = "Seafood", "Seafood"
+    VENISON = "Venison", "Venison"
+    BISON = "Bison", "Bison"
+    DUCK = "Duck", "Duck"
+    RABBIT = "Rabbit", "Rabbit"
+    GOAT = "Goat", "Goat"
+    MUTTON = "Mutton", "Mutton"
+    PORK = "Pork", "Pork"
+    # Legacy values kept for backward compatibility with existing records/integrations.
     FISH = "Fish", "Fish"
     HORSE = "Horse", "Horse"
     OTHER = "Other", "Other"
@@ -127,7 +157,12 @@ class PackageTypeChoices(models.TextChoices):
     """Common choices for package types."""
 
     BOXED_WAX_LINED = "Boxed wax lined", "Boxed wax lined"
+    BOXED_POLY = "Boxed Poly", "Boxed Poly"
+    COMBOS = "Combos", "Combos"
+    NUDE_BLOCK = "Nude Block", "Nude Block"
+    BOXED_COV = "Boxed COV", "Boxed COV"
     BOXED_CO2 = "Boxed CO2", "Boxed CO2"
+    # Legacy values kept for backward compatibility with existing records.
     COMBO_BINS = "Combo bins", "Combo bins"
     TOTES = "Totes", "Totes"
     BAGS = "Bags", "Bags"
@@ -220,8 +255,10 @@ class AppointmentMethodChoices(models.TextChoices):
     EMAIL = "Email", "Email"
     PHONE = "Phone", "Phone"
     WEBSITE = "Website", "Website"
+    FCFS = "FCFS", "FCFS"
+    # Legacy value kept for backward compatibility with existing records.
     FAX = "Fax", "Fax"
-    FCFS = "First Come First Serve", "First Come First Serve"
+    FIRST_COME_FIRST_SERVE = "First Come First Serve", "First Come First Serve"
 
 
 class PhoneTypeChoices(models.TextChoices):
@@ -281,8 +318,13 @@ class ItemProductionDateChoices(models.TextChoices):
 
     FIVE_DAY_NEWER = "5 day newer", "5 day newer"
     TEN_DAY_NEWER = "10 day newer", "10 day newer"
-    FIFTEEN_DAY_NEWER = "15 day newer", "15 day newer"
     THIRTY_DAY_NEWER = "30 day newer", "30 day newer"
+    TWO_MONTH_NEWER = "2 month newer", "2 month newer"
+    THREE_MONTH_NEWER = "3 month newer", "3 month newer"
+    SIX_MONTH_NEWER = "6 month newer", "6 month newer"
+    TWELVE_MONTH_NEWER = "12 month newer", "12 month newer"
+    # Legacy value kept for backward compatibility with existing records.
+    FIFTEEN_DAY_NEWER = "15 day newer", "15 day newer"
 
 
 class CarrierReleaseFormatChoices(models.TextChoices):

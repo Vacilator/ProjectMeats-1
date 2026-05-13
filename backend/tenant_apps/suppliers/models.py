@@ -11,12 +11,15 @@ from django.db import models
 from tenant_apps.contacts.models import Contact
 from apps.core.models import (
     AccountingPaymentTermsChoices,
+    AppointmentMethodChoices,
+    CarrierReleaseFormatChoices,
     CertificateTypeChoices,
     CountryOriginChoices,
     CreditLimitChoices,
     DepartmentChoicesSupplier,
     EdibleInedibleChoices,
     FreshOrFrozenChoices,
+    ItemProductionDateChoices,
     NetOrCatchChoices,
     OriginChoices,
     PackageTypeChoices,
@@ -262,6 +265,45 @@ class Supplier(FinancialTermsMixin, TenantAwareModel):
         null=True,
         default='',
         help_text="Line of credit amount (deprecated, use account_line_of_credit)",
+    )
+    accounting_payable_contact_name = models.CharField(max_length=255, blank=True, default='')
+    accounting_payable_contact_phone = models.CharField(max_length=20, blank=True, default='')
+    accounting_payable_contact_email = models.EmailField(blank=True, default='')
+    contact_title = models.CharField(max_length=100, blank=True, default='')
+    sales_contact_name = models.CharField(max_length=255, blank=True, default='')
+    sales_contact_main_phone = models.CharField(max_length=20, blank=True, default='')
+    sales_contact_direct_phone = models.CharField(max_length=20, blank=True, default='')
+    sales_contact_cell_phone = models.CharField(max_length=20, blank=True, default='')
+    sales_contact_email = models.EmailField(blank=True, default='')
+    pick_up_date = models.DateField(blank=True, null=True)
+    delivery_date = models.DateField(blank=True, null=True)
+    our_purchase_order_number_to_supplier = models.CharField(max_length=100, blank=True, default='')
+    my_customer_number_from_supplier = models.CharField(max_length=100, blank=True, default='')
+    supplier_confirmation_order_number = models.CharField(max_length=100, blank=True, default='')
+    carrier_release_format = models.CharField(
+        max_length=100,
+        choices=CarrierReleaseFormatChoices.choices,
+        blank=True,
+        default='',
+    )
+    carrier_release_number = models.CharField(max_length=100, blank=True, default='')
+    how_to_make_appointment = models.CharField(
+        max_length=50,
+        choices=AppointmentMethodChoices.choices,
+        blank=True,
+        default='',
+    )
+    shipping_contact_name = models.CharField(max_length=255, blank=True, default='')
+    shipping_contact_phone = models.CharField(max_length=20, blank=True, default='')
+    shipping_contact_email = models.EmailField(blank=True, default='')
+    bill_of_lading_comments = models.TextField(blank=True, default='')
+    invoicing_comments = models.TextField(blank=True, default='')
+    total_net_weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    item_production_date = models.CharField(
+        max_length=50,
+        choices=ItemProductionDateChoices.choices,
+        blank=True,
+        default='',
     )
     credit_app_sent = models.BooleanField(
         default=False, help_text="Has credit application been sent?"

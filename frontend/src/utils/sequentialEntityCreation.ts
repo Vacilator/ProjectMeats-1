@@ -64,7 +64,9 @@ const ENTITY_ENDPOINTS: Record<string, string> = {
   contact: '/contacts/',
   supplier: '/suppliers/',
   customer: '/customers/',
+  carrier: '/carriers/',
   plant: '/plants/',
+  product: '/system/products/',
   inquiry: '/inquiries/',
   purchase_order: '/purchase-orders/',
   sales_order: '/sales-orders/',
@@ -85,7 +87,9 @@ const FK_PROPAGATION: Record<string, string[]> = {
   contact: ['contact', 'contact_id', 'supplier_contact', 'customer_contact'],
   supplier: ['supplier', 'supplier_id'],
   customer: ['customer', 'customer_id'],
+  carrier: ['carrier', 'carrier_id'],
   plant: ['plant', 'plant_id', 'delivery_plant', 'pickup_plant'],
+  product: ['product', 'product_id'],
   inquiry: ['inquiry', 'inquiry_id'],
   purchase_order: ['purchase_order', 'purchase_order_id', 'po', 'po_id'],
   sales_order: ['sales_order', 'sales_order_id', 'so', 'so_id'],
@@ -105,6 +109,8 @@ function extractLabel(entityType: string, data: Record<string, unknown>): string
       return String(data.name || data.company_name || 'New Customer');
     case 'plant':
       return String(data.name || data.plant_name || 'New Plant');
+    case 'product':
+      return String(data.name || data.description || 'New Product');
     case 'inquiry':
       return String(data.inquiry_number || data.subject || 'New Inquiry');
     case 'purchase_order':
@@ -115,6 +121,8 @@ function extractLabel(entityType: string, data: Record<string, unknown>): string
       return String(data.carrier_po_number || 'New Carrier PO');
     case 'invoice':
       return String(data.invoice_number || 'New Invoice');
+    case 'carrier':
+      return String(data.name || data.carrier_name || 'New Carrier');
     default:
       return `New ${entityType.replace(/_/g, ' ')}`;
   }
@@ -141,6 +149,7 @@ function applyDefaults(entityType: string, data: Record<string, unknown>): Recor
       case 'contact':
       case 'supplier':
       case 'customer':
+      case 'carrier':
       case 'plant':
         result.status = 'active';
         break;
@@ -171,7 +180,7 @@ function applyDefaults(entityType: string, data: Record<string, unknown>): Recor
   }
 
   // Supplier/Customer: ensure name field
-  if ((entityType === 'supplier' || entityType === 'customer') && !result.name) {
+  if ((entityType === 'supplier' || entityType === 'customer' || entityType === 'carrier') && !result.name) {
     result.name = String(result.company_name || result.company || `New ${entityType}`);
   }
 
@@ -316,12 +325,16 @@ export function getEntityRoute(entityType: string, id: string | number): string 
   switch (entityType) {
     case 'contact':
       return `/contacts/${id}`;
+    case 'carrier':
+      return `/carriers/${id}`;
     case 'supplier':
       return `/suppliers/${id}`;
     case 'customer':
       return `/customers/${id}`;
     case 'plant':
       return `/plants/${id}`;
+    case 'product':
+      return `/products/${id}`;
     case 'inquiry':
       return `/inquiries/${id}`;
     case 'purchase_order':

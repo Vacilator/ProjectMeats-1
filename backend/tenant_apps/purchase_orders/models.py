@@ -33,6 +33,7 @@ from apps.core.models import (
     CreditLimitChoices,
     EdibleInedibleChoices,
     FreshOrFrozenChoices,
+    ItemProductionDateChoices,
     LoadStatusChoices,
     NetOrCatchChoices,
     PackageTypeChoices,
@@ -351,6 +352,21 @@ class PurchaseOrder(
     credit_limit = models.CharField(
         max_length=50, choices=CreditLimitChoices.choices, blank=True, default="", help_text="Credit limit/terms"
     )
+    delivery_po_number = models.CharField(max_length=100, blank=True, default="")
+    total_net_weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    tested_product = models.BooleanField(default=False)
+    bill_of_lading_comments = models.TextField(blank=True, default="")
+    invoicing_comments = models.TextField(blank=True, default="")
+    item_production_date = models.CharField(
+        max_length=50,
+        choices=ItemProductionDateChoices.choices,
+        blank=True,
+        default="",
+    )
+    receiving_contact_name = models.CharField(max_length=255, blank=True, default="")
+    receiving_contact_phone = models.CharField(max_length=20, blank=True, default="")
+    receiving_contact_email = models.EmailField(blank=True, default="")
+    receiving_contact_title = models.CharField(max_length=100, blank=True, default="")
 
     # Additional Metadata
     item_description = models.TextField(blank=True, default="", help_text="Detailed item description")
@@ -634,6 +650,9 @@ class CarrierPurchaseOrder(
         verbose_name="Quantity",
         help_text="Quantity of items",
     )
+    description_of_product_item = models.TextField(blank=True, default="")
+    tested_product = models.BooleanField(default=False)
+    total_net_weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
 
     # Carrier appointment details
     how_carrier_make_appointment = models.CharField(
@@ -649,6 +668,13 @@ class CarrierPurchaseOrder(
         default="",
         help_text="Departments (comma-separated: BOL, COA, POD, etc.)",
     )
+    our_purchase_order_number_to_supplier = models.CharField(max_length=100, blank=True, default="")
+    supplier_confirmation_order_number = models.CharField(max_length=100, blank=True, default="")
+    delivery_po_number = models.CharField(max_length=100, blank=True, default="")
+    receiving_contact_name = models.CharField(max_length=255, blank=True, default="")
+    receiving_contact_phone = models.CharField(max_length=20, blank=True, default="")
+    receiving_contact_email = models.EmailField(blank=True, default="")
+    receiving_contact_title = models.CharField(max_length=100, blank=True, default="")
     trade_session = models.ForeignKey(
         "inquiries.TradeSession",
         on_delete=models.SET_NULL,

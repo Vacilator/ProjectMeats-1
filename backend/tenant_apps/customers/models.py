@@ -20,6 +20,7 @@ from apps.core.models import (
     Protein,
     ProteinTypeChoices,
     TenantAwareModel,
+    WeightUnitChoices,
 )
 from apps.core.model_mixins import FinancialTermsMixin
 from tenant_apps.locations.models import Location
@@ -237,6 +238,22 @@ class Customer(FinancialTermsMixin, TenantAwareModel):
         null=True,
         default='',
         help_text="Line of credit amount (deprecated, use account_line_of_credit)",
+    )
+    accounting_payable_contact_name = models.CharField(max_length=255, blank=True, default='')
+    accounting_payable_contact_phone = models.CharField(max_length=20, blank=True, default='')
+    accounting_payable_contact_email = models.EmailField(blank=True, default='')
+    pick_up_date = models.DateField(blank=True, null=True)
+    delivery_date = models.DateField(blank=True, null=True)
+    our_sales_order_number_for_customer = models.CharField(max_length=100, blank=True, default='')
+    delivery_po_number = models.CharField(max_length=100, blank=True, default='')
+    buyer_contact_main_phone = models.CharField(max_length=20, blank=True, default='')
+    buyer_contact_direct_phone = models.CharField(max_length=20, blank=True, default='')
+    buyer_contact_cell_phone = models.CharField(max_length=20, blank=True, default='')
+    total_net_weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    uom = models.CharField(
+        max_length=10,
+        choices=WeightUnitChoices.choices,
+        default=WeightUnitChoices.LBS,
     )
 
     class Meta:

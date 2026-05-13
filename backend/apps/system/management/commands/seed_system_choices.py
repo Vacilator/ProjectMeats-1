@@ -29,12 +29,21 @@ SYSTEM_CHOICE_LISTS = [
         'description': 'Types of protein products (beef, pork, poultry, etc.)',
         'model_field_path': 'products.product.protein_type',
         'items': [
-            {'value': 'beef', 'label': 'Beef', 'order': 1, 'extra_data': {'filter_key': 'beef'}},
-            {'value': 'pork', 'label': 'Pork', 'order': 2, 'extra_data': {'filter_key': 'pork'}},
-            {'value': 'poultry', 'label': 'Poultry', 'order': 3, 'extra_data': {'filter_key': 'poultry'}},
-            {'value': 'seafood', 'label': 'Seafood', 'order': 4, 'extra_data': {'filter_key': 'seafood'}},
-            {'value': 'lamb', 'label': 'Lamb', 'order': 5, 'extra_data': {'filter_key': 'lamb'}},
-            {'value': 'other', 'label': 'Other', 'order': 99, 'extra_data': {'filter_key': 'other'}},
+            {'value': 'Beef', 'label': 'Beef', 'order': 1, 'extra_data': {'filter_key': 'beef'}},
+            {'value': 'Chicken', 'label': 'Chicken', 'order': 2, 'extra_data': {'filter_key': 'chicken'}},
+            {'value': 'Pork', 'label': 'Pork', 'order': 3, 'extra_data': {'filter_key': 'pork'}},
+            {'value': 'Fowl', 'label': 'Fowl', 'order': 4, 'extra_data': {'filter_key': 'fowl'}},
+            {'value': 'Turkey', 'label': 'Turkey', 'order': 5, 'extra_data': {'filter_key': 'turkey'}},
+            {'value': 'Lamb', 'label': 'Lamb', 'order': 6, 'extra_data': {'filter_key': 'lamb'}},
+            {'value': 'Veal', 'label': 'Veal', 'order': 7, 'extra_data': {'filter_key': 'veal'}},
+            {'value': 'Seafood', 'label': 'Seafood', 'order': 8, 'extra_data': {'filter_key': 'seafood'}},
+            {'value': 'Venison', 'label': 'Venison', 'order': 9, 'extra_data': {'filter_key': 'venison'}},
+            {'value': 'Bison', 'label': 'Bison', 'order': 10, 'extra_data': {'filter_key': 'bison'}},
+            {'value': 'Duck', 'label': 'Duck', 'order': 11, 'extra_data': {'filter_key': 'duck'}},
+            {'value': 'Rabbit', 'label': 'Rabbit', 'order': 12, 'extra_data': {'filter_key': 'rabbit'}},
+            {'value': 'Goat', 'label': 'Goat', 'order': 13, 'extra_data': {'filter_key': 'goat'}},
+            {'value': 'Mutton', 'label': 'Mutton', 'order': 14, 'extra_data': {'filter_key': 'mutton'}},
+            {'value': 'Horse', 'label': 'Horse', 'order': 15, 'extra_data': {'filter_key': 'horse'}},
         ]
     },
     {
@@ -43,8 +52,8 @@ SYSTEM_CHOICE_LISTS = [
         'description': 'Product storage state',
         'model_field_path': 'products.product.fresh_or_frozen',
         'items': [
-            {'value': 'FRESH', 'label': 'Fresh', 'order': 1},
-            {'value': 'FROZEN', 'label': 'Frozen', 'order': 2},
+            {'value': 'Fresh', 'label': 'Fresh', 'order': 1},
+            {'value': 'Frozen', 'label': 'Frozen', 'order': 2},
         ]
     },
     {
@@ -53,12 +62,12 @@ SYSTEM_CHOICE_LISTS = [
         'description': 'Product packaging types',
         'model_field_path': 'products.product.package_type',
         'items': [
-            {'value': 'COMBO_BIN', 'label': 'Combo Bin', 'order': 1},
-            {'value': 'CASES', 'label': 'Cases', 'order': 2},
-            {'value': 'BAGS', 'label': 'Bags', 'order': 3},
-            {'value': 'BULK', 'label': 'Bulk', 'order': 4},
-            {'value': 'VACUUM_SEALED', 'label': 'Vacuum Sealed', 'order': 5},
-            {'value': 'OTHER', 'label': 'Other', 'order': 99},
+            {'value': 'Boxed wax lined', 'label': 'Boxed wax lined', 'order': 1},
+            {'value': 'Boxed Poly', 'label': 'Boxed Poly', 'order': 2},
+            {'value': 'Combos', 'label': 'Combos', 'order': 3},
+            {'value': 'Nude Block', 'label': 'Nude Block', 'order': 4},
+            {'value': 'Boxed COV', 'label': 'Boxed COV', 'order': 5},
+            {'value': 'Boxed CO2', 'label': 'Boxed CO2', 'order': 6},
         ]
     },
     {

@@ -14,7 +14,12 @@ from apps.core.models import (
     CarrierDepartmentChoices,
     CarrierTypeChoices,
     CreditLimitChoices,
+    EdibleInedibleChoices,
+    FreshOrFrozenChoices,
+    NetOrCatchChoices,
+    PackageTypeChoices,
     PhoneTypeChoices,
+    ProteinTypeChoices,
     TenantAwareModel,
 )
 from apps.core.model_mixins import FinancialTermsMixin
@@ -84,11 +89,35 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         default='',
         help_text="Sales contact name",
     )
+    contact_title = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Primary carrier contact title",
+    )
     sales_contact_phone = models.CharField(
         max_length=20,
         blank=True,
         default='',
         help_text="Sales contact phone",
+    )
+    sales_contact_main_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Sales contact main phone number",
+    )
+    sales_contact_direct_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Sales contact direct phone number",
+    )
+    sales_contact_cell_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Sales contact cell phone number",
     )
     sales_contact_email = models.EmailField(
         blank=True,
@@ -127,6 +156,125 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         blank=True,
         default='',
         help_text="How carrier makes appointments (e.g., Email, Phone)",
+    )
+    pick_up_date = models.DateField(blank=True, null=True, help_text="Default pick up date")
+    delivery_date = models.DateField(blank=True, null=True, help_text="Default delivery date")
+    our_purchase_order_number_to_supplier = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Default supplier PO number reference",
+    )
+    supplier_confirmation_order_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Default supplier confirmation order number reference",
+    )
+    delivery_po_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Default delivery PO number reference",
+    )
+    carrier_release_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Default carrier release number reference",
+    )
+    type_of_protein = models.CharField(
+        max_length=50,
+        choices=ProteinTypeChoices.choices,
+        blank=True,
+        default='',
+        help_text="Default type of protein hauled by this carrier",
+    )
+    description_of_product_item = models.TextField(
+        blank=True,
+        default='',
+        help_text="Default product item description",
+    )
+    fresh_or_frozen = models.CharField(
+        max_length=20,
+        choices=FreshOrFrozenChoices.choices,
+        blank=True,
+        default='',
+        help_text="Default fresh or frozen setting",
+    )
+    package_type = models.CharField(
+        max_length=50,
+        choices=PackageTypeChoices.choices,
+        blank=True,
+        default='',
+        help_text="Default package type",
+    )
+    quantity = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Default quantity",
+    )
+    total_weight = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Default total weight",
+    )
+    net_or_catch_of_package = models.CharField(
+        max_length=20,
+        choices=NetOrCatchChoices.choices,
+        blank=True,
+        default='',
+        help_text="Default net or catch of package",
+    )
+    pickup_delivery_building_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Business building name for pick up / delivery",
+    )
+    pickup_delivery_address = models.TextField(
+        blank=True,
+        default='',
+        help_text="Address of pick up / delivery location",
+    )
+    pickup_delivery_city = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="City for pick up / delivery location",
+    )
+    pickup_delivery_state_zip = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="State and ZIP for pick up / delivery location",
+    )
+    shipping_contact_name = models.CharField(max_length=255, blank=True, default='')
+    shipping_contact_phone = models.CharField(max_length=20, blank=True, default='')
+    shipping_contact_email = models.EmailField(blank=True, default='')
+    receiving_contact_name = models.CharField(max_length=255, blank=True, default='')
+    receiving_contact_phone = models.CharField(max_length=20, blank=True, default='')
+    receiving_contact_email = models.EmailField(blank=True, default='')
+    edible_or_inedible = models.CharField(
+        max_length=50,
+        choices=EdibleInedibleChoices.choices,
+        blank=True,
+        default='',
+        help_text="Default edible / inedible classification",
+    )
+    tested_product = models.BooleanField(
+        default=False,
+        help_text="Default tested-product flag",
+    )
+    plant_address = models.TextField(blank=True, default='', help_text="Plant address")
+    plant_city = models.CharField(max_length=100, blank=True, default='', help_text="Plant city")
+    plant_state_zip = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Plant state and ZIP",
     )
     contacts = models.ManyToManyField(
         Contact,
