@@ -30,6 +30,10 @@ from .views import (
     RecentErrorsAPIView,
     SwarmInvokeAPIView,
     ToolsOpenAPIView,
+    FeedbackEventsAPIView,
+    ExternalApprovalQueueViewSet,
+    UserAIPreferencesAPIView,
+    AILearningSnapshotAPIView,
 )
 
 app_name = 'ai_assistant'
@@ -42,6 +46,7 @@ router.register(r'runs', AIRunViewSet, basename='ai-run')
 router.register(r'tasks', AITaskViewSet, basename='ai-task')
 router.register(r'approvals', AIApprovalViewSet, basename='ai-approval')
 router.register(r'cockpit-drafts', CockpitDraftFormViewSet, basename='cockpit-draft')
+router.register(r'approval-queue', ExternalApprovalQueueViewSet, basename='approval-queue')
 
 # Legacy router resources (keep existing clients working)
 router.register(r'ai-sessions', ChatSessionViewSet, basename='ai-session')
@@ -68,5 +73,10 @@ urlpatterns = [
     path('review/<int:feedback_id>/resolve/', PendingReviewResolveAPIView.as_view(), name='ai-review-resolve'),
     path('review/batch-resolve/', BatchResolveAPIView.as_view(), name='ai-review-batch-resolve'),
     path('swarm/invoke/', SwarmInvokeAPIView.as_view(), name='ai-swarm-invoke'),
+
+    # Phase 40: Feedback events, user preferences, learning snapshots
+    path('feedback-events/', FeedbackEventsAPIView.as_view(), name='feedback-events'),
+    path('user-preferences/', UserAIPreferencesAPIView.as_view(), name='user-preferences'),
+    path('learning/snapshots/', AILearningSnapshotAPIView.as_view(), name='learning-snapshots'),
 
 ]
