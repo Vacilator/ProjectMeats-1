@@ -1,0 +1,53 @@
+# Auto-merge passing Dependabot PRs
+#
+# Purpose:
+# - Automatically approve and merge dependabot PRs that pass all CI checks
+# - Reduces PR backlog from accumulated dependency updates
+# - Only applies to minor/patch updates (major versions still need manual review)
+#
+# Root cause this fixes:
+# - Dependabot PRs were piling up (11 open at peak) because no auto-merge existed
+# - The `automerge` label was on dependabot.yml but nothing acted on it
+#
+# Security:
+# - Only triggers for dependabot[bot] actor
+# - Only merges if ALL required CI checks pass (including Drift Gate)
+# - Major version bumps excluded from auto-merge
+# - Uses GITHUB_TOKEN (not PAT) so branch protection still applies
+
+name: Dependabot Auto-Merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    timeout-minutes: 5
+
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2.5.0
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Auto-approve minor/patch updates
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge for minor/patch updates
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
