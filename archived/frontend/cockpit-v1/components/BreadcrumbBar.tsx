@@ -1,9 +1,9 @@
 /**
  * BreadcrumbBar Component
- * 
+ *
  * Displays navigation breadcrumbs for Cockpit entity exploration.
  * Allows users to quickly navigate back through their search path.
- * 
+ *
  * Created: 2026-02-23 - Cockpit Phase 2A Final
  */
 
@@ -26,11 +26,11 @@ const Container = styled.div`
   border-bottom: 1px solid rgb(var(--color-border));
   overflow-x: auto;
   white-space: nowrap;
-  
+
   &::-webkit-scrollbar {
     height: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: rgb(var(--color-border));
     border-radius: 2px;
@@ -49,7 +49,7 @@ const Crumb = styled.button<{ $isLast: boolean }>`
   font-size: 0.875rem;
   cursor: ${props => props.$isLast ? 'default' : 'pointer'};
   transition: all 0.2s;
-  
+
   &:hover:not(:disabled) {
     background: rgb(var(--color-background));
     color: rgb(var(--color-text-primary));
@@ -78,7 +78,7 @@ const HomeButton = styled.button`
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: rgb(var(--color-background));
     color: rgb(var(--color-primary));

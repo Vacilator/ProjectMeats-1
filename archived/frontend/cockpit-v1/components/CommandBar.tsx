@@ -1,11 +1,11 @@
 /**
  * CommandBar Component
- * 
+ *
  * A search bar that integrates with the CommandPalette for universal search.
  * Shows keyboard shortcut hint and opens CommandPalette on focus/click.
- * 
+ *
  * Created: 2026-02-03 - Phase 4.2 Forms & Flows Enhancement
- * 
+ *
  * Features:
  * - Search input that opens CommandPalette on focus
  * - Keyboard shortcut hint (⌘K / Ctrl+K)
@@ -55,12 +55,12 @@ const SearchInputWrapper = styled.button<{ $compact?: boolean }>`
   border-radius: var(--radius-lg, 10px);
   cursor: text;
   transition: all 0.2s ease;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary) / 0.5);
     background: rgb(var(--color-surface));
   }
-  
+
   &:focus-within {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
@@ -84,7 +84,7 @@ const SearchPlaceholder = styled.span<{ $compact?: boolean }>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  
+
   @media (max-width: 640px) {
     display: ${props => props.$compact ? 'none' : 'block'};
   }
@@ -104,7 +104,7 @@ const ShortcutBadge = styled.kbd`
   border-radius: 4px;
   box-shadow: 0 1px 2px rgba(var(--color-overlay), 0.05);
   white-space: nowrap;
-  
+
   @media (max-width: 640px) {
     display: none;
   }
@@ -124,7 +124,7 @@ const CommandKey = styled.span`
  */
 const isMac = (): boolean => {
   if (typeof navigator === 'undefined') return false;
-  return navigator.platform?.toLowerCase().includes('mac') || 
+  return navigator.platform?.toLowerCase().includes('mac') ||
          navigator.userAgent?.toLowerCase().includes('mac');
 };
 
@@ -182,11 +182,11 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         <SearchIcon>
           <Search size={18} />
         </SearchIcon>
-        
+
         <SearchPlaceholder $compact={compact}>
           {resolvedPlaceholder}
         </SearchPlaceholder>
-        
+
         <ShortcutBadge>
           {showMacKey ? (
             <>

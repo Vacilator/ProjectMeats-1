@@ -299,7 +299,9 @@ describe('Header', () => {
       expect(searchInput).toHaveValue('test query');
     });
 
-    it('handles search form submission', () => {
+    it('handles search form submission by opening command palette', () => {
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
       render(
         <MemoryRouter>
           <Header />
@@ -307,18 +309,20 @@ describe('Header', () => {
       );
 
       const searchInput = screen.getByRole('textbox', { name: /global search/i });
-      fireEvent.change(searchInput, { target: { value: 'test query' } });
-
-      // onChange triggers a debounced navigation; we only want to assert the explicit submit behavior.
-      mockNavigate.mockClear();
 
       const form = searchInput.closest('form')!;
       fireEvent.submit(form);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/command-center?q=test+query');
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'pm:open-command-palette' }),
+      );
+
+      dispatchSpy.mockRestore();
     });
 
-    it('does not submit empty search', () => {
+    it('opens command palette on empty search submit', () => {
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
       render(
         <MemoryRouter>
           <Header />
@@ -329,7 +333,11 @@ describe('Header', () => {
       const form = searchInput.closest('form')!;
       fireEvent.submit(form);
 
-      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'pm:open-command-palette' }),
+      );
+
+      dispatchSpy.mockRestore();
     });
 
     it('search input has accessible label', () => {
@@ -342,17 +350,19 @@ describe('Header', () => {
       expect(screen.getByRole('textbox', { name: /global search/i })).toBeInTheDocument();
     });
 
-    it('hydrates the search input from the canonical command-center query', () => {
+    it('search input starts empty regardless of URL', () => {
       render(
         <MemoryRouter initialEntries={['/command-center?tab=pipeline&q=brisket']}>
           <Header />
         </MemoryRouter>
       );
 
-      expect(screen.getByRole('textbox', { name: /global search/i })).toHaveValue('brisket');
+      expect(screen.getByRole('textbox', { name: /global search/i })).toHaveValue('');
     });
 
-    it('preserves tab and item params when searching from command center', () => {
+    it('opens command palette on search submit from any page', () => {
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
       render(
         <MemoryRouter initialEntries={['/command-center?tab=pipeline&item=review-123']}>
           <Header />
@@ -360,16 +370,15 @@ describe('Header', () => {
       );
 
       const searchInput = screen.getByRole('textbox', { name: /global search/i });
-      fireEvent.change(searchInput, { target: { value: 'copper' } });
-
-      mockNavigate.mockClear();
 
       const form = searchInput.closest('form')!;
       fireEvent.submit(form);
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        '/command-center?tab=pipeline&item=review-123&q=copper',
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'pm:open-command-palette' }),
       );
+
+      dispatchSpy.mockRestore();
     });
   });
 
