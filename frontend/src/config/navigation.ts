@@ -35,11 +35,40 @@ export const navigation: NavigationItem[] = [
     label: 'Suppliers',
     icon: '🏭',
     path: '/suppliers',
+    children: [
+      {
+        label: 'All Suppliers',
+        icon: '🏭',
+        path: '/suppliers',
+      },
+      {
+        label: 'Plants & Facilities',
+        icon: '🏗️',
+        path: '/suppliers/plants',
+      },
+    ],
   },
   {
     label: 'Customers',
     icon: '👥',
     path: '/customers',
+    children: [
+      {
+        label: 'All Customers',
+        icon: '👥',
+        path: '/customers',
+      },
+      {
+        label: 'Locations',
+        icon: '📍',
+        path: '/customers/locations',
+      },
+    ],
+  },
+  {
+    label: 'Contacts',
+    icon: '📇',
+    path: '/contacts',
   },
   {
     label: 'Orders',

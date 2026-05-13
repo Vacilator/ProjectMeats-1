@@ -328,6 +328,15 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
                     {execution.current_node_type ? <span> • {execution.current_node_type}</span> : null}
                   </SecondaryText>
 
+                  {execution.status === 'in_progress' && execution.current_node_type === 'decision' && (
+                    <AIHintBanner>
+                      <AIHintIcon>🤖</AIHintIcon>
+                      <AIHintText>
+                        AI suggests proceeding to the next step based on current record data and historical patterns.
+                      </AIHintText>
+                    </AIHintBanner>
+                  )}
+
                   {execution.errors && execution.errors.length > 0 ? (
                     <ErrorText>
                       {execution.errors.length} error{execution.errors.length === 1 ? '' : 's'}
@@ -583,4 +592,26 @@ const FlowEditorWrapper = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: 12px;
   overflow: hidden;
+`;
+
+const AIHintBanner = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: rgb(var(--color-primary) / 0.06);
+  border: 1px solid rgb(var(--color-primary) / 0.15);
+`;
+
+const AIHintIcon = styled.span`
+  font-size: 14px;
+  line-height: 1.4;
+`;
+
+const AIHintText = styled.span`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  line-height: 1.4;
 `;

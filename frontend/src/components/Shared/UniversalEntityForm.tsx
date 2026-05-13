@@ -3135,6 +3135,31 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         delete payload[key];
       });
 
+      // Auto-generate number fields left blank (e.g., PO numbers, order numbers)
+      if (activeMode === 'create') {
+        const autoNumberKeys = new Set(
+          (scalarFields || [])
+            .filter((f) => {
+              const lk = f.key.toLowerCase();
+              return (
+                ['po_number', 'so_number', 'order_number', 'inquiry_number'].includes(lk) ||
+                ((/_(number|num)$/.test(lk)) && !lk.includes('phone'))
+              );
+            })
+            .map((f) => f.api_key || mapFormPathToBackendFieldKey(schemaEntityKey, f.key))
+        );
+        const now = new Date();
+        const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+        autoNumberKeys.forEach((key) => {
+          const val = payload[key];
+          if (val === undefined || val === null || val === '') {
+            const rand = String(Math.floor(100000 + Math.random() * 900000));
+            const prefix = key.toUpperCase().includes('SO') ? 'SO' : key.toUpperCase().includes('INQ') ? 'INQ' : 'PO';
+            payload[key] = `${prefix}-${datePart}-${rand}`;
+          }
+        });
+      }
+
       // Normalize payload (avoid sending empty strings that cause DRF validation errors).
       const numberKeys = new Set(
         (scalarFields || [])
