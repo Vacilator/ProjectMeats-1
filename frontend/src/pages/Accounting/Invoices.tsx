@@ -26,6 +26,7 @@ import {
 import SharePortalLinkPanel from '../../components/Portal/SharePortalLinkPanel';
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList } from '../../components/Shared';
 import InvoiceForm from './InvoiceForm';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { businessApi } from '@/services/businessApi';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
@@ -822,11 +823,13 @@ const Invoices: React.FC = () => {
       </ContentContainer>
 
       {isModalOpen && (
-        <InvoiceForm
-          mode="create"
-          onSuccess={handleCreateSuccess}
-          onCancel={handleCreateModalClose}
-        />
+        <FormErrorBoundary entityType="invoice" onClose={handleCreateModalClose}>
+          <InvoiceForm
+            mode="create"
+            onSuccess={handleCreateSuccess}
+            onCancel={handleCreateModalClose}
+          />
+        </FormErrorBoundary>
       )}
     </PageContainer>
   );

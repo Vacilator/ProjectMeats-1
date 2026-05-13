@@ -6,6 +6,7 @@ import { logger } from '@/utils/logger';
 import type { Contact } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
@@ -468,15 +469,17 @@ const Contacts: React.FC = () => {
       )}
 
       {showForm && (
-        <EntityFormSurface
-          entityType="contact"
-          mode={editingContact ? 'edit' : 'create'}
-          entityId={editingContact?.id}
-          isOpen={showForm}
-          onClose={handleFormClose}
-          initialValues={contactInitialValues}
-          onSuccess={handleFormSuccess}
-        />
+        <FormErrorBoundary entityType="contact" onClose={handleFormClose}>
+          <EntityFormSurface
+            entityType="contact"
+            mode={editingContact ? 'edit' : 'create'}
+            entityId={editingContact?.id}
+            isOpen={showForm}
+            onClose={handleFormClose}
+            initialValues={contactInitialValues}
+            onSuccess={handleFormSuccess}
+          />
+        </FormErrorBoundary>
       )}
     </Container>
   );

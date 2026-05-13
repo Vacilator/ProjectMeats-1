@@ -7,6 +7,7 @@ import styled from 'styled-components';
 import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { Customer } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
@@ -355,24 +356,28 @@ const Customers: React.FC = () => {
         )}
       </TableContainer>
 
-      <EntityFormSurface
-        entityType="customer"
-        mode="create"
-        variant="modal"
-        isOpen={createOpen}
-        onClose={handleCreateClose}
-        onSuccess={handleCreateSuccess}
-      />
+      <FormErrorBoundary entityType="customer" onClose={handleCreateClose}>
+        <EntityFormSurface
+          entityType="customer"
+          mode="create"
+          variant="modal"
+          isOpen={createOpen}
+          onClose={handleCreateClose}
+          onSuccess={handleCreateSuccess}
+        />
+      </FormErrorBoundary>
 
-      <EntityFormSurface
-        entityType="customer"
-        mode="edit"
-        variant="modal"
-        isOpen={editOpen}
-        entityId={editingCustomerId ?? undefined}
-        onClose={handleEditClose}
-        onSuccess={handleEditSuccess}
-      />
+      <FormErrorBoundary entityType="customer" onClose={handleEditClose}>
+        <EntityFormSurface
+          entityType="customer"
+          mode="edit"
+          variant="modal"
+          isOpen={editOpen}
+          entityId={editingCustomerId ?? undefined}
+          onClose={handleEditClose}
+          onSuccess={handleEditSuccess}
+        />
+      </FormErrorBoundary>
     </PageContainer>
   );
 };

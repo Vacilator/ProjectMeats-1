@@ -15,6 +15,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
 import { confirmDialog } from '@/utils/uiDialogs';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
@@ -464,16 +465,18 @@ const CustomerLocations: React.FC = () => {
         scroll={{ x: 'max-content' }}
       />
 
-      <EntityFormSurface
-        entityType="location"
-        mode={editingLocation ? 'edit' : 'create'}
-        variant="modal"
-        entityId={editingLocation?.id}
-        isOpen={showModal}
-        onClose={handleFormClose}
-        initialValues={locationInitialValues}
-        onSuccess={handleFormSuccess}
-      />
+      <FormErrorBoundary entityType="location" onClose={handleFormClose}>
+        <EntityFormSurface
+          entityType="location"
+          mode={editingLocation ? 'edit' : 'create'}
+          variant="modal"
+          entityId={editingLocation?.id}
+          isOpen={showModal}
+          onClose={handleFormClose}
+          initialValues={locationInitialValues}
+          onSuccess={handleFormSuccess}
+        />
+      </FormErrorBoundary>
     </PageContainer>
   );
 };

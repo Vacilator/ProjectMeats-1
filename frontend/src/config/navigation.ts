@@ -4,8 +4,7 @@
  * Defines the main navigation structure for the application.
  * This is the central location for managing navigation items.
  *
- * Updated: 2026-02-04 - Phase 1 Cockpit & WorkForms Enhancement
- * - Changed Cockpit path from /workspace to /cockpit
+ * Updated: 2026-02-04 - WorkForms Enhancement
  * - Renamed "Forms & Flows" to "WorkForms"
  * - Updated all paths from /forms-flows to /workforms
  * - Added badge support for action item counts
@@ -147,7 +146,7 @@ export const navigation: NavigationItem[] = [
       {
         label: 'Calls',
         icon: '📞',
-        path: '/cockpit/calls',
+        path: '/calls',
       },
       {
         label: 'Reports',
@@ -176,7 +175,6 @@ export const navigation: NavigationItem[] = [
 /**
  * Admin Workspace Navigation (Bottom Section)
  * Tenant-specific administration and configuration pages
- * Updated 2026-02-21: Changed from /admin/* to /workspace/* to avoid Django conflict
  */
 export const adminWorkspaceNavigation: NavigationItem[] = [
   {

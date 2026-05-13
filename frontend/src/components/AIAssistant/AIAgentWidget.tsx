@@ -36,6 +36,7 @@ import {
 
 import { useToast } from '../../hooks/useToast';
 import { businessApi } from '../../services/businessApi';
+import { useAIPreferences } from '@/hooks/useAIPreferences';
 import { getAccessToken, getTenantFromToken, refreshAccessToken } from '@/services/jwtService';
 import { useHealth } from '@/hooks/useHealth';
 import { HITLReviewCard } from './HITLReviewCard';
@@ -726,22 +727,98 @@ const ChipRemove = styled.button`
 const ComposerRow = styled.div`
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-end;
 `;
 
-const Input = styled.input`
+const ChatTextarea = styled.textarea`
   flex: 1;
   border: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   border-radius: 10px;
-  padding: 10px 10px;
+  padding: 10px;
   font-size: 12px;
+  font-family: inherit;
+  resize: none;
+  min-height: 38px;
+  max-height: 120px;
+  overflow-y: auto;
+  line-height: 1.4;
 
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary) / 0.65);
     box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.15);
+  }
+`;
+
+/* ── Markdown rendering ── */
+
+const CodeBlock = styled.pre`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow-x: auto;
+  margin: 4px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+`;
+
+const InlineCode = styled.code`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+`;
+
+const MarkdownContent = styled.div`
+  line-height: 1.5;
+  word-break: break-word;
+
+  ul, ol {
+    margin: 4px 0;
+    padding-left: 18px;
+  }
+  li {
+    margin: 2px 0;
+  }
+  a {
+    color: rgb(var(--color-primary));
+    text-decoration: underline;
+    &:hover { opacity: 0.8; }
+  }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+  p { margin: 4px 0; }
+`;
+
+/* ── Typing indicator ── */
+
+const typingDots = keyframes`
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+`;
+
+const TypingIndicator = styled.div`
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  align-items: center;
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgb(var(--color-text-secondary));
+    animation: ${typingDots} 1.4s ease-in-out infinite;
+
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
   }
 `;
 
@@ -891,6 +968,84 @@ const toUiMessages = (server: ServerMessage[]): ChatMessage[] => {
 const hasHumanReviewMessage = (msgs: ChatMessage[]) =>
   msgs.some((m) => Boolean(m.metadata?.requires_human_review));
 
+/* ── Lightweight Markdown renderer ── */
+
+function processInline(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  const inlineRegex = /(\*\*(.+?)\*\*)|(\*(.+?)\*)|(`([^`]+)`)|(\[([^\]]+)\]\(([^)]+)\))/g;
+  let lastIdx = 0;
+  let m: RegExpExecArray | null;
+  let k = 0;
+
+  while ((m = inlineRegex.exec(text)) !== null) {
+    if (m.index > lastIdx) {
+      parts.push(text.slice(lastIdx, m.index));
+    }
+    if (m[1]) parts.push(<strong key={k++}>{m[2]}</strong>);
+    else if (m[3]) parts.push(<em key={k++}>{m[4]}</em>);
+    else if (m[5]) parts.push(<InlineCode key={k++}>{m[6]}</InlineCode>);
+    else if (m[7]) parts.push(<a key={k++} href={m[9]} target="_blank" rel="noopener noreferrer">{m[8]}</a>);
+    lastIdx = m.index + m[0].length;
+  }
+
+  if (lastIdx < text.length) {
+    parts.push(text.slice(lastIdx));
+  }
+
+  return parts.length ? <>{parts}</> : text;
+}
+
+function renderInlineMarkdown(text: string): React.ReactNode {
+  const paragraphs = text.split(/\n\n+/);
+
+  return paragraphs.map((para, pIdx) => {
+    const lines = para.split('\n');
+    const isList = lines.every((l) => /^\s*[-*]\s/.test(l) || l.trim() === '');
+
+    if (isList) {
+      const items = lines.filter((l) => /^\s*[-*]\s/.test(l)).map((l) => l.replace(/^\s*[-*]\s/, ''));
+      return (
+        <ul key={pIdx}>
+          {items.map((item, i) => <li key={i}>{processInline(item)}</li>)}
+        </ul>
+      );
+    }
+
+    const lineElements = lines.map((line, lIdx) => (
+      <React.Fragment key={lIdx}>
+        {lIdx > 0 && <br />}
+        {processInline(line)}
+      </React.Fragment>
+    ));
+
+    return paragraphs.length > 1 ? <p key={pIdx}>{lineElements}</p> : <>{lineElements}</>;
+  });
+}
+
+function renderChatContent(text: string): React.ReactNode {
+  if (!text) return null;
+
+  const codeBlockRegex = /```(?:\w+)?\n?([\s\S]*?)```/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={key++}>{renderInlineMarkdown(text.slice(lastIndex, match.index))}</span>);
+    }
+    parts.push(<CodeBlock key={key++}>{match[1].trim()}</CodeBlock>);
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(<span key={key++}>{renderInlineMarkdown(text.slice(lastIndex))}</span>);
+  }
+
+  return <MarkdownContent>{parts}</MarkdownContent>;
+}
+
 export const AIAgentWidget: React.FC = () => {
   const toast = useToast();
   const location = useLocation();
@@ -906,6 +1061,7 @@ export const AIAgentWidget: React.FC = () => {
   const [fullscreen, setFullscreen] = useState(false);
   const { data: health } = useHealth();
   const aiEnabled = health?.features?.ai ?? true;
+  const { preferences: aiPrefs, updatePreference: updateAIPref, isLoading: prefsLoading } = useAIPreferences();
   const [aiInboxCount, setAiInboxCount] = useState(0);
   const [detail, setDetail] = useState<ReviewRequiredDetail>({});
   const [draft, setDraft] = useState('');
@@ -2255,6 +2411,24 @@ export const AIAgentWidget: React.FC = () => {
                     onClick={() => setAutoExpand((v) => !v)}
                   />
                 </SettingsRow>
+                <SettingsRow>
+                  <span>Require approval for external sends</span>
+                  <SettingsToggle
+                    type="button"
+                    $active={aiPrefs?.require_external_approval ?? true}
+                    aria-pressed={aiPrefs?.require_external_approval ?? true}
+                    onClick={() => updateAIPref('require_external_approval', !(aiPrefs?.require_external_approval ?? true))}
+                  />
+                </SettingsRow>
+                <SettingsRow>
+                  <span>Auto-suggest actions</span>
+                  <SettingsToggle
+                    type="button"
+                    $active={aiPrefs?.show_ai_suggestions ?? true}
+                    aria-pressed={aiPrefs?.show_ai_suggestions ?? true}
+                    onClick={() => updateAIPref('show_ai_suggestions', !(aiPrefs?.show_ai_suggestions ?? true))}
+                  />
+                </SettingsRow>
                 <SettingsClearBtn type="button" onClick={handleClearConversation}>
                   Clear conversation
                 </SettingsClearBtn>
@@ -2369,7 +2543,7 @@ export const AIAgentWidget: React.FC = () => {
                         </DocumentMeta>
                       </DocumentRow>
                     ) : (
-                      m.content
+                      renderChatContent(m.content)
                     )}
 
                     {m.role === 'assistant' && controlPlane?.approval_required ? (
@@ -2425,6 +2599,14 @@ export const AIAgentWidget: React.FC = () => {
                   </Bubble>
                 );
               })}
+
+              {state === 'thinking' && (
+                <Bubble $role="assistant">
+                  <TypingIndicator>
+                    <span /><span /><span />
+                  </TypingIndicator>
+                </Bubble>
+              )}
             </Messages>
 
             <Composer
@@ -2477,9 +2659,20 @@ export const AIAgentWidget: React.FC = () => {
                   <GitBranch size={16} />
                 </IconBtn>
 
-                <Input
+                <ChatTextarea
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
+                  rows={1}
+                  onChange={(e) => {
+                    setDraft(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleSend();
+                    }
+                  }}
                   placeholder={state === 'action_required' ? 'Reply with the correct fields…' : 'Ask the agent…'}
                   aria-label="AI message"
                 />

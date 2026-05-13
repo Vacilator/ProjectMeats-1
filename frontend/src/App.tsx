@@ -366,8 +366,8 @@ const App: React.FC = () => {
                 <Route path="freight-orders" element={<FreightOrders />} />
                 <Route path="contacts" element={<Contacts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
-                <Route path="calls" element={<Navigate to="/cockpit/calls" replace />} />
-                <Route path="call-log" element={<Navigate to="/cockpit/calls" replace />} />
+                <Route path="calls" element={<CallLog />} />
+                <Route path="call-log" element={<Navigate to="/calls" replace />} />
                 <Route path="processes" element={<Navigate to="/workforms/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
                 <Route
@@ -488,11 +488,11 @@ const App: React.FC = () => {
                 {/* Backward compatibility redirect */}
                 <Route path="admin/*" element={<Navigate to={`/workspace/${window.location.pathname.replace('/admin/', '')}`} replace />} />
 
-                {/* Cockpit — most routes redirect to Home, but /cockpit/calls is still useful */}
+                {/* Cockpit — legacy routes redirect to new locations */}
                 <Route path="cockpit" element={<Navigate to="/" replace />} />
                 <Route path="cockpit/dashboard" element={<Navigate to="/" replace />} />
                 <Route path="cockpit/process-monitor/*" element={<Navigate to="/" replace />} />
-                <Route path="cockpit/calls" element={<CallLog />} />
+                <Route path="cockpit/calls" element={<Navigate to="/calls" replace />} />
                 <Route path="cockpit/entity/:entityType/:entityId" element={<Navigate to="/" replace />} />
                 {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
               </Route>

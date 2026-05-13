@@ -13,6 +13,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '../components/Onboarding';
 import SupplierPOForm from './PurchaseOrders/SupplierPOForm';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { formatTradeDate } from '@/utils/trade';
 import { logger } from '@/utils/logger';
@@ -458,6 +459,7 @@ const PurchaseOrders: React.FC = () => {
       </Header>
 
       {showingInlineForm ? (
+        <FormErrorBoundary entityType="purchase order" onClose={handleFormClose}>
         <SupplierPOForm
           mode={editingPurchaseOrder ? 'edit' : 'create'}
           entityId={editingPurchaseOrder?.id}
@@ -480,6 +482,7 @@ const PurchaseOrders: React.FC = () => {
           onSuccess={handleFormSuccessCallback}
           onCancel={handleFormClose}
         />
+        </FormErrorBoundary>
       ) : (
         <>
           <StatsCards>

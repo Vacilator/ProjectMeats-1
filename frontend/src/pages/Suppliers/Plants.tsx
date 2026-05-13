@@ -14,6 +14,7 @@ import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
@@ -494,15 +495,17 @@ const Plants: React.FC = () => {
         scroll={{ x: 'max-content' }}
       />
 
-      <EntityFormSurface
-        entityType="plant"
-        mode="create"
-        variant="modal"
-        isOpen={showModal}
-        onClose={handleModalClose}
-        initialValues={plantFormInitialValues}
-        onSuccess={handleModalSuccess}
-      />
+      <FormErrorBoundary entityType="plant" onClose={handleModalClose}>
+        <EntityFormSurface
+          entityType="plant"
+          mode="create"
+          variant="modal"
+          isOpen={showModal}
+          onClose={handleModalClose}
+          initialValues={plantFormInitialValues}
+          onSuccess={handleModalSuccess}
+        />
+      </FormErrorBoundary>
     </PageContainer>
   );
 };

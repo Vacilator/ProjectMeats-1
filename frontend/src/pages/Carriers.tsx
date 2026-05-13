@@ -18,6 +18,7 @@ import {
 } from '@/components/Onboarding';
 import { StatCardGrid } from '@/components/Shared/StatCardGrid';
 import { CarrierCreateForm } from './Carriers/CarrierCreateForm';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -345,11 +346,13 @@ const Carriers: React.FC = () => {
         destroyOnClose
         title="New Carrier"
       >
-        <CarrierCreateForm
-          mode="create"
-          onSuccess={handleCreateSuccess}
-          onCancel={handleCreateClose}
-        />
+        <FormErrorBoundary entityType="carrier" onClose={handleCreateClose}>
+          <CarrierCreateForm
+            mode="create"
+            onSuccess={handleCreateSuccess}
+            onCancel={handleCreateClose}
+          />
+        </FormErrorBoundary>
       </Modal>
 
       {/* Edit Carrier Modal */}
@@ -361,12 +364,14 @@ const Carriers: React.FC = () => {
         destroyOnClose
         title="Edit Carrier"
       >
-        <CarrierCreateForm
-          mode="edit"
-          entityId={editingCarrierId || undefined}
-          onSuccess={handleEditSuccess}
-          onCancel={handleEditClose}
-        />
+        <FormErrorBoundary entityType="carrier" onClose={handleEditClose}>
+          <CarrierCreateForm
+            mode="edit"
+            entityId={editingCarrierId || undefined}
+            onSuccess={handleEditSuccess}
+            onCancel={handleEditClose}
+          />
+        </FormErrorBoundary>
       </Modal>
     </PageContainer>
   );
