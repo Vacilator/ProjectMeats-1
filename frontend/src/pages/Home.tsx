@@ -112,7 +112,9 @@ const Home: React.FC = () => {
             { label: 'Inquiries', value: String(d.inquiries ?? '—') },
             { label: 'Purchase Orders', value: String(d.purchase_orders ?? '—') },
             { label: 'Sales Orders', value: String(d.sales_orders ?? '—') },
-            { label: 'Open Items', value: String(d.open_items ?? '—') },
+            { label: 'Invoices Due', value: String(d.invoices_due ?? d.open_items ?? '—') },
+            { label: 'Pending Approvals', value: String(d.pending_approvals ?? '—') },
+            { label: 'Active Carriers', value: String(d.active_carriers ?? '—') },
           ];
         }
         return [];
@@ -158,7 +160,9 @@ const Home: React.FC = () => {
       { label: 'Inquiries', value: '—' },
       { label: 'Purchase Orders', value: '—' },
       { label: 'Sales Orders', value: '—' },
-      { label: 'Open Items', value: '—' },
+      { label: 'Invoices Due', value: '—' },
+      { label: 'Pending Approvals', value: '—' },
+      { label: 'Active Carriers', value: '—' },
     ],
     [],
   );
@@ -189,11 +193,11 @@ const Home: React.FC = () => {
 
       {/* 4-widget grid */}
       <WidgetGrid>
-        {/* 1. Action Items */}
+        {/* 1. My Tasks */}
         <WidgetCard>
           <WidgetHeader>
-            <WidgetIcon aria-hidden="true">🔔</WidgetIcon>
-            <WidgetTitle>Action Items</WidgetTitle>
+            <WidgetIcon aria-hidden="true">✅</WidgetIcon>
+            <WidgetTitle>My Tasks</WidgetTitle>
             {actionItems.length > 0 && <Badge>{actionItems.length}</Badge>}
           </WidgetHeader>
           <WidgetBody>
@@ -234,11 +238,11 @@ const Home: React.FC = () => {
           </WidgetBody>
         </WidgetCard>
 
-        {/* 3. Quick Stats */}
+        {/* 3. Today's Numbers */}
         <WidgetCard>
           <WidgetHeader>
             <WidgetIcon aria-hidden="true">📈</WidgetIcon>
-            <WidgetTitle>Quick Stats</WidgetTitle>
+            <WidgetTitle>Today&apos;s Numbers</WidgetTitle>
           </WidgetHeader>
           <WidgetBody>
             <StatsGrid>

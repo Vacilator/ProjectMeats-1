@@ -9,6 +9,7 @@ import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 type RouteParams = { id?: string };
 
@@ -228,6 +229,7 @@ export const LocationDetailView: React.FC = () => {
       <ContentSection>
         {!showAuthFallback && (
           <>
+            {locationId && <AIEntityInsights entityType="location" entityId={locationId} />}
             <AIOverviewCard entityType="location" entityId={locationId} />
             <EntityProfileHeader
               key={`${locationId}-${refreshKey}`}

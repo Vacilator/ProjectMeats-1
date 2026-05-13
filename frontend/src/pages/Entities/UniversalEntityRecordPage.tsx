@@ -3,6 +3,7 @@ import { Breadcrumb, Button, Card, Spin, Tabs } from 'antd';
 import { Building2, ClipboardList, MessageSquarePlus, UsersRound } from 'lucide-react';
 import styled from 'styled-components';
 
+import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
@@ -562,8 +563,10 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             onNavigateToEntity={handleNavigateToEntity}
             onTitleResolved={setRecordDisplay}
             layout="grid"
-            variant="full"
+            variant="compact"
           />
+
+          <AIEntityInsights entityType={normalizedEntityType} entityId={entityId} />
 
           <AmbientSuggestions entityType={normalizedEntityType} entityId={entityId} />
 
