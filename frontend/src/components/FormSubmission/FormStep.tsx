@@ -33,7 +33,7 @@ interface FormStepProps {
   onCreateEntity?: (entityType: string) => void;
 }
 
-const StepContainer = styled.div<{ isActive?: boolean }>`
+const StepContainer = styled.div<{ $isActive?: boolean }>`
   background: var(--card-bg, rgb(var(--color-surface)));
   border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.5rem;
@@ -41,7 +41,7 @@ const StepContainer = styled.div<{ isActive?: boolean }>`
   margin-bottom: 1rem;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 
-  ${({ isActive }) => isActive && `
+  ${({ $isActive }) => $isActive && `
     border-color: var(--color-primary, rgb(var(--color-primary)));
     box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   `}
@@ -66,7 +66,7 @@ const StepTitle = styled.h3`
   gap: 0.5rem;
 `;
 
-const StepNumber = styled.span<{ status: string }>`
+const StepNumber = styled.span<{ $status: string }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -76,8 +76,8 @@ const StepNumber = styled.span<{ status: string }>`
   font-size: 0.875rem;
   font-weight: 600;
 
-  ${({ status }) => {
-    switch (status) {
+  ${({ $status }) => {
+    switch ($status) {
       case 'completed':
         return `
           background: var(--color-success, rgb(var(--color-success)));
@@ -111,14 +111,14 @@ const EntityBadge = styled.span`
   text-transform: capitalize;
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $status: string }>`
   font-size: 0.75rem;
   padding: 0.25rem 0.75rem;
   border-radius: 0.25rem;
   font-weight: 500;
 
-  ${({ status }) => {
-    switch (status) {
+  ${({ $status }) => {
+    switch ($status) {
       case 'completed':
         return `
           background: var(--color-success-light, rgba(var(--color-success), 0.14));
@@ -173,7 +173,7 @@ const StepFooter = styled.div`
   border-top: 1px solid var(--border-color, rgb(var(--color-border)));
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'success' }>`
+const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>`
   padding: 0.5rem 1.25rem;
   font-size: 0.875rem;
   font-weight: 500;
@@ -182,8 +182,8 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'success' }>`
   cursor: pointer;
   transition: all 0.15s ease-in-out;
 
-  ${({ variant }) => {
-    switch (variant) {
+  ${({ $variant }) => {
+    switch ($variant) {
       case 'success':
         return `
           background: var(--color-success, rgb(var(--color-success)));
@@ -277,16 +277,16 @@ const FormStep: React.FC<FormStepProps> = ({
   }, [canComplete, hasErrors, isCompleting, onCompleteStep]);
 
   return (
-    <StepContainer isActive={isActive}>
+    <StepContainer $isActive={isActive}>
       <StepHeader>
         <StepTitle>
-          <StepNumber status={stepSubmission.status}>
+          <StepNumber $status={stepSubmission.status}>
             {isCompleted ? '✓' : step.order + 1}
           </StepNumber>
           {step.name}
           <EntityBadge>{step.entity_type.replace(/_/g, ' ')}</EntityBadge>
         </StepTitle>
-        <StatusBadge status={stepSubmission.status}>
+        <StatusBadge $status={stepSubmission.status}>
           {getStatusLabel(stepSubmission.status)}
         </StatusBadge>
       </StepHeader>
@@ -316,7 +316,7 @@ const FormStep: React.FC<FormStepProps> = ({
       {!isCompleted && step.fields.length > 0 && (
         <StepFooter>
           <Button
-            variant="success"
+            $variant="success"
             onClick={handleComplete}
             disabled={disabled || !canComplete || hasErrors || isCompleting}
           >

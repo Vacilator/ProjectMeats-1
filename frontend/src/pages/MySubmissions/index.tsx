@@ -44,7 +44,7 @@ const FilterTabs = styled.div`
   padding-bottom: 0.5rem;
 `;
 
-const FilterTab = styled.button<{ active?: boolean }>`
+const FilterTab = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
@@ -52,11 +52,11 @@ const FilterTab = styled.button<{ active?: boolean }>`
   border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: ${({ active }) => active ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${({ active }) => active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-muted))'};
+  background: ${({ $active }) => $active ? 'rgb(var(--color-primary))' : 'transparent'};
+  color: ${({ $active }) => $active ? 'rgb(var(--color-primary-foreground))' : 'rgb(var(--color-text-muted))'};
 
   &:hover {
-    background: ${({ active }) => active ? 'var(--color-primary-dark, rgb(var(--color-primary)))' : 'var(--bg-secondary, rgb(var(--color-surface)))'};
+    background: ${({ $active }) => $active ? 'var(--color-primary-dark, rgb(var(--color-primary)))' : 'var(--bg-secondary, rgb(var(--color-surface)))'};
   }
 `;
 
@@ -117,11 +117,11 @@ const ProgressBar = styled.div`
   overflow: hidden;
 `;
 
-const ProgressFill = styled.div<{ percent: number; status: string }>`
+const ProgressFill = styled.div<{ percent: number; $status: string }>`
   height: 100%;
   width: ${({ percent }) => `${percent}%`};
-  background: ${({ status }) => {
-    switch (status) {
+  background: ${({ $status }) => {
+    switch ($status) {
       case 'completed':
         return 'var(--color-success, rgb(var(--color-success)))';
       case 'cancelled':
@@ -142,14 +142,14 @@ const ProgressText = styled.span`
   text-align: center;
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $status: string }>`
   font-size: 0.75rem;
   padding: 0.25rem 0.75rem;
   border-radius: 0.25rem;
   font-weight: 500;
 
-  ${({ status }) => {
-    switch (status) {
+  ${({ $status }) => {
+    switch ($status) {
       case 'completed':
         return `
           background: var(--color-success-light, rgba(var(--color-success), 0.14));
@@ -179,7 +179,7 @@ const ActionsContainer = styled.div`
   gap: 0.5rem;
 `;
 
-const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
+const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'danger' }>`
   padding: 0.5rem 1rem;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -188,8 +188,8 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'danger
   cursor: pointer;
   transition: all 0.15s ease;
 
-  ${({ variant }) => {
-    switch (variant) {
+  ${({ $variant }) => {
+    switch ($variant) {
       case 'danger':
         return `
           background: transparent;
@@ -357,7 +357,7 @@ const MySubmissions: React.FC = () => {
         {statusFilters.map(filter => (
           <FilterTab
             key={filter.value}
-            active={statusFilter === filter.value}
+            $active={statusFilter === filter.value}
             onClick={() => setStatusFilter(filter.value)}
           >
             {filter.label}
@@ -401,7 +401,7 @@ const MySubmissions: React.FC = () => {
                 <ProgressBar>
                   <ProgressFill
                     percent={submission.progress.percent}
-                    status={submission.status}
+                    $status={submission.status}
                   />
                 </ProgressBar>
                 <ProgressText>
@@ -409,7 +409,7 @@ const MySubmissions: React.FC = () => {
                 </ProgressText>
               </ProgressContainer>
 
-              <StatusBadge status={submission.status}>
+              <StatusBadge $status={submission.status}>
                 {getStatusLabel(submission.status)}
               </StatusBadge>
 
@@ -417,13 +417,13 @@ const MySubmissions: React.FC = () => {
                 {(submission.status === 'draft' || submission.status === 'in_progress') && (
                   <>
                     <ActionButton
-                      variant="primary"
+                      $variant="primary"
                       onClick={() => handleResume(submission.form)}
                     >
                       Resume
                     </ActionButton>
                     <ActionButton
-                      variant="danger"
+                      $variant="danger"
                       onClick={() => handleCancel(submission.id)}
                     >
                       Cancel
@@ -433,13 +433,13 @@ const MySubmissions: React.FC = () => {
                 {(submission.status === 'completed' || submission.status === 'cancelled') && (
                   <>
                     <ActionButton
-                      variant="secondary"
+                      $variant="secondary"
                       onClick={() => handleResume(submission.form)}
                     >
                       View
                     </ActionButton>
                     <ActionButton
-                      variant="danger"
+                      $variant="danger"
                       onClick={() => handleDelete(submission.id)}
                     >
                       Delete

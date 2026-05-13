@@ -81,9 +81,9 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
   };
 
   return (
-    <ConnectionCard color={config.color}>
+    <ConnectionCard $color={config.color}>
       <HeaderSection>
-        <LogoContainer color={config.color}>
+        <LogoContainer $color={config.color}>
           <Mail size={28} strokeWidth={2} />
         </LogoContainer>
         <TitleSection>
@@ -94,7 +94,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
 
       {isConnected ? (
         <ConnectedSection>
-          <StatusBadge status={isExpired ? 'warning' : 'success'}>
+          <StatusBadge $status={isExpired ? 'warning' : 'success'}>
             {isExpired ? (
               <>
                 <AlertCircle size={14} />
@@ -120,14 +120,14 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
           </ConnectionInfo>
 
           {isExpired && (
-            <ReconnectButton onClick={handleConnect} disabled={isConnecting} color={config.color}>
+            <ReconnectButton onClick={handleConnect} disabled={isConnecting} $color={config.color}>
               {isConnecting ? 'Reconnecting...' : 'Reconnect'}
             </ReconnectButton>
           )}
         </ConnectedSection>
       ) : (
         <DisconnectedSection>
-          <StatusBadge status="danger">
+          <StatusBadge $status="danger">
             <AlertCircle size={14} />
             <span>Not Connected</span>
           </StatusBadge>
@@ -143,7 +143,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
             <ConnectButton
               onClick={handleConnect}
               disabled={isConnecting}
-              color={config.color}
+              $color={config.color}
             >
               {isConnecting ? (
                 <>
@@ -164,7 +164,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
   );
 };
 
-const ConnectionCard = styled.div<{ color: string }>`
+const ConnectionCard = styled.div<{ $color: string }>`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 12px;
@@ -172,7 +172,7 @@ const ConnectionCard = styled.div<{ color: string }>`
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: ${props => props.color}33;
+    border-color: ${props => props.$color}33;
     box-shadow: 0 4px 12px rgba(var(--color-overlay), 0.1);
   }
 `;
@@ -184,18 +184,18 @@ const HeaderSection = styled.div`
   margin-bottom: 20px;
 `;
 
-const LogoContainer = styled.div<{ color: string }>`
+const LogoContainer = styled.div<{ $color: string }>`
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  background: ${props => props.color}15;
+  background: ${props => props.$color}15;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 
   svg {
-    color: ${props => props.color};
+    color: ${props => props.$color};
   }
 `;
 
@@ -229,7 +229,7 @@ const DisconnectedSection = styled.div`
   gap: 12px;
 `;
 
-const StatusBadge = styled.div<{ status: 'success' | 'warning' | 'danger' }>`
+const StatusBadge = styled.div<{ $status: 'success' | 'warning' | 'danger' }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -239,17 +239,17 @@ const StatusBadge = styled.div<{ status: 'success' | 'warning' | 'danger' }>`
   font-weight: 500;
   width: fit-content;
 
-  ${props => props.status === 'success' && `
+  ${props => props.$status === 'success' && `
     background: rgba(var(--color-success), 0.1);
     color: rgb(var(--color-success));
   `}
 
-  ${props => props.status === 'warning' && `
+  ${props => props.$status === 'warning' && `
     background: rgba(var(--color-warning), 0.1);
     color: rgb(var(--color-warning));
   `}
 
-  ${props => props.status === 'danger' && `
+  ${props => props.$status === 'danger' && `
     background: rgba(var(--color-error), 0.1);
     color: rgb(var(--color-error));
   `}
@@ -290,13 +290,13 @@ const InfoRow = styled.div`
   }
 `;
 
-const ConnectButton = styled.button<{ color: string }>`
+const ConnectButton = styled.button<{ $color: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 12px 20px;
-  background: ${props => props.color};
+  background: ${props => props.$color};
   color: rgb(var(--color-text-inverse));
   border: none;
   border-radius: 8px;
@@ -306,9 +306,9 @@ const ConnectButton = styled.button<{ color: string }>`
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: ${props => props.color}dd;
+    background: ${props => props.$color}dd;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px ${props => props.color}40;
+    box-shadow: 0 4px 12px ${props => props.$color}40;
   }
 
   &:active:not(:disabled) {
@@ -325,7 +325,7 @@ const ConnectButton = styled.button<{ color: string }>`
   }
 `;
 
-const ReconnectButton = styled(ConnectButton).attrs({ color: 'rgb(var(--color-primary))' })``;
+const ReconnectButton = styled(ConnectButton).attrs({ $color: 'rgb(var(--color-primary))' })``;
 
 const ComingSoonBadge = styled.div`
   display: inline-flex;

@@ -184,7 +184,7 @@ const WorkflowName = styled.h3`
   margin: 0;
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $status: string }>`
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -194,7 +194,7 @@ const StatusBadge = styled.span<{ status: string }>`
   text-transform: uppercase;
   border-radius: var(--radius-full);
   background-color: ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'COMPLETED': return 'rgba(var(--color-success), 0.1)';
       case 'FAILED': return 'rgba(var(--color-danger), 0.1)';
       case 'IN_PROGRESS': return 'rgba(var(--color-info), 0.1)';
@@ -203,7 +203,7 @@ const StatusBadge = styled.span<{ status: string }>`
     }
   }};
   color: ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'COMPLETED': return 'rgb(var(--color-success))';
       case 'FAILED': return 'rgb(var(--color-danger))';
       case 'IN_PROGRESS': return 'rgb(var(--color-info))';
@@ -281,14 +281,14 @@ const ProgressFill = styled.div<{ percentage: number }>`
   }
 `;
 
-const StatusMessage = styled.div<{ status: string }>`
+const StatusMessage = styled.div<{ $status: string }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;
   color: ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'COMPLETED': return 'rgb(var(--color-success))';
       case 'FAILED': return 'rgb(var(--color-danger))';
       default: return 'rgb(var(--color-text-secondary))';
@@ -496,7 +496,7 @@ export const WorkflowMonitor: React.FC = () => {
                   <WorkflowInfo>
                     <WorkflowTitle>
                       <WorkflowName>{run.workflow_name}</WorkflowName>
-                      <StatusBadge status={run.status}>
+                      <StatusBadge $status={run.status}>
                         {getStatusIcon(run.status)}
                         {run.status.replace('_', ' ')}
                       </StatusBadge>
@@ -525,14 +525,14 @@ export const WorkflowMonitor: React.FC = () => {
                     )}
 
                     {run.status === 'COMPLETED' && (
-                      <StatusMessage status="COMPLETED">
+                      <StatusMessage $status="COMPLETED">
                         <CheckCircle size={16} />
                         Completed {formatToLocal(run.modified_on)}
                       </StatusMessage>
                     )}
 
                     {run.status === 'FAILED' && (
-                      <StatusMessage status="FAILED">
+                      <StatusMessage $status="FAILED">
                         <XCircle size={16} />
                         Failed - Click to view error details
                       </StatusMessage>

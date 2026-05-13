@@ -166,7 +166,7 @@ const AddNoteActions = styled.div`
   gap: 0.5rem;
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
+const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   padding: 0.375rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 500;
@@ -175,7 +175,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   cursor: pointer;
   transition: all 0.15s ease;
 
-  ${({ variant }) => variant === 'secondary' ? `
+  ${({ $variant }) => $variant === 'secondary' ? `
     background: var(--bg-secondary, rgb(var(--color-surface)));
     color: var(--text-primary, rgb(var(--color-text-primary)));
     border-color: var(--border-color, rgb(var(--color-border)));
@@ -311,7 +311,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
         ) : error ? (
           <EmptyNotes style={{ color: 'var(--color-error, rgb(var(--color-error)))' }}>
             {error}
-            <Button variant="secondary" onClick={loadNotes} style={{ marginLeft: '0.5rem' }}>
+            <Button $variant="secondary" onClick={loadNotes} style={{ marginLeft: '0.5rem' }}>
               Retry
             </Button>
           </EmptyNotes>
@@ -345,7 +345,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
                   {newNote.trim() && (
                     <Button
                       type="button"
-                      variant="secondary"
+                      $variant="secondary"
                       onClick={() => setNewNote('')}
                       disabled={isAdding}
                     >

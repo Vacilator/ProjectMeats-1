@@ -43,11 +43,11 @@ const FilterBar = styled.div`
   margin-bottom: 1rem;
 `;
 
-const FilterButton = styled.button<{ active?: boolean }>`
+const FilterButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 1rem;
-  background: ${props => props.active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))'};
-  color: ${props => props.active ? 'white' : 'rgb(var(--color-text-primary))'};
-  border: 1px solid ${props => props.active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))'};
+  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   cursor: pointer;
@@ -156,7 +156,7 @@ const TableCell = styled.td`
   vertical-align: top;
 `;
 
-const StatusBadge = styled.span<{ status: DealStatus }>`
+const StatusBadge = styled.span<{ $status: DealStatus }>`
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.7rem;
@@ -164,7 +164,7 @@ const StatusBadge = styled.span<{ status: DealStatus }>`
   font-size: 0.75rem;
   font-weight: 600;
   ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'completed':
         return 'background: rgba(var(--color-success), 0.15); color: rgb(var(--color-success));';
       case 'delivered':
@@ -326,7 +326,7 @@ const DealDesk: React.FC = () => {
 
       <FilterBar>
         {STATUS_FILTERS.map((filter) => (
-          <FilterButton key={filter} active={statusFilter === filter} onClick={() => setStatusFilter(filter)}>
+          <FilterButton key={filter} $active={statusFilter === filter} onClick={() => setStatusFilter(filter)}>
             {prettifyStatus(filter)} ({counts[filter] || 0})
           </FilterButton>
         ))}
@@ -376,7 +376,7 @@ const DealDesk: React.FC = () => {
                       pastDue={deal.is_past_due}
                     >
                       <TableCell>
-                        <StatusBadge status={deal.status}>{prettifyStatus(deal.status)}</StatusBadge>
+                        <StatusBadge $status={deal.status}>{prettifyStatus(deal.status)}</StatusBadge>
                         <Muted>{deal.deal_number}</Muted>
                       </TableCell>
                       <TableCell>
