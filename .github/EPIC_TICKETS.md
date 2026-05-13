@@ -243,7 +243,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 - [ ] **AUTO-38.3 recoverable-sync-retry-reconnect-and-progress-cta**
   - **Status:** Ready
-  - **Why now:** After the contract and status surfaces land, the remaining operator reliability gap is recovery: reconnect/retry CTAs and progress/summary reporting for long syncs are explicitly called out in the canonical diagnostics gap.
+  - **Why now:** The backend error contract and operator-visible provenance/status surfaces are now shipped, so the remaining operator reliability gap is recovery: reconnect/retry CTAs and progress/summary reporting for long syncs are explicitly called out in the canonical diagnostics gap.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 38; `MASTER_PLAN.md` -> email ingestion reliability + diagnostics
   - **Scope:** Add safe reconnect/retry actions and long-sync progress/summary reporting across the relevant backend sync/task entrypoints and operator-facing frontend surfaces.
   - **Non-goals:** No new provider integrations and no destructive auto-retry behavior.
@@ -267,7 +267,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Non-goals:** No production feature work unless the new regression coverage exposes a targeted bug that must be fixed.
   - **Primary domain:** backend/tests
   - **Likely touched paths:** `backend/apps/integrations/**/tests*`, `tenant_apps/inquiries/**/tests*`, `tenant_apps/purchase_orders/**/tests*`, `tenant_apps/sales_orders/**/tests*`, optional focused frontend/e2e coverage only if a user-visible bug is exposed
-  - **Dependencies:** AUTO-38.2, AUTO-38.3
+  - **Dependencies:** AUTO-38.3
   - **Blockers:** AUTO-38.3 must land first so fixtures/assertions target the final recovery contract and operator-visible states
   - **Acceptance criteria:** Stable sample-email fixtures prove the automation chain from ingest through PO/SO/fulfillment/invoice and fail if the new reliability/diagnostics semantics regress.
   - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders --noinput`
