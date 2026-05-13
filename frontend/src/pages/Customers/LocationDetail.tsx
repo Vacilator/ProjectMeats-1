@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
+import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
@@ -346,6 +347,7 @@ export const LocationDetail: React.FC = () => {
               variant="full"
               onNavigateToEntity={handleNavigateToEntity}
             />
+            <AIEntityInsights entityType="location" entityId={lid} />
           </>
         )}
       </div>

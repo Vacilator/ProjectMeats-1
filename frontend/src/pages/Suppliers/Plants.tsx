@@ -15,6 +15,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
+import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
@@ -172,6 +173,15 @@ const Plants: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [contextSupplierId, setContextSupplierId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+
+  const plantTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'processing', label: 'Processing' },
+    { key: 'vertical', label: 'Vertical' },
+    { key: 'distribution', label: 'Distribution' },
+    { key: 'warehouse', label: 'Warehouse' },
+  ], []);
   const plantFormInitialValues = useMemo(
     () => ({
       ...(contextSupplierId ? { supplier: String(contextSupplierId) } : {}),
@@ -215,6 +225,10 @@ const Plants: React.FC = () => {
       filtered = filtered.filter(p => p.supplier === contextSupplierId);
     }
 
+    if (activeTab !== 'all') {
+      filtered = filtered.filter(p => (p.plant_type ?? '').toLowerCase() === activeTab);
+    }
+
     if (searchText) {
       const search = searchText.toLowerCase();
       filtered = filtered.filter(p =>
@@ -227,7 +241,7 @@ const Plants: React.FC = () => {
     }
 
     return filtered;
-  }, [plants, searchText, contextSupplierId]);
+  }, [plants, searchText, contextSupplierId, activeTab]);
 
   const loadPlants = useCallback(async (supplierFilterId: number | null) => {
     try {
@@ -457,16 +471,14 @@ const Plants: React.FC = () => {
         </ContextBanner>
       )}
 
-      <TableControls>
-        <Input
-          placeholder="Search plants by name, est. #, supplier, or location..."
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ maxWidth: 400 }}
-          allowClear
-        />
-      </TableControls>
+      <StatusFilterBar
+        tabs={plantTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Search plants by name, est. #, supplier, or location…"
+      />
 
       <StyledTable
         columns={columns as any}
