@@ -3,10 +3,11 @@ Bug Reports admin configuration.
 """
 from django.contrib import admin
 from apps.core.admin_site import admin_site
+from apps.core.admin import TenantFilteredAdmin
 from .models import BugReport
 
 
-class BugReportAdmin(admin.ModelAdmin):
+class BugReportAdmin(TenantFilteredAdmin):
     """Admin interface for BugReport model."""
 
     list_display = [

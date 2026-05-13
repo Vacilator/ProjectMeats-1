@@ -3,13 +3,14 @@ Django admin configuration for AI Assistant app.
 """
 from django.contrib import admin
 from apps.core.admin_site import admin_site
+from apps.core.admin import TenantFilteredAdmin
 from .models import (
     ChatSession, ChatMessage, AIConfiguration,
     AIFeedbackLog, AIRun, AIApproval, CockpitDraftForm,
 )
 
 
-class ChatSessionAdmin(admin.ModelAdmin):
+class ChatSessionAdmin(TenantFilteredAdmin):
     """Admin interface for ChatSession model."""
 
     list_display = (
@@ -46,7 +47,7 @@ class ChatSessionAdmin(admin.ModelAdmin):
     )
 
 
-class ChatMessageAdmin(admin.ModelAdmin):
+class ChatMessageAdmin(TenantFilteredAdmin):
     """Admin interface for ChatMessage model."""
 
     list_display = (
@@ -81,7 +82,7 @@ class ChatMessageAdmin(admin.ModelAdmin):
     )
 
 
-class AIConfigurationAdmin(admin.ModelAdmin):
+class AIConfigurationAdmin(TenantFilteredAdmin):
     """Admin interface for AIConfiguration model."""
 
     list_display = (
@@ -109,7 +110,7 @@ admin_site.register(ChatMessage, ChatMessageAdmin)
 admin_site.register(AIConfiguration, AIConfigurationAdmin)
 
 
-class AIFeedbackLogAdmin(admin.ModelAdmin):
+class AIFeedbackLogAdmin(TenantFilteredAdmin):
     """Admin for AI feedback/retraining review."""
 
     list_display = ['document_type', 'feedback_signal', 'confidence_score', 'retraining_status', 'created_on']
@@ -121,7 +122,7 @@ class AIFeedbackLogAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('tenant', 'submitted_by')
 
 
-class AIRunAdmin(admin.ModelAdmin):
+class AIRunAdmin(TenantFilteredAdmin):
     """Admin for AI execution run tracking."""
 
     list_display = ['id', 'source', 'event_type', 'status', 'intent', 'created_on']
@@ -134,7 +135,7 @@ class AIRunAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('tenant', 'requested_by', 'session')
 
 
-class AIApprovalAdmin(admin.ModelAdmin):
+class AIApprovalAdmin(TenantFilteredAdmin):
     """Admin for AI approval workflow items."""
 
     list_display = ['id', 'tool_name', 'status', 'requested_by', 'resolved_by', 'created_on']
@@ -147,7 +148,7 @@ class AIApprovalAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('tenant', 'requested_by', 'resolved_by')
 
 
-class CockpitDraftFormAdmin(admin.ModelAdmin):
+class CockpitDraftFormAdmin(TenantFilteredAdmin):
     """Admin for AI inbox draft forms."""
 
     list_display = ['id', 'form_type', 'status', 'assigned_to', 'created_on']

@@ -1,6 +1,7 @@
 """Admin configuration for Inquiries."""
 from django.contrib import admin
 from apps.core.admin_site import admin_site
+from apps.core.admin import TenantFilteredAdmin
 from .models import (
     Inquiry, InquiryProduct, InquirySupplierRFQ,
     InquiryTemplate, InquiryTemplateProduct, TradeSession,
@@ -20,7 +21,7 @@ class InquiryProductInline(admin.TabularInline):
     ]
 
 
-class InquiryAdmin(admin.ModelAdmin):
+class InquiryAdmin(TenantFilteredAdmin):
     """Admin for Inquiry model."""
     list_display = [
         'inquiry_number', 'entity_type', 'get_entity_name', 
@@ -82,7 +83,7 @@ class InquiryTemplateProductInline(admin.TabularInline):
     fields = ['product', 'default_quantity', 'default_uom', 'default_price_per_unit', 'sort_order', 'notes']
 
 
-class InquiryTemplateAdmin(admin.ModelAdmin):
+class InquiryTemplateAdmin(TenantFilteredAdmin):
     """Admin for InquiryTemplate model."""
     list_display = [
         'name', 'entity_type', 'is_active', 'use_count', 
@@ -125,7 +126,7 @@ admin_site.register(Inquiry, InquiryAdmin)
 admin_site.register(InquiryTemplate, InquiryTemplateAdmin)
 
 
-class InquirySupplierRFQAdmin(admin.ModelAdmin):
+class InquirySupplierRFQAdmin(TenantFilteredAdmin):
     """Admin for outbound RFQ audit records."""
 
     list_display = ['inquiry', 'supplier', 'status', 'recipient_email', 'sent_at', 'attempt_count']
@@ -138,7 +139,7 @@ class InquirySupplierRFQAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('tenant', 'inquiry', 'supplier')
 
 
-class TradeSessionAdmin(admin.ModelAdmin):
+class TradeSessionAdmin(TenantFilteredAdmin):
     """Admin for trade lineage tracking."""
 
     list_display = ['trade_id', 'status', 'inquiry', 'created_on']

@@ -295,7 +295,7 @@ class ColdStorageEntryAdmin(TenantFilteredAdmin):
         ),
     )
 
-class PurchaseOrderHistoryAdmin(admin.ModelAdmin):
+class PurchaseOrderHistoryAdmin(TenantFilteredAdmin):
     """Admin interface for PurchaseOrderHistory model."""
 
     list_display = (
