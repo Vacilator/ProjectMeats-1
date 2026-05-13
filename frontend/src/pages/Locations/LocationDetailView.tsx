@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Empty, Spin, Tabs, Tag } from 'antd';
 import styled from 'styled-components';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityFormSurface } from '@/components/Shared';
@@ -217,7 +217,11 @@ export const LocationDetailView: React.FC = () => {
     <PageWrapper>
       <TopBar>
         <TitleGroup>
-          <Button onClick={() => navigate(-1)}>Back</Button>
+          <BreadcrumbTrail>
+            <Link to="/">Home</Link>
+            <BreadcrumbSep>/</BreadcrumbSep>
+            <Link to="/customers/locations">Locations</Link>
+          </BreadcrumbTrail>
           <PageTitle>Location</PageTitle>
         </TitleGroup>
 
@@ -316,14 +320,32 @@ const TopBar = styled.div`
 
 const TitleGroup = styled.div`
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
 `;
 
-const PageTitle = styled.div`
-  font-size: 16px;
+const BreadcrumbTrail = styled.nav`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgb(var(--color-text-tertiary));
+  a {
+    color: rgb(var(--color-primary));
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+`;
+
+const BreadcrumbSep = styled.span`
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const PageTitle = styled.h1`
+  font-size: 20px;
   font-weight: 700;
   color: rgb(var(--color-text-primary));
+  margin: 0;
 `;
 
 const ContentSection = styled.div`
