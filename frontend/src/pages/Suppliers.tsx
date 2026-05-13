@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { Supplier } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
@@ -305,24 +306,28 @@ const Suppliers: React.FC = () => {
       />
       )}
 
-      <EntityFormSurface
-        entityType="supplier"
-        mode="create"
-        variant="modal"
-        isOpen={createOpen}
-        onClose={handleCreateClose}
-        onSuccess={handleCreateSuccess}
-      />
+      <FormErrorBoundary entityType="supplier" onClose={handleCreateClose}>
+        <EntityFormSurface
+          entityType="supplier"
+          mode="create"
+          variant="modal"
+          isOpen={createOpen}
+          onClose={handleCreateClose}
+          onSuccess={handleCreateSuccess}
+        />
+      </FormErrorBoundary>
 
-      <EntityFormSurface
-        entityType="supplier"
-        mode="edit"
-        variant="modal"
-        isOpen={editOpen}
-        entityId={editingSupplierId ?? undefined}
-        onClose={handleEditClose}
-        onSuccess={handleEditSuccess}
-      />
+      <FormErrorBoundary entityType="supplier" onClose={handleEditClose}>
+        <EntityFormSurface
+          entityType="supplier"
+          mode="edit"
+          variant="modal"
+          isOpen={editOpen}
+          entityId={editingSupplierId ?? undefined}
+          onClose={handleEditClose}
+          onSuccess={handleEditSuccess}
+        />
+      </FormErrorBoundary>
     </div>
   );
 };

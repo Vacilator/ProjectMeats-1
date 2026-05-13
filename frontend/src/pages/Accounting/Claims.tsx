@@ -22,6 +22,7 @@ import { Skeleton } from 'antd';
 
 import { showAlert } from '@/utils/uiDialogs';
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
@@ -768,14 +769,16 @@ export const Claims: React.FC = () => {
         )}
       </ContentContainer>
 
-      <EntityFormSurface
-        entityType="claims"
-        mode="create"
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onSuccess={handleCreateSuccess}
-        initialValues={claimCreateInitialValues as any}
-      />
+      <FormErrorBoundary entityType="claim" onClose={handleModalClose}>
+        <EntityFormSurface
+          entityType="claims"
+          mode="create"
+          isOpen={isModalOpen}
+          onClose={handleModalClose}
+          onSuccess={handleCreateSuccess}
+          initialValues={claimCreateInitialValues as any}
+        />
+      </FormErrorBoundary>
     </PageContainer>
   );
 };

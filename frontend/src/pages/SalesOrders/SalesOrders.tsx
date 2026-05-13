@@ -25,6 +25,7 @@ import {
 } from '../../components/Onboarding';
 import { ActivityFeed } from '../../components/Shared';
 import SalesOrderForm from './SalesOrderForm';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
@@ -912,11 +913,13 @@ export const SalesOrdersPage: React.FC = () => {
       </ContentContainer>
 
       {isModalOpen && (
-        <SalesOrderForm
-          mode="create"
-          onSuccess={handleCreateSuccess}
-          onCancel={handleCreateClose}
-        />
+        <FormErrorBoundary entityType="sales order" onClose={handleCreateClose}>
+          <SalesOrderForm
+            mode="create"
+            onSuccess={handleCreateSuccess}
+            onCancel={handleCreateClose}
+          />
+        </FormErrorBoundary>
       )}
     </PageContainer>
   );

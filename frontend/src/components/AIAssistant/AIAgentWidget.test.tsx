@@ -104,6 +104,14 @@ vi.mock('@/services/aiContext', () => ({
   buildAIPageContext: () => ({}),
 }));
 
+vi.mock('@/hooks/useAIPreferences', () => ({
+  useAIPreferences: () => ({
+    preferences: { require_external_approval: true, show_ai_suggestions: true },
+    updatePreference: vi.fn(),
+    isLoading: false,
+  }),
+}));
+
 vi.mock('./HITLReviewCard', () => ({
   HITLReviewCard: () => <div data-testid="hitl-review-card" />,
 }));
