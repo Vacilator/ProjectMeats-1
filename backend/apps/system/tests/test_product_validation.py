@@ -209,7 +209,7 @@ class ProductValidationTest(TestCase):
         product = Product(
             product_code='TEST-ERROR-001',
             name='Test Error Message',
-            protein_type='chicken',  # Close to 'poultry' but wrong
+            protein_type='chikcen',  # Intentionally invalid typo
             category='POULTRY',
         )
         
