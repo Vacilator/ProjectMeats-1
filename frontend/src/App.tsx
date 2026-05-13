@@ -22,7 +22,7 @@ import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 import { OnboardingProvider } from './components/Onboarding';
 import './i18n/config'; // Initialize i18n
-import { buildCanonicalSearchPath, getCanonicalSearchQuery } from './utils/canonicalSearch';
+// canonicalSearch utilities kept available for Header; App.tsx no longer uses them directly
 import LegacyCommandCenterTabRedirect from './routes/LegacyCommandCenterTabRedirect';
 
 const MyTasksRedirect: React.FC = () => {
@@ -30,19 +30,7 @@ const MyTasksRedirect: React.FC = () => {
   return <Navigate to={`/workforms/tasks${location.search || ''}`} replace />;
 };
 
-const CockpitIndexRedirect: React.FC = () => {
-  const location = useLocation();
-
-  return (
-    <Navigate
-      to={buildCanonicalSearchPath({
-        query: getCanonicalSearchQuery(location.search),
-        searchParams: location.search,
-      })}
-      replace
-    />
-  );
-};
+// CockpitIndexRedirect removed — cockpit index now redirects to Home
 
 // Create QueryClient for data fetching (React Query)
 const queryClient = new QueryClient({
@@ -70,8 +58,8 @@ import Payables from './pages/Payables';
 import ColdStorage from './pages/ColdStorage';
 import Contacts from './pages/Contacts';
 import Plants from './pages/Suppliers/Plants';
-// TraderCockpitPage now redirected to /command-center — import removed
-const AICommandCenter = React.lazy(() => import('./pages/AICommandCenter'));
+// AICommandCenter archived — now redirects to Home
+import Home from './pages/Home';
 import SupplierProducts from './pages/Suppliers/Products';
 import CustomerLocations from './pages/Customers/Locations';
 import CustomerProducts from './pages/Customers/Products';
@@ -126,10 +114,7 @@ import { ErrorBoundary as ProductionErrorBoundary } from './components/common/Er
 import { logger } from './utils/logger';
 import { lazyWithChunkRecovery } from './utils/chunkLoadRecovery';
 import { getValidTenantId } from './utils/tenantId';
-const CockpitPage = lazyWithChunkRecovery(() => import('./pages/Cockpit'), 'App.CockpitPage');
-import CockpitDashboard from './pages/Cockpit/CockpitDashboard';
-// Legacy process-cockpit routes now redirect to /command-center — page import removed
-import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
+// Cockpit page/dashboard/entity-redirect archived — routes now redirect to Home
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 import WorkFormsLayout from './pages/WorkForms';
@@ -283,7 +268,7 @@ const App: React.FC = () => {
                   />
                 )}
               <Route path="/" element={<Layout />}>
-                <Route index element={<Navigate to="/command-center" replace />} />
+                <Route index element={<Home />} />
 
                 {/* Canonical record destination */}
                 <Route path="records/:entityType/:id" element={<UniversalEntityRecordRoute />} />
@@ -365,8 +350,8 @@ const App: React.FC = () => {
                 <Route path="accounting/payables/pos" element={<PayablePOs />} />
                 <Route path="accounting/settlements" element={<SettlementQueue />} />
 
-                {/* Unified Command Center */}
-                <Route path="command-center" element={<React.Suspense fallback={<Skeleton active />}><AICommandCenter /></React.Suspense>} />
+                {/* Legacy command-center redirects to Home */}
+                <Route path="command-center" element={<Navigate to="/" replace />} />
 
                 {/* Other Pages */}
                 <Route
@@ -499,24 +484,12 @@ const App: React.FC = () => {
                 {/* Backward compatibility redirect */}
                 <Route path="admin/*" element={<Navigate to={`/workspace/${window.location.pathname.replace('/admin/', '')}`} replace />} />
 
-                {/* Secondary operator workspace surfaces */}
-                <Route
-                  path="cockpit"
-                  element={
-                    <Suspense fallback={<Skeleton active />}>
-                      <CockpitPage />
-                    </Suspense>
-                  }
-                >
-                  <Route index element={<CockpitIndexRedirect />} />
-                  <Route path="dashboard" element={<CockpitDashboard />} />
-                  <Route
-                    path="process-monitor/*"
-                    element={<LegacyCommandCenterTabRedirect tab="action-required" />}
-                  />
-                  <Route path="calls" element={<CallLog />} />
-                  <Route path="entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
-                </Route>
+                {/* Cockpit — most routes redirect to Home, but /cockpit/calls is still useful */}
+                <Route path="cockpit" element={<Navigate to="/" replace />} />
+                <Route path="cockpit/dashboard" element={<Navigate to="/" replace />} />
+                <Route path="cockpit/process-monitor/*" element={<Navigate to="/" replace />} />
+                <Route path="cockpit/calls" element={<CallLog />} />
+                <Route path="cockpit/entity/:entityType/:entityId" element={<Navigate to="/" replace />} />
                 {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
               </Route>
             </Routes>

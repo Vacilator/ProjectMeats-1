@@ -28,50 +28,9 @@ export interface NavigationItem {
 
 export const navigation: NavigationItem[] = [
   {
-    label: 'Command Center',
-    icon: '⚡',
-    path: '/command-center',
-    badgeKey: 'actionRequired',
-    children: [
-      {
-        label: 'Overview',
-        icon: '⚡',
-        path: '/command-center',
-      },
-      {
-        label: 'Workspace Dashboard',
-        icon: '🎯',
-        path: '/cockpit/dashboard',
-      },
-      {
-        label: 'Calls',
-        icon: '📞',
-        path: '/calls',
-      },
-      {
-        label: 'Reports',
-        icon: '📈',
-        path: '/reports',
-      },
-      {
-        label: 'WorkForms',
-        icon: '📋',
-        path: '/workforms',
-        children: [
-          {
-            label: 'Catalog',
-            icon: '📚',
-            path: '/workforms/catalog',
-          },
-          {
-            label: 'Editor',
-            icon: '🎨',
-            path: '/workforms/editor',
-            roles: ['admin', 'superuser'],
-          },
-        ],
-      },
-    ],
+    label: 'Home',
+    icon: '🏠',
+    path: '/',
   },
   {
     label: 'Suppliers',
@@ -91,18 +50,6 @@ export const navigation: NavigationItem[] = [
         label: 'Inquiries',
         icon: '📋',
         path: '/inquiries',
-        children: [
-          {
-            label: 'Templates',
-            icon: '📝',
-            path: '/inquiries/templates',
-          },
-          {
-            label: 'Analytics',
-            icon: '📊',
-            path: '/inquiries/analytics',
-          },
-        ],
       },
       {
         label: 'Fulfillments',
@@ -192,6 +139,32 @@ export const navigation: NavigationItem[] = [
         path: '/freight-orders',
       },
     ],
+  },
+  {
+    label: 'Tools',
+    icon: '🔧',
+    children: [
+      {
+        label: 'Calls',
+        icon: '📞',
+        path: '/cockpit/calls',
+      },
+      {
+        label: 'Reports',
+        icon: '📈',
+        path: '/reports',
+      },
+      {
+        label: 'Deals',
+        icon: '🤝',
+        path: '/deals',
+      },
+    ],
+  },
+  {
+    label: 'WorkForms',
+    icon: '📋',
+    path: '/workforms',
   },
 ];
 
