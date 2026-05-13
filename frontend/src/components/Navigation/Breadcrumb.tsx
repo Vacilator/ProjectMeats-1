@@ -234,56 +234,43 @@ const Breadcrumb: React.FC = () => {
     return next;
   }, [resolvableItems, resolvedNames]);
 
-  // If at root or single segment (page name shown as header instead), show nothing
+  // If at root, show nothing
   if (pathnames.length === 0) {
     return null;
   }
 
-  // Drop the last segment — it will be rendered as the page header, not in the breadcrumb.
+  // The last breadcrumb item is rendered as the page header, not in the trail.
   const trailItems = breadcrumbItems.slice(0, -1);
-
-  // Always show Home as the root breadcrumb
-  const homeItem = { routeTo: '/', staticDisplayName: 'Home' };
+  const lastItem = breadcrumbItems[breadcrumbItems.length - 1];
+  const pageTitle =
+    resolvedNameMap.get(lastItem.routeTo) ||
+    (lastItem.resolver
+      ? fallbackEntityLabel(lastItem.resolver.singularLabel, lastItem.pathname)
+      : lastItem.staticDisplayName);
 
   return (
-    <BreadcrumbContainer aria-label="Breadcrumb navigation">
-      {trailItems.length === 0 ? (
-        // Single-segment path (e.g., /suppliers): just show Home
+    <BreadcrumbWrapper>
+      <BreadcrumbContainer aria-label="Breadcrumb navigation">
         <BreadcrumbItem>
-          <BreadcrumbText>Home</BreadcrumbText>
+          <BreadcrumbLink to="/">Home</BreadcrumbLink>
+          {trailItems.length > 0 && <Separator aria-hidden="true">/</Separator>}
         </BreadcrumbItem>
-      ) : (
-        <>
-          <BreadcrumbItem>
-            <BreadcrumbLink to={homeItem.routeTo}>
-              {homeItem.staticDisplayName}
-            </BreadcrumbLink>
-            <Separator aria-hidden="true">/</Separator>
-          </BreadcrumbItem>
-          {trailItems.map(({ routeTo, staticDisplayName, resolver, pathname }, index) => {
-            const displayName =
-              resolvedNameMap.get(routeTo) ||
-              (resolver ? fallbackEntityLabel(resolver.singularLabel, pathname) : staticDisplayName);
-            const isLastTrail = index === trailItems.length - 1;
+        {trailItems.map(({ routeTo, staticDisplayName, resolver, pathname }, index) => {
+          const displayName =
+            resolvedNameMap.get(routeTo) ||
+            (resolver ? fallbackEntityLabel(resolver.singularLabel, pathname) : staticDisplayName);
+          const isLastTrail = index === trailItems.length - 1;
 
-            return (
-              <BreadcrumbItem key={routeTo}>
-                {isLastTrail ? (
-                  <BreadcrumbText>{displayName}</BreadcrumbText>
-                ) : (
-                  <>
-                    <BreadcrumbLink to={routeTo}>
-                      {displayName}
-                    </BreadcrumbLink>
-                    <Separator aria-hidden="true">/</Separator>
-                  </>
-                )}
-              </BreadcrumbItem>
-            );
-          })}
-        </>
-      )}
-    </BreadcrumbContainer>
+          return (
+            <BreadcrumbItem key={routeTo}>
+              <BreadcrumbLink to={routeTo}>{displayName}</BreadcrumbLink>
+              {!isLastTrail && <Separator aria-hidden="true">/</Separator>}
+            </BreadcrumbItem>
+          );
+        })}
+      </BreadcrumbContainer>
+      <PageHeading>{pageTitle}</PageHeading>
+    </BreadcrumbWrapper>
   );
 };
 
@@ -311,13 +298,24 @@ const isLikelyEntityIdentifier = (segment: string): boolean => {
   return /^\d+$/.test(normalized) || UUID_SEGMENT_PATTERN.test(normalized) || normalized.toLowerCase().includes('uuid');
 };
 
+const BreadcrumbWrapper = styled.div`
+  padding: 16px 0 0;
+`;
+
 const BreadcrumbContainer = styled.nav`
   display: flex;
   align-items: center;
-  padding: 16px 0;
   font-size: 14px;
   flex-wrap: wrap;
   gap: 4px;
+`;
+
+const PageHeading = styled.h1`
+  margin: 8px 0 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary, 73, 80, 87));
+  line-height: 1.3;
 `;
 
 const BreadcrumbItem = styled.div`
@@ -340,11 +338,6 @@ const BreadcrumbLink = styled(Link)`
     outline-offset: 2px;
     border-radius: 2px;
   }
-`;
-
-const BreadcrumbText = styled.span`
-  color: rgb(var(--color-text-primary, 73, 80, 87));
-  font-weight: 500;
 `;
 
 const Separator = styled.span`

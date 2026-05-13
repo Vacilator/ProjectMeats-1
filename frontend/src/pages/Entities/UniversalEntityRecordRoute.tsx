@@ -19,7 +19,7 @@ export const UniversalEntityRecordRoute: React.FC<UniversalEntityRecordRouteProp
   const { entityType } = useParams<RouteParams>();
 
   const basePath = useMemo(
-    () => entityListPath(String(entityType || '')) ?? '/cockpit',
+    () => entityListPath(String(entityType || '')) ?? '/',
     [entityType]
   );
 

@@ -139,7 +139,7 @@ const Header: React.FC<HeaderProps> = () => {
 
   const cockpitTourStatus = getTourStatus('cockpit');
   const workflowEditorTourStatus = getTourStatus('workflow-editor');
-  const onCockpitRoute = location.pathname.startsWith('/cockpit');
+  const onHomeRoute = location.pathname === '/';
   const onWorkflowRoute =
     location.pathname.startsWith('/workflows') || location.pathname.startsWith('/workforms');
 
@@ -159,8 +159,8 @@ const Header: React.FC<HeaderProps> = () => {
   const handleCockpitTourClick = () => {
     setShowOnboardingMenu(false);
 
-    if (!onCockpitRoute) {
-      navigate('/cockpit/dashboard?tour=cockpit');
+    if (!onHomeRoute) {
+      navigate('/?tour=cockpit');
       return;
     }
 
@@ -248,11 +248,11 @@ const Header: React.FC<HeaderProps> = () => {
                 $theme={theme}
                 onClick={() => {
                   setShowOnboardingMenu(false);
-                  navigate('/cockpit/dashboard');
+                  navigate('/');
                 }}
               >
                 <IconWrapper>🏠</IconWrapper>
-                <span>Open Workspace Dashboard</span>
+                <span>Open Home Dashboard</span>
               </QuickMenuItem>
             </QuickMenuDropdown>
           )}

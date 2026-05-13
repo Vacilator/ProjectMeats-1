@@ -31,7 +31,7 @@ const MyTasksRedirect: React.FC = () => {
   return <Navigate to={`/workforms/tasks${location.search || ''}`} replace />;
 };
 
-// CockpitIndexRedirect removed — cockpit index now redirects to Home
+// Cockpit routes removed — all cockpit paths redirect to Home
 
 // Create QueryClient for data fetching (React Query)
 const queryClient = new QueryClient({
@@ -116,7 +116,7 @@ import { ErrorBoundary as ProductionErrorBoundary } from './components/common/Er
 import { logger } from './utils/logger';
 import { lazyWithChunkRecovery } from './utils/chunkLoadRecovery';
 import { getValidTenantId } from './utils/tenantId';
-// Cockpit page/dashboard/entity-redirect archived — routes now redirect to Home
+// Cockpit pages archived — routes redirect to Home
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 import WorkFormsLayout from './pages/WorkForms';
