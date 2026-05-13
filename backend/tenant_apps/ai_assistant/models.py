@@ -239,6 +239,76 @@ class AIFeedbackLog(TenantAwareModel):
         related_name="ai_feedback_resolutions",
     )
 
+    # ── Phase 40: Implicit feedback signal fields ──────────────────
+    class ImplicitSignalType(models.TextChoices):
+        ACCEPTED_AS_IS = "accepted_as_is", "Accepted As-Is"
+        ACCEPTED_WITH_EDITS = "accepted_with_edits", "Accepted With Edits"
+        DISMISSED_UNOPENED = "dismissed_unopened", "Dismissed Unopened"
+        DISMISSED_AFTER_VIEW = "dismissed_after_view", "Dismissed After View"
+        FIELD_CORRECTION = "field_correction", "Field Correction"
+        SUGGESTION_CLICKED = "suggestion_clicked", "Suggestion Clicked"
+        SUGGESTION_DISMISSED = "suggestion_dismissed", "Suggestion Dismissed"
+        SEARCH_NAVIGATE = "search_navigate", "Search Navigate"
+        UNDO_REVERT = "undo_revert", "Undo/Revert"
+
+    class SourceSurface(models.TextChoices):
+        FORM = "form", "Form"
+        INBOX = "inbox", "Inbox"
+        APPROVAL_QUEUE = "approval_queue", "Approval Queue"
+        CHAT = "chat", "Chat"
+        SUGGESTION_CHIP = "suggestion_chip", "Suggestion Chip"
+        SEARCH = "search", "Search"
+        ENTITY_PAGE = "entity_page", "Entity Page"
+        WORKFLOW = "workflow", "Workflow"
+        NOTIFICATION = "notification", "Notification"
+
+    implicit_signal = models.CharField(
+        max_length=32,
+        choices=ImplicitSignalType.choices,
+        blank=True,
+        default="",
+        help_text="Type of implicit signal captured from user behavior.",
+    )
+    fields_modified_by_user = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of field names the user modified after AI auto-fill.",
+    )
+    review_duration_ms = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Milliseconds the user spent reviewing this item before acting.",
+    )
+    suggestion_viewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the user first viewed this AI suggestion.",
+    )
+    action_taken_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the user took action on this item.",
+    )
+    source_surface = models.CharField(
+        max_length=32,
+        choices=SourceSurface.choices,
+        blank=True,
+        default="",
+        help_text="UI surface where this feedback originated.",
+    )
+    source_entity_type = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Entity type related to this feedback (e.g., purchase_order, supplier).",
+    )
+    source_entity_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="ID of the entity related to this feedback.",
+    )
+
     class Meta:
         db_table = "ai_assistant_feedback_logs"
         verbose_name = "AI Feedback Log"
@@ -249,6 +319,8 @@ class AIFeedbackLog(TenantAwareModel):
             # Optimizes the pending-review queue: tenant + unresolved + confidence + time.
             models.Index(fields=["tenant", "resolved_by", "confidence_score", "created_on"], name="ai_fb_queue_idx"),
             models.Index(fields=["tenant", "retraining_status", "created_on"], name="ai_fb_retrain_idx"),
+            models.Index(fields=["tenant", "implicit_signal", "created_on"], name="ai_fb_implicit_idx"),
+            models.Index(fields=["tenant", "source_surface", "created_on"], name="ai_fb_surface_idx"),
         ]
 
     def __str__(self) -> str:
@@ -902,3 +974,326 @@ class CockpitDraftForm(TenantAwareModel):
 
     def __str__(self):
         return f"Draft({self.form_type}) [{self.status}]"
+
+
+# ---------------------------------------------------------------------------
+# Phase 40: External Approval Request — intercepts outbound communications
+# ---------------------------------------------------------------------------
+
+
+class ExternalApprovalRequestType(models.TextChoices):
+    EMAIL = "email", "Email"
+    PURCHASE_ORDER = "purchase_order", "Purchase Order"
+    SALES_ORDER = "sales_order", "Sales Order"
+    INVOICE = "invoice", "Invoice"
+    CARRIER_RELEASE = "carrier_release", "Carrier Release"
+    RFQ = "rfq", "RFQ"
+    GENERAL = "general", "General Communication"
+
+
+class ExternalApprovalStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+    EDITED_AND_APPROVED = "edited_and_approved", "Edited & Approved"
+    EXPIRED = "expired", "Expired"
+    DELEGATED = "delegated", "Delegated"
+
+
+class ExternalApprovalPriority(models.TextChoices):
+    LOW = "low", "Low"
+    NORMAL = "normal", "Normal"
+    HIGH = "high", "High"
+    URGENT = "urgent", "Urgent"
+
+
+class RecipientType(models.TextChoices):
+    SUPPLIER = "supplier", "Supplier"
+    CUSTOMER = "customer", "Customer"
+    CARRIER = "carrier", "Carrier"
+    OTHER = "other", "Other"
+
+
+class ExternalApprovalRequest(TenantAwareModel):
+    """Intercepts outbound communications for human approval before sending.
+
+    Default: all external sends require approval (user toggleable).
+    Supports: email, PO, SO, Invoice, Carrier Release, RFQ, general comms.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    request_type = models.CharField(
+        max_length=32,
+        choices=ExternalApprovalRequestType.choices,
+        help_text="Type of outbound communication.",
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=ExternalApprovalStatus.choices,
+        default=ExternalApprovalStatus.PENDING,
+    )
+    priority = models.CharField(
+        max_length=16,
+        choices=ExternalApprovalPriority.choices,
+        default=ExternalApprovalPriority.NORMAL,
+    )
+    subject = models.CharField(
+        max_length=500,
+        help_text="Human-readable summary of the outbound communication.",
+    )
+
+    # Recipient info
+    recipient_type = models.CharField(
+        max_length=16,
+        choices=RecipientType.choices,
+        default=RecipientType.OTHER,
+    )
+    recipient_entity_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="ID of the recipient entity (supplier/customer/carrier).",
+    )
+    recipient_name = models.CharField(max_length=255, blank=True, default="")
+    recipient_email = models.EmailField(blank=True, default="")
+
+    # Content
+    content_preview = models.TextField(
+        blank=True,
+        default="",
+        help_text="Rendered preview of what will be sent.",
+    )
+    content_payload = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Full payload for actual send.",
+    )
+    edited_content = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Content after user edits (if edited before approval).",
+    )
+
+    # Source linkage
+    source_entity_type = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Entity type that triggered this (po, so, invoice, etc.).",
+    )
+    source_entity_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    # AI info
+    ai_generated = models.BooleanField(
+        default=False,
+        help_text="Whether this was drafted by AI.",
+    )
+    ai_confidence = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="AI confidence score for the generated content.",
+    )
+
+    # Users
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="external_approval_requests",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="external_approval_reviews",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewer_notes = models.TextField(blank=True, default="")
+
+    # Delegation
+    delegated_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delegated_approvals",
+    )
+
+    # Expiry
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Auto-expire stale requests (default 72h).",
+    )
+
+    class Meta:
+        db_table = "ai_assistant_external_approval_requests"
+        verbose_name = "External Approval Request"
+        verbose_name_plural = "External Approval Requests"
+        ordering = ["-created_on"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "status", "created_on"],
+                name="ext_appr_tenant_status_idx",
+            ),
+            models.Index(
+                fields=["tenant", "request_type", "status"],
+                name="ext_appr_tenant_type_idx",
+            ),
+            models.Index(
+                fields=["tenant", "requested_by", "status"],
+                name="ext_appr_tenant_user_idx",
+            ),
+            models.Index(
+                fields=["tenant", "expires_at"],
+                name="ext_appr_tenant_expiry_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.request_type} → {self.recipient_name or self.recipient_email} ({self.status})"
+
+
+# ---------------------------------------------------------------------------
+# Phase 40: User AI Preferences — per-user per-tenant AI settings
+# ---------------------------------------------------------------------------
+
+
+class FeedbackDetailLevel(models.TextChoices):
+    MINIMAL = "minimal", "Minimal"
+    STANDARD = "standard", "Standard"
+    DETAILED = "detailed", "Detailed"
+
+
+class NotificationFrequency(models.TextChoices):
+    REALTIME = "realtime", "Real-time"
+    HOURLY_DIGEST = "hourly_digest", "Hourly Digest"
+    DAILY_DIGEST = "daily_digest", "Daily Digest"
+
+
+class UserAIPreferences(TenantAwareModel):
+    """Per-user per-tenant AI behavior preferences.
+
+    Key setting: require_external_approval — DEFAULT ON.
+    Controls whether outbound communications need manual approval.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ai_preferences",
+    )
+    require_external_approval = models.BooleanField(
+        default=True,
+        help_text="Require manual approval before sending to external parties. DEFAULT ON.",
+    )
+    approval_auto_approve_threshold = models.FloatField(
+        default=0.99,
+        help_text="AI confidence threshold for auto-approval (0.99 = nearly never auto).",
+    )
+    show_ai_confidence_badges = models.BooleanField(
+        default=True,
+        help_text="Show confidence badges on AI-filled fields.",
+    )
+    show_ai_suggestions = models.BooleanField(
+        default=True,
+        help_text="Show AI suggestion chips on entity pages.",
+    )
+    feedback_detail_level = models.CharField(
+        max_length=16,
+        choices=FeedbackDetailLevel.choices,
+        default=FeedbackDetailLevel.STANDARD,
+    )
+    notification_frequency = models.CharField(
+        max_length=16,
+        choices=NotificationFrequency.choices,
+        default=NotificationFrequency.REALTIME,
+    )
+
+    class Meta:
+        db_table = "ai_assistant_user_ai_preferences"
+        verbose_name = "User AI Preferences"
+        verbose_name_plural = "User AI Preferences"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "user"],
+                name="unique_user_ai_prefs_per_tenant",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "user"],
+                name="ai_prefs_tenant_user_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"AI Prefs: {self.user} (approval={'ON' if self.require_external_approval else 'OFF'})"
+
+
+# ---------------------------------------------------------------------------
+# Phase 40: AI Learning Snapshot — periodic aggregation of feedback metrics
+# ---------------------------------------------------------------------------
+
+
+class AILearningSnapshot(TenantAwareModel):
+    """Periodic aggregation of AI feedback events for accuracy tracking.
+
+    Generated by Celery daily task — not user-facing.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    period_start = models.DateTimeField()
+    period_end = models.DateTimeField()
+    entity_type = models.CharField(
+        max_length=64,
+        help_text="Entity type for this snapshot (e.g., purchase_order, supplier).",
+    )
+
+    total_events = models.IntegerField(default=0)
+    positive_signals = models.IntegerField(default=0)
+    negative_signals = models.IntegerField(default=0)
+    correction_rate = models.FloatField(
+        default=0.0,
+        help_text="Percentage of events where user corrected AI output.",
+    )
+    avg_resolution_time_ms = models.IntegerField(
+        default=0,
+        help_text="Average time users took to review/act on AI output.",
+    )
+    top_corrected_fields = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {field, count, common_corrections} for most-corrected fields.",
+    )
+    accuracy_trend = models.FloatField(
+        default=0.0,
+        help_text="Accuracy change compared to previous period (positive = improving).",
+    )
+
+    class Meta:
+        db_table = "ai_assistant_learning_snapshots"
+        verbose_name = "AI Learning Snapshot"
+        verbose_name_plural = "AI Learning Snapshots"
+        ordering = ["-period_end"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "entity_type", "period_end"],
+                name="ai_snap_tenant_entity_idx",
+            ),
+            models.Index(
+                fields=["tenant", "period_end"],
+                name="ai_snap_tenant_period_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Snapshot {self.entity_type}: {self.period_start:%Y-%m-%d} → {self.period_end:%Y-%m-%d}"

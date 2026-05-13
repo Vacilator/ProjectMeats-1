@@ -620,3 +620,136 @@ class CockpitDraftUpdateSerializer(serializers.Serializer):
     submitted_entity_id = serializers.CharField(required=False, allow_blank=True, default='')
     notes = serializers.CharField(required=False, allow_blank=True, default='')
 
+
+# ---------------------------------------------------------------------------
+# Phase 40: Feedback Events, Approval Queue, User Preferences, Learning
+# ---------------------------------------------------------------------------
+
+
+class FeedbackEventBatchSerializer(serializers.Serializer):
+    """Batch of implicit/explicit feedback events from frontend."""
+
+    class FeedbackEventItemSerializer(serializers.Serializer):
+        event_type = serializers.ChoiceField(choices=[
+            "implicit_accept", "implicit_field_correction", "implicit_dismiss",
+            "implicit_timing", "implicit_search_intent", "implicit_undo",
+            "implicit_suggestion_click", "implicit_suggestion_dismiss",
+            "explicit_approve", "explicit_reject", "explicit_thumbs_up",
+            "explicit_thumbs_down", "explicit_correction",
+        ])
+        source_surface = serializers.ChoiceField(choices=[
+            "form", "inbox", "approval_queue", "chat", "suggestion_chip",
+            "search", "entity_page", "workflow", "notification",
+        ])
+        entity_type = serializers.CharField(max_length=64, required=False, default="")
+        entity_id = serializers.CharField(max_length=255, required=False, default="")
+        field_name = serializers.CharField(max_length=128, required=False, default="")
+        ai_value = serializers.JSONField(required=False, default=None)
+        user_value = serializers.JSONField(required=False, default=None)
+        confidence_score = serializers.FloatField(required=False, default=None)
+        resolution_time_ms = serializers.IntegerField(required=False, default=None)
+        timestamp = serializers.DateTimeField(required=False, default=None)
+        metadata = serializers.JSONField(required=False, default=dict)
+
+    events = FeedbackEventItemSerializer(many=True)
+
+
+class ExternalApprovalRequestSerializer(serializers.ModelSerializer):
+    """Serializer for ExternalApprovalRequest model."""
+
+    requested_by_name = serializers.SerializerMethodField()
+    reviewed_by_name = serializers.SerializerMethodField()
+    delegated_to_name = serializers.SerializerMethodField()
+
+    class Meta:
+        from .models import ExternalApprovalRequest as EAR
+        model = EAR
+        fields = [
+            "id", "request_type", "status", "priority", "subject",
+            "recipient_type", "recipient_entity_id", "recipient_name", "recipient_email",
+            "content_preview", "content_payload", "edited_content",
+            "source_entity_type", "source_entity_id",
+            "ai_generated", "ai_confidence",
+            "requested_by", "requested_by_name",
+            "reviewed_by", "reviewed_by_name", "reviewed_at", "reviewer_notes",
+            "delegated_to", "delegated_to_name",
+            "expires_at", "created_on", "modified_on",
+        ]
+        read_only_fields = [
+            "id", "requested_by", "reviewed_by", "reviewed_at",
+            "created_on", "modified_on",
+        ]
+
+    def get_requested_by_name(self, obj):
+        return str(obj.requested_by) if obj.requested_by else None
+
+    def get_reviewed_by_name(self, obj):
+        return str(obj.reviewed_by) if obj.reviewed_by else None
+
+    def get_delegated_to_name(self, obj):
+        return str(obj.delegated_to) if obj.delegated_to else None
+
+
+class ExternalApprovalCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating ExternalApprovalRequest."""
+
+    class Meta:
+        from .models import ExternalApprovalRequest as EAR
+        model = EAR
+        fields = [
+            "request_type", "priority", "subject",
+            "recipient_type", "recipient_entity_id", "recipient_name", "recipient_email",
+            "content_preview", "content_payload",
+            "source_entity_type", "source_entity_id",
+            "ai_generated", "ai_confidence",
+            "expires_at",
+        ]
+
+
+class ExternalApprovalActionSerializer(serializers.Serializer):
+    """Action serializer for approve/reject/delegate."""
+    notes = serializers.CharField(required=False, default="", allow_blank=True)
+    edited_content = serializers.JSONField(required=False, default=None)
+    delegate_to = serializers.IntegerField(required=False, default=None)
+
+
+class ApprovalQueueStatsSerializer(serializers.Serializer):
+    """Stats for the approval queue."""
+    pending = serializers.IntegerField()
+    approved_today = serializers.IntegerField()
+    rejected_today = serializers.IntegerField()
+    expired_today = serializers.IntegerField()
+    by_type = serializers.DictField(child=serializers.IntegerField())
+
+
+class UserAIPreferencesSerializer(serializers.ModelSerializer):
+    """Serializer for UserAIPreferences."""
+
+    class Meta:
+        from .models import UserAIPreferences as UAP
+        model = UAP
+        fields = [
+            "id", "require_external_approval",
+            "approval_auto_approve_threshold",
+            "show_ai_confidence_badges", "show_ai_suggestions",
+            "feedback_detail_level", "notification_frequency",
+            "created_on", "modified_on",
+        ]
+        read_only_fields = ["id", "created_on", "modified_on"]
+
+
+class AILearningSnapshotSerializer(serializers.ModelSerializer):
+    """Serializer for AILearningSnapshot."""
+
+    class Meta:
+        from .models import AILearningSnapshot as ALS
+        model = ALS
+        fields = [
+            "id", "period_start", "period_end", "entity_type",
+            "total_events", "positive_signals", "negative_signals",
+            "correction_rate", "avg_resolution_time_ms",
+            "top_corrected_fields", "accuracy_trend",
+            "created_on",
+        ]
+        read_only_fields = fields
+

@@ -2253,3 +2253,336 @@ class CockpitDraftFormViewSet(viewsets.ModelViewSet):
 
         out = CockpitDraftFormSerializer(draft)
         return Response(out.data, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Phase 40: Feedback Events, Approval Queue, User Preferences
+# ---------------------------------------------------------------------------
+from tenant_apps.ai_assistant.models import (
+    ExternalApprovalRequest,
+    ExternalApprovalStatus,
+    UserAIPreferences,
+    AILearningSnapshot,
+)
+from tenant_apps.ai_assistant.serializers import (
+    FeedbackEventBatchSerializer,
+    ExternalApprovalRequestSerializer,
+    ExternalApprovalCreateSerializer,
+    ExternalApprovalActionSerializer,
+    ApprovalQueueStatsSerializer,
+    UserAIPreferencesSerializer,
+    AILearningSnapshotSerializer,
+)
+
+
+class FeedbackEventsAPIView(APIView):
+    """Batch endpoint for implicit/explicit feedback events.
+
+    Frontend batches events in memory and flushes here every 30s.
+    Fire-and-forget — always returns 202.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = FeedbackEventBatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=400)
+
+        events = serializer.validated_data["events"]
+        # Store as AIFeedbackLog entries with implicit signal fields
+        bulk_logs = []
+        for event in events:
+            # Map event_type to implicit_signal
+            signal_map = {
+                "implicit_accept": "accepted_as_is",
+                "implicit_field_correction": "field_correction",
+                "implicit_dismiss": "dismissed_after_view",
+                "implicit_timing": "accepted_as_is",
+                "implicit_search_intent": "search_navigate",
+                "implicit_undo": "undo_revert",
+                "implicit_suggestion_click": "suggestion_clicked",
+                "implicit_suggestion_dismiss": "suggestion_dismissed",
+            }
+            implicit_signal = signal_map.get(event.get("event_type", ""), "")
+
+            log = AIFeedbackLog(
+                tenant=tenant,
+                document_id=event.get("entity_id") or "00000000-0000-0000-0000-000000000000",
+                document_type=event.get("entity_type", "unknown"),
+                implicit_signal=implicit_signal,
+                source_surface=event.get("source_surface", ""),
+                source_entity_type=event.get("entity_type", ""),
+                source_entity_id=event.get("entity_id", ""),
+                confidence_score=event.get("confidence_score") or 0.0,
+                review_duration_ms=event.get("resolution_time_ms"),
+                feedback_signal="thumbs_up" if event.get("event_type", "").endswith("_up") else
+                                "thumbs_down" if event.get("event_type", "").endswith("_down") else None,
+                submitted_by=request.user,
+                original_extracted_data={"ai_value": event.get("ai_value")} if event.get("ai_value") else {},
+                user_corrected_data={"user_value": event.get("user_value")} if event.get("user_value") else {},
+            )
+            if event.get("field_name"):
+                log.fields_modified_by_user = [event["field_name"]]
+            bulk_logs.append(log)
+
+        if bulk_logs:
+            AIFeedbackLog.objects.bulk_create(bulk_logs, ignore_conflicts=True)
+
+        return Response({"accepted": len(bulk_logs)}, status=202)
+
+
+class ExternalApprovalQueueViewSet(viewsets.ModelViewSet):
+    """Approval queue for outbound communications.
+
+    Filterable by type, status, priority. Supports batch operations.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = ExternalApprovalRequestSerializer
+
+    def get_queryset(self):
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return ExternalApprovalRequest.objects.none()
+
+        qs = ExternalApprovalRequest.objects.filter(tenant=tenant)
+
+        # Filter by status
+        filter_status = self.request.query_params.get("status")
+        if filter_status:
+            qs = qs.filter(status=filter_status)
+
+        # Filter by type
+        request_type = self.request.query_params.get("type")
+        if request_type:
+            qs = qs.filter(request_type=request_type)
+
+        # Filter by priority
+        priority = self.request.query_params.get("priority")
+        if priority:
+            qs = qs.filter(priority=priority)
+
+        # Only show items relevant to current user (requested_by or delegated_to)
+        if not self.request.user.is_superuser:
+            from django.db.models import Q
+            qs = qs.filter(
+                Q(requested_by=self.request.user) | Q(delegated_to=self.request.user)
+            )
+
+        return qs
+
+    def perform_create(self, serializer):
+        tenant = getattr(self.request, "tenant", None)
+        serializer.save(tenant=tenant, requested_by=self.request.user)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ExternalApprovalCreateSerializer
+        return ExternalApprovalRequestSerializer
+
+    @action(detail=True, methods=["post"], url_path="approve")
+    def approve(self, request, pk=None):
+        obj = self.get_object()
+        if obj.status != ExternalApprovalStatus.PENDING:
+            return Response({"error": "Can only approve pending requests"}, status=400)
+
+        serializer = ExternalApprovalActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        obj.status = ExternalApprovalStatus.APPROVED
+        obj.reviewed_by = request.user
+        obj.reviewed_at = timezone.now()
+        obj.reviewer_notes = serializer.validated_data.get("notes", "")
+        obj.save()
+
+        return Response(ExternalApprovalRequestSerializer(obj).data)
+
+    @action(detail=True, methods=["post"], url_path="reject")
+    def reject(self, request, pk=None):
+        obj = self.get_object()
+        if obj.status != ExternalApprovalStatus.PENDING:
+            return Response({"error": "Can only reject pending requests"}, status=400)
+
+        serializer = ExternalApprovalActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        obj.status = ExternalApprovalStatus.REJECTED
+        obj.reviewed_by = request.user
+        obj.reviewed_at = timezone.now()
+        obj.reviewer_notes = serializer.validated_data.get("notes", "")
+        obj.save()
+
+        return Response(ExternalApprovalRequestSerializer(obj).data)
+
+    @action(detail=True, methods=["post"], url_path="edit-approve")
+    def edit_approve(self, request, pk=None):
+        obj = self.get_object()
+        if obj.status != ExternalApprovalStatus.PENDING:
+            return Response({"error": "Can only edit-approve pending requests"}, status=400)
+
+        serializer = ExternalApprovalActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        obj.status = ExternalApprovalStatus.EDITED_AND_APPROVED
+        obj.reviewed_by = request.user
+        obj.reviewed_at = timezone.now()
+        obj.reviewer_notes = serializer.validated_data.get("notes", "")
+        obj.edited_content = serializer.validated_data.get("edited_content")
+        obj.save()
+
+        return Response(ExternalApprovalRequestSerializer(obj).data)
+
+    @action(detail=True, methods=["post"], url_path="delegate")
+    def delegate(self, request, pk=None):
+        obj = self.get_object()
+        if obj.status != ExternalApprovalStatus.PENDING:
+            return Response({"error": "Can only delegate pending requests"}, status=400)
+
+        serializer = ExternalApprovalActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        delegate_to_id = serializer.validated_data.get("delegate_to")
+        if not delegate_to_id:
+            return Response({"error": "delegate_to is required"}, status=400)
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            delegate_user = User.objects.get(pk=delegate_to_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        obj.status = ExternalApprovalStatus.DELEGATED
+        obj.delegated_to = delegate_user
+        obj.reviewer_notes = serializer.validated_data.get("notes", "")
+        obj.save()
+
+        # Reset to pending for the delegated user's queue
+        obj.status = ExternalApprovalStatus.PENDING
+        obj.save()
+
+        return Response(ExternalApprovalRequestSerializer(obj).data)
+
+    @action(detail=False, methods=["post"], url_path="batch")
+    def batch_action(self, request):
+        """Batch approve or reject multiple requests."""
+        action_type = request.data.get("action")  # "approve" or "reject"
+        ids = request.data.get("ids", [])
+        notes = request.data.get("notes", "")
+
+        if action_type not in ("approve", "reject"):
+            return Response({"error": "action must be 'approve' or 'reject'"}, status=400)
+        if not ids:
+            return Response({"error": "ids required"}, status=400)
+
+        tenant = getattr(request, "tenant", None)
+        qs = ExternalApprovalRequest.objects.filter(
+            tenant=tenant,
+            id__in=ids,
+            status=ExternalApprovalStatus.PENDING,
+        )
+
+        new_status = (
+            ExternalApprovalStatus.APPROVED if action_type == "approve"
+            else ExternalApprovalStatus.REJECTED
+        )
+
+        count = qs.update(
+            status=new_status,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+            reviewer_notes=notes,
+        )
+
+        return Response({"updated": count})
+
+    @action(detail=False, methods=["get"], url_path="stats")
+    def stats(self, request):
+        """Approval queue statistics."""
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=400)
+
+        from django.db.models import Count, Q
+        from django.utils import timezone as tz
+
+        today = tz.now().date()
+
+        qs = ExternalApprovalRequest.objects.filter(tenant=tenant)
+
+        stats_data = {
+            "pending": qs.filter(status=ExternalApprovalStatus.PENDING).count(),
+            "approved_today": qs.filter(
+                status__in=[ExternalApprovalStatus.APPROVED, ExternalApprovalStatus.EDITED_AND_APPROVED],
+                reviewed_at__date=today,
+            ).count(),
+            "rejected_today": qs.filter(
+                status=ExternalApprovalStatus.REJECTED,
+                reviewed_at__date=today,
+            ).count(),
+            "expired_today": qs.filter(
+                status=ExternalApprovalStatus.EXPIRED,
+                modified_on__date=today,
+            ).count(),
+            "by_type": dict(
+                qs.filter(status=ExternalApprovalStatus.PENDING)
+                .values_list("request_type")
+                .annotate(count=Count("id"))
+                .values_list("request_type", "count")
+            ),
+        }
+
+        return Response(ApprovalQueueStatsSerializer(stats_data).data)
+
+
+class UserAIPreferencesAPIView(APIView):
+    """Get or update the current user's AI preferences.
+
+    Creates preferences with defaults on first access.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=400)
+
+        prefs, _ = UserAIPreferences.objects.get_or_create(
+            tenant=tenant,
+            user=request.user,
+        )
+        return Response(UserAIPreferencesSerializer(prefs).data)
+
+    def patch(self, request):
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=400)
+
+        prefs, _ = UserAIPreferences.objects.get_or_create(
+            tenant=tenant,
+            user=request.user,
+        )
+        serializer = UserAIPreferencesSerializer(prefs, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class AILearningSnapshotAPIView(APIView):
+    """Latest AI learning metrics for the dashboard."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=400)
+
+        entity_type = request.query_params.get("entity_type")
+        qs = AILearningSnapshot.objects.filter(tenant=tenant)
+        if entity_type:
+            qs = qs.filter(entity_type=entity_type)
+
+        snapshots = qs.order_by("-period_end")[:30]
+        return Response(AILearningSnapshotSerializer(snapshots, many=True).data)
