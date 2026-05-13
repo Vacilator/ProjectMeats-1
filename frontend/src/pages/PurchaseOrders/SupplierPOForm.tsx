@@ -793,7 +793,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
         const resp = await businessApi.get('suppliers/');
         setSuppliers((resp.data.results || resp.data) as Supplier[]);
       } catch {
-        console.error('Failed to load suppliers');
+        // Silently handle — empty suppliers list will show in UI
       }
     };
     loadData();
@@ -914,7 +914,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
           setSupplierAutoFilled(true);
         }
       } catch {
-        console.error('Failed to load supplier details');
+        // Silently handle — auto-populate skipped
       } finally {
         setLoadingSupplier(false);
       }

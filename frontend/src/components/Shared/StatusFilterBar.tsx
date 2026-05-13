@@ -34,7 +34,7 @@ const Tab = styled.button<{ $active: boolean }>`
   border-radius: 6px;
   border: 1px solid ${({ $active }) => ($active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))')};
   background: ${({ $active }) => ($active ? 'rgb(var(--color-primary))' : 'transparent')};
-  color: ${({ $active }) => ($active ? '#fff' : 'rgb(var(--color-text-primary))')};
+  color: ${({ $active }) => ($active ? 'rgb(var(--color-text-inverse, 255 255 255))' : 'rgb(var(--color-text-primary))')};
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;

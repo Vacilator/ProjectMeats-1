@@ -818,7 +818,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
         setCarriers(Array.isArray(carrData) ? carrData : []);
         setContacts(Array.isArray(contData) ? contData : []);
       } catch {
-        console.error('Failed to load form data');
+        // Silently handle — empty lists will show in UI
       } finally {
         setLoadingData(false);
       }

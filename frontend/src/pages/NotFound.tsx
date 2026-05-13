@@ -38,7 +38,7 @@ const BackButton = styled.button`
   margin-top: 8px;
   padding: 10px 24px;
   background: rgb(var(--color-primary));
-  color: #fff;
+  color: rgb(var(--color-text-inverse, 255 255 255));
   border: none;
   border-radius: 8px;
   font-size: 14px;
