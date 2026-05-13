@@ -13,6 +13,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '../components/Onboarding';
 import SupplierPOForm from './PurchaseOrders/SupplierPOForm';
+import StatusFilterBar from '../components/Shared/StatusFilterBar';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { formatTradeDate } from '@/utils/trade';
@@ -244,6 +245,29 @@ const PurchaseOrders: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<PurchaseOrder | null>(null);
+  const [poSearchText, setPoSearchText] = useState('');
+  const [poActiveTab, setPoActiveTab] = useState('all');
+  const poTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'delivered', label: 'Delivered' },
+    { key: 'cancelled', label: 'Cancelled' },
+  ], []);
+  const filteredPurchaseOrders = useMemo(() => {
+    let result = purchaseOrders;
+    if (poActiveTab !== 'all') {
+      result = result.filter((po) => po.status?.toLowerCase() === poActiveTab);
+    }
+    const q = poSearchText.trim().toLowerCase();
+    if (q) {
+      result = result.filter((po) =>
+        (po.order_number ?? '').toLowerCase().includes(q) ||
+        (po.item_description ?? '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [purchaseOrders, poActiveTab, poSearchText]);
 
   useEffect(() => {
     const reviewType = searchParams.get('review');
@@ -546,7 +570,16 @@ const PurchaseOrders: React.FC = () => {
             ]}
           />
 
-          {purchaseOrders.length === 0 ? (
+          <StatusFilterBar
+            tabs={poTabs}
+            activeTab={poActiveTab}
+            onTabChange={setPoActiveTab}
+            searchText={poSearchText}
+            onSearchChange={setPoSearchText}
+            searchPlaceholder="Search orders…"
+          />
+
+          {filteredPurchaseOrders.length === 0 && purchaseOrders.length === 0 ? (
             <TransactionalEmptyState
               icon={<ClipboardList size={36} />}
               title="No purchase orders yet"
@@ -573,6 +606,19 @@ const PurchaseOrders: React.FC = () => {
                 </TransactionalEmptyStateGuidanceItem>
               </TransactionalEmptyStateGuidance>
             </TransactionalEmptyState>
+          ) : filteredPurchaseOrders.length === 0 ? (
+            <TransactionalEmptyState
+              icon={<ClipboardList size={36} />}
+              title="No results"
+              message="No purchase orders match the current filters."
+              actions={[
+                {
+                  label: 'Clear Filters',
+                  onClick: () => { setPoActiveTab('all'); setPoSearchText(''); },
+                  variant: 'secondary',
+                },
+              ]}
+            />
           ) : (
             <TableWrapper>
               <Table>
@@ -588,7 +634,7 @@ const PurchaseOrders: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {purchaseOrders.map((purchaseOrder) => {
+                  {filteredPurchaseOrders.map((purchaseOrder) => {
                     const supplier = suppliers.find((s) => s.id === purchaseOrder.supplier);
                     return (
                       <TableRow

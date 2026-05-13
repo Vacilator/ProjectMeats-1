@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Result, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Result, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
+import StatusFilterBar from '../components/Shared/StatusFilterBar';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { Supplier } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
@@ -23,6 +24,7 @@ type SupplierProduct = {
 
 type SupplierListRow = Supplier & {
   associated_products?: SupplierProduct[];
+  is_active?: boolean;
 };
 
 const Suppliers: React.FC = () => {
@@ -42,11 +44,25 @@ const Suppliers: React.FC = () => {
   const suppliers = (suppliersQuery.data ?? []) as SupplierListRow[];
 
   const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const supplierTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'inactive', label: 'Inactive' },
+  ], []);
   const filteredSuppliers = useMemo(() => {
+    let result = suppliers;
+    if (activeTab === 'active') {
+      result = result.filter((s) => s.is_active !== false);
+    } else if (activeTab === 'inactive') {
+      result = result.filter((s) => s.is_active === false);
+    }
     const q = searchText.trim().toLowerCase();
-    if (!q) return suppliers;
-    return suppliers.filter((s) => String(s.name ?? '').toLowerCase().includes(q));
-  }, [searchText, suppliers]);
+    if (q) {
+      result = result.filter((s) => String(s.name ?? '').toLowerCase().includes(q));
+    }
+    return result;
+  }, [suppliers, activeTab, searchText]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -272,12 +288,6 @@ const Suppliers: React.FC = () => {
         </div>
 
         <Space>
-          <Input
-            placeholder="Search suppliers"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            allowClear
-          />
           <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={!suppliers.length}>
             Export CSV
           </Button>
@@ -286,6 +296,15 @@ const Suppliers: React.FC = () => {
           </Button>
         </Space>
       </div>
+
+      <StatusFilterBar
+        tabs={supplierTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Search suppliers…"
+      />
 
       {suppliersQuery.isError ? (
         <Result

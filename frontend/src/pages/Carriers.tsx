@@ -5,7 +5,7 @@
  * Follows the FreightOrders/SalesOrders pattern with AntD Table + EntityFormSurface.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Button, Card, Input, Modal, Skeleton, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { Button, Card, Modal, Skeleton, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Truck, Search, Plus, Shield, AlertTriangle, AlertCircle } from 'lucide-react';
@@ -17,6 +17,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '@/components/Onboarding';
 import { StatCardGrid } from '@/components/Shared/StatCardGrid';
+import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import { CarrierCreateForm } from './Carriers/CarrierCreateForm';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { businessApi } from '@/services/businessApi';
@@ -78,7 +79,13 @@ const Carriers: React.FC = () => {
   useDocumentTitle('Carriers');
   const queryClient = useQueryClient();
   const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const carrierTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'preferred', label: 'Preferred' },
+  ], []);
   const [editingCarrierId, setEditingCarrierId] = useState<string | null>(null);
 
   const carriersQuery = useQuery({
@@ -128,9 +135,15 @@ const Carriers: React.FC = () => {
   }, [refreshCarriers]);
 
   const filteredCarriers = useMemo(() => {
-    if (!searchText.trim()) return carriers;
+    let result = carriers;
+    if (activeTab === 'active') {
+      result = result.filter((c) => c.is_active !== false);
+    } else if (activeTab === 'preferred') {
+      result = result.filter((c) => c.carrier_type === 'preferred' || c.carrier_type === 'PREFERRED');
+    }
+    if (!searchText.trim()) return result;
     const term = searchText.toLowerCase();
-    return carriers.filter(
+    return result.filter(
       (c) =>
         c.name?.toLowerCase().includes(term) ||
         c.code?.toLowerCase().includes(term) ||
@@ -139,7 +152,7 @@ const Carriers: React.FC = () => {
         c.city?.toLowerCase().includes(term) ||
         c.state?.toLowerCase().includes(term)
     );
-  }, [carriers, searchText]);
+  }, [carriers, activeTab, searchText]);
 
   const stats = useMemo(() => {
     const active = carriers.filter((c) => c.is_active !== false).length;
@@ -266,14 +279,6 @@ const Carriers: React.FC = () => {
           </Text>
         </HeaderLeft>
         <Space>
-          <Input
-            placeholder="Search carriers…"
-            prefix={<Search size={14} />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 220 }}
-            allowClear
-          />
           <Button onClick={handleExportCsv} disabled={!carriers.length}>
             Export CSV
           </Button>
@@ -289,6 +294,15 @@ const Carriers: React.FC = () => {
         { value: stats.expiring, label: 'Insurance Expiring', alert: true },
         { value: stats.expired, label: 'Insurance Expired', alert: true },
       ]} />
+
+      <StatusFilterBar
+        tabs={carrierTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Search carriers…"
+      />
 
       <Card size="small">
         {carriersQuery.isLoading ? (
