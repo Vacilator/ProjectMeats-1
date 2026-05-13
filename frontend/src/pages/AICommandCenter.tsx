@@ -454,6 +454,9 @@ const ProcessFlowWrapper = styled.div`
   margin-top: 12px;
 `;
 
+const DetailModalBody = styled.div`
+  padding: 24px;
+`;
 const ShortcutHintBar = styled.div`
   position: fixed;
   bottom: 0;
@@ -1086,7 +1089,7 @@ const AICommandCenter: React.FC = () => {
   return (
     <OperatorShell role="main" aria-label="AI Command Center">
       {/* Header */}
-      <OperatorHeader
+        <OperatorHeader
         title={(
           <CommandCenterTitle level={3}>
             ⚡ Command Center
@@ -1266,21 +1269,21 @@ const AICommandCenter: React.FC = () => {
                             🎯 {item.intent_label}
                           </IntentLabel>
                         )}
-                         {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
-                       </ItemMeta>
-                       {hasDocumentAuditData(item) ? (
-                         <ItemAuditBadges>
-                           <DocumentAuditBadges
-                             processingStatus={item.processingStatus}
-                             sourceMetadata={item.sourceMetadata}
-                             processingMetadata={item.processingMetadata}
-                             lineageSummary={item.lineageSummary}
-                           />
-                         </ItemAuditBadges>
-                       ) : null}
-                     </ItemContent>
-                     <ItemChevron size={16} />
-                   </ItemCard>
+                        {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
+                      </ItemMeta>
+                      {hasDocumentAuditData(item) ? (
+                        <ItemAuditBadges>
+                          <DocumentAuditBadges
+                            processingStatus={item.processingStatus}
+                            sourceMetadata={item.sourceMetadata}
+                            processingMetadata={item.processingMetadata}
+                            lineageSummary={item.lineageSummary}
+                          />
+                        </ItemAuditBadges>
+                      ) : null}
+                    </ItemContent>
+                    <ItemChevron size={16} />
+                  </ItemCard>
                 ))}
               </CardList>
             </CockpitPanel>
@@ -1343,22 +1346,22 @@ const AICommandCenter: React.FC = () => {
                           {Math.round(item.confidence * 100)}%
                         </ConfidencePill>
                       )}
-                       {item.subtitle && <ItemSubtitle>{item.subtitle}</ItemSubtitle>}
-                       {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
-                     </ItemMeta>
-                     {hasDocumentAuditData(item) ? (
-                       <ItemAuditBadges>
-                         <DocumentAuditBadges
-                           processingStatus={item.processingStatus}
-                           sourceMetadata={item.sourceMetadata}
-                           processingMetadata={item.processingMetadata}
-                           lineageSummary={item.lineageSummary}
-                         />
-                       </ItemAuditBadges>
-                     ) : null}
-                   </ItemContent>
-                   <SourceTag>AI</SourceTag>
-                   <ShrinkingItemChevron size={16} />
+                      {item.subtitle && <ItemSubtitle>{item.subtitle}</ItemSubtitle>}
+                      {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
+                    </ItemMeta>
+                    {hasDocumentAuditData(item) ? (
+                      <ItemAuditBadges>
+                        <DocumentAuditBadges
+                          processingStatus={item.processingStatus}
+                          sourceMetadata={item.sourceMetadata}
+                          processingMetadata={item.processingMetadata}
+                          lineageSummary={item.lineageSummary}
+                        />
+                      </ItemAuditBadges>
+                    ) : null}
+                  </ItemContent>
+                  <SourceTag>AI</SourceTag>
+                  <ShrinkingItemChevron size={16} />
                 </ItemCard>
               ))}
             </CardList>
@@ -1538,10 +1541,10 @@ const AICommandCenter: React.FC = () => {
         footer={null}
         width={1100}
         destroyOnHidden
-        styles={{ body: { padding: '24px' } }}
       >
-        {selectedItem && (
-          <>
+        <DetailModalBody>
+          {selectedItem && (
+            <>
             <ModalHeader>
               <ItemIcon $variant={getStatusVariant(selectedItem.status)}>
                 {getIconForSource(selectedItem.icon)}
@@ -1627,8 +1630,9 @@ const AICommandCenter: React.FC = () => {
                 />
               </ModalSection>
             )}
-          </>
-        )}
+            </>
+          )}
+        </DetailModalBody>
       </Modal>
 
       {/* AI Draft Review Modal */}
