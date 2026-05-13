@@ -17,6 +17,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '@/components/Onboarding';
 import { StatCardGrid } from '@/components/Shared/StatCardGrid';
+import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -130,6 +131,14 @@ const ColdStorage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [selectedLot, setSelectedLot] = useState<ColdStorageLot | null>(null);
   const [newLotOpen, setNewLotOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+
+  const coldStorageTabs = useMemo(() => [
+    { key: 'all', label: 'All Zones' },
+    { key: 'frozen', label: 'Frozen' },
+    { key: 'chilled', label: 'Chilled' },
+    { key: 'ambient', label: 'Ambient' },
+  ], []);
 
   // Fetch warehouse locations (cold storage facilities)
   const facilitiesQuery = useQuery({
@@ -187,16 +196,22 @@ const ColdStorage: React.FC = () => {
   }, [facilities]);
 
   const filteredLots = useMemo(() => {
-    if (!searchText.trim()) return lots;
-    const term = searchText.toLowerCase();
-    return lots.filter(
-      (lot) =>
-        lot.lot_number.toLowerCase().includes(term) ||
-        lot.product_name?.toLowerCase().includes(term) ||
-        lot.product_code?.toLowerCase().includes(term) ||
-        lot.location_name?.toLowerCase().includes(term)
-    );
-  }, [lots, searchText]);
+    let result = lots;
+    if (activeTab !== 'all') {
+      result = result.filter((lot) => (lot.temperature_zone ?? '').toLowerCase() === activeTab);
+    }
+    if (searchText.trim()) {
+      const term = searchText.toLowerCase();
+      result = result.filter(
+        (lot) =>
+          lot.lot_number.toLowerCase().includes(term) ||
+          lot.product_name?.toLowerCase().includes(term) ||
+          lot.product_code?.toLowerCase().includes(term) ||
+          lot.location_name?.toLowerCase().includes(term)
+      );
+    }
+    return result;
+  }, [lots, searchText, activeTab]);
 
   const stats = useMemo(() => ({
     totalFacilities: facilities.length,
@@ -301,19 +316,20 @@ const ColdStorage: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <Input
-            placeholder="Search lots…"
-            prefix={<Search size={14} />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 220 }}
-            allowClear
-          />
           <Button type="primary" icon={<Plus size={14} />} onClick={() => setNewLotOpen(true)}>
             New Lot
           </Button>
         </Space>
       </PageHeader>
+
+      <StatusFilterBar
+        tabs={coldStorageTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Search lots…"
+      />
 
       {facilitiesQuery.isLoading ? (
         <Skeleton active paragraph={{ rows: 2 }} />
