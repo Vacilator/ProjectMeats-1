@@ -13,6 +13,8 @@ import {
   Plus,
 } from 'lucide-react';
 import { businessApi } from '@/services/businessApi';
+import { useApprovalGate } from '@/hooks/useApprovalGate';
+import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
 
 // ============================================================================
 // Types
@@ -683,6 +685,7 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
   );
   const [submitting, setSubmitting] = useState(false);
   const [createdAt] = useState(() => new Date());
+  const approvalGate = useApprovalGate();
 
   // Lookups
   const [carriers, setCarriers] = useState<CarrierOption[]>([]);
@@ -987,6 +990,20 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     setSubmitting(true);
     try {
       const payload = buildPayload();
+
+      // Approval gate: intercept before external send
+      const gateResult = await approvalGate.intercept({
+        requestType: 'carrier_release',
+        subject: `Carrier PO ${formValues.carrier_release_num || 'New'}`,
+        recipientType: 'carrier',
+        contentPreview: `Carrier PO for freight order`,
+        sourceEntityType: 'carrier_release',
+      });
+      if (!gateResult.approved) {
+        setSubmitting(false);
+        return;
+      }
+
       if (mode === 'edit' && entityId) {
         await businessApi.patch(`freight-orders/${entityId}/`, payload);
       } else {
@@ -1862,6 +1879,14 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
           </SubmitButton>
         </FormFooter>
       </FormShell>
+      <ApprovalPreviewModal
+        open={approvalGate.showModal}
+        request={approvalGate.currentRequest}
+        onApprove={approvalGate.handleApprove}
+        onReject={approvalGate.handleReject}
+        onEditApprove={approvalGate.handleEditApprove}
+        onCancel={approvalGate.handleCancel}
+      />
     </FormWrapper>
   );
 };

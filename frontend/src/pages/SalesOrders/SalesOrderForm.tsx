@@ -19,6 +19,8 @@ import { businessApi } from '@/services/businessApi';
 import { LocationSelector } from '@/components/Shared';
 import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutocomplete';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
+import { useApprovalGate } from '@/hooks/useApprovalGate';
+import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
 
 // ============================================================================
 // Types
@@ -778,6 +780,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
   const [contacts, setContacts] = useState<any[]>([]);
   const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
   const [supplierAutoFilled, setSupplierAutoFilled] = useState(false);
+  const approvalGate = useApprovalGate();
   const [submitting, setSubmitting] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [createdAt] = useState(() => new Date());
@@ -1066,6 +1069,22 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
       setSubmitting(true);
       try {
         const payload = buildPayload(status);
+
+        // Approval gate: intercept before external send (skip drafts)
+        if (status !== 'draft') {
+          const gateResult = await approvalGate.intercept({
+            requestType: 'sales_order',
+            subject: `SO ${formValues.our_sales_order_num || 'New'}`,
+            recipientType: 'customer',
+            contentPreview: `Sales Order for ${formValues.description_of_product_item || 'product'}`,
+            sourceEntityType: 'sales_order',
+          });
+          if (!gateResult.approved) {
+            setSubmitting(false);
+            return;
+          }
+        }
+
         if (mode === 'edit' && entityId) {
           await businessApi.put(`sales-orders/${entityId}/`, payload);
         } else {
@@ -1876,6 +1895,14 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
           </SubmitButton>
         </FormFooter>
       </FormShell>
+      <ApprovalPreviewModal
+        open={approvalGate.showModal}
+        request={approvalGate.currentRequest}
+        onApprove={approvalGate.handleApprove}
+        onReject={approvalGate.handleReject}
+        onEditApprove={approvalGate.handleEditApprove}
+        onCancel={approvalGate.handleCancel}
+      />
     </FormWrapper>
   );
 };

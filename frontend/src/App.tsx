@@ -10,6 +10,7 @@ import { Skeleton } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { AIInboxSyncProvider } from './contexts/AIInboxSyncContext';
+import { ImplicitFeedbackProvider } from './contexts/ImplicitFeedbackProvider';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { QuickActionsProvider } from './contexts/QuickActionsContext';
@@ -86,6 +87,7 @@ import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import AISettingsPage from './pages/AISettings';
 import GuestInvoiceView from './pages/Portal/GuestInvoiceView';
 import ApiTestComponent from './components/ApiTestComponent';
 import { WorkflowRunner, PerfHarness } from './pages/Workflows';
@@ -236,6 +238,7 @@ const App: React.FC = () => {
                 <NotificationsProvider>
                   <ActionItemsProvider>
                     <AIInboxSyncProvider>
+                      <ImplicitFeedbackProvider>
                       <QuickActionsProvider>
                         <CockpitNavigationProvider>
                           <CockpitPinnedToolsProvider>
@@ -373,6 +376,7 @@ const App: React.FC = () => {
                 />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="settings/ai" element={<AISettingsPage />} />
                 <Route path="settings/email-integrations" element={<Settings />} />
                 <Route path="settings/notifications" element={<NotificationPreferences />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
@@ -501,6 +505,7 @@ const App: React.FC = () => {
                         </CockpitPinnedToolsProvider>
                       </CockpitNavigationProvider>
                     </QuickActionsProvider>
+                      </ImplicitFeedbackProvider>
                   </AIInboxSyncProvider>
                 </ActionItemsProvider>
               </NotificationsProvider>
