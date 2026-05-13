@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom';
 import styled from 'styled-components';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { PinnedToolsBar } from '../Cockpit/PinnedToolsBar';
 import Breadcrumb from '../Navigation/Breadcrumb';
 import Omnibox from '../AIAssistant/Omnibox';
 import { CommandPalette } from '../Navigation/CommandPalette';
@@ -60,7 +59,6 @@ const Layout: React.FC = () => {
         <MainArea $sidebarOpen={sidebarOpen} $sidebarHovered={sidebarHovered}>
           <Header />
           <ConnectivityBanner />
-          <PinnedToolsBar />
           <Content $theme={theme}>
             <CenteredContainer>
               <Breadcrumb />

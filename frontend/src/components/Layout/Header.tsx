@@ -13,12 +13,6 @@ import TenantSelector from './TenantSelector';
 import { authService } from '../../services/authService';
 import { UserProfile } from '../../types';
 import { NotificationBell } from '../Notifications';
-import debounce from 'lodash/debounce';
-import {
-  buildCanonicalSearchPath,
-  getCanonicalSearchQuery,
-  isCommandCenterPath,
-} from '../../utils/canonicalSearch';
 
 interface HeaderProps {
   // No props needed currently
@@ -69,7 +63,7 @@ const Header: React.FC<HeaderProps> = () => {
     { label: 'New Supplier', path: '/suppliers/new', icon: '🏭' },
     { label: 'New Customer', path: '/customers/new', icon: '👥' },
     { label: 'New Purchase Order', path: '/purchase-orders/new', icon: '📋' },
-    { label: 'Open Command Center', path: '/command-center', icon: '⚡' },
+    { label: 'Home', path: '/', icon: '🏠' },
   ];
 
   // Close menu when clicking outside
@@ -91,13 +85,7 @@ const Header: React.FC<HeaderProps> = () => {
     };
   }, [showOnboardingMenu, showQuickMenu]);
 
-  const searchContextQuery = React.useMemo(() => {
-    if (isCommandCenterPath(location.pathname) || location.pathname.startsWith('/cockpit')) {
-      return getCanonicalSearchQuery(location.search);
-    }
-
-    return '';
-  }, [location.pathname, location.search]);
+  const searchContextQuery = React.useMemo(() => '', []);
 
   useEffect(() => {
     setSearchQuery((current) => (current === searchContextQuery ? current : searchContextQuery));
@@ -130,51 +118,17 @@ const Header: React.FC<HeaderProps> = () => {
     }
   };
 
-  const navigateToCanonicalSearch = React.useMemo(
-    () =>
-      debounce((rawQuery: string) => {
-        const q = rawQuery.trim();
+  const openCommandPalette = React.useCallback(() => {
+    window.dispatchEvent(new CustomEvent('pm:open-command-palette'));
+  }, []);
 
-        if (!q) {
-          if (isCommandCenterPath(location.pathname) || location.pathname.startsWith('/cockpit')) {
-            navigate(
-              buildCanonicalSearchPath({
-                query: '',
-                searchParams: location.search,
-              }),
-              { replace: true },
-            );
-          }
-          return;
-        }
-
-        if (q.length < 2) return;
-
-        navigate(
-          buildCanonicalSearchPath({
-            query: q,
-            searchParams: location.search,
-          }),
-          { replace: true },
-        );
-      }, 250),
-    [location.pathname, location.search, navigate]
-  );
-
-  useEffect(() => {
-    return () => navigateToCanonicalSearch.cancel();
-  }, [navigateToCanonicalSearch]);
+  const handleSearchFocus = React.useCallback(() => {
+    openCommandPalette();
+  }, [openCommandPalette]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const q = searchQuery.trim();
-    if (!q) return;
-    navigate(
-      buildCanonicalSearchPath({
-        query: q,
-        searchParams: location.search,
-      }),
-    );
+    openCommandPalette();
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -228,7 +182,7 @@ const Header: React.FC<HeaderProps> = () => {
       {/* Tenant Selector for Superusers */}
       <TenantSelector theme={theme} isSuperuser={isSuperuser} />
 
-      {/* Global Search */}
+      {/* Global Search — opens command palette */}
       <SearchForm onSubmit={handleSearchSubmit}>
         <SearchInputWrapper $theme={theme}>
           <SearchIconWrapper $theme={theme}>
@@ -237,12 +191,11 @@ const Header: React.FC<HeaderProps> = () => {
           <SearchInput
             ref={searchInputRef}
             type="text"
-            placeholder="Search suppliers, customers, orders…"
+            placeholder="Search anything… (⌘K)"
             value={searchQuery}
+            onFocus={handleSearchFocus}
             onChange={(e) => {
-              const v = e.target.value;
-              setSearchQuery(v);
-              navigateToCanonicalSearch(v);
+              setSearchQuery(e.target.value);
             }}
             $theme={theme}
             aria-label="Global search"

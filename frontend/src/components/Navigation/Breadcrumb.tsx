@@ -23,9 +23,11 @@ type BreadcrumbResolver = {
 };
 
 const breadcrumbNameMap: { [key: string]: string } = {
-  // Workspace section
-  cockpit: 'Cockpit',
-  workspace: 'Cockpit', // Legacy redirect
+  // Home aliases
+  '': 'Home',
+  cockpit: 'Home',
+  workspace: 'Home',
+  'command-center': 'Home',
   calls: 'Calls',
   'call-log': 'Calls',
   reports: 'Reports',
