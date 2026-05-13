@@ -86,6 +86,24 @@ app.conf.beat_schedule = {
             'routing_key': 'pm.ai',
         },
     },
+    'approval-timeout-hourly': {
+        'task': 'ai_assistant.process_approval_timeouts',
+        'schedule': 3600.0,  # 1 hour
+        'options': {
+            'expires': 3000.0,
+            'queue': 'pm.ai',
+            'routing_key': 'pm.ai',
+        },
+    },
+    'ai-learning-aggregation-daily': {
+        'task': 'ai_assistant.aggregate_daily_learning',
+        'schedule': crontab(minute=0, hour=4),
+        'options': {
+            'expires': 3600.0,
+            'queue': 'pm.ai',
+            'routing_key': 'pm.ai',
+        },
+    },
 }
 
 # Set timezone for scheduled tasks
