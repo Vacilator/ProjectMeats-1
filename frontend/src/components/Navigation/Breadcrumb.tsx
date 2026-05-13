@@ -8,7 +8,7 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 
 /**
  * Context-aware Breadcrumb Component
- * 
+ *
  * Updated: 2026-02-04 - Phase 1 Cockpit & WorkForms Enhancement
  * - Removed hardcoded "Dashboard" root
  * - Uses first path segment as root (context-aware)
@@ -312,7 +312,7 @@ const BreadcrumbLink = styled(Link)`
     color: rgb(var(--color-text-primary, 73, 80, 87));
     text-decoration: underline;
   }
-  
+
   &:focus-visible {
     outline: 2px solid rgb(var(--color-primary, 102, 126, 234));
     outline-offset: 2px;
