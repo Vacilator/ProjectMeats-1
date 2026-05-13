@@ -5,7 +5,7 @@
  * Follows the FreightOrders/SalesOrders pattern with AntD Table + EntityFormSurface.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Button, Card, Input, Skeleton, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { Button, Card, Input, Modal, Skeleton, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Truck, Search, Plus, Shield, AlertTriangle, AlertCircle } from 'lucide-react';
@@ -16,8 +16,8 @@ import {
   TransactionalEmptyStateGuidance,
   TransactionalEmptyStateGuidanceItem,
 } from '@/components/Onboarding';
-import { EntityFormSurface } from '@/components/Shared';
 import { StatCardGrid } from '@/components/Shared/StatCardGrid';
+import { CarrierCreateForm } from './Carriers/CarrierCreateForm';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -336,24 +336,38 @@ const Carriers: React.FC = () => {
         )}
       </Card>
 
-      <EntityFormSurface
-        entityType="carriers"
-        mode="create"
-        variant="modal"
-        isOpen={isCreateOpen}
-        onClose={handleCreateClose}
-        onSuccess={handleCreateSuccess}
-      />
+      {/* Create Carrier Modal */}
+      <Modal
+        open={isCreateOpen}
+        onCancel={handleCreateClose}
+        footer={null}
+        width={900}
+        destroyOnClose
+        title="New Carrier"
+      >
+        <CarrierCreateForm
+          mode="create"
+          onSuccess={handleCreateSuccess}
+          onCancel={handleCreateClose}
+        />
+      </Modal>
 
-      <EntityFormSurface
-        entityType="carriers"
-        mode="edit"
-        variant="modal"
-        entityId={editingCarrierId || undefined}
-        isOpen={Boolean(editingCarrierId)}
-        onClose={handleEditClose}
-        onSuccess={handleEditSuccess}
-      />
+      {/* Edit Carrier Modal */}
+      <Modal
+        open={Boolean(editingCarrierId)}
+        onCancel={handleEditClose}
+        footer={null}
+        width={900}
+        destroyOnClose
+        title="Edit Carrier"
+      >
+        <CarrierCreateForm
+          mode="edit"
+          entityId={editingCarrierId || undefined}
+          onSuccess={handleEditSuccess}
+          onCancel={handleEditClose}
+        />
+      </Modal>
     </PageContainer>
   );
 };
