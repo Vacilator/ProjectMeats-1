@@ -72,7 +72,8 @@ import { ProcessQuickActions } from '../components/Cockpit/ProcessQuickActions';
 import { TradeLineageFlow } from '../components/Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../components/Cockpit/ProcessFlowHeader';
 import { MissingDependencyQuickCreate, type DependencyType } from '../components/Cockpit/MissingDependencyQuickCreate';
-import { AIDraftReviewModal } from '../components/AIAssistant/AIDraftReviewModal';
+import { AIDraftReviewDialog } from '../components/AIAssistant/AIDraftReviewDialog';
+import { DocumentAuditBadges } from '../components/AIAssistant/DocumentAuditBadges';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -423,6 +424,10 @@ const ItemSubtitle = styled.span`
   font-size: 11px;
 `;
 
+const ItemAuditBadges = styled.div`
+  margin-top: 6px;
+`;
+
 const PanelCountText = styled(Text)`
   font-size: 0.72rem;
 `;
@@ -538,6 +543,10 @@ interface UnifiedItem {
   department?: string;
   confidence?: number;
   intent_label?: string;
+  processingStatus?: PendingReviewItem['processing_status'];
+  sourceMetadata?: PendingReviewItem['source_metadata'];
+  processingMetadata?: PendingReviewItem['processing_metadata'];
+  lineageSummary?: PendingReviewItem['lineage_summary'];
   raw?: unknown;
 }
 
@@ -589,6 +598,15 @@ function formatTimeAgo(timestamp: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
+}
+
+function hasDocumentAuditData(item: Pick<
+  UnifiedItem,
+  'processingStatus' | 'sourceMetadata' | 'processingMetadata' | 'lineageSummary'
+>): boolean {
+  return Boolean(
+    item.processingStatus || item.sourceMetadata || item.processingMetadata || item.lineageSummary,
+  );
 }
 
 // ============================================================================
@@ -689,6 +707,10 @@ const AICommandCenter: React.FC = () => {
         timestamp: (reviewAny.created_on || reviewAny.created_at || '') as string,
         confidence: reviewAny.confidence_score as number | undefined,
         intent_label: review.intent_label,
+        processingStatus: review.processing_status,
+        sourceMetadata: review.source_metadata,
+        processingMetadata: review.processing_metadata,
+        lineageSummary: review.lineage_summary,
         raw: review,
       };
     });
@@ -1233,9 +1255,9 @@ const AICommandCenter: React.FC = () => {
                     <ItemIcon $variant={getStatusVariant(item.status)}>
                       {getIconForSource(item.icon)}
                     </ItemIcon>
-                    <ItemContent>
-                      <ItemTitle>{item.title}</ItemTitle>
-                      <ItemMeta>
+                     <ItemContent>
+                       <ItemTitle>{item.title}</ItemTitle>
+                       <ItemMeta>
                         <StatusPill $variant={getStatusVariant(item.status)}>
                           {item.statusLabel}
                         </StatusPill>
@@ -1244,11 +1266,21 @@ const AICommandCenter: React.FC = () => {
                             🎯 {item.intent_label}
                           </IntentLabel>
                         )}
-                        {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
-                      </ItemMeta>
-                    </ItemContent>
-                    <ItemChevron size={16} />
-                  </ItemCard>
+                         {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
+                       </ItemMeta>
+                       {hasDocumentAuditData(item) ? (
+                         <ItemAuditBadges>
+                           <DocumentAuditBadges
+                             processingStatus={item.processingStatus}
+                             sourceMetadata={item.sourceMetadata}
+                             processingMetadata={item.processingMetadata}
+                             lineageSummary={item.lineageSummary}
+                           />
+                         </ItemAuditBadges>
+                       ) : null}
+                     </ItemContent>
+                     <ItemChevron size={16} />
+                   </ItemCard>
                 ))}
               </CardList>
             </CockpitPanel>
@@ -1295,9 +1327,9 @@ const AICommandCenter: React.FC = () => {
                   <ItemIcon $variant={getStatusVariant(item.status)}>
                     {getIconForSource(item.icon)}
                   </ItemIcon>
-                  <ItemContent>
-                    <ItemTitle>{item.title}</ItemTitle>
-                    <ItemMeta>
+                   <ItemContent>
+                     <ItemTitle>{item.title}</ItemTitle>
+                     <ItemMeta>
                       <StatusPill $variant={getStatusVariant(item.status)}>
                         {item.statusLabel}
                       </StatusPill>
@@ -1311,12 +1343,22 @@ const AICommandCenter: React.FC = () => {
                           {Math.round(item.confidence * 100)}%
                         </ConfidencePill>
                       )}
-                      {item.subtitle && <ItemSubtitle>{item.subtitle}</ItemSubtitle>}
-                      {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
-                    </ItemMeta>
-                  </ItemContent>
-                  <SourceTag>AI</SourceTag>
-                  <ShrinkingItemChevron size={16} />
+                       {item.subtitle && <ItemSubtitle>{item.subtitle}</ItemSubtitle>}
+                       {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
+                     </ItemMeta>
+                     {hasDocumentAuditData(item) ? (
+                       <ItemAuditBadges>
+                         <DocumentAuditBadges
+                           processingStatus={item.processingStatus}
+                           sourceMetadata={item.sourceMetadata}
+                           processingMetadata={item.processingMetadata}
+                           lineageSummary={item.lineageSummary}
+                         />
+                       </ItemAuditBadges>
+                     ) : null}
+                   </ItemContent>
+                   <SourceTag>AI</SourceTag>
+                   <ShrinkingItemChevron size={16} />
                 </ItemCard>
               ))}
             </CardList>
@@ -1591,7 +1633,7 @@ const AICommandCenter: React.FC = () => {
 
       {/* AI Draft Review Modal */}
       {draftReviewItem && (
-        <AIDraftReviewModal
+        <AIDraftReviewDialog
           open={!!draftReviewItem}
           item={draftReviewItem}
           onClose={handleDraftReviewClose}
