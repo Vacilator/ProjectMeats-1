@@ -1,10 +1,8 @@
-import React, { useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { useNavigation } from '@/contexts/NavigationContext';
 import { businessApi } from '@/services/businessApi';
-import { withTenantQueryKey } from '@/utils/queryKeys';
 
 type BreadcrumbResolver = {
   entityType: string;
@@ -145,6 +143,7 @@ const resolverMap: Record<string, BreadcrumbResolver> = {
 const BreadcrumbHierarchySync: React.FC = () => {
   const location = useLocation();
   const { setBreadcrumbPath, setHierarchyStack } = useNavigation();
+  const [resolvedNameMap, setResolvedNameMap] = useState<Map<string, string | null>>(new Map());
 
   const pathnames = useMemo(() => location.pathname.split('/').filter(Boolean), [location.pathname]);
 
@@ -175,12 +174,24 @@ const BreadcrumbHierarchySync: React.FC = () => {
     [breadcrumbItems]
   );
 
-  const resolvedNameBatchQuery = useQuery({
-    queryKey: withTenantQueryKey(
-      'breadcrumb-name-batch',
-      ...resolvableItems.map((item) => `${item.resolver?.apiPath}:${item.pathname}`)
-    ),
-    queryFn: async () => {
+  const resolvableSignature = useMemo(
+    () =>
+      resolvableItems
+        .map((item) => `${item.routeTo}:${item.resolver?.apiPath ?? ''}:${item.pathname}`)
+        .join('|'),
+    [resolvableItems]
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!resolvableItems.length) {
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    const loadResolvedNames = async () => {
       const entries = await Promise.all(
         resolvableItems.map(async (item) => {
           if (!item.resolver) {
@@ -209,17 +220,20 @@ const BreadcrumbHierarchySync: React.FC = () => {
         })
       );
 
-      return new Map(entries);
-    },
-    enabled: resolvableItems.length > 0,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
+      if (isCancelled) {
+        return;
+      }
 
-  const resolvedNameMap = useMemo(
-    () => resolvedNameBatchQuery.data ?? new Map<string, string | null>(),
-    [resolvedNameBatchQuery.data]
-  );
+      const next = new Map(entries);
+      setResolvedNameMap((prev) => (areMapsEqual(prev, next) ? prev : next));
+    };
+
+    void loadResolvedNames();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [resolvableItems, resolvableSignature]);
 
   const breadcrumbDisplayItems = useMemo(
     () =>
@@ -281,6 +295,22 @@ const isLikelyEntityIdentifier = (segment: string): boolean => {
     UUID_SEGMENT_PATTERN.test(normalized) ||
     normalized.toLowerCase().includes('uuid')
   );
+};
+
+const areMapsEqual = (
+  left: Map<string, string | null>,
+  right: Map<string, string | null>
+): boolean => {
+  if (left === right) return true;
+  if (left.size !== right.size) return false;
+
+  for (const [key, value] of left.entries()) {
+    if (right.get(key) !== value) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export default BreadcrumbHierarchySync;

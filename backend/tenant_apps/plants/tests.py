@@ -4,23 +4,20 @@ Tests for Plants app models.
 Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from django.test import TestCase
-from django.contrib.auth.models import User
-from rest_framework.test import APIRequestFactory
-from rest_framework.test import APITestCase
-from rest_framework import status
 
-from tenant_apps.plants.models import (
-    Plant,
-    PlantProteinOffered,
-    PlantProteinTested,
-)
+from django.contrib.auth.models import User
+from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APIRequestFactory, APITestCase
+
+from tenant_apps.contacts.models import Contact
+from tenant_apps.plants.models import Plant, PlantProteinOffered, PlantProteinTested
 from tenant_apps.plants.serializers import PlantSerializer
 from tenant_apps.suppliers.models import Supplier
-from tenant_apps.contacts.models import Contact
-from apps.tenants.models import Tenant, TenantUser
+
 from apps.core.models import Protein
 from apps.core.permissions import IsRoleAuthorized
+from apps.tenants.models import Tenant, TenantUser
 
 
 class PlantModelTest(TestCase):
@@ -30,9 +27,7 @@ class PlantModelTest(TestCase):
         """Set up test data with tenant context."""
         unique_id = uuid.uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username=f"testuser-{unique_id}",
-            email=f"test-{unique_id}@example.com",
-            password="testpass123"
+            username=f"testuser-{unique_id}", email=f"test-{unique_id}@example.com", password="testpass123"
         )
         self.tenant = Tenant.objects.create(
             name=f"Test Company {unique_id}",
@@ -41,7 +36,7 @@ class PlantModelTest(TestCase):
             created_by=self.user,
         )
         TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
-        
+
         self.supplier = Supplier.objects.create(
             name=f"Test Supplier {unique_id}",
             tenant=self.tenant,
@@ -70,17 +65,17 @@ class PlantModelTest(TestCase):
         unique_id = uuid.uuid4().hex[:8]
 
         factory = APIRequestFactory()
-        request = factory.post('/api/v1/plants/', {})
+        request = factory.post("/api/v1/plants/", {})
         request.user = self.user
         request.tenant = self.tenant
 
         serializer = PlantSerializer(
             data={
-                'name': f"Processing Plant {unique_id}",
-                'plant_type': 'processing',
-                'supplier': self.supplier.id,
+                "name": f"Processing Plant {unique_id}",
+                "plant_type": "processing",
+                "supplier": self.supplier.id,
             },
-            context={'request': request},
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
         plant = serializer.save(tenant=self.tenant)
@@ -115,7 +110,7 @@ class PlantModelTest(TestCase):
     def test_plant_types(self):
         """Test different plant types."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         for plant_type, _ in Plant.PLANT_TYPE_CHOICES:
             plant = Plant.objects.create(
                 name=f"Plant {plant_type} {unique_id}",
@@ -127,18 +122,16 @@ class PlantModelTest(TestCase):
     def test_plant_tenant_isolation(self):
         """Test that plants are properly isolated by tenant."""
         unique_id = uuid.uuid4().hex[:8]
-        
+
         # Create plant for first tenant
         plant1 = Plant.objects.create(
             name=f"Plant 1 {unique_id}",
             tenant=self.tenant,
         )
-        
+
         # Create second tenant
         other_user = User.objects.create_user(
-            username=f"otheruser-{unique_id}",
-            email=f"other-{unique_id}@example.com",
-            password="testpass123"
+            username=f"otheruser-{unique_id}", email=f"other-{unique_id}@example.com", password="testpass123"
         )
         other_tenant = Tenant.objects.create(
             name=f"Other Company {unique_id}",
@@ -146,17 +139,17 @@ class PlantModelTest(TestCase):
             contact_email=f"admin-{unique_id}@othercompany.com",
             created_by=other_user,
         )
-        
+
         # Create plant for second tenant
         plant2 = Plant.objects.create(
             name=f"Plant 2 {unique_id}",
             tenant=other_tenant,
         )
-        
+
         # Verify isolation
         tenant1_plants = Plant.objects.for_tenant(self.tenant)
         tenant2_plants = Plant.objects.for_tenant(other_tenant)
-        
+
         self.assertEqual(tenant1_plants.count(), 1)
         self.assertEqual(tenant2_plants.count(), 1)
         self.assertIn(plant1, tenant1_plants)
@@ -170,7 +163,7 @@ class PlantModelTest(TestCase):
             capacity=10000,
             tenant=self.tenant,
         )
-        
+
         self.assertEqual(plant.capacity, 10000)
 
     def test_plant_operational_flags(self):
@@ -215,7 +208,7 @@ class PlantModelTest(TestCase):
         )
 
         factory = APIRequestFactory()
-        req = factory.patch('/api/v1/plants/', {})
+        req = factory.patch("/api/v1/plants/", {})
         req.user = pm_user
         req.tenant = self.tenant
 

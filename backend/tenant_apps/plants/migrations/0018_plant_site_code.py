@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("plants", "0017_plant_export_approved_plant_export_documents_handled_and_more"),
     ]
