@@ -468,7 +468,7 @@ describe('Header', () => {
         expect(screen.getByText('New Supplier')).toBeInTheDocument();
         expect(screen.getByText('New Customer')).toBeInTheDocument();
         expect(screen.getByText('New Purchase Order')).toBeInTheDocument();
-        expect(screen.getByText('Open Command Center')).toBeInTheDocument();
+        expect(screen.getByText('Home')).toBeInTheDocument();
       });
     });
 

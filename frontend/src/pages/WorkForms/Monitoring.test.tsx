@@ -61,7 +61,7 @@ describe('WorkForms Monitoring', () => {
     expect(screen.queryByText(/Active Submission Queue/i)).not.toBeInTheDocument();
     expect(screen.getByText(/recent failure hotspots/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Open Command Center/i }));
+    await user.click(screen.getByRole('button', { name: /Home/i }));
 
     expect(screen.getByText('command-center-route')).toBeInTheDocument();
   });

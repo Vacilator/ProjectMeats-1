@@ -58,7 +58,7 @@ export const Monitoring: React.FC = () => {
   const activeExecutionCount = active.length;
 
   const handleOpenCommandCenter = useCallback(() => {
-    navigate('/command-center?tab=action-required');
+    navigate('/');
   }, [navigate]);
 
   const handleOpenWorkFormsHistory = useCallback(() => {
@@ -105,7 +105,7 @@ export const Monitoring: React.FC = () => {
               </div>
               <ActionButtonGroup>
                 <Button variant="secondary" onClick={handleOpenCommandCenter}>
-                  Open Command Center
+                  Home
                 </Button>
                 <Button variant="secondary" onClick={handleOpenWorkFormsHistory}>
                   View WorkForms History
