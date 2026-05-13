@@ -121,11 +121,11 @@ const FilterBar = styled.div`
   flex-wrap: wrap;
 `;
 
-const FilterButton = styled.button<{ active?: boolean }>`
+const FilterButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 1rem;
-  background: ${props => props.active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))'};
-  color: ${props => props.active ? 'white' : 'rgb(var(--color-text-primary))'};
-  border: 1px solid ${props => props.active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))'};
+  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   cursor: pointer;
@@ -188,14 +188,14 @@ const TableHeader = styled.thead`
   z-index: 10;
 `;
 
-const TableRow = styled.tr<{ clickable?: boolean; selected?: boolean }>`
+const TableRow = styled.tr<{ $clickable?: boolean; $selected?: boolean }>`
   border-bottom: 1px solid rgb(var(--color-border));
-  cursor: ${props => props.clickable ? 'pointer' : 'default'};
-  background: ${props => props.selected ? 'rgba(var(--color-primary), 0.05)' : 'transparent'};
+  cursor: ${props => props.$clickable ? 'pointer' : 'default'};
+  background: ${props => props.$selected ? 'rgba(var(--color-primary), 0.05)' : 'transparent'};
   transition: background 0.15s ease;
 
   &:hover {
-    background: ${props => props.clickable ? 'rgba(var(--color-primary), 0.08)' : 'transparent'};
+    background: ${props => props.$clickable ? 'rgba(var(--color-primary), 0.08)' : 'transparent'};
   }
 
   &:last-child {
@@ -219,14 +219,14 @@ const TableCell = styled.td`
   color: rgb(var(--color-text-primary));
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $status: string }>`
   display: inline-block;
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
   ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'paid':
         return 'background: rgba(var(--color-success), 0.15); color: rgba(var(--color-success), 1);';
       case 'partial':
@@ -435,16 +435,16 @@ const ReceivableSOs: React.FC = () => {
       <ContentContainer hasSidePanel={!!selectedOrder}>
         <MainContent>
           <FilterBar>
-            <FilterButton active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>
+            <FilterButton $active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>
               All ({counts.all})
             </FilterButton>
-            <FilterButton active={statusFilter === 'unpaid'} onClick={() => setStatusFilter('unpaid')}>
+            <FilterButton $active={statusFilter === 'unpaid'} onClick={() => setStatusFilter('unpaid')}>
               Unpaid ({counts.unpaid})
             </FilterButton>
-            <FilterButton active={statusFilter === 'partial'} onClick={() => setStatusFilter('partial')}>
+            <FilterButton $active={statusFilter === 'partial'} onClick={() => setStatusFilter('partial')}>
               Partial ({counts.partial})
             </FilterButton>
-            <FilterButton active={statusFilter === 'paid'} onClick={() => setStatusFilter('paid')}>
+            <FilterButton $active={statusFilter === 'paid'} onClick={() => setStatusFilter('paid')}>
               Paid ({counts.paid})
             </FilterButton>
           </FilterBar>
@@ -475,8 +475,8 @@ const ReceivableSOs: React.FC = () => {
                     {orders.map(order => (
                       <TableRow
                         key={order.id}
-                        clickable
-                        selected={selectedOrder?.id === order.id}
+                        $clickable
+                        $selected={selectedOrder?.id === order.id}
                         onClick={() => setSelectedOrder(order)}
                       >
                         <TableCell>{order.order_number}</TableCell>
@@ -485,7 +485,7 @@ const ReceivableSOs: React.FC = () => {
                         <TableCell>{formatCurrency(parseFloat(order.total_amount))}</TableCell>
                         <TableCell>{formatCurrency(parseFloat(order.outstanding_amount || order.total_amount))}</TableCell>
                         <TableCell>
-                          <StatusBadge status={order.payment_status || 'unpaid'}>
+                          <StatusBadge $status={order.payment_status || 'unpaid'}>
                             {(order.payment_status || 'unpaid').toUpperCase()}
                           </StatusBadge>
                         </TableCell>
@@ -544,7 +544,7 @@ const ReceivableSOs: React.FC = () => {
             <DetailSection>
               <DetailLabel>Payment Status</DetailLabel>
               <DetailValue>
-                <StatusBadge status={selectedOrder.payment_status || 'unpaid'}>
+                <StatusBadge $status={selectedOrder.payment_status || 'unpaid'}>
                   {(selectedOrder.payment_status || 'unpaid').toUpperCase()}
                 </StatusBadge>
               </DetailValue>

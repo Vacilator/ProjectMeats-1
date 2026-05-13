@@ -149,19 +149,19 @@ const Title = styled.h1`
   color: rgb(var(--color-text-primary));
 `;
 
-const SaveIndicator = styled.span<{ status: 'saved' | 'saving' | 'unsaved' }>`
+const SaveIndicator = styled.span<{ $status: 'saved' | 'saving' | 'unsaved' }>`
   font-size: 0.75rem;
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-full);
   background-color: ${props => {
-    switch(props.status) {
+    switch(props.$status) {
       case 'saved': return 'rgba(var(--color-success), 0.1)';
       case 'saving': return 'rgba(var(--color-warning), 0.1)';
       case 'unsaved': return 'rgba(var(--color-error), 0.1)';
     }
   }};
   color: ${props => {
-    switch(props.status) {
+    switch(props.$status) {
       case 'saved': return 'rgb(var(--color-success))';
       case 'saving': return 'rgb(var(--color-warning))';
       case 'unsaved': return 'rgb(var(--color-error))';
@@ -187,12 +187,12 @@ const ToolbarDivider = styled.div`
   margin: 0 0.5rem;
 `;
 
-const ToolbarButton = styled.button<{ active?: boolean }>`
+const ToolbarButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: ${props => props.active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
-  background: ${props => props.active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -497,10 +497,10 @@ const DragHandle = styled.div`
   }
 `;
 
-const ActionButton = styled.button<{ variant?: 'danger' | 'default' }>`
+const ActionButton = styled.button<{ $variant?: 'danger' | 'default' }>`
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
-  color: ${props => props.variant === 'danger' ? 'rgb(var(--color-danger))' : 'rgb(var(--color-text-secondary))'};
+  color: ${props => props.$variant === 'danger' ? 'rgb(var(--color-danger))' : 'rgb(var(--color-text-secondary))'};
   background: transparent;
   border: none;
   cursor: pointer;
@@ -509,7 +509,7 @@ const ActionButton = styled.button<{ variant?: 'danger' | 'default' }>`
   margin-right: 0.25rem;
 
   &:hover {
-    background-color: ${props => props.variant === 'danger' ? 'rgba(var(--color-danger), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    background-color: ${props => props.$variant === 'danger' ? 'rgba(var(--color-danger), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
 
   &:disabled {
@@ -940,7 +940,7 @@ const SortableRow: React.FC<{
                   ↓
                 </ActionButton>
                 <ActionButton 
-                  variant="danger"
+                  $variant="danger"
                   onClick={() => {
                     void (async () => {
                       const ok = await confirmDialog({
@@ -1470,7 +1470,7 @@ const SchemaEditor: React.FC = () => {
       <Header>
         <HeaderLeft>
           <Title>Schema Editor</Title>
-          <SaveIndicator status={saveStatus}>
+          <SaveIndicator $status={saveStatus}>
             {saveStatus === 'saved' && '✓ Saved'}
             {saveStatus === 'saving' && '⟳ Saving...'}
             {saveStatus === 'unsaved' && '● Unsaved'}
