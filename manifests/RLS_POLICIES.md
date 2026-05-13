@@ -312,3 +312,41 @@ END $$;
 - `pg_policies.policyname LIKE '%_tenant_isolation'` present on tenant-aware tables
 
 **Status**: ✅ ALL SYSTEMS COMPLIANT
+
+---
+
+## 🔴 Known RLS Gaps — Tenant-Aware Tables Pending Policies
+
+The following tenant-aware tables have been identified as needing RLS policies. Track progress here and add policies via additive migrations.
+
+| Table | App | Priority | Status |
+|-------|-----|----------|--------|
+| `inquiries_tradesession` | inquiries | High | Planned |
+| `contacts_contactproteinresponsibility` | contacts | Medium | Planned |
+| `contacts_contactmasterproductresponsibility` | contacts | Medium | Planned |
+| `contacts_contactpreferredprotein` | contacts | Medium | Planned |
+| `contacts_contactpreferredmasterproduct` | contacts | Medium | Planned |
+| `ai_assistant_aifeedback` | ai_assistant | High | Planned |
+| `ai_assistant_vectormemory` | ai_assistant | Medium | Planned |
+| `ai_assistant_tenantknowledgefact` | ai_assistant | Medium | Planned |
+| `ai_assistant_tenantaimemory` | ai_assistant | Medium | Planned |
+| `ai_assistant_aidocumentsemanticchunk` | ai_assistant | Medium | Planned |
+| `ai_assistant_ailineageevent` | ai_assistant | Medium | Planned |
+| `ai_assistant_communicationlog` | ai_assistant | Medium | Planned |
+| `ai_assistant_externalapprovalrequest` | ai_assistant | High | Planned |
+| `ai_assistant_useraipreferences` | ai_assistant | Low | Planned |
+| `ai_assistant_ailearningsnapshot` | ai_assistant | Low | Planned |
+| `suppliers_supplierplant` | suppliers | High | Planned |
+| `carriers_carrierfreightinquiry` | carriers | High | Planned |
+| `workflows_tenantformversion` | workflows | Medium | Planned |
+| `workflows_executioneventlog` | workflows | Medium | Planned |
+| `workflows_workflowdeadletter` | workflows | Medium | Planned |
+| `purchase_orders_purchaseorderapprovaldispatch` | purchase_orders | High | Planned |
+| `locations_locationassociatedproduct` | locations | Medium | Planned |
+| `locations_locationassociatedmasterproduct` | locations | Medium | Planned |
+| `plants_plantassociatedproduct` | plants | Medium | Planned |
+| `plants_plantassociatedmasterproduct` | plants | Medium | Planned |
+| `plants_plantproteinoffered` | plants | Medium | Planned |
+| `plants_plantproteintested` | plants | Medium | Planned |
+
+> **Note**: Some tables listed above may already have RLS policies in migration code that hasn't been deployed to all environments. Cross-reference with `python manage.py audit_rls_compliance --strict` on the target database for live status. Tables with existing policies in the audit sections above (e.g., `workflows_executioneventlog`, `workflows_workflowdeadletter`) may only need deployment verification rather than new migration code.

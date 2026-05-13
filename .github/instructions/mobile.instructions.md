@@ -37,22 +37,33 @@ export const MyScreen: React.FC<MyScreenProps> = ({ navigation, route }) => {
 - Keep local state minimal
 - Use React Navigation for screen navigation
 
-### API Integration
-```typescript
-// Use axios with proper typing (shared with frontend)
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+### API Integration (Service Layer — MANDATORY)
 
-interface ApiResponse {
-  data: any[];
+**⚠️ PROHIBITION:** Direct `axios` calls are NOT allowed. All API communication MUST use the centralized `ApiService`.
+
+```typescript
+// ✅ CORRECT: Use ApiService (centralized error handling, token refresh, typing)
+import { ApiService } from '@/services/ApiService';
+
+interface CustomerResponse {
+  data: Customer[];
   message: string;
 }
 
-const fetchData = async (): Promise<ApiResponse> => {
-  const response = await axios.get<ApiResponse>(`${API_BASE_URL}/endpoint`);
-  return response.data;
+const fetchCustomers = async (tenantId: string): Promise<CustomerResponse> => {
+  return await ApiService.get<CustomerResponse>(`/tenants/${tenantId}/customers/`);
 };
 ```
+
+```typescript
+// ❌ WRONG: Direct axios usage
+import axios from 'axios';
+const fetchData = async () => {
+  return await axios.get('/api/v1/endpoint/'); // DON'T DO THIS
+};
+```
+
+**Why**: Centralized error handling, automatic JWT refresh, consistent typing, easy mocking for tests.
 
 ## Testing
 
@@ -203,13 +214,11 @@ const MyScreen = () => {
 
 ### API Calls with Tenant
 ```typescript
-// Include tenant in API headers
-import { getAuthHeaders } from '@/shared/utils/auth';
+// Use ApiService with tenant context — headers handled automatically
+import { ApiService } from '@/services/ApiService';
 
 const fetchTenantData = async (tenantId: string) => {
-  return axios.get(`/api/tenants/${tenantId}/data`, {
-    headers: await getAuthHeaders(),
-  });
+  return ApiService.get(`/tenants/${tenantId}/data`);
 };
 ```
 

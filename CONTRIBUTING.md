@@ -59,7 +59,7 @@ The script verifies:
 
 PR validation now also publishes a markdown evidence report summarizing the required PR checks and uploads it as a workflow artifact. Same-repo PRs receive the same report as a sticky PR comment.
 
-See [`docs/GOLDEN_PIPELINE.md`](docs/GOLDEN_PIPELINE.md) and [`docs/PIPELINE_FINAL_VERIFICATION.md`](docs/PIPELINE_FINAL_VERIFICATION.md) for the full reference.
+See [`docs/GOLDEN_PIPELINE.md`](docs/GOLDEN_PIPELINE.md) for the full reference.
 
 ---
 
@@ -151,6 +151,5 @@ Before opening a pull request, verify **all** items below:
 | Golden Pipeline | [`docs/GOLDEN_PIPELINE.md`](docs/GOLDEN_PIPELINE.md) |
 | Architecture | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) |
 | Configuration & Secrets | [`docs/CONFIGURATION_AND_SECRETS.md`](docs/CONFIGURATION_AND_SECRETS.md) |
-| Design System | [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) |
-| Pipeline Final Verification | [`docs/PIPELINE_FINAL_VERIFICATION.md`](docs/PIPELINE_FINAL_VERIFICATION.md) |
+| Design System | [`docs/guides/DESIGN_SYSTEM.md`](docs/guides/DESIGN_SYSTEM.md) |
 | Copilot Instructions | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) |
