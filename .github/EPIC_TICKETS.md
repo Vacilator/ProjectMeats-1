@@ -19,8 +19,8 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
-| Ready | AUTO-38.3 recoverable-sync-retry-reconnect-and-progress-cta | Phase 38 | full-stack |
-| Blocked | AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice | Phase 38 | backend/tests |
+| Ready | AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice | Phase 38 | backend/tests |
+| Shipped | AUTO-38.3 recoverable-sync-retry-reconnect-and-progress-cta | Phase 38 | full-stack |
 | Shipped | AUTO-38.1 backend-email-ingest-error-contract-and-status-metadata | Phase 38 | backend/api |
 | Shipped | AUTO-38.2 ai-inbox-provenance-parse-status-and-retryability-badges | Phase 38 | frontend |
 | Shipped | UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction | Phase 37 | frontend |
@@ -200,7 +200,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 ## Active Backlog (Execution Order)
 
-### Phase 38 — Email Automation Reliability & Operator Diagnostics (Remaining: 2 tickets)
+### Phase 38 — Email Automation Reliability & Operator Diagnostics (Remaining: 1 ticket)
 
 #### Epic AUTO-38: Email automation reliability + operator diagnostics
 
@@ -241,9 +241,9 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
   - **Shipped evidence:** PR #5332
 
-- [ ] **AUTO-38.3 recoverable-sync-retry-reconnect-and-progress-cta**
-  - **Status:** Ready
-  - **Why now:** The backend error contract and operator-visible provenance/status surfaces are now shipped, so the remaining operator reliability gap is recovery: reconnect/retry CTAs and progress/summary reporting for long syncs are explicitly called out in the canonical diagnostics gap.
+- [x] **AUTO-38.3 recoverable-sync-retry-reconnect-and-progress-cta**
+  - **Status:** Shipped on `development` (PR #5339)
+  - **Why now:** After the contract and status surfaces land, the remaining operator reliability gap is recovery: reconnect/retry CTAs and progress/summary reporting for long syncs are explicitly called out in the canonical diagnostics gap.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 38; `MASTER_PLAN.md` -> email ingestion reliability + diagnostics
   - **Scope:** Add safe reconnect/retry actions and long-sync progress/summary reporting across the relevant backend sync/task entrypoints and operator-facing frontend surfaces.
   - **Non-goals:** No new provider integrations and no destructive auto-retry behavior.
@@ -258,17 +258,18 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Risk level:** Medium
   - **Rollback:** Revert the recovery UX/contract follow-up PR while preserving the already-shipped error/status surfaces.
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
+  - **Shipped evidence:** PR #5339
 
 - [ ] **AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice**
-  - **Status:** Blocked on AUTO-38.3
+  - **Status:** Ready
   - **Why now:** The automation chain is shipped, but sample-email end-to-end coverage was explicitly deferred; once the reliability/diagnostics contract is complete, the last-mile guardrail is deterministic regression coverage through the ingest-to-fulfillment path.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 21 deferred sample-email note; `MASTER_PLAN.md` -> Phase 38
   - **Scope:** Add deterministic sample-email regression coverage for the PO→SO→fulfillment→invoice chain using stable fixtures and the new reliability semantics.
   - **Non-goals:** No production feature work unless the new regression coverage exposes a targeted bug that must be fixed.
   - **Primary domain:** backend/tests
   - **Likely touched paths:** `backend/apps/integrations/**/tests*`, `tenant_apps/inquiries/**/tests*`, `tenant_apps/purchase_orders/**/tests*`, `tenant_apps/sales_orders/**/tests*`, optional focused frontend/e2e coverage only if a user-visible bug is exposed
-  - **Dependencies:** AUTO-38.3
-  - **Blockers:** AUTO-38.3 must land first so fixtures/assertions target the final recovery contract and operator-visible states
+  - **Dependencies:** AUTO-38.1, AUTO-38.2, AUTO-38.3
+  - **Blockers:** None
   - **Acceptance criteria:** Stable sample-email fixtures prove the automation chain from ingest through PO/SO/fulfillment/invoice and fail if the new reliability/diagnostics semantics regress.
   - **Validation commands:** `cd backend && python manage.py test apps.integrations tenant_apps.ai_assistant tenant_apps.inquiries tenant_apps.purchase_orders tenant_apps.sales_orders --noinput`
   - **Tenant/RLS impact:** Medium — regression fixtures must preserve tenant-native lineage and fail-closed behavior.
