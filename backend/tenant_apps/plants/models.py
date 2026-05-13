@@ -84,6 +84,12 @@ class Plant(TenantAwareModel):
         default='',
         help_text="Plant establishment number",
     )
+    site_code = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        help_text="Internal site code for the plant/facility",
+    )
     plant_type = models.CharField(
         max_length=20, choices=PLANT_TYPE_CHOICES, default="processing"
     )

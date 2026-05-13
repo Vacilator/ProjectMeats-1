@@ -258,6 +258,7 @@ class PlantProteinsAPITests(APITestCase):
     def test_create_plant_with_export_and_proteins(self):
         payload = {
             "name": "Protein Plant",
+            "site_code": "ACME-NORTH-01",
             "plant_type": "processing",
             "supplier": self.supplier.id,
             "export_approved": True,
@@ -276,6 +277,7 @@ class PlantProteinsAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
 
         plant = Plant.objects.get(id=response.data["id"], tenant=self.tenant)
+        self.assertEqual(plant.site_code, "ACME-NORTH-01")
         self.assertTrue(plant.export_approved)
         self.assertEqual(plant.export_documents_handled, ["COA", "FSIS"])
 
@@ -289,6 +291,7 @@ class PlantProteinsAPITests(APITestCase):
         self.assertEqual(set(tested_ids), {self.protein_a.id, self.protein_b.id})
 
         # Serializer representation should return names.
+        self.assertEqual(response.data["site_code"], "ACME-NORTH-01")
         self.assertEqual(response.data["proteins_offered"], [self.protein_a.name])
         self.assertEqual(set(response.data["proteins_tested"]), {self.protein_a.name, self.protein_b.name})
 

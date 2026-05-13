@@ -171,15 +171,6 @@ const Plants: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [contextSupplierId, setContextSupplierId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
-  const plantFormInitialValues = useMemo(
-    () => ({
-      ...(contextSupplierId ? { supplier: String(contextSupplierId) } : {}),
-      plant_type: 'processing',
-      country: 'USA',
-    }),
-    [contextSupplierId]
-  );
-
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
     const state = location.state as any;
@@ -500,7 +491,7 @@ const Plants: React.FC = () => {
         variant="modal"
         isOpen={showModal}
         onClose={handleModalClose}
-        initialValues={plantFormInitialValues}
+        context={contextSupplierId ? { supplierId: contextSupplierId } : undefined}
         onSuccess={handleModalSuccess}
       />
     </PageContainer>

@@ -19,6 +19,7 @@ import isEqual from 'lodash/isEqual';
 
 import { getRuntimeConfigBoolean } from '@/config/runtime';
 import { useAuthState } from '@/contexts/AuthContext';
+import { useEntityCascade } from '@/hooks/useEntityCascade';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
 import UniversalEntityForm, {
@@ -161,11 +162,25 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const normalizedEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const { isAuthenticated, loading: authLoading } = useAuthState();
   const stableInitialValues = useDeepStableValue(initialValues ?? EMPTY_INITIAL_VALUES);
+  const stableContext = useDeepStableValue(context);
   const [formSubmitting, setFormSubmitting] = useState(false);
 
   const useUniversalInquiryCreate = getRuntimeConfigBoolean('USE_UNIVERSAL_INQUIRY_CREATE', false);
   const handleClose = useStableCallback(onClose);
   const handleSuccess = useStableCallback(onSuccess);
+  const derivedInitialValues = useMemo<Record<string, unknown>>(
+    () => ({
+      ...stableInitialValues,
+      ...(context?.customerId != null ? { customer: String(context.customerId) } : {}),
+      ...(context?.supplierId != null ? { supplier: String(context.supplierId) } : {}),
+      ...(context?.contactId != null ? { contact: String(context.contactId) } : {}),
+    }),
+    [context?.contactId, context?.customerId, context?.supplierId, stableInitialValues]
+  );
+  const { initialValues: cascadedInitialValues, lockedFieldKeys } = useEntityCascade(
+    derivedInitialValues,
+    stableContext
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -197,15 +212,6 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   }
 
   // Default: Universal schema-driven form.
-  const derivedInitialValues = useMemo<Record<string, unknown>>(
-    () => ({
-      ...stableInitialValues,
-      ...(context?.customerId != null ? { customer: String(context.customerId) } : {}),
-      ...(context?.supplierId != null ? { supplier: String(context.supplierId) } : {}),
-      ...(context?.contactId != null ? { contact: String(context.contactId) } : {}),
-    }),
-    [context?.contactId, context?.customerId, context?.supplierId, stableInitialValues]
-  );
   const shouldHydrate = isOpen && !authLoading && isAuthenticated;
   const shouldLoadRecord =
     shouldHydrate &&
@@ -339,9 +345,9 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         entityType: normalizedEntityKey,
         mode,
         entityId: shouldLoadRecord ? String(entityId) : 'new',
-        seed: derivedInitialValues,
+        seed: cascadedInitialValues,
       }),
-    [derivedInitialValues, entityId, mode, normalizedEntityKey, shouldLoadRecord]
+    [cascadedInitialValues, entityId, mode, normalizedEntityKey, shouldLoadRecord]
   );
   const modalTitle = useMemo(() => {
     const baseLabel = String(
@@ -401,7 +407,8 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         isOpen={isOpen}
         onClose={handleClose}
         onSuccess={handleSuccess}
-        initialValues={derivedInitialValues}
+        initialValues={cascadedInitialValues}
+        lockedFieldKeys={lockedFieldKeys}
         externalSchema={augmentedSchema}
         externalRecordValues={recordQuery.data ?? null}
         externalLoading={formLoading}
@@ -436,7 +443,8 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
           isOpen={shouldMountForm}
           onClose={handleClose}
           onSuccess={handleSuccess}
-          initialValues={derivedInitialValues}
+          initialValues={cascadedInitialValues}
+          lockedFieldKeys={lockedFieldKeys}
           externalSchema={augmentedSchema}
           externalRecordValues={recordQuery.data ?? null}
           externalLoading={formLoading}

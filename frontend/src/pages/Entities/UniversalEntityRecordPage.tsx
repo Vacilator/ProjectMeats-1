@@ -99,14 +99,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const childLabel = isSupplier ? 'Plants' : 'Locations';
   const childEndpoint = isSupplier ? 'plants/' : 'locations/';
   const childFilterKey = isSupplier ? 'supplier' : 'customer';
-  const childCreateInitialValues = useMemo<Record<string, unknown>>(
-    () => ({
-      ...(entityId ? { [childFilterKey]: entityId } : {}),
-      ...(isSupplier ? { plant_type: 'processing' } : { location_type: 'warehouse' }),
-      country: 'USA',
-    }),
-    [childFilterKey, entityId, isSupplier]
-  );
 
   const [childRows, setChildRows] = useState<Record<string, unknown>[]>([]);
   const [childLoading, setChildLoading] = useState(false);
@@ -860,7 +852,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
               isOpen={childCreateOpen}
               onClose={handleChildCreateClose}
               onSuccess={handleChildCreateSuccess}
-              initialValues={childCreateInitialValues}
+              context={isSupplier ? { supplierId: entityId } : { customerId: entityId }}
             />
           )}
         </>
