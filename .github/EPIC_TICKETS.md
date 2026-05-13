@@ -198,7 +198,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
 
 #### Epic UX-37: AICommandCenter polish + cockpit workspace cleanup
 
-- [ ] **UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction**
+- [x] **UX-37.1 aicommandcenter-trade-table-and-modal-inline-style-extraction**
   - **Status:** Shipped
   - **Why now:** `AICommandCenter.tsx` is now the single primary operator home, but the file still carries a large inline-style cluster around the trade table and detail modal that hides styling drift from the existing standards guardrails.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 37
@@ -226,7 +226,7 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Primary domain:** frontend/command-center
   - **Likely touched paths:** `frontend/src/pages/AICommandCenter.tsx`, `frontend/src/pages/AICommandCenter.test.tsx`
   - **Dependencies:** UX-37.1
-  - **Blockers:** UX-37.1 must clear the table/modal cluster first
+  - **Blockers:** None
   - **Acceptance criteria:** `AICommandCenter.tsx` has no remaining `style={{}}` operator-surface drift; confidence/intent/shortcut surfaces render through named tokenized wrappers.
   - **Validation commands:** `npm -C frontend run verify-standards`; `cd frontend && npm exec -- vitest run src/pages/AICommandCenter.test.tsx`; `npm -C frontend run test:ci`
   - **Tenant/RLS impact:** None

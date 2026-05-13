@@ -367,6 +367,94 @@ const RelatedInquiryButton = styled(Button)`
   font-size: 0.8rem;
 `;
 
+const CommandCenterTitle = styled(Title)`
+  && {
+    margin-bottom: 0;
+    font-weight: 800;
+  }
+`;
+
+const CommandCenterSearchInput = styled(Input)`
+  width: 220px;
+  border-radius: 10px;
+`;
+
+const RoundedUtilityButton = styled(Button)`
+  border-radius: 10px;
+`;
+
+const InlineBadge = styled(Badge)`
+  margin-left: 6px;
+`;
+
+const IntentLabel = styled.span`
+  font-weight: 500;
+  color: rgb(var(--color-primary));
+`;
+
+const ItemChevron = styled(ChevronRight)`
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ShrinkingItemChevron = styled(ItemChevron)`
+  flex-shrink: 0;
+`;
+
+const ConfidencePill = styled.span<{ $confidence: number }>`
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: ${({ $confidence }) =>
+    $confidence >= 0.8
+      ? 'rgba(var(--color-success), 0.1)'
+      : $confidence >= 0.5
+        ? 'rgba(var(--color-warning), 0.1)'
+        : 'rgba(var(--color-error), 0.1)'};
+  color: ${({ $confidence }) =>
+    $confidence >= 0.8
+      ? 'rgb(var(--color-success))'
+      : $confidence >= 0.5
+        ? 'rgb(var(--color-warning))'
+        : 'rgb(var(--color-error))'};
+`;
+
+const ItemSubtitle = styled.span`
+  font-size: 11px;
+`;
+
+const PanelCountText = styled(Text)`
+  font-size: 0.72rem;
+`;
+
+const CompactUserIcon = styled(User)`
+  margin-right: 4px;
+  vertical-align: -1px;
+`;
+
+const RecordOpenButton = styled.button`
+  background: none;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ProcessFlowWrapper = styled.div`
+  margin-top: 12px;
+`;
+
+const DetailModal = styled(Modal)`
+  .ant-modal-body {
+    padding: 24px;
+  }
+`;
+
 const ShortcutHintBar = styled.div`
   position: fixed;
   bottom: 0;
@@ -977,30 +1065,28 @@ const AICommandCenter: React.FC = () => {
   return (
     <OperatorShell role="main" aria-label="AI Command Center">
       {/* Header */}
-      <OperatorHeader
+        <OperatorHeader
         title={(
-          <Title level={3} style={{ marginBottom: 0, fontWeight: 800 }}>
+          <CommandCenterTitle level={3}>
             ⚡ Command Center
-          </Title>
+          </CommandCenterTitle>
         )}
         subtitle="Primary operator queue for action-required work, live trades, and daily oversight. Use WorkForms Monitoring for execution drill-ins."
         actions={(
           <>
-            <Input
+            <CommandCenterSearchInput
               placeholder="Search command center…"
               prefix={<Search size={14} />}
               value={searchText}
               onChange={(e) => updateSearchText(e.target.value)}
-              style={{ width: 220, borderRadius: 10 }}
               allowClear
               aria-label="Search command center"
             />
             <Tooltip title="Refresh all (R)">
-              <Button
+              <RoundedUtilityButton
                 icon={<RefreshCw size={14} />}
                 onClick={handleRefreshAll}
                 loading={tradesQuery.isFetching || reviewsQuery.isFetching}
-                style={{ borderRadius: 10 }}
                 aria-label="Refresh all data"
               />
             </Tooltip>
@@ -1045,10 +1131,9 @@ const AICommandCenter: React.FC = () => {
             onClick={() => setActiveTab('action-required')}
           >
             AI Inbox
-            <Badge
+            <InlineBadge
               count={aiInboxItems.length}
               size="small"
-              style={{ marginLeft: 6 }}
             />
           </QuickActionButton>
         )}
@@ -1156,14 +1241,14 @@ const AICommandCenter: React.FC = () => {
                           {item.statusLabel}
                         </StatusPill>
                         {item.intent_label && (
-                          <span style={{ fontWeight: 500, color: 'rgb(var(--color-primary))' }}>
+                          <IntentLabel>
                             🎯 {item.intent_label}
-                          </span>
+                          </IntentLabel>
                         )}
                         {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
                       </ItemMeta>
                     </ItemContent>
-                    <ChevronRight size={16} style={{ color: 'rgb(var(--color-text-secondary))' }} />
+                    <ItemChevron size={16} />
                   </ItemCard>
                 ))}
               </CardList>
@@ -1189,13 +1274,13 @@ const AICommandCenter: React.FC = () => {
             <EmptyState>
               <CheckCircle2 size={32} strokeWidth={1.5} />
               <span>Operator queue is clear.</span>
-              <EmptySubtext>
-                No items need attention right now. Use WorkForms Monitoring for active
-                execution details and step-level drill-ins.
-              </EmptySubtext>
-              <Button onClick={handleOpenWorkFormsMonitoring} style={{ borderRadius: 10 }}>
+                <EmptySubtext>
+                  No items need attention right now. Use WorkForms Monitoring for active
+                  execution details and step-level drill-ins.
+                </EmptySubtext>
+              <RoundedUtilityButton onClick={handleOpenWorkFormsMonitoring}>
                 Open WorkForms Monitoring
-              </Button>
+              </RoundedUtilityButton>
             </EmptyState>
           ) : (
             <CardList>
@@ -1218,36 +1303,21 @@ const AICommandCenter: React.FC = () => {
                         {item.statusLabel}
                       </StatusPill>
                       {item.intent_label && (
-                        <span style={{ fontWeight: 500, color: 'rgb(var(--color-primary))' }}>
+                        <IntentLabel>
                           🎯 {item.intent_label}
-                        </span>
+                        </IntentLabel>
                       )}
                       {item.confidence != null && (
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 600,
-                          padding: '1px 6px',
-                          borderRadius: 4,
-                          background: item.confidence >= 0.8
-                            ? 'rgba(var(--color-success), 0.1)'
-                            : item.confidence >= 0.5
-                              ? 'rgba(var(--color-warning), 0.1)'
-                              : 'rgba(var(--color-error), 0.1)',
-                          color: item.confidence >= 0.8
-                            ? 'rgb(var(--color-success))'
-                            : item.confidence >= 0.5
-                              ? 'rgb(var(--color-warning))'
-                              : 'rgb(var(--color-error))',
-                        }}>
+                        <ConfidencePill $confidence={item.confidence}>
                           {Math.round(item.confidence * 100)}%
-                        </span>
+                        </ConfidencePill>
                       )}
-                      {item.subtitle && <span style={{ fontSize: 11 }}>{item.subtitle}</span>}
+                      {item.subtitle && <ItemSubtitle>{item.subtitle}</ItemSubtitle>}
                       {item.timestamp && <span>• {formatTimeAgo(item.timestamp)}</span>}
                     </ItemMeta>
                   </ItemContent>
                   <SourceTag>AI</SourceTag>
-                  <ChevronRight size={16} style={{ color: 'rgb(var(--color-text-secondary))', flexShrink: 0 }} />
+                  <ShrinkingItemChevron size={16} />
                 </ItemCard>
               ))}
             </CardList>
@@ -1259,7 +1329,7 @@ const AICommandCenter: React.FC = () => {
       {activeTab === 'pipeline' && (
         <CockpitPanel
           title="Active Trades"
-          extra={<Text type="secondary" style={{ fontSize: '0.72rem' }}>{filteredTrades.length} trades</Text>}
+          extra={<PanelCountText type="secondary">{filteredTrades.length} trades</PanelCountText>}
         >
           {tradesQuery.isLoading ? (
             <Skeleton active paragraph={{ rows: 5 }} />
@@ -1421,13 +1491,12 @@ const AICommandCenter: React.FC = () => {
       </Modal>
 
       {/* Process/Action Item Detail Modal */}
-      <Modal
+      <DetailModal
         open={modalOpen && !!selectedItem}
         onCancel={handleModalClose}
         footer={null}
         width={1100}
         destroyOnHidden
-        styles={{ body: { padding: '24px' } }}
       >
         {selectedItem && (
           <>
@@ -1442,13 +1511,13 @@ const AICommandCenter: React.FC = () => {
                     {selectedItem.statusLabel}
                   </StatusPill>
                   {selectedItem.intent_label && (
-                    <span style={{ fontWeight: 500, color: 'rgb(var(--color-primary))' }}>
+                    <IntentLabel>
                       🎯 {selectedItem.intent_label}
-                    </span>
+                    </IntentLabel>
                   )}
                   {selectedItem.contact_name && (
                     <span>
-                      <User size={12} style={{ marginRight: 4, verticalAlign: -1 }} />
+                      <CompactUserIcon size={12} />
                       {selectedItem.contact_name}
                     </span>
                   )}
@@ -1457,23 +1526,11 @@ const AICommandCenter: React.FC = () => {
               </ModalEntity>
               {selectedItem.entity_type && selectedItem.entity_id && (
                 <Tooltip title="Open full record">
-                  <button
+                  <RecordOpenButton
                     onClick={handleNavigateToEntity}
-                    style={{
-                      background: 'none',
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: 6,
-                      padding: '6px 12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 13,
-                      color: 'rgb(var(--color-text-primary))',
-                    }}
                   >
                     <ExternalLink size={14} /> Open
-                  </button>
+                  </RecordOpenButton>
                 </Tooltip>
               )}
             </ModalHeader>
@@ -1482,13 +1539,13 @@ const AICommandCenter: React.FC = () => {
               <ModalSection>
                 <ModalSectionTitle>Process Flow</ModalSectionTitle>
                 <ProcessFlowHeader inquiryId={selectedItem.inquiry_id} />
-                <div style={{ marginTop: 12 }}>
+                <ProcessFlowWrapper>
                   <TradeLineageFlow
                     inquiryId={selectedItem.inquiry_id}
                     onNodeClick={handleFlowNodeClick}
                     compact
                   />
-                </div>
+                </ProcessFlowWrapper>
               </ModalSection>
             )}
 
@@ -1530,7 +1587,7 @@ const AICommandCenter: React.FC = () => {
             )}
           </>
         )}
-      </Modal>
+      </DetailModal>
 
       {/* AI Draft Review Modal */}
       {draftReviewItem && (
