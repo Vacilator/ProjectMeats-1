@@ -494,16 +494,15 @@ const Plants: React.FC = () => {
         scroll={{ x: 'max-content' }}
       />
 
-      {showModal && (
-        <EntityFormSurface
-          entityType="plant"
-          mode="create"
-          isOpen={showModal}
-          onClose={handleModalClose}
-          initialValues={plantFormInitialValues}
-          onSuccess={handleModalSuccess}
-        />
-      )}
+      <EntityFormSurface
+        entityType="plant"
+        mode="create"
+        variant="modal"
+        isOpen={showModal}
+        onClose={handleModalClose}
+        initialValues={plantFormInitialValues}
+        onSuccess={handleModalSuccess}
+      />
     </PageContainer>
   );
 };

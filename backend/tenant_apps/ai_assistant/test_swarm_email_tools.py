@@ -5,15 +5,13 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-import requests
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework import serializers as drf_serializers
 
-from apps.integrations.models import ExternalAuthProvider
-from apps.tenants.models import Tenant, TenantUser
+import requests
 from tenant_apps.ai_assistant.models import ChatSession, MessageTypeChoices
 from tenant_apps.ai_assistant.serializers import AIDocumentSerializer
 from tenant_apps.ai_assistant.session_utils import SESSION_ATTACHMENT_ALLOWLIST_KEY
@@ -32,37 +30,40 @@ from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import (
 )
 from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
+from apps.integrations.models import ExternalAuthProvider
+from apps.tenants.models import Tenant, TenantUser
+
 
 class MicrosoftGraphToolHelperTests(SimpleTestCase):
     def test_build_mail_request_supports_folder_filters_and_search(self):
         request_spec = build_mail_request(
-            folder='sentitems',
+            folder="sentitems",
             is_read=None,
             has_attachments=True,
-            search_query='invoice',
+            search_query="invoice",
             limit=12,
         )
 
-        self.assertEqual(request_spec['folder'], 'sentitems')
-        self.assertEqual(request_spec['url_path'], '/me/mailFolders/sentitems/messages')
-        self.assertEqual(request_spec['params']['$filter'], 'hasAttachments eq true')
-        self.assertEqual(request_spec['params']['$search'], '"invoice"')
-        self.assertEqual(request_spec['params']['$top'], 12)
+        self.assertEqual(request_spec["folder"], "sentitems")
+        self.assertEqual(request_spec["url_path"], "/me/mailFolders/sentitems/messages")
+        self.assertEqual(request_spec["params"]["$filter"], "hasAttachments eq true")
+        self.assertEqual(request_spec["params"]["$search"], '"invoice"')
+        self.assertEqual(request_spec["params"]["$top"], 12)
         self.assertEqual(
-            request_spec['params']['$expand'],
-            'attachments($select=id,name,contentType,size,isInline)',
+            request_spec["params"]["$expand"],
+            "attachments($select=id,name,contentType,size,isInline)",
         )
-        self.assertEqual(request_spec['headers']['ConsistencyLevel'], 'eventual')
-        self.assertTrue(request_spec['requires_filter_fallback'])
+        self.assertEqual(request_spec["headers"]["ConsistencyLevel"], "eventual")
+        self.assertTrue(request_spec["requires_filter_fallback"])
 
     def test_tool_call_signature_ignores_null_optional_arguments(self):
         signature_without_null = _tool_call_signature(
-            'fetch_emails',
-            {'folder': 'inbox', 'limit': 10},
+            "fetch_emails",
+            {"folder": "inbox", "limit": 10},
         )
         signature_with_null = _tool_call_signature(
-            'fetch_emails',
-            {'folder': 'inbox', 'limit': 10, 'is_read': None},
+            "fetch_emails",
+            {"folder": "inbox", "limit": 10, "is_read": None},
         )
 
         self.assertEqual(signature_without_null, signature_with_null)
@@ -70,41 +71,41 @@ class MicrosoftGraphToolHelperTests(SimpleTestCase):
     def test_swarm_prompt_includes_attachment_ingest_workflow(self):
         prompt = build_swarm_system_prompt(
             outlook_connected=True,
-            outlook_email='planner@example.com',
+            outlook_email="planner@example.com",
             outlook_expired=False,
         )
 
-        self.assertIn('ingest_email_attachment(message_id, attachment_id, file_name)', prompt)
-        self.assertIn('pass the returned document_id into parse_document', prompt)
+        self.assertIn("ingest_email_attachment(message_id, attachment_id, file_name)", prompt)
+        self.assertIn("pass the returned document_id into parse_document", prompt)
         self.assertIn("status='skipped'", prompt)
 
     def test_validate_graph_attachment_metadata_rejects_item_attachments(self):
         with self.assertRaises(ToolExecutionError) as exc:
             validate_graph_attachment_metadata(
                 {
-                    '@odata.type': '#microsoft.graph.itemAttachment',
+                    "@odata.type": "#microsoft.graph.itemAttachment",
                 }
             )
 
-        self.assertEqual(exc.exception.error_code, 'UNSUPPORTED_ATTACHMENT_TYPE')
+        self.assertEqual(exc.exception.error_code, "UNSUPPORTED_ATTACHMENT_TYPE")
 
     def test_validate_graph_attachment_metadata_rejects_reference_attachments(self):
         with self.assertRaises(ToolExecutionError) as exc:
             validate_graph_attachment_metadata(
                 {
-                    '@odata.type': '#microsoft.graph.referenceAttachment',
+                    "@odata.type": "#microsoft.graph.referenceAttachment",
                 }
             )
 
-        self.assertEqual(exc.exception.error_code, 'UNSUPPORTED_ATTACHMENT_TYPE')
+        self.assertEqual(exc.exception.error_code, "UNSUPPORTED_ATTACHMENT_TYPE")
 
     def test_classify_attachment_rejects_unknown_generic_binary_without_extension(self):
         reason = classify_attachment_for_ai_ingest(
-            file_name='attachment',
-            content_type='application/octet-stream',
+            file_name="attachment",
+            content_type="application/octet-stream",
         )
 
-        self.assertIn('File type not supported for parsing', reason)
+        self.assertIn("File type not supported for parsing", reason)
 
 
 class EmailIngestionServiceEmailFetchTests(TestCase):
@@ -112,29 +113,29 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         unique = uuid.uuid4().hex[:8]
         user_model = get_user_model()
         self.user = user_model.objects.create_user(
-            username=f'email-tools-{unique}',
-            email=f'email-tools-{unique}@example.com',
-            password='pw',
+            username=f"email-tools-{unique}",
+            email=f"email-tools-{unique}@example.com",
+            password="pw",
         )
         self.tenant = Tenant.objects.create(
-            name=f'Email Tenant {unique}',
-            slug=f'email-tenant-{unique}',
-            contact_email=f'tenant-{unique}@example.com',
+            name=f"Email Tenant {unique}",
+            slug=f"email-tenant-{unique}",
+            contact_email=f"tenant-{unique}@example.com",
             created_by=self.user,
         )
-        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner')
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
         self.provider = ExternalAuthProvider.objects.create(
             tenant=self.tenant,
-            provider_type='microsoft',
-            access_token='placeholder',
+            provider_type="microsoft",
+            access_token="placeholder",
             token_expiry=timezone.now() + timedelta(days=1),
             is_active=True,
-            connected_email='planner@example.com',
+            connected_email="planner@example.com",
         )
-        self.provider.set_encrypted_token('access', 'access-token')
+        self.provider.set_encrypted_token("access", "access-token")
         self.provider.save()
 
-    def _response(self, *, status: int = 200, payload: dict | None = None, text: str = '') -> Mock:
+    def _response(self, *, status: int = 200, payload: dict | None = None, text: str = "") -> Mock:
         response = Mock()
         response.status_code = status
         response.json.return_value = payload or {}
@@ -149,10 +150,10 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         self,
         session: ChatSession,
         *,
-        message_id: str = 'msg-123',
-        attachment_id: str = 'att-456',
-        name: str = 'invoice.pdf',
-        content_type: str = 'application/pdf',
+        message_id: str = "msg-123",
+        attachment_id: str = "att-456",
+        name: str = "invoice.pdf",
+        content_type: str = "application/pdf",
         size: int = 2048,
         attachment_type: str | None = None,
         is_inline: bool | None = None,
@@ -162,54 +163,52 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         session.context_data = {
             **(session.context_data or {}),
             SESSION_ATTACHMENT_ALLOWLIST_KEY: {
-                f'{message_id}::{attachment_id}': {
-                    'message_id': message_id,
-                    'attachment_id': attachment_id,
-                    'name': name,
-                    'content_type': content_type,
-                    'size': size,
-                    'attachment_type': attachment_type,
-                    'is_inline': is_inline,
-                    'staged_at': staged_at_value,
+                f"{message_id}::{attachment_id}": {
+                    "message_id": message_id,
+                    "attachment_id": attachment_id,
+                    "name": name,
+                    "content_type": content_type,
+                    "size": size,
+                    "attachment_type": attachment_type,
+                    "is_inline": is_inline,
+                    "staged_at": staged_at_value,
                 }
             },
         }
-        session.save(update_fields=['context_data'])
+        session.save(update_fields=["context_data"])
 
-    @patch('apps.integrations.providers.MicrosoftGraphProvider')
-    @patch('requests.get')
+    @patch("apps.integrations.providers.MicrosoftGraphProvider")
+    @patch("requests.get")
     def test_fetch_emails_falls_back_to_search_only_when_graph_rejects_search_and_filter_combo(
         self,
         mock_get,
         mock_graph_provider,
     ):
-        mock_graph_provider.return_value = SimpleNamespace(
-            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
-        )
+        mock_graph_provider.return_value = SimpleNamespace(GRAPH_API_BASE="https://graph.microsoft.com/v1.0")
         mock_get.side_effect = [
-            self._response(status=400, text='Bad Request'),
+            self._response(status=400, text="Bad Request"),
             self._response(
                 payload={
-                    'value': [
+                    "value": [
                         {
-                            'id': 'sent-2',
-                            'subject': 'Invoice attached',
-                            'receivedDateTime': '2026-04-28T11:00:00Z',
-                            'bodyPreview': 'Newest invoice preview',
-                            'hasAttachments': True,
-                            'isRead': True,
-                            'from': {'emailAddress': {'address': 'seller@example.com', 'name': 'Seller'}},
-                            'toRecipients': [{'emailAddress': {'address': 'buyer@example.com', 'name': 'Buyer'}}],
+                            "id": "sent-2",
+                            "subject": "Invoice attached",
+                            "receivedDateTime": "2026-04-28T11:00:00Z",
+                            "bodyPreview": "Newest invoice preview",
+                            "hasAttachments": True,
+                            "isRead": True,
+                            "from": {"emailAddress": {"address": "seller@example.com", "name": "Seller"}},
+                            "toRecipients": [{"emailAddress": {"address": "buyer@example.com", "name": "Buyer"}}],
                         },
                         {
-                            'id': 'sent-1',
-                            'subject': 'Invoice without attachment',
-                            'receivedDateTime': '2026-04-27T11:00:00Z',
-                            'bodyPreview': 'Older invoice preview',
-                            'hasAttachments': False,
-                            'isRead': True,
-                            'from': {'emailAddress': {'address': 'seller@example.com', 'name': 'Seller'}},
-                            'toRecipients': [{'emailAddress': {'address': 'buyer@example.com', 'name': 'Buyer'}}],
+                            "id": "sent-1",
+                            "subject": "Invoice without attachment",
+                            "receivedDateTime": "2026-04-27T11:00:00Z",
+                            "bodyPreview": "Older invoice preview",
+                            "hasAttachments": False,
+                            "isRead": True,
+                            "from": {"emailAddress": {"address": "seller@example.com", "name": "Seller"}},
+                            "toRecipients": [{"emailAddress": {"address": "buyer@example.com", "name": "Buyer"}}],
                         },
                     ]
                 }
@@ -217,63 +216,61 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         ]
 
         result = EmailIngestionService(self.tenant).fetch_emails_for_ai(
-            folder='sentitems',
+            folder="sentitems",
             has_attachments=True,
-            search_query='invoice',
+            search_query="invoice",
             limit=10,
         )
 
-        self.assertEqual(result['folder'], 'sentitems')
-        self.assertEqual(result['count'], 1)
-        self.assertEqual(result['messages'][0]['id'], 'sent-2')
+        self.assertEqual(result["folder"], "sentitems")
+        self.assertEqual(result["count"], 1)
+        self.assertEqual(result["messages"][0]["id"], "sent-2")
 
         first_call = mock_get.call_args_list[0]
-        self.assertIn('/me/mailFolders/sentitems/messages', first_call.args[0])
-        self.assertEqual(first_call.kwargs['params']['$filter'], 'hasAttachments eq true')
-        self.assertEqual(first_call.kwargs['params']['$search'], '"invoice"')
-        self.assertEqual(first_call.kwargs['headers']['ConsistencyLevel'], 'eventual')
+        self.assertIn("/me/mailFolders/sentitems/messages", first_call.args[0])
+        self.assertEqual(first_call.kwargs["params"]["$filter"], "hasAttachments eq true")
+        self.assertEqual(first_call.kwargs["params"]["$search"], '"invoice"')
+        self.assertEqual(first_call.kwargs["headers"]["ConsistencyLevel"], "eventual")
 
         second_call = mock_get.call_args_list[1]
-        self.assertNotIn('$filter', second_call.kwargs['params'])
-        self.assertEqual(second_call.kwargs['params']['$top'], 25)
+        self.assertNotIn("$filter", second_call.kwargs["params"])
+        self.assertEqual(second_call.kwargs["params"]["$top"], 25)
 
-    @patch('apps.integrations.providers.MicrosoftGraphProvider')
-    @patch('requests.get')
+    @patch("apps.integrations.providers.MicrosoftGraphProvider")
+    @patch("requests.get")
     def test_fetch_emails_includes_attachment_metadata_from_graph_expand(
         self,
         mock_get,
         mock_graph_provider,
     ):
-        mock_graph_provider.return_value = SimpleNamespace(
-            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
-        )
+        mock_graph_provider.return_value = SimpleNamespace(GRAPH_API_BASE="https://graph.microsoft.com/v1.0")
         mock_get.return_value = self._response(
             payload={
-                'value': [
+                "value": [
                     {
-                        'id': 'msg-1',
-                        'subject': 'Invoice attached',
-                        'receivedDateTime': '2026-04-28T11:00:00Z',
-                        'bodyPreview': 'Newest invoice preview',
-                        'hasAttachments': True,
-                        'isRead': True,
-                        'from': {'emailAddress': {'address': 'seller@example.com', 'name': 'Seller'}},
-                        'toRecipients': [{'emailAddress': {'address': 'buyer@example.com', 'name': 'Buyer'}}],
-                        'attachments': [
+                        "id": "msg-1",
+                        "subject": "Invoice attached",
+                        "receivedDateTime": "2026-04-28T11:00:00Z",
+                        "bodyPreview": "Newest invoice preview",
+                        "hasAttachments": True,
+                        "isRead": True,
+                        "from": {"emailAddress": {"address": "seller@example.com", "name": "Seller"}},
+                        "toRecipients": [{"emailAddress": {"address": "buyer@example.com", "name": "Buyer"}}],
+                        "attachments": [
                             {
-                                'id': 'att-1',
-                                'name': 'invoice.pdf',
-                                'contentType': 'application/pdf',
-                                'size': 2048,
-                                'isInline': False,
+                                "id": "att-1",
+                                "name": "invoice.pdf",
+                                "contentType": "application/pdf",
+                                "size": 2048,
+                                "isInline": False,
                             },
                             {
-                                'id': 'att-inline',
-                                'name': 'image.png',
-                                'contentType': 'image/png',
-                                'size': 256,
-                                'isInline': True,
-                            }
+                                "id": "att-inline",
+                                "name": "image.png",
+                                "contentType": "image/png",
+                                "size": 256,
+                                "isInline": True,
+                            },
                         ],
                     }
                 ]
@@ -281,74 +278,72 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         )
 
         result = EmailIngestionService(self.tenant).fetch_emails_for_ai(
-            folder='inbox',
+            folder="inbox",
             has_attachments=True,
             limit=5,
         )
 
-        self.assertEqual(result['count'], 1)
+        self.assertEqual(result["count"], 1)
         self.assertEqual(
-            result['messages'][0]['attachments'],
+            result["messages"][0]["attachments"],
             [
                 {
-                    'attachment_id': 'att-1',
-                    'name': 'invoice.pdf',
-                    'content_type': 'application/pdf',
-                    'size': 2048,
-                    'attachment_type': None,
+                    "attachment_id": "att-1",
+                    "name": "invoice.pdf",
+                    "content_type": "application/pdf",
+                    "size": 2048,
+                    "attachment_type": None,
                 }
             ],
         )
         self.assertEqual(
-            mock_get.call_args.kwargs['params']['$expand'],
-            'attachments($select=id,name,contentType,size,isInline)',
+            mock_get.call_args.kwargs["params"]["$expand"],
+            "attachments($select=id,name,contentType,size,isInline)",
         )
 
-    @patch('apps.integrations.providers.MicrosoftGraphProvider')
-    @patch('requests.get')
+    @patch("apps.integrations.providers.MicrosoftGraphProvider")
+    @patch("requests.get")
     def test_fetch_emails_stages_attachment_allowlist_on_bound_session(
         self,
         mock_get,
         mock_graph_provider,
     ):
         session = ChatSession.objects.create(
-            title='Attachment search',
+            title="Attachment search",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
-        mock_graph_provider.return_value = SimpleNamespace(
-            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
-        )
+        mock_graph_provider.return_value = SimpleNamespace(GRAPH_API_BASE="https://graph.microsoft.com/v1.0")
         mock_get.return_value = self._response(
             payload={
-                'value': [
+                "value": [
                     {
-                        'id': 'msg-1',
-                        'subject': 'Invoice attached',
-                        'receivedDateTime': '2026-04-28T11:00:00Z',
-                        'bodyPreview': 'Newest invoice preview',
-                        'hasAttachments': True,
-                        'isRead': True,
-                        'from': {'emailAddress': {'address': 'seller@example.com', 'name': 'Seller'}},
-                        'toRecipients': [{'emailAddress': {'address': 'buyer@example.com', 'name': 'Buyer'}}],
-                        'attachments': [
+                        "id": "msg-1",
+                        "subject": "Invoice attached",
+                        "receivedDateTime": "2026-04-28T11:00:00Z",
+                        "bodyPreview": "Newest invoice preview",
+                        "hasAttachments": True,
+                        "isRead": True,
+                        "from": {"emailAddress": {"address": "seller@example.com", "name": "Seller"}},
+                        "toRecipients": [{"emailAddress": {"address": "buyer@example.com", "name": "Buyer"}}],
+                        "attachments": [
                             {
-                                'id': 'att-1',
-                                'name': 'invoice.pdf',
-                                'contentType': 'application/pdf',
-                                'size': 2048,
-                                'isInline': False,
+                                "id": "att-1",
+                                "name": "invoice.pdf",
+                                "contentType": "application/pdf",
+                                "size": 2048,
+                                "isInline": False,
                             },
                             {
-                                'id': 'att-inline',
-                                'name': 'image.png',
-                                'contentType': 'image/png',
-                                'size': 256,
-                                'isInline': True,
-                            }
+                                "id": "att-inline",
+                                "name": "image.png",
+                                "contentType": "image/png",
+                                "size": 256,
+                                "isInline": True,
+                            },
                         ],
                     }
                 ]
@@ -356,19 +351,19 @@ class EmailIngestionServiceEmailFetchTests(TestCase):
         )
 
         result = EmailIngestionService(self.tenant).fetch_emails_for_ai(
-            folder='inbox',
+            folder="inbox",
             has_attachments=True,
             limit=5,
             user=self.user,
             session_id=str(session.id),
         )
 
-        self.assertEqual(result['count'], 1)
+        self.assertEqual(result["count"], 1)
         session.refresh_from_db()
         allowlist = session.context_data[SESSION_ATTACHMENT_ALLOWLIST_KEY]
-        self.assertIn('msg-1::att-1', allowlist)
-        self.assertEqual(allowlist['msg-1::att-1']['name'], 'invoice.pdf')
-        self.assertNotIn('msg-1::att-inline', allowlist)
+        self.assertIn("msg-1::att-1", allowlist)
+        self.assertEqual(allowlist["msg-1::att-1"]["name"], "invoice.pdf")
+        self.assertNotIn("msg-1::att-inline", allowlist)
 
 
 class ToolExecutorEmailToolTests(TestCase):
@@ -376,29 +371,29 @@ class ToolExecutorEmailToolTests(TestCase):
         unique = uuid.uuid4().hex[:8]
         user_model = get_user_model()
         self.user = user_model.objects.create_user(
-            username=f'executor-email-{unique}',
-            email=f'executor-email-{unique}@example.com',
-            password='pw',
+            username=f"executor-email-{unique}",
+            email=f"executor-email-{unique}@example.com",
+            password="pw",
         )
         self.tenant = Tenant.objects.create(
-            name=f'Executor Email Tenant {unique}',
-            slug=f'executor-email-tenant-{unique}',
-            contact_email=f'executor-{unique}@example.com',
+            name=f"Executor Email Tenant {unique}",
+            slug=f"executor-email-tenant-{unique}",
+            contact_email=f"executor-{unique}@example.com",
             created_by=self.user,
         )
-        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner')
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
         self.provider = ExternalAuthProvider.objects.create(
             tenant=self.tenant,
-            provider_type='microsoft',
-            access_token='placeholder',
+            provider_type="microsoft",
+            access_token="placeholder",
             token_expiry=timezone.now() + timedelta(days=1),
             is_active=True,
-            connected_email='planner@example.com',
+            connected_email="planner@example.com",
         )
-        self.provider.set_encrypted_token('access', 'access-token')
+        self.provider.set_encrypted_token("access", "access-token")
         self.provider.save()
 
-    def _response(self, *, status: int = 200, payload: dict | None = None, text: str = '') -> Mock:
+    def _response(self, *, status: int = 200, payload: dict | None = None, text: str = "") -> Mock:
         response = Mock()
         response.status_code = status
         response.json.return_value = payload or {}
@@ -413,10 +408,10 @@ class ToolExecutorEmailToolTests(TestCase):
         self,
         session: ChatSession,
         *,
-        message_id: str = 'msg-123',
-        attachment_id: str = 'att-456',
-        name: str = 'invoice.pdf',
-        content_type: str = 'application/pdf',
+        message_id: str = "msg-123",
+        attachment_id: str = "att-456",
+        name: str = "invoice.pdf",
+        content_type: str = "application/pdf",
         size: int = 2048,
         attachment_type: str | None = None,
         is_inline: bool | None = None,
@@ -426,121 +421,170 @@ class ToolExecutorEmailToolTests(TestCase):
         session.context_data = {
             **(session.context_data or {}),
             SESSION_ATTACHMENT_ALLOWLIST_KEY: {
-                f'{message_id}::{attachment_id}': {
-                    'message_id': message_id,
-                    'attachment_id': attachment_id,
-                    'name': name,
-                    'content_type': content_type,
-                    'size': size,
-                    'attachment_type': attachment_type,
-                    'is_inline': is_inline,
-                    'staged_at': staged_at_value,
+                f"{message_id}::{attachment_id}": {
+                    "message_id": message_id,
+                    "attachment_id": attachment_id,
+                    "name": name,
+                    "content_type": content_type,
+                    "size": size,
+                    "attachment_type": attachment_type,
+                    "is_inline": is_inline,
+                    "staged_at": staged_at_value,
                 }
             },
         }
-        session.save(update_fields=['context_data'])
+        session.save(update_fields=["context_data"])
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch("tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai")
     def test_execute_returns_structured_graph_error_payload(self, mock_fetch, _mock_rls):
         mock_fetch.side_effect = ToolExecutionError(
-            error_code='GRAPH_QUERY_REJECTED',
-            message='Microsoft Graph rejected the email search query format.',
-            hint='Try simplifying your search terms.',
+            error_code="GRAPH_QUERY_REJECTED",
+            message="Microsoft Graph rejected the email search query format.",
+            hint="Try simplifying your search terms.",
             retryable=False,
         )
 
         payload = json.loads(
             ToolExecutor().execute(
-                'fetch_emails',
-                {'folder': 'sentitems', 'has_attachments': True, 'search_query': 'invoice'},
+                "fetch_emails",
+                {"folder": "sentitems", "has_attachments": True, "search_query": "invoice"},
                 self.tenant,
             )
         )
 
-        self.assertFalse(payload['ok'])
-        self.assertEqual(payload['tool'], 'fetch_emails')
-        self.assertEqual(payload['error']['code'], 'GRAPH_QUERY_REJECTED')
-        self.assertEqual(payload['error']['hint'], 'Try simplifying your search terms.')
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["tool"], "fetch_emails")
+        self.assertEqual(payload["error"]["code"], "GRAPH_QUERY_REJECTED")
+        self.assertEqual(payload["error"]["hint"], "Try simplifying your search terms.")
+        self.assertEqual(payload["error"]["category"], "processing")
+        self.assertEqual(payload["error"]["state"], "non_retryable_failure")
+        self.assertFalse(payload["error"]["retryable"])
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch("tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai")
+    def test_execute_returns_structured_email_failure_contracts(self, mock_fetch, _mock_rls):
+        for error_code, retryable, category in (
+            ("OUTLOOK_NOT_CONNECTED", False, "auth"),
+            ("OUTLOOK_CONNECTION_EXPIRED", False, "auth"),
+            ("DECRYPTION_FAILED", False, "decrypt"),
+            ("GRAPH_AUTH_FAILED", False, "auth"),
+            ("GRAPH_TIMEOUT", True, "network"),
+            ("GRAPH_REQUEST_FAILED", False, "network"),
+            ("SESSION_CONTEXT_REQUIRED", False, "processing"),
+        ):
+            with self.subTest(error_code=error_code):
+                mock_fetch.side_effect = ToolExecutionError(
+                    error_code=error_code,
+                    message=f"{error_code} message",
+                    hint="Try again later." if retryable else "Reconnect Outlook.",
+                    retryable=retryable,
+                )
+
+                payload = json.loads(
+                    ToolExecutor().execute(
+                        "fetch_emails",
+                        {"folder": "inbox"},
+                        self.tenant,
+                    )
+                )
+
+                self.assertFalse(payload["ok"])
+                self.assertEqual(payload["error"]["code"], error_code)
+                self.assertEqual(payload["error"]["category"], category)
+                self.assertEqual(
+                    payload["error"]["state"], "retryable_failure" if retryable else "non_retryable_failure"
+                )
+                self.assertEqual(payload["error"]["retryable"], retryable)
+
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch("tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai")
     def test_execute_injects_session_id_into_fetch_emails(self, mock_fetch, _mock_rls):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
-        mock_fetch.return_value = {'messages': []}
+        mock_fetch.return_value = {"messages": []}
 
         payload = json.loads(
             ToolExecutor().execute(
-                'fetch_emails',
-                {'folder': 'inbox', 'has_attachments': True},
+                "fetch_emails",
+                {"folder": "inbox", "has_attachments": True},
                 self.tenant,
                 self.user,
                 session_id=str(session.id),
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(mock_fetch.call_args.kwargs['session_id'], str(session.id))
-        self.assertEqual(mock_fetch.call_args.kwargs['user'], self.user)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(mock_fetch.call_args.kwargs["session_id"], str(session.id))
+        self.assertEqual(mock_fetch.call_args.kwargs["user"], self.user)
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch("tenant_apps.integrations.services.email_ingestion.EmailIngestionService.fetch_emails_for_ai")
     def test_check_unread_emails_forwards_session_id(self, mock_fetch, _mock_rls):
         session = ChatSession.objects.create(
-            title='Unread attachment thread',
+            title="Unread attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
-        mock_fetch.return_value = {'messages': []}
+        mock_fetch.return_value = {"messages": []}
 
         payload = json.loads(
             ToolExecutor().execute(
-                'check_unread_emails',
-                {'limit': 5},
+                "check_unread_emails",
+                {"limit": 5},
                 self.tenant,
                 self.user,
                 session_id=str(session.id),
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(mock_fetch.call_args.kwargs['session_id'], str(session.id))
+        self.assertTrue(payload["ok"])
+        self.assertEqual(mock_fetch.call_args.kwargs["session_id"], str(session.id))
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch("requests.get")
     def test_execute_skips_unsupported_attachment_before_download(self, mock_get, _mock_rls):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
         self._stage_attachment(
             session,
-            name='image.png',
-            content_type='image/png',
+            name="image.png",
+            content_type="image/png",
             is_inline=False,
         )
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'image.png',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "image.png",
                 },
                 self.tenant,
                 self.user,
@@ -548,18 +592,23 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(payload['data']['status'], 'skipped')
-        self.assertIn('image.png', payload['data']['reason'])
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["status"], "skipped")
+        self.assertIn("image.png", payload["data"]["reason"])
         mock_get.assert_not_called()
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
-    @patch('tenant_apps.ai_assistant.services.lineage.create_lineage_event')
-    @patch('tenant_apps.ai_assistant.models.ChatMessage.objects.create')
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
-    @patch('apps.integrations.providers.MicrosoftGraphProvider')
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch(
+        "tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document",
+        return_value=None,
+    )
+    @patch("tenant_apps.ai_assistant.services.lineage.create_lineage_event")
+    @patch("tenant_apps.ai_assistant.models.ChatMessage.objects.create")
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.create")
+    @patch("apps.integrations.providers.MicrosoftGraphProvider")
+    @patch("requests.get")
     def test_execute_ingests_graph_attachment_into_document_session(
         self,
         mock_get,
@@ -571,34 +620,32 @@ class ToolExecutorEmailToolTests(TestCase):
         _mock_rls,
     ):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
         self._stage_attachment(session)
-        mock_graph_provider.return_value = SimpleNamespace(
-            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
-        )
+        mock_graph_provider.return_value = SimpleNamespace(GRAPH_API_BASE="https://graph.microsoft.com/v1.0")
 
         response = Mock()
         response.status_code = 200
-        response.content = b'%PDF-1.4 test payload'
+        response.content = b"%PDF-1.4 test payload"
         response.headers = {
-            'Content-Type': 'application/pdf',
-            'Content-Length': str(len(response.content)),
+            "Content-Type": "application/pdf",
+            "Content-Length": str(len(response.content)),
         }
         response.iter_content.return_value = [response.content]
         response.raise_for_status.return_value = None
         metadata_response = self._response(
             payload={
-                '@odata.type': '#microsoft.graph.fileAttachment',
-                'id': 'att-456',
-                'name': 'invoice.pdf',
-                'contentType': 'application/pdf',
-                'size': len(response.content),
+                "@odata.type": "#microsoft.graph.fileAttachment",
+                "id": "att-456",
+                "name": "invoice.pdf",
+                "contentType": "application/pdf",
+                "size": len(response.content),
             }
         )
         mock_get.side_effect = [metadata_response, response]
@@ -608,20 +655,20 @@ class ToolExecutorEmailToolTests(TestCase):
             owner=self.user,
             session=session,
             session_id=session.id,
-            original_filename='invoice.pdf',
-            content_type='application/pdf',
+            original_filename="invoice.pdf",
+            content_type="application/pdf",
             file_size=len(response.content),
-            file=SimpleNamespace(url='/media/ai_assistant/documents/invoice.pdf'),
+            file=SimpleNamespace(url="/media/ai_assistant/documents/invoice.pdf"),
         )
         mock_aidocument_create.return_value = fake_document
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'wrong-name.txt',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "wrong-name.txt",
                 },
                 self.tenant,
                 self.user,
@@ -629,40 +676,45 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(payload['tool'], 'ingest_email_attachment')
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["tool"], "ingest_email_attachment")
 
-        self.assertEqual(payload['data']['document_id'], str(fake_document.id))
-        self.assertEqual(payload['data']['file_name'], 'invoice.pdf')
-        self.assertEqual(payload['data']['session_id'], str(session.id))
+        self.assertEqual(payload["data"]["document_id"], str(fake_document.id))
+        self.assertEqual(payload["data"]["file_name"], "invoice.pdf")
+        self.assertEqual(payload["data"]["session_id"], str(session.id))
         mock_aidocument_create.assert_called_once()
-        self.assertEqual(mock_aidocument_create.call_args.kwargs['original_filename'], 'invoice.pdf')
+        self.assertEqual(mock_aidocument_create.call_args.kwargs["original_filename"], "invoice.pdf")
         self.assertEqual(
-            mock_aidocument_create.call_args.kwargs['custom_data']['semantic_indexing']['status'],
-            'pending',
+            mock_aidocument_create.call_args.kwargs["custom_data"]["semantic_indexing"]["status"],
+            "pending",
         )
         mock_chat_message_create.assert_called_once()
         mock_create_lineage_event.assert_called_once()
         self.assertEqual(
-            mock_chat_message_create.call_args.kwargs['message_type'],
+            mock_chat_message_create.call_args.kwargs["message_type"],
             MessageTypeChoices.DOCUMENT,
         )
         self.assertEqual(
-            mock_chat_message_create.call_args.kwargs['metadata']['attachment_id'],
-            'att-456',
+            mock_chat_message_create.call_args.kwargs["metadata"]["attachment_id"],
+            "att-456",
         )
         self.assertEqual(
-            mock_chat_message_create.call_args.kwargs['metadata']['source'],
-            'microsoft_graph_attachment',
+            mock_chat_message_create.call_args.kwargs["metadata"]["source"],
+            "microsoft_graph_attachment",
         )
-        self.assertFalse(mock_get.call_args_list[0].kwargs.get('stream', False))
-        self.assertTrue(mock_get.call_args_list[1].kwargs['stream'])
+        self.assertFalse(mock_get.call_args_list[0].kwargs.get("stream", False))
+        self.assertTrue(mock_get.call_args_list[1].kwargs["stream"])
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
-    @patch('apps.integrations.providers.MicrosoftGraphProvider')
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch(
+        "tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document",
+        return_value=None,
+    )
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.create")
+    @patch("apps.integrations.providers.MicrosoftGraphProvider")
+    @patch("requests.get")
     def test_execute_skips_inline_image_attachment_from_metadata(
         self,
         mock_get,
@@ -672,40 +724,38 @@ class ToolExecutorEmailToolTests(TestCase):
         _mock_rls,
     ):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
         self._stage_attachment(
             session,
-            name='invoice.pdf',
-            content_type='application/pdf',
+            name="invoice.pdf",
+            content_type="application/pdf",
         )
-        mock_graph_provider.return_value = SimpleNamespace(
-            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
-        )
+        mock_graph_provider.return_value = SimpleNamespace(GRAPH_API_BASE="https://graph.microsoft.com/v1.0")
         metadata_response = self._response(
             payload={
-                '@odata.type': '#microsoft.graph.fileAttachment',
-                'id': 'att-456',
-                'name': 'image.png',
-                'contentType': 'image/png',
-                'size': 256,
-                'isInline': True,
+                "@odata.type": "#microsoft.graph.fileAttachment",
+                "id": "att-456",
+                "name": "image.png",
+                "contentType": "image/png",
+                "size": 256,
+                "isInline": True,
             }
         )
         mock_get.return_value = metadata_response
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'invoice.pdf',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "invoice.pdf",
                 },
                 self.tenant,
                 self.user,
@@ -713,16 +763,18 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(payload['data']['status'], 'skipped')
-        self.assertIn('inline attachment', payload['data']['reason'])
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["status"], "skipped")
+        self.assertIn("inline attachment", payload["data"]["reason"])
         self.assertEqual(mock_get.call_count, 1)
         mock_aidocument_create.assert_not_called()
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document')
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch("tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document")
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.create")
+    @patch("requests.get")
     def test_execute_returns_cached_document_for_duplicate_ingest_in_same_session(
         self,
         mock_get,
@@ -731,9 +783,9 @@ class ToolExecutorEmailToolTests(TestCase):
         _mock_rls,
     ):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
@@ -741,26 +793,26 @@ class ToolExecutorEmailToolTests(TestCase):
         self._stage_attachment(session)
         existing_document = SimpleNamespace(
             id=uuid.uuid4(),
-            original_filename='invoice.pdf',
-            content_type='application/pdf',
+            original_filename="invoice.pdf",
+            content_type="application/pdf",
             file_size=2048,
             session_id=session.id,
             custom_data={
-                'source': 'microsoft_graph_attachment',
-                'message_id': 'msg-123',
-                'attachment_id': 'att-456',
-                'ingested_at': '2026-04-28T21:00:00Z',
+                "source": "microsoft_graph_attachment",
+                "message_id": "msg-123",
+                "attachment_id": "att-456",
+                "ingested_at": "2026-04-28T21:00:00Z",
             },
         )
         mock_get_existing_document.return_value = existing_document
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'invoice.pdf',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "invoice.pdf",
                 },
                 self.tenant,
                 self.user,
@@ -768,19 +820,24 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(payload['data']['status'], 'already_ingested')
-        self.assertTrue(payload['data']['cache_hit'])
-        self.assertEqual(payload['data']['document_id'], str(existing_document.id))
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["status"], "already_ingested")
+        self.assertTrue(payload["data"]["cache_hit"])
+        self.assertEqual(payload["data"]["document_id"], str(existing_document.id))
         mock_get.assert_not_called()
         mock_aidocument_create.assert_not_called()
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
-    @patch('tenant_apps.ai_assistant.models.ChatMessage.objects.create')
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create', side_effect=OSError('disk full'))
-    @patch('apps.integrations.providers.MicrosoftGraphProvider')
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch(
+        "tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document",
+        return_value=None,
+    )
+    @patch("tenant_apps.ai_assistant.models.ChatMessage.objects.create")
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.create", side_effect=OSError("disk full"))
+    @patch("apps.integrations.providers.MicrosoftGraphProvider")
+    @patch("requests.get")
     def test_execute_returns_failed_status_when_attachment_persist_rejected(
         self,
         mock_get,
@@ -791,45 +848,43 @@ class ToolExecutorEmailToolTests(TestCase):
         _mock_rls,
     ):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
         self._stage_attachment(session)
-        mock_graph_provider.return_value = SimpleNamespace(
-            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
-        )
+        mock_graph_provider.return_value = SimpleNamespace(GRAPH_API_BASE="https://graph.microsoft.com/v1.0")
         response = Mock()
         response.status_code = 200
-        response.content = b'%PDF-1.4 test payload'
+        response.content = b"%PDF-1.4 test payload"
         response.headers = {
-            'Content-Type': 'application/pdf',
-            'Content-Length': str(len(response.content)),
+            "Content-Type": "application/pdf",
+            "Content-Length": str(len(response.content)),
         }
         response.iter_content.return_value = [response.content]
         response.raise_for_status.return_value = None
         metadata_response = self._response(
             payload={
-                '@odata.type': '#microsoft.graph.fileAttachment',
-                'id': 'att-456',
-                'name': 'invoice.pdf',
-                'contentType': 'application/pdf',
-                'size': len(response.content),
-                'isInline': False,
+                "@odata.type": "#microsoft.graph.fileAttachment",
+                "id": "att-456",
+                "name": "invoice.pdf",
+                "contentType": "application/pdf",
+                "size": len(response.content),
+                "isInline": False,
             }
         )
         mock_get.side_effect = [metadata_response, response]
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'invoice.pdf',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "invoice.pdf",
                 },
                 self.tenant,
                 self.user,
@@ -837,19 +892,21 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(payload['data']['status'], 'failed')
-        self.assertEqual(payload['data']['file_name'], 'invoice.pdf')
-        self.assertIn('disk full', payload['data']['reason'])
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["status"], "failed")
+        self.assertEqual(payload["data"]["file_name"], "invoice.pdf")
+        self.assertIn("disk full", payload["data"]["reason"])
         mock_chat_message_create.assert_not_called()
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch("requests.get")
     def test_execute_rejects_unstaged_attachment(self, mock_get, _mock_rls):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
@@ -857,11 +914,11 @@ class ToolExecutorEmailToolTests(TestCase):
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'invoice.pdf',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "invoice.pdf",
                 },
                 self.tenant,
                 self.user,
@@ -869,17 +926,19 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertFalse(payload['ok'])
-        self.assertEqual(payload['error']['code'], 'ATTACHMENT_NOT_STAGED')
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["code"], "ATTACHMENT_NOT_STAGED")
         mock_get.assert_not_called()
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch("requests.get")
     def test_execute_rejects_expired_staged_attachment(self, mock_get, _mock_rls):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
@@ -891,11 +950,11 @@ class ToolExecutorEmailToolTests(TestCase):
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'invoice.pdf',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "invoice.pdf",
                 },
                 self.tenant,
                 self.user,
@@ -903,15 +962,20 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertFalse(payload['ok'])
-        self.assertEqual(payload['error']['code'], 'ATTACHMENT_STAGE_EXPIRED')
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["code"], "ATTACHMENT_STAGE_EXPIRED")
         mock_get.assert_not_called()
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
-    @patch('apps.integrations.providers.MicrosoftGraphProvider')
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch(
+        "tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document",
+        return_value=None,
+    )
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.create")
+    @patch("apps.integrations.providers.MicrosoftGraphProvider")
+    @patch("requests.get")
     def test_execute_rejects_item_attachment_before_download(
         self,
         mock_get,
@@ -921,38 +985,36 @@ class ToolExecutorEmailToolTests(TestCase):
         _mock_rls,
     ):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
         self._stage_attachment(
             session,
-            name='forwarded.eml',
-            content_type='message/rfc822',
+            name="forwarded.eml",
+            content_type="message/rfc822",
         )
-        mock_graph_provider.return_value = SimpleNamespace(
-            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
-        )
+        mock_graph_provider.return_value = SimpleNamespace(GRAPH_API_BASE="https://graph.microsoft.com/v1.0")
         mock_get.return_value = self._response(
             payload={
-                '@odata.type': '#microsoft.graph.itemAttachment',
-                'id': 'att-456',
-                'name': 'forwarded.eml',
-                'contentType': 'message/rfc822',
-                'size': 1024,
+                "@odata.type": "#microsoft.graph.itemAttachment",
+                "id": "att-456",
+                "name": "forwarded.eml",
+                "contentType": "message/rfc822",
+                "size": 1024,
             }
         )
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'forwarded.eml',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "forwarded.eml",
                 },
                 self.tenant,
                 self.user,
@@ -960,17 +1022,22 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(payload['data']['status'], 'skipped')
-        self.assertIn('forwarded.eml', payload['data']['reason'])
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["status"], "skipped")
+        self.assertIn("forwarded.eml", payload["data"]["reason"])
         mock_get.assert_not_called()
         mock_aidocument_create.assert_not_called()
 
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
-    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document', return_value=None)
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.create')
-    @patch('apps.integrations.providers.MicrosoftGraphProvider')
-    @patch('requests.get')
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
+    @patch(
+        "tenant_apps.integrations.services.email_ingestion.EmailIngestionService._get_existing_attachment_document",
+        return_value=None,
+    )
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.create")
+    @patch("apps.integrations.providers.MicrosoftGraphProvider")
+    @patch("requests.get")
     def test_execute_rejects_reference_attachment_before_download(
         self,
         mock_get,
@@ -980,38 +1047,36 @@ class ToolExecutorEmailToolTests(TestCase):
         _mock_rls,
     ):
         session = ChatSession.objects.create(
-            title='Attachment thread',
+            title="Attachment thread",
             tenant=self.tenant,
-            context_data={'tenant_id': str(self.tenant.id)},
+            context_data={"tenant_id": str(self.tenant.id)},
             owner=self.user,
             created_by=self.user,
             modified_by=self.user,
         )
         self._stage_attachment(
             session,
-            name='sharepoint-link.url',
-            content_type='application/octet-stream',
+            name="sharepoint-link.url",
+            content_type="application/octet-stream",
         )
-        mock_graph_provider.return_value = SimpleNamespace(
-            GRAPH_API_BASE='https://graph.microsoft.com/v1.0'
-        )
+        mock_graph_provider.return_value = SimpleNamespace(GRAPH_API_BASE="https://graph.microsoft.com/v1.0")
         mock_get.return_value = self._response(
             payload={
-                '@odata.type': '#microsoft.graph.referenceAttachment',
-                'id': 'att-456',
-                'name': 'sharepoint-link.url',
-                'contentType': 'application/octet-stream',
-                'size': 1024,
+                "@odata.type": "#microsoft.graph.referenceAttachment",
+                "id": "att-456",
+                "name": "sharepoint-link.url",
+                "contentType": "application/octet-stream",
+                "size": 1024,
             }
         )
 
         payload = json.loads(
             ToolExecutor().execute(
-                'ingest_email_attachment',
+                "ingest_email_attachment",
                 {
-                    'message_id': 'msg-123',
-                    'attachment_id': 'att-456',
-                    'file_name': 'sharepoint-link.url',
+                    "message_id": "msg-123",
+                    "attachment_id": "att-456",
+                    "file_name": "sharepoint-link.url",
                 },
                 self.tenant,
                 self.user,
@@ -1019,9 +1084,9 @@ class ToolExecutorEmailToolTests(TestCase):
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(payload['data']['status'], 'skipped')
-        self.assertIn('sharepoint-link.url', payload['data']['reason'])
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["status"], "skipped")
+        self.assertIn("sharepoint-link.url", payload["data"]["reason"])
         mock_get.assert_not_called()
         mock_aidocument_create.assert_not_called()
 
@@ -1031,37 +1096,37 @@ class SwarmRouterLoopDetectionTests(TestCase):
         unique = uuid.uuid4().hex[:8]
         user_model = get_user_model()
         self.user = user_model.objects.create_user(
-            username=f'loop-router-{unique}',
-            email=f'loop-router-{unique}@example.com',
-            password='pw',
+            username=f"loop-router-{unique}",
+            email=f"loop-router-{unique}@example.com",
+            password="pw",
         )
         self.tenant = Tenant.objects.create(
-            name=f'Loop Router Tenant {unique}',
-            slug=f'loop-router-tenant-{unique}',
-            contact_email=f'loop-router-{unique}@example.com',
+            name=f"Loop Router Tenant {unique}",
+            slug=f"loop-router-tenant-{unique}",
+            contact_email=f"loop-router-{unique}@example.com",
             created_by=self.user,
         )
-        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner')
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
 
         provider = ExternalAuthProvider.objects.create(
             tenant=self.tenant,
-            provider_type='microsoft',
-            access_token='placeholder',
+            provider_type="microsoft",
+            access_token="placeholder",
             token_expiry=timezone.now() + timedelta(days=1),
             is_active=True,
-            connected_email='planner@example.com',
+            connected_email="planner@example.com",
         )
-        provider.set_encrypted_token('access', 'access-token')
+        provider.set_encrypted_token("access", "access-token")
         provider.save()
 
     @staticmethod
     def _completion_with_tool_call(arguments: str):
         tool_call = SimpleNamespace(
-            id='tc-1',
-            type='function',
-            function=SimpleNamespace(name='fetch_emails', arguments=arguments),
+            id="tc-1",
+            type="function",
+            function=SimpleNamespace(name="fetch_emails", arguments=arguments),
         )
-        message = SimpleNamespace(content='', tool_calls=[tool_call])
+        message = SimpleNamespace(content="", tool_calls=[tool_call])
         return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 
     @staticmethod
@@ -1072,21 +1137,21 @@ class SwarmRouterLoopDetectionTests(TestCase):
     def test_sanitize_history_for_openai_strips_trailing_unanswered_tool_calls(self):
         sanitized = _sanitize_history_for_openai(
             [
-                {'role': 'system', 'content': 'base'},
-                {'role': 'assistant', 'content': '', 'tool_calls': [{'id': 'tc-missing', 'type': 'function'}]},
+                {"role": "system", "content": "base"},
+                {"role": "assistant", "content": "", "tool_calls": [{"id": "tc-missing", "type": "function"}]},
             ]
         )
 
-        self.assertEqual(sanitized, [{'role': 'system', 'content': 'base'}])
+        self.assertEqual(sanitized, [{"role": "system", "content": "base"}])
 
-    @override_settings(OPENAI_API_KEY='test-key', SWARM_TOOL_MAX_ROUNDS=3)
-    @patch('tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons', return_value=[])
-    @patch('tenant_apps.ai_assistant.services.memory_service.format_lessons_block', return_value='')
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories', return_value=[])
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block', return_value='')
-    @patch('apps.system.services.ai_model_resolver.get_active_openai_model_id', return_value='gpt-4o-mini')
-    @patch('tenant_apps.ai_assistant.swarm.router.ToolExecutor.execute')
-    @patch('openai.OpenAI')
+    @override_settings(OPENAI_API_KEY="test-key", SWARM_TOOL_MAX_ROUNDS=3)
+    @patch("tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons", return_value=[])
+    @patch("tenant_apps.ai_assistant.services.memory_service.format_lessons_block", return_value="")
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories", return_value=[])
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block", return_value="")
+    @patch("apps.system.services.ai_model_resolver.get_active_openai_model_id", return_value="gpt-4o-mini")
+    @patch("tenant_apps.ai_assistant.swarm.router.ToolExecutor.execute")
+    @patch("openai.OpenAI")
     def test_run_tool_loop_injects_loop_warning_before_max_rounds_exhaust(
         self,
         mock_openai,
@@ -1099,17 +1164,17 @@ class SwarmRouterLoopDetectionTests(TestCase):
     ):
         repeated_args = json.dumps(
             {
-                'folder': 'sentitems',
-                'has_attachments': True,
-                'search_query': 'invoice',
+                "folder": "sentitems",
+                "has_attachments": True,
+                "search_query": "invoice",
             }
         )
 
         mock_execute.return_value = json.dumps(
             {
-                'ok': True,
-                'tool': 'fetch_emails',
-                'data': {'messages': []},
+                "ok": True,
+                "tool": "fetch_emails",
+                "data": {"messages": []},
             }
         )
 
@@ -1121,7 +1186,7 @@ class SwarmRouterLoopDetectionTests(TestCase):
                             self._completion_with_tool_call(repeated_args),
                             self._completion_with_tool_call(repeated_args),
                             self._completion_with_tool_call(repeated_args),
-                            self._completion_with_text('I am stuck on the same email query and need clarification.'),
+                            self._completion_with_text("I am stuck on the same email query and need clarification."),
                         ]
                     )
                 )
@@ -1130,45 +1195,44 @@ class SwarmRouterLoopDetectionTests(TestCase):
         mock_openai.return_value = fake_client
 
         result = SwarmOrchestrator(tenant_id=str(self.tenant.id)).run_tool_loop(
-            user_message='Please grab the last sent invoice emails with attachments.',
+            user_message="Please grab the last sent invoice emails with attachments.",
             tenant=self.tenant,
             user=self.user,
         )
 
-        self.assertEqual(result['response'], 'I am stuck on the same email query and need clarification.')
+        self.assertEqual(result["response"], "I am stuck on the same email query and need clarification.")
         self.assertEqual(mock_execute.call_count, 2)
         self.assertTrue(
             any(
-                message.get('role') == 'system'
-                and 'You are stuck in a loop' in str(message.get('content') or '')
-                for message in result['messages']
+                message.get("role") == "system" and "You are stuck in a loop" in str(message.get("content") or "")
+                for message in result["messages"]
             )
         )
         loop_warning_index = next(
             index
-            for index, message in enumerate(result['messages'])
-            if message.get('role') == 'system' and 'You are stuck in a loop' in str(message.get('content') or '')
+            for index, message in enumerate(result["messages"])
+            if message.get("role") == "system" and "You are stuck in a loop" in str(message.get("content") or "")
         )
         last_assistant_with_tool_calls_index = max(
             index
-            for index, message in enumerate(result['messages'][:loop_warning_index])
-            if message.get('role') == 'assistant' and isinstance(message.get('tool_calls'), list)
+            for index, message in enumerate(result["messages"][:loop_warning_index])
+            if message.get("role") == "assistant" and isinstance(message.get("tool_calls"), list)
         )
         roles_between = [
-            message.get('role')
-            for message in result['messages'][last_assistant_with_tool_calls_index + 1 : loop_warning_index]
+            message.get("role")
+            for message in result["messages"][last_assistant_with_tool_calls_index + 1 : loop_warning_index]
         ]
         self.assertTrue(roles_between)
-        self.assertTrue(all(role == 'tool' for role in roles_between))
+        self.assertTrue(all(role == "tool" for role in roles_between))
 
-    @override_settings(OPENAI_API_KEY='test-key', SWARM_TOOL_MAX_ROUNDS=3)
-    @patch('tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons', return_value=[])
-    @patch('tenant_apps.ai_assistant.services.memory_service.format_lessons_block', return_value='')
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories', return_value=[])
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block', return_value='')
-    @patch('apps.system.services.ai_model_resolver.get_active_openai_model_id', return_value='gpt-4o-mini')
-    @patch('tenant_apps.ai_assistant.swarm.router.ToolExecutor.execute')
-    @patch('openai.OpenAI')
+    @override_settings(OPENAI_API_KEY="test-key", SWARM_TOOL_MAX_ROUNDS=3)
+    @patch("tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons", return_value=[])
+    @patch("tenant_apps.ai_assistant.services.memory_service.format_lessons_block", return_value="")
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories", return_value=[])
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block", return_value="")
+    @patch("apps.system.services.ai_model_resolver.get_active_openai_model_id", return_value="gpt-4o-mini")
+    @patch("tenant_apps.ai_assistant.swarm.router.ToolExecutor.execute")
+    @patch("openai.OpenAI")
     def test_run_tool_loop_appends_failure_tool_message_when_execute_raises(
         self,
         mock_openai,
@@ -1179,15 +1243,16 @@ class SwarmRouterLoopDetectionTests(TestCase):
         _mock_format_lessons,
         _mock_lessons,
     ):
-        mock_execute.side_effect = Exception('Simulated Outlook Crash')
+        mock_execute.side_effect = Exception("Simulated Outlook Crash")
         fake_client = SimpleNamespace(
             chat=SimpleNamespace(
                 completions=SimpleNamespace(
                     create=Mock(
                         side_effect=[
-                            self._completion_with_tool_call(json.dumps({'folder': 'inbox'})),
+                            self._completion_with_tool_call(json.dumps({"folder": "inbox"})),
                             self._completion_with_text(
-                                'I attempted to fetch your emails, but the Outlook integration encountered an error: Simulated Outlook Crash.'
+                                "I attempted to fetch your emails, but the Outlook "
+                                "integration encountered an error: Simulated Outlook Crash."
                             ),
                         ]
                     )
@@ -1197,37 +1262,38 @@ class SwarmRouterLoopDetectionTests(TestCase):
         mock_openai.return_value = fake_client
 
         result = SwarmOrchestrator(tenant_id=str(self.tenant.id)).run_tool_loop(
-            user_message='Check my inbox.',
+            user_message="Check my inbox.",
             tenant=self.tenant,
             user=self.user,
         )
 
         self.assertEqual(
-            result['response'],
-            'I attempted to fetch your emails, but the Outlook integration encountered an error: Simulated Outlook Crash.',
+            result["response"],
+            "I attempted to fetch your emails, but the Outlook integration "
+            "encountered an error: Simulated Outlook Crash.",
         )
-        tool_messages = [message for message in result['messages'] if message.get('role') == 'tool']
+        tool_messages = [message for message in result["messages"] if message.get("role") == "tool"]
         self.assertEqual(len(tool_messages), 1)
-        self.assertEqual(tool_messages[0]['tool_call_id'], 'tc-1')
-        self.assertIn('TOOL EXECUTION FAILED: Simulated Outlook Crash.', tool_messages[0]['content'])
+        self.assertEqual(tool_messages[0]["tool_call_id"], "tc-1")
+        self.assertIn("TOOL EXECUTION FAILED: Simulated Outlook Crash.", tool_messages[0]["content"])
 
-        second_call_messages = fake_client.chat.completions.create.call_args_list[1].kwargs['messages']
+        second_call_messages = fake_client.chat.completions.create.call_args_list[1].kwargs["messages"]
         self.assertTrue(
             any(
-                message.get('role') == 'tool'
-                and message.get('tool_call_id') == 'tc-1'
-                and 'Simulated Outlook Crash' in str(message.get('content') or '')
+                message.get("role") == "tool"
+                and message.get("tool_call_id") == "tc-1"
+                and "Simulated Outlook Crash" in str(message.get("content") or "")
                 for message in second_call_messages
             )
         )
 
-    @override_settings(OPENAI_API_KEY='test-key', SWARM_TOOL_MAX_ROUNDS=3)
-    @patch('tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons', return_value=[])
-    @patch('tenant_apps.ai_assistant.services.memory_service.format_lessons_block', return_value='')
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories', return_value=[])
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block', return_value='')
-    @patch('apps.system.services.ai_model_resolver.get_active_openai_model_id', return_value='gpt-4o-mini')
-    @patch('openai.OpenAI')
+    @override_settings(OPENAI_API_KEY="test-key", SWARM_TOOL_MAX_ROUNDS=3)
+    @patch("tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons", return_value=[])
+    @patch("tenant_apps.ai_assistant.services.memory_service.format_lessons_block", return_value="")
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories", return_value=[])
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block", return_value="")
+    @patch("apps.system.services.ai_model_resolver.get_active_openai_model_id", return_value="gpt-4o-mini")
+    @patch("openai.OpenAI")
     def test_run_tool_loop_sanitizes_trailing_unanswered_tool_calls_before_openai_request(
         self,
         mock_openai,
@@ -1240,43 +1306,45 @@ class SwarmRouterLoopDetectionTests(TestCase):
         fake_client = SimpleNamespace(
             chat=SimpleNamespace(
                 completions=SimpleNamespace(
-                    create=Mock(side_effect=[self._completion_with_text('Recovered from interrupted history.')])
+                    create=Mock(side_effect=[self._completion_with_text("Recovered from interrupted history.")])
                 )
             )
         )
         mock_openai.return_value = fake_client
         interrupted_history = [
-            {'role': 'assistant', 'content': '', 'tool_calls': [{'id': 'tc-interrupted', 'type': 'function'}]},
+            {"role": "assistant", "content": "", "tool_calls": [{"id": "tc-interrupted", "type": "function"}]},
         ]
 
         result = SwarmOrchestrator(tenant_id=str(self.tenant.id)).run_tool_loop(
-            user_message='Continue the conversation.',
+            user_message="Continue the conversation.",
             tenant=self.tenant,
             user=self.user,
             history=interrupted_history,
         )
 
-        self.assertEqual(result['response'], 'Recovered from interrupted history.')
-        first_call_messages = fake_client.chat.completions.create.call_args_list[0].kwargs['messages']
+        self.assertEqual(result["response"], "Recovered from interrupted history.")
+        first_call_messages = fake_client.chat.completions.create.call_args_list[0].kwargs["messages"]
         self.assertFalse(
             any(
-                message.get('role') == 'assistant' and isinstance(message.get('tool_calls'), list)
+                message.get("role") == "assistant" and isinstance(message.get("tool_calls"), list)
                 for message in first_call_messages
             )
         )
 
-    @override_settings(OPENAI_API_KEY='test-key', SWARM_TOOL_MAX_ROUNDS=3)
-    @patch('tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons', return_value=[])
-    @patch('tenant_apps.ai_assistant.services.memory_service.format_lessons_block', return_value='')
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories', return_value=[])
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block', return_value='')
-    @patch('tenant_apps.ai_assistant.services.tenant_memory_service.get_session_compaction_memory')
+    @override_settings(OPENAI_API_KEY="test-key", SWARM_TOOL_MAX_ROUNDS=3)
+    @patch("tenant_apps.ai_assistant.services.memory_service.get_relevant_lessons", return_value=[])
+    @patch("tenant_apps.ai_assistant.services.memory_service.format_lessons_block", return_value="")
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.get_relevant_memories", return_value=[])
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.format_memory_block", return_value="")
+    @patch("tenant_apps.ai_assistant.services.tenant_memory_service.get_session_compaction_memory")
     @patch(
-        'tenant_apps.ai_assistant.services.tenant_memory_service.format_session_memory_block',
-        return_value='\n\nSession Memory (durable summary of older messages in this chat):\n- Prior compacted context\n',
+        "tenant_apps.ai_assistant.services.tenant_memory_service.format_session_memory_block",
+        return_value=(
+            "\n\nSession Memory (durable summary of older messages in this chat):\n" "- Prior compacted context\n"
+        ),
     )
-    @patch('apps.system.services.ai_model_resolver.get_active_openai_model_id', return_value='gpt-4o-mini')
-    @patch('openai.OpenAI')
+    @patch("apps.system.services.ai_model_resolver.get_active_openai_model_id", return_value="gpt-4o-mini")
+    @patch("openai.OpenAI")
     def test_run_tool_loop_injects_session_memory_block_into_system_prompt(
         self,
         mock_openai,
@@ -1288,27 +1356,29 @@ class SwarmRouterLoopDetectionTests(TestCase):
         _mock_format_lessons,
         _mock_lessons,
     ):
-        mock_session_memory.return_value = SimpleNamespace(memory_text='Prior compacted context')
+        mock_session_memory.return_value = SimpleNamespace(memory_text="Prior compacted context")
         fake_client = SimpleNamespace(
             chat=SimpleNamespace(
                 completions=SimpleNamespace(
-                    create=Mock(side_effect=[self._completion_with_text('Used session memory.')])
+                    create=Mock(side_effect=[self._completion_with_text("Used session memory.")])
                 )
             )
         )
         mock_openai.return_value = fake_client
 
         result = SwarmOrchestrator(tenant_id=str(self.tenant.id)).run_tool_loop(
-            user_message='Continue the prior routing discussion.',
+            user_message="Continue the prior routing discussion.",
             tenant=self.tenant,
             user=self.user,
             session_id=str(uuid.uuid4()),
         )
 
-        self.assertEqual(result['response'], 'Used session memory.')
-        first_call_messages = fake_client.chat.completions.create.call_args_list[0].kwargs['messages']
-        self.assertIn('Session Memory (durable summary of older messages in this chat)', first_call_messages[0]['content'])
-        self.assertIn('Prior compacted context', first_call_messages[0]['content'])
+        self.assertEqual(result["response"], "Used session memory.")
+        first_call_messages = fake_client.chat.completions.create.call_args_list[0].kwargs["messages"]
+        self.assertIn(
+            "Session Memory (durable summary of older messages in this chat)", first_call_messages[0]["content"]
+        )
+        self.assertIn("Prior compacted context", first_call_messages[0]["content"])
 
 
 class AIDocumentAuditSurfaceTests(TestCase):
@@ -1316,48 +1386,48 @@ class AIDocumentAuditSurfaceTests(TestCase):
         from tenant_apps.ai_assistant.models import AIDocument
 
         document = AIDocument(
-            original_filename='invoice.pdf',
-            content_type='application/pdf',
+            original_filename="invoice.pdf",
+            content_type="application/pdf",
             custom_data={
-                'source': 'microsoft_graph_attachment',
-                'message_id': 'msg-123',
-                'attachment_id': 'att-456',
-                'ingested_at': '2026-04-28T21:00:00Z',
-                'graph_name': 'invoice.pdf',
-                'graph_content_type': 'application/pdf',
+                "source": "microsoft_graph_attachment",
+                "message_id": "msg-123",
+                "attachment_id": "att-456",
+                "ingested_at": "2026-04-28T21:00:00Z",
+                "graph_name": "invoice.pdf",
+                "graph_content_type": "application/pdf",
             },
         )
 
         payload = AIDocumentSerializer(instance=document).data
 
-        self.assertEqual(payload['source_metadata']['source'], 'microsoft_graph_attachment')
-        self.assertEqual(payload['source_metadata']['message_id'], 'msg-123')
-        self.assertEqual(payload['source_metadata']['attachment_id'], 'att-456')
-        self.assertEqual(payload['processing_metadata'], {})
+        self.assertEqual(payload["source_metadata"]["source"], "microsoft_graph_attachment")
+        self.assertEqual(payload["source_metadata"]["message_id"], "msg-123")
+        self.assertEqual(payload["source_metadata"]["attachment_id"], "att-456")
+        self.assertEqual(payload["processing_metadata"], {})
 
     def test_serializer_exposes_processing_metadata_from_custom_data(self):
         from tenant_apps.ai_assistant.models import AIDocument
 
         document = AIDocument(
-            original_filename='invoice.pdf',
-            content_type='application/pdf',
-            processing_status='failed',
+            original_filename="invoice.pdf",
+            content_type="application/pdf",
+            processing_status="failed",
             custom_data={
-                'parser': 'unstructured',
-                'processing_started_at': '2026-04-28T22:00:00Z',
-                'failed_at': '2026-04-28T22:00:03Z',
-                'parse_error_code': 'UNSTRUCTURED_UNREACHABLE',
-                'parse_error_message': 'The document parsing service is currently unreachable.',
-                'warnings': ['retry later'],
-                'truncated': False,
+                "parser": "unstructured",
+                "processing_started_at": "2026-04-28T22:00:00Z",
+                "failed_at": "2026-04-28T22:00:03Z",
+                "parse_error_code": "UNSTRUCTURED_UNREACHABLE",
+                "parse_error_message": "The document parsing service is currently unreachable.",
+                "warnings": ["retry later"],
+                "truncated": False,
             },
         )
 
         payload = AIDocumentSerializer(instance=document).data
 
-        self.assertEqual(payload['processing_metadata']['parser'], 'unstructured')
-        self.assertEqual(payload['processing_metadata']['parse_error_code'], 'UNSTRUCTURED_UNREACHABLE')
-        self.assertEqual(payload['processing_metadata']['warnings'], ['retry later'])
+        self.assertEqual(payload["processing_metadata"]["parser"], "unstructured")
+        self.assertEqual(payload["processing_metadata"]["parse_error_code"], "UNSTRUCTURED_UNREACHABLE")
+        self.assertEqual(payload["processing_metadata"]["warnings"], ["retry later"])
 
     def test_serializer_exposes_semantic_processing_metadata(self):
         from tenant_apps.ai_assistant.models import AIDocument
@@ -1365,38 +1435,38 @@ class AIDocumentAuditSurfaceTests(TestCase):
         unique = uuid.uuid4().hex[:8]
         user_model = get_user_model()
         user = user_model.objects.create_user(
-            username=f'doc-audit-{unique}',
-            email=f'doc-audit-{unique}@example.com',
-            password='pw',
+            username=f"doc-audit-{unique}",
+            email=f"doc-audit-{unique}@example.com",
+            password="pw",
         )
         tenant = Tenant.objects.create(
-            name=f'Doc Audit Tenant {unique}',
-            slug=f'doc-audit-tenant-{unique}',
-            contact_email=f'doc-audit-{unique}@example.com',
+            name=f"Doc Audit Tenant {unique}",
+            slug=f"doc-audit-tenant-{unique}",
+            contact_email=f"doc-audit-{unique}@example.com",
             created_by=user,
         )
-        TenantUser.objects.create(tenant=tenant, user=user, role='owner')
+        TenantUser.objects.create(tenant=tenant, user=user, role="owner")
         document = AIDocument.objects.create(
             tenant=tenant,
             owner=user,
-            file=SimpleUploadedFile('invoice.pdf', b'%PDF-1.4', content_type='application/pdf'),
-            original_filename='invoice.pdf',
-            content_type='application/pdf',
+            file=SimpleUploadedFile("invoice.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            original_filename="invoice.pdf",
+            content_type="application/pdf",
             file_size=8,
             custom_data={
-                'semantic_indexing': {
-                    'status': 'indexed',
-                    'mode': 'semantic',
-                    'chunk_count': 3,
+                "semantic_indexing": {
+                    "status": "indexed",
+                    "mode": "semantic",
+                    "chunk_count": 3,
                 },
             },
         )
         payload = AIDocumentSerializer(instance=document).data
 
-        self.assertEqual(payload['processing_metadata']['semantic_indexing']['status'], 'indexed')
-        self.assertEqual(payload['processing_metadata']['semantic_indexing']['chunk_count'], 3)
+        self.assertEqual(payload["processing_metadata"]["semantic_indexing"]["status"], "indexed")
+        self.assertEqual(payload["processing_metadata"]["semantic_indexing"]["chunk_count"], 3)
 
-    @patch('tenant_apps.ai_assistant.views.AIDocument.objects.all')
+    @patch("tenant_apps.ai_assistant.views.AIDocument.objects.all")
     def test_viewset_filters_documents_by_source_and_session(self, mock_all):
         from tenant_apps.ai_assistant.views import AIDocumentViewSet
 
@@ -1414,9 +1484,9 @@ class AIDocumentAuditSurfaceTests(TestCase):
             tenant=tenant,
             user=user,
             query_params={
-                'source': 'microsoft_graph_attachment',
-                'session': str(session_id),
-                'processing_status': 'failed',
+                "source": "microsoft_graph_attachment",
+                "session": str(session_id),
+                "processing_status": "failed",
             },
         )
 
@@ -1425,25 +1495,25 @@ class AIDocumentAuditSurfaceTests(TestCase):
         self.assertIs(result, queryset)
         queryset.filter.assert_any_call(owner=user)
         queryset.filter.assert_any_call(tenant=tenant)
-        queryset.filter.assert_any_call(custom_data__source='microsoft_graph_attachment')
+        queryset.filter.assert_any_call(custom_data__source="microsoft_graph_attachment")
         queryset.filter.assert_any_call(session_id=session_id)
-        queryset.filter.assert_any_call(processing_status='failed')
+        queryset.filter.assert_any_call(processing_status="failed")
 
-    @patch('apps.tenants.rls.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch("apps.tenants.rls.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None))
     def test_perform_create_tags_manual_upload_source_metadata(self, _mock_rls):
         from tenant_apps.ai_assistant.views import AIDocumentViewSet
 
         user = SimpleNamespace(id=123)
         tenant = SimpleNamespace(id=uuid.uuid4())
-        upload = SimpleUploadedFile('manual.pdf', b'%PDF-1.4', content_type='application/pdf')
+        upload = SimpleUploadedFile("manual.pdf", b"%PDF-1.4", content_type="application/pdf")
         serializer = Mock()
         serializer.save.return_value = SimpleNamespace(
             id=uuid.uuid4(),
             session_id=None,
-            custom_data={'source': 'manual_upload'},
-            original_filename='manual.pdf',
-            file=SimpleNamespace(url=''),
-            content_type='application/pdf',
+            custom_data={"source": "manual_upload"},
+            original_filename="manual.pdf",
+            file=SimpleNamespace(url=""),
+            content_type="application/pdf",
             file_size=8,
         )
 
@@ -1451,27 +1521,27 @@ class AIDocumentAuditSurfaceTests(TestCase):
         view.request = SimpleNamespace(
             tenant=tenant,
             user=user,
-            FILES={'file': upload},
+            FILES={"file": upload},
         )
 
         view.perform_create(serializer)
 
         save_kwargs = serializer.save.call_args.kwargs
-        self.assertEqual(save_kwargs['custom_data']['source'], 'manual_upload')
-        self.assertIn('uploaded_at', save_kwargs['custom_data'])
+        self.assertEqual(save_kwargs["custom_data"]["source"], "manual_upload")
+        self.assertIn("uploaded_at", save_kwargs["custom_data"])
 
     def test_aidocument_serializer_rejects_session_from_other_tenant(self):
         request = SimpleNamespace(
             user=SimpleNamespace(id=123),
             tenant=SimpleNamespace(id=uuid.uuid4()),
-            method='POST',
+            method="POST",
         )
         session = SimpleNamespace(
             owner_id=123,
-            context_data={'tenant_id': str(uuid.uuid4())},
+            context_data={"tenant_id": str(uuid.uuid4())},
         )
 
-        serializer = AIDocumentSerializer(context={'request': request})
+        serializer = AIDocumentSerializer(context={"request": request})
 
         with self.assertRaises(drf_serializers.ValidationError):
             serializer.validate_session(session)
@@ -1486,34 +1556,31 @@ class SwarmToolsOpenAPIViewTests(TestCase):
         self.factory = APIRequestFactory()
         self._force_authenticate = force_authenticate
         self.user = user_model.objects.create_user(
-            username=f'tools-open-{unique}',
-            email=f'tools-open-{unique}@example.com',
-            password='pw',
+            username=f"tools-open-{unique}",
+            email=f"tools-open-{unique}@example.com",
+            password="pw",
         )
         self.tenant = Tenant.objects.create(
-            name=f'Tools Open Tenant {unique}',
-            slug=f'tools-open-tenant-{unique}',
-            contact_email=f'tools-open-{unique}@example.com',
+            name=f"Tools Open Tenant {unique}",
+            slug=f"tools-open-tenant-{unique}",
+            contact_email=f"tools-open-{unique}@example.com",
             created_by=self.user,
         )
-        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner')
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
 
     def test_tools_open_hides_ingest_attachment_when_outlook_disconnected(self):
         from tenant_apps.ai_assistant.views import SwarmToolsOpenAPIView
 
-        request = self.factory.get('/api/v1/ai-assistant/tools/openapi/')
+        request = self.factory.get("/api/v1/ai-assistant/tools/openapi/")
         self._force_authenticate(request, user=self.user)
         request.tenant = self.tenant
 
         response = SwarmToolsOpenAPIView.as_view()(request)
 
         self.assertEqual(response.status_code, 200)
-        tool_names = {
-            tool.get('function', {}).get('name')
-            for tool in response.data['tools']
-        }
-        self.assertNotIn('ingest_email_attachment', tool_names)
-        self.assertNotIn('/tools/ingest_email_attachment', response.data['openapi']['paths'])
+        tool_names = {tool.get("function", {}).get("name") for tool in response.data["tools"]}
+        self.assertNotIn("ingest_email_attachment", tool_names)
+        self.assertNotIn("/tools/ingest_email_attachment", response.data["openapi"]["paths"])
 
 
 class ParseDocumentLifecycleTests(SimpleTestCase):
@@ -1521,7 +1588,7 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
         def __init__(self, content: bytes):
             self.content = content
 
-        def open(self, _mode='rb'):
+        def open(self, _mode="rb"):
             return io.BytesIO(self.content)
 
     class _FakeDocument:
@@ -1530,7 +1597,7 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
             self.original_filename = filename
             self.content_type = content_type
             self.file = ParseDocumentLifecycleTests._FakeStoredFile(content)
-            self.processing_status = 'pending'
+            self.processing_status = "pending"
             self.custom_data = {}
             self.saved_update_fields = None
 
@@ -1544,17 +1611,19 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
         return queryset
 
     @staticmethod
-    def _unstructured_response(*, status=200, payload=None, text=''):
+    def _unstructured_response(*, status=200, payload=None, text=""):
         response = SimpleNamespace(status_code=status, text=text)
         response.json = lambda: payload
         return response
 
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
-    @patch('tenant_apps.ai_assistant.services.document_parser.parse_tabular_document')
-    @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=True)
-    @patch('tenant_apps.ai_assistant.services.semantic_indexing.index_document_for_semantic_search')
-    @patch('tenant_apps.ai_assistant.swarm.executor.ToolExecutor._record_lineage_event')
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.filter")
+    @patch("tenant_apps.ai_assistant.services.document_parser.parse_tabular_document")
+    @patch("tenant_apps.ai_assistant.services.document_parser.is_tabular_document", return_value=True)
+    @patch("tenant_apps.ai_assistant.services.semantic_indexing.index_document_for_semantic_search")
+    @patch("tenant_apps.ai_assistant.swarm.executor.ToolExecutor._record_lineage_event")
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
     def test_execute_marks_tabular_document_completed(
         self,
         _mock_rls,
@@ -1566,42 +1635,44 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
     ):
         document = self._FakeDocument(
             doc_id=uuid.uuid4(),
-            filename='parts.csv',
-            content_type='text/csv',
-            content=b'Part,Status\nRibeye,Available\n',
+            filename="parts.csv",
+            content_type="text/csv",
+            content=b"Part,Status\nRibeye,Available\n",
         )
         mock_filter.return_value = self._queryset_for(document)
         mock_parse_tabular.return_value = SimpleNamespace(
-            text='| Part | Status |',
-            preview=['preview'],
+            text="| Part | Status |",
+            preview=["preview"],
             truncated=False,
             warnings=[],
         )
-        mock_index_document.return_value = {'status': 'indexed', 'chunk_count': 1}
+        mock_index_document.return_value = {"status": "indexed", "chunk_count": 1}
 
         payload = json.loads(
             ToolExecutor().execute(
-                'parse_document',
-                {'file_id_or_url': str(document.id)},
+                "parse_document",
+                {"file_id_or_url": str(document.id)},
                 SimpleNamespace(id=uuid.uuid4()),
                 SimpleNamespace(is_authenticated=True),
             )
         )
 
-        self.assertTrue(payload['ok'])
-        self.assertEqual(payload['data']['parser'], 'tabular_markdown')
-        self.assertEqual(document.processing_status, 'completed')
-        self.assertEqual(document.custom_data['parser'], 'tabular_markdown')
-        self.assertIn('parsed_at', document.custom_data)
-        self.assertEqual(payload['data']['semantic_indexing']['status'], 'indexed')
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["parser"], "tabular_markdown")
+        self.assertEqual(document.processing_status, "completed")
+        self.assertEqual(document.custom_data["parser"], "tabular_markdown")
+        self.assertIn("parsed_at", document.custom_data)
+        self.assertEqual(payload["data"]["semantic_indexing"]["status"], "indexed")
         mock_index_document.assert_called_once()
         mock_record_lineage.assert_called_once()
 
-    @override_settings(UNSTRUCTURED_API_URL='https://unstructured.example.com', UNSTRUCTURED_API_KEY='secret')
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
-    @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=False)
-    @patch('requests.post')
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @override_settings(UNSTRUCTURED_API_URL="https://unstructured.example.com", UNSTRUCTURED_API_KEY="secret")
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.filter")
+    @patch("tenant_apps.ai_assistant.services.document_parser.is_tabular_document", return_value=False)
+    @patch("requests.post")
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
     def test_execute_marks_unstructured_unreachable_failed(
         self,
         _mock_rls,
@@ -1611,34 +1682,36 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
     ):
         document = self._FakeDocument(
             doc_id=uuid.uuid4(),
-            filename='scan.pdf',
-            content_type='application/pdf',
-            content=b'%PDF-1.4',
+            filename="scan.pdf",
+            content_type="application/pdf",
+            content=b"%PDF-1.4",
         )
         mock_filter.return_value = self._queryset_for(document)
-        mock_post.return_value = self._unstructured_response(status=503, payload={'detail': 'down'})
+        mock_post.return_value = self._unstructured_response(status=503, payload={"detail": "down"})
 
         payload = json.loads(
             ToolExecutor().execute(
-                'parse_document',
-                {'file_id_or_url': str(document.id)},
+                "parse_document",
+                {"file_id_or_url": str(document.id)},
                 SimpleNamespace(id=uuid.uuid4()),
                 SimpleNamespace(is_authenticated=True),
             )
         )
 
-        self.assertFalse(payload['ok'])
-        self.assertEqual(payload['error']['code'], 'UNSTRUCTURED_UNREACHABLE')
-        self.assertTrue(payload['error']['retryable'])
-        self.assertEqual(document.processing_status, 'failed')
-        self.assertEqual(document.custom_data['parse_error_code'], 'UNSTRUCTURED_UNREACHABLE')
-        self.assertEqual(document.custom_data['parser'], 'unstructured')
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["code"], "UNSTRUCTURED_UNREACHABLE")
+        self.assertTrue(payload["error"]["retryable"])
+        self.assertEqual(document.processing_status, "failed")
+        self.assertEqual(document.custom_data["parse_error_code"], "UNSTRUCTURED_UNREACHABLE")
+        self.assertEqual(document.custom_data["parser"], "unstructured")
 
-    @override_settings(UNSTRUCTURED_API_URL='https://unstructured.example.com', UNSTRUCTURED_API_KEY='secret')
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
-    @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=False)
-    @patch('requests.post')
-    @patch('tenant_apps.ai_assistant.swarm.executor.set_current_tenant', return_value=SimpleNamespace(ok=True, error=None))
+    @override_settings(UNSTRUCTURED_API_URL="https://unstructured.example.com", UNSTRUCTURED_API_KEY="secret")
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.filter")
+    @patch("tenant_apps.ai_assistant.services.document_parser.is_tabular_document", return_value=False)
+    @patch("requests.post")
+    @patch(
+        "tenant_apps.ai_assistant.swarm.executor.set_current_tenant", return_value=SimpleNamespace(ok=True, error=None)
+    )
     def test_execute_marks_unstructured_auth_failed(
         self,
         _mock_rls,
@@ -1648,34 +1721,34 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
     ):
         document = self._FakeDocument(
             doc_id=uuid.uuid4(),
-            filename='scan.pdf',
-            content_type='application/pdf',
-            content=b'%PDF-1.4',
+            filename="scan.pdf",
+            content_type="application/pdf",
+            content=b"%PDF-1.4",
         )
         mock_filter.return_value = self._queryset_for(document)
-        mock_post.return_value = self._unstructured_response(status=401, payload={'detail': 'unauthorized'})
+        mock_post.return_value = self._unstructured_response(status=401, payload={"detail": "unauthorized"})
 
         payload = json.loads(
             ToolExecutor().execute(
-                'parse_document',
-                {'file_id_or_url': str(document.id)},
+                "parse_document",
+                {"file_id_or_url": str(document.id)},
                 SimpleNamespace(id=uuid.uuid4()),
                 SimpleNamespace(is_authenticated=True),
             )
         )
 
-        self.assertFalse(payload['ok'])
-        self.assertEqual(payload['error']['code'], 'UNSTRUCTURED_AUTH_FAILED')
-        self.assertFalse(payload['error']['retryable'])
-        self.assertEqual(document.processing_status, 'failed')
-        self.assertEqual(document.custom_data['parse_error_code'], 'UNSTRUCTURED_AUTH_FAILED')
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["code"], "UNSTRUCTURED_AUTH_FAILED")
+        self.assertFalse(payload["error"]["retryable"])
+        self.assertEqual(document.processing_status, "failed")
+        self.assertEqual(document.custom_data["parse_error_code"], "UNSTRUCTURED_AUTH_FAILED")
 
-    @override_settings(UNSTRUCTURED_API_URL='https://unstructured.example.com', UNSTRUCTURED_API_KEY='secret')
-    @patch('tenant_apps.ai_assistant.models.AIDocument.objects.filter')
-    @patch('tenant_apps.ai_assistant.services.document_parser.is_tabular_document', return_value=False)
-    @patch('requests.post')
-    @patch('tenant_apps.ai_assistant.services.semantic_indexing.index_document_for_semantic_search')
-    @patch('tenant_apps.ai_assistant.swarm.executor.ToolExecutor._record_lineage_event')
+    @override_settings(UNSTRUCTURED_API_URL="https://unstructured.example.com", UNSTRUCTURED_API_KEY="secret")
+    @patch("tenant_apps.ai_assistant.models.AIDocument.objects.filter")
+    @patch("tenant_apps.ai_assistant.services.document_parser.is_tabular_document", return_value=False)
+    @patch("requests.post")
+    @patch("tenant_apps.ai_assistant.services.semantic_indexing.index_document_for_semantic_search")
+    @patch("tenant_apps.ai_assistant.swarm.executor.ToolExecutor._record_lineage_event")
     def test_parse_document_marks_unstructured_success_completed(
         self,
         mock_record_lineage,
@@ -1686,28 +1759,28 @@ class ParseDocumentLifecycleTests(SimpleTestCase):
     ):
         document = self._FakeDocument(
             doc_id=uuid.uuid4(),
-            filename='scan.pdf',
-            content_type='application/pdf',
-            content=b'%PDF-1.4',
+            filename="scan.pdf",
+            content_type="application/pdf",
+            content=b"%PDF-1.4",
         )
         mock_filter.return_value = self._queryset_for(document)
         mock_post.return_value = self._unstructured_response(
             status=200,
-            payload=[{'text': 'Line one'}, {'text': 'Line two'}],
+            payload=[{"text": "Line one"}, {"text": "Line two"}],
         )
-        mock_index_document.return_value = {'status': 'indexed', 'chunk_count': 2}
+        mock_index_document.return_value = {"status": "indexed", "chunk_count": 2}
 
         parsed = ToolExecutor()._parse_document(
-            {'file_id_or_url': str(document.id)},
+            {"file_id_or_url": str(document.id)},
             SimpleNamespace(id=uuid.uuid4()),
             user=SimpleNamespace(is_authenticated=True),
         )
 
-        self.assertEqual(parsed['parser'], 'unstructured')
-        self.assertIn('Line one', parsed['text'])
-        self.assertEqual(document.processing_status, 'completed')
-        self.assertEqual(document.custom_data['parser'], 'unstructured')
-        self.assertIn('parsed_at', document.custom_data)
-        self.assertEqual(parsed['semantic_indexing']['status'], 'indexed')
+        self.assertEqual(parsed["parser"], "unstructured")
+        self.assertIn("Line one", parsed["text"])
+        self.assertEqual(document.processing_status, "completed")
+        self.assertEqual(document.custom_data["parser"], "unstructured")
+        self.assertIn("parsed_at", document.custom_data)
+        self.assertEqual(parsed["semantic_indexing"]["status"], "indexed")
         mock_index_document.assert_called_once()
         mock_record_lineage.assert_called_once()

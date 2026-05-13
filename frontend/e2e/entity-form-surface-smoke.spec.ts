@@ -14,27 +14,30 @@ const isFatalReactRuntimeMessage = (message: string): boolean => {
 };
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(({ tenantId }) => {
-    window.localStorage.setItem('authToken', 'playwright-legacy-token');
-    window.localStorage.setItem('tenantId', tenantId);
-    window.localStorage.setItem('tenantName', 'Playwright Tenant');
-    window.localStorage.setItem('tenantSlug', 'playwright-tenant');
-    window.localStorage.setItem(
-      'user',
-      JSON.stringify({
-        id: 7,
-        username: 'playwright-user',
-        email: 'playwright@example.com',
-        first_name: 'Play',
-        last_name: 'Wright',
-        is_active: true,
-      })
-    );
-    (window as typeof window & { ENV?: Record<string, string> }).ENV = {
-      API_BASE_URL: 'http://127.0.0.1:3000/api/v1',
-      ENVIRONMENT: 'development',
-    };
-  }, { tenantId: TENANT_ID });
+  await page.addInitScript(
+    ({ tenantId }) => {
+      window.localStorage.setItem('authToken', 'playwright-legacy-token');
+      window.localStorage.setItem('tenantId', tenantId);
+      window.localStorage.setItem('tenantName', 'Playwright Tenant');
+      window.localStorage.setItem('tenantSlug', 'playwright-tenant');
+      window.localStorage.setItem(
+        'user',
+        JSON.stringify({
+          id: 7,
+          username: 'playwright-user',
+          email: 'playwright@example.com',
+          first_name: 'Play',
+          last_name: 'Wright',
+          is_active: true,
+        })
+      );
+      (window as typeof window & { ENV?: Record<string, string> }).ENV = {
+        API_BASE_URL: 'http://127.0.0.1:3000/api/v1',
+        ENVIRONMENT: 'development',
+      };
+    },
+    { tenantId: TENANT_ID }
+  );
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -86,24 +89,24 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
-      if (path.endsWith('/system/forms/schema/')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            name: 'Plant',
-            description: 'Plant schema',
-            fields: [
-              { key: 'name', label: 'Plant Name', type: 'text', required: true },
-              {
-                key: 'supplier',
-                label: 'Supplier',
-                type: 'foreign_key',
-                related_entity: 'suppliers.Supplier',
-              },
-            ],
-          }),
-        });
+    if (path.endsWith('/system/forms/schema/')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          name: 'Plant',
+          description: 'Plant schema',
+          fields: [
+            { key: 'name', label: 'Plant Name', type: 'text', required: true },
+            {
+              key: 'supplier',
+              label: 'Supplier',
+              type: 'foreign_key',
+              related_entity: 'suppliers.Supplier',
+            },
+          ],
+        }),
+      });
       return;
     }
 
@@ -219,6 +222,41 @@ test('renders the plant create form in production preview without hitting max up
   await expect(page.getByTestId('entity-form-smoke-title')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Plant' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Plant Name *' })).toHaveValue('');
+  await expect(page.getByText('Supplier', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Acme Foods/ })).toBeVisible();
+  await expect(page.getByTestId('entity-form-loading')).toHaveCount(0);
+
+  await page.waitForTimeout(3000);
+
+  expect(fatalBrowserErrors).toEqual([]);
+});
+
+test('renders the supplier-scoped plant create surface in production preview without hitting max update depth', async ({
+  page,
+}) => {
+  const fatalBrowserErrors: string[] = [];
+
+  page.on('console', (msg) => {
+    if (msg.type() !== 'error') {
+      return;
+    }
+
+    const message = msg.text();
+    if (isFatalReactRuntimeMessage(message)) {
+      fatalBrowserErrors.push(`console.error: ${message}`);
+    }
+  });
+
+  page.on('pageerror', (error) => {
+    if (isFatalReactRuntimeMessage(error.message)) {
+      fatalBrowserErrors.push(`pageerror: ${error.message}`);
+    }
+  });
+
+  await page.goto('/diagnostics/entity-form-surface-smoke?mode=create&seed=supplier-child');
+
+  await expect(page.getByTestId('entity-form-smoke-title')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Plant' })).toBeVisible();
   await expect(page.getByText('Supplier', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Acme Foods/ })).toBeVisible();
   await expect(page.getByTestId('entity-form-loading')).toHaveCount(0);

@@ -21,19 +21,18 @@ run-name: >-
       )
   }}
 
-
 on:
   push:
     branches: [development, uat, main]
     paths-ignore:
-      - '*.md'
-      - '**/*.md'
-      - 'docs/**'
-      - 'archived/**'
+      - "*.md"
+      - "**/*.md"
+      - "docs/**"
+      - "archived/**"
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment'
+        description: "Target environment"
         required: true
         type: choice
         options:
@@ -41,27 +40,27 @@ on:
           - uat
           - production
       deploy_by_digest:
-        description: 'Development-only override: run by resolved digest after pulling the env-SHA tag (UAT/Prod always use digest)'
+        description: "Development-only override: run by resolved digest after pulling the env-SHA tag (UAT/Prod always use digest)"
         required: false
         type: boolean
         default: false
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: false  # NEVER cancel in-progress deployments - only skip queued ones via check-latest
+  cancel-in-progress: false # NEVER cancel in-progress deployments - only skip queued ones via check-latest
 
 jobs:
   # ==========================================
   # Detect Latest Commit (Smart Queue Management)
   # ==========================================
   # This job prevents deploying stale commits when multiple commits are pushed rapidly.
-  # 
+  #
   # Behavior:
   # - If deployment is IN-PROGRESS: Let it finish (cancel-in-progress: false protects it)
   # - If deployment is QUEUED: Check if it's the latest commit
   #   - If YES: Proceed with deployment
   #   - If NO: Skip gracefully (commits are included in next deployment via git history)
-  # 
+  #
   # This ensures:
   # 1. Running deployments are NEVER cancelled (prevents half-deployed state)
   # 2. Queued deployments for old commits are skipped (saves CI time)
@@ -77,20 +76,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          fetch-depth: 10  # Get recent commits to check for newer ones
-      
+          fetch-depth: 10 # Get recent commits to check for newer ones
+
       - name: Check if this is the latest commit
         id: check
         run: |
           TRIGGER_SHA="${{ github.sha }}"
           BRANCH="${{ github.ref_name }}"
-          
+
           # Get latest commit on branch
           LATEST_SHA=$(git rev-parse "origin/$BRANCH")
-          
+
           echo "Trigger SHA: $TRIGGER_SHA"
           echo "Latest SHA:  $LATEST_SHA"
-          
+
           if [ "$TRIGGER_SHA" = "$LATEST_SHA" ]; then
             echo "✅ This is the latest commit - proceeding with deployment"
             echo "should_deploy=true" >> "$GITHUB_OUTPUT"
@@ -99,7 +98,7 @@ jobs:
             echo "This commit will be included in the next deployment"
             echo "should_deploy=false" >> "$GITHUB_OUTPUT"
           fi
-          
+
           echo "latest_sha=$LATEST_SHA" >> "$GITHUB_OUTPUT"
 
   resolve-deploy-plan:
@@ -120,11 +119,6 @@ jobs:
       run_frontend_lane: ${{ steps.plan.outputs.run_frontend_lane }}
       plan_reason: ${{ steps.plan.outputs.plan_reason }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          fetch-depth: 10
-
       - name: Resolve deploy plan
         id: plan
         env:
@@ -134,6 +128,9 @@ jobs:
           MANUAL_DEPLOY_BY_DIGEST: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.deploy_by_digest == 'true' || github.event.inputs.deploy_by_digest == true) && 'true' || 'false' }}
           BEFORE_SHA: ${{ github.event.before }}
           CURRENT_SHA: ${{ github.sha }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
@@ -143,6 +140,68 @@ jobs:
           RUN_BACKEND_LANE="true"
           RUN_FRONTEND_LANE="true"
           PLAN_REASON="full"
+
+          resolve_changed_files() {
+            local compare_url payload_file http_status file_count
+            compare_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/compare/${BEFORE_SHA}...${CURRENT_SHA}"
+            payload_file="$(mktemp)"
+
+            http_status="$(
+              curl -sS -L \
+                -o "$payload_file" \
+                -w '%{http_code}' \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "$compare_url" || true
+            )"
+
+            if [ "$http_status" != "200" ]; then
+              echo "::warning::Unable to read changed files from the compare API (HTTP ${http_status:-unknown}); keeping the full development deploy path." >&2
+              rm -f "$payload_file"
+              return 1
+            fi
+
+            file_count="$(jq '(.files // []) | length' "$payload_file")"
+            if [ "$file_count" -ge 300 ]; then
+              echo "::warning::Compare API returned ${file_count} files; treating the diff as non-isolated and keeping the full development deploy path." >&2
+              rm -f "$payload_file"
+              return 1
+            fi
+
+            jq -r '.files[]?.filename // empty' "$payload_file"
+            rm -f "$payload_file"
+          }
+
+          resolve_current_commit_files() {
+            local commit_url payload_file http_status file_count
+            commit_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/commits/${CURRENT_SHA}"
+            payload_file="$(mktemp)"
+
+            http_status="$(
+              curl -sS -L \
+                -o "$payload_file" \
+                -w '%{http_code}' \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "$commit_url" || true
+            )"
+
+            if [ "$http_status" != "200" ]; then
+              echo "::warning::Unable to read the current commit file list (HTTP ${http_status:-unknown}); keeping the full development deploy path." >&2
+              rm -f "$payload_file"
+              return 1
+            fi
+
+            file_count="$(jq '(.files // []) | length' "$payload_file")"
+            if [ "$file_count" -ge 300 ]; then
+              echo "::warning::Current commit file list returned ${file_count} files; treating the diff as non-isolated and keeping the full development deploy path." >&2
+              rm -f "$payload_file"
+              return 1
+            fi
+
+            jq -r '.files[]?.filename // empty' "$payload_file"
+            rm -f "$payload_file"
+          }
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             case "$MANUAL_ENVIRONMENT" in
@@ -193,37 +252,40 @@ jobs:
           if [ "$TARGET_ENVIRONMENT" = "development" ] && [ "$EVENT_NAME" = "push" ]; then
             ZERO_SHA="0000000000000000000000000000000000000000"
             if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "$ZERO_SHA" ]; then
-              git fetch --no-tags --depth=1 origin "$BEFORE_SHA" || true
-              CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
+              CHANGED_FILES="$(resolve_changed_files || true)"
             else
-              CHANGED_FILES="$(git show --pretty='' --name-only "$CURRENT_SHA")"
+              CHANGED_FILES="$(resolve_current_commit_files || true)"
             fi
 
-            ONLY_BACKEND="true"
-            ONLY_FRONTEND="true"
+            if [ -n "$CHANGED_FILES" ]; then
+              ONLY_BACKEND="true"
+              ONLY_FRONTEND="true"
 
-            while IFS= read -r path; do
-              [ -z "$path" ] && continue
-              case "$path" in
-                backend/*)
-                  ONLY_FRONTEND="false"
-                  ;;
-                frontend/*)
-                  ONLY_BACKEND="false"
-                  ;;
-                *)
-                  ONLY_BACKEND="false"
-                  ONLY_FRONTEND="false"
-                  ;;
-              esac
-            done <<< "$CHANGED_FILES"
+              while IFS= read -r path; do
+                [ -z "$path" ] && continue
+                case "$path" in
+                  backend/*)
+                    ONLY_FRONTEND="false"
+                    ;;
+                  frontend/*)
+                    ONLY_BACKEND="false"
+                    ;;
+                  *)
+                    ONLY_BACKEND="false"
+                    ONLY_FRONTEND="false"
+                    ;;
+                esac
+              done <<< "$CHANGED_FILES"
 
-            if [ "$ONLY_BACKEND" = "true" ] && [ "$ONLY_FRONTEND" = "false" ]; then
-              RUN_FRONTEND_LANE="false"
-              PLAN_REASON="backend-only"
-            elif [ "$ONLY_FRONTEND" = "true" ] && [ "$ONLY_BACKEND" = "false" ]; then
-              RUN_BACKEND_LANE="false"
-              PLAN_REASON="frontend-only"
+              if [ "$ONLY_BACKEND" = "true" ] && [ "$ONLY_FRONTEND" = "false" ]; then
+                RUN_FRONTEND_LANE="false"
+                PLAN_REASON="backend-only"
+              elif [ "$ONLY_FRONTEND" = "true" ] && [ "$ONLY_BACKEND" = "false" ]; then
+                RUN_BACKEND_LANE="false"
+                PLAN_REASON="frontend-only"
+              fi
+            else
+              echo "No reliable changed-files diff available; keeping the full development deploy path."
             fi
           fi
 
@@ -243,7 +305,7 @@ jobs:
     if: ${{ needs.check-latest.outputs.should_deploy == 'true' && needs.resolve-deploy-plan.outputs.target_environment == 'development' }}
     needs: [check-latest, resolve-deploy-plan]
     uses: ./.github/workflows/reusable-deploy.yml
-    secrets: inherit  # Environment context set in reusable workflow jobs
+    secrets: inherit # Environment context set in reusable workflow jobs
     with:
       environment: development
       ref: ${{ github.ref }}

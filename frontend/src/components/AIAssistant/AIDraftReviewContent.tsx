@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Collapse, Modal, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Collapse, Space, Tag, Typography, message } from 'antd';
 import isEqual from 'lodash/isEqual';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,17 +7,16 @@ import {
   AIInboxFeedbackActions,
   type AIInboxFeedbackSubmission,
 } from '@/components/AIAssistant/AIInboxFeedbackActions';
+import { DocumentAuditBadges } from '@/components/AIAssistant/DocumentAuditBadges';
 import { MissingDependencyQuickCreate, type DependencyType } from '@/components/Cockpit/MissingDependencyQuickCreate';
 import { UnifiedForm } from '@/components/UnifiedForm';
 import { aiStaffApi, type PendingReviewItem } from '@/services/aiService';
-import { normalizeEntityKey } from '@/components/Shared/UniversalEntityForm';
 import {
   mapDraftToInitialValues,
   resolveDraftEntityType,
 } from '@/utils/aiDraftFormMapping';
 import { buildReviewDetailsPathFromItem } from '@/utils/reviewDetailsPath';
 import { getErrorMessage } from '@/utils/errorHelpers';
-import { withTenantQueryKey } from '@/utils/queryKeys';
 import {
   createEntitiesSequentially,
   getEntityRoute,
@@ -25,82 +24,6 @@ import {
 } from '@/utils/sequentialEntityCreation';
 
 const { Paragraph, Text, Title } = Typography;
-
-/**
- * Error boundary that catches render-phase crashes (e.g. React #185)
- * inside the AI Draft Review modal and surfaces a recovery UI.
- */
-class DraftReviewErrorBoundary extends React.Component<
-  { children: React.ReactNode; itemId?: string; diagnostics?: Record<string, unknown> },
-  { error: Error | null }
-> {
-  state: { error: Error | null } = { error: null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // eslint-disable-next-line no-console
-    console.error(
-      '[AIDraftReviewModal] Render crash caught by error boundary.',
-      {
-        itemId: this.props.itemId,
-        diagnostics: this.props.diagnostics,
-        error,
-        componentStack: info.componentStack,
-      },
-    );
-  }
-
-  render() {
-    if (this.state.error) {
-      const is185 =
-        this.state.error.message?.includes('Maximum update depth') ||
-        this.state.error.message?.includes('#185');
-      return (
-        <Alert
-          type="error"
-          showIcon
-          message={is185 ? 'Render loop detected' : 'Something went wrong'}
-          description={
-            <>
-              <Paragraph>
-                {is185
-                  ? 'A render loop (React #185) was caught before it could crash the page. This is likely caused by an unstable query key or dependency array.'
-                  : `Error: ${this.state.error.message}`}
-              </Paragraph>
-               <Paragraph type="secondary">
-                 Draft item ID: {this.props.itemId ?? 'unknown'}
-               </Paragraph>
-               {Array.isArray(this.props.diagnostics?.queryKeys) &&
-               this.props.diagnostics.queryKeys.length > 0 ? (
-                 <Paragraph type="secondary" style={{ marginBottom: 12 }}>
-                   Query keys: {JSON.stringify(this.props.diagnostics.queryKeys)}
-                 </Paragraph>
-               ) : null}
-               <Button
-                 size="small"
-                 onClick={() => this.setState({ error: null })}
-              >
-                Retry
-              </Button>
-            </>
-          }
-        />
-      );
-    }
-    return this.props.children;
-  }
-}
-
-type AIDraftReviewModalProps = {
-  open: boolean;
-  item: PendingReviewItem | null;
-  onClose: () => void;
-  onResolved?: (reviewId: string) => void;
-  onFeedbackSubmitted?: (reviewId: string, submission: AIInboxFeedbackSubmission) => void;
-};
 
 type AIDraftReviewContentProps = {
   open: boolean;
@@ -320,6 +243,15 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
   const initialValues = useMemo(() => mapDraftToInitialValues(stableItem), [stableItem]);
   const payload = useMemo(() => asRecord(stableItem?.original_extracted_data), [stableItem]);
   const reviewDetailsPath = useMemo(() => buildReviewDetailsPathFromItem(stableItem), [stableItem]);
+  const hasDocumentAuditData = useMemo(
+    () => Boolean(
+      stableItem?.processing_status ||
+      stableItem?.source_metadata ||
+      stableItem?.processing_metadata ||
+      stableItem?.lineage_summary,
+    ),
+    [stableItem],
+  );
   const sourcePreview = useMemo(
     () =>
       firstString(
@@ -830,9 +762,17 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                    {stableItem.source_document_name ? (
                      <Text type="secondary">Attachment: {stableItem.source_document_name}</Text>
                    ) : null}
-                  {payload.po_number ? (
-                    <Text type="secondary">PO #: {String(payload.po_number)}</Text>
-                  ) : null}
+                   {hasDocumentAuditData ? (
+                     <DocumentAuditBadges
+                       processingStatus={stableItem.processing_status}
+                       sourceMetadata={stableItem.source_metadata}
+                       processingMetadata={stableItem.processing_metadata}
+                       lineageSummary={stableItem.lineage_summary}
+                     />
+                   ) : null}
+                   {payload.po_number ? (
+                     <Text type="secondary">PO #: {String(payload.po_number)}</Text>
+                   ) : null}
                   {payload.bol_number ? (
                     <Text type="secondary">BOL #: {String(payload.bol_number)}</Text>
                   ) : null}
@@ -1208,61 +1148,3 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
     </div>
   );
 };
-
-export const AIDraftReviewModal: React.FC<AIDraftReviewModalProps> = ({
-  open,
-  item,
-  onClose,
-  onResolved,
-  onFeedbackSubmitted,
-}) => {
-  const [resolving, setResolving] = useState(false);
-  const stableItem = useDeepStableValue(item);
-  const stableEntityType = useMemo(() => resolveDraftEntityType(stableItem), [stableItem]);
-  const stableEntityKey = useMemo(
-    () => (stableEntityType ? normalizeEntityKey(stableEntityType) : ''),
-    [stableEntityType],
-  );
-  const modalDiagnostics = useMemo(
-    () => ({
-      draftKey: stableItem?.id ?? null,
-      entityType: stableEntityType ?? null,
-      normalizedEntityKey: stableEntityKey || null,
-      queryKeys: stableEntityKey
-        ? [
-            withTenantQueryKey('entity-form-schema', stableEntityKey),
-            withTenantQueryKey('entity-form-record', stableEntityKey, 'new'),
-            withTenantQueryKey('entity-form-fk-options-batch', stableEntityKey),
-          ]
-        : [],
-    }),
-    [stableEntityKey, stableEntityType, stableItem?.id],
-  );
-
-  return (
-    <Modal
-      open={open}
-      onCancel={resolving ? undefined : onClose}
-      footer={null}
-      title="AI Inbox Review"
-      width={1100}
-      destroyOnHidden
-      mask={{ closable: !resolving }}
-      keyboard={!resolving}
-    >
-      <DraftReviewErrorBoundary itemId={stableItem?.id} diagnostics={modalDiagnostics}>
-        <AIDraftReviewContent
-          open={open}
-          item={stableItem}
-          onClose={onClose}
-          onResolved={onResolved}
-          onFeedbackSubmitted={onFeedbackSubmitted}
-          closeOnResolved
-          onResolvingChange={setResolving}
-        />
-      </DraftReviewErrorBoundary>
-    </Modal>
-  );
-};
-
-export default AIDraftReviewModal;

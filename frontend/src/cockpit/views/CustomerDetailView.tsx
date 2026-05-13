@@ -748,7 +748,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
           <HeaderInner>
             <BreadcrumbTitleButton onClick={() => navigate('/cockpit/dashboard')} type="button">
               <BreadcrumbTitle>Customer</BreadcrumbTitle>
-              <BreadcrumbHint>Back to Cockpit workspace</BreadcrumbHint>
+              <BreadcrumbHint>Back to Workspace Dashboard</BreadcrumbHint>
             </BreadcrumbTitleButton>
           </HeaderInner>
         </StickyHeader>
@@ -843,11 +843,11 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
             <BreadcrumbTitleButton
               onClick={() => navigate('/cockpit/dashboard')}
               type="button"
-              title="Back to Cockpit workspace"
-              aria-label="Back to Cockpit workspace"
+              title="Back to Workspace Dashboard"
+              aria-label="Back to Workspace Dashboard"
             >
               <BreadcrumbTitle>{title}</BreadcrumbTitle>
-              <BreadcrumbHint>Click to return to Cockpit search and entity explorer</BreadcrumbHint>
+              <BreadcrumbHint>Click to return to the Workspace Dashboard and entity explorer</BreadcrumbHint>
             </BreadcrumbTitleButton>
           </div>
         </HeaderInner>

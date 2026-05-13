@@ -58,8 +58,19 @@ vi.mock('@/components/Shared/StatCardGrid', () => ({
 }));
 
 vi.mock('@/components/Shared/CockpitPanel', () => ({
-  CockpitPanel: ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div data-testid={`panel-${title}`}>{children}</div>
+  CockpitPanel: ({
+    title,
+    extra,
+    children,
+  }: {
+    title: string;
+    extra?: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <div data-testid={`panel-${title}`}>
+      {extra ? <div data-testid={`panel-extra-${title}`}>{extra}</div> : null}
+      {children}
+    </div>
   ),
 }));
 
@@ -88,10 +99,27 @@ vi.mock('@/components/Cockpit/ProcessFlowHeader', () => ({
   ProcessFlowHeader: () => <div data-testid="flow-header">Header</div>,
 }));
 
-vi.mock('@/components/AIAssistant/AIDraftReviewModal', () => ({
-  AIDraftReviewModal: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+vi.mock('@/components/AIAssistant/AIDraftReviewDialog', () => ({
+  AIDraftReviewDialog: ({
+    open,
+    onClose,
+    item,
+  }: {
+    open: boolean;
+    onClose: () => void;
+    item?: {
+      id?: string;
+      source_metadata?: { source?: string };
+      processing_metadata?: { parse_error_code?: string };
+      lineage_summary?: { latest_summary?: string };
+    };
+  }) =>
     open ? (
       <div data-testid="draft-modal">
+        <span data-testid="draft-modal-item-id">{item?.id}</span>
+        <span data-testid="draft-modal-source">{item?.source_metadata?.source}</span>
+        <span data-testid="draft-modal-error-code">{item?.processing_metadata?.parse_error_code}</span>
+        <span data-testid="draft-modal-lineage">{item?.lineage_summary?.latest_summary}</span>
         <button data-testid="close-draft-modal" onClick={onClose}>Close</button>
       </div>
     ) : null,
@@ -143,7 +171,29 @@ const SAMPLE_REVIEW = {
   original_extracted_data: { supplier: 'Acme Corp', product: 'Steel' },
   sender: 'buyer@example.com',
   source_subject: 'New PO for steel shipment',
+  processing_status: 'failed',
+  source_metadata: {
+    source: 'microsoft_graph_attachment',
+    message_id: 'msg-1',
+  },
+  processing_metadata: {
+    parse_error_code: 'UNSTRUCTURED_UNREACHABLE',
+    parse_error_message: 'Parsing service unavailable',
+  },
+  lineage_summary: {
+    event_count: 2,
+    latest_event_type: 'document_failed',
+    latest_summary: 'Awaiting parser retry.',
+    recent_events: [],
+  },
 };
+
+const createReview = (
+  overrides: Partial<typeof SAMPLE_REVIEW> = {},
+): typeof SAMPLE_REVIEW => ({
+  ...SAMPLE_REVIEW,
+  ...overrides,
+});
 
 const SAMPLE_TRADE = {
   id: 'trade-1',
@@ -365,6 +415,24 @@ describe('AICommandCenter', () => {
     });
   });
 
+  it('renders provenance and retryability badges for AI inbox review items', async () => {
+    mockListPendingReviews.mockResolvedValue([SAMPLE_REVIEW]);
+
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=action-required'),
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText('Document source: Outlook attachment'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText('Document status: Retry later (UNSTRUCTURED_UNREACHABLE)'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Lineage: Awaiting parser retry. (2 events)')).toBeInTheDocument();
+    });
+  });
+
   it('opens draft review modal when clicking AI inbox item', async () => {
     const user = userEvent.setup();
     mockListPendingReviews.mockResolvedValue([SAMPLE_REVIEW]);
@@ -383,6 +451,9 @@ describe('AICommandCenter', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('draft-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('draft-modal-source')).toHaveTextContent('microsoft_graph_attachment');
+      expect(screen.getByTestId('draft-modal-error-code')).toHaveTextContent('UNSTRUCTURED_UNREACHABLE');
+      expect(screen.getByTestId('draft-modal-lineage')).toHaveTextContent('Awaiting parser retry.');
     });
   });
 
@@ -396,6 +467,129 @@ describe('AICommandCenter', () => {
     await waitFor(() => {
       expect(screen.getByTestId('draft-modal')).toBeInTheDocument();
     });
+  });
+
+  it('opens deep-linked draft review from a non-action-required route without changing tab or q', async () => {
+    mockListPendingReviews.mockResolvedValue([SAMPLE_REVIEW]);
+
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=pipeline&q=steel&item=review-abc'),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('draft-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('draft-modal-item-id')).toHaveTextContent('review-abc');
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?tab=pipeline&q=steel&item=review-abc',
+      );
+    });
+  });
+
+  it('removes only item from the URL when closing a deep-linked draft review modal', async () => {
+    const user = userEvent.setup();
+    mockListPendingReviews.mockResolvedValue([SAMPLE_REVIEW]);
+
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=pipeline&q=steel&item=review-abc'),
+    });
+
+    expect(await screen.findByTestId('draft-modal')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('close-draft-modal'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('draft-modal')).not.toBeInTheDocument();
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?tab=pipeline&q=steel',
+      );
+    });
+  });
+
+  it('writes item into the URL when clicking an action-required AI inbox item', async () => {
+    const user = userEvent.setup();
+    mockListPendingReviews.mockResolvedValue([SAMPLE_REVIEW]);
+
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=action-required'),
+    });
+
+    const itemCard = await screen.findByLabelText(/New PO for steel shipment/i);
+    await user.click(itemCard);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('draft-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?tab=action-required&item=review-abc',
+      );
+    });
+  });
+
+  it('opens the correct review from the overview preview cards', async () => {
+    const user = userEvent.setup();
+    mockListPendingReviews.mockResolvedValue([
+      createReview({ id: 'review-first', source_subject: 'First inbox review' }),
+      createReview({ id: 'review-second', source_subject: 'Second inbox review' }),
+    ]);
+
+    render(<AICommandCenter />, { wrapper: createWrapper() });
+
+    const secondPreviewCard = await screen.findByLabelText(/Second inbox review/i);
+    await user.click(secondPreviewCard);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('draft-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('draft-modal-item-id')).toHaveTextContent('review-second');
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?item=review-second',
+      );
+    });
+  });
+
+  it('limits the overview AI inbox preview to three items while preserving the full count CTA', async () => {
+    const user = userEvent.setup();
+    mockListPendingReviews.mockResolvedValue([
+      createReview({ id: 'review-1', source_subject: 'Inbox review 1' }),
+      createReview({ id: 'review-2', source_subject: 'Inbox review 2' }),
+      createReview({ id: 'review-3', source_subject: 'Inbox review 3' }),
+      createReview({ id: 'review-4', source_subject: 'Inbox review 4' }),
+    ]);
+
+    render(<AICommandCenter />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Inbox review 1')).toBeInTheDocument();
+    expect(screen.getByText('Inbox review 2')).toBeInTheDocument();
+    expect(screen.getByText('Inbox review 3')).toBeInTheDocument();
+    expect(screen.queryByText('Inbox review 4')).not.toBeInTheDocument();
+    expect(screen.getByText(/View all \(4\)/i)).toBeInTheDocument();
+
+    await user.click(screen.getByText(/View all \(4\)/i));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?tab=action-required',
+      );
+      expect(screen.getByText('Inbox review 4')).toBeInTheDocument();
+    });
+  });
+
+  it('renders distinct confidence pill branches at the documented threshold boundaries', async () => {
+    mockListPendingReviews.mockResolvedValue([
+      createReview({ id: 'review-high', confidence_score: 0.8, source_subject: 'High threshold' }),
+      createReview({ id: 'review-medium', confidence_score: 0.5, source_subject: 'Warning threshold' }),
+      createReview({ id: 'review-low', confidence_score: 0.49, source_subject: 'Low threshold' }),
+    ]);
+
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=action-required'),
+    });
+
+    const eighty = await screen.findByText('80%');
+    const fifty = screen.getByText('50%');
+    const fortyNine = screen.getByText('49%');
+
+    expect(eighty.className).not.toBe(fifty.className);
+    expect(fifty.className).not.toBe(fortyNine.className);
+    expect(eighty.className).not.toBe(fortyNine.className);
   });
 
   // ======== Search / Filtering ========
@@ -568,5 +762,45 @@ describe('AICommandCenter', () => {
     expect(hintBar.textContent).toContain('Refresh');
     expect(hintBar.textContent).toContain('Switch Tab');
     expect(hintBar.textContent).toContain('Alt+1‑4');
+  });
+
+  it.each([
+    ['/command-center?tab=action-required&q=steel', '1', '/command-center?tab=overview&q=steel'],
+    ['/command-center?tab=overview&q=steel', '2', '/command-center?tab=action-required&q=steel'],
+    ['/command-center?tab=overview&q=steel', '3', '/command-center?tab=pipeline&q=steel'],
+    ['/command-center?tab=overview&q=steel', '4', '/command-center?tab=history&q=steel'],
+  ])(
+    'switches tabs with Alt+%s and preserves q in the URL',
+    async (initialRoute, key, expectedRoute) => {
+      render(<AICommandCenter />, { wrapper: createWrapper(initialRoute) });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Command Center/)).toBeInTheDocument();
+      });
+
+      fireEvent.keyDown(document, { key, altKey: true });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location-display')).toHaveTextContent(expectedRoute);
+      });
+    },
+  );
+
+  it('does not switch tabs with Alt shortcuts while the search input is focused', async () => {
+    const user = userEvent.setup();
+    render(<AICommandCenter />, {
+      wrapper: createWrapper('/command-center?tab=action-required&q=steel'),
+    });
+
+    const searchInput = screen.getByLabelText('Search command center');
+    await user.click(searchInput);
+
+    fireEvent.keyDown(searchInput, { key: '3', altKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/command-center?tab=action-required&q=steel',
+      );
+    });
   });
 });

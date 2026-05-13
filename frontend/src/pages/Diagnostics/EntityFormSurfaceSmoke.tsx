@@ -12,6 +12,7 @@ export const EntityFormSurfaceSmoke: React.FC = () => {
   const handleClose = useCallback(() => {}, []);
   const mode = searchParams.get('mode') === 'create' ? 'create' : 'edit';
   const isCreateMode = mode === 'create';
+  const supplierChildSeed = searchParams.get('seed') === 'supplier-child';
 
   return (
     <div
@@ -37,7 +38,14 @@ export const EntityFormSurfaceSmoke: React.FC = () => {
         onClose={handleClose}
         initialValues={
           isCreateMode
-            ? { supplier: '123', plant_type: 'processing', country: 'USA', export_approved: false }
+            ? supplierChildSeed
+              ? { supplier: '123', plant_type: 'processing', country: 'USA' }
+              : {
+                  supplier: '123',
+                  plant_type: 'processing',
+                  country: 'USA',
+                  export_approved: false,
+                }
             : { export_approved: false }
         }
       />

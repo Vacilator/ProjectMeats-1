@@ -88,6 +88,7 @@ export interface UniversalEntityFormProps {
   externalLoading?: boolean;
   externalLoadError?: unknown | null;
   externalFkOptions?: Record<string, Array<{ id: string | number; name: string }>>;
+  lockedFieldKeys?: string[];
   onSubmittingChange?: (isSubmitting: boolean) => void;
   onValuesChange?: (values: Record<string, unknown>) => void;
 }
@@ -2310,11 +2311,16 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   externalLoading,
   externalLoadError,
   externalFkOptions,
+  lockedFieldKeys,
   onSubmittingChange,
   onValuesChange,
 }) => {
   const { isAuthenticated, loading: authLoading } = useAuthState();
   const stableInitialValues = useDeepStableValue(initialValues);
+  const lockedFieldKeySet = useMemo(
+    () => new Set((lockedFieldKeys ?? []).map((key) => String(key).trim().toLowerCase())),
+    [lockedFieldKeys]
+  );
   const stableLegacyInitialData = useDeepStableValue(initialData);
   const stableInitialValuesSignature = useMemo(
     () => getStableSignature(stableInitialValues ?? EMPTY_FORM_VALUES),
@@ -3544,6 +3550,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                 }
 
                 const mapped = relatedEntityToEntityOptionsType(f.related_entity, f.key);
+                const isLocked = lockedFieldKeySet.has(String(f.key).trim().toLowerCase());
 
                 if (mapped && mapped !== 'product') {
                   return (
@@ -3558,6 +3565,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                         placeholder={`Search ${f.label || f.key}…`}
                         forceSearch
                         debounceMs={0}
+                        disabled={isLocked || submitting || resolvedLoading}
                       />
                     </div>
                   );
@@ -3577,6 +3585,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       getPopupContainer={getSelectPopupContainer}
                       style={{ width: '100%' }}
                       placeholder={`Select ${f.label || f.key}`}
+                      disabled={isLocked || submitting || resolvedLoading}
                       filterOption={(input, option) =>
                         String(option?.label || '').toLowerCase().includes(String(input || '').toLowerCase())
                       }
@@ -3661,6 +3670,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   if (variant === 'inline') return content;
 
+  const modalMaskConfig = { closable: !submitting };
+
   return (
     <Modal
       open={isOpen}
@@ -3669,7 +3680,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (submitting) return;
         onClose();
       }}
-      mask={{ closable: !submitting }}
+      closable={!submitting}
+      mask={modalMaskConfig}
       keyboard={!submitting}
       footer={null}
       width="min(720px, calc(100vw - 32px))"

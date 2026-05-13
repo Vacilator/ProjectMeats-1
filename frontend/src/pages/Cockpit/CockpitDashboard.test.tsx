@@ -80,16 +80,9 @@ vi.mock('../../components/Widgets', () => ({
 
 vi.mock('../../components/Cockpit', () => ({
   CockpitTour: () => <div data-testid="cockpit-tour" />,
-  SmartSearch: ({ onQueryChange }: { onQueryChange?: (value: string) => void }) => (
-    <div data-testid="smart-search">
-      <button type="button" onClick={() => onQueryChange?.('brisket')}>
-        Trigger search
-      </button>
-    </div>
-  ),
   BreadcrumbBar: () => <div data-testid="breadcrumb-bar" />,
   COCKPIT_TOUR_SELECTORS: {
-    smartSearch: '[data-testid="smart-search"]',
+    smartSearch: '#tour-smart-search',
     widgetGrid: '[data-testid="tour-cockpit-grid"]',
     quickActions: '[data-testid="quick-actions"]',
   },
@@ -113,7 +106,7 @@ vi.mock('../../components/Onboarding', () => ({
   }) => (
     <div data-testid="cockpit-welcome">
       <button type="button" onClick={onStartTour}>
-        Take the Cockpit Tour
+        Take the Workspace Tour
       </button>
       <button type="button" onClick={onCustomizeDashboard}>
         Customize Dashboard
@@ -248,18 +241,17 @@ describe('CockpitDashboard empty states', () => {
   it('redirects legacy cockpit q params to the canonical command-center search URL', async () => {
     renderDashboard(['/cockpit?q=brisket']);
 
-    expect(await screen.findByTestId('smart-search')).toBeInTheDocument();
+    expect(await screen.findByTestId('smart-search-guidance')).toBeInTheDocument();
     expect(mockNavigate).toHaveBeenCalledWith('/command-center?q=brisket', { replace: true });
   });
 
-  it('hands SmartSearch queries off to the canonical command-center search URL', async () => {
+  it('routes cockpit search guidance into the canonical command-center search URL', async () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    const searchTrigger = await screen.findByRole('button', { name: /trigger search/i });
-    await user.click(searchTrigger);
+    await user.click(await screen.findByRole('button', { name: /open command center search/i }));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/command-center?q=brisket', { replace: true });
+    expect(mockNavigate).toHaveBeenCalledWith('/command-center');
   });
 
   it('shows the generic no-widgets branch when stats are populated but the saved widget layout is empty', async () => {
@@ -282,19 +274,35 @@ describe('CockpitDashboard empty states', () => {
 
     expect(await screen.findByTestId('widget-grid')).toBeInTheDocument();
     expect(screen.queryByTestId('ai-learning-metrics')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /customize cockpit/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /customize workspace dashboard/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save & lock/i })).not.toBeInTheDocument();
   });
 
-  it('keeps AI learning metrics reachable through customization', async () => {
+  it('keeps AI learning metrics out of new widget additions', async () => {
     const user = userEvent.setup();
     renderDashboard();
 
-    await user.click(await screen.findByRole('button', { name: /customize cockpit/i }));
+    await user.click(await screen.findByRole('button', { name: /customize workspace dashboard/i }));
     await user.click(await screen.findByRole('button', { name: /add widget/i }));
-    await user.click(await screen.findByText('AI Learning Metrics'));
 
-    expect(await screen.findByTestId('ai-learning-metrics')).toBeInTheDocument();
+    expect(screen.queryByText('AI Learning Metrics')).not.toBeInTheDocument();
+  });
+
+  it('still renders saved AI learning metrics widgets from existing layouts', async () => {
+    businessApiMock.get.mockResolvedValue({
+      data: {
+        version: 1,
+        widgets: [
+          { id: 'ai-learning-metrics', type: 'AILearningMetricsWidget', title: 'AI Learning Metrics' },
+        ],
+        layout: [{ i: 'ai-learning-metrics', x: 0, y: 0, w: 6, h: 3 }],
+      },
+    });
+
+    renderDashboard();
+
+    expect(await screen.findByTestId('widget-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('ai-learning-metrics')).toBeInTheDocument();
   });
 
   it('lets Customize Dashboard dismiss the welcome and reveal the editable widget surface', async () => {

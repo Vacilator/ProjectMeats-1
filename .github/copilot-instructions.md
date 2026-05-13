@@ -86,7 +86,8 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
 ### Quick Reference: Common Copilot Agent Tasks
 
 **Before Creating PR:**
-- [ ] **MANDATORY WORKFLOW**: for every batch of changes, ALWAYS: `git switch -c <new-branch>` → open a PR → merge to `Meats-Central/ProjectMeats:development` to trigger Dev deployment (do not leave work unmerged).
+- [ ] **MANDATORY WORKFLOW**: ALWAYS do the following for every batch of changes made: create a new branch, create a new PR, and merge to development.
+- [ ] For every batch of changes, ALWAYS: `git switch -c <new-branch>` → open a PR → merge to `Meats-Central/ProjectMeats:development` to trigger Dev deployment (do not leave work unmerged).
 - [ ] Run `.github/scripts/validate-migrations.sh` (if backend changes)
 - [ ] Run `.github/scripts/validate-environment.sh` (if config changes)
 - [ ] Test migrations on fresh database
@@ -138,7 +139,7 @@ When working in **GitHub Copilot CLI** for this repo, default to a “squad” a
 
 ---
 
-**Last Updated**: 2025-12-05  
+**Last Updated**: 2025-12-05
 **Version**: 4.0 (Shared Schema Only - Removed django-tenants)
 
 ---
@@ -360,13 +361,13 @@ For detailed secret handling rules, see:
 class TenantAwareModel(TimestampModel):
     \"\"\"
     Abstract base model for tenant-aware entities.
-    
+
     Provides tenant isolation via ForeignKey and dynamic schema extension.
     \"\"\"
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)
     custom_data = models.JSONField(default=dict, blank=True)
     objects = TenantManager()
-    
+
     class Meta:
         abstract = True
 ```
@@ -522,13 +523,13 @@ class Migration(migrations.Migration):
                 # ... other fields
             ],
         ),
-        
+
         # 2. Enable RLS and create policy (Raw SQL - MANDATORY)
         RunSQL(
             # Enable RLS
             sql="""
             ALTER TABLE your_app_yourmodel ENABLE ROW LEVEL SECURITY;
-            
+
             -- Create policy using app.current_tenant session variable
             CREATE POLICY yourmodel_tenant_isolation ON your_app_yourmodel
                 USING (tenant_id = current_setting('app.current_tenant')::uuid);
@@ -555,7 +556,7 @@ psql -d projectmeats -c "SELECT schemaname, tablename, rowsecurity FROM pg_table
 psql -d projectmeats -c "SELECT schemaname, tablename, policyname FROM pg_policies WHERE policyname LIKE '%tenant_isolation';"
 ```
 
-**Authority**: `docs/workforms/MIGRATION_STANDARDS.md`  
+**Authority**: `docs/workforms/MIGRATION_STANDARDS.md`
 **Setting**: `ROW_LEVEL_SECURITY = True` in `backend/projectmeats/settings/base.py`
 
 ---
@@ -799,42 +800,42 @@ const Button = styled.button`
 ### Absolute Prohibitions for CI/CD
 
 #### Database Migrations
-❌ **NEVER** suggest SSH-based migrations from deployed containers  
-❌ **NEVER** run migrations as part of web server startup  
-❌ **NEVER** use direct database access from GitHub runners  
-❌ **NEVER** skip the bastion tunnel pattern  
-❌ **NEVER** omit --network host for migration containers  
+❌ **NEVER** suggest SSH-based migrations from deployed containers
+❌ **NEVER** run migrations as part of web server startup
+❌ **NEVER** use direct database access from GitHub runners
+❌ **NEVER** skip the bastion tunnel pattern
+❌ **NEVER** omit --network host for migration containers
 
 #### Health Checks
-❌ **NEVER** check frontend via reverse proxy (port 80)  
-❌ **NEVER** use more than 5 retry attempts  
-❌ **NEVER** omit the Host header when checking proxies  
+❌ **NEVER** check frontend via reverse proxy (port 80)
+❌ **NEVER** use more than 5 retry attempts
+❌ **NEVER** omit the Host header when checking proxies
 
 #### Image Tags
-❌ **NEVER** use :latest tag in production deployments  
-❌ **NEVER** skip SHA tagging for images  
-❌ **NEVER** deploy without immutable image tags  
+❌ **NEVER** use :latest tag in production deployments
+❌ **NEVER** skip SHA tagging for images
+❌ **NEVER** deploy without immutable image tags
 
 ### Required Practices for CI/CD
 
 #### Database Migrations (Runner-Based)
-✅ **ALWAYS** use bastion tunnel pattern (SSH -L 5433)  
-✅ **ALWAYS** run migrations via Docker with --network host  
-✅ **ALWAYS** construct DATABASE_URL pointing to 127.0.0.1:5433  
-✅ **ALWAYS** cleanup tunnel after migration  
-✅ **ALWAYS** use migrate --fake-initial --noinput  
+✅ **ALWAYS** use bastion tunnel pattern (SSH -L 5433)
+✅ **ALWAYS** run migrations via Docker with --network host
+✅ **ALWAYS** construct DATABASE_URL pointing to 127.0.0.1:5433
+✅ **ALWAYS** cleanup tunnel after migration
+✅ **ALWAYS** use migrate --fake-initial --noinput
 
 #### Health Checks
-✅ **ALWAYS** check backend on localhost:8000/api/v1/health/  
-✅ **ALWAYS** check frontend on 127.0.0.1:8080/ (container direct)  
-✅ **ALWAYS** use exactly 5 retry attempts  
-✅ **ALWAYS** verify proxy status separately (non-blocking)  
+✅ **ALWAYS** check backend on localhost:8000/api/v1/health/
+✅ **ALWAYS** check frontend on 127.0.0.1:8080/ (container direct)
+✅ **ALWAYS** use exactly 5 retry attempts
+✅ **ALWAYS** verify proxy status separately (non-blocking)
 
 #### Image Management
-✅ **ALWAYS** tag images with {env}-{sha} format  
-✅ **ALWAYS** push to both DOCR and GHCR  
-✅ **ALWAYS** pull specific SHA tag for deployments  
-✅ **ALWAYS** use immutable references  
+✅ **ALWAYS** tag images with {env}-{sha} format
+✅ **ALWAYS** push to both DOCR and GHCR
+✅ **ALWAYS** pull specific SHA tag for deployments
+✅ **ALWAYS** use immutable references
 
 ### Verification Commands
 
@@ -867,8 +868,8 @@ When answering deployment questions:
 
 ---
 
-**Golden Pipeline Version**: 1.0  
-**Last Updated**: January 30, 2026  
+**Golden Pipeline Version**: 1.0
+**Last Updated**: January 30, 2026
 **Enforcement**: MANDATORY for all AI assistants and developers
 
 ---

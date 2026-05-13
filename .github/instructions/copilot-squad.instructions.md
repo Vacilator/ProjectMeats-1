@@ -13,6 +13,8 @@ Use a reliable “Copilot Squad” workflow in this repo: **parallelize** invest
 - Roadmaps (`ROADMAP.md`, `UI_ROADMAP.md`) are reference-only unless explicitly promoted in `MASTER_PLAN.md`
 
 ## Shipping discipline (mandatory)
+ALWAYS do the following for every batch of changes made: create a new branch, create a new PR, and merge to development.
+
 Ship every batch via: **new branch → PR → merge to `Meats-Central/ProjectMeats:development`**
 
 **CRITICAL: The PR must be MERGED before declaring work done.** Do not call task_complete

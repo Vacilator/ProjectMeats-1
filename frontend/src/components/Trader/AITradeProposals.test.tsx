@@ -7,6 +7,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AITradeProposals } from './AITradeProposals';
 import type { TradeProposal } from '@/services/traderService';
 
+vi.mock('antd', async () => {
+  const actual = await vi.importActual<typeof import('antd')>('antd');
+  return {
+    ...actual,
+    message: {
+      ...actual.message,
+      success: vi.fn(),
+      error: vi.fn(),
+    },
+  };
+});
+
 // Mock traderService
 const mockGetProposals = vi.fn();
 const mockExecuteProposal = vi.fn();

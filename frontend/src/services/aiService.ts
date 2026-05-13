@@ -9,7 +9,14 @@
 
 import { businessApi } from './businessApi';
 import { withRetry } from '../utils/apiRetry';
-import type { ChatMessage, ChatSession, UploadedDocument } from '../types';
+import type {
+  ChatMessage,
+  ChatSession,
+  DocumentLineageSummary,
+  DocumentProcessingMetadata,
+  DocumentSourceMetadata,
+  UploadedDocument,
+} from '../types';
 import type {
   ContractAiChatRequest,
   ContractAiChatResponse,
@@ -33,6 +40,10 @@ export type PendingReviewItem = ContractPendingReviewItem & {
   source_subject?: string;
   source_summary?: string;
   source_document_name?: string;
+  processing_status?: UploadedDocument['processing_status'];
+  source_metadata?: DocumentSourceMetadata | null;
+  processing_metadata?: DocumentProcessingMetadata | null;
+  lineage_summary?: DocumentLineageSummary | null;
   intent_label?: string;
   review_entity_type?: string;
   review_target_url?: string;
@@ -161,6 +172,55 @@ export const extractPendingReviewItems = (
   return Array.isArray(response.results) ? response.results : [];
 };
 
+export const hydratePendingReviewItemsWithDocumentMetadata = async (
+  reviews: PendingReviewItem[],
+): Promise<PendingReviewItem[]> => {
+  const documentIds = [
+    ...new Set(
+      reviews
+        .map((review) => (typeof review.document_id === 'string' ? review.document_id.trim() : ''))
+        .filter(Boolean),
+    ),
+  ];
+  if (!documentIds.length) {
+    return reviews;
+  }
+
+  const documents = await Promise.all(
+    documentIds.map(async (documentId) => {
+      try {
+        const document = await documentsApi.get(documentId);
+        return [documentId, document] as const;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  const documentsById = new Map(
+    documents.filter((entry): entry is readonly [string, DocumentUploadResponse] => Boolean(entry)),
+  );
+
+  return reviews.map((review) => {
+    const documentId =
+      typeof review.document_id === 'string' ? review.document_id.trim() : '';
+    const document = documentId ? documentsById.get(documentId) : null;
+
+    if (!document) {
+      return review;
+    }
+
+    return {
+      ...review,
+      source_document_name: review.source_document_name ?? document.original_filename,
+      processing_status: review.processing_status ?? document.processing_status,
+      source_metadata: review.source_metadata ?? document.source_metadata ?? null,
+      processing_metadata: review.processing_metadata ?? document.processing_metadata ?? null,
+      lineage_summary: review.lineage_summary ?? document.lineage_summary ?? null,
+    };
+  });
+};
+
 // Chat API
 export const chatApi = {
   /**
@@ -202,7 +262,8 @@ export const aiStaffApi = {
     const res = await businessApi.get<PendingReviewListResponse>(
       `/ai-assistant/review/pending/${query ? `?${query}` : ''}`
     );
-    return extractPendingReviewItems(unwrap(res));
+    const reviews = extractPendingReviewItems(unwrap(res));
+    return hydratePendingReviewItemsWithDocumentMetadata(reviews);
   },
 
   resolvePendingReview: async (
