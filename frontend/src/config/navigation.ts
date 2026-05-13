@@ -198,6 +198,7 @@ export const navigation: NavigationItem[] = [
     label: 'AI & Approvals',
     icon: '🤖',
     path: '/settings/ai',
+    badgeKey: 'actionRequired',
   },
 ];
 

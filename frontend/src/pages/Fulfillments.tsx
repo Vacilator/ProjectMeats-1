@@ -8,12 +8,13 @@
  * - Tracking information
  * - Ship/Deliver/Complete actions
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '@/services/businessApi';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
 import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
+import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -331,6 +332,16 @@ const Fulfillments: React.FC = () => {
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FulfillmentStatus | ''>('');
+  const [activeTab, setActiveTab] = useState('all');
+
+  const fulfillmentTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'in_progress', label: 'In Progress' },
+    { key: 'shipped', label: 'Shipped' },
+    { key: 'delivered', label: 'Delivered' },
+    { key: 'completed', label: 'Completed' },
+  ], []);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -462,33 +473,21 @@ const Fulfillments: React.FC = () => {
         </ActionButton>
       </Header>
 
-      <FiltersBar>
-        <SearchInput
-          type="text"
-          placeholder="Search fulfillments..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-
-        <FilterSelect
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as FulfillmentStatus | '');
-            setPage(1);
-          }}
-        >
-          <option value="">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="shipped">Shipped</option>
-          <option value="delivered">Delivered</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </FilterSelect>
-      </FiltersBar>
+      <StatusFilterBar
+        tabs={fulfillmentTabs}
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setStatusFilter(tab === 'all' ? '' : tab as FulfillmentStatus);
+          setPage(1);
+        }}
+        searchText={search}
+        onSearchChange={(val) => {
+          setSearch(val);
+          setPage(1);
+        }}
+        searchPlaceholder="Search fulfillments…"
+      />
 
       <Table>
         <TableHeader>
