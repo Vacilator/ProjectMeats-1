@@ -24,6 +24,7 @@ Golden template for workflow suggestion engine with meat industry context
 | Concern | Golden File | Authority |
 |---------|-------------|-----------|
 | **Environment Variables** | `/manifests/env.manifest.json` | AUTHORITATIVE |
+| **API Contract (OpenAPI schema)** | `/manifests/openapi-schema.yaml` | AUTHORITATIVE |
 | **API Contract (OpenAPI baseline)** | `/manifests/openapi/openapi-schema.baseline.json` | ENFORCEMENT (CI) |
 | **Database Schema** | Django migrations | Applied state |
 | **RLS Policies** | `/manifests/RLS_POLICIES.md` | Audit log |
@@ -63,6 +64,9 @@ Golden template for workflow suggestion engine with meat industry context
 | **Golden State Verifier** | `scripts/verify_golden_state.sh` | ENFORCEMENT (nightly) |
 | **Golden Audit Script** | `scripts/golden-audit.sh` | TOOLING |
 | **Phase 5 API Verifier** | `scripts/verify-phase5-api.sh` | TOOLING (manual) |
+| **Form Error Boundary** | `frontend/src/components/Shared/FormErrorBoundary.tsx` | UX resilience for entity forms |
+| **Home Workspace Page** | `frontend/src/pages/Home.tsx` | Primary landing page |
+| **AI Settings Hub** | `frontend/src/pages/AISettings/index.tsx` | AI configuration management |
 
 ## Environment Structure (6-Lane System)
 

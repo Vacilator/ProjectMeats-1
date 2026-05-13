@@ -1,7 +1,8 @@
 # Meats Central
 
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-green)
-![Tests](https://img.shields.io/badge/Tests-149%20Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-1900%2B%20Passing-brightgreen)
+![Phases](https://img.shields.io/badge/Phases-38%20Active%20%7C%2040%20Complete-blueviolet)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict%20%7C%200%20Errors-blue)
 
 **The simplest, most powerful end-to-end meat supply-chain platform on earth.**
@@ -14,12 +15,13 @@ Email → Order → Fulfillment with AI-powered automation. Hands-free meat trad
 
 | Feature | Description |
 |---------|-------------|
-| 🤖 **AI Trade Proposals** | Proactive trade suggestions with confidence scoring and one-click execution |
+| 🏠 **Modern Home Workspace** | Clean, card-based landing page with quick-access entity creation and recent activity |
+| 📝 **Premium Entity Forms** | Supplier PO, Sales Order, Invoice, Carrier, Carrier PO — all with validation, prefill, and error boundaries |
+| 🤖 **AI Feedback & Approval** | AI-powered suggestions with RLHF feedback loops, confidence scoring, and human-in-the-loop approvals |
+| 🔍 **Universal Search (Ctrl+K)** | Instant, grouped search results across all entities — suppliers, customers, products, orders |
+| 💬 **AI Chat Assistant** | Context-aware assistant with session history, knowledge base integration, and lineage tracking |
+| ⚡ **Workflow Automation** | Visual drag-and-drop workflow editor with conditional logic, loops, and multi-trigger execution |
 | 📧 **AI Inbox** | Automated email parsing, PO extraction, and draft creation (15-min sync) |
-| 🎯 **Trader Command Center** | Unified 4-tab cockpit: Command Center, Live Pipeline, Operations, History |
-| ⚡ **Smart Trade Creator** | 4-mode wizard: natural language, minimal fields, paste text, AI chat |
-| 📊 **Process Cockpit** | Real-time monitoring with React Flow process diagrams and contact enrichment |
-| 🔄 **E2E Automation** | Multi-trigger pipeline (email, manual, AI) with dependency approvals |
 | 🏢 **Multi-Tenant** | Shared-schema + PostgreSQL RLS for database-level tenant isolation |
 | 📱 **Mobile Ready** | React Native companion app with shared business logic |
 
@@ -34,13 +36,13 @@ Email → Order → Fulfillment with AI-powered automation. Hands-free meat trad
 
 ### Investor Demo Flow (5 minutes)
 
-1. **Login** → lands on Trader Command Center
-2. **KPI Cards** → instant overview of active trades, pending approvals, AI confidence
-3. **Smart Trade Creator** → type "50,000 lbs ground beef 81/19 for next Tuesday" → AI fills form
-4. **AI Proposals tab** → see proactive trade suggestions with confidence badges
-5. **Live Pipeline** → watch trades progress through stages with React Flow diagrams
-6. **Process Cockpit** → monitor all processes, action required items, AI inbox drafts
-7. **Master Data** → Suppliers → Plants → Contacts with enriched Plant Contact Types
+1. **Login** → lands on clean Home workspace with quick-access cards
+2. **Universal Search** → press Ctrl+K, type any entity — see grouped, instant results
+3. **Entity Creation** → open Supplier PO form — see premium validation, prefill, and error boundaries
+4. **AI Assistant** → open chat panel — ask a question, see session history and context awareness
+5. **Workflow Editor** → drag-and-drop nodes, configure triggers, preview automation flows
+6. **AI Feedback** → review AI suggestions, provide RLHF feedback, approve/reject with confidence scores
+7. **Master Data** → Suppliers → Plants → Contacts with enriched relationship management
 
 > 📋 Full walkthrough: [docs/INVESTOR_DEMO_GUIDE.md](docs/INVESTOR_DEMO_GUIDE.md)
 
@@ -155,7 +157,7 @@ cd frontend && npm run dev
 ## 🧪 Testing
 
 ```bash
-# Backend (149 tests, all passing)
+# Backend (213+ test files, 1900+ tests, all passing)
 cd backend && python manage.py test tenant_apps/ apps/ --verbosity=1
 
 # Frontend (TypeScript strict, 0 errors)
@@ -169,11 +171,13 @@ cd frontend && npx playwright test
 ```
 
 ### Test Coverage Highlights
-- **E2E Executors**: 29 tests (sales order generation, bid selection, contact resolution)
-- **Platform Finalization**: 12 tests (RFQ contacts, PO prefill, cockpit routing, PO 226052)
-- **Model Consolidation**: 52 tests (7 DRY mixins)
-- **Scaling/Observability**: 10 tests (correlation IDs, metrics)
-- **E2E Templates**: 30+ tests (multi-trigger routing, loop logic)
+- **213+ test files** across backend, frontend, and E2E suites
+- **Entity Forms**: Comprehensive validation, prefill, and error boundary tests
+- **AI Assistant**: Chat sessions, feedback loops, knowledge base, lineage events
+- **Workflow Engine**: Multi-trigger routing, loop logic, dead letter queues, conditional execution
+- **Model Consolidation**: 52 tests (7 DRY mixins) + RLS compliance auditing
+- **E2E Executors**: Sales order generation, bid selection, contact resolution
+- **Render Stability**: Custom lint rules preventing React #185 and hydration churn
 
 ---
 
@@ -197,7 +201,7 @@ cd frontend && npx playwright test
 
 ---
 
-**Last Updated**: May 8, 2026
+**Last Updated**: June 2026
 **Status**: ✅ Production Ready
 **Architecture Version**: Golden Pipeline v1.0
-**Platform Version**: Phase 20 (Industry Leader State)
+**Platform Version**: Phase 38 Active · 40 Phases Complete

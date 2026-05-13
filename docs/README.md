@@ -14,32 +14,20 @@ Welcome to the ProjectMeats documentation. This index helps you find what you ne
 
 ## 🎉 What's New
 
-### February 2026: WorkForms Enhancement Project Launched! 🚀
+### June 2026: Phase 38 Active · 40 Phases Complete 🚀
 
-**NEW ACTIVE PROJECT**: Entity-Driven Form Builder & Workflow Containers
+**Platform Maturity**: Production-grade meat supply-chain platform with 213+ test files and 1900+ tests.
 
-Major enhancement to WorkForms editor with 6-week, 9-phase implementation:
-- 🏗️ **Entity Integration**: Forms auto-populate from entity schemas (Supplier, Customer, etc.)
-- 📦 **Workflow Containers**: Group ANY node types for advanced automation
-- 💾 **TenantWorkForms**: Save complete workflows with form references
-- 📐 **Node Alignment**: Auto-align tools with keyboard shortcuts (Ctrl+Shift+H/V/D)
-- 🖥️ **Fullscreen Mode**: Accessible editor with full capabilities
+**Recent Highlights:**
+- 🏠 **Home Workspace**: Clean, modern landing page replacing legacy cockpit views
+- 📝 **Premium Entity Forms**: Supplier PO, Sales Order, Invoice, Carrier, Carrier PO — all with validation and error boundaries
+- 🤖 **AI Feedback & Approval System**: RLHF loops, confidence scoring, human-in-the-loop approvals
+- 🔍 **Universal Search (Ctrl+K)**: Grouped results across all entities
+- 💬 **AI Chat Assistant**: Session history, knowledge base, semantic search, lineage tracking
+- ⚡ **Workflow Automation Engine**: Visual editor with conditional logic, loops, dead letter queues
+- 🛡️ **RLS Hardening**: 80+ tenant-aware tables with PostgreSQL Row-Level Security
 
-[View Full Project Plan →](features/WORKFORMS_ENHANCEMENT_PROJECT.md)
-
-### February 2026: Wave 2 Complete!
-
-✅ **Cockpit Command Center** is now 100% complete (48/48 tasks)
-
-**New Features Available Now:**
-- 🎨 **Customizable Workspace**: Drag, resize, and arrange widgets
-- ⌨️ **Command Palette**: Universal search with ⌘K / Ctrl+K
-- 📊 **Entity Explorer**: Visual relationship graphs
-- 💾 **Layout Persistence**: Syncs across devices
-
-**Why don't I notice much change?** Most of Wave 2 was infrastructure (90%) with subtle UI improvements (10%). [Read the full explanation →](WHATS_NEW.md)
-
-**What's coming next?** Waves 3-4 in March-April 2026 will bring more visible features like My Tasks dashboard and visual configuration editors.
+[View Full Project Plan →](features/WORKFORMS_ENHANCEMENT_PROJECT.md) | [What's New](WHATS_NEW.md)
 
 ---
 
