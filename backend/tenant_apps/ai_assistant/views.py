@@ -4,6 +4,7 @@ Views for AI Assistant functionality.
 Provides REST API endpoints for chat interactions, document uploads,
 and AI-powered business intelligence for meat market operations.
 """
+
 import logging
 import time
 import uuid
@@ -208,9 +209,7 @@ def _build_feedback_document_placeholder(
     attachment_filenames = payload.get("attachment_filenames")
     first_attachment_name = (
         attachment_filenames[0]
-        if isinstance(attachment_filenames, list)
-        and attachment_filenames
-        and isinstance(attachment_filenames[0], str)
+        if isinstance(attachment_filenames, list) and attachment_filenames and isinstance(attachment_filenames[0], str)
         else ""
     )
     original_filename = _first_non_empty_string(

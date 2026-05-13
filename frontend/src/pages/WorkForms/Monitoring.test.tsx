@@ -64,7 +64,7 @@ describe('WorkForms Monitoring', () => {
 
     await user.click(screen.getByRole('button', { name: /Home/i }));
 
-    expect(screen.getByText('home-route')).toBeInTheDocument();
+    expect(await screen.findByText('home-route')).toBeInTheDocument();
   });
 
   it('offers direct drill-in next steps to history and catalog', async () => {

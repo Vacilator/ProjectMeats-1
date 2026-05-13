@@ -10,24 +10,25 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from apps.tenants.models import Tenant
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
+    Inquiry,
     InquiryEntityTypeChoices,
     InquiryShippingTypeChoices,
-    Inquiry,
     InquiryStatusChoices,
     TradeSessionStatus,
 )
-from tenant_apps.inquiries.views_trades import TradePipelineViewSet
 from tenant_apps.inquiries.services.trade_session import (
     cascade_trade_session,
     get_or_create_trade_session,
     update_trade_session_status,
 )
+from tenant_apps.inquiries.views_trades import TradePipelineViewSet
 from tenant_apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
 from tenant_apps.suppliers.models import Supplier
+
+from apps.tenants.models import Tenant
 
 
 class TradeSessionCreationTests(TestCase):
@@ -205,9 +206,7 @@ class TradeSessionStatusTests(TestCase):
         ts, _ = get_or_create_trade_session(tenant=self.tenant, inquiry=inquiry)
         self.assertIsNone(ts.completed_at)
 
-        update_trade_session_status(
-            trade_session=ts, new_status=TradeSessionStatus.COMPLETED
-        )
+        update_trade_session_status(trade_session=ts, new_status=TradeSessionStatus.COMPLETED)
         ts.refresh_from_db()
         self.assertEqual(ts.status, TradeSessionStatus.COMPLETED)
         self.assertIsNotNone(ts.completed_at)
@@ -223,9 +222,7 @@ class TradeSessionStatusTests(TestCase):
         )
         ts, _ = get_or_create_trade_session(tenant=self.tenant, inquiry=inquiry)
 
-        update_trade_session_status(
-            trade_session=ts, new_status=TradeSessionStatus.SOURCING
-        )
+        update_trade_session_status(trade_session=ts, new_status=TradeSessionStatus.SOURCING)
         ts.refresh_from_db()
         self.assertEqual(ts.status, TradeSessionStatus.SOURCING)
         self.assertIsNone(ts.completed_at)

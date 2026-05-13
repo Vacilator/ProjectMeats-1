@@ -22,8 +22,8 @@ from rest_framework.response import Response
 
 from tenant_apps.inquiries.models import (
     Inquiry,
-    InquiryShippingTypeChoices,
     InquiryRouteDecisionChoices,
+    InquiryShippingTypeChoices,
     InquiryStatusChoices,
     TradeSession,
     TradeSessionStatus,
@@ -461,11 +461,14 @@ class TradePipelineViewSet(viewsets.ViewSet):
 
             try:
                 requested_protein = getattr(inquiry, "requested_protein", "") or ""
-                requested_product_name = getattr(
-                    getattr(inquiry, "requested_master_product", None),
-                    "name",
-                    "",
-                ) or ""
+                requested_product_name = (
+                    getattr(
+                        getattr(inquiry, "requested_master_product", None),
+                        "name",
+                        "",
+                    )
+                    or ""
+                )
                 proposal_subject = getattr(getattr(inquiry, "source_email", None), "subject", "") or ""
                 proposal_notes = (getattr(inquiry, "notes", "") or "").strip()
 
