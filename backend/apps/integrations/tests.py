@@ -21,6 +21,7 @@ from apps.tenants.models import Tenant, TenantUser
 
 class EmailSyncTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(username="testuser", password="testpass123")
         self.tenant = Tenant.objects.create(
             name="Test Tenant",
@@ -79,10 +80,42 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get("accepted"), True)
         self.assertEqual(resp.data.get("source"), "login")
         self.assertEqual(resp.data.get("task_id"), "task-123")
+        self.assertEqual(resp.data.get("progress", {}).get("phase"), "queued")
         apply_async.assert_called_once_with(args=[str(self.tenant.id)])
+
+    def test_auto_sync_not_connected_returns_reconnect_action(self):
+        ExternalAuthProvider.objects.filter(tenant=self.tenant, provider_type="microsoft").update(is_active=False)
+
+        resp = self.client.post(
+            "/api/v1/integrations/email/auto-sync/",
+            {"source": "manual"},
+            format="json",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(resp.data.get("accepted"))
+        self.assertEqual(resp.data.get("action", {}).get("type"), "reconnect_outlook")
+        self.assertIn("/api/v1/integrations/oauth/authorize/", resp.data.get("action", {}).get("url", ""))
+
+    @patch("apps.integrations.tasks.sync_single_tenant.apply_async")
+    def test_auto_sync_schedule_failure_returns_retry_action(self, apply_async):
+        apply_async.side_effect = RuntimeError("queue unavailable")
+
+        resp = self.client.post(
+            "/api/v1/integrations/email/auto-sync/",
+            {"source": "manual"},
+            format="json",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(resp.data.get("accepted"))
+        self.assertEqual(resp.data.get("action", {}).get("type"), "retry_sync")
 
     @patch("apps.integrations.views.AsyncResult")
     def test_auto_sync_status_returns_task_state(self, async_result_cls):
+        cache.set("integrations.email_auto_sync.tenant:task-123", str(self.tenant.id), timeout=60)
         async_result_cls.return_value = SimpleNamespace(
             state="SUCCESS",
             ready=lambda: True,
@@ -106,6 +139,95 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get("ready"), True)
         self.assertEqual(resp.data.get("successful"), True)
         self.assertEqual(resp.data.get("result", {}).get("tenant_id"), str(self.tenant.id))
+
+    @patch("apps.integrations.views.AsyncResult")
+    def test_auto_sync_status_returns_inflight_progress(self, async_result_cls):
+        cache.set("integrations.email_auto_sync.tenant:task-progress", str(self.tenant.id), timeout=60)
+        async_result_cls.return_value = SimpleNamespace(
+            state="PROGRESS",
+            ready=lambda: False,
+            successful=lambda: False,
+            failed=lambda: False,
+            info={
+                "tenant_id": str(self.tenant.id),
+                "progress": {
+                    "phase": "refreshing_ai_inbox",
+                    "percent": 80,
+                    "summary": "Refreshing AI Inbox summaries…",
+                },
+            },
+            result=None,
+        )
+
+        resp = self.client.get(
+            "/api/v1/integrations/email/auto-sync/task-progress/",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data.get("progress", {}).get("phase"), "refreshing_ai_inbox")
+        self.assertEqual(resp.data.get("progress", {}).get("percent"), 80)
+
+    @patch("apps.integrations.views.AsyncResult")
+    def test_auto_sync_status_rejects_cross_tenant_inflight_task(self, async_result_cls):
+        other_user = User.objects.create_user(username="otheruser", password="testpass123")
+        other_tenant = Tenant.objects.create(
+            name="Other Tenant",
+            slug="other-tenant",
+            contact_email="other@example.com",
+            created_by=other_user,
+        )
+        cache.set("integrations.email_auto_sync.tenant:task-foreign", str(other_tenant.id), timeout=60)
+        async_result_cls.return_value = SimpleNamespace(
+            state="PROGRESS",
+            ready=lambda: False,
+            successful=lambda: False,
+            failed=lambda: False,
+            info=None,
+            result=None,
+        )
+
+        resp = self.client.get(
+            "/api/v1/integrations/email/auto-sync/task-foreign/",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("apps.integrations.views.AsyncResult")
+    def test_auto_sync_status_marks_semantic_failure_as_failed(self, async_result_cls):
+        cache.set("integrations.email_auto_sync.tenant:task-failed", str(self.tenant.id), timeout=60)
+        async_result_cls.return_value = SimpleNamespace(
+            state="SUCCESS",
+            ready=lambda: True,
+            successful=lambda: True,
+            failed=lambda: False,
+            info=None,
+            result={
+                "tenant_id": str(self.tenant.id),
+                "success": False,
+                "summary": "Microsoft Graph timed out while syncing email.",
+                "action": {"type": "retry_sync", "label": "Retry Sync"},
+                "failure": {
+                    "code": "GRAPH_TIMEOUT",
+                    "category": "network",
+                    "retryable": True,
+                    "state": "retryable_failure",
+                    "message": "Microsoft Graph timed out while syncing email.",
+                    "provider": "microsoft",
+                },
+            },
+        )
+
+        resp = self.client.get(
+            "/api/v1/integrations/email/auto-sync/task-failed/",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(resp.data.get("successful"))
+        self.assertTrue(resp.data.get("failed"))
+        self.assertEqual(resp.data.get("result", {}).get("action", {}).get("type"), "retry_sync")
 
     def test_auto_sync_soft_fails_when_not_connected(self):
         ExternalAuthProvider.objects.filter(tenant=self.tenant, provider_type="microsoft").update(is_active=False)
@@ -136,6 +258,7 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(resp.data.get("code"), "not_connected")
         self.assertEqual(resp.data.get("error_code"), "not_connected")
+        self.assertEqual(resp.data.get("action", {}).get("type"), "reconnect_outlook")
         self.assertIn("hint", resp.data)
         self.assertEqual(resp.data.get("cta", {}).get("url"), "/settings/email-integrations")
         self.assertEqual(resp.data.get("failure", {}).get("code"), "OUTLOOK_NOT_CONNECTED")

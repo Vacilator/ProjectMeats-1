@@ -1,8 +1,8 @@
 import React from 'react';
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AIInboxSyncProvider } from './AIInboxSyncContext';
+import { AIInboxSyncProvider, useAIInboxSync } from './AIInboxSyncContext';
 import { useAuth } from './AuthContext';
 import {
   AI_INBOX_AUTO_SYNC_INTERVAL_MS,
@@ -31,6 +31,8 @@ vi.mock('@/services/aiService', () => ({
 
 vi.mock('@/utils/logger', () => ({
   logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
     warn: vi.fn(),
   },
 }));
@@ -38,6 +40,21 @@ vi.mock('@/utils/logger', () => ({
 const mockUseAuth = vi.mocked(useAuth);
 const mockTrigger = vi.mocked(aiInboxSyncApi.trigger);
 const mockGetStatus = vi.mocked(aiInboxSyncApi.getStatus);
+
+const SyncProbe = () => {
+  const { syncState, requestSync } = useAIInboxSync();
+
+  return (
+    <div>
+      <div data-testid="sync-status">{syncState.status}</div>
+      <div data-testid="sync-summary">{syncState.summary ?? ''}</div>
+      <div data-testid="sync-action">{syncState.action?.label ?? ''}</div>
+      <button type="button" onClick={() => void requestSync('manual')}>
+        Trigger manual sync
+      </button>
+    </div>
+  );
+};
 
 describe('AIInboxSyncProvider', () => {
   beforeEach(() => {
@@ -61,6 +78,11 @@ describe('AIInboxSyncProvider', () => {
       accepted: true,
       task_id: 'task-123',
       source: 'login',
+      progress: {
+        phase: 'queued',
+        percent: 5,
+        summary: 'Email sync queued. Checking Outlook shortly…',
+      },
     });
     mockGetStatus.mockResolvedValue({
       task_id: 'task-123',
@@ -68,7 +90,16 @@ describe('AIInboxSyncProvider', () => {
       ready: true,
       successful: true,
       failed: false,
-      result: { tenant_id: 'tenant-123' },
+      progress: {
+        phase: 'completed',
+        percent: 100,
+        summary: 'Email sync completed.',
+      },
+      result: {
+        tenant_id: 'tenant-123',
+        success: true,
+        summary: 'Email sync completed.',
+      },
     });
   });
 
@@ -82,7 +113,7 @@ describe('AIInboxSyncProvider', () => {
 
     render(
       <AIInboxSyncProvider>
-        <div>child</div>
+        <SyncProbe />
       </AIInboxSyncProvider>,
     );
 
@@ -104,13 +135,15 @@ describe('AIInboxSyncProvider', () => {
 
     expect(mockGetStatus).toHaveBeenCalledWith('task-123');
     expect(refreshListener).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('sync-status')).toHaveTextContent('succeeded');
+    expect(screen.getByTestId('sync-summary')).toHaveTextContent('Email sync completed.');
     window.removeEventListener(AI_INBOX_REFRESH_EVENT, refreshListener);
   });
 
   it('queues recurring interval syncs while the session stays authenticated', async () => {
     render(
       <AIInboxSyncProvider>
-        <div>child</div>
+        <SyncProbe />
       </AIInboxSyncProvider>,
     );
 
@@ -136,5 +169,88 @@ describe('AIInboxSyncProvider', () => {
     });
 
     expect(mockTrigger).toHaveBeenCalledWith({ source: 'interval' });
+  });
+
+  it('publishes retryable reconnect state for failed manual syncs', async () => {
+    mockTrigger
+      .mockResolvedValueOnce({
+        ok: true,
+        accepted: true,
+        task_id: 'task-123',
+        source: 'login',
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        accepted: false,
+        source: 'manual',
+        message: 'Outlook needs to be reconnected.',
+        action: {
+          type: 'reconnect_outlook',
+          label: 'Reconnect Outlook',
+          url: '/api/v1/integrations/oauth/authorize/?provider=microsoft&tenant_id=tenant-123&redirect=1',
+        },
+        failure: {
+          code: 'OUTLOOK_CONNECTION_EXPIRED',
+          retryable: false,
+          hint: 'Reconnect Outlook in Settings → Email Integrations.',
+        },
+      });
+
+    render(
+      <AIInboxSyncProvider>
+        <SyncProbe />
+      </AIInboxSyncProvider>,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(60 + AI_INBOX_AUTO_SYNC_STATUS_POLL_MS);
+      await Promise.resolve();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Trigger manual sync/i }));
+
+    await act(async () => {
+      vi.advanceTimersByTime(60);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('sync-status')).toHaveTextContent('failed');
+    expect(screen.getByTestId('sync-summary')).toHaveTextContent('Outlook needs to be reconnected.');
+    expect(screen.getByTestId('sync-action')).toHaveTextContent('Reconnect Outlook');
+  });
+
+  it('does not treat deadline-reached polling as successful completion', async () => {
+    mockGetStatus.mockResolvedValue({
+      task_id: 'task-123',
+      state: 'PROGRESS',
+      ready: false,
+      successful: false,
+      failed: false,
+      progress: {
+        phase: 'syncing_outlook',
+        percent: 30,
+        summary: 'Syncing Outlook inbox…',
+      },
+    });
+
+    render(
+      <AIInboxSyncProvider>
+        <SyncProbe />
+      </AIInboxSyncProvider>,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(60);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime((AI_INBOX_AUTO_SYNC_STATUS_POLL_MS * 24) + 1000);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('sync-status')).toHaveTextContent('failed');
+    expect(screen.getByTestId('sync-summary')).toHaveTextContent('taking longer than expected');
+    expect(screen.getByTestId('sync-action')).toHaveTextContent('Retry Sync');
   });
 });

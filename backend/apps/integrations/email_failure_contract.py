@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlencode
 
 EMAIL_INTEGRATIONS_CTA = {
+    "type": "open_email_integrations",
     "label": "Open Email Integrations",
     "url": "/settings/email-integrations",
 }
@@ -210,6 +212,40 @@ def should_include_integrations_cta(failure: dict[str, Any]) -> bool:
     return str(failure.get("category") or "").strip().lower() in {"auth", "decrypt"}
 
 
+def build_sync_action(failure: dict[str, Any] | None, *, tenant_id: str | None = None) -> dict[str, Any] | None:
+    if not isinstance(failure, dict):
+        return None
+
+    category = str(failure.get("category") or "").strip().lower()
+    if category in {"auth", "decrypt"}:
+        if tenant_id:
+            query = urlencode(
+                {
+                    "provider": "microsoft",
+                    "tenant_id": tenant_id,
+                    "redirect": "1",
+                }
+            )
+            return {
+                "type": "reconnect_outlook",
+                "label": "Reconnect Outlook",
+                "url": f"/api/v1/integrations/oauth/authorize/?{query}",
+            }
+        return {
+            "type": "reconnect_outlook",
+            "label": "Reconnect Outlook",
+            "url": EMAIL_INTEGRATIONS_CTA["url"],
+        }
+
+    if bool(failure.get("retryable")):
+        return {
+            "type": "retry_sync",
+            "label": "Retry Sync",
+        }
+
+    return None
+
+
 def build_email_failure(
     code: str,
     *,
@@ -270,6 +306,9 @@ def build_sync_failure_response(
         payload["provider_email"] = provider_email
     if stats is not None:
         payload["stats"] = stats
+    action = build_sync_action(failure, tenant_id=tenant_id)
+    if action:
+        payload["action"] = action
     if should_include_integrations_cta(failure):
         payload["cta"] = EMAIL_INTEGRATIONS_CTA
     if failure.get("detail_type"):

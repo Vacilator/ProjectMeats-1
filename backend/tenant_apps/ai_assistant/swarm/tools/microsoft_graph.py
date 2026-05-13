@@ -16,7 +16,7 @@ from typing import Any
 
 from cryptography.fernet import InvalidToken
 
-from apps.integrations.email_failure_contract import build_email_failure
+from apps.integrations.email_failure_contract import build_email_failure, build_sync_action
 
 DEFAULT_MAIL_FOLDER = "inbox"
 DEFAULT_MAIL_LIMIT = 10
@@ -95,6 +95,7 @@ def build_tool_error_payload(
     retryable: bool = False,
     details: str | None = None,
     extra_error_fields: dict[str, Any] | None = None,
+    action: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "ok": False,
@@ -112,6 +113,8 @@ def build_tool_error_payload(
         payload["error"]["details"] = details
     if extra_error_fields:
         payload["error"].update(extra_error_fields)
+    if action:
+        payload["error"]["action"] = action
     return payload
 
 
@@ -142,6 +145,7 @@ def error_payload_from_exception(
             retryable=failure["retryable"],
             details=failure.get("details"),
             extra_error_fields=extra_error_fields,
+            action=build_sync_action(failure, tenant_id=tenant_id),
         )
 
     if isinstance(exc, ValueError):

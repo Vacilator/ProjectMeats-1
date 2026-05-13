@@ -12,6 +12,15 @@ const mockListActiveTrades = vi.fn().mockResolvedValue({ results: [] });
 const mockListPendingReviews = vi.fn().mockResolvedValue([]);
 const mockAdvanceTrade = vi.fn();
 const mockGetProposals = vi.fn().mockResolvedValue({ results: [] });
+const mockRequestSync = vi.fn();
+let mockSyncState: Record<string, unknown> = {
+  status: 'idle',
+  summary: null,
+  action: null,
+  failure: null,
+  progress: null,
+  retryable: false,
+};
 
 vi.mock('@/services/traderService', () => ({
   traderService: {
@@ -31,6 +40,13 @@ vi.mock('@/services/aiService', () => ({
 
 vi.mock('@/utils/queryKeys', () => ({
   withTenantQueryKey: (key: string) => [key],
+}));
+
+vi.mock('@/contexts/AIInboxSyncContext', () => ({
+  useAIInboxSync: () => ({
+    syncState: mockSyncState,
+    requestSync: mockRequestSync,
+  }),
 }));
 
 // Mock heavy child components to keep tests fast
@@ -209,6 +225,14 @@ const SAMPLE_TRADE = {
 describe('AICommandCenter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSyncState = {
+      status: 'idle',
+      summary: null,
+      action: null,
+      failure: null,
+      progress: null,
+      retryable: false,
+    };
     mockListActiveTrades.mockResolvedValue({ results: [] });
     mockListPendingReviews.mockResolvedValue([]);
     mockGetProposals.mockResolvedValue({ results: [] });
@@ -236,6 +260,15 @@ describe('AICommandCenter', () => {
   it('has accessible refresh button', async () => {
     render(<AICommandCenter />, { wrapper: createWrapper() });
     expect(screen.getByLabelText('Refresh all data')).toBeInTheDocument();
+  });
+
+  it('triggers a manual inbox sync when refresh is clicked', async () => {
+    const user = userEvent.setup();
+    render(<AICommandCenter />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByLabelText('Refresh all data'));
+
+    expect(mockRequestSync).toHaveBeenCalledWith('manual');
   });
 
   it('shows Overview tab by default', async () => {
@@ -286,6 +319,28 @@ describe('AICommandCenter', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('ai-proposals')).not.toBeInTheDocument();
     });
+  });
+
+  it('renders sync recovery alert state from the shared sync context', async () => {
+    mockSyncState = {
+      status: 'failed',
+      summary: 'Outlook needs to be reconnected.',
+      action: {
+        type: 'reconnect_outlook',
+        label: 'Reconnect Outlook',
+        url: '/api/v1/integrations/oauth/authorize/?provider=microsoft&tenant_id=tenant-123&redirect=1',
+      },
+      failure: {
+        hint: 'Reconnect Outlook in Settings → Email Integrations.',
+      },
+      progress: null,
+      retryable: false,
+    };
+
+    render(<AICommandCenter />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('Outlook needs to be reconnected.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reconnect Outlook' })).toBeInTheDocument();
   });
 
   it('links the empty action-required state to WorkForms Monitoring', async () => {

@@ -91,6 +91,7 @@ import {
   getCanonicalSearchQuery,
 } from '../utils/canonicalSearch';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useAIInboxSync } from '@/contexts/AIInboxSyncContext';
 
 const { Text, Title } = Typography;
 
@@ -620,6 +621,7 @@ const AICommandCenter: React.FC = () => {
   useDocumentTitle('Command Center');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { syncState, requestSync } = useAIInboxSync();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
 
@@ -669,7 +671,7 @@ const AICommandCenter: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trade-lineage') });
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey(quickCreateTarget.entityType + 's') });
     }
-  }, [quickCreateTarget, queryClient, withTenantQueryKey]);
+  }, [quickCreateTarget, queryClient]);
 
   // ---- Data Queries ----
 
@@ -866,11 +868,55 @@ const AICommandCenter: React.FC = () => {
   }, [navigate, handleModalClose]);
 
   const handleRefreshAll = useCallback(() => {
+    void requestSync('manual');
     void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('command-center-trades') });
     void queryClient.invalidateQueries({
       queryKey: withTenantQueryKey('command-center-ai-reviews'),
     });
-  }, [queryClient]);
+  }, [queryClient, requestSync]);
+
+  const handleSyncRecoveryAction = useCallback(() => {
+    if (syncState.action?.type === 'retry_sync') {
+      void requestSync('manual');
+      return;
+    }
+
+    if (typeof window !== 'undefined' && syncState.action?.url) {
+      window.location.assign(syncState.action.url);
+    }
+  }, [requestSync, syncState.action]);
+
+  const syncStatusAlert = useMemo(() => {
+    if (syncState.status === 'idle' || syncState.status === 'skipped') {
+      return null;
+    }
+
+    if (syncState.status === 'running') {
+      return {
+        type: 'info' as const,
+        message: syncState.progress?.summary || syncState.summary || 'Syncing Outlook inbox…',
+        description:
+          syncState.progress && Number.isFinite(syncState.progress.percent)
+            ? `${syncState.progress.percent}% complete`
+            : 'Checking Outlook and refreshing the AI Inbox.',
+      };
+    }
+
+    if (syncState.status === 'failed') {
+      return {
+        type: syncState.retryable ? ('warning' as const) : ('error' as const),
+        message: syncState.summary || syncState.message || 'Email sync needs attention.',
+        description: syncState.failure?.hint || undefined,
+        actionLabel: syncState.action?.label,
+      };
+    }
+
+    return {
+      type: 'success' as const,
+      message: syncState.summary || syncState.message || 'Email sync completed.',
+      description: syncState.result?.summary || undefined,
+    };
+  }, [syncState]);
 
   const handleOpenWorkFormsMonitoring = useCallback(() => {
     navigate('/workforms/monitoring');
@@ -1110,13 +1156,29 @@ const AICommandCenter: React.FC = () => {
               <RoundedUtilityButton
                 icon={<RefreshCw size={14} />}
                 onClick={handleRefreshAll}
-                loading={tradesQuery.isFetching || reviewsQuery.isFetching}
+                loading={tradesQuery.isFetching || reviewsQuery.isFetching || syncState.status === 'running'}
                 aria-label="Refresh all data"
               />
             </Tooltip>
           </>
         )}
       />
+
+      {syncStatusAlert ? (
+        <Alert
+          type={syncStatusAlert.type}
+          message={syncStatusAlert.message}
+          description={syncStatusAlert.description}
+          showIcon
+          action={
+            syncStatusAlert.actionLabel ? (
+              <Button size="small" onClick={handleSyncRecoveryAction}>
+                {syncStatusAlert.actionLabel}
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : null}
 
       {/* Quick Actions */}
       <OperatorActionRow role="toolbar" aria-label="Quick actions">
@@ -1293,54 +1355,53 @@ const AICommandCenter: React.FC = () => {
 
       {/* ======== Action Required Tab ======== */}
       {activeTab === 'action-required' && (
-        <>
-          {reviewsQuery.isLoading ? (
-            <Skeleton active paragraph={{ rows: 4 }} />
-          ) : reviewsQuery.isError ? (
-            <Alert
-              type="error"
-              message="Failed to load AI inbox items"
-              description={reviewsQuery.error instanceof Error ? reviewsQuery.error.message : 'Unknown error'}
-              showIcon
-              action={<Button size="small" onClick={() => reviewsQuery.refetch()}>Retry</Button>}
-            />
-          ) : filteredAiInbox.length === 0 ? (
-            <EmptyState>
-              <CheckCircle2 size={32} strokeWidth={1.5} />
-              <span>Operator queue is clear.</span>
-              <EmptySubtext>
-                No items need attention right now. Use WorkForms Monitoring for active
-                execution details and step-level drill-ins.
-              </EmptySubtext>
-              <RoundedUtilityButton onClick={handleOpenWorkFormsMonitoring}>
-                Open WorkForms Monitoring
-              </RoundedUtilityButton>
-            </EmptyState>
-          ) : (
-            <CardList>
-              {filteredAiInbox.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleItemClick(item)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleItemClick(item); } }}
-                  aria-label={`${item.title} – ${item.statusLabel}`}
-                >
-                  <ItemIcon $variant={getStatusVariant(item.status)}>
-                    {getIconForSource(item.icon)}
-                  </ItemIcon>
-                   <ItemContent>
-                     <ItemTitle>{item.title}</ItemTitle>
-                     <ItemMeta>
-                      <StatusPill $variant={getStatusVariant(item.status)}>
-                        {item.statusLabel}
-                      </StatusPill>
-                      {item.intent_label && (
-                        <IntentLabel>
-                          🎯 {item.intent_label}
-                        </IntentLabel>
-                      )}
+        reviewsQuery.isLoading ? (
+          <Skeleton active paragraph={{ rows: 4 }} />
+        ) : reviewsQuery.isError ? (
+          <Alert
+            type="error"
+            message="Failed to load AI inbox items"
+            description={reviewsQuery.error instanceof Error ? reviewsQuery.error.message : 'Unknown error'}
+            showIcon
+            action={<Button size="small" onClick={() => reviewsQuery.refetch()}>Retry</Button>}
+          />
+        ) : filteredAiInbox.length === 0 ? (
+          <EmptyState>
+            <CheckCircle2 size={32} strokeWidth={1.5} />
+            <span>Operator queue is clear.</span>
+            <EmptySubtext>
+              No items need attention right now. Use WorkForms Monitoring for active
+              execution details and step-level drill-ins.
+            </EmptySubtext>
+            <RoundedUtilityButton onClick={handleOpenWorkFormsMonitoring}>
+              Open WorkForms Monitoring
+            </RoundedUtilityButton>
+          </EmptyState>
+        ) : (
+          <CardList>
+            {filteredAiInbox.map((item) => (
+              <ItemCard
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleItemClick(item)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleItemClick(item); } }}
+                aria-label={`${item.title} – ${item.statusLabel}`}
+              >
+                <ItemIcon $variant={getStatusVariant(item.status)}>
+                  {getIconForSource(item.icon)}
+                </ItemIcon>
+                  <ItemContent>
+                    <ItemTitle>{item.title}</ItemTitle>
+                    <ItemMeta>
+                     <StatusPill $variant={getStatusVariant(item.status)}>
+                       {item.statusLabel}
+                     </StatusPill>
+                     {item.intent_label && (
+                       <IntentLabel>
+                         🎯 {item.intent_label}
+                       </IntentLabel>
+                     )}
                       {item.confidence != null && (
                         <ConfidencePill $confidence={item.confidence}>
                           {Math.round(item.confidence * 100)}%
@@ -1365,8 +1426,7 @@ const AICommandCenter: React.FC = () => {
                 </ItemCard>
               ))}
             </CardList>
-          )}
-        </>
+          )
       )}
 
       {/* ======== Live Pipeline Tab ======== */}

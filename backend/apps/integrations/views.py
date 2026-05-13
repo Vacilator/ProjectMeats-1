@@ -7,6 +7,7 @@ import logging
 import secrets
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.core import signing
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -21,6 +22,7 @@ from drf_spectacular.utils import extend_schema
 from .email_failure_contract import (
     EMAIL_INTEGRATIONS_CTA,
     build_email_failure,
+    build_sync_action,
     build_sync_failure_response,
     failure_from_log_fields,
     failure_from_stats,
@@ -39,6 +41,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 AUTO_SYNC_SOURCES = {"login", "interval", "manual"}
+AUTO_SYNC_TASK_CACHE_TTL_SECONDS = 60 * 60 * 4
 
 
 def _normalize_auto_sync_source(raw_source):
@@ -47,6 +50,10 @@ def _normalize_auto_sync_source(raw_source):
         if normalized in AUTO_SYNC_SOURCES:
             return normalized
     return "interval"
+
+
+def _auto_sync_task_cache_key(task_id: str) -> str:
+    return f"integrations.email_auto_sync.tenant:{task_id}"
 
 
 @api_view(["GET"])
@@ -319,6 +326,12 @@ def get_connection_status(request):
                 "connected_name": provider.connected_name,
                 "is_expired": provider.is_token_expired(),
                 "connected_at": provider.created_at.isoformat(),
+                "reconnect_action": build_sync_action(
+                    build_email_failure("OUTLOOK_CONNECTION_EXPIRED", stage="oauth_status"),
+                    tenant_id=str(request.tenant.id),
+                )
+                if provider.is_token_expired()
+                else None,
             }
         )
 
@@ -394,6 +407,7 @@ def schedule_email_sync(request):
                 "code": "not_connected",
                 "tenant_id": tenant_id,
                 "source": source,
+                "action": build_sync_action(failure, tenant_id=tenant_id),
                 "failure": failure,
             },
             status=status.HTTP_200_OK,
@@ -423,6 +437,7 @@ def schedule_email_sync(request):
                 "code": "sync_schedule_failed",
                 "tenant_id": tenant_id,
                 "source": source,
+                "action": build_sync_action(failure, tenant_id=tenant_id),
                 "failure": failure,
                 "details": {
                     "type": sync_err.__class__.__name__,
@@ -430,6 +445,8 @@ def schedule_email_sync(request):
             },
             status=status.HTTP_200_OK,
         )
+
+    cache.set(_auto_sync_task_cache_key(task.id), tenant_id, timeout=AUTO_SYNC_TASK_CACHE_TTL_SECONDS)
 
     return Response(
         {
@@ -440,6 +457,11 @@ def schedule_email_sync(request):
             "source": source,
             "provider_email": provider.connected_email,
             "task_id": task.id,
+            "progress": {
+                "phase": "queued",
+                "percent": 5,
+                "summary": "Email sync queued. Checking Outlook shortly…",
+            },
         },
         status=status.HTTP_202_ACCEPTED,
     )
@@ -454,7 +476,20 @@ def get_scheduled_email_sync_status(request, task_id):
     if not tenant:
         return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
 
+    expected_tenant_id = cache.get(_auto_sync_task_cache_key(task_id))
+    if expected_tenant_id and str(expected_tenant_id) != str(tenant.id):
+        return Response({"error": "Sync task not found"}, status=status.HTTP_404_NOT_FOUND)
+
     result = AsyncResult(task_id)
+    raw_result_info = getattr(result, "info", None)
+    result_info = raw_result_info if isinstance(raw_result_info, dict) else None
+    info_tenant_id = str((result_info or {}).get("tenant_id") or "").strip()
+    if info_tenant_id and info_tenant_id != str(tenant.id):
+        return Response({"error": "Sync task not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if not result.ready() and not expected_tenant_id and not info_tenant_id:
+        return Response({"error": "Sync task not found"}, status=status.HTTP_404_NOT_FOUND)
+
     payload = {
         "task_id": task_id,
         "state": result.state,
@@ -462,12 +497,19 @@ def get_scheduled_email_sync_status(request, task_id):
         "successful": result.successful(),
         "failed": result.failed(),
     }
+    if result_info and isinstance(result_info.get("progress"), dict):
+        payload["progress"] = result_info["progress"]
 
     if result.ready() and isinstance(result.result, dict):
         task_tenant_id = str(result.result.get("tenant_id") or "").strip()
         if task_tenant_id and task_tenant_id != str(tenant.id):
             return Response({"error": "Sync task not found"}, status=status.HTTP_404_NOT_FOUND)
         payload["result"] = result.result
+        if isinstance(result.result.get("progress"), dict):
+            payload["progress"] = result.result["progress"]
+        if result.result.get("success") is False:
+            payload["successful"] = False
+            payload["failed"] = True
 
     return Response(payload, status=status.HTTP_200_OK)
 
@@ -508,6 +550,7 @@ def sync_emails(request):
                 "code": "not_connected",
                 "error_code": "not_connected",
                 "hint": failure["hint"],
+                "action": build_sync_action(failure, tenant_id=tenant_id),
                 "cta": EMAIL_INTEGRATIONS_CTA,
                 "tenant_id": tenant_id,
                 "failure": failure,

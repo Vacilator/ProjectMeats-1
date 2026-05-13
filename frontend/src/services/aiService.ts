@@ -115,6 +115,43 @@ export interface ContextualSuggestionsResponse {
 
 export type AIInboxSyncSource = 'login' | 'interval' | 'manual';
 
+export interface AIInboxSyncAction {
+  type?: string;
+  label: string;
+  url?: string;
+}
+
+export interface AIInboxSyncFailure {
+  state?: string;
+  category?: string;
+  code?: string;
+  legacy_error_code?: string;
+  retryable?: boolean;
+  message?: string;
+  hint?: string;
+  provider?: string;
+  stage?: string;
+  detail_type?: string;
+  details?: unknown;
+}
+
+export interface AIInboxSyncProgress {
+  phase: string;
+  percent: number;
+  summary: string;
+}
+
+export interface AIInboxSyncResult {
+  success?: boolean;
+  tenant_id?: string;
+  stats?: Record<string, unknown>;
+  ai_inbox?: Record<string, unknown>;
+  summary?: string;
+  action?: AIInboxSyncAction;
+  failure?: AIInboxSyncFailure;
+  progress?: AIInboxSyncProgress;
+}
+
 export interface AIInboxSyncTriggerRequest {
   source?: AIInboxSyncSource;
 }
@@ -128,6 +165,9 @@ export interface AIInboxSyncTriggerResponse {
   provider_email?: string;
   task_id?: string;
   code?: string;
+  action?: AIInboxSyncAction;
+  failure?: AIInboxSyncFailure;
+  progress?: AIInboxSyncProgress;
 }
 
 export interface AIInboxSyncStatusResponse {
@@ -136,7 +176,8 @@ export interface AIInboxSyncStatusResponse {
   ready: boolean;
   successful: boolean;
   failed: boolean;
-  result?: Record<string, unknown>;
+  progress?: AIInboxSyncProgress;
+  result?: AIInboxSyncResult;
 }
 
 export type DocumentUploadResponse = UploadedDocument;

@@ -44,7 +44,7 @@ import {
 import { groupChatSessionsByDate } from '@/components/ChatInterface/sessionHistory';
 import { aiStaffApi, chatApi, chatSessionsApi, hydrateDocumentMessageMetadata, AI_INBOX_REFRESH_EVENT } from '@/services/aiService';
 import { useStickyAutoScroll } from '@/hooks/useStickyAutoScroll';
-import { AI_INBOX_SYNC_STATUS_EVENT, type AIInboxSyncStatus } from '@/contexts/AIInboxSyncContext';
+import { useAIInboxSync } from '@/contexts/AIInboxSyncContext';
 import type {
   DocumentLineageSummary,
   DocumentProcessingMetadata,
@@ -420,6 +420,51 @@ const IntegrationLink = styled.a`
   }
 `;
 
+const SyncBanner = styled.div<{ $tone: 'info' | 'warning' | 'success' }>`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: ${({ $tone }) =>
+    $tone === 'warning'
+      ? 'rgba(var(--color-warning), 0.08)'
+      : $tone === 'success'
+        ? 'rgba(var(--color-success), 0.08)'
+        : 'rgba(var(--color-info), 0.08)'};
+  color: rgb(var(--color-text-primary));
+`;
+
+const SyncBannerText = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+`;
+
+const SyncBannerSummary = styled.span`
+  color: rgb(var(--color-text-secondary));
+  font-size: 11px;
+`;
+
+const InlineActionButton = styled.button`
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--color-primary), 0.3);
+  background: rgba(var(--color-primary), 0.1);
+  color: rgb(var(--color-primary));
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.16);
+  }
+`;
+
 const Messages = styled.div<{ $dragOver: boolean }>`
   flex: 1;
   overflow: auto;
@@ -730,6 +775,7 @@ export const AIAgentWidget: React.FC = () => {
   const toast = useToast();
   const location = useLocation();
   const cockpitNav = useCockpitNavigation();
+  const { syncState, requestSync } = useAIInboxSync();
 
   const pageContext = useMemo(
     () => buildAIPageContext({ pathname: location.pathname, search: location.search }, cockpitNav.path),
@@ -772,7 +818,6 @@ export const AIAgentWidget: React.FC = () => {
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(0);
   const [dragOver, setDragOver] = useState(false);
-  const [emailSyncActive, setEmailSyncActive] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inboxSocketRef = useRef<WebSocket | null>(null);
@@ -806,21 +851,6 @@ export const AIAgentWidget: React.FC = () => {
   useEffect(() => {
     toastRef.current = toast;
   }, [toast]);
-
-  // Listen for email sync status events from AIInboxSyncProvider.
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ status: AIInboxSyncStatus }>).detail;
-      if (detail.status === 'started') {
-        setEmailSyncActive(true);
-      } else {
-        setEmailSyncActive(false);
-      }
-    };
-
-    window.addEventListener(AI_INBOX_SYNC_STATUS_EVENT, handler);
-    return () => window.removeEventListener(AI_INBOX_SYNC_STATUS_EVENT, handler);
-  }, []);
 
   // Listen for inbox refresh events (fired after email sync completes) to request updated counts.
   useEffect(() => {
@@ -871,6 +901,19 @@ export const AIAgentWidget: React.FC = () => {
     setAiInboxRealtimeStatus('connecting');
     manualReconnectRef.current?.();
   }, []);
+
+  const handleSyncRecoveryAction = useCallback((event?: React.MouseEvent) => {
+    event?.stopPropagation();
+
+    if (syncState.action?.type === 'retry_sync') {
+      void requestSync('manual');
+      return;
+    }
+
+    if (typeof window !== 'undefined' && syncState.action?.url) {
+      window.location.assign(syncState.action.url);
+    }
+  }, [requestSync, syncState.action]);
 
   // ---------------------------------------------------------------------------
   // WebSocket connection management (mount-only effect)
@@ -1333,8 +1376,19 @@ export const AIAgentWidget: React.FC = () => {
   const pill =
     state === 'thinking'
       ? { text: 'Thinking', variant: 'info' as const }
-      : emailSyncActive
-        ? { text: 'Syncing emails…', variant: 'info' as const }
+      : syncState.status === 'running'
+        ? {
+            text: syncState.progress?.summary || syncState.summary || 'Syncing emails…',
+            variant: 'info' as const,
+          }
+        : syncState.status === 'failed' && syncState.action
+          ? {
+              text:
+                syncState.action.type === 'reconnect_outlook'
+                  ? 'Reconnect Outlook'
+                  : syncState.action.label,
+              variant: 'warn' as const,
+            }
         : aiInboxCount > 0
           ? {
               text: `${aiInboxCount} in Inbox`,
@@ -1344,7 +1398,39 @@ export const AIAgentWidget: React.FC = () => {
             ? { text: 'Inbox offline', variant: 'info' as const, showReconnect: true }
           : state === 'action_required'
             ? { text: 'Action required', variant: 'warn' as const }
-          : { text: 'Idle', variant: 'ok' as const };
+            : { text: 'Idle', variant: 'ok' as const };
+
+  const syncBanner = useMemo(() => {
+    if (syncState.status === 'idle' || syncState.status === 'skipped') {
+      return null;
+    }
+
+    if (syncState.status === 'running') {
+      return {
+        tone: 'info' as const,
+        title: syncState.progress?.summary || syncState.summary || 'Syncing emails…',
+        detail:
+          syncState.progress && Number.isFinite(syncState.progress.percent)
+            ? `${syncState.progress.percent}% complete`
+            : 'Checking Outlook and refreshing the AI Inbox.',
+      };
+    }
+
+    if (syncState.status === 'failed') {
+      return {
+        tone: 'warning' as const,
+        title: syncState.summary || syncState.message || 'Email sync needs attention.',
+        detail: syncState.failure?.hint || syncState.failure?.message || undefined,
+        actionLabel: syncState.action?.label,
+      };
+    }
+
+    return {
+      tone: 'success' as const,
+      title: syncState.summary || syncState.message || 'Email sync completed.',
+      detail: syncState.result?.summary || undefined,
+    };
+  }, [syncState]);
 
   const outlookBannerText = (() => {
     if (!outlookStatus) return 'Status unavailable';
@@ -1936,24 +2022,6 @@ export const AIAgentWidget: React.FC = () => {
                 <Title title={headerTitle}>{headerTitle}</Title>
               </HeaderLeft>
               <StatusPill $variant={pill.variant}>{pill.text}</StatusPill>
-              {'showReconnect' in pill && (pill as { showReconnect?: boolean }).showReconnect ? (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); handleManualReconnect(); }}
-                  style={{
-                    fontSize: 10,
-                    padding: '2px 8px',
-                    borderRadius: 999,
-                    border: '1px solid rgba(var(--color-primary), 0.3)',
-                    background: 'rgba(var(--color-primary), 0.1)',
-                    color: 'rgb(var(--color-primary))',
-                    cursor: 'pointer',
-                    marginLeft: 4,
-                  }}
-                >
-                  Reconnect
-                </button>
-              ) : null}
             </>
           ) : (
             icon
@@ -2009,7 +2077,26 @@ export const AIAgentWidget: React.FC = () => {
               <IntegrationDot $connected={Boolean(outlookStatus?.connected)} />
               <span>Outlook: {outlookBannerText}</span>
               <IntegrationLink href="/settings/email-integrations">{outlookStatus?.connected ? 'Manage' : 'Connect'}</IntegrationLink>
+              {aiInboxRealtimeStatus === 'degraded' ? (
+                <InlineActionButton type="button" onClick={handleManualReconnect}>
+                  Reconnect
+                </InlineActionButton>
+              ) : null}
             </IntegrationBanner>
+
+            {syncBanner ? (
+              <SyncBanner $tone={syncBanner.tone}>
+                <SyncBannerText>
+                  <span>{syncBanner.title}</span>
+                  {syncBanner.detail ? <SyncBannerSummary>{syncBanner.detail}</SyncBannerSummary> : null}
+                </SyncBannerText>
+                {syncBanner.actionLabel ? (
+                  <InlineActionButton type="button" onClick={handleSyncRecoveryAction}>
+                    {syncBanner.actionLabel}
+                  </InlineActionButton>
+                ) : null}
+              </SyncBanner>
+            ) : null}
 
             <Messages
               ref={messagesRef}
