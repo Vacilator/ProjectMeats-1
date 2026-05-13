@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Skeleton } from 'antd';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
-import { apiClient, apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { LocationSelector } from '../components/Shared';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { SmartProductAutocomplete } from '../components/Inquiry/SmartProductAutocomplete';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
+import SupplierPOForm from './PurchaseOrders/SupplierPOForm';
 
 // Styled Components
 const Header = styled.div`
@@ -456,17 +458,6 @@ const SubmitButton = styled.button`
 
 const PurchaseOrders: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
-
-  type CockpitPrefill = {
-    source?: string;
-    query?: string;
-    supplierId?: string;
-    contextEntity?: { id?: string; type?: string; label?: string };
-  };
-
-  const cockpitPrefill = (location.state as any)?.prefill as CockpitPrefill | undefined;
-  const [pendingCreatePrefill, setPendingCreatePrefill] = useState<CockpitPrefill | null>(null);
 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -528,62 +519,19 @@ const PurchaseOrders: React.FC = () => {
     delivery_location: null, // Phase 4: Location integration
   });
 
-  // Auto-open form if ?action=create in URL (e.g., from Cockpit suggested actions)
+  // Auto-open form if ?action=create in URL
   useEffect(() => {
     if (searchParams.get('action') !== 'create') return;
-
-    const supplierId =
-      searchParams.get('supplier_id') ??
-      cockpitPrefill?.supplierId ??
-      undefined;
-
-    const cockpitQuery =
-      searchParams.get('cockpit_q') ??
-      cockpitPrefill?.query ??
-      undefined;
-
-    setPendingCreatePrefill({
-      source: 'cockpit',
-      supplierId: supplierId || undefined,
-      query: cockpitQuery || undefined,
-      contextEntity: cockpitPrefill?.contextEntity,
-    });
 
     setEditingPurchaseOrder(null);
     setShowForm(true);
 
-    // Clear params so refresh doesn't keep reopening.
-    ['action', 'supplier_id', 'cockpit_q'].forEach((key) => searchParams.delete(key));
-    setSearchParams(searchParams);
-  }, [searchParams, setSearchParams, cockpitPrefill]);
-
-  // Apply prefill once we have loaded suppliers + existing orders (for next suggested order_number)
-  useEffect(() => {
-    if (!pendingCreatePrefill || !showForm) return;
-
-    const supplierId = pendingCreatePrefill.supplierId ?? '';
-    const noteParts: string[] = [];
-
-    if (pendingCreatePrefill.query) {
-      noteParts.push(`Cockpit search: "${pendingCreatePrefill.query}"`);
-    }
-
-    if (pendingCreatePrefill.contextEntity?.label) {
-      noteParts.push(`Context: ${pendingCreatePrefill.contextEntity.label}`);
-    }
-
-    const suggestedNotes = noteParts.join('\n');
-
-    setFormData((prev) => ({
-      ...prev,
-      order_number: prev.order_number || getNextOrderNumber(),
-      supplier: supplierId || prev.supplier,
-      order_date: prev.order_date || new Date().toISOString().split('T')[0],
-      notes: prev.notes || suggestedNotes,
-    }));
-
-    setPendingCreatePrefill(null);
-  }, [pendingCreatePrefill, showForm, suppliers.length, purchaseOrders.length]);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      ['action', 'supplier_id'].forEach((key) => next.delete(key));
+      return next;
+    });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     loadData();
@@ -642,7 +590,7 @@ const PurchaseOrders: React.FC = () => {
       setExporting(true);
 
       // Use backend streaming export (tenant-safe via get_queryset + filter_queryset)
-      const response = await apiClient.get('/purchase-orders/', {
+      const response = await businessApi.get('/purchase-orders/', {
         params: { format: 'csv' },
         responseType: 'blob',
       });
@@ -1089,248 +1037,35 @@ const PurchaseOrders: React.FC = () => {
       )}
 
       {showForm && (
-        <FormOverlay>
-          <FormContainer>
-            <FormHeader>
-              <FormTitle>
-                {editingPurchaseOrder ? 'Edit Purchase Order' : 'Add New Purchase Order'}
-              </FormTitle>
-              <CloseButton onClick={() => setShowForm(false)}>×</CloseButton>
-            </FormHeader>
-            <Form onSubmit={handleSubmit}>
-              <FormGroup>
-                <Label>Type of Pick Up</Label>
-                <Select 
-                  name="logistics_scenario" 
-                  value={formData.logistics_scenario} 
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="we_pickup">Tenant - Pickup (We Handle Logistics)</option>
-                  <option value="supplier_delivery">Supplier - Delivering</option>
-                  <option value="customer_pickup">Customer - Picking Up</option>
-                </Select>
-                <FieldHint>
-                  {formData.logistics_scenario === 'customer_pickup' && '🚗 Customer picks up from supplier'}
-                  {formData.logistics_scenario === 'supplier_delivery' && '🚚 Supplier delivers to us'}
-                  {formData.logistics_scenario === 'we_pickup' && '🚛 Tenant pickup / our logistics'}
-                </FieldHint>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Purchase Order Number</Label>
-                <Input
-                  type="text"
-                  name="order_number"
-                  value={formData.order_number || getNextOrderNumber()}
-                  onChange={handleInputChange}
-                  disabled
-                />
-                <FieldHint>Auto-generated format: 2YYNNN (example: 226040)</FieldHint>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Supplier</Label>
-                <Select
-                  name="supplier"
-                  value={formData.supplier}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select a supplier</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Product</Label>
-                <SmartProductAutocomplete
-                  value={formData.product}
-                  onChange={(productId, product) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      product: productId,
-                      item_description:
-                        prev.item_description
-                        || product?.name
-                        || product?.description
-                        || product?.description_of_product_item
-                        || '',
-                      fresh_or_frozen: prev.fresh_or_frozen || product?.fresh_or_frozen || '',
-                      package_type: prev.package_type || product?.package_type || '',
-                    }));
-                  }}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Description</Label>
-                <TextArea
-                  name="item_description"
-                  value={formData.item_description}
-                  onChange={handleInputChange}
-                  rows={2}
-                  placeholder="Auto-filled from product name (editable)"
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Fresh / Frozen</Label>
-                <Select name="fresh_or_frozen" value={formData.fresh_or_frozen} onChange={handleInputChange} required>
-                  <option value="">Select…</option>
-                  {effectiveFreshFrozenOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Package Type</Label>
-                <Select name="package_type" value={formData.package_type} onChange={handleInputChange} required>
-                  <option value="">Select…</option>
-                  {effectivePackageTypeOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Qty</Label>
-                <Input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Weight per Unit</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="weight_per_unit"
-                  value={formData.weight_per_unit}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Total Weight</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="total_weight"
-                  value={formData.total_weight}
-                  onChange={handleInputChange}
-                  placeholder="Auto-calculated (qty * weight per unit)"
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Weight Unit</Label>
-                <Select name="weight_unit" value={formData.weight_unit} onChange={handleInputChange} required>
-                  {effectiveWeightUnitOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Cost per lb</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="price_per_unit"
-                  value={formData.price_per_unit}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Total Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="total_amount"
-                  value={formData.total_amount}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Status</Label>
-                <Select name="status" value={formData.status} onChange={handleInputChange} required>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                </Select>
-              </FormGroup>
-              <FormGroup>
-                <Label>Order Date</Label>
-                <Input
-                  type="date"
-                  name="order_date"
-                  value={formData.order_date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Delivery Date</Label>
-                <Input
-                  type="date"
-                  name="delivery_date"
-                  value={formData.delivery_date}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Notes</Label>
-                <TextArea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows={3}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <LocationSelector
-                  value={formData.pick_up_location}
-                  onChange={(id) => setFormData({ ...formData, pick_up_location: id })}
-                  label="Pick-up Location"
-                  placeholder="Select pick-up location"
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <LocationSelector
-                  value={formData.delivery_location}
-                  onChange={(id) => setFormData({ ...formData, delivery_location: id })}
-                  label="Delivery Location"
-                  placeholder="Select delivery location"
-                />
-              </FormGroup>
-
-              <FormActions>
-                <CancelButton type="button" onClick={() => setShowForm(false)}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">
-                  {editingPurchaseOrder ? 'Update' : 'Create'} Purchase Order
-                </SubmitButton>
-              </FormActions>
-            </Form>
-          </FormContainer>
-        </FormOverlay>
+        <SupplierPOForm
+          mode={editingPurchaseOrder ? 'edit' : 'create'}
+          entityId={editingPurchaseOrder?.id}
+          initialValues={editingPurchaseOrder ? {
+            logistics_scenario: (editingPurchaseOrder.logistics_scenario as 'customer_pickup' | 'supplier_delivery' | 'we_pickup') || 'supplier_delivery',
+            supplier: String(editingPurchaseOrder.supplier || ''),
+            product: (editingPurchaseOrder.product || '') as string,
+            item_description: editingPurchaseOrder.item_description || '',
+            fresh_or_frozen: editingPurchaseOrder.fresh_or_frozen || '',
+            package_type: editingPurchaseOrder.package_type || '',
+            quantity: editingPurchaseOrder.quantity != null ? String(editingPurchaseOrder.quantity) : '',
+            total_weight: editingPurchaseOrder.total_weight != null ? String(editingPurchaseOrder.total_weight) : '',
+            weight_unit: editingPurchaseOrder.weight_unit || 'LBS',
+            price_per_unit: editingPurchaseOrder.price_per_unit != null ? String(editingPurchaseOrder.price_per_unit) : '',
+            delivery_date: editingPurchaseOrder.delivery_date || '',
+            notes: editingPurchaseOrder.notes || '',
+            pick_up_location: editingPurchaseOrder.pick_up_location || null,
+            delivery_location: editingPurchaseOrder.delivery_location || null,
+          } : undefined}
+          onSuccess={() => {
+            setShowForm(false);
+            setEditingPurchaseOrder(null);
+            loadPurchaseOrders();
+          }}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingPurchaseOrder(null);
+          }}
+        />
       )}
     </>
   );
