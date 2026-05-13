@@ -148,3 +148,4 @@ storybook-static
 backups/
 SENDGRID_API_KEY.txt
 openapi-schema.json
+.copilot-worktrees/

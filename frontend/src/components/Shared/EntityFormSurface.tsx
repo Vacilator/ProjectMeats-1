@@ -125,7 +125,8 @@ const fetchEntityFormFkOptionsBatch = async (
     return {};
   }
 
-  const entries = await Promise.all(
+  // Use allSettled so one failing FK endpoint doesn't block the entire form
+  const results = await Promise.allSettled(
     descriptors.map(async (descriptor) => {
       const options = await fetchUniversalEntityFkOptions({
         key: descriptor.fieldKey,
@@ -136,11 +137,13 @@ const fetchEntityFormFkOptionsBatch = async (
     }),
   );
 
-  return entries.reduce<FkOptionsMap>((accumulator, [fieldKey, options]) => {
-    if (options.length > 0) {
-      accumulator[fieldKey] = options;
+  return results.reduce<FkOptionsMap>((accumulator, result) => {
+    if (result.status === 'fulfilled') {
+      const [fieldKey, options] = result.value;
+      if (options.length > 0) {
+        accumulator[fieldKey] = options;
+      }
     }
-
     return accumulator;
   }, {});
 };
@@ -322,25 +325,17 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const fkOptionsQuery = useQuery(fkOptionsQueryOptions);
   const fkOptions = useMemo<FkOptionsMap>(() => fkOptionsQuery.data ?? {}, [fkOptionsQuery.data]);
 
-  const fkOptionsLoading =
-    shouldHydrate &&
-    stableFkDescriptors.length > 0 &&
-    (fkOptionsQuery.isLoading || fkOptionsQuery.isPending);
+  // FK options are NON-BLOCKING: form mounts as soon as schema loads.
+  // Dropdowns populate asynchronously when FK options arrive.
   const formLoading =
     (isOpen && authLoading) ||
     (shouldHydrate &&
       (schemaQuery.isLoading ||
         schemaQuery.isPending ||
-        (shouldLoadRecord && (recordQuery.isLoading || recordQuery.isPending)) ||
-        fkOptionsLoading));
+        (shouldLoadRecord && (recordQuery.isLoading || recordQuery.isPending))));
   const formReady =
     hasAugmentedSchema &&
-    (!shouldLoadRecord || Boolean(recordQuery.data || recordQuery.error)) &&
-    (!shouldHydrate ||
-      !stableFkDescriptors.length ||
-      // FK options are non-blocking: form renders even if they fail or finish loading
-      !(fkOptionsQuery.isLoading || fkOptionsQuery.isPending) ||
-      Boolean(fkOptionsQuery.error));
+    (!shouldLoadRecord || Boolean(recordQuery.data || recordQuery.error));
   const formLoadError =
     !authLoading && !isAuthenticated && isOpen
       ? buildUnauthorizedLoadError()

@@ -13,7 +13,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styled, { css, keyframes } from 'styled-components';
 import { useLocation } from 'react-router-dom';
 
-import { useCockpitNavigation } from '@/contexts/CockpitNavigationContext';
 import { buildAIPageContext } from '@/services/aiContext';
 import {
   FileText,
@@ -26,7 +25,10 @@ import {
   Paperclip,
   Plus,
   Send,
+  Settings,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   TriangleAlert,
   Wrench,
   X,
@@ -368,6 +370,76 @@ const SessionMenu = styled.div`
   padding: 10px;
 `;
 
+const SettingsPanel = styled.div`
+  position: absolute;
+  right: 16px;
+  bottom: 88px;
+  width: min(280px, calc(100vw - 32px));
+  border-radius: 14px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  box-shadow: 0 18px 54px rgb(var(--color-text-primary) / 0.18);
+  padding: 12px;
+  z-index: 10;
+`;
+
+const SettingsTitle = styled.div`
+  font-size: 12px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 10px;
+`;
+
+const SettingsRow = styled.label`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+`;
+
+const SettingsToggle = styled.button<{ $active: boolean }>`
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s;
+  background: ${(p) => (p.$active ? 'rgb(var(--color-primary))' : 'rgba(var(--color-text-secondary), 0.3)')};
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: ${(p) => (p.$active ? '16px' : '2px')};
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgb(var(--color-surface));
+    transition: left 0.15s;
+  }
+`;
+
+const SettingsClearBtn = styled.button`
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(var(--color-error));
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(var(--color-error), 0.08);
+  }
+`;
+
 const SessionRow = styled.button<{ $active?: boolean }>`
   width: 100%;
   text-align: left;
@@ -486,6 +558,38 @@ const Messages = styled.div<{ $dragOver: boolean }>`
   outline-offset: -8px;
 `;
 
+const FeedbackRow = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+`;
+
+const FeedbackBtn = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  font-size: 11px;
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.1);
+    color: rgb(var(--color-primary));
+  }
+`;
+
+const FeedbackThanks = styled.span`
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary));
+  padding: 2px 0;
+`;
+
 const Bubble = styled.div<{ $role: ChatMessageRole }>`
   max-width: 92%;
   margin: 0 0 10px;
@@ -495,6 +599,10 @@ const Bubble = styled.div<{ $role: ChatMessageRole }>`
   font-size: 12px;
   line-height: 1.4;
   white-space: pre-wrap;
+
+  &:hover ${FeedbackRow} {
+    opacity: 1;
+  }
 
   ${(p) =>
     p.$role === 'user'
@@ -786,12 +894,11 @@ const hasHumanReviewMessage = (msgs: ChatMessage[]) =>
 export const AIAgentWidget: React.FC = () => {
   const toast = useToast();
   const location = useLocation();
-  const cockpitNav = useCockpitNavigation();
   const { syncState, requestSync } = useAIInboxSync();
 
   const pageContext = useMemo(
-    () => buildAIPageContext({ pathname: location.pathname, search: location.search }, cockpitNav.path),
-    [location.pathname, location.search, cockpitNav.path]
+    () => buildAIPageContext({ pathname: location.pathname, search: location.search }),
+    [location.pathname, location.search]
   );
 
   const [state, setState] = useState<AgentState>('idle');
@@ -813,6 +920,10 @@ export const AIAgentWidget: React.FC = () => {
 
   const [sessions, setSessions] = useState<ServerSession[]>([]);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [soundNotifications, setSoundNotifications] = useState(false);
+  const [autoExpand, setAutoExpand] = useState(false);
+  const [feedbackMap, setFeedbackMap] = useState<Map<string, 'positive' | 'negative'>>(new Map());
 
   const [outlookStatus, setOutlookStatus] = useState<OutlookStatus | null>(null);
   const [aiInboxRealtimeStatus, setAiInboxRealtimeStatus] = useState<
@@ -1642,6 +1753,32 @@ export const AIAgentWidget: React.FC = () => {
     }
   };
 
+  const handleFeedback = useCallback(async (messageId: string, rating: 'positive' | 'negative') => {
+    try {
+      await businessApi.post('/api/v1/ai/chat/feedback/', { message_id: messageId, rating });
+      setFeedbackMap((prev) => {
+        const next = new Map(prev);
+        next.set(messageId, rating);
+        return next;
+      });
+    } catch {
+      // Silently ignore feedback errors
+    }
+  }, []);
+
+  const handleClearConversation = useCallback(() => {
+    setMessages([
+      {
+        id: newId(),
+        role: 'assistant',
+        content:
+          "Hi — I'm your ProjectMeats agent. Ask me anything, attach documents for analysis, or restore a previous chat session.",
+        createdAt: Date.now(),
+      },
+    ]);
+    setSettingsOpen(false);
+  }, []);
+
   const handleSelectSession = async (id: string) => {
     setState('thinking');
     try {
@@ -2060,6 +2197,9 @@ export const AIAgentWidget: React.FC = () => {
                 <IconBtn type="button" title="New session" aria-label="New session" onClick={() => void handleNewChat()}>
                   <Plus size={16} />
                 </IconBtn>
+                <IconBtn type="button" title="Settings" aria-label="Chat settings" onClick={() => setSettingsOpen((v) => !v)}>
+                  <Settings size={16} />
+                </IconBtn>
                 <IconBtn type="button" title="Close" aria-label="Close chat" onClick={() => { setFullscreen(false); setExpanded(false); }}>
                   <X size={16} />
                 </IconBtn>
@@ -2092,6 +2232,33 @@ export const AIAgentWidget: React.FC = () => {
                   <SessionRow as="div">No sessions yet.</SessionRow>
                 )}
               </SessionMenu>
+            ) : null}
+
+            {settingsOpen ? (
+              <SettingsPanel role="dialog" aria-label="Chat settings">
+                <SettingsTitle>Chat Settings</SettingsTitle>
+                <SettingsRow>
+                  <span>Sound notifications</span>
+                  <SettingsToggle
+                    type="button"
+                    $active={soundNotifications}
+                    aria-pressed={soundNotifications}
+                    onClick={() => setSoundNotifications((v) => !v)}
+                  />
+                </SettingsRow>
+                <SettingsRow>
+                  <span>Auto-expand on new message</span>
+                  <SettingsToggle
+                    type="button"
+                    $active={autoExpand}
+                    aria-pressed={autoExpand}
+                    onClick={() => setAutoExpand((v) => !v)}
+                  />
+                </SettingsRow>
+                <SettingsClearBtn type="button" onClick={handleClearConversation}>
+                  Clear conversation
+                </SettingsClearBtn>
+              </SettingsPanel>
             ) : null}
 
             <IntegrationBanner>
@@ -2229,6 +2396,31 @@ export const AIAgentWidget: React.FC = () => {
                           if (sessionId) void loadSessionMessages(sessionId);
                         }}
                       />
+                    ) : null}
+
+                    {m.role === 'assistant' ? (
+                      <FeedbackRow>
+                        {feedbackMap.has(m.id) ? (
+                          <FeedbackThanks>Thanks for feedback</FeedbackThanks>
+                        ) : (
+                          <>
+                            <FeedbackBtn
+                              type="button"
+                              aria-label="Thumbs up"
+                              onClick={() => void handleFeedback(m.id, 'positive')}
+                            >
+                              <ThumbsUp size={12} />
+                            </FeedbackBtn>
+                            <FeedbackBtn
+                              type="button"
+                              aria-label="Thumbs down"
+                              onClick={() => void handleFeedback(m.id, 'negative')}
+                            >
+                              <ThumbsDown size={12} />
+                            </FeedbackBtn>
+                          </>
+                        )}
+                      </FeedbackRow>
                     ) : null}
                   </Bubble>
                 );
