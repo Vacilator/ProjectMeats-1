@@ -131,7 +131,13 @@ type PreloadedDropdownOption = {
 };
 
 const EMPTY_FORM_VALUES: Record<string, unknown> = {};
-const EXTRACTABLE_ENTITY_KEYS = new Set(['purchase_order', 'sales_order', 'invoice', 'carrier_po']);
+const EXTRACTABLE_ENTITY_KEYS = new Set([
+  'purchase_order',
+  'sales_order',
+  'invoice',
+  'carrier_po',
+  'carrier-pos',
+]);
 
 function useDeepStableValue<T>(value: T): T {
   const ref = useRef(value);
@@ -290,6 +296,7 @@ export const normalizeEntityKey = (entityType: string): string => {
   // Plural resources commonly used in UI routes.
   if (lower === 'customers' || lower === 'customer') return 'customer';
   if (lower === 'suppliers' || lower === 'supplier') return 'supplier';
+  if (lower === 'carriers' || lower === 'carrier') return 'carriers.carrier';
   if (lower === 'plants' || lower === 'plant') return 'plant';
   if (lower === 'locations' || lower === 'location') return 'location';
   if (lower === 'contacts' || lower === 'contact') return 'contact';
@@ -320,10 +327,11 @@ export const normalizeEntityEndpoint = (entityType: string): string => {
   // Common singular → plural API resources
   if (lower === 'customer') return 'customers/';
   if (lower === 'supplier') return 'suppliers/';
+  if (lower === 'carrier') return 'carriers/';
   if (lower === 'plant') return 'plants/';
   if (lower === 'location') return 'locations/';
   if (lower === 'contact') return 'contacts/';
-  if (lower === 'product') return 'products/';
+  if (lower === 'product') return 'system/products/';
 
   return `${lower.replace(/^\/+/, '').replace(/\/+$/, '')}/`;
 };
@@ -337,6 +345,9 @@ const relatedEntityToEntityOptionsType = (relatedEntity: string | null | undefin
   if (related.includes('customers.') || key === 'customer') return 'customer';
   if (related.includes('suppliers.') || key === 'supplier') return 'supplier';
   if (related.includes('contacts.') || key === 'contact') return 'contact';
+  if (related.includes('carriers.') || key === 'carrier') return 'carrier';
+  if (related.includes('locations.') || key === 'location' || key.includes('location')) return 'location';
+  if (related.includes('plants.') || key === 'plant') return 'plant';
   if (related.includes('purchase_orders.') || key === 'purchase_order') return 'purchase_order';
   if (related.includes('sales_orders.') || key === 'sales_order') return 'sales_order';
   if (related.includes('inquiries.') || key === 'inquiry') return 'inquiry';
@@ -468,14 +479,93 @@ const CONTACT_DEPARTMENT_CHOICES: SchemaChoice[] = [
 const CONTACT_PROTEIN_TYPE_CHOICES: SchemaChoice[] = [
   { value: 'Beef', label: 'Beef' },
   { value: 'Chicken', label: 'Chicken' },
-  { value: 'Duck', label: 'Duck' },
   { value: 'Pork', label: 'Pork' },
-  { value: 'Lamb', label: 'Lamb' },
+  { value: 'Fowl', label: 'Fowl' },
   { value: 'Turkey', label: 'Turkey' },
-  { value: 'Fish', label: 'Fish' },
+  { value: 'Lamb', label: 'Lamb' },
+  { value: 'Veal', label: 'Veal' },
+  { value: 'Seafood', label: 'Seafood' },
+  { value: 'Venison', label: 'Venison' },
+  { value: 'Bison', label: 'Bison' },
+  { value: 'Duck', label: 'Duck' },
+  { value: 'Rabbit', label: 'Rabbit' },
+  { value: 'Goat', label: 'Goat' },
+  { value: 'Mutton', label: 'Mutton' },
   { value: 'Horse', label: 'Horse' },
-  { value: 'Other', label: 'Other' },
 ];
+
+type FieldPresentationOverride = {
+  label?: string;
+  placeholder?: string;
+  help_text?: string;
+  section?: string;
+  widget?: string;
+  choices?: SchemaChoice[] | null;
+  visible_when?: Record<string, unknown>;
+  allow_create?: boolean;
+  read_only?: boolean;
+};
+
+const reorderFieldsByPreferredKeys = (
+  fields: BackendField[],
+  preferredKeys: string[]
+): BackendField[] => {
+  const orderIndex = new Map<string, number>();
+  preferredKeys.forEach((key, index) => orderIndex.set(String(key).toLowerCase(), index));
+
+  return [...fields].sort((a, b) => {
+    const aIndex = orderIndex.get(String(a.key || '').toLowerCase());
+    const bIndex = orderIndex.get(String(b.key || '').toLowerCase());
+
+    if (aIndex != null && bIndex != null) return aIndex - bIndex;
+    if (aIndex != null) return -1;
+    if (bIndex != null) return 1;
+    return 0;
+  });
+};
+
+const applyFieldPresentation = (
+  field: BackendField,
+  override?: FieldPresentationOverride
+): BackendField => {
+  if (!override) return field;
+
+  const ui = field.ui && typeof field.ui === 'object' ? { ...(field.ui as Record<string, unknown>) } : {};
+  if (override.section) {
+    ui.section = { title: override.section };
+  }
+  if (override.widget) {
+    ui.widget = override.widget;
+  }
+  if (override.visible_when) {
+    ui.visible_when = override.visible_when;
+  }
+  if (override.allow_create) {
+    ui.allow_create = true;
+  }
+  if (override.read_only) {
+    ui.read_only = true;
+  }
+
+  return {
+    ...field,
+    ...(override.label ? { label: override.label } : {}),
+    ...(override.placeholder ? { placeholder: override.placeholder } : {}),
+    ...(override.help_text ? { help_text: override.help_text } : {}),
+    ...(override.choices !== undefined ? { choices: override.choices } : {}),
+    ui,
+  };
+};
+
+const scenarioVisibleWhen = {
+  customerPickup: { field: 'logistics_scenario', equals: 'customer_pickup' },
+  supplierDelivering: { field: 'logistics_scenario', equals: 'supplier_delivery' },
+  weArePickingUp: { field: 'logistics_scenario', equals: 'we_pickup' },
+  anyCarrierManaged: {
+    field: 'logistics_scenario',
+    in: ['supplier_delivery', 'we_pickup'],
+  },
+} as const;
 
 const CONTACT_MASTER_DOCUMENT_OPTIONS: Array<{
   value: string;
@@ -807,9 +897,102 @@ export const augmentSchemaForFrontend = (
       };
     });
 
+    const purchaseOrderPresentation: Record<string, FieldPresentationOverride> = {
+      date_time_stamp: { section: 'Document Header', label: 'Date & Time Stamp Created', read_only: true },
+      logistics_scenario: { section: 'Document Header', label: 'Scenario' },
+      order_number: { section: 'Document Header', label: 'Internal PO #' },
+      our_purchase_order_num: { section: 'Document Header', label: 'Our Purchase Order #' },
+      supplier: { section: 'Relationships', widget: 'searchable_select', allow_create: true },
+      carrier: {
+        section: 'Relationships',
+        widget: 'searchable_select',
+        allow_create: true,
+        visible_when: scenarioVisibleWhen.anyCarrierManaged,
+      },
+      product: { section: 'Relationships', widget: 'searchable_select' },
+      plant: { section: 'Locations', widget: 'searchable_select', allow_create: true },
+      pick_up_location: { section: 'Locations', label: 'Name of Business Building of Pick Up', widget: 'searchable_select', allow_create: true },
+      delivery_location: { section: 'Locations', label: 'Name of Business Building of Delivery', widget: 'searchable_select', allow_create: true },
+      order_date: { section: 'Schedule', label: 'Pick Up Date' },
+      delivery_date: { section: 'Schedule' },
+      our_purchase_order_number_to_supplier: { section: 'References', label: 'Our Purchase Order # To Supplier' },
+      my_customer_number_from_supplier: { section: 'References', label: 'My Customer # From Supplier' },
+      supplier_confirmation_order_number: { section: 'References', label: 'Supplier Confirmation Order #' },
+      carrier_release_num: { section: 'References', label: 'Carrier Release #' },
+      delivery_po_number: { section: 'References', label: 'Delivery PO #' },
+      quantity: { section: 'Product Details' },
+      total_weight: { section: 'Product Details', label: 'Total Weight' },
+      total_net_weight: { section: 'Product Details', label: 'Total Net Weight' },
+      weight_unit: { section: 'Product Details', label: 'UOM' },
+      type_of_protein: { section: 'Product Details', label: 'Type of Protein' },
+      description_of_product_item: { section: 'Product Details', label: 'Description of Product Item' },
+      fresh_or_frozen: { section: 'Product Details', label: 'Fresh or Frozen' },
+      package_type: { section: 'Product Details', label: 'Package Type' },
+      net_or_catch: { section: 'Product Details', label: 'Net or Catch Of Package' },
+      edible_or_inedible: { section: 'Product Details', label: 'Edible Or Inedible' },
+      tested_product: { section: 'Product Details', label: 'Tested Product' },
+      how_carrier_make_appointment: {
+        section: 'Appointments & Contacts',
+        label: 'How Carrier is to Make Appointment',
+        visible_when: scenarioVisibleWhen.anyCarrierManaged,
+      },
+      receiving_contact_name: { section: 'Appointments & Contacts' },
+      receiving_contact_phone: { section: 'Appointments & Contacts' },
+      receiving_contact_email: { section: 'Appointments & Contacts' },
+      bill_of_lading_comments: { section: 'Document Notes', widget: 'textarea' },
+      invoicing_comments: { section: 'Document Notes', widget: 'textarea' },
+      item_production_date: { section: 'Document Notes' },
+      notes: { section: 'Document Notes', widget: 'textarea' },
+    };
+
+    const preferredKeys = [
+      'logistics_scenario',
+      'supplier',
+      'carrier',
+      'product',
+      'order_date',
+      'delivery_date',
+      'our_purchase_order_number_to_supplier',
+      'my_customer_number_from_supplier',
+      'supplier_confirmation_order_number',
+      'carrier_release_num',
+      'delivery_po_number',
+      'type_of_protein',
+      'description_of_product_item',
+      'fresh_or_frozen',
+      'package_type',
+      'quantity',
+      'weight_unit',
+      'net_or_catch',
+      'total_net_weight',
+      'edible_or_inedible',
+      'tested_product',
+      'pick_up_location',
+      'delivery_location',
+      'how_carrier_make_appointment',
+      'shipping_contact_name',
+      'shipping_contact_phone',
+      'shipping_contact_email',
+      'receiving_contact_name',
+      'receiving_contact_phone',
+      'receiving_contact_email',
+      'bill_of_lading_comments',
+      'invoicing_comments',
+      'item_production_date',
+    ];
+
     return {
       ...schema,
-      fields: nextFields,
+      key_fields: preferredKeys,
+      fields: reorderFieldsByPreferredKeys(
+        nextFields.map((field) =>
+          applyFieldPresentation(
+            field,
+            purchaseOrderPresentation[String(field.key || '').toLowerCase()]
+          )
+        ),
+        preferredKeys
+      ),
     };
   }
 
@@ -1003,123 +1186,484 @@ export const augmentSchemaForFrontend = (
     };
   }
 
-  if (normalizedEntityKey === 'supplier' || normalizedEntityKey === 'customer') {
-    const fieldsByLowerKey = new Map<string, BackendField>();
-    fields.forEach((field) => {
-      const key = String(field?.key || '').trim().toLowerCase();
-      if (key) fieldsByLowerKey.set(key, field);
-    });
-
-    const pickFieldKey = (candidates: string[]): string | null => {
-      for (const raw of candidates) {
-        const key = String(raw || '').trim().toLowerCase();
-        if (key && fieldsByLowerKey.has(key)) return key;
-      }
-      return null;
+  if (
+    normalizedEntityKey === 'carrier' ||
+    normalizedEntityKey === 'carriers.carrier' ||
+    normalizedEntityKey === 'supplier' ||
+    normalizedEntityKey === 'customer' ||
+    normalizedEntityKey === 'product'
+  ) {
+    const labelOverrides: Record<string, string> = {
+      my_customer_num_from_carrier: 'My Customer # or Name from Carrier',
+      my_customer_number_from_supplier: 'My Customer # From Supplier',
+      our_purchase_order_number_to_supplier: 'Our Purchase Order # To Supplier',
+      supplier_confirmation_order_number: 'Supplier Confirmation Order #',
+      our_sales_order_number_for_customer: 'Our Sales Order # for Customer',
+      accounting_payable_contact_name: 'Accounting Payable Contact Name',
+      accounting_payable_contact_phone: 'Accounting Payable Contact Phone',
+      accounting_payable_contact_email: 'Accounting Payable Contact Email',
+      buyer_contact_name: 'Buyer Contact Name',
+      buyer_contact_main_phone: 'Buyer Contact Main Phone',
+      buyer_contact_direct_phone: 'Buyer Contact Direct Phone',
+      buyer_contact_cell_phone: 'Buyer Contact Cell Phone',
+      buyer_contact_email: 'Buyer Contact Email',
+      sales_contact_name: 'Sales Contact Name',
+      sales_contact_main_phone: 'Sales Contact Main Phone',
+      sales_contact_direct_phone: 'Sales Contact Direct Phone',
+      sales_contact_cell_phone: 'Sales Contact Cell Phone',
+      sales_contact_email: 'Sales Contact Email',
+      shipping_contact_name: 'Shipping Contact Name',
+      shipping_contact_phone: 'Shipping Contact Phone',
+      shipping_contact_email: 'Shipping Contact Email',
+      contact_title: 'Contact Title',
+      address: 'Corporate Address',
+      city: 'Corporate Address City',
+      state: 'Corporate Address State',
+      zip_code: 'Corporate Address Zip',
+      total_net_weight: 'Total Net Weight',
+      uom: 'UOM',
+      protein_type: 'Type of Protein',
+      description: 'Description of Product Item',
+      edible_or_inedible: 'Edible Or Inedible',
+      tested_product: 'Tested Product',
+      package_type: 'Package Type',
+      fresh_or_frozen: 'Fresh or Frozen',
+      item_production_date: 'Item Production Date',
+      bill_of_lading_comments: 'Bill of Lading Comments',
+      invoicing_comments: 'Invoicing Comments',
+      how_to_make_appointment: 'How Carrier is to Make Appointment',
+      how_carrier_make_appointment: 'How Carrier is to Make Appointment',
+      carrier_release_number: 'Carrier Release #',
+      carrier_release_format: 'Carrier Release Format',
     };
 
-    const selectedKeys = [
-      pickFieldKey(['name', 'company_name']),
-      // Supplier/customer phone keys vary across environments. Prefer office phone when present.
-      pickFieldKey(['phone_office', 'phone', 'phone_number', 'office_phone', 'mobile_phone', 'phone_mobile']),
-      pickFieldKey(['address', 'street_address']),
-      pickFieldKey(['city']),
-      pickFieldKey(['state']),
-      pickFieldKey(['zip_code', 'postal_code']),
-      pickFieldKey(['country']),
-    ].filter((k): k is string => Boolean(k));
-
-    // Ensure HQ Phone Number is always present for Supplier/Customer HQ forms.
-    // Some environments may omit phone fields from the schema endpoint; we still want the UX to show it.
-    const ensuredKeys = [...selectedKeys];
-    const hasPhoneField = ensuredKeys.some((k) => {
-      const key = String(k || '').toLowerCase();
-      return [
-        'phone',
-        'phone_number',
-        'phone_office',
-        'office_phone',
-        'phone_mobile',
-        'mobile_phone',
-      ].includes(key);
-    });
-
-    if (!hasPhoneField) {
-      const syntheticKey = 'phone_office';
-      if (!fieldsByLowerKey.has(syntheticKey)) {
-        fieldsByLowerKey.set(syntheticKey, {
-          key: syntheticKey,
-          label: 'HQ Phone Number',
-          type: 'phone',
-          required: false,
-          help_text: '',
-        });
-      }
-      ensuredKeys.push(syntheticKey);
-    }
-
-    const labelByKey: Record<string, string> = {
-      phone: 'HQ Phone Number',
-      phone_number: 'HQ Phone Number',
-      phone_office: 'HQ Phone Number',
-      office_phone: 'HQ Phone Number',
-      phone_mobile: 'HQ Phone Number',
-      mobile_phone: 'HQ Phone Number',
-      address: 'HQ Address',
-      street_address: 'HQ Address',
-      city: 'HQ City',
-      state: 'HQ State',
-      zip_code: 'HQ Zip Code',
-      postal_code: 'HQ Zip Code',
-      country: 'HQ Country',
+    const entitySectionOverrides: Record<string, Record<string, FieldPresentationOverride>> = {
+      // Carrier modal fields: Date & Time Stamp Created, Carrier Name, My Customer # or Name from Carrier,
+      // Accounting Payable Contact Name/Phone/Email, Corporate Address/City/State/Zip, Contact Title,
+      // Sales Contact Name/Main/Direct/Cell/Email, Accounting Payment Terms, Credit Limits,
+      // Account Line of Credit, Departments of Carrier, Pick Up Date, Delivery Date,
+      // Our Purchase Order # To Supplier, Supplier Confirmation Order #, Delivery PO #, Carrier Release #,
+      // Type of Protein, Description of Product Item, Fresh or Frozen, Package Type, Quantity,
+      // Total Weight, Total Net Weight, Net or Catch Of Package, Name of Business Building,
+      // Address/City/State & Zip, How Carrier is to Make Appointment, Shipping/Receiving contacts,
+      // Edible Or Inedible, Tested Product, Plant Address/City/State & Zip.
+      carrier: {
+        created_on: { section: 'Audit', label: 'Date & Time Stamp Created', read_only: true },
+        name: { section: 'Carrier Profile', label: 'Carrier Name', placeholder: 'Enter carrier name' },
+        my_customer_num_from_carrier: { section: 'Carrier Profile' },
+        contact_title: { section: 'Carrier Profile' },
+        accounting_payment_terms: { section: 'Accounting' },
+        credit_limits: { section: 'Accounting' },
+        accounting_line_of_credit: { section: 'Accounting', label: 'Account Line of Credit' },
+        accounting_payable_contact_name: { section: 'Accounting' },
+        accounting_payable_contact_phone: { section: 'Accounting' },
+        accounting_payable_contact_email: { section: 'Accounting' },
+        address: { section: 'Corporate Address' },
+        city: { section: 'Corporate Address' },
+        state: { section: 'Corporate Address' },
+        zip_code: { section: 'Corporate Address' },
+        sales_contact_name: { section: 'Sales Contact' },
+        sales_contact_main_phone: { section: 'Sales Contact' },
+        sales_contact_direct_phone: { section: 'Sales Contact' },
+        sales_contact_cell_phone: { section: 'Sales Contact' },
+        sales_contact_email: { section: 'Sales Contact' },
+        departments_array: { section: 'Carrier Operations', label: 'Departments of Carrier', widget: 'multi_select' },
+        pick_up_date: { section: 'Load Defaults' },
+        delivery_date: { section: 'Load Defaults' },
+        our_purchase_order_number_to_supplier: { section: 'Load Defaults' },
+        supplier_confirmation_order_number: { section: 'Load Defaults' },
+        delivery_po_number: { section: 'Load Defaults', label: 'Delivery PO #' },
+        carrier_release_number: { section: 'Load Defaults' },
+        type_of_protein: { section: 'Product Defaults' },
+        description_of_product_item: { section: 'Product Defaults' },
+        fresh_or_frozen: { section: 'Product Defaults' },
+        package_type: { section: 'Product Defaults' },
+        quantity: { section: 'Product Defaults' },
+        total_weight: { section: 'Product Defaults' },
+        total_net_weight: { section: 'Product Defaults' },
+        net_or_catch: { section: 'Product Defaults', label: 'Net or Catch Of Package' },
+        edible_or_inedible: { section: 'Product Defaults' },
+        tested_product: { section: 'Product Defaults' },
+        name_of_business_building: { section: 'Location Defaults', label: 'Name of Business Building of Pick Up / Delivery' },
+        address_of_location: { section: 'Location Defaults', label: 'Address of Location Pick Up / Delivery' },
+        location_city: { section: 'Location Defaults', label: 'Location Pick Up / Delivery City' },
+        location_state_zip: { section: 'Location Defaults', label: 'Location Pick Up / Delivery State & Zip' },
+        how_carrier_make_appointment: { section: 'Location Defaults' },
+        shipping_contact_name: { section: 'Shipping Contact' },
+        shipping_contact_phone: { section: 'Shipping Contact' },
+        shipping_contact_email: { section: 'Shipping Contact' },
+        receiving_contact_name: { section: 'Receiving Contact' },
+        receiving_contact_phone: { section: 'Receiving Contact' },
+        receiving_contact_email: { section: 'Receiving Contact' },
+        plant_address: { section: 'Plant Reference' },
+        plant_city: { section: 'Plant Reference' },
+        plant_state_zip: { section: 'Plant Reference' },
+      },
+      // Supplier modal fields: Supplier Name, Pick Up Date, Delivery Date, Our Purchase Order # To Supplier,
+      // My Customer # From Supplier, Supplier Confirmation Order #, AP contact, Corporate Address/City/State/Zip,
+      // Contact Title, Sales contact slots, Accounting Payment Terms, Credit Limits, Account Line of Credit,
+      // Carrier Release Format / #, Plant/Location, Shipping Contact, BOL Comments, Invoicing Comments,
+      // Total Net Weight, Item Production Date.
+      supplier: {
+        name: { section: 'Supplier Profile', label: 'Supplier Name', placeholder: 'Enter supplier name' },
+        plant: { section: 'Supplier Profile', label: 'Name of Business Building of Pick Up', allow_create: true, widget: 'searchable_select' },
+        pick_up_date: { section: 'Order Defaults' },
+        delivery_date: { section: 'Order Defaults' },
+        our_purchase_order_number_to_supplier: { section: 'Order Defaults' },
+        my_customer_number_from_supplier: { section: 'Order Defaults' },
+        supplier_confirmation_order_number: { section: 'Order Defaults' },
+        accounting_payment_terms: { section: 'Accounting' },
+        credit_limits: { section: 'Accounting' },
+        accounting_line_of_credit: { section: 'Accounting', label: 'Account Line of Credit' },
+        accounting_payable_contact_name: { section: 'Accounting' },
+        accounting_payable_contact_phone: { section: 'Accounting' },
+        accounting_payable_contact_email: { section: 'Accounting' },
+        address: { section: 'Corporate Address' },
+        city: { section: 'Corporate Address' },
+        state: { section: 'Corporate Address' },
+        zip_code: { section: 'Corporate Address' },
+        contact_title: { section: 'Primary Contact' },
+        sales_contact_name: { section: 'Sales Contact' },
+        sales_contact_main_phone: { section: 'Sales Contact' },
+        sales_contact_direct_phone: { section: 'Sales Contact' },
+        sales_contact_cell_phone: { section: 'Sales Contact' },
+        sales_contact_email: { section: 'Sales Contact' },
+        carrier_release_format: { section: 'Logistics Defaults' },
+        carrier_release_number: { section: 'Logistics Defaults' },
+        how_to_make_appointment: { section: 'Logistics Defaults' },
+        shipping_contact_name: { section: 'Shipping Contact' },
+        shipping_contact_phone: { section: 'Shipping Contact' },
+        shipping_contact_email: { section: 'Shipping Contact' },
+        bill_of_lading_comments: { section: 'Document Notes', widget: 'textarea' },
+        invoicing_comments: { section: 'Document Notes', widget: 'textarea' },
+        total_net_weight: { section: 'Document Notes' },
+        item_production_date: { section: 'Document Notes' },
+      },
+      // Customer modal fields: Customer Name, Pick Up Date, Delivery Date, Our Sales Order # for Customer,
+      // AP contact, Corporate Address/City/State/Zip, Contact Title, Buyer Contact Name/Main/Direct/Cell/Email,
+      // Accounting Payment Terms, Credit Limits, Account Line of Credit, Delivery PO #, Total Net Weight, UOM.
+      customer: {
+        name: { section: 'Customer Profile', label: 'Customer Name', placeholder: 'Enter customer name' },
+        plant: { section: 'Customer Profile', label: 'Plant / Location', allow_create: true, widget: 'searchable_select' },
+        pick_up_date: { section: 'Order Defaults' },
+        delivery_date: { section: 'Order Defaults' },
+        our_sales_order_number_for_customer: { section: 'Order Defaults' },
+        delivery_po_number: { section: 'Order Defaults', label: 'Delivery PO #' },
+        accounting_payment_terms: { section: 'Accounting' },
+        credit_limits: { section: 'Accounting' },
+        accounting_line_of_credit: { section: 'Accounting', label: 'Account Line of Credit' },
+        accounting_payable_contact_name: { section: 'Accounting' },
+        accounting_payable_contact_phone: { section: 'Accounting' },
+        accounting_payable_contact_email: { section: 'Accounting' },
+        address: { section: 'Corporate Address' },
+        city: { section: 'Corporate Address' },
+        state: { section: 'Corporate Address' },
+        zip_code: { section: 'Corporate Address' },
+        contact_title: { section: 'Buyer Contact' },
+        buyer_contact_name: { section: 'Buyer Contact' },
+        buyer_contact_main_phone: { section: 'Buyer Contact' },
+        buyer_contact_direct_phone: { section: 'Buyer Contact' },
+        buyer_contact_cell_phone: { section: 'Buyer Contact' },
+        buyer_contact_email: { section: 'Buyer Contact' },
+        total_net_weight: { section: 'Invoice Defaults' },
+        uom: { section: 'Invoice Defaults' },
+      },
+      // Product modal fields: Type of Protein, Description of Product Item, Fresh or Frozen,
+      // Package Type, Edible Or Inedible, Tested Product.
+      product: {
+        product_code: { section: 'Product Identity', label: 'Product Code' },
+        name: { section: 'Product Identity', label: 'Description of Product Item' },
+        description: { section: 'Product Identity', widget: 'textarea' },
+        protein_type: { section: 'Product Attributes' },
+        fresh_or_frozen: { section: 'Product Attributes' },
+        package_type: { section: 'Product Attributes' },
+        edible_or_inedible: { section: 'Product Attributes' },
+        tested_product: { section: 'Product Attributes' },
+        uom: { section: 'Product Attributes' },
+      },
     };
 
-    const uniqueSelectedKeys = ensuredKeys.filter((key, idx, arr) => arr.indexOf(key) === idx);
+    const preferredKeysByEntity: Record<string, string[]> = {
+      carrier: [
+        'name',
+        'my_customer_num_from_carrier',
+        'accounting_payable_contact_name',
+        'accounting_payable_contact_phone',
+        'accounting_payable_contact_email',
+        'address',
+        'city',
+        'state',
+        'zip_code',
+        'contact_title',
+        'sales_contact_name',
+        'sales_contact_main_phone',
+        'sales_contact_direct_phone',
+        'sales_contact_cell_phone',
+        'sales_contact_email',
+        'accounting_payment_terms',
+        'credit_limits',
+        'accounting_line_of_credit',
+        'departments_array',
+      ],
+      supplier: [
+        'name',
+        'plant',
+        'pick_up_date',
+        'delivery_date',
+        'our_purchase_order_number_to_supplier',
+        'my_customer_number_from_supplier',
+        'supplier_confirmation_order_number',
+        'accounting_payable_contact_name',
+        'accounting_payable_contact_phone',
+        'accounting_payable_contact_email',
+        'address',
+        'city',
+        'state',
+        'zip_code',
+        'contact_title',
+        'sales_contact_name',
+        'sales_contact_main_phone',
+        'sales_contact_direct_phone',
+        'sales_contact_cell_phone',
+        'sales_contact_email',
+        'accounting_payment_terms',
+        'credit_limits',
+        'accounting_line_of_credit',
+        'carrier_release_format',
+        'carrier_release_number',
+        'shipping_contact_name',
+        'shipping_contact_phone',
+        'shipping_contact_email',
+        'bill_of_lading_comments',
+        'invoicing_comments',
+        'total_net_weight',
+        'item_production_date',
+      ],
+      customer: [
+        'name',
+        'pick_up_date',
+        'delivery_date',
+        'our_sales_order_number_for_customer',
+        'accounting_payable_contact_name',
+        'accounting_payable_contact_phone',
+        'accounting_payable_contact_email',
+        'address',
+        'city',
+        'state',
+        'zip_code',
+        'contact_title',
+        'buyer_contact_name',
+        'buyer_contact_main_phone',
+        'buyer_contact_direct_phone',
+        'buyer_contact_cell_phone',
+        'buyer_contact_email',
+        'accounting_payment_terms',
+        'credit_limits',
+        'accounting_line_of_credit',
+        'delivery_po_number',
+        'total_net_weight',
+        'uom',
+      ],
+      product: [
+        'product_code',
+        'name',
+        'description',
+        'protein_type',
+        'fresh_or_frozen',
+        'package_type',
+        'edible_or_inedible',
+        'tested_product',
+        'uom',
+      ],
+    };
 
-    const nextFields: BackendField[] = [];
-    uniqueSelectedKeys.forEach((key) => {
-      const field = fieldsByLowerKey.get(key);
-      if (!field) return;
-
-      const label = labelByKey[key] || field.label;
-      const isHqPhone =
-        key === 'phone' ||
-        key === 'phone_number' ||
-        key === 'phone_office' ||
-        key === 'office_phone' ||
-        key === 'phone_mobile' ||
-        key === 'mobile_phone';
-
-      const placeholder =
-        field.placeholder ||
-        (isHqPhone
-          ? 'Enter HQ phone number'
-          : key === 'address' || key === 'street_address'
-            ? 'Enter HQ address'
-            : null);
-
-      const typeOverride =
-        isHqPhone
-          ? 'phone'
-          : key === 'address' || key === 'street_address'
-            ? 'text'
-            : field.type;
-
-      nextFields.push({
-        ...field,
-        label,
-        type: typeOverride,
-        required: key === 'name' ? true : field.required,
-        placeholder,
-      });
-    });
-
-    const keyFieldsHQ = uniqueSelectedKeys;
+    const presentationEntityKey =
+      normalizedEntityKey === 'carriers.carrier' ? 'carrier' : normalizedEntityKey;
+    const sectionOverrides = entitySectionOverrides[presentationEntityKey] || {};
+    const nextFields = reorderFieldsByPreferredKeys(
+      fields.map((field) => {
+        const lowerKey = String(field.key || '').toLowerCase();
+        const override = sectionOverrides[lowerKey];
+        return applyFieldPresentation(
+          field,
+          override || (labelOverrides[lowerKey] ? { label: labelOverrides[lowerKey] } : undefined)
+        );
+      }),
+      preferredKeysByEntity[presentationEntityKey] || []
+    );
 
     return {
       ...schema,
-      key_fields: keyFieldsHQ,
+      key_fields: preferredKeysByEntity[presentationEntityKey] || schema.key_fields,
       fields: nextFields,
+    };
+  }
+
+  if (
+    normalizedEntityKey === 'sales_order' ||
+    normalizedEntityKey === 'invoice' ||
+    normalizedEntityKey === 'carrier-pos'
+  ) {
+    const documentSectionOverrides: Record<string, FieldPresentationOverride> = {
+      date_time_stamp: { section: 'Document Header', label: 'Date & Time Stamp Created', read_only: true },
+      date_time_stamp_created: { section: 'Document Header', label: 'Date & Time Stamp Created', read_only: true },
+      logistics_scenario: { section: 'Document Header', label: 'Scenario' },
+      our_sales_order_num: { section: 'Document Header', label: 'Our Sales Order #' },
+      our_sales_order_number_for_customer: { section: 'Document Header', label: 'Our Sales Order # for Customer' },
+      invoice_number: { section: 'Document Header', label: 'Invoice Number' },
+      our_carrier_po_num: { section: 'Document Header', label: 'Carrier PO #' },
+      supplier: { section: 'Relationships', widget: 'searchable_select', allow_create: true },
+      customer: { section: 'Relationships', widget: 'searchable_select', allow_create: true },
+      carrier: {
+        section: 'Relationships',
+        widget: 'searchable_select',
+        allow_create: true,
+        visible_when: scenarioVisibleWhen.anyCarrierManaged,
+      },
+      sales_order: { section: 'Relationships', widget: 'searchable_select' },
+      linked_order: { section: 'Relationships', label: 'Supplier PO', widget: 'searchable_select' },
+      product: { section: 'Relationships', widget: 'searchable_select' },
+      plant: { section: 'Locations', widget: 'searchable_select', allow_create: true },
+      pick_up_location: { section: 'Locations', label: 'Name of Business Building of Pick Up', widget: 'searchable_select', allow_create: true },
+      delivery_location: { section: 'Locations', label: 'Name of Business Building of Delivery', widget: 'searchable_select', allow_create: true },
+      plant_est_number: { section: 'Locations', label: 'Plant Est. #' },
+      delivery_date: { section: 'Schedule' },
+      order_date: { section: 'Schedule', label: 'Pick Up Date' },
+      due_date: { section: 'Schedule' },
+      carrier_release_num: { section: 'References', label: 'Carrier Release #' },
+      delivery_po_num: { section: 'References', label: 'Delivery PO #' },
+      delivery_po_number: { section: 'References', label: 'Delivery PO #' },
+      our_purchase_order_number_to_supplier: { section: 'References', label: 'Our Purchase Order # To Supplier' },
+      supplier_confirmation_order_number: { section: 'References', label: 'Supplier Confirmation Order #' },
+      type_of_protein: { section: 'Product Details', label: 'Type of Protein' },
+      description_of_product_item: { section: 'Product Details', label: 'Description of Product Item' },
+      fresh_or_frozen: { section: 'Product Details', label: 'Fresh or Frozen' },
+      package_type: { section: 'Product Details', label: 'Package Type' },
+      quantity: { section: 'Product Details' },
+      uom: { section: 'Product Details', label: 'UOM' },
+      weight_unit: { section: 'Product Details', label: 'UOM' },
+      net_or_catch: { section: 'Product Details', label: 'Net or Catch Of Package' },
+      total_weight: { section: 'Product Details', label: 'Total Weight' },
+      total_net_weight: { section: 'Product Details', label: 'Total Net Weight' },
+      edible_or_inedible: { section: 'Product Details', label: 'Edible Or Inedible' },
+      tested_product: { section: 'Product Details', label: 'Tested Product' },
+      how_carrier_make_appointment: {
+        section: 'Appointments & Contacts',
+        label: 'How Carrier is to Make Appointment',
+        visible_when: scenarioVisibleWhen.anyCarrierManaged,
+      },
+      shipping_contact_name: { section: 'Appointments & Contacts' },
+      shipping_contact_phone: { section: 'Appointments & Contacts' },
+      shipping_contact_email: { section: 'Appointments & Contacts' },
+      receiving_contact_name: { section: 'Appointments & Contacts' },
+      receiving_contact_phone: { section: 'Appointments & Contacts' },
+      receiving_contact_email: { section: 'Appointments & Contacts' },
+      bill_of_lading_comments: { section: 'Document Notes', widget: 'textarea' },
+      invoicing_comments: { section: 'Document Notes', widget: 'textarea' },
+      notes: { section: 'Document Notes', widget: 'textarea' },
+    };
+
+    // Shared document fields: Date & Time Stamp Created, Type of Protein, Description of Product Item,
+    // Fresh or Frozen, Package Type, Quantity, UOM, Net or Catch Of Package,
+    // Name of Business Building of Pick up / Delivery, address relationships, How Carrier is to Make Appointment,
+    // Shipping / Receiving contacts, Total Net Weight, Edible Or Inedible, Tested Product,
+    // plus scenario-driven visibility for Customer Picking Up / Supplier Delivering / We Are Picking Up.
+    const documentPreferredKeys =
+      normalizedEntityKey === 'sales_order'
+        ? [
+            'logistics_scenario',
+            'our_sales_order_number_for_customer',
+            'customer',
+            'supplier',
+            'carrier',
+            'product',
+            'order_date',
+            'delivery_date',
+            'delivery_po_number',
+            'carrier_release_num',
+            'type_of_protein',
+            'description_of_product_item',
+            'fresh_or_frozen',
+            'package_type',
+            'quantity',
+            'uom',
+            'net_or_catch',
+            'total_net_weight',
+            'edible_or_inedible',
+            'tested_product',
+            'pick_up_location',
+            'delivery_location',
+            'how_carrier_make_appointment',
+            'shipping_contact_name',
+            'shipping_contact_phone',
+            'shipping_contact_email',
+            'receiving_contact_name',
+            'receiving_contact_phone',
+            'receiving_contact_email',
+          ]
+        : normalizedEntityKey === 'invoice'
+          ? [
+              'invoice_number',
+              'customer',
+              'sales_order',
+              'product',
+              'our_sales_order_number_for_customer',
+              'delivery_po_number',
+              'type_of_protein',
+              'description_of_product_item',
+              'fresh_or_frozen',
+              'package_type',
+              'quantity',
+              'weight_unit',
+              'net_or_catch',
+              'total_net_weight',
+              'edible_or_inedible',
+              'tested_product',
+            ]
+          : [
+              'our_carrier_po_num',
+              'carrier',
+              'supplier',
+              'linked_order',
+              'sales_order',
+              'product',
+              'our_purchase_order_number_to_supplier',
+              'supplier_confirmation_order_number',
+              'delivery_po_number',
+              'type_of_protein',
+              'description_of_product_item',
+              'fresh_or_frozen',
+              'package_type',
+              'quantity',
+              'weight_unit',
+              'net_or_catch',
+              'total_weight',
+              'total_net_weight',
+              'edible_or_inedible',
+              'tested_product',
+              'pick_up_location',
+              'delivery_location',
+              'how_carrier_make_appointment',
+              'shipping_contact_name',
+              'shipping_contact_phone',
+              'shipping_contact_email',
+              'receiving_contact_name',
+              'receiving_contact_phone',
+              'receiving_contact_email',
+            ];
+
+    return {
+      ...schema,
+      key_fields: documentPreferredKeys,
+      fields: reorderFieldsByPreferredKeys(
+        fields.map((field) =>
+          applyFieldPresentation(
+            field,
+            documentSectionOverrides[String(field.key || '').toLowerCase()]
+          )
+        ),
+        documentPreferredKeys
+      ),
     };
   }
 
@@ -1638,7 +2182,19 @@ export const fetchUniversalEntityFkOptions = async (
       ? 'suppliers/'
       : related.includes('contacts.')
         ? 'contacts/'
-        : null;
+        : related.includes('carriers.')
+          ? 'carriers/'
+          : related.includes('locations.')
+            ? 'locations/'
+            : related.includes('plants.')
+              ? 'plants/'
+              : related.includes('purchase_orders.')
+                ? 'purchase-orders/'
+                : related.includes('sales_orders.')
+                  ? 'sales-orders/'
+                  : related.includes('invoices.')
+                    ? 'accounting/invoices/'
+                    : null;
 
   if (!relatedEndpoint) {
     return [];
