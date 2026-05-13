@@ -34,6 +34,14 @@ vi.mock('@/services/searchService', () => ({
   getSearchColorVar: searchServiceMocks.getSearchColorVar,
   searchRanked: searchServiceMocks.searchRanked,
   trackRecentItem: searchServiceMocks.trackRecentItem,
+  groupSearchResultsByType: (results: unknown[]) => {
+    const groups: Record<string, unknown[]> = {};
+    (results as Array<{ type?: string }>).forEach((r) => {
+      const key = r.type ?? 'other';
+      (groups[key] ??= []).push(r);
+    });
+    return groups;
+  },
   searchService: {
     getRecentItems: searchServiceMocks.getRecentItems,
     searchRanked: searchServiceMocks.searchRanked,
@@ -205,7 +213,8 @@ describe('CommandPalette search behavior', () => {
       fireEvent.change(input, { target: { value: 'acme' } });
 
       await act(async () => {
-        vi.advanceTimersByTime(250);
+        vi.advanceTimersByTime(350);
+        await Promise.resolve();
         await Promise.resolve();
       });
 

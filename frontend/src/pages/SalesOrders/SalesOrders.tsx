@@ -162,9 +162,9 @@ const PrimaryButton = styled.button`
   }
 `;
 
-const ContentContainer = styled.div<{ hasSidePanel?: boolean }>`
+const ContentContainer = styled.div<{ $hasSidePanel?: boolean }>`
   display: grid;
-  grid-template-columns: ${props => props.hasSidePanel ? '1fr 400px' : '1fr'};
+  grid-template-columns: ${props => props.$hasSidePanel ? '1fr 400px' : '1fr'};
   gap: 1.5rem;
   height: calc(100vh - 180px);
   overflow: hidden;
@@ -199,14 +199,14 @@ const FilterBar = styled.div`
   min-width: 0;
 `;
 
-const FilterButton = styled.button<{ isActive?: boolean }>`
+const FilterButton = styled.button<{ $isActive?: boolean }>`
   padding: 0.5rem 1rem;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  background: ${props => props.isActive ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
-  color: ${props => props.isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
-  border: 1px solid ${props => props.isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$isActive ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  color: ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  border: 1px solid ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
@@ -306,14 +306,14 @@ const TableHeader = styled.thead`
   z-index: 10;
 `;
 
-const TableRow = styled.tr<{ isSelected?: boolean; isClickable?: boolean }>`
+const TableRow = styled.tr<{ $isSelected?: boolean; $isClickable?: boolean }>`
   border-bottom: 1px solid rgb(var(--color-border));
-  background: ${props => props.isSelected ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
-  cursor: ${props => props.isClickable ? 'pointer' : 'default'};
+  background: ${props => props.$isSelected ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  cursor: ${props => props.$isClickable ? 'pointer' : 'default'};
   transition: background 0.2s ease;
 
   &:hover {
-    background: ${props => props.isClickable ? 'rgb(var(--color-surface-hover))' : 'transparent'};
+    background: ${props => props.$isClickable ? 'rgb(var(--color-surface-hover))' : 'transparent'};
   }
 `;
 
@@ -358,7 +358,7 @@ const TableCell = styled.td`
   }
 `;
 
-const StatusBadge = styled.span<{ status: OrderStatus }>`
+const StatusBadge = styled.span<{ $status: OrderStatus }>`
   display: inline-block;
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-sm);
@@ -367,7 +367,7 @@ const StatusBadge = styled.span<{ status: OrderStatus }>`
   white-space: nowrap;
 
   ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'draft':
         return `
           background: rgba(var(--color-text-secondary), 0.12);
@@ -714,42 +714,42 @@ export const SalesOrdersPage: React.FC = () => {
         </HeaderActions>
       </PageHeader>
 
-      <ContentContainer hasSidePanel={selectedOrder !== null}>
+      <ContentContainer $hasSidePanel={selectedOrder !== null}>
         <MainContent>
           {/* Filters and Search */}
           <FilterBar>
             <FilterButton 
-              isActive={statusFilter === 'all'}
+              $isActive={statusFilter === 'all'}
               onClick={() => setStatusFilter('all')}
             >
               All ({statusCounts.all})
             </FilterButton>
             <FilterButton 
-              isActive={statusFilter === 'draft'}
+              $isActive={statusFilter === 'draft'}
               onClick={() => setStatusFilter('draft')}
             >
               Draft ({statusCounts.draft})
             </FilterButton>
             <FilterButton 
-              isActive={statusFilter === 'confirmed'}
+              $isActive={statusFilter === 'confirmed'}
               onClick={() => setStatusFilter('confirmed')}
             >
               Confirmed ({statusCounts.confirmed})
             </FilterButton>
             <FilterButton 
-              isActive={statusFilter === 'processing'}
+              $isActive={statusFilter === 'processing'}
               onClick={() => setStatusFilter('processing')}
             >
               Processing ({statusCounts.processing})
             </FilterButton>
             <FilterButton 
-              isActive={statusFilter === 'shipped'}
+              $isActive={statusFilter === 'shipped'}
               onClick={() => setStatusFilter('shipped')}
             >
               Shipped ({statusCounts.shipped})
             </FilterButton>
             <FilterButton 
-              isActive={statusFilter === 'delivered'}
+              $isActive={statusFilter === 'delivered'}
               onClick={() => setStatusFilter('delivered')}
             >
               Delivered ({statusCounts.delivered})
@@ -818,8 +818,8 @@ export const SalesOrdersPage: React.FC = () => {
                   {filteredOrders.map((order) => (
                     <TableRow
                       key={order.id}
-                      isClickable
-                      isSelected={selectedOrder?.id === order.id}
+                      $isClickable
+                      $isSelected={selectedOrder?.id === order.id}
                       onClick={() => handleOrderClick(order)}
                     >
                       <TableCell>{order.order_number}</TableCell>
@@ -837,7 +837,7 @@ export const SalesOrdersPage: React.FC = () => {
                       </TableCell>
                       <TableCell>{formatCurrency(parseFloat(order.total_amount))}</TableCell>
                       <TableCell>
-                        <StatusBadge status={order.status}>
+                        <StatusBadge $status={order.status}>
                           {order.status.toUpperCase()}
                         </StatusBadge>
                       </TableCell>
@@ -876,7 +876,7 @@ export const SalesOrdersPage: React.FC = () => {
             <SidePanelContent>
               <DetailSection>
                 <DetailLabel>Status</DetailLabel>
-                <StatusBadge status={selectedOrder.status}>
+                <StatusBadge $status={selectedOrder.status}>
                   {selectedOrder.status.toUpperCase()}
                 </StatusBadge>
               </DetailSection>

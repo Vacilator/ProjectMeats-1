@@ -232,6 +232,35 @@ const DeleteButton = styled.button`
   }
 `;
 
+const FilterBar = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+`;
+
+const FilterButton = styled.button<{ $isActive?: boolean }>`
+  padding: 0.5rem 1rem;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  background: ${props => props.$isActive ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  color: ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  border: 1px solid ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.1);
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
+  }
+`;
+
 const PurchaseOrders: React.FC = () => {
   useDocumentTitle('Purchase Orders');
   const navigate = useNavigate();
@@ -253,6 +282,7 @@ const PurchaseOrders: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<PurchaseOrder | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     const reviewType = searchParams.get('review');
@@ -358,6 +388,19 @@ const PurchaseOrders: React.FC = () => {
       logger.error('Error loading purchase orders:', error);
     }
   };
+
+  const filteredPurchaseOrders = useMemo(() => {
+    if (statusFilter === 'all') return purchaseOrders;
+    return purchaseOrders.filter((po) => po.status === statusFilter);
+  }, [purchaseOrders, statusFilter]);
+
+  const statusCounts = useMemo(() => ({
+    all: purchaseOrders.length,
+    pending: purchaseOrders.filter((po) => po.status === 'pending').length,
+    approved: purchaseOrders.filter((po) => po.status === 'approved').length,
+    delivered: purchaseOrders.filter((po) => po.status === 'delivered').length,
+    cancelled: purchaseOrders.filter((po) => po.status === 'cancelled').length,
+  }), [purchaseOrders]);
 
   const handleEdit = (purchaseOrder: PurchaseOrder) => {
     setPendingCreatePrefill(null);
@@ -574,7 +617,19 @@ const PurchaseOrders: React.FC = () => {
             ]}
           />
 
-          {purchaseOrders.length === 0 ? (
+          <FilterBar>
+            {(['all', 'pending', 'approved', 'delivered', 'cancelled'] as const).map((status) => (
+              <FilterButton
+                key={status}
+                $isActive={statusFilter === status}
+                onClick={() => setStatusFilter(status)}
+              >
+                {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)} ({statusCounts[status]})
+              </FilterButton>
+            ))}
+          </FilterBar>
+
+          {filteredPurchaseOrders.length === 0 && purchaseOrders.length === 0 ? (
             <TransactionalEmptyState
               icon={<ClipboardList size={36} />}
               title="No purchase orders yet"
@@ -601,6 +656,10 @@ const PurchaseOrders: React.FC = () => {
                 </TransactionalEmptyStateGuidanceItem>
               </TransactionalEmptyStateGuidance>
             </TransactionalEmptyState>
+          ) : filteredPurchaseOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'rgb(var(--color-text-secondary))' }}>
+              No purchase orders match the selected filter.
+            </div>
           ) : (
             <TableWrapper>
               <Table>
@@ -616,7 +675,7 @@ const PurchaseOrders: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {purchaseOrders.map((purchaseOrder) => {
+                  {filteredPurchaseOrders.map((purchaseOrder) => {
                     const supplier = suppliers.find((s) => s.id === purchaseOrder.supplier);
                     return (
                       <TableRow
