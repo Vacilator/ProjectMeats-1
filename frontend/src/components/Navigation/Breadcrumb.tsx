@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 
@@ -201,49 +201,50 @@ const Breadcrumb: React.FC = () => {
     [breadcrumbItems]
   );
 
-  const resolvedNameQueries = useMemo(
-    () =>
-      resolvableItems.map((item) => ({
-        queryKey: withTenantQueryKey('breadcrumb-name', item.resolver?.apiPath, item.pathname),
-        queryFn: async () => {
-          if (!item.resolver) return null;
-          const response = await businessApi.get(`${item.resolver.apiPath}/${item.pathname}/`);
-          const payload =
-            response?.data && typeof response.data === 'object'
-              ? (response.data as Record<string, unknown>)
-              : null;
-
-          if (!payload) {
-            return fallbackEntityLabel(item.resolver.singularLabel, item.pathname);
+  const resolvedNameBatchQuery = useQuery({
+    queryKey: withTenantQueryKey(
+      'breadcrumb-name-batch',
+      ...resolvableItems.map((item) => `${item.resolver?.apiPath}:${item.pathname}`)
+    ),
+    queryFn: async () => {
+      const entries = await Promise.all(
+        resolvableItems.map(async (item) => {
+          if (!item.resolver) {
+            return [item.routeTo, null] as const;
           }
 
-          return (
-            item.resolver.getDisplayName(payload, item.pathname) ||
-            fallbackEntityLabel(item.resolver.singularLabel, item.pathname)
-          );
-        },
-        staleTime: 5 * 60 * 1000,
-        retry: 1,
-      })),
-    [resolvableItems]
-  );
+          try {
+            const response = await businessApi.get(`${item.resolver.apiPath}/${item.pathname}/`);
+            const payload =
+              response?.data && typeof response.data === 'object'
+                ? (response.data as Record<string, unknown>)
+                : null;
 
-  const resolvedNames = useQueries({
-    queries: resolvedNameQueries,
+            if (!payload) {
+              return [item.routeTo, fallbackEntityLabel(item.resolver.singularLabel, item.pathname)] as const;
+            }
+
+            return [
+              item.routeTo,
+              item.resolver.getDisplayName(payload, item.pathname) ||
+                fallbackEntityLabel(item.resolver.singularLabel, item.pathname),
+            ] as const;
+          } catch {
+            return [item.routeTo, fallbackEntityLabel(item.resolver.singularLabel, item.pathname)] as const;
+          }
+        })
+      );
+
+      return new Map(entries);
+    },
+    enabled: resolvableItems.length > 0,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
   const resolvedNameMap = useMemo(() => {
-    const next = new Map<string, string>();
-
-    resolvableItems.forEach((item, index) => {
-      const query = resolvedNames[index];
-      if (query?.data) {
-        next.set(item.routeTo, query.data);
-      }
-    });
-
-    return next;
-  }, [resolvableItems, resolvedNames]);
+    return resolvedNameBatchQuery.data ?? new Map<string, string | null>();
+  }, [resolvedNameBatchQuery.data]);
 
   const breadcrumbDisplayItems = useMemo(
     () =>
