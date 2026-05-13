@@ -16,6 +16,7 @@ import { Table, Input, Button, message, Tag, Space } from 'antd';
 import { confirmDialog } from '@/utils/uiDialogs';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
+import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
@@ -173,6 +174,15 @@ const CustomerLocations: React.FC = () => {
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [contextCustomerId, setContextCustomerId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+
+  const locationTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'inactive', label: 'Inactive' },
+    { key: 'warehouse', label: 'Warehouse' },
+    { key: 'cold_storage', label: 'Cold Storage' },
+  ], []);
   const locationInitialValues = useMemo(
     () => ({
       ...(contextCustomerId ? { customer: String(contextCustomerId) } : {}),
@@ -210,7 +220,7 @@ const CustomerLocations: React.FC = () => {
 
   useEffect(() => {
     filterLocations();
-  }, [locations, searchText, contextCustomerId]);
+  }, [locations, searchText, contextCustomerId, activeTab]);
 
   const loadLocations = async (customerFilterId: number | null) => {
     try {
@@ -240,12 +250,18 @@ const CustomerLocations: React.FC = () => {
   const filterLocations = () => {
     let filtered = [...locations];
 
-    // Filter by context customer
     if (contextCustomerId) {
       filtered = filtered.filter(l => l.customer === contextCustomerId);
     }
 
-    // Filter by search text
+    if (activeTab === 'active') {
+      filtered = filtered.filter(l => l.is_active !== false);
+    } else if (activeTab === 'inactive') {
+      filtered = filtered.filter(l => l.is_active === false);
+    } else if (activeTab !== 'all') {
+      filtered = filtered.filter(l => (l.location_type ?? '').toLowerCase() === activeTab);
+    }
+
     if (searchText) {
       const search = searchText.toLowerCase();
       filtered = filtered.filter(l =>
@@ -427,16 +443,14 @@ const CustomerLocations: React.FC = () => {
         </ContextBanner>
       )}
 
-      <TableControls>
-        <Input
-          placeholder="Search locations by name, customer, or address..."
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ maxWidth: 400 }}
-          allowClear
-        />
-      </TableControls>
+      <StatusFilterBar
+        tabs={locationTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Search locations by name, customer, or address…"
+      />
 
       <StyledTable
         columns={columns as any}

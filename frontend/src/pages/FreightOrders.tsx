@@ -14,6 +14,7 @@ import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeli
 import SharePortalLinkPanel from '@/components/Portal/SharePortalLinkPanel';
 import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
 import { EntityFormSurface } from '@/components/Shared';
+import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { buildCsv, downloadCsv } from '@/utils/csv';
@@ -63,6 +64,16 @@ const FreightOrders: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [portalAccessOrderId, setPortalAccessOrderId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchText, setSearchText] = useState('');
+
+  const freightTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'in_transit', label: 'In Transit' },
+    { key: 'delivered', label: 'Delivered' },
+    { key: 'cancelled', label: 'Cancelled' },
+  ], []);
 
   const freightOrdersQuery = useQuery({
     queryKey: withTenantQueryKey('freight-orders'),
@@ -101,6 +112,22 @@ const FreightOrders: React.FC = () => {
   }, [refreshFreightOrders]);
 
   const orders = freightOrdersQuery.data ?? [];
+
+  const filteredOrders = useMemo(() => {
+    let result = orders;
+    if (activeTab !== 'all') {
+      result = result.filter((o) => (o.status ?? 'draft').toLowerCase() === activeTab);
+    }
+    const q = searchText.trim().toLowerCase();
+    if (q) {
+      result = result.filter((o) =>
+        (o.our_carrier_po_num ?? '').toLowerCase().includes(q) ||
+        (o.carrier_name ?? '').toLowerCase().includes(q) ||
+        (o.type_of_protein ?? '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [orders, activeTab, searchText]);
 
   const handleExportCSV = useCallback(() => {
     if (!orders.length) return;
@@ -206,6 +233,15 @@ const FreightOrders: React.FC = () => {
         </Space>
       </div>
 
+      <StatusFilterBar
+        tabs={freightTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Search freight orders…"
+      />
+
       <Card size="small">
         {freightOrdersQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 10 }} />
@@ -221,7 +257,7 @@ const FreightOrders: React.FC = () => {
             aria-label="Freight orders list"
             rowKey="id"
             columns={columns}
-            dataSource={freightOrdersQuery.data}
+            dataSource={filteredOrders}
             pagination={{ pageSize: 10 }}
             onRow={(record) => ({
               onClick: () => setSelectedOrder(record),
