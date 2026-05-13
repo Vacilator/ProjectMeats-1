@@ -121,7 +121,9 @@ updates:
     labels:
       - "dependencies"
       - "ci/cd"
-      - "automerge"
+      # NOTE: No 'automerge' label — GitHub Actions PRs always need manual review
+      # because dependabot uses tag refs but our Drift Gate requires SHA-pinned refs.
+      # Workflow: dependabot opens PR → developer manually pins SHAs → merge.
     commit-message:
       prefix: "chore(ci)"
       include: "scope"
