@@ -14,7 +14,7 @@ from .base import *  # noqa
 # Security & Core
 # -----------------------------------------------------------------------------
 DEBUG = False
-SECRET_KEY = config("SECRET_KEY", default="temp-key-for-build-phase-only-not-secure")
+SECRET_KEY = config("SECRET_KEY")
 
 
 # Helper: split comma-separated env values into a cleaned list
