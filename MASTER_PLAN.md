@@ -4269,3 +4269,44 @@ Massive front-end overhaul spanning navigation, entity pages, premium forms, AI 
 - **Non-blocking FK** — dropdowns load async, form never blocked by slow FK endpoints
 - **Cascade filtering** — declarative rules in fkCascadeMap, zero coupling to form UI
 - **Theme compliance** — zero hardcoded colors, all `rgb(var(--color-*))` tokens
+
+## Phase 42: Deep-Audit Gap Closure & Final Polish
+
+**Status**: ✅ Complete
+**PRs**: #5373, #5374
+
+### Summary
+5-agent deep audit revealed several built-but-orphaned components and missing polish items. This phase wired everything together and closed every remaining gap from the original overhaul prompts.
+
+### Delivered
+
+#### A. Entity Detail Page Unification
+1. **AIEntityInsights** — wired into UniversalEntityRecordPage (ALL entity types), PlantDetailView, LocationDetailView
+2. **EntityProfileHeader compact variant** — switched to overview/expand pattern (show 6 key fields + "Show All Fields" toggle)
+3. **Related data tables** — verified working for Suppliers, Customers, Carriers, Contacts, FreightOrders with 5 relationship types each
+
+#### B. Navigation Completeness
+4. **Plants & Facilities** — added as sub-item under Suppliers in sidebar navigation
+5. **Locations** — added as sub-item under Customers in sidebar navigation
+6. **Contacts** — added as standalone nav item (was missing entirely)
+7. **Breadcrumbs** — added proper `Home / Plants` and `Home / Locations` trails with page title as header (was Back button only)
+
+#### C. Home Page Polish
+8. **My Tasks** — renamed Action Items widget, enhanced with approval items
+9. **Today's Numbers** — renamed Quick Stats, expanded to 6 KPIs (Inquiries, POs, SOs, Invoices Due, Pending Approvals, Active Carriers)
+
+#### D. AI Chat Enhancement
+10. **Full-page route** — `/ai-chat` route with dedicated AIChatPage.tsx
+11. **Settings persistence** — Sound and Auto-expand settings wired to actual behavior + persist to localStorage
+12. **Sound notifications** — subtle tone plays on new assistant messages (when enabled)
+13. **Auto-expand** — widget auto-opens when assistant message arrives (when enabled)
+
+#### E. Smart Form Intelligence
+14. **Auto-generate numbers** — PO/SO/INQ numbers auto-generated on create when left blank using `PREFIX-YYYYMMDD-######` format
+15. **AI workflow hints** — subtle AI recommendation banner on in-progress decision-node workflow steps
+
+### Verification
+- TypeScript: 0 errors
+- lint:colors: 0 violations
+- lint:render-stability: 0 violations
+- All 87 session todos: done
