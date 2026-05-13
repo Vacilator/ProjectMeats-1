@@ -15,6 +15,8 @@ import {
 import { businessApi } from '@/services/businessApi';
 import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutocomplete';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
+import { useApprovalGate } from '@/hooks/useApprovalGate';
+import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
 
 // ============================================================================
 // Types
@@ -659,6 +661,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [pullingBOL, setPullingBOL] = useState(false);
   const [createdAt] = useState(() => new Date());
+  const approvalGate = useApprovalGate();
 
   // Choice options from backend
   const [proteinOptions, setProteinOptions] = useState<ChoiceOption[]>([]);
@@ -894,6 +897,22 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
       setSubmitting(true);
       try {
         const payload = buildPayload(status);
+
+        // Approval gate: intercept before external send (skip drafts)
+        if (status !== 'draft') {
+          const gateResult = await approvalGate.intercept({
+            requestType: 'invoice',
+            subject: `Invoice ${formValues.invoice_number || 'New'}`,
+            recipientType: 'customer',
+            contentPreview: `Invoice for ${formValues.description_of_product_item || 'product'}`,
+            sourceEntityType: 'invoice',
+          });
+          if (!gateResult.approved) {
+            setSubmitting(false);
+            return;
+          }
+        }
+
         if (mode === 'edit' && entityId) {
           await businessApi.put(`invoices/${entityId}/`, payload);
         } else {
@@ -1628,6 +1647,14 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           </SubmitButton>
         </FormFooter>
       </FormShell>
+      <ApprovalPreviewModal
+        open={approvalGate.showModal}
+        request={approvalGate.currentRequest}
+        onApprove={approvalGate.handleApprove}
+        onReject={approvalGate.handleReject}
+        onEditApprove={approvalGate.handleEditApprove}
+        onCancel={approvalGate.handleCancel}
+      />
     </FormWrapper>
   );
 };

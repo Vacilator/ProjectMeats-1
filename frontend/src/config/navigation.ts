@@ -166,6 +166,11 @@ export const navigation: NavigationItem[] = [
     icon: '📋',
     path: '/workforms',
   },
+  {
+    label: 'AI & Approvals',
+    icon: '🤖',
+    path: '/settings/ai',
+  },
 ];
 
 /**
