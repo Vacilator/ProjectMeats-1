@@ -447,6 +447,160 @@ export const schemaExtractionApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Phase 40: Feedback Events, Approval Queue, User Preferences APIs
+// ---------------------------------------------------------------------------
+
+export interface FeedbackEventItem {
+  event_type: string;
+  source_surface: string;
+  entity_type?: string;
+  entity_id?: string;
+  field_name?: string;
+  ai_value?: unknown;
+  user_value?: unknown;
+  confidence_score?: number;
+  resolution_time_ms?: number;
+  timestamp?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ExternalApprovalRequest {
+  id: string;
+  request_type: string;
+  status: 'pending' | 'approved' | 'rejected' | 'edited_and_approved' | 'expired' | 'delegated';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  subject: string;
+  recipient_type: string;
+  recipient_entity_id: string;
+  recipient_name: string;
+  recipient_email: string;
+  content_preview: string;
+  content_payload: Record<string, unknown>;
+  edited_content: Record<string, unknown> | null;
+  source_entity_type: string;
+  source_entity_id: string;
+  ai_generated: boolean;
+  ai_confidence: number | null;
+  requested_by: number | null;
+  requested_by_name: string | null;
+  reviewed_by: number | null;
+  reviewed_by_name: string | null;
+  reviewed_at: string | null;
+  reviewer_notes: string;
+  delegated_to: number | null;
+  delegated_to_name: string | null;
+  expires_at: string | null;
+  created_on: string;
+  modified_on: string;
+}
+
+export interface ApprovalQueueStats {
+  pending: number;
+  approved_today: number;
+  rejected_today: number;
+  expired_today: number;
+  by_type: Record<string, number>;
+}
+
+export interface UserAIPreferences {
+  id: number;
+  require_external_approval: boolean;
+  approval_auto_approve_threshold: number;
+  show_ai_confidence_badges: boolean;
+  show_ai_suggestions: boolean;
+  feedback_detail_level: 'minimal' | 'standard' | 'detailed';
+  notification_frequency: 'realtime' | 'hourly_digest' | 'daily_digest';
+  created_on: string;
+  modified_on: string;
+}
+
+export interface AILearningSnapshot {
+  id: string;
+  period_start: string;
+  period_end: string;
+  entity_type: string;
+  total_events: number;
+  positive_signals: number;
+  negative_signals: number;
+  correction_rate: number;
+  avg_resolution_time_ms: number;
+  top_corrected_fields: Array<{ field: string; count: number }>;
+  accuracy_trend: number;
+  created_on: string;
+}
+
+/** Batch submit implicit/explicit feedback events (fire-and-forget). */
+export const feedbackEventsApi = {
+  batchSubmit: async (events: FeedbackEventItem[]): Promise<{ accepted: number }> => {
+    const resp = await businessApi.post('/ai-assistant/feedback-events/', { events });
+    return resp.data;
+  },
+};
+
+/** Approval queue operations. */
+export const approvalQueueApi = {
+  list: async (params?: { status?: string; type?: string; priority?: string }): Promise<ExternalApprovalRequest[]> => {
+    const resp = await businessApi.get('/ai-assistant/approval-queue/', { params });
+    return resp.data?.results ?? resp.data ?? [];
+  },
+  get: async (id: string): Promise<ExternalApprovalRequest> => {
+    const resp = await businessApi.get(`/ai-assistant/approval-queue/${id}/`);
+    return resp.data;
+  },
+  approve: async (id: string, notes?: string): Promise<ExternalApprovalRequest> => {
+    const resp = await businessApi.post(`/ai-assistant/approval-queue/${id}/approve/`, { notes: notes || '' });
+    return resp.data;
+  },
+  reject: async (id: string, notes?: string): Promise<ExternalApprovalRequest> => {
+    const resp = await businessApi.post(`/ai-assistant/approval-queue/${id}/reject/`, { notes: notes || '' });
+    return resp.data;
+  },
+  editApprove: async (id: string, editedContent: Record<string, unknown>, notes?: string): Promise<ExternalApprovalRequest> => {
+    const resp = await businessApi.post(`/ai-assistant/approval-queue/${id}/edit-approve/`, {
+      edited_content: editedContent,
+      notes: notes || '',
+    });
+    return resp.data;
+  },
+  delegate: async (id: string, delegateTo: number, notes?: string): Promise<ExternalApprovalRequest> => {
+    const resp = await businessApi.post(`/ai-assistant/approval-queue/${id}/delegate/`, {
+      delegate_to: delegateTo,
+      notes: notes || '',
+    });
+    return resp.data;
+  },
+  batchAction: async (action: 'approve' | 'reject', ids: string[], notes?: string): Promise<{ updated: number }> => {
+    const resp = await businessApi.post('/ai-assistant/approval-queue/batch/', { action, ids, notes: notes || '' });
+    return resp.data;
+  },
+  stats: async (): Promise<ApprovalQueueStats> => {
+    const resp = await businessApi.get('/ai-assistant/approval-queue/stats/');
+    return resp.data;
+  },
+};
+
+/** User AI preferences. */
+export const userAIPreferencesApi = {
+  get: async (): Promise<UserAIPreferences> => {
+    const resp = await businessApi.get('/ai-assistant/user-preferences/');
+    return resp.data;
+  },
+  update: async (data: Partial<UserAIPreferences>): Promise<UserAIPreferences> => {
+    const resp = await businessApi.patch('/ai-assistant/user-preferences/', data);
+    return resp.data;
+  },
+};
+
+/** AI Learning snapshots. */
+export const learningSnapshotsApi = {
+  list: async (entityType?: string): Promise<AILearningSnapshot[]> => {
+    const params = entityType ? { entity_type: entityType } : undefined;
+    const resp = await businessApi.get('/ai-assistant/learning/snapshots/', { params });
+    return resp.data;
+  },
+};
+
 export const hydrateDocumentMessageMetadata = async <
   T extends { metadata?: Record<string, unknown> }
 >(
