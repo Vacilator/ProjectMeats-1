@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { ActivityFeed } from '@/components/Shared';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -38,9 +38,9 @@ export const PlantContactDetail: React.FC = () => {
       setLoading(true);
       try {
         const [supplierResp, plantResp, contactResp] = await Promise.all([
-          apiClient.get(`suppliers/${sid}/`),
-          apiClient.get(`plants/${pid}/`),
-          apiClient.get(`contacts/${cid}/`),
+          businessApi.get(`suppliers/${sid}/`),
+          businessApi.get(`plants/${pid}/`),
+          businessApi.get(`contacts/${cid}/`),
         ]);
 
         if (!mounted) return;

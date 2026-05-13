@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { ActivityFeed } from '@/components/Shared';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -38,9 +38,9 @@ export const LocationContactDetail: React.FC = () => {
       setLoading(true);
       try {
         const [customerResp, locationResp, contactResp] = await Promise.all([
-          apiClient.get(`customers/${cid}/`),
-          apiClient.get(`locations/${lid}/`),
-          apiClient.get(`contacts/${coid}/`),
+          businessApi.get(`customers/${cid}/`),
+          businessApi.get(`locations/${lid}/`),
+          businessApi.get(`contacts/${coid}/`),
         ]);
 
         if (!mounted) return;

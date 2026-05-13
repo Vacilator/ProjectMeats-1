@@ -17,7 +17,7 @@ import { confirmDialog } from '@/utils/uiDialogs';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
 
@@ -216,20 +216,7 @@ const CustomerLocations: React.FC = () => {
       setLoading(true);
       const params = customerFilterId ? { customer: customerFilterId } : undefined;
 
-      // Try multiple possible endpoints
-      let response;
-      try {
-        response = await apiClient.get('locations/', { params });
-      } catch (err: unknown) {
-        const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
-        const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
-        if (resp.status === 404) {
-          // Try alternative endpoint
-          response = await apiClient.get('api/v1/locations/', { params });
-        } else {
-          throw err;
-        }
-      }
+      const response = await businessApi.get('locations/', { params });
       setLocations(response.data.results || response.data);
     } catch (error) {
       logger.error('Error loading locations:', error);
@@ -242,7 +229,7 @@ const CustomerLocations: React.FC = () => {
 
   const loadCustomers = async () => {
     try {
-      const response = await apiClient.get('customers/');
+      const response = await businessApi.get('customers/');
       setCustomers(response.data.results || response.data);
     } catch (error) {
       logger.error('Error loading customers:', error);
@@ -294,7 +281,7 @@ const CustomerLocations: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`locations/${loc.id}/`);
+      await businessApi.delete(`locations/${loc.id}/`);
       message.success('Location deleted successfully');
       loadLocations(contextCustomerId);
     } catch (error: unknown) {

@@ -10,7 +10,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, Modal, message, Tag, Space, Skeleton, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -159,7 +159,7 @@ const SupplierProducts: React.FC = () => {
   const fetchSupplier = async () => {
     if (!id) return;
     try {
-      const response = await apiClient.get(`/suppliers/${id}/`);
+      const response = await businessApi.get(`/suppliers/${id}/`);
       setSupplier(response.data);
     } catch (error) {
       logger.error('Error fetching supplier:', error);
@@ -171,7 +171,7 @@ const SupplierProducts: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const response = await apiClient.get(`/suppliers/${id}/products/`);
+      const response = await businessApi.get(`/suppliers/${id}/products/`);
       setItems(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       logger.error('Error fetching available products:', error);
@@ -192,7 +192,7 @@ const SupplierProducts: React.FC = () => {
       const params: Record<string, any> = { page_size: '500', is_active: true };
       if (search) params.search = search;
       if (proteinFilter.length) params.protein = proteinFilter.map((t) => String(t).toLowerCase());
-      const response = await apiClient.get('/system/products/', { params });
+      const response = await businessApi.get('/system/products/', { params });
       const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       setSystemProducts(data);
     } catch (error) {
@@ -201,7 +201,7 @@ const SupplierProducts: React.FC = () => {
     } finally {
       setLoadingSystemProducts(false);
     }
-  }, [proteinFilter]); // apiClient, message, and state setters are all stable references
+  }, [proteinFilter]);
 
   const debouncedFetchSystemProducts = useCallback((search: string) => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -223,7 +223,7 @@ const SupplierProducts: React.FC = () => {
     try {
       await Promise.all(
         selectedProductIds.map(productId =>
-          apiClient.post(`/suppliers/${id}/available-products/`, { product: productId })
+          businessApi.post(`/suppliers/${id}/available-products/`, { product: productId })
         )
       );
       message.success(`Added ${selectedProductIds.length} product(s) successfully`);
@@ -250,7 +250,7 @@ const SupplierProducts: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/suppliers/${id}/available-products/${item.product}/`);
+      await businessApi.delete(`/suppliers/${id}/available-products/${item.product}/`);
       message.success('Product removed successfully');
       fetchItems();
     } catch (error) {

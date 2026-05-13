@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Skeleton } from 'antd';
 import { ClipboardList } from 'lucide-react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { buildPurchaseOrderReviewPath } from '@/services/purchaseOrderReviewService';
-import { apiClient, apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -236,17 +237,6 @@ const PurchaseOrders: React.FC = () => {
   useDocumentTitle('Purchase Orders');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
-
-  type CockpitPrefill = {
-    source?: string;
-    query?: string;
-    supplierId?: string;
-    contextEntity?: { id?: string; type?: string; label?: string };
-  };
-
-  const cockpitPrefill = (location.state as any)?.prefill as CockpitPrefill | undefined;
-  const [pendingCreatePrefill, setPendingCreatePrefill] = useState<CockpitPrefill | null>(null);
 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -264,37 +254,19 @@ const PurchaseOrders: React.FC = () => {
     navigate(buildPurchaseOrderReviewPath(purchaseOrderId), { replace: true });
   }, [navigate, searchParams]);
 
-  // Auto-open form if ?action=create in URL (e.g., from Cockpit suggested actions)
+  // Auto-open form if ?action=create in URL
   useEffect(() => {
     if (searchParams.get('action') !== 'create') return;
-
-    const supplierId =
-      searchParams.get('supplier_id') ??
-      cockpitPrefill?.supplierId ??
-      undefined;
-
-    const cockpitQuery =
-      searchParams.get('cockpit_q') ??
-      cockpitPrefill?.query ??
-      undefined;
-
-    setPendingCreatePrefill({
-      source: 'cockpit',
-      supplierId: supplierId || undefined,
-      query: cockpitQuery || undefined,
-      contextEntity: cockpitPrefill?.contextEntity,
-    });
 
     setEditingPurchaseOrder(null);
     setShowForm(true);
 
-    // Clear params so refresh doesn't keep reopening — functional update avoids stale ref
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      ['action', 'supplier_id', 'cockpit_q'].forEach((key) => next.delete(key));
+      ['action', 'supplier_id'].forEach((key) => next.delete(key));
       return next;
     });
-  }, [searchParams, setSearchParams, cockpitPrefill]);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     loadData();
@@ -307,7 +279,7 @@ const PurchaseOrders: React.FC = () => {
       setExporting(true);
 
       // Use backend streaming export (tenant-safe via get_queryset + filter_queryset)
-      const response = await apiClient.get('/purchase-orders/', {
+      const response = await businessApi.get('/purchase-orders/', {
         params: { format: 'csv' },
         responseType: 'blob',
       });
@@ -360,7 +332,6 @@ const PurchaseOrders: React.FC = () => {
   };
 
   const handleEdit = (purchaseOrder: PurchaseOrder) => {
-    setPendingCreatePrefill(null);
     setEditingPurchaseOrder(purchaseOrder);
     setShowForm(true);
   };
@@ -418,36 +389,22 @@ const PurchaseOrders: React.FC = () => {
   };
 
   const openCreatePurchaseOrder = () => {
-    setPendingCreatePrefill(null);
     setEditingPurchaseOrder(null);
     setShowForm(true);
   };
 
   const purchaseOrderCreateInitialValues = useMemo(() => {
-    const noteParts: string[] = [];
-
-    if (pendingCreatePrefill?.query) {
-      noteParts.push(`Cockpit search: "${pendingCreatePrefill.query}"`);
-    }
-
-    if (pendingCreatePrefill?.contextEntity?.label) {
-      noteParts.push(`Context: ${pendingCreatePrefill.contextEntity.label}`);
-    }
-
     return {
-      supplier: pendingCreatePrefill?.supplierId || undefined,
       order_date: new Date().toISOString().split('T')[0],
-      notes: noteParts.join('\n') || undefined,
       status: 'pending',
       weight_unit: 'LBS',
       logistics_scenario: 'supplier_delivery',
     } satisfies Record<string, unknown>;
-  }, [pendingCreatePrefill]);
+  }, []);
 
   const handleFormClose = () => {
     setShowForm(false);
     setEditingPurchaseOrder(null);
-    setPendingCreatePrefill(null);
   };
 
   const handleFormSuccess = async () => {
