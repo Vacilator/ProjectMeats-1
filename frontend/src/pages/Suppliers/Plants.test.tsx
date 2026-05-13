@@ -47,9 +47,9 @@ describe('Plants create modal wiring', () => {
     });
 
     entityFormSurfaceMock.mockImplementation(
-      (props: { isOpen?: boolean; context?: unknown }) =>
+      (props: { isOpen?: boolean; initialValues?: unknown }) =>
         props.isOpen ? (
-          <div data-testid="entity-form-surface">{JSON.stringify(props.context ?? {})}</div>
+          <div data-testid="entity-form-surface">{JSON.stringify(props.initialValues ?? {})}</div>
         ) : null
     );
   });
@@ -75,7 +75,7 @@ describe('Plants create modal wiring', () => {
           mode?: string;
           variant?: string;
           isOpen?: boolean;
-          context?: Record<string, unknown>;
+          initialValues?: Record<string, unknown>;
         }
       | undefined;
 
@@ -84,8 +84,10 @@ describe('Plants create modal wiring', () => {
       mode: 'create',
       variant: 'modal',
       isOpen: true,
-      context: {
-        supplierId: 7186,
+      initialValues: {
+        supplier: '7186',
+        plant_type: 'processing',
+        country: 'USA',
       },
     });
   });
