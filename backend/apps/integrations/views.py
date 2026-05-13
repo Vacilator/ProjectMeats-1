@@ -7,8 +7,8 @@ import logging
 import secrets
 from datetime import timedelta
 
-from django.core.cache import cache
 from django.core import signing
+from django.core.cache import cache
 from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework import status
