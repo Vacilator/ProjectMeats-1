@@ -6,6 +6,7 @@ import { logger } from '@/utils/logger';
 import type { Contact } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
+import StatusFilterBar from '../components/Shared/StatusFilterBar';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -223,6 +224,8 @@ const DeleteButton = styled.button`
 `;
 
 
+type ContactRow = Contact & { is_active?: boolean };
+
 const Contacts: React.FC = () => {
   useDocumentTitle('Contacts');
   const { supplierId, customerId } = useParams<{ supplierId?: string; customerId?: string }>();
@@ -275,8 +278,34 @@ const Contacts: React.FC = () => {
     },
   });
 
-  const contacts = contactsQuery.data ?? [];
+  const contacts = (contactsQuery.data ?? []) as ContactRow[];
   const loading = contactsQuery.isLoading;
+
+  const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const contactTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'inactive', label: 'Inactive' },
+  ], []);
+  const filteredContacts = useMemo(() => {
+    let result = contacts;
+    if (activeTab === 'active') {
+      result = result.filter((c) => c.is_active !== false);
+    } else if (activeTab === 'inactive') {
+      result = result.filter((c) => c.is_active === false);
+    }
+    const q = searchText.trim().toLowerCase();
+    if (q) {
+      result = result.filter((c) =>
+        `${c.first_name ?? ''} ${c.last_name ?? ''}`.toLowerCase().includes(q) ||
+        (c.company ?? '').toLowerCase().includes(q) ||
+        (c.email ?? '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [contacts, activeTab, searchText]);
+
   const createRequested = useMemo(
     () => new URLSearchParams(searchParamsSignature).get('create') === '1',
     [searchParamsSignature]
@@ -409,6 +438,15 @@ const Contacts: React.FC = () => {
         </div>
       </Header>
 
+      <StatusFilterBar
+        tabs={contactTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Search contacts…"
+      />
+
       <StatsCards>
         <StatCard>
           <StatNumber>{contacts.length}</StatNumber>
@@ -428,11 +466,16 @@ const Contacts: React.FC = () => {
         </StatCard>
       </StatsCards>
 
-      {contacts.length === 0 ? (
+      {filteredContacts.length === 0 && contacts.length === 0 ? (
         <EmptyState>
           <EmptyIcon>👥</EmptyIcon>
           <EmptyTitle>No Contacts</EmptyTitle>
           <EmptyDescription>Get started by creating your first contact</EmptyDescription>
+        </EmptyState>
+      ) : filteredContacts.length === 0 ? (
+        <EmptyState>
+          <EmptyTitle>No results</EmptyTitle>
+          <EmptyDescription>No contacts match the current filters</EmptyDescription>
         </EmptyState>
       ) : (
         <Table>
@@ -448,7 +491,7 @@ const Contacts: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {contacts.map((contact) => (
+            {filteredContacts.map((contact) => (
               <TableRow key={contact.id}>
                 <TableCell>
                   {contact.first_name} {contact.last_name}

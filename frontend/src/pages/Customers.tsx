@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Result, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Result, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -7,6 +7,7 @@ import styled from 'styled-components';
 import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
+import StatusFilterBar from '../components/Shared/StatusFilterBar';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { Customer } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
@@ -24,6 +25,7 @@ type CustomerProduct = {
 
 type CustomerListRow = Customer & {
   associated_products?: CustomerProduct[];
+  is_active?: boolean;
 };
 
 const PageContainer = styled.div`
@@ -57,11 +59,6 @@ const HeaderActions = styled.div`
   @media (max-width: 520px) {
     width: 100%;
   }
-`;
-
-const SearchInputContainer = styled.div`
-  flex: 1 1 220px;
-  min-width: 0;
 `;
 
 const TableContainer = styled.div`
@@ -100,11 +97,25 @@ const Customers: React.FC = () => {
   const customers = (customersQuery.data ?? []) as CustomerListRow[];
 
   const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const customerTabs = useMemo(() => [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'inactive', label: 'Inactive' },
+  ], []);
   const filteredCustomers = useMemo(() => {
+    let result = customers;
+    if (activeTab === 'active') {
+      result = result.filter((c) => c.is_active !== false);
+    } else if (activeTab === 'inactive') {
+      result = result.filter((c) => c.is_active === false);
+    }
     const q = searchText.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter((c) => String(c.name ?? '').toLowerCase().includes(q));
-  }, [customers, searchText]);
+    if (q) {
+      result = result.filter((c) => String(c.name ?? '').toLowerCase().includes(q));
+    }
+    return result;
+  }, [customers, activeTab, searchText]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -273,15 +284,6 @@ const Customers: React.FC = () => {
         </div>
 
         <HeaderActions>
-          <SearchInputContainer>
-            <Input
-              placeholder="Search customers"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-              style={{ width: '100%' }}
-            />
-          </SearchInputContainer>
           <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={!customers.length}>
             Export CSV
           </Button>
@@ -290,6 +292,15 @@ const Customers: React.FC = () => {
           </Button>
         </HeaderActions>
       </HeaderRow>
+
+      <StatusFilterBar
+        tabs={customerTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Search customers…"
+      />
 
       <TableContainer data-testid="customers-table-container">
         {customersQuery.isError ? (
