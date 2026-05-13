@@ -30,7 +30,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, DownloadOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
@@ -135,7 +135,7 @@ const OptionListsPage: React.FC = () => {
     retry: false,
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/system/choice-lists/');
+        const response = await businessApi.get('/system/choice-lists/');
         const raw = response.data as any;
         return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       } catch (error) {
@@ -154,7 +154,7 @@ const OptionListsPage: React.FC = () => {
     retry: false,
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/workflows/lists/');
+        const response = await businessApi.get('/workflows/lists/');
         const raw = response.data as any;
         return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       } catch (error) {
@@ -173,7 +173,7 @@ const OptionListsPage: React.FC = () => {
     retry: false,
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/system/products/', {
+        const response = await businessApi.get('/system/products/', {
           params: {
             include_inactive: true,
             page_size: 500,
@@ -199,7 +199,7 @@ const OptionListsPage: React.FC = () => {
       if (!permissions.tenant_id) return {};
 
       try {
-        const response = await apiClient.get('/system/product-preferences/', {
+        const response = await businessApi.get('/system/product-preferences/', {
           params: { page_size: 2000 },
         });
         const raw = response.data as any;
@@ -297,7 +297,7 @@ const OptionListsPage: React.FC = () => {
           sort_order: patch.sort_order ?? existing.sort_order ?? 0,
         };
 
-        const resp = await apiClient.patch(`/system/product-preferences/${existing.id}/`, payload);
+        const resp = await businessApi.patch(`/system/product-preferences/${existing.id}/`, payload);
         const updated = resp.data as TenantProductPreference;
         queryClient.setQueryData<Record<string, TenantProductPreference>>(
           productPrefsQueryKey,
@@ -318,7 +318,7 @@ const OptionListsPage: React.FC = () => {
         sort_order: patch.sort_order ?? 0,
       };
 
-      const resp = await apiClient.post('/system/product-preferences/', payload);
+      const resp = await businessApi.post('/system/product-preferences/', payload);
       const created = resp.data as TenantProductPreference;
       queryClient.setQueryData<Record<string, TenantProductPreference>>(
         productPrefsQueryKey,
@@ -359,7 +359,7 @@ const OptionListsPage: React.FC = () => {
     }
 
     try {
-      await apiClient.delete(`/system/product-preferences/${existing.id}/`);
+      await businessApi.delete(`/system/product-preferences/${existing.id}/`);
       queryClient.setQueryData<Record<string, TenantProductPreference>>(productPrefsQueryKey, (prev) => {
         const next = { ...(prev ?? {}) };
         delete next[pid];
@@ -530,7 +530,7 @@ const OptionListsPage: React.FC = () => {
       if (!confirmed) return;
 
       try {
-        await apiClient.delete(`/workflows/lists/${record.id}/`);
+        await businessApi.delete(`/workflows/lists/${record.id}/`);
         message.success('Custom list deleted');
         await customListsQuery.refetch();
       } catch (err: unknown) {
@@ -561,7 +561,7 @@ const OptionListsPage: React.FC = () => {
       if (!confirmed) return;
 
       try {
-        await apiClient.delete(`/system/products/${record.id}/`);
+        await businessApi.delete(`/system/products/${record.id}/`);
         message.success('Master product deleted');
 
         queryClient.setQueryData<MasterProduct[]>(masterProductsQueryKey, (prev) =>
@@ -802,10 +802,10 @@ const OptionListsPage: React.FC = () => {
       };
 
       if (editingProduct?.id) {
-        await apiClient.patch(`/system/products/${editingProduct.id}/`, payload);
+        await businessApi.patch(`/system/products/${editingProduct.id}/`, payload);
         message.success('Product updated');
       } else {
-        await apiClient.post('/system/products/', payload);
+        await businessApi.post('/system/products/', payload);
         message.success('Product created');
       }
 

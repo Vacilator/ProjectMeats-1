@@ -3,7 +3,7 @@ import { Button, Form, Input, Modal, Space, Switch, Table, Typography, message }
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 
 const { Text } = Typography;
 
@@ -131,9 +131,9 @@ export const TenantListModal: React.FC<TenantListModalProps> = ({
       setSaving(true);
 
       if (isEdit && initial?.id) {
-        await apiClient.patch(`/workflows/lists/${initial.id}/`, payload);
+        await businessApi.patch(`/workflows/lists/${initial.id}/`, payload);
       } else {
-        await apiClient.post('/workflows/lists/', payload);
+        await businessApi.post('/workflows/lists/', payload);
       }
 
       message.success(isEdit ? 'Custom list updated' : 'Custom list created');

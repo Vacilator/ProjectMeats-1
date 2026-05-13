@@ -5,7 +5,8 @@ import { toast } from 'react-hot-toast';
 
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { formatCurrency } from '../shared/utils';
-import { apiService, Invoice } from '../services/apiService';
+import type { Invoice } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { buildCsv, downloadCsv } from '@/utils/csv';
@@ -355,8 +356,8 @@ const AccountsReceivables: React.FC = () => {
   const loadReceivables = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getInvoices();
-      setReceivables(data);
+      const resp = await businessApi.get('invoices/');
+      setReceivables((resp.data.results || resp.data) as Invoice[]);
     } catch (error) {
       logger.error('Error loading invoices:', error);
     } finally {
@@ -392,9 +393,9 @@ const AccountsReceivables: React.FC = () => {
       };
 
       if (editingReceivable) {
-        await apiService.updateInvoice(editingReceivable.id, receivableData);
+        await businessApi.patch(`invoices/${editingReceivable.id}/`, receivableData);
       } else {
-        await apiService.createInvoice(receivableData);
+        await businessApi.post('invoices/', receivableData);
       }
 
       await loadReceivables();
@@ -453,7 +454,7 @@ const AccountsReceivables: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiService.deleteInvoice(id);
+      await businessApi.delete(`invoices/${id}/`);
       showAlert({
         type: 'success',
         title: 'Deleted',

@@ -23,7 +23,8 @@ import {
   TransactionalEmptyStateGuidance,
   TransactionalEmptyStateGuidanceItem,
 } from '../../components/Onboarding';
-import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
+import { ActivityFeed } from '../../components/Shared';
+import SalesOrderForm from './SalesOrderForm';
 import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
@@ -910,13 +911,13 @@ export const SalesOrdersPage: React.FC = () => {
         )}
       </ContentContainer>
 
-      <EntityFormSurface
-        entityType="sales-orders"
-        mode="create"
-        isOpen={isModalOpen}
-        onClose={handleCreateClose}
-        onSuccess={handleCreateSuccess}
-      />
+      {isModalOpen && (
+        <SalesOrderForm
+          mode="create"
+          onSuccess={handleCreateSuccess}
+          onCancel={handleCreateClose}
+        />
+      )}
     </PageContainer>
   );
 };

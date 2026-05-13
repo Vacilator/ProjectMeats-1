@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -120,7 +120,7 @@ export const LocationDetailView: React.FC = () => {
       setAuthError(false);
       setContactsError(null);
       try {
-        const resp = await apiClient.get('contacts/', {
+        const resp = await businessApi.get('contacts/', {
           params: { location: locationId, page_size: 200, limit: 200 },
         });
         const payload = resp.data as unknown;

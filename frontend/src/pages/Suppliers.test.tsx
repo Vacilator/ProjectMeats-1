@@ -4,15 +4,12 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import Suppliers from './Suppliers';
-import * as apiService from '../services/apiService';
+import * as businessApiModule from '../services/businessApi';
 
-vi.mock('../services/apiService', () => ({
-  apiClient: {
+vi.mock('../services/businessApi', () => ({
+  businessApi: {
     get: vi.fn(),
-  },
-  apiService: {
-    getSuppliers: vi.fn(),
-    deleteSupplier: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -33,10 +30,12 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 describe('Suppliers page (HQ simplified)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiService.apiService.getSuppliers as any).mockResolvedValue([
-      { id: 1, name: 'Acme Meats' },
-      { id: 2, name: 'Bravo Foods' },
-    ]);
+    (businessApiModule.businessApi.get as any).mockResolvedValue({
+      data: [
+        { id: 1, name: 'Acme Meats' },
+        { id: 2, name: 'Bravo Foods' },
+      ],
+    });
   });
 
   it('renders Suppliers header and lists suppliers', async () => {
@@ -53,7 +52,7 @@ describe('Suppliers page (HQ simplified)', () => {
       expect(screen.getByText('Bravo Foods')).toBeInTheDocument();
     });
 
-    expect(apiService.apiService.getSuppliers).toHaveBeenCalled();
+    expect(businessApiModule.businessApi.get).toHaveBeenCalledWith('suppliers/');
   });
 
   it('does not prefetch products on mount (no N+1)', async () => {
@@ -64,6 +63,7 @@ describe('Suppliers page (HQ simplified)', () => {
     );
 
     expect(await screen.findByText('Suppliers')).toBeInTheDocument();
-    expect(apiService.apiClient.get).not.toHaveBeenCalled();
+    // Only the suppliers/ call should be made, not individual product calls
+    expect(businessApiModule.businessApi.get).toHaveBeenCalledTimes(1);
   });
 });

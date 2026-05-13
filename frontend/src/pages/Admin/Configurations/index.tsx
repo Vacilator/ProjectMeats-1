@@ -8,7 +8,7 @@ import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 
 import { Modal as AntModal } from 'antd';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { AdminGuard, AdminPage, AdminSection, ConfirmDialog, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
@@ -60,7 +60,7 @@ const ConfigurationsPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: withTenantQueryKey('tenants', 'current', 'configurations'),
     queryFn: async () => {
-      const res = await apiClient.get('/tenants/current/');
+      const res = await businessApi.get('/tenants/current/');
       return res.data;
     },
     staleTime: 60 * 1000,
@@ -103,7 +103,7 @@ const ConfigurationsPage: React.FC = () => {
     try {
       setLoading(true);
       setLoadError(null);
-      const response = await apiClient.get('/configurations/', {
+      const response = await businessApi.get('/configurations/', {
         params: tenantId ? { tenant: tenantId } : undefined,
       });
       const raw = response.data as any;
@@ -216,7 +216,7 @@ const ConfigurationsPage: React.FC = () => {
       setSaving(true);
       const configurationsToUpdate = Object.entries(changes).map(([id, value]) => ({ id, value }));
 
-      const response = await apiClient.post('/configurations/bulk_update/', {
+      const response = await businessApi.post('/configurations/bulk_update/', {
         configurations: configurationsToUpdate,
       });
 
@@ -295,7 +295,7 @@ const ConfigurationsPage: React.FC = () => {
 
     setIsCreating(true);
     try {
-      await apiClient.post('/configurations/', payload);
+      await businessApi.post('/configurations/', payload);
       toast.success('Configuration created');
       setShowCreateModal(false);
       await loadConfigurations();
@@ -312,7 +312,7 @@ const ConfigurationsPage: React.FC = () => {
 
   const handleResetOne = async (configId: string) => {
     try {
-      await apiClient.post(`/configurations/${configId}/reset/`);
+      await businessApi.post(`/configurations/${configId}/reset/`);
       toast.success('Reset to default');
       await loadConfigurations();
     } catch (error: unknown) {
@@ -341,7 +341,7 @@ const ConfigurationsPage: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/configurations/${config.id}/`);
+      await businessApi.delete(`/configurations/${config.id}/`);
       toast.success('Configuration deleted');
       await loadConfigurations();
     } catch (error: unknown) {
@@ -356,7 +356,7 @@ const ConfigurationsPage: React.FC = () => {
   const confirmReset = async () => {
     try {
       setSaving(true);
-      const response = await apiClient.post('/configurations/reset_category/', {
+      const response = await businessApi.post('/configurations/reset_category/', {
         category: activeCategory,
       });
 

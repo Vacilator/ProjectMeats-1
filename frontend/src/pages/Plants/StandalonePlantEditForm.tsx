@@ -16,7 +16,8 @@ import {
   message,
 } from 'antd';
 
-import { apiService, type Plant } from '@/services/apiService';
+import type { Plant } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 
 const { Paragraph, Title } = Typography;
 
@@ -103,7 +104,8 @@ export const StandalonePlantEditForm: React.FC<StandalonePlantEditFormProps> = (
         throw new Error('Plant ID is invalid.');
       }
 
-      return apiService.getPlant(numericPlantId);
+      const resp = await businessApi.get(`plants/${numericPlantId}/`);
+      return resp.data as Plant;
     },
     enabled: Boolean(plantId),
     retry: false,
@@ -115,7 +117,7 @@ export const StandalonePlantEditForm: React.FC<StandalonePlantEditFormProps> = (
         throw new Error('Plant ID is invalid.');
       }
 
-      return apiService.updatePlant(numericPlantId, {
+      const resp = await businessApi.patch(`plants/${numericPlantId}/`, {
         name: values.name,
         plant_est_num: values.plant_est_num || undefined,
         plant_type: values.plant_type || undefined,
@@ -132,6 +134,7 @@ export const StandalonePlantEditForm: React.FC<StandalonePlantEditFormProps> = (
         is_active: values.status === 'active',
         fcfs: values.fcfs,
       });
+      return resp.data as Plant;
     },
     onSuccess: (updatedPlant) => {
       message.success('Plant updated.');

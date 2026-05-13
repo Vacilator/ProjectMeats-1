@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logger';
-import { apiService, Contact } from '../services/apiService';
+import type { Contact } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -264,7 +265,13 @@ const Contacts: React.FC = () => {
       contactFilters.plant,
       contactFilters.location
     ),
-    queryFn: () => apiService.getContacts(contactFilters),
+    queryFn: async () => {
+      const filteredParams = contactFilters
+        ? Object.fromEntries(Object.entries(contactFilters).filter(([, v]) => v !== undefined && v !== null && v !== ''))
+        : undefined;
+      const resp = await businessApi.get('contacts/', { params: filteredParams });
+      return (resp.data.results || resp.data) as Contact[];
+    },
   });
 
   const contacts = contactsQuery.data ?? [];
@@ -348,7 +355,7 @@ const Contacts: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiService.deleteContact(id);
+      await businessApi.delete(`contacts/${id}/`);
       await invalidateContacts();
     } catch (error: unknown) {
       logger.error('[Contacts] Error deleting contact:', error);

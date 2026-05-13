@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { InquiryTemplate, InquiryEntityType } from '../types';
 import { InquiryTemplateModal } from '../components/Inquiry';
 import { logger } from '@/utils/logger';
@@ -271,7 +271,7 @@ const InquiryTemplates: React.FC = () => {
       if (entityFilter !== 'all') params.entity_type = entityFilter;
       if (statusFilter !== 'all') params.is_active = statusFilter;
 
-      const response = await apiClient.get('/inquiry-templates/', { params });
+      const response = await businessApi.get('/inquiry-templates/', { params });
       setTemplates(response.data.results || response.data);
     } catch (error) {
       logger.error('Failed to fetch templates:', error);
@@ -306,7 +306,7 @@ const InquiryTemplates: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/inquiry-templates/${template.id}/`);
+      await businessApi.delete(`/inquiry-templates/${template.id}/`);
       setTemplates(prev => prev.filter(t => t.id !== template.id));
     } catch (error) {
       logger.error('Failed to delete template:', error);
@@ -316,7 +316,7 @@ const InquiryTemplates: React.FC = () => {
 
   const handleToggleActive = async (template: InquiryTemplate) => {
     try {
-      const response = await apiClient.patch(`/inquiry-templates/${template.id}/`, {
+      const response = await businessApi.patch(`/inquiry-templates/${template.id}/`, {
         is_active: !template.is_active,
       });
       setTemplates(prev => prev.map(t =>

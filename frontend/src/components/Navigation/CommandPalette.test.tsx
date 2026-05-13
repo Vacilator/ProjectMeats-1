@@ -29,17 +29,21 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('@/services/searchService', () => ({
-  getRecentItems: searchServiceMocks.getRecentItems,
-  getSearchColorVar: searchServiceMocks.getSearchColorVar,
-  searchRanked: searchServiceMocks.searchRanked,
-  trackRecentItem: searchServiceMocks.trackRecentItem,
-  searchService: {
+vi.mock('@/services/searchService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/searchService')>();
+  return {
+    ...actual,
     getRecentItems: searchServiceMocks.getRecentItems,
+    getSearchColorVar: searchServiceMocks.getSearchColorVar,
     searchRanked: searchServiceMocks.searchRanked,
     trackRecentItem: searchServiceMocks.trackRecentItem,
-  },
-}));
+    searchService: {
+      getRecentItems: searchServiceMocks.getRecentItems,
+      searchRanked: searchServiceMocks.searchRanked,
+      trackRecentItem: searchServiceMocks.trackRecentItem,
+    },
+  };
+});
 
 // Components under test
 import { CommandPalette } from './CommandPalette';
@@ -205,7 +209,8 @@ describe('CommandPalette search behavior', () => {
       fireEvent.change(input, { target: { value: 'acme' } });
 
       await act(async () => {
-        vi.advanceTimersByTime(250);
+        vi.advanceTimersByTime(350);
+        await Promise.resolve();
         await Promise.resolve();
       });
 

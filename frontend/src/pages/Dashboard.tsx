@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Skeleton } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { apiService, Supplier, PurchaseOrder } from '../services/apiService';
+import type { Supplier, Customer, PurchaseOrder } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 import SupplierPerformanceChart from '../components/Visualization/SupplierPerformanceChart';
@@ -64,13 +65,17 @@ const Dashboard: React.FC = () => {
       setLoading(true);
 
       // Fetch data from all endpoints to get real counts
-      const [suppliersData, customersData, purchaseOrdersData, accountsReceivablesData] =
+      const [suppliersResp, customersResp, posResp, arResp] =
         await Promise.all([
-          apiService.getSuppliers().catch(() => []),
-          apiService.getCustomers().catch(() => []),
-          apiService.getPurchaseOrders().catch(() => []),
-          apiService.getAccountsReceivables().catch(() => []),
+          businessApi.get('suppliers/').catch(() => ({ data: [] })),
+          businessApi.get('customers/').catch(() => ({ data: [] })),
+          businessApi.get('purchase-orders/').catch(() => ({ data: [] })),
+          businessApi.get('invoices/').catch(() => ({ data: [] })),
         ]);
+      const suppliersData = (suppliersResp.data.results || suppliersResp.data || []) as Supplier[];
+      const customersData = (customersResp.data.results || customersResp.data || []) as Customer[];
+      const purchaseOrdersData = (posResp.data.results || posResp.data || []) as PurchaseOrder[];
+      const accountsReceivablesData = (arResp.data.results || arResp.data || []) as unknown[];
 
       // Set real stats
       setStats({

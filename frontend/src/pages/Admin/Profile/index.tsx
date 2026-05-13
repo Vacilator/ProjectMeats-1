@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Image as ImageIcon, X, Sparkles } from 'lucide-react';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { AdminGuard, AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
@@ -134,7 +134,7 @@ const AdminProfilePage: React.FC = () => {
     queryKey: withTenantQueryKey('tenant'),
     enabled: canManage,
     queryFn: async () => {
-      const response = await apiClient.get('/tenants/current/');
+      const response = await businessApi.get('/tenants/current/');
       return response.data;
     },
   });
@@ -181,13 +181,13 @@ const AdminProfilePage: React.FC = () => {
         // IMPORTANT: Do NOT set Content-Type for FormData.
         // Axios will attach the correct multipart boundary, and apiClient interceptor
         // removes the default application/json header for FormData payloads.
-        const response = await apiClient.patch(url, data, {
+        const response = await businessApi.patch(url, data, {
           headers: { Accept: 'application/json' },
         });
         return response.data;
       }
 
-      const response = await apiClient.patch(url, data);
+      const response = await businessApi.patch(url, data);
       return response.data;
     },
     onSuccess: () => {

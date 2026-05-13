@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Palette } from 'lucide-react';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -17,7 +17,7 @@ const CustomizationsPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: withTenantQueryKey('tenants', 'current'),
     queryFn: async () => {
-      const res = await apiClient.get('/tenants/current/');
+      const res = await businessApi.get('/tenants/current/');
       return res.data;
     },
     staleTime: 2 * 60 * 1000,

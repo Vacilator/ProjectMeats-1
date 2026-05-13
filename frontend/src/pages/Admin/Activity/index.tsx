@@ -19,7 +19,7 @@ import {
   User as UserIcon,
   XCircle,
 } from 'lucide-react';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { AdminGuard, AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -137,7 +137,7 @@ const ActivityPage: React.FC = () => {
       setError('');
 
       const params = buildParams(filters, pageNum);
-      const response = await apiClient.get('/activity-logs/', { params });
+      const response = await businessApi.get('/activity-logs/', { params });
       const results = Array.isArray((response.data as any)?.results) ? (response.data as any).results : [];
 
       if (appendMode) {
@@ -189,7 +189,7 @@ const ActivityPage: React.FC = () => {
       if (appliedFilters.start_date) params.created_at__gte = appliedFilters.start_date;
       if (appliedFilters.end_date) params.created_at__lte = appliedFilters.end_date;
 
-      const response = await apiClient.get('/activity-logs/export/', {
+      const response = await businessApi.get('/activity-logs/export/', {
         params,
         responseType: 'blob',
       });
