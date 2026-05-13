@@ -454,10 +454,8 @@ const ProcessFlowWrapper = styled.div`
   margin-top: 12px;
 `;
 
-const DetailModal = styled(Modal)`
-  .ant-modal-body {
-    padding: 24px;
-  }
+const DetailModalBody = styled.div`
+  padding: 24px;
 `;
 const ShortcutHintBar = styled.div`
   position: fixed;
@@ -1537,15 +1535,16 @@ const AICommandCenter: React.FC = () => {
       </Modal>
 
       {/* Process/Action Item Detail Modal */}
-      <DetailModal
+      <Modal
         open={modalOpen && !!selectedItem}
         onCancel={handleModalClose}
         footer={null}
         width={1100}
         destroyOnHidden
       >
-        {selectedItem && (
-          <>
+        <DetailModalBody>
+          {selectedItem && (
+            <>
             <ModalHeader>
               <ItemIcon $variant={getStatusVariant(selectedItem.status)}>
                 {getIconForSource(selectedItem.icon)}
@@ -1631,9 +1630,10 @@ const AICommandCenter: React.FC = () => {
                 />
               </ModalSection>
             )}
-          </>
-        )}
-      </DetailModal>
+            </>
+          )}
+        </DetailModalBody>
+      </Modal>
 
       {/* AI Draft Review Modal */}
       {draftReviewItem && (
