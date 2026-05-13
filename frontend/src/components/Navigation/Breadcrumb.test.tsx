@@ -9,13 +9,11 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import { NavigationProvider, useNavigation } from '@/contexts/NavigationContext';
 import { businessApi } from '@/services/businessApi';
 import Breadcrumb from './Breadcrumb';
-import BreadcrumbHierarchySync from './BreadcrumbHierarchySync';
 
 export {};
 
@@ -24,11 +22,6 @@ vi.mock('@/services/businessApi', () => ({
     get: vi.fn(),
   },
 }));
-
-const HierarchyProbe: React.FC = () => {
-  const { hierarchyStack } = useNavigation();
-  return <div data-testid="hierarchy-stack">{JSON.stringify(hierarchyStack)}</div>;
-};
 
 // Test wrapper
 const renderWithRouter = (initialPath: string = '/') => {
@@ -43,11 +36,7 @@ const renderWithRouter = (initialPath: string = '/') => {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialPath]}>
-        <NavigationProvider>
-          <BreadcrumbHierarchySync />
-          <Breadcrumb />
-          <HierarchyProbe />
-        </NavigationProvider>
+        <Breadcrumb />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -61,7 +50,7 @@ describe('Breadcrumb', () => {
   describe('root path', () => {
     it('returns null for root path (no breadcrumb)', () => {
       const { container } = renderWithRouter('/');
-      expect(container.querySelector('nav')).toBeNull();
+      expect(container.firstChild).toBeNull();
     });
   });
 
@@ -209,32 +198,6 @@ describe('Breadcrumb', () => {
       expect(await screen.findByText('Plant Details')).toBeInTheDocument();
       expect(screen.queryByText('123e4567-e89b-12d3-a456-426614174000')).not.toBeInTheDocument();
       expect(screen.queryByText('987e6543-e21b-12d3-a456-426614174000')).not.toBeInTheDocument();
-    });
-
-    it('publishes entity crumbs into the navigation hierarchy stack', async () => {
-      vi.mocked(businessApi.get).mockImplementation((url: string) => {
-        if (url === 'suppliers/supplier-uuid-1234/') {
-          return Promise.resolve({ data: { name: 'Acme Meats' } } as never);
-        }
-
-        if (url === 'plants/plant-uuid-5678/') {
-          return Promise.resolve({ data: { name: 'North Plant' } } as never);
-        }
-
-        return Promise.reject(new Error(`Unexpected GET ${url}`));
-      });
-
-      renderWithRouter('/suppliers/supplier-uuid-1234/plants/plant-uuid-5678');
-
-      const stack = await screen.findByTestId('hierarchy-stack');
-      await waitFor(() => {
-        expect(stack.textContent).toContain('"entityType":"supplier"');
-        expect(stack.textContent).toContain('"entityId":"supplier-uuid-1234"');
-        expect(stack.textContent).toContain('"label":"Acme Meats"');
-        expect(stack.textContent).toContain('"entityType":"plant"');
-        expect(stack.textContent).toContain('"entityId":"plant-uuid-5678"');
-        expect(stack.textContent).toContain('"label":"North Plant"');
-      });
     });
   });
 

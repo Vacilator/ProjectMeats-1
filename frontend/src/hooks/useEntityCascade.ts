@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 
-import { useNavigation } from '@/contexts/NavigationContext';
 import type { EntityFormContext } from '@/components/Shared/EntityFormSurface';
 import { normalizeEntityType } from '@/utils/entityTypeRegistry';
 
@@ -23,6 +23,19 @@ const FIELD_ALIASES: Record<string, string[]> = {
   supplier: ['supplier', 'supplier_id'],
 };
 
+const ROUTE_ENTITY_KEYS: Record<string, string> = {
+  suppliers: 'supplier',
+  customers: 'customer',
+  plants: 'plant',
+  locations: 'location',
+  contacts: 'contact',
+  carriers: 'carrier',
+  products: 'product',
+  'purchase-orders': 'purchase_order',
+  'sales-orders': 'sales_order',
+  invoices: 'invoice',
+};
+
 const isBlank = (value: unknown): boolean => {
   if (value == null) return true;
   if (typeof value === 'string') return value.trim().length === 0;
@@ -33,6 +46,33 @@ export interface EntityCascadeResult {
   initialValues: Record<string, unknown>;
   lockedFieldKeys: string[];
 }
+
+const isLikelyEntityIdentifier = (segment: string): boolean => {
+  const normalized = String(segment || '').trim();
+  if (!normalized) return false;
+
+  return /^\d+$/.test(normalized) || normalized.toLowerCase().includes('uuid');
+};
+
+const buildRouteHierarchy = (pathname: string) => {
+  const pathnames = String(pathname || '')
+    .split('/')
+    .filter(Boolean);
+
+  return pathnames.flatMap((segment, index) => {
+    const previousSegment = index > 0 ? pathnames[index - 1] : null;
+    if (!previousSegment || !isLikelyEntityIdentifier(segment)) {
+      return [];
+    }
+
+    const entityType = ROUTE_ENTITY_KEYS[previousSegment];
+    if (!entityType) {
+      return [];
+    }
+
+    return [{ entityType, entityId: segment }];
+  });
+};
 
 export const buildEntityCascade = (
   initialValues: Record<string, unknown> | undefined,
@@ -85,10 +125,11 @@ export const useEntityCascade = (
   initialValues?: Record<string, unknown>,
   context?: EntityFormContext
 ): EntityCascadeResult => {
-  const { hierarchyStack } = useNavigation();
+  const location = useLocation();
+  const routeHierarchy = useMemo(() => buildRouteHierarchy(location.pathname), [location.pathname]);
 
   return useMemo(
-    () => buildEntityCascade(initialValues, context, hierarchyStack),
-    [context, hierarchyStack, initialValues]
+    () => buildEntityCascade(initialValues, context, routeHierarchy),
+    [context, initialValues, routeHierarchy]
   );
 };

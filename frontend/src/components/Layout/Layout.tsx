@@ -5,7 +5,6 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import { PinnedToolsBar } from '../Cockpit/PinnedToolsBar';
 import Breadcrumb from '../Navigation/Breadcrumb';
-import BreadcrumbHierarchySync from '../Navigation/BreadcrumbHierarchySync';
 import Omnibox from '../AIAssistant/Omnibox';
 import { CommandPalette } from '../Navigation/CommandPalette';
 import { ShortcutCheatsheet } from '../Navigation/ShortcutCheatsheet';
@@ -64,7 +63,6 @@ const Layout: React.FC = () => {
           <PinnedToolsBar />
           <Content $theme={theme}>
             <CenteredContainer>
-              <BreadcrumbHierarchySync />
               <Breadcrumb />
               <Outlet />
             </CenteredContainer>

@@ -196,38 +196,6 @@ describe('NavigationContext', () => {
     });
   });
 
-  describe('hierarchyStack', () => {
-    it('starts with empty hierarchy state', () => {
-      const { result } = renderHook(() => useNavigation(), { wrapper });
-
-      expect(result.current.hierarchyStack).toEqual([]);
-    });
-
-    it('stores hierarchy stack entries', () => {
-      const { result } = renderHook(() => useNavigation(), { wrapper });
-
-      act(() => {
-        result.current.setHierarchyStack([
-          {
-            entityType: 'supplier',
-            entityId: '123',
-            label: 'Acme Meats',
-            routeTo: '/suppliers/123',
-          },
-        ]);
-      });
-
-      expect(result.current.hierarchyStack).toEqual([
-        {
-          entityType: 'supplier',
-          entityId: '123',
-          label: 'Acme Meats',
-          routeTo: '/suppliers/123',
-        },
-      ]);
-    });
-  });
-
   describe('sidebarOpen', () => {
     it('defaults to false when no localStorage', () => {
       const { result } = renderHook(() => useNavigation(), { wrapper });
