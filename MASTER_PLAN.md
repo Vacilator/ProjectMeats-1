@@ -4310,3 +4310,37 @@ Massive front-end overhaul spanning navigation, entity pages, premium forms, AI 
 - lint:colors: 0 violations
 - lint:render-stability: 0 violations
 - All 87 session todos: done
+
+## Phase 43: Universal Entity Polish & Consistency Pass
+
+**Status**: ✅ Complete
+**PRs**: #5379, #5381
+
+### Summary
+Final consistency pass ensuring ALL entity list pages and detail pages follow the same UX patterns established in Phase 41. Closed remaining gaps identified by the 5-agent deep audit.
+
+### Delivered
+
+#### A. Entity List Pages — Complete StatusFilterBar Coverage
+1. **FreightOrders** — Added StatusFilterBar with status tabs (Pending/In Transit/Delivered/Cancelled) + search
+2. **Plants** — Added StatusFilterBar with type tabs (Processing/Vertical/Distribution/Warehouse) + search
+3. **Locations** — Added StatusFilterBar with Active/Inactive/Warehouse/Cold Storage tabs + search
+4. **Fulfillments** — Replaced custom filter bar with StatusFilterBar (Pending/In Progress/Shipped/Delivered/Completed)
+5. **Cold Storage** — Added StatusFilterBar with temperature zone tabs (Frozen/Chilled/Ambient) + search
+
+**Full coverage**: All 10 entity list pages now consistently use the unified StatusFilterBar component:
+- Suppliers, Customers, Carriers, Contacts, PurchaseOrders (Phase 41)
+- FreightOrders, Plants, Locations (Phase 43, PR #5379)
+- Fulfillments, Cold Storage (Phase 43, PR #5381)
+
+#### B. Entity Detail Pages — AI Insights Consistency
+6. **PlantDetail** — Added AIEntityInsights panel for AI visibility on supplier plant records
+7. **LocationDetail** — Added AIEntityInsights panel for AI visibility on customer location records
+
+#### C. Navigation Enhancement
+8. **Approval badge** — Added badgeKey indicator on "AI & Approvals" nav item showing pending approval count
+
+### Verification
+- TypeScript: 0 errors
+- lint:colors: 0 violations
+- All entity list pages use consistent StatusFilterBar pattern
