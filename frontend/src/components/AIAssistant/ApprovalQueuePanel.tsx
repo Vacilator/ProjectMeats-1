@@ -378,7 +378,15 @@ const ApprovalQueuePanel: React.FC<ApprovalQueuePanelProps> = ({
               key={item.id}
               $selected={selectedIds.has(item.id)}
               size="small"
+              role="button"
+              tabIndex={0}
               onClick={() => onItemClick?.(item)}
+              onKeyDown={(e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onItemClick?.(item);
+                }
+              }}
             >
               <CardHeader>
                 <Space>

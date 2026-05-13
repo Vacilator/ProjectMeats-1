@@ -11,6 +11,8 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { businessApi } from '@/services/businessApi';
+import { useApprovalGate } from '@/hooks/useApprovalGate';
+import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
 
 // ============================================================================
 // Types
@@ -537,6 +539,7 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
     getDefaultFormValues(initialValues),
   );
   const [submitting, setSubmitting] = useState(false);
+  const approvalGate = useApprovalGate();
 
   // Collapsible section state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -620,6 +623,18 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
 
     setSubmitting(true);
     try {
+      const gateResult = await approvalGate.intercept({
+        requestType: 'create_carrier',
+        subject: `New carrier: ${formValues.name}`,
+        recipientType: 'carrier',
+        contentPreview: `New carrier: ${formValues.name}`,
+        sourceEntityType: 'carrier',
+      });
+      if (!gateResult.approved) {
+        setSubmitting(false);
+        return;
+      }
+
       const payload = buildPayload();
       if (mode === 'edit' && entityId) {
         await businessApi.patch(`carriers/${entityId}/`, payload);
@@ -636,7 +651,7 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [formValues.name, buildPayload, mode, entityId, onSuccess]);
+  }, [formValues.name, buildPayload, mode, entityId, onSuccess, approvalGate]);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
@@ -1100,6 +1115,14 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
           </SubmitButton>
         </FormFooter>
       </FormShell>
+      <ApprovalPreviewModal
+        open={approvalGate.showModal}
+        request={approvalGate.currentRequest}
+        onApprove={approvalGate.handleApprove}
+        onReject={approvalGate.handleReject}
+        onEditApprove={approvalGate.handleEditApprove}
+        onCancel={approvalGate.handleCancel}
+      />
     </FormWrapper>
   );
 };
