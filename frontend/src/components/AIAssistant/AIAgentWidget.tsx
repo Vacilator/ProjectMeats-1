@@ -651,38 +651,6 @@ const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string |
   return url.toString();
 };
 
-const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([400, 401, 403, 405, 426]);
-
-/**
- * Pre-flight check: verify the WebSocket path is routed before attempting
- * a WebSocket connection. Probes the actual WS path with a plain HTTP
- * request. The backend exposes a matching HTTP probe route that responds
- * with 426 when the reverse proxy and ASGI stack are wired correctly.
- * A 200/30x response usually means the SPA fallback or another HTTP
- * endpoint answered, so fail closed and avoid creating a doomed native
- * WebSocket.
- */
-const checkWSEndpointReachable = async (): Promise<boolean> => {
-  try {
-    // eslint-disable-next-line no-restricted-globals -- raw fetch intentional: lightweight pre-flight probe must bypass auth interceptors
-    const response = await fetch(AI_INBOX_SOCKET_PATH, {
-      method: 'GET',
-      cache: 'no-store',
-      credentials: 'same-origin',
-      redirect: 'manual',
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (response.redirected) {
-      return false;
-    }
-
-    return AI_INBOX_PREFLIGHT_ALLOWED_STATUSES.has(response.status);
-  } catch {
-    return false;
-  }
-};
-
 const resolveAIInboxTenantId = (): string | null => {
   const tokenTenantId = getTenantFromToken()?.defaultTenantId;
   if (typeof tokenTenantId === 'string' && tokenTenantId.trim()) {
@@ -892,10 +860,6 @@ export const AIAgentWidget: React.FC = () => {
   // Ref for manual reconnect trigger (allows button to restart connection)
   const manualReconnectRef = useRef<(() => void) | null>(null);
 
-  // Track whether the WS endpoint is known to be reachable
-  const wsEndpointCheckedRef = useRef(false);
-  const wsEndpointReachableRef = useRef(false);
-
   // Permanent failure: WS has never succeeded and all retries exhausted.
   // Only manual reconnect can reset this.
   const wsPermanentlyFailedRef = useRef(false);
@@ -908,7 +872,6 @@ export const AIAgentWidget: React.FC = () => {
   const handleManualReconnect = useCallback(() => {
     inboxReconnectAttemptsRef.current = 0;
     inboxRefreshAttemptedRef.current = false;
-    wsEndpointCheckedRef.current = false;
     wsPermanentlyFailedRef.current = false;
     firstFailureTimeRef.current = null;
     setAiInboxRealtimeStatus('connecting');
@@ -1045,22 +1008,6 @@ export const AIAgentWidget: React.FC = () => {
         }
         lastConnectAttemptMs = now;
 
-        // Pre-flight: verify backend API is reachable before opening WebSocket
-        // This prevents the browser from logging uncatchable WebSocket errors
-        // when the backend is not available (dev, network down, etc.)
-        if (!wsEndpointCheckedRef.current || !wsEndpointReachableRef.current) {
-          const reachable = await checkWSEndpointReachable();
-          if (disposed) return;
-          wsEndpointReachableRef.current = reachable;
-          wsEndpointCheckedRef.current = reachable;
-        }
-
-        if (!wsEndpointReachableRef.current) {
-          setAiInboxRealtimeStatus(wsEverConnectedRef.current ? 'degraded' : 'idle');
-          scheduleReconnect(false);
-          return;
-        }
-
         let accessToken = getAccessToken();
         if (!accessToken && attemptRefresh) {
           try {
@@ -1085,6 +1032,9 @@ export const AIAgentWidget: React.FC = () => {
 
         closeSocket();
 
+        // Incident fix: connect via the native WebSocket upgrade only.
+        // Probing /ws/ai/inbox/ over plain HTTP emits an intentional 426 from
+        // Django and was the source of the visible console error on dev.
         // Only surface "connecting" when the widget is open on the initial attempt.
         // Background retries should stay visually idle while collapsed.
         if (inboxReconnectAttemptsRef.current === 0 && expandedRef.current) {
@@ -1261,7 +1211,6 @@ export const AIAgentWidget: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // Mount-only: uses aiEnabledRef to avoid reconnect cycles from health poll toggles
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

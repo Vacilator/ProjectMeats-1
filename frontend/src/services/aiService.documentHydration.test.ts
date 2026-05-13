@@ -234,4 +234,27 @@ describe('hydratePendingReviewItemsWithDocumentMetadata', () => {
       },
     });
   });
+
+  it('skips ai-document lookups when pending reviews already include audit metadata', async () => {
+    const reviews = await hydratePendingReviewItemsWithDocumentMetadata([
+      {
+        id: 'review-3',
+        document_id: 'doc-feedback-only',
+        document_type: 'purchase_order',
+        confidence_score: 0.82,
+        precision_delta: 0,
+        created_on: '2026-01-01T00:00:00Z',
+        original_extracted_data: {},
+        source_document_name: 'Document processing...',
+        processing_status: 'processing',
+      },
+    ]);
+
+    expect(businessApiMock.get).not.toHaveBeenCalled();
+    expect(reviews[0]).toMatchObject({
+      document_id: 'doc-feedback-only',
+      source_document_name: 'Document processing...',
+      processing_status: 'processing',
+    });
+  });
 });

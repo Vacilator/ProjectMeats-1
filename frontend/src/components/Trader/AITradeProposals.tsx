@@ -43,8 +43,10 @@ import styled from 'styled-components';
 import {
   traderService,
 } from '@/services/traderService';
+import { ApiServiceError } from '@/services/apiErrors';
 import { ConfidenceBadge } from '@/components/Shared/ConfidenceBadge';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { normalizeAIError } from '@/utils/apiRetry';
 
 const { Text } = Typography;
 
@@ -110,18 +112,26 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
   const [feedbackComment, setFeedbackComment] = useState('');
   const proposalsQueryKey = useMemo(() => withTenantQueryKey('ai-trade-proposals'), []);
   const activeTradesQueryKey = useMemo(() => withTenantQueryKey('trader-cockpit-active-trades'), []);
+  const proposalsQueryFn = useCallback(() => traderService.getProposals(), []);
 
   const proposalsQuery = useQuery({
     queryKey: proposalsQueryKey,
-    queryFn: () => traderService.getProposals(),
+    queryFn: proposalsQueryFn,
     staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 60 * 1000),
   });
 
   const proposals = useMemo(
     () => (proposalsQuery.data || []).filter((p) => p.status === 'pending'),
     [proposalsQuery.data]
   );
+  const proposalsErrorMessage = useMemo(() => {
+    if (proposalsQuery.error instanceof ApiServiceError) {
+      return proposalsQuery.error.friendlyMessage;
+    }
+    return normalizeAIError(proposalsQuery.error).message;
+  }, [proposalsQuery.error]);
 
   const executeMutation = useMutation({
     mutationFn: (proposalId: string) => traderService.executeProposal(proposalId),
@@ -168,6 +178,11 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
     });
   }, [feedbackComment, feedbackMutation, feedbackTarget]);
 
+  const handleRetry = useCallback(() => {
+    traderService.resetProposalsCircuit();
+    void proposalsQuery.refetch();
+  }, [proposalsQuery]);
+
 
 
   if (proposalsQuery.isLoading) {
@@ -187,9 +202,12 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
           <div style={{ textAlign: 'center', padding: '1rem' }}>
             <AlertCircle size={20} style={{ color: 'rgb(var(--color-warning))', marginBottom: 8 }} />
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-              Unable to load AI proposals
+              {proposalsErrorMessage}
             </Typography.Text>
-            <Button size="small" onClick={() => proposalsQuery.refetch()} icon={<RefreshCw size={12} />}>
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              Automatic refresh is paused until you retry.
+            </Typography.Text>
+            <Button size="small" onClick={handleRetry} icon={<RefreshCw size={12} />}>
               Retry
             </Button>
           </div>

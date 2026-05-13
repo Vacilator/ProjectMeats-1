@@ -5,16 +5,21 @@ from __future__ import annotations
 import uuid
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.tenants.models import Tenant
 from tenant_apps.customers.models import Customer
 from tenant_apps.inquiries.models import (
+    InquiryEntityTypeChoices,
+    InquiryShippingTypeChoices,
     Inquiry,
     InquiryStatusChoices,
     TradeSessionStatus,
 )
+from tenant_apps.inquiries.views_trades import TradePipelineViewSet
 from tenant_apps.inquiries.services.trade_session import (
     cascade_trade_session,
     get_or_create_trade_session,
@@ -224,3 +229,57 @@ class TradeSessionStatusTests(TestCase):
         ts.refresh_from_db()
         self.assertEqual(ts.status, TradeSessionStatus.SOURCING)
         self.assertIsNone(ts.completed_at)
+
+
+class TradeProposalApiTests(TestCase):
+    """Regression coverage for GET /api/v1/trades/proposals/."""
+
+    def setUp(self):
+        uid = uuid.uuid4().hex[:6]
+        self.factory = APIRequestFactory()
+        self.user = get_user_model().objects.create_user(username=f"trade-proposals-{uid}", password="pw")
+        self.tenant = Tenant.objects.create(
+            name=f"test-proposals-{uid}",
+            schema_name=f"trade_proposals_{uid}",
+            domain=f"trade-proposals-{uid}.test.local",
+        )
+        self.supplier = Supplier.objects.create(
+            tenant=self.tenant,
+            name=f"Supplier-{uid}",
+        )
+        self.customer = Customer.objects.create(
+            tenant=self.tenant,
+            name=f"Customer-{uid}",
+        )
+
+    def test_proposals_endpoint_uses_current_inquiry_fields(self):
+        inquiry = Inquiry.objects.create(
+            tenant=self.tenant,
+            entity_type=InquiryEntityTypeChoices.CUSTOMER,
+            customer=self.customer,
+            supplier=self.supplier,
+            status=InquiryStatusChoices.DRAFT,
+            route_decision="FULFILL",
+            requested_protein="BEEF",
+            shipping_type=InquiryShippingTypeChoices.CUSTOMER_PICKUP,
+            notes="Need ribeye trim by Friday",
+        )
+
+        request = self.factory.get("/api/v1/trades/proposals/")
+        force_authenticate(request, user=self.user)
+        request.tenant = self.tenant
+
+        response = TradePipelineViewSet.as_view({"get": "proposals"})(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 1)
+        proposal = response.data["results"][0]
+        self.assertEqual(proposal["id"], str(inquiry.id))
+        self.assertEqual(proposal["title"], "Need ribeye trim by Friday")
+        self.assertEqual(proposal["customer_name"], self.customer.name)
+        self.assertEqual(proposal["supplier_name"], self.supplier.name)
+        self.assertEqual(proposal["type_of_protein"], "BEEF")
+        self.assertEqual(proposal["delivery_context"], "customer_pickup")
+        self.assertEqual(proposal["route"], "FULFILL")
+        self.assertEqual(proposal["source"], "history")
+        self.assertIsNotNone(proposal["created_at"])

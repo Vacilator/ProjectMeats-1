@@ -203,6 +203,26 @@ const getDocumentIdFromMetadata = (metadata?: Record<string, unknown>): string |
   return typeof id === 'string' && id.trim() ? id : null;
 };
 
+const hasDocumentAuditMetadata = (metadata?: Record<string, unknown>): boolean =>
+  Boolean(
+    metadata &&
+    (
+      typeof metadata.processing_status === 'string' ||
+      typeof metadata.source_metadata === 'object' ||
+      typeof metadata.processing_metadata === 'object' ||
+      typeof metadata.lineage_summary === 'object'
+    )
+  );
+
+const hasPendingReviewAuditMetadata = (review: PendingReviewItem): boolean =>
+  Boolean(
+    (typeof review.source_document_name === 'string' && review.source_document_name.trim()) ||
+    typeof review.processing_status === 'string' ||
+    review.source_metadata ||
+    review.processing_metadata ||
+    review.lineage_summary
+  );
+
 export const extractPendingReviewItems = (
   response: PendingReviewListResponse,
 ): PendingReviewItem[] => {
@@ -219,6 +239,10 @@ export const hydratePendingReviewItemsWithDocumentMetadata = async (
   const documentIds = [
     ...new Set(
       reviews
+        // Incident fix: pending review payloads already carry most audit metadata.
+        // Skip the extra ai-document lookup when the review item is already hydrated
+        // so feedback-only document_ids do not spam 404s in AI Command Center.
+        .filter((review) => !hasPendingReviewAuditMetadata(review))
         .map((review) => (typeof review.document_id === 'string' ? review.document_id.trim() : ''))
         .filter(Boolean),
     ),
@@ -452,7 +476,16 @@ export const hydrateDocumentMessageMetadata = async <
 >(
   messages: T[]
 ): Promise<T[]> => {
-  const documentIds = [...new Set(messages.map((message) => getDocumentIdFromMetadata(message.metadata)).filter(Boolean))] as string[];
+  const documentIds = [
+    ...new Set(
+      messages
+        // Incident fix: chat messages that already have audit metadata should not
+        // re-fetch ai-documents on every load, especially for feedback-linked IDs.
+        .filter((message) => !hasDocumentAuditMetadata(message.metadata))
+        .map((message) => getDocumentIdFromMetadata(message.metadata))
+        .filter(Boolean)
+    )
+  ] as string[];
   if (!documentIds.length) {
     return messages;
   }

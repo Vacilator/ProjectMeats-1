@@ -13,6 +13,7 @@ from django.conf import settings
 from django.db import DatabaseError, ProgrammingError, connection, transaction
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
+from django.http import Http404
 from django.utils import timezone
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action
@@ -182,6 +183,101 @@ def _infer_review_entity_type(document_type: str, payload: dict[str, object]) ->
         return "payment"
 
     return ""
+
+
+def _build_feedback_document_placeholder(
+    *,
+    tenant_id: str,
+    user_id: int | None,
+    document_id: str,
+) -> dict[str, object] | None:
+    try:
+        feedback_document_id = uuid.UUID(str(document_id))
+    except (TypeError, ValueError):
+        return None
+
+    row = (
+        AIFeedbackLog.objects.filter(tenant_id=tenant_id, document_id=feedback_document_id)
+        .order_by("-created_on")
+        .first()
+    )
+    if row is None:
+        return None
+
+    payload = row.original_extracted_data if isinstance(row.original_extracted_data, dict) else {}
+    attachment_filenames = payload.get("attachment_filenames")
+    first_attachment_name = (
+        attachment_filenames[0]
+        if isinstance(attachment_filenames, list)
+        and attachment_filenames
+        and isinstance(attachment_filenames[0], str)
+        else ""
+    )
+    original_filename = _first_non_empty_string(
+        payload.get("document_name"),
+        payload.get("file_name"),
+        first_attachment_name,
+        _extract_review_subject(payload, row.document_type),
+    )
+    processing_status = _first_non_empty_string(payload.get("processing_status"))
+    if processing_status not in {"pending", "processing", "completed", "failed"}:
+        processing_status = "completed" if row.resolved_by_id else "processing"
+
+    latest_event_type = "feedback_resolved" if row.resolved_by_id else "feedback_pending"
+    latest_summary = _extract_review_summary(payload) or (
+        "Document processing is still in progress."
+        if not row.resolved_by_id
+        else "Document review feedback has been captured."
+    )
+
+    source_metadata = {
+        key: value
+        for key, value in {
+            "source": payload.get("source"),
+            "message_id": payload.get("message_id"),
+            "attachment_id": payload.get("attachment_id"),
+            "graph_name": payload.get("graph_name"),
+            "graph_content_type": payload.get("graph_content_type"),
+        }.items()
+        if value not in (None, "")
+    }
+
+    return {
+        "id": str(feedback_document_id),
+        "tenant": tenant_id,
+        "owner": user_id,
+        "session": None,
+        "file": "",
+        "original_filename": original_filename or f"{row.document_type or 'document'}-{feedback_document_id}",
+        "content_type": str(payload.get("content_type") or ""),
+        "file_type": str(payload.get("content_type") or ""),
+        "file_size": int(payload.get("file_size") or 0),
+        "processing_status": processing_status,
+        "document_type": row.document_type or "unknown",
+        "source_metadata": source_metadata,
+        "processing_metadata": {
+            "feedback_log_id": str(row.id),
+            "feedback_source": row.feedback_source,
+            "confidence_score": float(row.confidence_score or 0.0),
+            "review_entity_type": _infer_review_entity_type(row.document_type, payload),
+        },
+        "lineage_summary": {
+            "event_count": 1,
+            "latest_event_type": latest_event_type,
+            "latest_summary": latest_summary,
+            "latest_created_on": row.created_on.isoformat() if row.created_on else "",
+            "recent_events": [
+                {
+                    "event_type": latest_event_type,
+                    "summary": latest_summary,
+                    "created_on": row.created_on.isoformat() if row.created_on else "",
+                    "source_type": "feedback_log",
+                    "target_type": row.document_type or "document",
+                }
+            ],
+        },
+        "created_on": row.created_on.isoformat() if row.created_on else timezone.now().isoformat(),
+    }
 
 
 def build_contextual_suggestions(
@@ -1301,6 +1397,29 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
             qs = qs.filter(processing_status=processing_status)
 
         return qs
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+        except Http404:
+            tenant = getattr(request, "tenant", None)
+            if tenant is None:
+                raise
+
+            # Incident fix: review queues can legitimately reference feedback-only
+            # document_ids before a durable AIDocument row exists. Return a
+            # serializer-compatible placeholder instead of a repeated 404.
+            placeholder = _build_feedback_document_placeholder(
+                tenant_id=str(tenant.id),
+                user_id=getattr(request.user, "id", None),
+                document_id=kwargs.get(self.lookup_field, ""),
+            )
+            if placeholder is None:
+                raise
+            return Response(placeholder, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         tenant = getattr(request, "tenant", None)

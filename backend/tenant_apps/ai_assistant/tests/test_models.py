@@ -28,6 +28,7 @@ from tenant_apps.ai_assistant.models import (
     AIApprovalStatus,
     AIConfiguration,
     AILineageEvent,
+    AIFeedbackLog,
     AIRun,
     AIRunStatus,
     AITask,
@@ -584,6 +585,34 @@ class AIDocumentViewSetTenantScopingTests(TestCase):
             'Document parsed successfully.',
         )
         self.assertEqual(len(response.data['lineage_summary']['recent_events']), 2)
+
+    def test_feedback_backed_document_detail_returns_placeholder_payload(self):
+        from tenant_apps.ai_assistant.views import AIDocumentViewSet
+
+        missing_document_id = uuid.uuid4()
+        AIFeedbackLog.objects.create(
+            tenant=self.tenant_a,
+            document_id=missing_document_id,
+            document_type='purchase_order',
+            original_extracted_data={
+                'document_name': 'Document processing...',
+                'source': 'microsoft_graph_attachment',
+            },
+            confidence_score=0.71,
+        )
+
+        response = AIDocumentViewSet.as_view({"get": "retrieve"})(
+            self._retrieve(self.tenant_a, missing_document_id),
+            pk=str(missing_document_id),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], str(missing_document_id))
+        self.assertEqual(response.data['original_filename'], 'Document processing...')
+        self.assertEqual(response.data['document_type'], 'purchase_order')
+        self.assertEqual(response.data['processing_status'], 'processing')
+        self.assertEqual(response.data['source_metadata']['source'], 'microsoft_graph_attachment')
+        self.assertEqual(response.data['lineage_summary']['latest_event_type'], 'feedback_pending')
 
 class ChatSessionTenantBindingTests(TestCase):
     def setUp(self):

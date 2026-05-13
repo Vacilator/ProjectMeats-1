@@ -138,14 +138,7 @@ describe('AIAgentWidget', () => {
     aiInboxSyncContextMock.requestSync.mockReset();
     vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
     vi.stubGlobal('scrollTo', vi.fn());
-    // Mock fetch for the WS pre-flight health check
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        status: 426,
-        redirected: false,
-      }),
-    );
+    vi.stubGlobal('fetch', vi.fn());
     localStorage.clear();
     Object.defineProperty(Element.prototype, 'scrollIntoView', {
       configurable: true,
@@ -168,6 +161,7 @@ describe('AIAgentWidget', () => {
     expect(websocketInstances[0].url).toContain('tenant_id=tenant-123');
     expect(websocketInstances[0].url).toContain('access_token=access-token');
     expect(websocketInstances[0].protocols).toBeUndefined();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'AI chat widget' }));
 
@@ -288,13 +282,7 @@ describe('AIAgentWidget', () => {
     }
   });
 
-  it('fails closed when the websocket preflight resolves to the SPA fallback', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      status: 200,
-      redirected: false,
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
+  it('does not probe the websocket route over HTTP before connecting', async () => {
     render(
       <MemoryRouter>
         <AIAgentWidget />
@@ -302,31 +290,10 @@ describe('AIAgentWidget', () => {
     );
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/ws/ai/inbox/',
-        expect.objectContaining({
-          method: 'GET',
-          redirect: 'manual',
-        }),
-      );
+      expect(websocketInstances).toHaveLength(1);
     });
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    });
-
-    expect(websocketInstances).toHaveLength(0);
-
-    act(() => {
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(websocketInstances).toHaveLength(0);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('requests an updated inbox count when the sync refresh event fires', async () => {

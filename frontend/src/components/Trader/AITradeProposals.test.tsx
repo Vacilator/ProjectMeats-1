@@ -23,12 +23,14 @@ vi.mock('antd', async () => {
 const mockGetProposals = vi.fn();
 const mockExecuteProposal = vi.fn();
 const mockSubmitProposalFeedback = vi.fn();
+const mockResetProposalsCircuit = vi.fn();
 
 vi.mock('@/services/traderService', () => ({
   traderService: {
     getProposals: (...args: unknown[]) => mockGetProposals(...args),
     executeProposal: (...args: unknown[]) => mockExecuteProposal(...args),
     submitProposalFeedback: (...args: unknown[]) => mockSubmitProposalFeedback(...args),
+    resetProposalsCircuit: (...args: unknown[]) => mockResetProposalsCircuit(...args),
   },
 }));
 
@@ -104,6 +106,7 @@ describe('AITradeProposals', () => {
       trade_session_id: 'session-abc',
     });
     mockSubmitProposalFeedback.mockResolvedValue({});
+    mockResetProposalsCircuit.mockReset();
   });
 
   // ---- Rendering ----
@@ -202,8 +205,26 @@ describe('AITradeProposals', () => {
     await waitFor(() => {
       expect(screen.queryByLabelText('Loading AI trade proposals')).not.toBeInTheDocument();
     });
-    expect(screen.getByText('Unable to load AI proposals')).toBeInTheDocument();
+    expect(screen.getByText('fail')).toBeInTheDocument();
+    expect(screen.getByText('Automatic refresh is paused until you retry.')).toBeInTheDocument();
     expect(screen.getByText('Retry')).toBeInTheDocument();
+  });
+
+  it('resets the proposals circuit before retrying', async () => {
+    const user = userEvent.setup();
+    mockGetProposals.mockRejectedValueOnce(new Error('fail')).mockResolvedValueOnce([PROPOSAL_HIGH]);
+    renderProposals();
+
+    await waitFor(() => {
+      expect(screen.getByText('Retry')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Retry'));
+
+    await waitFor(() => {
+      expect(mockResetProposalsCircuit).toHaveBeenCalled();
+      expect(mockGetProposals).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('has accessible region role', async () => {

@@ -22,6 +22,7 @@ from rest_framework.response import Response
 
 from tenant_apps.inquiries.models import (
     Inquiry,
+    InquiryShippingTypeChoices,
     InquiryRouteDecisionChoices,
     InquiryStatusChoices,
     TradeSession,
@@ -39,6 +40,15 @@ from tenant_apps.inquiries.services.trade_session import get_or_create_trade_ses
 from apps.tenants.rls import tenant_rls
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_trade_proposal_delivery_context(inquiry: Inquiry) -> str | None:
+    shipping_type = getattr(inquiry, "shipping_type", "")
+    if shipping_type == InquiryShippingTypeChoices.CUSTOMER_PICKUP:
+        return "customer_pickup"
+    if shipping_type == InquiryShippingTypeChoices.SUPPLIER_DELIVERING:
+        return "supplier_delivery"
+    return None
 
 
 class TradePipelineViewSet(viewsets.ViewSet):
@@ -426,13 +436,17 @@ class TradePipelineViewSet(viewsets.ViewSet):
         proposals = []
 
         # Generate proposals from recent draft inquiries without active trade sessions
+        # Incident fix: this endpoint previously referenced stale Inquiry fields
+        # (`type_of_protein`, `description`, `source_email_subject`, `created_at`)
+        # and threw 500s on current-schema draft inquiries. Only read canonical
+        # fields here and skip malformed rows with explicit logging.
         draft_inquiries = (
             Inquiry.objects.filter(
                 tenant=tenant,
                 status=InquiryStatusChoices.DRAFT,
             )
-            .select_related("customer")
-            .order_by("-created_at")[:10]
+            .select_related("customer", "supplier", "source_email", "requested_master_product")
+            .order_by("-inquiry_date")[:10]
         )
 
         for inquiry in draft_inquiries:
@@ -445,46 +459,55 @@ class TradePipelineViewSet(viewsets.ViewSet):
             if existing:
                 continue
 
-            # Calculate confidence based on data completeness
-            confidence = 0.5
-            if inquiry.customer_id:
-                confidence += 0.15
-            if inquiry.type_of_protein:
-                confidence += 0.1
-            if inquiry.description:
-                confidence += 0.1
-            if inquiry.route_decision:
-                confidence += 0.1
+            try:
+                requested_protein = getattr(inquiry, "requested_protein", "") or ""
+                requested_product_name = getattr(
+                    getattr(inquiry, "requested_master_product", None),
+                    "name",
+                    "",
+                ) or ""
+                proposal_subject = getattr(getattr(inquiry, "source_email", None), "subject", "") or ""
+                proposal_notes = (getattr(inquiry, "notes", "") or "").strip()
 
-            source = "email" if inquiry.source_email_subject else "history"
-            title = (
-                inquiry.source_email_subject
-                or inquiry.description
-                or f"Trade for {inquiry.type_of_protein or 'unknown protein'}"
-            )
+                confidence = 0.5
+                if inquiry.customer_id:
+                    confidence += 0.15
+                if requested_protein or inquiry.requested_master_product_id:
+                    confidence += 0.1
+                if proposal_notes:
+                    confidence += 0.1
+                if inquiry.route_decision:
+                    confidence += 0.1
+                if inquiry.supplier_id:
+                    confidence += 0.05
 
-            proposals.append(
-                {
-                    "id": str(inquiry.id),
-                    "title": title[:80],
-                    "confidence": round(min(confidence, 0.99), 2),
-                    "source": source,
-                    "route": inquiry.route_decision or "FULFILL",
-                    "customer_name": getattr(inquiry.customer, "name", None) if inquiry.customer_id else None,
-                    "supplier_name": None,
-                    "type_of_protein": inquiry.type_of_protein or None,
-                    "weight": None,
-                    "delivery_context": None,
-                    "suggested_fields": [],
-                    "created_at": (
-                        inquiry.created_at.isoformat()
-                        if hasattr(inquiry, "created_at") and inquiry.created_at
-                        else None
-                    ),
-                    "expires_at": None,
-                    "status": "pending",
-                }
-            )
+                protein_label = requested_protein or requested_product_name or "unknown protein"
+                title = proposal_subject or proposal_notes or f"Trade for {protein_label}"
+
+                created_at = getattr(inquiry, "created_on", None) or getattr(inquiry, "inquiry_date", None)
+                proposals.append(
+                    {
+                        "id": str(inquiry.id),
+                        "title": title[:80],
+                        "confidence": round(min(confidence, 0.99), 2),
+                        "source": "email" if inquiry.source_email_id else "history",
+                        "route": inquiry.route_decision or InquiryRouteDecisionChoices.FULFILL,
+                        "customer_name": getattr(inquiry.customer, "name", None) if inquiry.customer_id else None,
+                        "supplier_name": getattr(inquiry.supplier, "name", None) if inquiry.supplier_id else None,
+                        "type_of_protein": protein_label if protein_label != "unknown protein" else None,
+                        "weight": None,
+                        "delivery_context": _resolve_trade_proposal_delivery_context(inquiry),
+                        "suggested_fields": [],
+                        "created_at": created_at.isoformat() if created_at else None,
+                        "expires_at": None,
+                        "status": "pending",
+                    }
+                )
+            except Exception:
+                logger.exception(
+                    "Telemetry: trade.proposal_generation_failed",
+                    extra={"tenant_id": str(tenant.id), "inquiry_id": str(inquiry.id)},
+                )
 
         return Response({"results": proposals})
 

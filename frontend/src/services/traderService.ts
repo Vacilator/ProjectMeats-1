@@ -10,11 +10,46 @@
  * AI-backed endpoints use withRetry for transient failure resilience.
  */
 import { businessApi } from './businessApi';
+import { createCircuitBreakerError, ApiServiceError } from './apiErrors';
 import { withRetry } from '../utils/apiRetry';
 
 // ============================================================================
 // Types
 // ============================================================================
+
+const TRADE_PROPOSALS_ENDPOINT = '/trades/proposals/';
+const TRADE_PROPOSALS_CIRCUIT_OPEN_MS = 30_000;
+const TRADE_PROPOSALS_CIRCUIT_STORAGE_KEY = 'pm:trade-proposals-circuit-open-until';
+let tradeProposalsCircuitOpenUntilMs = 0;
+
+const readTradeProposalsCircuitOpenUntil = (): number => {
+  if (typeof window === 'undefined') {
+    return tradeProposalsCircuitOpenUntilMs;
+  }
+  try {
+    const stored = window.localStorage.getItem(TRADE_PROPOSALS_CIRCUIT_STORAGE_KEY);
+    const parsed = stored ? Number(stored) : 0;
+    return Number.isFinite(parsed) ? parsed : tradeProposalsCircuitOpenUntilMs;
+  } catch {
+    return tradeProposalsCircuitOpenUntilMs;
+  }
+};
+
+const writeTradeProposalsCircuitOpenUntil = (openUntilMs: number): void => {
+  tradeProposalsCircuitOpenUntilMs = openUntilMs;
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    if (openUntilMs > 0) {
+      window.localStorage.setItem(TRADE_PROPOSALS_CIRCUIT_STORAGE_KEY, String(openUntilMs));
+    } else {
+      window.localStorage.removeItem(TRADE_PROPOSALS_CIRCUIT_STORAGE_KEY);
+    }
+  } catch {
+    // Storage access is best-effort; the in-memory fallback still protects this tab.
+  }
+};
 
 export interface DependencyItem {
   entity_type: string;
@@ -182,13 +217,39 @@ export const traderService = {
 
   /** Fetch AI-generated trade proposals for the current tenant */
   async getProposals(): Promise<TradeProposal[]> {
-    return withRetry(async () => {
-      const response = await businessApi.get('/trades/proposals/');
-      const payload = response.data;
-      if (Array.isArray(payload)) return payload as TradeProposal[];
-      const results = (payload as { results?: TradeProposal[] } | null)?.results;
-      return Array.isArray(results) ? results : [];
-    });
+    const now = Date.now();
+    const circuitOpenUntilMs = readTradeProposalsCircuitOpenUntil();
+    if (circuitOpenUntilMs > now) {
+      throw createCircuitBreakerError({
+        friendlyMessage: 'AI trade proposals are temporarily unavailable. Retry once the proposals service recovers.',
+        status: 503,
+        request: { method: 'get', url: TRADE_PROPOSALS_ENDPOINT },
+      });
+    }
+
+    try {
+      const proposals = await withRetry(async () => {
+        const response = await businessApi.get(TRADE_PROPOSALS_ENDPOINT);
+        const payload = response.data;
+        if (Array.isArray(payload)) return payload as TradeProposal[];
+        const results = (payload as { results?: TradeProposal[] } | null)?.results;
+        return Array.isArray(results) ? results : [];
+      });
+      writeTradeProposalsCircuitOpenUntil(0);
+      return proposals;
+    } catch (error) {
+      // Incident fix: once the backend returns a 5xx, stop hammering the proposals
+      // endpoint on every poll tick until the operator explicitly retries.
+      // Persist the breaker to localStorage so other open tabs pause too.
+      if (error instanceof ApiServiceError && error.status && [500, 502, 503, 504].includes(error.status)) {
+        writeTradeProposalsCircuitOpenUntil(Date.now() + TRADE_PROPOSALS_CIRCUIT_OPEN_MS);
+      }
+      throw error;
+    }
+  },
+
+  resetProposalsCircuit(): void {
+    writeTradeProposalsCircuitOpenUntil(0);
   },
 
   /** Execute (approve) an AI trade proposal */
