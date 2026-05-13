@@ -1049,8 +1049,9 @@ export const augmentSchemaForFrontend = (
         return {
           ...field,
           label: 'Establishment #',
-          required: true,
+          required: false,
           placeholder: field.placeholder || 'Enter establishment number',
+          help_text: field.help_text || 'Auto-generated if left blank',
           ui,
         };
       }

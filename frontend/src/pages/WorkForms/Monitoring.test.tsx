@@ -43,6 +43,7 @@ describe('WorkForms Monitoring', () => {
         <MemoryRouter initialEntries={['/workforms/monitoring']}>
           <Routes>
             <Route path="/workforms/monitoring" element={<Monitoring />} />
+            <Route path="/" element={<div>home-route</div>} />
             <Route path="/command-center" element={<div>command-center-route</div>} />
             <Route path="/workforms/history" element={<div>history-route</div>} />
             <Route path="/workforms/catalog" element={<div>catalog-route</div>} />
@@ -63,7 +64,7 @@ describe('WorkForms Monitoring', () => {
 
     await user.click(screen.getByRole('button', { name: /Home/i }));
 
-    expect(screen.getByText('command-center-route')).toBeInTheDocument();
+    expect(screen.getByText('home-route')).toBeInTheDocument();
   });
 
   it('offers direct drill-in next steps to history and catalog', async () => {

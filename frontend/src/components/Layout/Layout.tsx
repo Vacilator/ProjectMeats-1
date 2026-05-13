@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import styled from 'styled-components';
 import Sidebar from './Sidebar';
@@ -27,6 +27,13 @@ const Layout: React.FC = () => {
   const handleOmniboxClose = useCallback(() => setShowOmnibox(false), []);
   const handleCommandPaletteClose = useCallback(() => setShowCommandPalette(false), []);
   const handleCheatsheetClose = useCallback(() => setShowCheatsheet(false), []);
+
+  // Listen for pm:open-command-palette CustomEvent (dispatched from Home page, etc.)
+  useEffect(() => {
+    const handler = () => setShowCommandPalette(true);
+    window.addEventListener('pm:open-command-palette', handler);
+    return () => window.removeEventListener('pm:open-command-palette', handler);
+  }, []);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
