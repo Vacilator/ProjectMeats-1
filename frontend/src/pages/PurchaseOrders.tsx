@@ -1,17 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Skeleton } from 'antd';
 import { ClipboardList } from 'lucide-react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { buildPurchaseOrderReviewPath } from '@/services/purchaseOrderReviewService';
-import { apiClient, apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
   TransactionalEmptyStateGuidanceItem,
 } from '../components/Onboarding';
-import { UnifiedForm } from '../components/UnifiedForm';
+import SupplierPOForm from './PurchaseOrders/SupplierPOForm';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { formatTradeDate } from '@/utils/trade';
 import { logger } from '@/utils/logger';
@@ -236,17 +237,6 @@ const PurchaseOrders: React.FC = () => {
   useDocumentTitle('Purchase Orders');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
-
-  type CockpitPrefill = {
-    source?: string;
-    query?: string;
-    supplierId?: string;
-    contextEntity?: { id?: string; type?: string; label?: string };
-  };
-
-  const cockpitPrefill = (location.state as any)?.prefill as CockpitPrefill | undefined;
-  const [pendingCreatePrefill, setPendingCreatePrefill] = useState<CockpitPrefill | null>(null);
 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -264,37 +254,19 @@ const PurchaseOrders: React.FC = () => {
     navigate(buildPurchaseOrderReviewPath(purchaseOrderId), { replace: true });
   }, [navigate, searchParams]);
 
-  // Auto-open form if ?action=create in URL (e.g., from Cockpit suggested actions)
+  // Auto-open form if ?action=create in URL
   useEffect(() => {
     if (searchParams.get('action') !== 'create') return;
-
-    const supplierId =
-      searchParams.get('supplier_id') ??
-      cockpitPrefill?.supplierId ??
-      undefined;
-
-    const cockpitQuery =
-      searchParams.get('cockpit_q') ??
-      cockpitPrefill?.query ??
-      undefined;
-
-    setPendingCreatePrefill({
-      source: 'cockpit',
-      supplierId: supplierId || undefined,
-      query: cockpitQuery || undefined,
-      contextEntity: cockpitPrefill?.contextEntity,
-    });
 
     setEditingPurchaseOrder(null);
     setShowForm(true);
 
-    // Clear params so refresh doesn't keep reopening — functional update avoids stale ref
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      ['action', 'supplier_id', 'cockpit_q'].forEach((key) => next.delete(key));
+      ['action', 'supplier_id'].forEach((key) => next.delete(key));
       return next;
     });
-  }, [searchParams, setSearchParams, cockpitPrefill]);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     loadData();
@@ -307,7 +279,7 @@ const PurchaseOrders: React.FC = () => {
       setExporting(true);
 
       // Use backend streaming export (tenant-safe via get_queryset + filter_queryset)
-      const response = await apiClient.get('/purchase-orders/', {
+      const response = await businessApi.get('/purchase-orders/', {
         params: { format: 'csv' },
         responseType: 'blob',
       });
@@ -360,7 +332,6 @@ const PurchaseOrders: React.FC = () => {
   };
 
   const handleEdit = (purchaseOrder: PurchaseOrder) => {
-    setPendingCreatePrefill(null);
     setEditingPurchaseOrder(purchaseOrder);
     setShowForm(true);
   };
@@ -418,36 +389,22 @@ const PurchaseOrders: React.FC = () => {
   };
 
   const openCreatePurchaseOrder = () => {
-    setPendingCreatePrefill(null);
     setEditingPurchaseOrder(null);
     setShowForm(true);
   };
 
   const purchaseOrderCreateInitialValues = useMemo(() => {
-    const noteParts: string[] = [];
-
-    if (pendingCreatePrefill?.query) {
-      noteParts.push(`Cockpit search: "${pendingCreatePrefill.query}"`);
-    }
-
-    if (pendingCreatePrefill?.contextEntity?.label) {
-      noteParts.push(`Context: ${pendingCreatePrefill.contextEntity.label}`);
-    }
-
     return {
-      supplier: pendingCreatePrefill?.supplierId || undefined,
       order_date: new Date().toISOString().split('T')[0],
-      notes: noteParts.join('\n') || undefined,
       status: 'pending',
       weight_unit: 'LBS',
       logistics_scenario: 'supplier_delivery',
     } satisfies Record<string, unknown>;
-  }, [pendingCreatePrefill]);
+  }, []);
 
   const handleFormClose = () => {
     setShowForm(false);
     setEditingPurchaseOrder(null);
-    setPendingCreatePrefill(null);
   };
 
   const handleFormSuccess = async () => {
@@ -501,15 +458,27 @@ const PurchaseOrders: React.FC = () => {
       </Header>
 
       {showingInlineForm ? (
-        <UnifiedForm
-          entityType="purchase_order"
+        <SupplierPOForm
           mode={editingPurchaseOrder ? 'edit' : 'create'}
-          variant="inline"
-          isOpen={showForm}
-          onClose={handleFormClose}
-          onSuccess={handleFormSuccessCallback}
           entityId={editingPurchaseOrder?.id}
-          initialValues={editingPurchaseOrder ? undefined : purchaseOrderCreateInitialValues}
+          initialValues={editingPurchaseOrder ? {
+            logistics_scenario: (editingPurchaseOrder.logistics_scenario as 'customer_pickup' | 'supplier_delivery' | 'we_pickup') || 'supplier_delivery',
+            supplier: String(editingPurchaseOrder.supplier || ''),
+            product: (editingPurchaseOrder.product || '') as string,
+            item_description: editingPurchaseOrder.item_description || '',
+            fresh_or_frozen: editingPurchaseOrder.fresh_or_frozen || '',
+            package_type: editingPurchaseOrder.package_type || '',
+            quantity: editingPurchaseOrder.quantity != null ? String(editingPurchaseOrder.quantity) : '',
+            total_weight: editingPurchaseOrder.total_weight != null ? String(editingPurchaseOrder.total_weight) : '',
+            weight_unit: editingPurchaseOrder.weight_unit || 'LBS',
+            price_per_unit: editingPurchaseOrder.price_per_unit != null ? String(editingPurchaseOrder.price_per_unit) : '',
+            delivery_date: editingPurchaseOrder.delivery_date || '',
+            notes: editingPurchaseOrder.notes || '',
+            pick_up_location: editingPurchaseOrder.pick_up_location || null,
+            delivery_location: editingPurchaseOrder.delivery_location || null,
+          } : purchaseOrderCreateInitialValues as Partial<Record<string, unknown>>}
+          onSuccess={handleFormSuccessCallback}
+          onCancel={handleFormClose}
         />
       ) : (
         <>
