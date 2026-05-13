@@ -26,6 +26,7 @@ import { UnifiedForm } from '../components/UnifiedForm';
 import { inquiryService } from '../services/inquiryService';
 import { formatDateLocal } from '@/utils/formatters';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 
 // ============================================================================
 // Styled Components
@@ -853,17 +854,19 @@ const Inquiries: React.FC = () => {
       </TableWrapper>
 
       {/* Create Inquiry (UnifiedForm → enhanced inquiry form by default) */}
-      <UnifiedForm
-        entityType="inquiry"
-        mode="create"
-        isOpen={showCreateModal}
-        onClose={handleCreateClose}
-        context={{
-          customerId: prefillEntityType === 'customer' ? prefillEntityId : undefined,
-          supplierId: prefillEntityType === 'supplier' ? prefillEntityId : undefined,
-        }}
-        onSuccess={handleCreateSuccess}
-      />
+      <FormErrorBoundary entityType="inquiry" onClose={handleCreateClose}>
+        <UnifiedForm
+          entityType="inquiry"
+          mode="create"
+          isOpen={showCreateModal}
+          onClose={handleCreateClose}
+          context={{
+            customerId: prefillEntityType === 'customer' ? prefillEntityId : undefined,
+            supplierId: prefillEntityType === 'supplier' ? prefillEntityId : undefined,
+          }}
+          onSuccess={handleCreateSuccess}
+        />
+      </FormErrorBoundary>
 
       {/* Inquiry Detail Modal */}
       {showDetailModal && selectedInquiry ? (

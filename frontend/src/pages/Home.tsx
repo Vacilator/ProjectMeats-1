@@ -1,8 +1,7 @@
 /**
  * Home Page — Modern SaaS Dashboard
  *
- * Consolidates the best widgets from the old Cockpit/Command Center
- * into a clean, minimal 4-widget grid dashboard.
+ * Clean, minimal 4-widget grid dashboard.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
