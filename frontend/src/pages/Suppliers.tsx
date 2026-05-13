@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
-import { apiService, type Supplier } from '../services/apiService';
+import type { Supplier } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -32,7 +32,10 @@ const Suppliers: React.FC = () => {
 
   const suppliersQuery = useQuery({
     queryKey: withTenantQueryKey('suppliers'),
-    queryFn: apiService.getSuppliers,
+    queryFn: async () => {
+      const resp = await businessApi.get('suppliers/');
+      return (resp.data.results || resp.data) as Supplier[];
+    },
   });
 
   const suppliers = (suppliersQuery.data ?? []) as SupplierListRow[];
@@ -102,7 +105,7 @@ const Suppliers: React.FC = () => {
       if (!confirmed) return;
 
       try {
-        await apiService.deleteSupplier(Number(supplierId));
+        await businessApi.delete(`suppliers/${supplierId}/`);
         await refreshSuppliers();
       } catch {
         message.error('Failed to delete supplier. Please try again.');

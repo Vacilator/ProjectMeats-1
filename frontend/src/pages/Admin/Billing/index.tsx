@@ -20,7 +20,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { DownloadOutlined } from '@ant-design/icons';
 
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -80,7 +80,7 @@ const BillingPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: withTenantQueryKey('tenants', 'current', 'billing-dashboard'),
     queryFn: async () => {
-      const res = await apiClient.get('/tenants/current/');
+      const res = await businessApi.get('/tenants/current/');
       return res.data;
     },
     staleTime: 60 * 1000,
@@ -91,7 +91,7 @@ const BillingPage: React.FC = () => {
   const billingConfigsQuery = useQuery<TenantConfiguration[]>({
     queryKey: withTenantQueryKey('tenant-configurations', 'billing'),
     queryFn: async () => {
-      const res = await apiClient.get('/configurations/', { params: { search: 'billing.' } });
+      const res = await businessApi.get('/configurations/', { params: { search: 'billing.' } });
       const raw = res.data as unknown;
       const data = Array.isArray(raw)
         ? raw
@@ -138,7 +138,7 @@ const BillingPage: React.FC = () => {
     queryKey: withTenantQueryKey('invoices', 'subscription', tenant?.id),
     enabled: Boolean(tenant?.id),
     queryFn: async () => {
-      const res = await apiClient.get('/invoices/', { params: { is_subscription: true } });
+      const res = await businessApi.get('/invoices/', { params: { is_subscription: true } });
       const raw = res.data as unknown;
       const data = Array.isArray(raw)
         ? raw
@@ -227,11 +227,11 @@ const BillingPage: React.FC = () => {
     const existing = billingConfigByKey.get(cfg.key);
 
     if (existing?.id) {
-      await apiClient.patch(`/configurations/${existing.id}/`, { value: cfg.value });
+      await businessApi.patch(`/configurations/${existing.id}/`, { value: cfg.value });
       return;
     }
 
-    await apiClient.post('/configurations/', {
+    await businessApi.post('/configurations/', {
       category: cfg.category,
       key: cfg.key,
       display_name: cfg.display_name,

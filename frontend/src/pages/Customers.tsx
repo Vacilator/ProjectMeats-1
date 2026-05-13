@@ -7,7 +7,7 @@ import styled from 'styled-components';
 import { DownloadOutlined } from '@ant-design/icons';
 
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
-import { apiService, type Customer } from '../services/apiService';
+import type { Customer } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -90,7 +90,10 @@ const Customers: React.FC = () => {
 
   const customersQuery = useQuery({
     queryKey: withTenantQueryKey('customers'),
-    queryFn: apiService.getCustomers,
+    queryFn: async () => {
+      const resp = await businessApi.get('customers/');
+      return (resp.data.results || resp.data) as Customer[];
+    },
   });
 
   const customers = (customersQuery.data ?? []) as CustomerListRow[];
@@ -160,7 +163,7 @@ const Customers: React.FC = () => {
       if (!confirmed) return;
 
       try {
-        await apiService.deleteCustomer(Number(customerId));
+        await businessApi.delete(`customers/${customerId}/`);
         await refreshCustomers();
       } catch {
         message.error('Failed to delete customer. Please try again.');

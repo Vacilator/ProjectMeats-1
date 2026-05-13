@@ -5,18 +5,39 @@ import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { apiService } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 
 import StandalonePlantEditForm from './StandalonePlantEditForm';
 
-vi.mock('@/services/apiService', () => ({
-  apiService: {
-    getPlant: vi.fn(),
-    updatePlant: vi.fn(),
+vi.mock('@/services/businessApi', () => ({
+  businessApi: {
+    get: vi.fn(),
+    patch: vi.fn(),
   },
 }));
 
-const mockedApiService = vi.mocked(apiService);
+const mockedBusinessApi = vi.mocked(businessApi);
+
+const PLANT_DATA = {
+  id: 2,
+  name: 'West Plant',
+  plant_est_num: 'EST-22',
+  plant_type: 'processing',
+  address: '123 Market St',
+  city: 'Chicago',
+  state: 'IL',
+  zip_code: '60601',
+  country: 'USA',
+  booking_contact_email: 'booking@example.com',
+  booking_contact_phone: '555-0100',
+  booking_contact_phone_type: 'office',
+  capacity: 250,
+  export_approved: true,
+  is_active: true,
+  fcfs: false,
+  created_at: '2026-05-06T12:00:00Z',
+  updated_at: '2026-05-06T13:00:00Z',
+};
 
 const renderForm = (props?: Partial<React.ComponentProps<typeof StandalonePlantEditForm>>) => {
   const queryClient = new QueryClient({
@@ -42,45 +63,9 @@ describe('StandalonePlantEditForm', () => {
     vi.clearAllMocks();
     vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
     vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
-    mockedApiService.getPlant.mockResolvedValue({
-      id: 2,
-      name: 'West Plant',
-      plant_est_num: 'EST-22',
-      plant_type: 'processing',
-      address: '123 Market St',
-      city: 'Chicago',
-      state: 'IL',
-      zip_code: '60601',
-      country: 'USA',
-      booking_contact_email: 'booking@example.com',
-      booking_contact_phone: '555-0100',
-      booking_contact_phone_type: 'office',
-      capacity: 250,
-      export_approved: true,
-      is_active: true,
-      fcfs: false,
-      created_at: '2026-05-06T12:00:00Z',
-      updated_at: '2026-05-06T13:00:00Z',
-    });
-    mockedApiService.updatePlant.mockResolvedValue({
-      id: 2,
-      name: 'Updated West Plant',
-      plant_est_num: 'EST-22',
-      plant_type: 'processing',
-      address: '123 Market St',
-      city: 'Chicago',
-      state: 'IL',
-      zip_code: '60601',
-      country: 'USA',
-      booking_contact_email: 'booking@example.com',
-      booking_contact_phone: '555-0100',
-      booking_contact_phone_type: 'office',
-      capacity: 250,
-      export_approved: true,
-      is_active: true,
-      fcfs: false,
-      created_at: '2026-05-06T12:00:00Z',
-      updated_at: '2026-05-06T14:00:00Z',
+    mockedBusinessApi.get.mockResolvedValue({ data: PLANT_DATA });
+    mockedBusinessApi.patch.mockResolvedValue({
+      data: { ...PLANT_DATA, name: 'Updated West Plant', updated_at: '2026-05-06T14:00:00Z' },
     });
   });
 
@@ -90,7 +75,7 @@ describe('StandalonePlantEditForm', () => {
 
     renderForm({ onSaved });
 
-    expect(mockedApiService.getPlant).toHaveBeenCalledWith(2);
+    expect(mockedBusinessApi.get).toHaveBeenCalledWith('plants/2/');
     const nameInput = (await screen.findByDisplayValue('West Plant')) as HTMLInputElement;
 
     await user.clear(nameInput);
@@ -98,8 +83,8 @@ describe('StandalonePlantEditForm', () => {
     await user.click(screen.getByRole('button', { name: /save plant/i }));
 
     await waitFor(() => {
-      expect(mockedApiService.updatePlant).toHaveBeenCalledWith(
-        2,
+      expect(mockedBusinessApi.patch).toHaveBeenCalledWith(
+        'plants/2/',
         expect.objectContaining({
           name: 'Updated West Plant',
           plant_est_num: 'EST-22',

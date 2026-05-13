@@ -10,7 +10,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, Modal, message, Tag, Space, Skeleton, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -154,7 +154,7 @@ const PlantProducts: React.FC = () => {
   const fetchPlant = async () => {
     if (!id) return;
     try {
-      const response = await apiClient.get(`/plants/${id}/`);
+      const response = await businessApi.get(`/plants/${id}/`);
       setPlant(response.data);
     } catch (error) {
       logger.error('Error fetching plant:', error);
@@ -166,7 +166,7 @@ const PlantProducts: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const response = await apiClient.get(`/plants/${id}/available-products/`);
+      const response = await businessApi.get(`/plants/${id}/available-products/`);
       setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       logger.error('Error fetching plant products:', error);
@@ -187,7 +187,7 @@ const PlantProducts: React.FC = () => {
       const params: Record<string, any> = { page_size: '500', is_active: true };
       if (search) params.search = search;
       if (proteinFilter.length) params.protein = proteinFilter.map((t) => String(t).toLowerCase());
-      const response = await apiClient.get('/system/products/', { params });
+      const response = await businessApi.get('/system/products/', { params });
       const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       setSystemProducts(data);
     } catch (error) {
@@ -218,7 +218,7 @@ const PlantProducts: React.FC = () => {
     try {
       const results = await Promise.allSettled(
         selectedProductIds.map((productId) =>
-          apiClient.post(`/plants/${id}/available-products/`, { product: productId })
+          businessApi.post(`/plants/${id}/available-products/`, { product: productId })
         )
       );
 
@@ -258,7 +258,7 @@ const PlantProducts: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/plants/${id}/available-products/${productId}/`);
+      await businessApi.delete(`/plants/${id}/available-products/${productId}/`);
       message.success('Product removed successfully');
       fetchProducts();
     } catch (error) {

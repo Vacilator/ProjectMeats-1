@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import {
   AdminGuard,
   AdminPage,
@@ -94,7 +94,7 @@ const UsersPage: React.FC = () => {
     queryKey: withTenantQueryKey('tenant-users'),
     enabled: canAccess,
     queryFn: async () => {
-      const response = await apiClient.get('/tenant-users/');
+      const response = await businessApi.get('/tenant-users/');
       const data = response.data.results || response.data;
       return Array.isArray(data) ? data : [];
     },
@@ -108,7 +108,7 @@ const UsersPage: React.FC = () => {
     queryKey: withTenantQueryKey('tenant-invitations'),
     enabled: canAccess,
     queryFn: async () => {
-      const response = await apiClient.get('/invitations/', {
+      const response = await businessApi.get('/invitations/', {
         params: { status: 'pending' },
       });
       const data = response.data.results || response.data;
@@ -184,7 +184,7 @@ const UsersPage: React.FC = () => {
   };
 
   const inviteMutation = useMutation({
-    mutationFn: async (data: { email: string; role: string }) => apiClient.post('/invitations/', data),
+    mutationFn: async (data: { email: string; role: string }) => businessApi.post('/invitations/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       toast.success(emailEnabled ? 'Invitation sent successfully' : 'Invitation created (email sending is disabled)');
@@ -198,7 +198,7 @@ const UsersPage: React.FC = () => {
 
   const updateRoleMutation = useMutation({
     mutationFn: async (data: { id: number; role: string }) =>
-      apiClient.patch(`/tenant-users/${data.id}/`, { role: data.role }),
+      businessApi.patch(`/tenant-users/${data.id}/`, { role: data.role }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User role updated');
@@ -210,7 +210,7 @@ const UsersPage: React.FC = () => {
   });
 
   const deactivateMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: false }),
+    mutationFn: async (id: number) => businessApi.patch(`/tenant-users/${id}/`, { is_active: false }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User deactivated');
@@ -222,7 +222,7 @@ const UsersPage: React.FC = () => {
   });
 
   const reactivateMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: true }),
+    mutationFn: async (id: number) => businessApi.patch(`/tenant-users/${id}/`, { is_active: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User reactivated');
@@ -233,7 +233,7 @@ const UsersPage: React.FC = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.delete(`/tenant-users/${id}/`),
+    mutationFn: async (id: number) => businessApi.delete(`/tenant-users/${id}/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User removed');
@@ -246,7 +246,7 @@ const UsersPage: React.FC = () => {
   });
 
   const revokeMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/revoke/`),
+    mutationFn: async (id: number) => businessApi.post(`/invitations/${id}/revoke/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       toast.success('Invitation revoked');
@@ -257,7 +257,7 @@ const UsersPage: React.FC = () => {
   });
 
   const resendMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/resend/`),
+    mutationFn: async (id: number) => businessApi.post(`/invitations/${id}/resend/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       toast.success('Invitation resent');
@@ -274,7 +274,7 @@ const UsersPage: React.FC = () => {
 
       for (const id of ids) {
         try {
-          await apiClient.post(`/invitations/${id}/resend/`);
+          await businessApi.post(`/invitations/${id}/resend/`);
           succeeded.push(id);
         } catch (error: unknown) {
           failed.push({ id, message: getApiErrorMessage(error) });
@@ -316,7 +316,7 @@ const UsersPage: React.FC = () => {
 
       for (const id of ids) {
         try {
-          await apiClient.post(`/invitations/${id}/revoke/`);
+          await businessApi.post(`/invitations/${id}/revoke/`);
           succeeded.push(id);
         } catch (error: unknown) {
           failed.push({ id, message: getApiErrorMessage(error) });

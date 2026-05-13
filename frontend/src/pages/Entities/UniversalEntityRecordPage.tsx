@@ -26,7 +26,6 @@ import {
   UnifiedEntityTable,
 } from '@/components/Shared';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
-import { apiClient } from '@/services/apiService';
 import { businessApi } from '@/services/businessApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { type ResolvedEntityDisplay } from '@/utils/entityDisplay';
@@ -135,7 +134,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     if (!entityId || !(isSupplier || isCustomer) || mode !== 'view') return;
     setChildLoading(true);
     try {
-      const resp = await apiClient.get(childEndpoint, {
+      const resp = await businessApi.get(childEndpoint, {
         params: {
           [childFilterKey]: entityId,
           page_size: 50,
@@ -171,7 +170,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
       };
       params[childFilterKey] = entityId;
 
-      const resp = await apiClient.get('contacts/', { params });
+      const resp = await businessApi.get('contacts/', { params });
       const payload = resp.data as unknown;
       const payloadObj =
         payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;

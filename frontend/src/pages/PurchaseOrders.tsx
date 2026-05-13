@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { buildPurchaseOrderReviewPath } from '@/services/purchaseOrderReviewService';
-import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
+import type { PurchaseOrder, Supplier } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
 import {
   TransactionalEmptyState,
@@ -309,12 +309,12 @@ const PurchaseOrders: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [posData, suppliersData] = await Promise.all([
-        apiService.getPurchaseOrders(),
-        apiService.getSuppliers(),
+      const [posResp, suppResp] = await Promise.all([
+        businessApi.get('purchase-orders/'),
+        businessApi.get('suppliers/'),
       ]);
-      setPurchaseOrders(posData);
-      setSuppliers(suppliersData);
+      setPurchaseOrders((posResp.data.results || posResp.data) as PurchaseOrder[]);
+      setSuppliers((suppResp.data.results || suppResp.data) as Supplier[]);
     } catch (error) {
       logger.error('Error loading data:', error);
     } finally {
@@ -324,8 +324,8 @@ const PurchaseOrders: React.FC = () => {
 
   const loadPurchaseOrders = async () => {
     try {
-      const data = await apiService.getPurchaseOrders();
-      setPurchaseOrders(data);
+      const resp = await businessApi.get('purchase-orders/');
+      setPurchaseOrders((resp.data.results || resp.data) as PurchaseOrder[]);
     } catch (error) {
       logger.error('Error loading purchase orders:', error);
     }
@@ -350,7 +350,7 @@ const PurchaseOrders: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiService.deletePurchaseOrder(id);
+      await businessApi.delete(`purchase-orders/${id}/`);
       showAlert({
         type: 'success',
         title: 'Deleted',

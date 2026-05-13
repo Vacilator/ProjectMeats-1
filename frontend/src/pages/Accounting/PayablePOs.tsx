@@ -19,7 +19,7 @@ import styled from 'styled-components';
 import { Skeleton } from 'antd';
 
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList } from '../../components/Shared';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
 import { buildCsv, downloadCsv } from '@/utils/csv';
@@ -372,7 +372,7 @@ const PayablePOs: React.FC = () => {
         params.payment_status = statusFilter;
       }
       
-      const response = await apiClient.get('purchase-orders/', { params });
+      const response = await businessApi.get('purchase-orders/', { params });
       
       const ordersWithPaymentStatus = response.data.results || response.data;
       setOrders(ordersWithPaymentStatus.map((order: PurchaseOrder) => ({

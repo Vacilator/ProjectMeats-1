@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal as AntModal, Skeleton } from 'antd';
 import styled from 'styled-components';
 import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } from 'lucide-react';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useToast } from '@/hooks/useToast';
 import { logger } from '@/utils/logger';
@@ -362,7 +362,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const loadItems = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/system/choice-lists/${listSlug}/items/?limit=1000`);
+      const response = await businessApi.get(`/system/choice-lists/${listSlug}/items/?limit=1000`);
       const raw = response.data as any;
       const itemsData = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setItems(itemsData);
@@ -449,7 +449,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
 
     // Otherwise, delete from backend
     try {
-      await apiClient.delete(`/system/choice-items/${id}/`);
+      await businessApi.delete(`/system/choice-items/${id}/`);
       setItems(items.filter(item => item.id !== id));
       setHasChanges(true);
     } catch (error) {
@@ -515,10 +515,10 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
         };
 
         if (item.id.startsWith('temp-')) {
-          return apiClient.post(`/system/choice-lists/${listSlug}/items/`, itemData);
+          return businessApi.post(`/system/choice-lists/${listSlug}/items/`, itemData);
         }
 
-        return apiClient.patch(`/system/choice-items/${item.id}/`, itemData);
+        return businessApi.patch(`/system/choice-items/${item.id}/`, itemData);
       });
 
       await Promise.all(promises);

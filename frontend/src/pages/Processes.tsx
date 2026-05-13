@@ -3,7 +3,8 @@ import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
-import { apiService, PurchaseOrder } from '../services/apiService';
+import type { PurchaseOrder } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -22,8 +23,8 @@ const Processes: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getPurchaseOrders();
-      setPurchaseOrders(data);
+      const resp = await businessApi.get('purchase-orders/');
+      setPurchaseOrders((resp.data.results || resp.data) as PurchaseOrder[]);
     } catch (err) {
       logger.error('Error fetching processes:', err);
       setError('Failed to load process data');

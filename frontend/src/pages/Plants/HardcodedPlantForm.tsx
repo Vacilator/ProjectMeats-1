@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Button, Card, Col, Form, Input, InputNumber, Row, Select, Space, Switch, Typography, message } from 'antd';
 
-import { apiService, type Plant } from '@/services/apiService';
+import type { Plant } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 
 const { Paragraph, Title } = Typography;
 
@@ -99,7 +100,8 @@ export const HardcodedPlantForm: React.FC<HardcodedPlantFormProps> = ({
         ...values,
         capacity: values.capacity ?? undefined,
       };
-      const updated = await apiService.updatePlant(numericPlantId, payload);
+      const resp = await businessApi.patch(`plants/${numericPlantId}/`, payload);
+      const updated = resp.data as Plant;
       message.success('Plant updated.');
       onSaved?.(updated);
     } catch (error) {

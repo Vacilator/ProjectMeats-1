@@ -24,8 +24,9 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '../../components/Onboarding';
 import SharePortalLinkPanel from '../../components/Portal/SharePortalLinkPanel';
-import { ActivityFeed, RecordPaymentModal, PaymentHistoryList, EntityFormSurface } from '../../components/Shared';
-import { apiClient } from '../../services/apiService';
+import { ActivityFeed, RecordPaymentModal, PaymentHistoryList } from '../../components/Shared';
+import InvoiceForm from './InvoiceForm';
+import { businessApi } from '@/services/businessApi';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
 import { formatTradeDate, formatTradeWeight } from '../../utils/trade';
@@ -459,7 +460,7 @@ const Invoices: React.FC = () => {
         params.status = statusFilter;
       }
 
-      const response = await apiClient.get('accounting/invoices/', { params });
+      const response = await businessApi.get('accounting/invoices/', { params });
       const invoicesData = response.data.results || response.data;
 
       // Calculate outstanding amounts (mocked for now - backend enhancement needed)
@@ -820,14 +821,13 @@ const Invoices: React.FC = () => {
         )}
       </ContentContainer>
 
-      <EntityFormSurface
-        entityType="invoice"
-        mode="create"
-        variant="modal"
-        isOpen={isModalOpen}
-        onClose={handleCreateModalClose}
-        onSuccess={handleCreateSuccess}
-      />
+      {isModalOpen && (
+        <InvoiceForm
+          mode="create"
+          onSuccess={handleCreateSuccess}
+          onCancel={handleCreateModalClose}
+        />
+      )}
     </PageContainer>
   );
 };

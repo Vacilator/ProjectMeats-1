@@ -7,16 +7,15 @@ import {
   Users,
   FileText,
   DollarSign,
-  Building2,
   ClipboardList,
   Plus,
   X,
   Info,
   Zap,
   ChevronDown,
+  Building2,
 } from 'lucide-react';
 import { businessApi } from '@/services/businessApi';
-import type { Supplier, PurchaseOrder } from '@/services/apiService';
 import { LocationSelector } from '@/components/Shared';
 import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutocomplete';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
@@ -33,59 +32,64 @@ interface ShippingContact {
   email: string;
 }
 
-interface SupplierPOFormValues {
+interface SalesOrderFormValues {
   logistics_scenario: LogisticsScenario;
+  our_sales_order_num: string;
+  our_sales_order_number_for_customer: string;
   supplier: string;
-  supplier_corporate_address: string;
-  supplier_city: string;
-  supplier_state: string;
-  supplier_zip: string;
-  plant: string;
-  our_purchase_order_number_to_supplier: string;
-  my_customer_number_from_supplier: string;
-  supplier_confirmation_order_num: string;
-  supplier_confirmation_order_number: string;
-  carrier_release_num: string;
-  carrier_release_format: string;
+  customer: string;
+  carrier: string;
   product: string;
-  item_description: string;
-  type_of_protein: string;
-  fresh_or_frozen: string;
-  package_type: string;
-  quantity: string;
-  total_weight: string;
-  weight_unit: string;
-  net_or_catch: string;
-  edible_or_inedible: string;
-  price_per_unit: string;
-  tested_product: boolean;
-  item_production_date: string;
-  pick_up_date: string;
-  delivery_date: string;
+  plant: string;
   pick_up_location: string | null;
   delivery_location: string | null;
-  pickup_location_name: string;
-  pickup_address: string;
-  pickup_city_state: string;
-  how_carrier_make_appointment: string;
-  supplier_contact_name: string;
-  supplier_contact_phone: string;
-  supplier_contact_email: string;
+  delivery_po_num: string;
+  delivery_po_number: string;
+  carrier_release_num: string;
+  carrier_release_format: string;
+  pick_up_date: string;
+  delivery_date: string;
+  how_to_make_appointment: string;
+  quantity: string;
+  type_of_protein: string;
+  description_of_product_item: string;
+  fresh_or_frozen: string;
+  package_type: string;
+  uom: string;
+  net_or_catch: string;
+  weight_unit: string;
+  total_weight: string;
+  total_net_weight: string;
+  edible_or_inedible: string;
+  tested_product: boolean;
+  payment_terms: string;
+  billing_contact_name: string;
+  billing_contact_phone: string;
+  billing_contact_email: string;
+  shipping_contact_name: string;
+  shipping_contact_phone: string;
+  shipping_contact_email: string;
+  billing_address_street: string;
+  billing_address_city: string;
+  billing_address_state_zip: string;
+  shipping_address_street: string;
+  shipping_address_city: string;
+  shipping_address_state_zip: string;
   receiving_contact_name: string;
   receiving_contact_phone: string;
   receiving_contact_email: string;
-  payment_terms: string;
-  bill_of_lading_comments: string;
-  invoicing_comments: string;
-  special_instructions: string;
-  total_net_weight: string;
+  receiving_contact_title: string;
   total_amount: string;
+  status: string;
+  payment_status: string;
   notes: string;
+  plant_est_number: string;
+  contact: string;
 }
 
-export interface SupplierPOFormProps {
+export interface SalesOrderFormProps {
   mode: 'create' | 'edit';
-  initialValues?: Partial<SupplierPOFormValues>;
+  initialValues?: Partial<SalesOrderFormValues>;
   onSuccess: () => void;
   onCancel: () => void;
   entityId?: number | string;
@@ -96,9 +100,9 @@ export interface SupplierPOFormProps {
 // ============================================================================
 
 const SCENARIO_OPTIONS: { value: LogisticsScenario; label: string; icon: string; desc: string }[] = [
-  { value: 'customer_pickup', label: 'Customer Picking Up', icon: '🚗', desc: 'Customer picks up from supplier location' },
-  { value: 'supplier_delivery', label: 'Supplier Delivering', icon: '🚚', desc: 'Supplier delivers to our location' },
-  { value: 'we_pickup', label: 'We Are Picking Up', icon: '🚛', desc: 'Our logistics handle the pickup' },
+  { value: 'customer_pickup', label: 'Customer Picking Up', icon: '🚗', desc: 'Customer picks up from our location' },
+  { value: 'supplier_delivery', label: 'Supplier Delivering', icon: '🚚', desc: 'Supplier delivers to customer location' },
+  { value: 'we_pickup', label: 'We Are Picking Up', icon: '🚛', desc: 'Our logistics handle the transport' },
 ];
 
 const SCENARIO_VISIBILITY: Record<LogisticsScenario, Record<string, boolean>> = {
@@ -107,7 +111,8 @@ const SCENARIO_VISIBILITY: Record<LogisticsScenario, Record<string, boolean>> = 
     deliveryDate: true,
     shippingContacts: true,
     pickupAddress: true,
-    howCarrierAppt: true,
+    deliveryAddress: true,
+    howMakeAppointment: true,
     receivingContact: false,
   },
   supplier_delivery: {
@@ -115,7 +120,8 @@ const SCENARIO_VISIBILITY: Record<LogisticsScenario, Record<string, boolean>> = 
     deliveryDate: true,
     shippingContacts: false,
     pickupAddress: false,
-    howCarrierAppt: false,
+    deliveryAddress: true,
+    howMakeAppointment: false,
     receivingContact: false,
   },
   we_pickup: {
@@ -123,7 +129,8 @@ const SCENARIO_VISIBILITY: Record<LogisticsScenario, Record<string, boolean>> = 
     deliveryDate: true,
     shippingContacts: true,
     pickupAddress: true,
-    howCarrierAppt: true,
+    deliveryAddress: true,
+    howMakeAppointment: true,
     receivingContact: true,
   },
 };
@@ -148,22 +155,17 @@ const APPOINTMENT_METHODS = [
   'Email', 'Phone', 'Website', 'FCFS', 'Fax', 'First Come First Serve',
 ];
 
-const PRODUCTION_DATE_OPTIONS = [
-  '5 day newer', '10 day newer', '15 day newer', '30 day newer',
-  '2 month newer', '3 month newer', '6 month newer', '12 month newer',
+const CARRIER_RELEASE_FORMATS = [
+  'Supplier Confirmation Order Number', 'Carrier Release Number', 'Both',
 ];
-
-const CARRIER_RELEASE_FORMATS = ['PDF', 'Excel', 'Email', 'Fax', 'EDI'];
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-const generatePONumber = (): string => {
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-  const rand = String(Math.floor(Math.random() * 999999)).padStart(6, '0');
-  return `PO-${dateStr}-${rand}`;
+const generateNumber = (prefix: string): string => {
+  const d = new Date();
+  return `${prefix}-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`;
 };
 
 const formatDateTime = (date: Date): string => {
@@ -182,54 +184,59 @@ const addDays = (date: Date, days: number): string => {
   return d.toISOString().split('T')[0];
 };
 
-const getDefaultFormValues = (): SupplierPOFormValues => ({
+const getDefaultFormValues = (): SalesOrderFormValues => ({
   logistics_scenario: 'supplier_delivery',
+  our_sales_order_num: '',
+  our_sales_order_number_for_customer: '',
   supplier: '',
-  supplier_corporate_address: '',
-  supplier_city: '',
-  supplier_state: '',
-  supplier_zip: '',
-  plant: '',
-  our_purchase_order_number_to_supplier: '',
-  my_customer_number_from_supplier: '',
-  supplier_confirmation_order_num: '',
-  supplier_confirmation_order_number: '',
-  carrier_release_num: '',
-  carrier_release_format: '',
+  customer: '',
+  carrier: '',
   product: '',
-  item_description: '',
-  type_of_protein: '',
-  fresh_or_frozen: '',
-  package_type: '',
-  quantity: '',
-  total_weight: '',
-  weight_unit: 'LBS',
-  net_or_catch: 'Net',
-  edible_or_inedible: 'Edible',
-  price_per_unit: '',
-  tested_product: false,
-  item_production_date: '',
-  pick_up_date: addDays(new Date(), 2),
-  delivery_date: addDays(new Date(), 7),
+  plant: '',
   pick_up_location: null,
   delivery_location: null,
-  pickup_location_name: '',
-  pickup_address: '',
-  pickup_city_state: '',
-  how_carrier_make_appointment: '',
-  supplier_contact_name: '',
-  supplier_contact_phone: '',
-  supplier_contact_email: '',
+  delivery_po_num: '',
+  delivery_po_number: '',
+  carrier_release_num: '',
+  carrier_release_format: '',
+  pick_up_date: addDays(new Date(), 2),
+  delivery_date: addDays(new Date(), 7),
+  how_to_make_appointment: '',
+  quantity: '',
+  type_of_protein: '',
+  description_of_product_item: '',
+  fresh_or_frozen: '',
+  package_type: '',
+  uom: 'LBS',
+  net_or_catch: 'Net',
+  weight_unit: 'LBS',
+  total_weight: '',
+  total_net_weight: '',
+  edible_or_inedible: 'Edible',
+  tested_product: false,
+  payment_terms: '',
+  billing_contact_name: '',
+  billing_contact_phone: '',
+  billing_contact_email: '',
+  shipping_contact_name: '',
+  shipping_contact_phone: '',
+  shipping_contact_email: '',
+  billing_address_street: '',
+  billing_address_city: '',
+  billing_address_state_zip: '',
+  shipping_address_street: '',
+  shipping_address_city: '',
+  shipping_address_state_zip: '',
   receiving_contact_name: '',
   receiving_contact_phone: '',
   receiving_contact_email: '',
-  payment_terms: '',
-  bill_of_lading_comments: '',
-  invoicing_comments: '',
-  special_instructions: '',
-  total_net_weight: '',
+  receiving_contact_title: '',
   total_amount: '',
+  status: 'draft',
+  payment_status: 'Pending',
   notes: '',
+  plant_est_number: '',
+  contact: '',
 });
 
 // ============================================================================
@@ -747,24 +754,32 @@ const CalculatedValue = styled.div`
 // Component
 // ============================================================================
 
-export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
+export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
   mode,
   initialValues,
   onSuccess,
   onCancel,
   entityId,
 }) => {
-  const [formValues, setFormValues] = useState<SupplierPOFormValues>(() => ({
+  const [formValues, setFormValues] = useState<SalesOrderFormValues>(() => ({
     ...getDefaultFormValues(),
     ...initialValues,
   }));
   const [shippingContacts, setShippingContacts] = useState<ShippingContact[]>([
     { name: '', phone: '', email: '' },
   ]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [customers, setCustomers] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [carriers, setCarriers] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
   const [supplierAutoFilled, setSupplierAutoFilled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [loadingSupplier, setLoadingSupplier] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
   const [createdAt] = useState(() => new Date());
 
   // Choice options from backend
@@ -782,11 +797,26 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
+      setLoadingData(true);
       try {
-        const resp = await businessApi.get('suppliers/');
-        setSuppliers((resp.data.results || resp.data) as Supplier[]);
+        const [customersRes, suppliersRes, carriersRes, contactsRes] = await Promise.all([
+          businessApi.get('customers/'),
+          businessApi.get('suppliers/'),
+          businessApi.get('carriers/'),
+          businessApi.get('contacts/'),
+        ]);
+        const custData = customersRes.data?.results || customersRes.data || [];
+        const suppData = suppliersRes.data?.results || suppliersRes.data || [];
+        const carrData = carriersRes.data?.results || carriersRes.data || [];
+        const contData = contactsRes.data?.results || contactsRes.data || [];
+        setCustomers(Array.isArray(custData) ? custData : []);
+        setSuppliers(Array.isArray(suppData) ? suppData : []);
+        setCarriers(Array.isArray(carrData) ? carrData : []);
+        setContacts(Array.isArray(contData) ? contData : []);
       } catch {
-        console.error('Failed to load suppliers');
+        console.error('Failed to load form data');
+      } finally {
+        setLoadingData(false);
       }
     };
     loadData();
@@ -853,15 +883,14 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
   const calculatedTotal = useMemo(() => {
     const qty = Number(formValues.quantity);
     const tw = Number(formValues.total_weight);
-    const ppu = Number(formValues.price_per_unit);
-    if (Number.isFinite(tw) && tw > 0 && Number.isFinite(ppu) && ppu > 0) {
-      return (tw * ppu).toFixed(2);
+    if (Number.isFinite(tw) && tw > 0) {
+      return tw.toFixed(2);
     }
-    if (Number.isFinite(qty) && qty > 0 && Number.isFinite(ppu) && ppu > 0) {
-      return (qty * ppu).toFixed(2);
+    if (Number.isFinite(qty) && qty > 0) {
+      return qty.toFixed(2);
     }
     return '0.00';
-  }, [formValues.quantity, formValues.total_weight, formValues.price_per_unit]);
+  }, [formValues.quantity, formValues.total_weight]);
 
   // Generic field change handler
   const handleChange = useCallback(
@@ -880,47 +909,63 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
     [],
   );
 
-  // Supplier auto-populate
+  // Customer auto-populate (billing info)
+  const handleCustomerChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const customerId = e.target.value;
+      setFormValues((prev) => ({ ...prev, customer: customerId }));
+      setCustomerAutoFilled(false);
+
+      if (!customerId) return;
+
+      const customer = customers.find((c) => String(c.id) === customerId);
+      if (customer) {
+        setFormValues((prev) => ({
+          ...prev,
+          customer: customerId,
+          billing_address_street: customer.address || customer.billing_address || '',
+          billing_address_city: customer.city || customer.billing_city || '',
+          billing_address_state_zip: customer.state_zip || `${customer.state || ''} ${customer.zip_code || ''}`.trim(),
+          billing_contact_name: customer.contact_person || customer.contact_name || '',
+          billing_contact_phone: customer.phone || customer.phone_mobile || customer.phone_office || '',
+          billing_contact_email: customer.email || '',
+        }));
+        setCustomerAutoFilled(true);
+      }
+    },
+    [customers],
+  );
+
+  // Supplier auto-populate (shipping info)
   const handleSupplierChange = useCallback(
-    async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
       const supplierId = e.target.value;
       setFormValues((prev) => ({ ...prev, supplier: supplierId }));
       setSupplierAutoFilled(false);
 
       if (!supplierId) return;
 
-      try {
-        setLoadingSupplier(true);
-        const supplier = suppliers.find((s) => String(s.id) === supplierId);
-        if (supplier) {
-          setFormValues((prev) => ({
-            ...prev,
-            supplier: supplierId,
-            supplier_corporate_address: supplier.address || '',
-            supplier_city: supplier.city || '',
-            supplier_state: supplier.state || '',
-            supplier_zip: supplier.zip_code || '',
-            supplier_contact_name: supplier.contact_person || '',
-            supplier_contact_phone: supplier.phone || supplier.phone_mobile || supplier.phone_office || '',
-            supplier_contact_email: supplier.email || '',
-          }));
-          setSupplierAutoFilled(true);
-        }
-      } catch {
-        console.error('Failed to load supplier details');
-      } finally {
-        setLoadingSupplier(false);
+      const supplier = suppliers.find((s) => String(s.id) === supplierId);
+      if (supplier) {
+        setFormValues((prev) => ({
+          ...prev,
+          supplier: supplierId,
+          shipping_address_street: supplier.address || supplier.corporate_address || '',
+          shipping_address_city: supplier.city || '',
+          shipping_address_state_zip: supplier.state_zip || `${supplier.state || ''} ${supplier.zip_code || ''}`.trim(),
+        }));
+        setSupplierAutoFilled(true);
       }
     },
     [suppliers],
   );
 
-  // PO number auto-gen on blur
-  const handlePONumberBlur = useCallback(
-    (field: 'our_purchase_order_number_to_supplier' | 'my_customer_number_from_supplier' | 'supplier_confirmation_order_num' | 'carrier_release_num') => {
+  // SO number auto-gen on blur
+  const handleNumberBlur = useCallback(
+    (field: 'our_sales_order_num' | 'our_sales_order_number_for_customer' | 'delivery_po_num' | 'carrier_release_num') => {
       setFormValues((prev) => {
         if (!prev[field]) {
-          return { ...prev, [field]: generatePONumber() };
+          return { ...prev, [field]: generateNumber('SO') };
         }
         return prev;
       });
@@ -953,44 +998,57 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
     (status: 'draft' | 'pending') => {
       return {
         logistics_scenario: formValues.logistics_scenario,
+        our_sales_order_num: formValues.our_sales_order_num || undefined,
+        our_sales_order_number_for_customer: formValues.our_sales_order_number_for_customer || undefined,
+        customer: formValues.customer ? parseInt(formValues.customer) : undefined,
         supplier: formValues.supplier ? parseInt(formValues.supplier) : undefined,
+        carrier: formValues.carrier ? parseInt(formValues.carrier) : undefined,
+        contact: formValues.contact ? parseInt(formValues.contact) : undefined,
         product: formValues.product || undefined,
-        item_description: formValues.item_description || undefined,
-        type_of_protein: formValues.type_of_protein || undefined,
-        fresh_or_frozen: formValues.fresh_or_frozen || undefined,
-        package_type: formValues.package_type || undefined,
-        quantity: formValues.quantity ? parseInt(formValues.quantity) : undefined,
-        total_weight: formValues.total_weight ? parseFloat(formValues.total_weight) : undefined,
-        weight_unit: formValues.weight_unit || undefined,
-        net_or_catch: formValues.net_or_catch || undefined,
-        edible_or_inedible: formValues.edible_or_inedible || undefined,
-        price_per_unit: formValues.price_per_unit ? parseFloat(formValues.price_per_unit) : undefined,
-        tested_product: formValues.tested_product,
-        item_production_date: formValues.item_production_date || undefined,
-        order_date: new Date().toISOString().split('T')[0],
-        delivery_date: formValues.delivery_date || undefined,
+        plant: formValues.plant || undefined,
+        plant_est_number: formValues.plant_est_number || undefined,
         pick_up_location: formValues.pick_up_location || undefined,
         delivery_location: formValues.delivery_location || undefined,
-        how_carrier_make_appointment: formValues.how_carrier_make_appointment || undefined,
-        our_purchase_order_number_to_supplier: formValues.our_purchase_order_number_to_supplier || undefined,
-        my_customer_number_from_supplier: formValues.my_customer_number_from_supplier || undefined,
-        supplier_confirmation_order_num: formValues.supplier_confirmation_order_num || undefined,
-        supplier_confirmation_order_number: formValues.supplier_confirmation_order_number || undefined,
+        delivery_po_num: formValues.delivery_po_num || undefined,
+        delivery_po_number: formValues.delivery_po_number || undefined,
         carrier_release_num: formValues.carrier_release_num || undefined,
-        supplier_corporate_address: formValues.supplier_corporate_address || undefined,
-        supplier_contact_name: formValues.supplier_contact_name || undefined,
-        supplier_contact_phone: formValues.supplier_contact_phone || undefined,
-        supplier_contact_email: formValues.supplier_contact_email || undefined,
+        carrier_release_format: formValues.carrier_release_format || undefined,
+        pick_up_date: formValues.pick_up_date || undefined,
+        delivery_date: formValues.delivery_date || undefined,
+        how_to_make_appointment: formValues.how_to_make_appointment || undefined,
+        quantity: formValues.quantity ? parseInt(formValues.quantity) : undefined,
+        type_of_protein: formValues.type_of_protein || undefined,
+        description_of_product_item: formValues.description_of_product_item || undefined,
+        fresh_or_frozen: formValues.fresh_or_frozen || undefined,
+        package_type: formValues.package_type || undefined,
+        uom: formValues.uom || undefined,
+        net_or_catch: formValues.net_or_catch || undefined,
+        weight_unit: formValues.weight_unit || undefined,
+        total_weight: formValues.total_weight ? parseFloat(formValues.total_weight) : undefined,
+        total_net_weight: formValues.total_net_weight ? parseFloat(formValues.total_net_weight) : undefined,
+        edible_or_inedible: formValues.edible_or_inedible || undefined,
+        tested_product: formValues.tested_product,
+        payment_terms: formValues.payment_terms || undefined,
+        payment_status: formValues.payment_status || undefined,
+        billing_contact_name: formValues.billing_contact_name || undefined,
+        billing_contact_phone: formValues.billing_contact_phone || undefined,
+        billing_contact_email: formValues.billing_contact_email || undefined,
+        shipping_contact_name: formValues.shipping_contact_name || undefined,
+        shipping_contact_phone: formValues.shipping_contact_phone || undefined,
+        shipping_contact_email: formValues.shipping_contact_email || undefined,
+        billing_address_street: formValues.billing_address_street || undefined,
+        billing_address_city: formValues.billing_address_city || undefined,
+        billing_address_state_zip: formValues.billing_address_state_zip || undefined,
+        shipping_address_street: formValues.shipping_address_street || undefined,
+        shipping_address_city: formValues.shipping_address_city || undefined,
+        shipping_address_state_zip: formValues.shipping_address_state_zip || undefined,
         receiving_contact_name: formValues.receiving_contact_name || undefined,
         receiving_contact_phone: formValues.receiving_contact_phone || undefined,
         receiving_contact_email: formValues.receiving_contact_email || undefined,
-        payment_terms: formValues.payment_terms || undefined,
-        bill_of_lading_comments: formValues.bill_of_lading_comments || undefined,
-        invoicing_comments: formValues.invoicing_comments || undefined,
-        special_instructions: formValues.special_instructions || undefined,
-        total_net_weight: formValues.total_net_weight ? parseFloat(formValues.total_net_weight) : undefined,
+        receiving_contact_title: formValues.receiving_contact_title || undefined,
         total_amount: parseFloat(calculatedTotal) || 0,
         notes: formValues.notes || undefined,
+        order_date: new Date().toISOString().split('T')[0],
         status,
       };
     },
@@ -1000,8 +1058,8 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
   // Submit handler
   const handleSubmit = useCallback(
     async (status: 'draft' | 'pending') => {
-      if (!formValues.supplier) {
-        message.warning('Please select a supplier');
+      if (!formValues.customer) {
+        message.warning('Please select a customer');
         return;
       }
 
@@ -1009,17 +1067,17 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
       try {
         const payload = buildPayload(status);
         if (mode === 'edit' && entityId) {
-          await businessApi.patch(`purchase-orders/${entityId}/`, payload);
+          await businessApi.put(`sales-orders/${entityId}/`, payload);
         } else {
-          await businessApi.post('purchase-orders/', payload);
+          await businessApi.post('sales-orders/', payload);
         }
         message.success(
-          `Purchase Order ${status === 'draft' ? 'saved as draft' : 'created'} successfully!`,
+          `Sales Order ${status === 'draft' ? 'saved as draft' : 'created'} successfully!`,
         );
         onSuccess();
       } catch (err) {
         const error = err as Error;
-        message.error(error.message || 'Failed to save purchase order');
+        message.error(error.message || 'Failed to save sales order');
       } finally {
         setSubmitting(false);
       }
@@ -1038,7 +1096,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
           <FormTitleGroup>
             <ClipboardList size={24} color="rgb(var(--color-primary))" />
             <FormTitle>
-              {mode === 'edit' ? 'Edit Purchase Order' : 'New Purchase Order'}
+              {mode === 'edit' ? 'Edit Sales Order' : 'New Sales Order'}
             </FormTitle>
           </FormTitleGroup>
           <CloseBtn onClick={onCancel} aria-label="Close form">
@@ -1047,11 +1105,11 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
         </FormHeader>
 
         <FormBody>
-          {/* Scenario Selector */}
+          {/* Section 1: Scenario Selector */}
           <ScenarioCard>
             <ScenarioLabel>
               <Zap size={16} />
-              Purchase Order Delivery Type
+              Sales Order Delivery Type
               <Tooltip title="This controls which fields appear below. Choose the logistics scenario that matches how goods will be transported.">
                 <Info size={14} style={{ cursor: 'help', opacity: 0.6 }} />
               </Tooltip>
@@ -1061,7 +1119,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                 name="logistics_scenario"
                 value={scenario}
                 onChange={handleChange}
-                aria-label="Purchase Order Delivery Type"
+                aria-label="Sales Order Delivery Type"
               >
                 {SCENARIO_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -1078,106 +1136,107 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
             )}
           </ScenarioCard>
 
-          {/* Section 1: Supplier & Plant Information */}
+          {/* Section 2: Customer & Supplier Information */}
           <SectionCard>
             <SectionHeader>
-              <SectionIcon><Building2 size={18} /></SectionIcon>
-              <SectionTitle>Supplier &amp; Plant Information</SectionTitle>
-              {loadingSupplier && <Spin size="small" />}
+              <SectionIcon><Users size={18} /></SectionIcon>
+              <SectionTitle>Customer &amp; Supplier Information</SectionTitle>
+              {loadingData && <Spin size="small" />}
             </SectionHeader>
             <FieldGrid>
               <FieldGroup $span={2}>
                 <FieldLabel>
-                  Supplier Name <RequiredMark>*</RequiredMark>
+                  Customer <RequiredMark>*</RequiredMark>
                 </FieldLabel>
                 <StyledSelect
-                  name="supplier"
-                  value={formValues.supplier}
-                  onChange={handleSupplierChange}
+                  name="customer"
+                  value={formValues.customer}
+                  onChange={handleCustomerChange}
                   required
-                  aria-label="Supplier"
+                  aria-label="Customer"
                 >
-                  <option value="">Select a supplier…</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
+                  <option value="">Select a customer…</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name || c.company_name || `Customer ${c.id}`}</option>
                   ))}
                 </StyledSelect>
               </FieldGroup>
 
               <FieldGroup $span={2}>
-                <FieldLabel>
-                  Corporate Address
-                  {supplierAutoFilled && (
-                    <AutoFilledBadge>
-                      Auto-filled from supplier
-                    </AutoFilledBadge>
-                  )}
-                </FieldLabel>
-                <StyledInput
-                  name="supplier_corporate_address"
-                  value={formValues.supplier_corporate_address}
-                  onChange={handleChange}
-                  $autoFilled={supplierAutoFilled}
-                  placeholder="Street address"
-                />
+                <FieldLabel>Supplier</FieldLabel>
+                <StyledSelect
+                  name="supplier"
+                  value={formValues.supplier}
+                  onChange={handleSupplierChange}
+                  aria-label="Supplier"
+                >
+                  <option value="">Select a supplier…</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name || `Supplier ${s.id}`}</option>
+                  ))}
+                </StyledSelect>
               </FieldGroup>
 
               <FieldGroup>
-                <FieldLabel>City</FieldLabel>
-                <StyledInput
-                  name="supplier_city"
-                  value={formValues.supplier_city}
+                <FieldLabel>Carrier</FieldLabel>
+                <StyledSelect
+                  name="carrier"
+                  value={formValues.carrier}
                   onChange={handleChange}
-                  $autoFilled={supplierAutoFilled}
-                  placeholder="City"
-                />
+                  aria-label="Carrier"
+                >
+                  <option value="">Select a carrier…</option>
+                  {carriers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name || c.company_name || `Carrier ${c.id}`}</option>
+                  ))}
+                </StyledSelect>
               </FieldGroup>
 
               <FieldGroup>
-                <FieldLabel>State / Zip</FieldLabel>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <StyledInput
-                    name="supplier_state"
-                    value={formValues.supplier_state}
-                    onChange={handleChange}
-                    $autoFilled={supplierAutoFilled}
-                    placeholder="State"
-                    style={{ flex: 1 }}
-                  />
-                  <StyledInput
-                    name="supplier_zip"
-                    value={formValues.supplier_zip}
-                    onChange={handleChange}
-                    $autoFilled={supplierAutoFilled}
-                    placeholder="Zip"
-                    style={{ flex: 1 }}
-                  />
-                </div>
+                <FieldLabel>Contact</FieldLabel>
+                <StyledSelect
+                  name="contact"
+                  value={formValues.contact}
+                  onChange={handleChange}
+                  aria-label="Contact"
+                >
+                  <option value="">Select a contact…</option>
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name || c.full_name || `Contact ${c.id}`}</option>
+                  ))}
+                </StyledSelect>
               </FieldGroup>
 
-              <FieldGroup $span={2}>
+              <FieldGroup>
                 <LocationSelector
                   value={formValues.plant}
                   onChange={(id) => setFormValues((prev) => ({
                     ...prev,
                     plant: id || '',
-                    pickup_location_name: '',
-                    pickup_address: '',
-                    pickup_city_state: '',
                   }))}
                   type="plant"
-                  label="Plant Location"
+                  label="Plant"
                   placeholder="Select plant…"
+                />
+              </FieldGroup>
+
+              <FieldGroup>
+                <FieldLabel>Plant EST Number</FieldLabel>
+                <StyledInput
+                  name="plant_est_number"
+                  value={formValues.plant_est_number}
+                  onChange={handleChange}
+                  placeholder="EST #"
                 />
               </FieldGroup>
             </FieldGrid>
           </SectionCard>
 
-          {/* Section 2: Order & Confirmation Numbers */}
+          {/* Section 3: Order & Reference Numbers */}
           <SectionCard>
             <SectionHeader>
               <SectionIcon><FileText size={18} /></SectionIcon>
-              <SectionTitle>Order &amp; Confirmation Numbers</SectionTitle>
+              <SectionTitle>Order &amp; Reference Numbers</SectionTitle>
             </SectionHeader>
 
             <DateTimeStamp>
@@ -1186,44 +1245,44 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
 
             <FieldGrid>
               <FieldGroup>
-                <FieldLabel>Our PO # To Supplier</FieldLabel>
+                <FieldLabel>Our Sales Order #</FieldLabel>
                 <StyledInput
-                  name="our_purchase_order_number_to_supplier"
-                  value={formValues.our_purchase_order_number_to_supplier}
+                  name="our_sales_order_num"
+                  value={formValues.our_sales_order_num}
                   onChange={handleChange}
-                  onBlur={() => handlePONumberBlur('our_purchase_order_number_to_supplier')}
+                  onBlur={() => handleNumberBlur('our_sales_order_num')}
                   placeholder="Leave blank to auto-generate"
                 />
-                <FieldHint>e.g. PO-20260513-847291</FieldHint>
+                <FieldHint>e.g. SO-20260513-847291</FieldHint>
               </FieldGroup>
 
               <FieldGroup>
-                <FieldLabel>My Customer # From Supplier</FieldLabel>
+                <FieldLabel>Our SO # For Customer</FieldLabel>
                 <StyledInput
-                  name="my_customer_number_from_supplier"
-                  value={formValues.my_customer_number_from_supplier}
+                  name="our_sales_order_number_for_customer"
+                  value={formValues.our_sales_order_number_for_customer}
                   onChange={handleChange}
-                  onBlur={() => handlePONumberBlur('my_customer_number_from_supplier')}
-                  placeholder="Leave blank to auto-generate"
-                />
-              </FieldGroup>
-
-              <FieldGroup>
-                <FieldLabel>Supplier Confirmation #</FieldLabel>
-                <StyledInput
-                  name="supplier_confirmation_order_num"
-                  value={formValues.supplier_confirmation_order_num}
-                  onChange={handleChange}
-                  onBlur={() => handlePONumberBlur('supplier_confirmation_order_num')}
+                  onBlur={() => handleNumberBlur('our_sales_order_number_for_customer')}
                   placeholder="Leave blank to auto-generate"
                 />
               </FieldGroup>
 
               <FieldGroup>
-                <FieldLabel>Supplier Confirmation Order #</FieldLabel>
+                <FieldLabel>Delivery PO #</FieldLabel>
                 <StyledInput
-                  name="supplier_confirmation_order_number"
-                  value={formValues.supplier_confirmation_order_number}
+                  name="delivery_po_num"
+                  value={formValues.delivery_po_num}
+                  onChange={handleChange}
+                  onBlur={() => handleNumberBlur('delivery_po_num')}
+                  placeholder="Leave blank to auto-generate"
+                />
+              </FieldGroup>
+
+              <FieldGroup>
+                <FieldLabel>Delivery PO Number</FieldLabel>
+                <StyledInput
+                  name="delivery_po_number"
+                  value={formValues.delivery_po_number}
                   onChange={handleChange}
                   placeholder="Optional"
                 />
@@ -1235,7 +1294,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   name="carrier_release_num"
                   value={formValues.carrier_release_num}
                   onChange={handleChange}
-                  onBlur={() => handlePONumberBlur('carrier_release_num')}
+                  onBlur={() => handleNumberBlur('carrier_release_num')}
                   placeholder="Leave blank to auto-generate"
                 />
               </FieldGroup>
@@ -1256,7 +1315,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
             </FieldGrid>
           </SectionCard>
 
-          {/* Section 3: Product Details */}
+          {/* Section 4: Product Details */}
           <SectionCard>
             <SectionHeader>
               <SectionIcon><Package size={18} /></SectionIcon>
@@ -1292,15 +1351,15 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
               </FieldGroup>
 
               <FieldGroup $span={2}>
-                <FieldLabel>Product / Description</FieldLabel>
+                <FieldLabel>Product</FieldLabel>
                 <SmartProductAutocomplete
                   value={formValues.product}
                   onChange={(productId, product) => {
                     setFormValues((prev) => ({
                       ...prev,
                       product: productId,
-                      item_description:
-                        prev.item_description
+                      description_of_product_item:
+                        prev.description_of_product_item
                         || product?.name
                         || product?.description
                         || product?.description_of_product_item
@@ -1315,10 +1374,10 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
               </FieldGroup>
 
               <FieldGroup $span={2}>
-                <FieldLabel>Item Description</FieldLabel>
+                <FieldLabel>Description of Product Item</FieldLabel>
                 <StyledTextArea
-                  name="item_description"
-                  value={formValues.item_description}
+                  name="description_of_product_item"
+                  value={formValues.description_of_product_item}
                   onChange={handleChange}
                   rows={2}
                   placeholder="Detailed product description"
@@ -1377,6 +1436,18 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
               </FieldGroup>
 
               <FieldGroup>
+                <FieldLabel>UOM</FieldLabel>
+                <StyledSelect
+                  name="uom"
+                  value={formValues.uom}
+                  onChange={handleChange}
+                >
+                  <option value="LBS">LBS</option>
+                  <option value="KG">KG</option>
+                </StyledSelect>
+              </FieldGroup>
+
+              <FieldGroup>
                 <FieldLabel>Net or Catch</FieldLabel>
                 <StyledSelect
                   name="net_or_catch"
@@ -1390,6 +1461,18 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
               </FieldGroup>
 
               <FieldGroup>
+                <FieldLabel>Total Net Weight</FieldLabel>
+                <StyledInput
+                  type="number"
+                  step="0.01"
+                  name="total_net_weight"
+                  value={formValues.total_net_weight}
+                  onChange={handleChange}
+                  placeholder="0.00"
+                />
+              </FieldGroup>
+
+              <FieldGroup>
                 <FieldLabel>Edible / Inedible</FieldLabel>
                 <StyledSelect
                   name="edible_or_inedible"
@@ -1398,32 +1481,6 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                 >
                   <option value="Edible">Edible</option>
                   <option value="Inedible">Inedible</option>
-                </StyledSelect>
-              </FieldGroup>
-
-              <FieldGroup>
-                <FieldLabel>Price Per Unit</FieldLabel>
-                <StyledInput
-                  type="number"
-                  step="0.01"
-                  name="price_per_unit"
-                  value={formValues.price_per_unit}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                />
-              </FieldGroup>
-
-              <FieldGroup>
-                <FieldLabel>Item Production Date</FieldLabel>
-                <StyledSelect
-                  name="item_production_date"
-                  value={formValues.item_production_date}
-                  onChange={handleChange}
-                >
-                  <option value="">Select…</option>
-                  {PRODUCTION_DATE_OPTIONS.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
                 </StyledSelect>
               </FieldGroup>
 
@@ -1441,7 +1498,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
             </FieldGrid>
           </SectionCard>
 
-          {/* Section 4: Logistics & Pickup/Delivery */}
+          {/* Section 5: Logistics & Delivery */}
           <SectionCard>
             <SectionHeader>
               <SectionIcon><Truck size={18} /></SectionIcon>
@@ -1483,8 +1540,8 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                 </FieldGroup>
               </ConditionalSection>
 
-              {!visibility.pickupAddress && (
-                <FieldGroup>
+              <ConditionalSection $visible={visibility.deliveryAddress}>
+                <FieldGroup $span={2}>
                   <FieldLabel>Delivery Location</FieldLabel>
                   <LocationSelector
                     value={formValues.delivery_location}
@@ -1496,13 +1553,89 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                     placeholder="Select delivery location…"
                   />
                 </FieldGroup>
-              )}
+              </ConditionalSection>
 
-              <ConditionalSection $visible={visibility.howCarrierAppt}>
-                <FieldLabel>How Carrier Makes Appointment</FieldLabel>
+              {/* Billing Address (auto-filled from customer) */}
+              <FieldGroup $span={2}>
+                <FieldLabel>
+                  Billing Address
+                  {customerAutoFilled && <AutoFilledBadge>Auto-filled from customer</AutoFilledBadge>}
+                </FieldLabel>
+                <StyledInput
+                  name="billing_address_street"
+                  value={formValues.billing_address_street}
+                  onChange={handleChange}
+                  $autoFilled={customerAutoFilled}
+                  placeholder="Street address"
+                />
+              </FieldGroup>
+
+              <FieldGroup>
+                <FieldLabel>Billing City</FieldLabel>
+                <StyledInput
+                  name="billing_address_city"
+                  value={formValues.billing_address_city}
+                  onChange={handleChange}
+                  $autoFilled={customerAutoFilled}
+                  placeholder="City"
+                />
+              </FieldGroup>
+
+              <FieldGroup>
+                <FieldLabel>Billing State / Zip</FieldLabel>
+                <StyledInput
+                  name="billing_address_state_zip"
+                  value={formValues.billing_address_state_zip}
+                  onChange={handleChange}
+                  $autoFilled={customerAutoFilled}
+                  placeholder="State, Zip"
+                />
+              </FieldGroup>
+
+              {/* Shipping Address (auto-filled from supplier) */}
+              <ConditionalSection $visible={visibility.pickupAddress || visibility.deliveryAddress}>
+                <FieldGroup $span={2}>
+                  <FieldLabel>
+                    Shipping Address
+                    {supplierAutoFilled && <AutoFilledBadge>Auto-filled from supplier</AutoFilledBadge>}
+                  </FieldLabel>
+                  <StyledInput
+                    name="shipping_address_street"
+                    value={formValues.shipping_address_street}
+                    onChange={handleChange}
+                    $autoFilled={supplierAutoFilled}
+                    placeholder="Street address"
+                  />
+                </FieldGroup>
+                <FieldGrid>
+                  <FieldGroup>
+                    <FieldLabel>Shipping City</FieldLabel>
+                    <StyledInput
+                      name="shipping_address_city"
+                      value={formValues.shipping_address_city}
+                      onChange={handleChange}
+                      $autoFilled={supplierAutoFilled}
+                      placeholder="City"
+                    />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <FieldLabel>Shipping State / Zip</FieldLabel>
+                    <StyledInput
+                      name="shipping_address_state_zip"
+                      value={formValues.shipping_address_state_zip}
+                      onChange={handleChange}
+                      $autoFilled={supplierAutoFilled}
+                      placeholder="State, Zip"
+                    />
+                  </FieldGroup>
+                </FieldGrid>
+              </ConditionalSection>
+
+              <ConditionalSection $visible={visibility.howMakeAppointment}>
+                <FieldLabel>How to Make Appointment</FieldLabel>
                 <StyledSelect
-                  name="how_carrier_make_appointment"
-                  value={formValues.how_carrier_make_appointment}
+                  name="how_to_make_appointment"
+                  value={formValues.how_to_make_appointment}
                   onChange={handleChange}
                 >
                   <option value="">Select method…</option>
@@ -1514,37 +1647,37 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
             </FieldGrid>
           </SectionCard>
 
-          {/* Section 5: Contacts */}
+          {/* Section 6: Contacts */}
           <SectionCard>
             <SectionHeader>
               <SectionIcon><Users size={18} /></SectionIcon>
               <SectionTitle>Contacts</SectionTitle>
             </SectionHeader>
 
-            {/* Supplier / Accounting Contact */}
+            {/* Billing Contact (auto-filled from customer) */}
             <div style={{ marginBottom: '20px' }}>
               <FieldLabel style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'rgb(var(--color-text-primary))' }}>
-                Supplier Contact
-                {supplierAutoFilled && <AutoFilledBadge>Auto-filled from supplier</AutoFilledBadge>}
+                Billing Contact
+                {customerAutoFilled && <AutoFilledBadge>Auto-filled from customer</AutoFilledBadge>}
               </FieldLabel>
               <FieldGrid>
                 <FieldGroup>
                   <FieldLabel>Name</FieldLabel>
                   <StyledInput
-                    name="supplier_contact_name"
-                    value={formValues.supplier_contact_name}
+                    name="billing_contact_name"
+                    value={formValues.billing_contact_name}
                     onChange={handleChange}
-                    $autoFilled={supplierAutoFilled}
+                    $autoFilled={customerAutoFilled}
                     placeholder="Contact name"
                   />
                 </FieldGroup>
                 <FieldGroup>
                   <FieldLabel>Phone</FieldLabel>
                   <StyledInput
-                    name="supplier_contact_phone"
-                    value={formValues.supplier_contact_phone}
+                    name="billing_contact_phone"
+                    value={formValues.billing_contact_phone}
                     onChange={handleChange}
-                    $autoFilled={supplierAutoFilled}
+                    $autoFilled={customerAutoFilled}
                     placeholder="Phone number"
                   />
                 </FieldGroup>
@@ -1552,10 +1685,10 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   <FieldLabel>Email</FieldLabel>
                   <StyledInput
                     type="email"
-                    name="supplier_contact_email"
-                    value={formValues.supplier_contact_email}
+                    name="billing_contact_email"
+                    value={formValues.billing_contact_email}
                     onChange={handleChange}
-                    $autoFilled={supplierAutoFilled}
+                    $autoFilled={customerAutoFilled}
                     placeholder="Email address"
                   />
                 </FieldGroup>
@@ -1637,7 +1770,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                       placeholder="Phone number"
                     />
                   </FieldGroup>
-                  <FieldGroup $span={2}>
+                  <FieldGroup>
                     <FieldLabel>Email</FieldLabel>
                     <StyledInput
                       type="email"
@@ -1647,16 +1780,25 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                       placeholder="Email address"
                     />
                   </FieldGroup>
+                  <FieldGroup>
+                    <FieldLabel>Title</FieldLabel>
+                    <StyledInput
+                      name="receiving_contact_title"
+                      value={formValues.receiving_contact_title}
+                      onChange={handleChange}
+                      placeholder="Title / Role"
+                    />
+                  </FieldGroup>
                 </FieldGrid>
               </div>
             </ConditionalSection>
           </SectionCard>
 
-          {/* Section 6: Comments & Totals */}
+          {/* Section 7: Payment & Totals */}
           <SectionCard>
             <SectionHeader>
               <SectionIcon><DollarSign size={18} /></SectionIcon>
-              <SectionTitle>Accounting, Comments &amp; Totals</SectionTitle>
+              <SectionTitle>Payment &amp; Totals</SectionTitle>
             </SectionHeader>
             <FieldGrid>
               <FieldGroup>
@@ -1674,48 +1816,16 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
               </FieldGroup>
 
               <FieldGroup>
-                <FieldLabel>Total Net Weight</FieldLabel>
-                <StyledInput
-                  type="number"
-                  step="0.01"
-                  name="total_net_weight"
-                  value={formValues.total_net_weight}
+                <FieldLabel>Payment Status</FieldLabel>
+                <StyledSelect
+                  name="payment_status"
+                  value={formValues.payment_status}
                   onChange={handleChange}
-                  placeholder="0.00"
-                />
-              </FieldGroup>
-
-              <FieldGroup $span={2}>
-                <FieldLabel>Bill of Lading Comments</FieldLabel>
-                <StyledTextArea
-                  name="bill_of_lading_comments"
-                  value={formValues.bill_of_lading_comments}
-                  onChange={handleChange}
-                  rows={3}
-                  placeholder="Comments for the bill of lading…"
-                />
-              </FieldGroup>
-
-              <FieldGroup $span={2}>
-                <FieldLabel>Invoicing Comments</FieldLabel>
-                <StyledTextArea
-                  name="invoicing_comments"
-                  value={formValues.invoicing_comments}
-                  onChange={handleChange}
-                  rows={3}
-                  placeholder="Comments for invoicing…"
-                />
-              </FieldGroup>
-
-              <FieldGroup $span={2}>
-                <FieldLabel>Special Instructions</FieldLabel>
-                <StyledTextArea
-                  name="special_instructions"
-                  value={formValues.special_instructions}
-                  onChange={handleChange}
-                  rows={3}
-                  placeholder="Any special instructions…"
-                />
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Partial">Partial</option>
+                  <option value="Paid">Paid</option>
+                </StyledSelect>
               </FieldGroup>
 
               <FieldGroup $span={2}>
@@ -1724,7 +1834,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   name="notes"
                   value={formValues.notes}
                   onChange={handleChange}
-                  rows={2}
+                  rows={3}
                   placeholder="Additional notes…"
                 />
               </FieldGroup>
@@ -1735,7 +1845,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   ${calculatedTotal}
                 </CalculatedValue>
                 <FieldHint>
-                  Calculated from total weight × price per unit (or qty × price per unit)
+                  Calculated from total weight or quantity
                 </FieldHint>
               </FieldGroup>
             </FieldGrid>
@@ -1760,7 +1870,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
               <Spin size="small" />
             ) : (
               <>
-                {mode === 'edit' ? 'Update PO' : 'Create PO'} ✓
+                {mode === 'edit' ? 'Update Sales Order' : 'Create Sales Order'} ✓
               </>
             )}
           </SubmitButton>
@@ -1770,4 +1880,4 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
   );
 };
 
-export default SupplierPOForm;
+export default SalesOrderForm;

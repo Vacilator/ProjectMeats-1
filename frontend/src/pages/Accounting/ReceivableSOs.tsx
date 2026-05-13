@@ -18,7 +18,7 @@ import { Skeleton } from 'antd';
 
 import { ActivityFeed } from '../../components/Shared/ActivityFeed';
 import { RecordPaymentModal, PaymentHistoryList } from '../../components/Shared';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
 import { buildCsv, downloadCsv } from '@/utils/csv';
@@ -370,7 +370,7 @@ const ReceivableSOs: React.FC = () => {
         params.payment_status = statusFilter;
       }
       
-      const response = await apiClient.get('sales-orders/', { params });
+      const response = await businessApi.get('sales-orders/', { params });
       
       const ordersWithPaymentStatus = response.data.results || response.data;
       setOrders(ordersWithPaymentStatus.map((order: SalesOrder) => ({

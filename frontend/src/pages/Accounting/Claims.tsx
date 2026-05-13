@@ -22,7 +22,7 @@ import { Skeleton } from 'antd';
 
 import { showAlert } from '@/utils/uiDialogs';
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
@@ -479,7 +479,7 @@ export const Claims: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get('claims/', {
+      const response = await businessApi.get('claims/', {
         params: {
           type: activeTab,
         },
@@ -512,7 +512,7 @@ export const Claims: React.FC = () => {
         updateData.resolution_notes = notes;
       }
 
-      const response = await apiClient.patch(`/api/v1/claims/${claimId}/`, updateData);
+      const response = await businessApi.patch(`/api/v1/claims/${claimId}/`, updateData);
 
       // Update local state
       setClaims(claims.map(c => c.id === claimId ? response.data : c));

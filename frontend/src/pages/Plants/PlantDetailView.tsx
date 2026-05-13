@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
 import { useAuthState } from '@/contexts/AuthContext';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import StandalonePlantEditForm from './StandalonePlantEditForm';
@@ -120,7 +120,7 @@ export const PlantDetailView: React.FC = () => {
       setAuthError(false);
       setContactsError(null);
       try {
-        const resp = await apiClient.get('contacts/', {
+        const resp = await businessApi.get('contacts/', {
           params: { plant: plantId, page_size: 200, limit: 200 },
         });
         const payload = resp.data as unknown;

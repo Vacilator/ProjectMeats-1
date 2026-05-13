@@ -37,7 +37,7 @@ import {
 import { CommandBar } from '../components/Cockpit';
 import { CommandPalette } from '../components/Navigation/CommandPalette';
 import { useCommandPalette } from '../hooks/useCommandPalette';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -436,7 +436,7 @@ export const WorkspacePage: React.FC = () => {
     const loadLayout = async () => {
       try {
         // Try backend API first
-        const response = await apiClient.get('cockpit/workspace-layout/');
+        const response = await businessApi.get('cockpit/workspace-layout/');
         const saved = response.data;
         if (saved.version === LAYOUT_VERSION) {
           setWidgets(saved.widgets);
@@ -501,7 +501,7 @@ export const WorkspacePage: React.FC = () => {
     // Also save to backend API
     try {
       setIsSaving(true);
-      await apiClient.put('cockpit/workspace-layout/', data);
+      await businessApi.put('cockpit/workspace-layout/', data);
     } catch (err) {
       logger.error('Failed to save workspace layout to API:', err);
       // localStorage already has the backup
@@ -529,7 +529,7 @@ export const WorkspacePage: React.FC = () => {
 
     // Also delete from backend
     try {
-      await apiClient.delete('cockpit/workspace-layout/');
+      await businessApi.delete('cockpit/workspace-layout/');
     } catch (err) {
       // 404 is fine - no saved layout to delete
       if ((err as any).response?.status !== 404) {
