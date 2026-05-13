@@ -32,6 +32,8 @@ import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade
 import { formatTradeDate, formatTradeDateTime, formatTradeWeight } from '../../utils/trade';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
+import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -906,6 +908,14 @@ export const SalesOrdersPage: React.FC = () => {
                     maxHeight="300px"
                   />
                 </div>
+              </DetailSection>
+
+              <DetailSection>
+                <AIEntityInsights entityType="sales_order" entityId={String(selectedOrder.id)} />
+              </DetailSection>
+
+              <DetailSection>
+                <EntityWorkflowStatusPanel entityType="sales_order" entityId={String(selectedOrder.id)} />
               </DetailSection>
             </SidePanelContent>
           </SidePanel>

@@ -28,6 +28,8 @@ import {
 import { TradeLineageFlow } from '../Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../Cockpit/ProcessFlowHeader';
 import { logger } from '@/utils/logger';
+import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
+import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -635,6 +637,15 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               </SectionHeader>
               <ProcessFlowHeader inquiryId={String(inquiry.id)} />
               <TradeLineageFlow inquiryId={String(inquiry.id)} compact />
+            </Section>
+
+            {/* AI Insights & Workflow */}
+            <Section>
+              <AIEntityInsights entityType="inquiry" entityId={String(inquiry.id)} />
+            </Section>
+
+            <Section>
+              <EntityWorkflowStatusPanel entityType="inquiry" entityId={String(inquiry.id)} />
             </Section>
 
             {/* Notes */}

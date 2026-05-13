@@ -34,6 +34,8 @@ import { formatTradeDate, formatTradeWeight } from '../../utils/trade';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { buildCsv, downloadCsv } from '@/utils/csv';
+import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
+import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -801,6 +803,14 @@ const Invoices: React.FC = () => {
                     showCreateForm={true}
                     maxHeight="400px"
                   />
+                </DetailSection>
+
+                <DetailSection>
+                  <AIEntityInsights entityType="invoice" entityId={String(selectedInvoice.id)} />
+                </DetailSection>
+
+                <DetailSection>
+                  <EntityWorkflowStatusPanel entityType="invoice" entityId={String(selectedInvoice.id)} />
                 </DetailSection>
 
                 <RecordPaymentModal

@@ -25,6 +25,7 @@ import { entityListPath, entityTypeDisplayName } from '@/utils/entityTypeRegistr
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import EntityFormSurface from './EntityFormSurface';
+import InlineEditField from './InlineEditField';
 
 // ============================================================================
 // Types
@@ -61,6 +62,8 @@ export interface EntityDetailPageProps {
   relatedEntities?: RelatedEntityTab[];
   /** Custom title (defaults to entity display name) */
   title?: string;
+  /** Enable inline editing of text/number fields (defaults to true) */
+  enableInlineEdit?: boolean;
 }
 
 // ============================================================================
@@ -273,6 +276,7 @@ export const EntityDetailPage: React.FC<EntityDetailPageProps> = ({
   detailSections,
   relatedEntities,
   title,
+  enableInlineEdit = true,
 }) => {
   const displayName = title ?? entityTypeDisplayName(entityType);
   useDocumentTitle(`${displayName} Detail`);
@@ -323,6 +327,15 @@ export const EntityDetailPage: React.FC<EntityDetailPageProps> = ({
     void queryClient.invalidateQueries({ queryKey: recordQueryKey });
   }, [displayName, queryClient, recordQueryKey]);
 
+  const handleInlineSave = useCallback(
+    async (fieldName: string, value: string) => {
+      await businessApi.patch(endpoint, { [fieldName]: value });
+      void queryClient.invalidateQueries({ queryKey: recordQueryKey });
+      message.success('Field updated');
+    },
+    [endpoint, queryClient, recordQueryKey],
+  );
+
   const toggleDetails = useCallback(
     () => setShowDetails((prev) => !prev),
     [],
@@ -333,11 +346,24 @@ export const EntityDetailPage: React.FC<EntityDetailPageProps> = ({
       if (!record) return '—';
       const value = record[field.key];
       if (field.render) return field.render(value, record);
-      if (value == null || value === '') return '—';
       if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+
+      if (enableInlineEdit && (typeof value === 'string' || typeof value === 'number' || value == null || value === '')) {
+        return (
+          <InlineEditField
+            value={value as string | number | null | undefined}
+            fieldName={field.key}
+            onSave={handleInlineSave}
+            type={typeof value === 'number' ? 'number' : 'text'}
+            placeholder="Click to edit"
+          />
+        );
+      }
+
+      if (value == null || value === '') return '—';
       return String(value);
     },
-    [record],
+    [record, enableInlineEdit, handleInlineSave],
   );
 
   if (isLoading) {
