@@ -1,6 +1,7 @@
 """Admin configuration for Fulfillments."""
 from django.contrib import admin
 from apps.core.admin_site import admin_site
+from apps.core.admin import TenantFilteredAdmin
 from .models import Fulfillment, FulfillmentProduct
 
 
@@ -12,7 +13,7 @@ class FulfillmentProductInline(admin.TabularInline):
     readonly_fields = ['total']
 
 
-class FulfillmentAdmin(admin.ModelAdmin):
+class FulfillmentAdmin(TenantFilteredAdmin):
     """Admin for Fulfillment model."""
     list_display = [
         'fulfillment_number', 'inquiry', 'status',

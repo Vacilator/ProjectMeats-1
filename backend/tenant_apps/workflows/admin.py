@@ -12,6 +12,7 @@ UX Enhancements:
 """
 from django.contrib import admin, messages
 from apps.core.admin_site import admin_site
+from apps.core.admin import TenantFilteredAdmin
 from django.db.models import Count
 from django.utils.html import format_html
 
@@ -290,7 +291,7 @@ class TenantFormAdmin(TenantFilteredAdmin):
         super().save_model(request, obj, form, change)
 
 
-class TenantFormEntityAdmin(admin.ModelAdmin):
+class TenantFormEntityAdmin(TenantFilteredAdmin):
     """Admin for form entities (usually edited inline)."""
     
     list_display = ['form', 'entity_type', 'step_name', 'order', 'field_count']
@@ -472,7 +473,7 @@ class TenantWorkflowAdmin(TenantFilteredAdmin):
         super().save_model(request, obj, form, change)
 
 
-class WorkflowExecutionLogAdmin(admin.ModelAdmin):
+class WorkflowExecutionLogAdmin(TenantFilteredAdmin):
     """Admin for viewing workflow execution logs."""
     
     list_display = [
@@ -670,7 +671,7 @@ admin_site.register(FormSubmission, FormSubmissionAdmin)
 admin_site.register(FormStepSubmission, FormStepSubmissionAdmin)
 
 
-class TenantWorkFormExecutionAdmin(admin.ModelAdmin):
+class TenantWorkFormExecutionAdmin(TenantFilteredAdmin):
     """Admin for WorkForm execution tracking."""
 
     list_display = ['id', 'workform', 'status', 'started_by', 'started_at', 'completed_at']
@@ -683,7 +684,7 @@ class TenantWorkFormExecutionAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('tenant', 'workform', 'started_by')
 
 
-class WorkflowDeadLetterAdmin(admin.ModelAdmin):
+class WorkflowDeadLetterAdmin(TenantFilteredAdmin):
     """Admin for dead letter queue — failed workflow nodes needing ops attention."""
 
     list_display = ['id', 'node_type', 'node_id', 'status', 'retry_count', 'last_failed_at']
