@@ -683,7 +683,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         setCustomers((custResp.data.results || custResp.data) as CustomerRecord[]);
         setSalesOrders((soResp.data.results || soResp.data) as SalesOrderRecord[]);
       } catch {
-        console.error('Failed to load customers or sales orders');
+        // Silently handle — empty lists will show in UI
       }
     };
     loadData();

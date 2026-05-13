@@ -21,15 +21,8 @@ class DraftReviewErrorBoundary extends React.Component<
     return { error };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error(
-      '[AIDraftReviewDialog] Render crash caught by error boundary.',
-      {
-        itemId: this.props.itemId,
-        error,
-        componentStack: info.componentStack,
-      },
-    );
+  componentDidCatch(_error: Error, _info: React.ErrorInfo) {
+    // Error boundary — state already captured in getDerivedStateFromError
   }
 
   render() {
