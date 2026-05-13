@@ -127,6 +127,7 @@ class PlantSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "plant_est_num",
+            "site_code",
             "plant_type",
             "supplier",
             "supplier_name",
