@@ -16,15 +16,13 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
-from apps.core.security import (
-    B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES,
-    B2B_PORTAL_ALLOWED_ENTITY_SCOPES,
-)
+from apps.core.security import B2B_PORTAL_ALLOWED_DOCUMENT_SOURCES, B2B_PORTAL_ALLOWED_ENTITY_SCOPES
+
 
 class TenantManager(models.Manager):
     """
     Custom manager that filters querysets by tenant.
-    
+
     Application-level tenant helper manager.
 
     NOTE: Row-level security (RLS) at the PostgreSQL level provides the
@@ -395,46 +393,43 @@ class TimestampModel(models.Model):
 class AbstractContact(models.Model):
     """
     Abstract base model for contact information (DRY principle).
-    
+
     Provides common fields found across Customer, Supplier, and Carrier entities
     based on CSV/spreadsheet requirements. Implements US phone validation.
     """
-    
+
     # US phone number validator (supports formats: (555) 123-4567, 555-123-4567, 5551234567)
     phone_validator = RegexValidator(
-        regex=r'^\+?1?\d{9,15}$',
-        message="Phone number must be entered in a valid format (e.g., +15551234567 or 5551234567)"
+        regex=r"^\+?1?\d{9,15}$",
+        message="Phone number must be entered in a valid format (e.g., +15551234567 or 5551234567)",
     )
-    
+
     # Contact information fields
     ap_contact_name = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Accounts Payable contact name",
-        verbose_name="AP Contact Name"
+        verbose_name="AP Contact Name",
     )
     ap_phone = models.CharField(
         max_length=20,
         blank=True,
-        default='',
+        default="",
         validators=[phone_validator],
         help_text="Accounts Payable phone number",
-        verbose_name="AP Phone"
+        verbose_name="AP Phone",
     )
     ap_email = models.EmailField(
-        blank=True,
-        default='',
-        help_text="Accounts Payable email address",
-        verbose_name="AP Email"
+        blank=True, default="", help_text="Accounts Payable email address", verbose_name="AP Email"
     )
     corp_address = models.TextField(
         blank=True,
-        default='',
+        default="",
         help_text="Corporate address (full address including street, city, state, zip)",
-        verbose_name="Corporate Address"
+        verbose_name="Corporate Address",
     )
-    
+
     class Meta:
         abstract = True
 
@@ -447,16 +442,10 @@ class TenantAwareModel(TimestampModel):
     through custom_data JSONB field for System Blueprint features.
     """
 
-    tenant = models.ForeignKey(
-        'tenants.Tenant',
-        on_delete=models.CASCADE,
-        help_text="Tenant this entity belongs to"
-    )
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, help_text="Tenant this entity belongs to")
 
     custom_data = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text='Extensible schema data for dynamic fields defined in Blueprints.'
+        default=dict, blank=True, help_text="Extensible schema data for dynamic fields defined in Blueprints."
     )
 
     objects = TenantManager()
@@ -540,64 +529,48 @@ class OwnedModel(TimestampModel):
 class UserPreferences(models.Model):
     """
     User-specific preferences for UI customization.
-    
+
     Stores theme preferences, layout configurations, widget arrangements,
     and other user-specific UI settings.
     """
 
     user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='preferences',
-        help_text="User for these preferences"
+        User, on_delete=models.CASCADE, related_name="preferences", help_text="User for these preferences"
     )
-    
+
     # Theme preferences
     theme = models.CharField(
         max_length=20,
         choices=[
-            ('light', 'Light'),
-            ('dark', 'Dark'),
-            ('auto', 'Auto'),
+            ("light", "Light"),
+            ("dark", "Dark"),
+            ("auto", "Auto"),
         ],
-        default='light',
-        help_text="UI theme preference"
+        default="light",
+        help_text="UI theme preference",
     )
-    
+
     # Layout and widget configuration (JSON format)
-    dashboard_layout = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Dashboard widget layout configuration"
-    )
-    
-    sidebar_collapsed = models.BooleanField(
-        default=False,
-        help_text="Whether sidebar is collapsed by default"
-    )
-    
+    dashboard_layout = models.JSONField(default=dict, blank=True, help_text="Dashboard widget layout configuration")
+
+    sidebar_collapsed = models.BooleanField(default=False, help_text="Whether sidebar is collapsed by default")
+
     # Quick menu favorites (stored as list of route paths)
-    quick_menu_items = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="User's favorite quick menu items"
-    )
-    
+    quick_menu_items = models.JSONField(default=list, blank=True, help_text="User's favorite quick menu items")
+
     # Custom widget settings
     widget_preferences = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Widget-specific preferences and configurations"
+        default=dict, blank=True, help_text="Widget-specific preferences and configurations"
     )
-    
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         verbose_name = "User Preferences"
         verbose_name_plural = "User Preferences"
-    
+
     def __str__(self):
         return f"Preferences for {self.user.username}"
 
@@ -611,53 +584,38 @@ class UserFavorite(models.Model):
 
     IMPORTANT: Favorites are tenant-scoped to prevent ID collisions across tenants.
     """
+
     user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='favorites',
-        help_text="User who favorited this entity"
+        User, on_delete=models.CASCADE, related_name="favorites", help_text="User who favorited this entity"
     )
     tenant = models.ForeignKey(
-        'tenants.Tenant',
+        "tenants.Tenant",
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name='user_favorites',
-        help_text="Tenant context for this favorite"
+        related_name="user_favorites",
+        help_text="Tenant context for this favorite",
     )
     entity_type = models.CharField(
-        max_length=50,
-        db_index=True,
-        help_text="Type of entity (customer, supplier, product, etc.)"
+        max_length=50, db_index=True, help_text="Type of entity (customer, supplier, product, etc.)"
     )
-    entity_id = models.IntegerField(
-        help_text="ID of the favorited entity"
-    )
-    entity_title = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Cached title for display"
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="When this was favorited"
-    )
+    entity_id = models.IntegerField(help_text="ID of the favorited entity")
+    entity_title = models.CharField(max_length=255, blank=True, help_text="Cached title for display")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="When this was favorited")
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'tenant', 'entity_type', 'entity_id'],
-                name='unique_user_tenant_favorite'
+                fields=["user", "tenant", "entity_type", "entity_id"], name="unique_user_tenant_favorite"
             )
         ]
         indexes = [
-            models.Index(fields=['user', '-created_at'], name='core_userfa_user_created_idx'),
-            models.Index(fields=['user', 'tenant', 'entity_type'], name='core_userfa_user_entity_idx'),
+            models.Index(fields=["user", "-created_at"], name="core_userfa_user_created_idx"),
+            models.Index(fields=["user", "tenant", "entity_type"], name="core_userfa_user_entity_idx"),
         ]
-        verbose_name = 'User Favorite'
-        verbose_name_plural = 'User Favorites'
+        verbose_name = "User Favorite"
+        verbose_name_plural = "User Favorites"
 
     def __str__(self):
         return f"{self.user.username}'s favorite: {self.entity_type} #{self.entity_id}"
@@ -672,24 +630,24 @@ class TenantAuditEvent(models.Model):
     """
 
     class Action(models.TextChoices):
-        CREATE = 'CREATE', 'Created'
-        UPDATE = 'UPDATE', 'Updated'
-        DELETE = 'DELETE', 'Deleted'
-        ACCESS = 'ACCESS', 'Accessed'
+        CREATE = "CREATE", "Created"
+        UPDATE = "UPDATE", "Updated"
+        DELETE = "DELETE", "Deleted"
+        ACCESS = "ACCESS", "Accessed"
 
     tenant = models.ForeignKey(
-        'tenants.Tenant',
+        "tenants.Tenant",
         on_delete=models.CASCADE,
-        related_name='audit_events',
+        related_name="audit_events",
         db_index=True,
     )
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.CharField(max_length=255, db_index=True)
-    content_object = GenericForeignKey('content_type', 'object_id')
+    content_object = GenericForeignKey("content_type", "object_id")
 
     entity_type = models.CharField(max_length=100, db_index=True)
-    entity_name = models.CharField(max_length=255, blank=True, default='')
+    entity_name = models.CharField(max_length=255, blank=True, default="")
 
     action = models.CharField(max_length=10, choices=Action.choices)
 
@@ -702,21 +660,21 @@ class TenantAuditEvent(models.Model):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='tenant_audit_events',
+        related_name="tenant_audit_events",
     )
-    actor_email = models.EmailField(blank=True, default='')
+    actor_email = models.EmailField(blank=True, default="")
 
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.CharField(max_length=500, blank=True, default='')
+    user_agent = models.CharField(max_length=500, blank=True, default="")
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['tenant', '-created_at'], name='core_audit_tenant_created_idx'),
-            models.Index(fields=['entity_type', 'object_id'], name='core_audit_entity_obj_idx'),
-            models.Index(fields=['action', '-created_at'], name='core_audit_action_created_idx'),
+            models.Index(fields=["tenant", "-created_at"], name="core_audit_tenant_created_idx"),
+            models.Index(fields=["entity_type", "object_id"], name="core_audit_entity_obj_idx"),
+            models.Index(fields=["action", "-created_at"], name="core_audit_action_created_idx"),
         ]
 
     def __str__(self) -> str:
@@ -727,31 +685,31 @@ class ETLImportBatch(TenantAwareModel):
     """Restart-safe tenant-scoped ETL dry-run batches."""
 
     class Mode(models.TextChoices):
-        DRY_RUN = 'dry_run', 'Dry Run'
-        APPLY_MASTER_DATA = 'apply_master_data', 'Apply Master Data'
-        APPLY_TRANSACTIONS = 'apply_transactions', 'Apply Transactions'
+        DRY_RUN = "dry_run", "Dry Run"
+        APPLY_MASTER_DATA = "apply_master_data", "Apply Master Data"
+        APPLY_TRANSACTIONS = "apply_transactions", "Apply Transactions"
 
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        RUNNING = 'running', 'Running'
-        COMPLETED = 'completed', 'Completed'
-        FAILED = 'failed', 'Failed'
-        CANCELLED = 'cancelled', 'Cancelled'
+        PENDING = "pending", "Pending"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     run_key = models.CharField(
         max_length=64,
         db_index=True,
-        help_text='Deterministic batch key derived from tenant + manifest checksum + dry-run options.',
+        help_text="Deterministic batch key derived from tenant + manifest checksum + dry-run options.",
     )
     mode = models.CharField(max_length=20, choices=Mode.choices, default=Mode.DRY_RUN)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
     source_manifest = models.JSONField(default=dict, blank=True)
-    manifest_checksum = models.CharField(max_length=64, blank=True, default='')
+    manifest_checksum = models.CharField(max_length=64, blank=True, default="")
     command_options = models.JSONField(default=dict, blank=True)
     resume_cursor = models.JSONField(default=dict, blank=True)
     summary = models.JSONField(default=dict, blank=True)
-    failure_message = models.TextField(blank=True, default='')
+    failure_message = models.TextField(blank=True, default="")
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     last_checkpoint_at = models.DateTimeField(null=True, blank=True)
@@ -763,55 +721,55 @@ class ETLImportBatch(TenantAwareModel):
     error_count = models.PositiveIntegerField(default=0)
 
     class Meta:
-        ordering = ['-created_on']
+        ordering = ["-created_on"]
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'run_key'],
-                name='core_etlb_tenant_run_uniq',
+                fields=["tenant", "run_key"],
+                name="core_etlb_tenant_run_uniq",
             ),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'status', '-created_on'], name='core_etlb_tenant_status_idx'),
-            models.Index(fields=['tenant', 'manifest_checksum'], name='core_etlb_manifest_idx'),
+            models.Index(fields=["tenant", "status", "-created_on"], name="core_etlb_tenant_status_idx"),
+            models.Index(fields=["tenant", "manifest_checksum"], name="core_etlb_manifest_idx"),
         ]
 
     def __str__(self) -> str:
-        return f'{self.tenant_id} {self.mode} {self.run_key}'
+        return f"{self.tenant_id} {self.mode} {self.run_key}"
 
 
 class ETLImportRowJournal(TenantAwareModel):
     """Row-level dry-run journal entries for a single ETL batch."""
 
     class PlannedAction(models.TextChoices):
-        WOULD_CREATE = 'would_create', 'Would Create'
-        WOULD_UPDATE = 'would_update', 'Would Update'
-        WOULD_SKIP = 'would_skip', 'Would Skip'
-        ERROR = 'error', 'Error'
+        WOULD_CREATE = "would_create", "Would Create"
+        WOULD_UPDATE = "would_update", "Would Update"
+        WOULD_SKIP = "would_skip", "Would Skip"
+        ERROR = "error", "Error"
 
     class Status(models.TextChoices):
-        PLANNED = 'planned', 'Planned'
-        ERROR = 'error', 'Error'
+        PLANNED = "planned", "Planned"
+        ERROR = "error", "Error"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     batch = models.ForeignKey(
         ETLImportBatch,
         on_delete=models.CASCADE,
-        related_name='row_journals',
-        help_text='Owning ETL dry-run batch.',
+        related_name="row_journals",
+        help_text="Owning ETL dry-run batch.",
     )
     entity = models.CharField(max_length=100, db_index=True)
     source_path = models.CharField(max_length=500)
-    source_sheet = models.CharField(max_length=255, blank=True, default='')
+    source_sheet = models.CharField(max_length=255, blank=True, default="")
     source_row_number = models.PositiveIntegerField()
-    source_identifier = models.CharField(max_length=255, blank=True, default='')
-    normalized_lookup_key = models.CharField(max_length=255, blank=True, default='')
-    row_fingerprint = models.CharField(max_length=64, blank=True, default='', db_index=True)
+    source_identifier = models.CharField(max_length=255, blank=True, default="")
+    normalized_lookup_key = models.CharField(max_length=255, blank=True, default="")
+    row_fingerprint = models.CharField(max_length=64, blank=True, default="", db_index=True)
     planned_action = models.CharField(max_length=20, choices=PlannedAction.choices, db_index=True)
-    target_model = models.CharField(max_length=255, blank=True, default='')
-    target_identifier = models.CharField(max_length=255, blank=True, default='')
+    target_model = models.CharField(max_length=255, blank=True, default="")
+    target_identifier = models.CharField(max_length=255, blank=True, default="")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
-    error_code = models.CharField(max_length=100, blank=True, default='')
-    error_message = models.TextField(blank=True, default='')
+    error_code = models.CharField(max_length=100, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
     side_effects_suppressed = models.JSONField(default=list, blank=True)
     raw_payload = models.JSONField(default=dict, blank=True)
     normalized_payload = models.JSONField(default=dict, blank=True)
@@ -819,20 +777,20 @@ class ETLImportRowJournal(TenantAwareModel):
     processed_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['batch_id', 'entity', 'source_row_number']
+        ordering = ["batch_id", "entity", "source_row_number"]
         constraints = [
             models.UniqueConstraint(
-                fields=['batch', 'entity', 'source_path', 'source_sheet', 'source_row_number'],
-                name='core_etlr_batch_source_uniq',
+                fields=["batch", "entity", "source_path", "source_sheet", "source_row_number"],
+                name="core_etlr_batch_source_uniq",
             ),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'batch', 'planned_action'], name='core_etlr_batch_action_idx'),
-            models.Index(fields=['tenant', 'entity', 'row_fingerprint'], name='core_etlr_entity_fp_idx'),
+            models.Index(fields=["tenant", "batch", "planned_action"], name="core_etlr_batch_action_idx"),
+            models.Index(fields=["tenant", "entity", "row_fingerprint"], name="core_etlr_entity_fp_idx"),
         ]
 
     def __str__(self) -> str:
-        return f'{self.batch_id} {self.entity} row {self.source_row_number}'
+        return f"{self.batch_id} {self.entity} row {self.source_row_number}"
 
 
 class ArchiveLegalHold(TenantAwareModel):
@@ -1051,8 +1009,7 @@ class PortalGrant(TenantAwareModel):
             raise ValidationError(
                 {
                     "document_sources": (
-                        "Unsupported portal document sources: "
-                        f"{', '.join(sorted(unsupported_sources))}."
+                        "Unsupported portal document sources: " f"{', '.join(sorted(unsupported_sources))}."
                     )
                 }
             )
@@ -1233,45 +1190,45 @@ class Comment(TenantAwareModel):
     content_type = models.ForeignKey(
         ContentType,
         on_delete=models.CASCADE,
-        help_text='Type of entity this comment belongs to',
+        help_text="Type of entity this comment belongs to",
     )
     object_id = models.CharField(
         max_length=255,
         db_index=True,
-        help_text='Primary key of the related entity',
+        help_text="Primary key of the related entity",
     )
-    content_object = GenericForeignKey('content_type', 'object_id')
+    content_object = GenericForeignKey("content_type", "object_id")
 
     entity_type = models.CharField(
         max_length=100,
         db_index=True,
-        help_text='Canonical entity type slug',
+        help_text="Canonical entity type slug",
     )
-    body = models.TextField(help_text='Comment body')
+    body = models.TextField(help_text="Comment body")
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='core_comments',
-        help_text='User who authored this comment',
+        related_name="core_comments",
+        help_text="User who authored this comment",
     )
     mentions = models.JSONField(
         default=list,
         blank=True,
-        help_text='Mentioned tenant user ids',
+        help_text="Mentioned tenant user ids",
     )
 
     class Meta:
-        ordering = ['-created_on']
+        ordering = ["-created_on"]
         indexes = [
-            models.Index(fields=['tenant', 'entity_type', 'object_id']),
-            models.Index(fields=['tenant', '-created_on']),
-            models.Index(fields=['content_type', 'object_id']),
+            models.Index(fields=["tenant", "entity_type", "object_id"]),
+            models.Index(fields=["tenant", "-created_on"]),
+            models.Index(fields=["content_type", "object_id"]),
         ]
 
     def __str__(self):
-        return f'{self.entity_type}:{self.object_id} comment #{self.pk}'
+        return f"{self.entity_type}:{self.object_id} comment #{self.pk}"
 
 
 class IdempotencyKey(TenantAwareModel):
@@ -1280,52 +1237,52 @@ class IdempotencyKey(TenantAwareModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     idempotency_key = models.CharField(
         max_length=255,
-        help_text='Caller-supplied Idempotency-Key header value',
+        help_text="Caller-supplied Idempotency-Key header value",
     )
     request_method = models.CharField(
         max_length=10,
-        help_text='HTTP method for the original mutation request',
+        help_text="HTTP method for the original mutation request",
     )
     request_path = models.CharField(
         max_length=255,
-        help_text='Canonical request path used for idempotency scoping',
+        help_text="Canonical request path used for idempotency scoping",
     )
     request_fingerprint = models.CharField(
         max_length=64,
-        help_text='SHA-256 fingerprint of the request payload',
+        help_text="SHA-256 fingerprint of the request payload",
     )
     response_status = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        help_text='Cached HTTP status for completed idempotent responses',
+        help_text="Cached HTTP status for completed idempotent responses",
     )
     response_body = models.JSONField(
         null=True,
         blank=True,
-        help_text='Cached JSON response payload for completed requests',
+        help_text="Cached JSON response payload for completed requests",
     )
     locked_until = models.DateTimeField(
         null=True,
         blank=True,
-        help_text='Lease expiration for in-flight requests using this key',
+        help_text="Lease expiration for in-flight requests using this key",
     )
 
     class Meta:
-        ordering = ['-created_on']
+        ordering = ["-created_on"]
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'idempotency_key'],
-                name='core_idempotencykey_tenant_key_uniq',
+                fields=["tenant", "idempotency_key"],
+                name="core_idempotencykey_tenant_key_uniq",
             ),
         ]
         indexes = [
-            models.Index(fields=['tenant', 'idempotency_key']),
-            models.Index(fields=['tenant', 'locked_until']),
-            models.Index(fields=['tenant', '-created_on']),
+            models.Index(fields=["tenant", "idempotency_key"]),
+            models.Index(fields=["tenant", "locked_until"]),
+            models.Index(fields=["tenant", "-created_on"]),
         ]
 
     def __str__(self):
-        return f'{self.tenant_id}:{self.idempotency_key}'
+        return f"{self.tenant_id}:{self.idempotency_key}"
 
 
 # ---------------------------------------------------------------------------

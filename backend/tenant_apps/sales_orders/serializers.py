@@ -2,10 +2,13 @@
 Serializers for Sales Orders app.
 """
 from rest_framework import serializers
-from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
-from apps.core.serializers_documents import DocumentStatusValidationMixin
-from .models import SalesOrder, SalesOrderItem
+
 from tenant_apps.locations.serializers import LocationListSerializer
+
+from apps.core.serializers_documents import DocumentStatusValidationMixin
+from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
+
+from .models import SalesOrder, SalesOrderItem
 
 
 class SalesOrderItemSerializer(TradeWeightSerializerMixin, serializers.ModelSerializer):
@@ -50,15 +53,15 @@ class SalesOrderSerializer(
     trade_weight_unit_field = "weight_unit"
     trade_datetime_fields = ("date_time_stamp", "created_on", "modified_on")
     trade_date_fields = ("pick_up_date", "delivery_date")
-    
+
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     carrier_name = serializers.CharField(source="carrier.name", read_only=True, allow_null=True)
     product_code = serializers.CharField(source="product.product_code", read_only=True, allow_null=True)
-    
+
     # Nested location serializers (read-only)
-    pick_up_location_details = LocationListSerializer(source='pick_up_location', read_only=True)
-    delivery_location_details = LocationListSerializer(source='delivery_location', read_only=True)
+    pick_up_location_details = LocationListSerializer(source="pick_up_location", read_only=True)
+    delivery_location_details = LocationListSerializer(source="delivery_location", read_only=True)
     items = SalesOrderItemSerializer(many=True, required=False)
     our_sales_order_num = serializers.CharField(required=False, allow_blank=True, max_length=100)
 

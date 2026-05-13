@@ -5,9 +5,10 @@ Provides serialization for customer API endpoints.
 """
 from rest_framework import serializers
 
-from apps.core.models import PhoneTypeChoices
 from tenant_apps.customers.models import Customer
 from tenant_apps.locations.serializers import LocationListSerializer
+
+from apps.core.models import PhoneTypeChoices
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -98,7 +99,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         """
 
         values: list[int] = []
-        for field in ('preferred_products_from_locations', 'preferred_products_from_contacts'):
+        for field in ("preferred_products_from_locations", "preferred_products_from_contacts"):
             raw = getattr(obj, field, None)
             if not raw:
                 continue
@@ -121,7 +122,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value):
         """Validate email format if provided."""
-        if value and '@' not in value:
+        if value and "@" not in value:
             raise serializers.ValidationError("Invalid email format.")
         return value
 
@@ -135,35 +136,35 @@ class CustomerSerializer(serializers.ModelSerializer):
 
         # Normalize empties
         def _clean(v: object) -> str:
-            return str(v).strip() if isinstance(v, str) else ''
+            return str(v).strip() if isinstance(v, str) else ""
 
-        has_mobile_key = 'phone_mobile' in attrs
-        has_office_key = 'phone_office' in attrs
-        has_legacy_phone_key = 'phone' in attrs
-        has_legacy_type_key = 'phone_type' in attrs
+        has_mobile_key = "phone_mobile" in attrs
+        has_office_key = "phone_office" in attrs
+        has_legacy_phone_key = "phone" in attrs
+        has_legacy_type_key = "phone_type" in attrs
 
-        mobile = _clean(attrs.get('phone_mobile')) if has_mobile_key else ''
-        office = _clean(attrs.get('phone_office')) if has_office_key else ''
+        mobile = _clean(attrs.get("phone_mobile")) if has_mobile_key else ""
+        office = _clean(attrs.get("phone_office")) if has_office_key else ""
 
         # If an older client sends legacy phone only, populate new slots.
         if has_legacy_phone_key and not has_mobile_key and not has_office_key:
-            legacy_phone = _clean(attrs.get('phone'))
-            legacy_type = _clean(attrs.get('phone_type')) if has_legacy_type_key else ''
+            legacy_phone = _clean(attrs.get("phone"))
+            legacy_type = _clean(attrs.get("phone_type")) if has_legacy_type_key else ""
 
             if legacy_phone:
                 if legacy_type == PhoneTypeChoices.MOBILE:
-                    attrs['phone_mobile'] = legacy_phone
+                    attrs["phone_mobile"] = legacy_phone
                 else:
-                    attrs['phone_office'] = legacy_phone
+                    attrs["phone_office"] = legacy_phone
 
         # If new slots are provided and legacy phone isn't, derive legacy.
-        if (mobile or office) and not (has_legacy_phone_key and _clean(attrs.get('phone'))):
+        if (mobile or office) and not (has_legacy_phone_key and _clean(attrs.get("phone"))):
             if office:
-                attrs['phone'] = office
-                attrs['phone_type'] = PhoneTypeChoices.OFFICE
+                attrs["phone"] = office
+                attrs["phone_type"] = PhoneTypeChoices.OFFICE
             else:
-                attrs['phone'] = mobile
-                attrs['phone_type'] = PhoneTypeChoices.MOBILE
+                attrs["phone"] = mobile
+                attrs["phone_type"] = PhoneTypeChoices.MOBILE
 
         return attrs
 

@@ -4,9 +4,9 @@ Purchase Orders serializers for ProjectMeats.
 Provides serialization for purchase order API endpoints.
 """
 from rest_framework import serializers
-from apps.core.services.document_workflows import get_status_workflow_payload
-from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
-from apps.core.serializers_documents import DocumentStatusValidationMixin
+
+from tenant_apps.inquiries.models import Inquiry, InquirySupplierRFQ
+from tenant_apps.locations.serializers import LocationListSerializer
 from tenant_apps.purchase_orders.models import (
     CarrierPOItem,
     CarrierPurchaseOrder,
@@ -15,8 +15,10 @@ from tenant_apps.purchase_orders.models import (
     PurchaseOrderHistory,
     PurchaseOrderItem,
 )
-from tenant_apps.inquiries.models import Inquiry, InquirySupplierRFQ
-from tenant_apps.locations.serializers import LocationListSerializer
+
+from apps.core.serializers_documents import DocumentStatusValidationMixin
+from apps.core.serializers_trade import TradeTimelineSerializerMixin, TradeWeightSerializerMixin
+from apps.core.services.document_workflows import get_status_workflow_payload
 
 
 class PurchaseOrderItemSerializer(TradeWeightSerializerMixin, serializers.ModelSerializer):
@@ -61,13 +63,13 @@ class PurchaseOrderSerializer(
     trade_weight_unit_field = "weight_unit"
     trade_datetime_fields = ("created_on", "modified_on")
     trade_date_fields = ("order_date", "delivery_date", "pick_up_date")
-    
+
     # Nested location serializers (read-only)
-    pick_up_location_details = LocationListSerializer(source='pick_up_location', read_only=True)
-    delivery_location_details = LocationListSerializer(source='delivery_location', read_only=True)
+    pick_up_location_details = LocationListSerializer(source="pick_up_location", read_only=True)
+    delivery_location_details = LocationListSerializer(source="delivery_location", read_only=True)
     items = PurchaseOrderItemSerializer(many=True, required=False)
     contact_routing_details = serializers.SerializerMethodField()
-    
+
     # Allow order_number to be optional (auto-generated if not provided)
     order_number = serializers.CharField(required=False, allow_blank=True, max_length=50)
 
@@ -333,10 +335,10 @@ class CarrierPurchaseOrderSerializer(
     trade_weight_unit_field = "weight_unit"
     trade_datetime_fields = ("date_time_stamp_created", "created_on", "modified_on")
     trade_date_fields = ("pick_up_date", "delivery_date")
-    
+
     # Nested location serializers (read-only)
-    pick_up_location_details = LocationListSerializer(source='pick_up_location', read_only=True)
-    delivery_location_details = LocationListSerializer(source='delivery_location', read_only=True)
+    pick_up_location_details = LocationListSerializer(source="pick_up_location", read_only=True)
+    delivery_location_details = LocationListSerializer(source="delivery_location", read_only=True)
     purchase_order = serializers.PrimaryKeyRelatedField(
         source="linked_order",
         queryset=PurchaseOrder.objects.all(),
@@ -412,7 +414,14 @@ class CarrierPurchaseOrderSerializer(
             "created_on",
             "modified_on",
         ]
-        read_only_fields = ["id", "date_time_stamp_created", "created_on", "modified_on", "pick_up_location_details", "delivery_location_details"]
+        read_only_fields = [
+            "id",
+            "date_time_stamp_created",
+            "created_on",
+            "modified_on",
+            "pick_up_location_details",
+            "delivery_location_details",
+        ]
 
     def _replace_items(self, instance: CarrierPurchaseOrder, items_data: list[dict]) -> None:
         instance.items.all().delete()
@@ -465,15 +474,12 @@ class ColdStorageEntrySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "date_time_stamp_created", "created_on", "modified_on"]
 
+
 class PurchaseOrderHistorySerializer(serializers.ModelSerializer):
     """Serializer for PurchaseOrderHistory model."""
 
-    changed_by_username = serializers.CharField(
-        source="changed_by.username", read_only=True, allow_null=True
-    )
-    purchase_order_number = serializers.CharField(
-        source="purchase_order.order_number", read_only=True
-    )
+    changed_by_username = serializers.CharField(source="changed_by.username", read_only=True, allow_null=True)
+    purchase_order_number = serializers.CharField(source="purchase_order.order_number", read_only=True)
 
     class Meta:
         model = PurchaseOrderHistory

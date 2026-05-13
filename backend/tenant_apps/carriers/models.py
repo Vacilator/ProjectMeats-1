@@ -5,9 +5,13 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django.contrib.auth.models import User
+
+from tenant_apps.contacts.models import Contact
+
+from apps.core.model_mixins import FinancialTermsMixin
 from apps.core.models import (
     AccountingPaymentTermsChoices,
     AppointmentMethodChoices,
@@ -22,18 +26,14 @@ from apps.core.models import (
     ProteinTypeChoices,
     TenantAwareModel,
 )
-from apps.core.model_mixins import FinancialTermsMixin
-from tenant_apps.contacts.models import Contact
 
 
 class Carrier(FinancialTermsMixin, TenantAwareModel):
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50)
-    carrier_type = models.CharField(
-        max_length=20, choices=CarrierTypeChoices.choices, default=CarrierTypeChoices.TRUCK
-    )
-    contact_person = models.CharField(max_length=100, blank=True, default='')
-    phone = models.CharField(max_length=20, blank=True, default='')
+    carrier_type = models.CharField(max_length=20, choices=CarrierTypeChoices.choices, default=CarrierTypeChoices.TRUCK)
+    contact_person = models.CharField(max_length=100, blank=True, default="")
+    phone = models.CharField(max_length=20, blank=True, default="")
     phone_type = models.CharField(
         max_length=10,
         choices=PhoneTypeChoices.choices,
@@ -41,107 +41,105 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         default=PhoneTypeChoices.OFFICE,
         help_text="Carrier phone type (mobile or office)",
     )
-    email = models.EmailField(blank=True, default='')
-    address = models.TextField(blank=True, default='')
-    city = models.CharField(max_length=100, blank=True, default='')
-    state = models.CharField(max_length=100, blank=True, default='')
-    zip_code = models.CharField(max_length=20, blank=True, default='')
+    email = models.EmailField(blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    state = models.CharField(max_length=100, blank=True, default="")
+    zip_code = models.CharField(max_length=20, blank=True, default="")
     country = models.CharField(max_length=100, default="USA")
-    mc_number = models.CharField(
-        max_length=50, blank=True, default='', help_text="Motor Carrier Number"
-    )
+    mc_number = models.CharField(max_length=50, blank=True, default="", help_text="Motor Carrier Number")
     dot_number = models.CharField(
-        max_length=50, blank=True, default='', help_text="Department of Transportation Number"
+        max_length=50, blank=True, default="", help_text="Department of Transportation Number"
     )
-    insurance_provider = models.CharField(max_length=200, blank=True, default='')
-    insurance_policy_number = models.CharField(max_length=100, blank=True, default='')
+    insurance_provider = models.CharField(max_length=200, blank=True, default="")
+    insurance_policy_number = models.CharField(max_length=100, blank=True, default="")
     insurance_expiry = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    notes = models.TextField(blank=True, default='')
-    
+    notes = models.TextField(blank=True, default="")
+
     # Enhanced fields from Excel requirements
     my_customer_num_from_carrier = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Our customer number with this carrier",
     )
     accounting_payable_contact_name = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Accounting payable contact name",
     )
     accounting_payable_contact_phone = models.CharField(
         max_length=20,
         blank=True,
-        default='',
+        default="",
         help_text="Accounting payable contact phone",
     )
     accounting_payable_contact_email = models.EmailField(
         blank=True,
-        default='',
+        default="",
         help_text="Accounting payable contact email",
     )
     sales_contact_name = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact name",
     )
     contact_title = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Primary carrier contact title",
     )
     sales_contact_phone = models.CharField(
         max_length=20,
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact phone",
     )
     sales_contact_main_phone = models.CharField(
         max_length=20,
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact main phone number",
     )
     sales_contact_direct_phone = models.CharField(
         max_length=20,
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact direct phone number",
     )
     sales_contact_cell_phone = models.CharField(
         max_length=20,
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact cell phone number",
     )
     sales_contact_email = models.EmailField(
         blank=True,
-        default='',
+        default="",
         help_text="Sales contact email",
     )
     accounting_payment_terms = models.CharField(
         max_length=50,
         choices=AccountingPaymentTermsChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Payment terms (e.g., Wire, ACH, Check)",
     )
     credit_limits = models.CharField(
         max_length=50,
         choices=CreditLimitChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Credit limits/terms (e.g., Net 30, Wire 1 day prior)",
     )
     departments = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Departments (comma-separated: BOL, COA, POD, etc.)",
     )
     departments_array = ArrayField(
@@ -154,7 +152,7 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         max_length=50,
         choices=AppointmentMethodChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="How carrier makes appointments (e.g., Email, Phone)",
     )
     pick_up_date = models.DateField(blank=True, null=True, help_text="Default pick up date")
@@ -162,51 +160,51 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
     our_purchase_order_number_to_supplier = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Default supplier PO number reference",
     )
     supplier_confirmation_order_number = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Default supplier confirmation order number reference",
     )
     delivery_po_number = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Default delivery PO number reference",
     )
     carrier_release_number = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Default carrier release number reference",
     )
     type_of_protein = models.CharField(
         max_length=50,
         choices=ProteinTypeChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Default type of protein hauled by this carrier",
     )
     description_of_product_item = models.TextField(
         blank=True,
-        default='',
+        default="",
         help_text="Default product item description",
     )
     fresh_or_frozen = models.CharField(
         max_length=20,
         choices=FreshOrFrozenChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Default fresh or frozen setting",
     )
     package_type = models.CharField(
         max_length=50,
         choices=PackageTypeChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Default package type",
     )
     quantity = models.IntegerField(
@@ -225,55 +223,55 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         max_length=20,
         choices=NetOrCatchChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Default net or catch of package",
     )
     pickup_delivery_building_name = models.CharField(
         max_length=255,
         blank=True,
-        default='',
+        default="",
         help_text="Business building name for pick up / delivery",
     )
     pickup_delivery_address = models.TextField(
         blank=True,
-        default='',
+        default="",
         help_text="Address of pick up / delivery location",
     )
     pickup_delivery_city = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="City for pick up / delivery location",
     )
     pickup_delivery_state_zip = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="State and ZIP for pick up / delivery location",
     )
-    shipping_contact_name = models.CharField(max_length=255, blank=True, default='')
-    shipping_contact_phone = models.CharField(max_length=20, blank=True, default='')
-    shipping_contact_email = models.EmailField(blank=True, default='')
-    receiving_contact_name = models.CharField(max_length=255, blank=True, default='')
-    receiving_contact_phone = models.CharField(max_length=20, blank=True, default='')
-    receiving_contact_email = models.EmailField(blank=True, default='')
+    shipping_contact_name = models.CharField(max_length=255, blank=True, default="")
+    shipping_contact_phone = models.CharField(max_length=20, blank=True, default="")
+    shipping_contact_email = models.EmailField(blank=True, default="")
+    receiving_contact_name = models.CharField(max_length=255, blank=True, default="")
+    receiving_contact_phone = models.CharField(max_length=20, blank=True, default="")
+    receiving_contact_email = models.EmailField(blank=True, default="")
     edible_or_inedible = models.CharField(
         max_length=50,
         choices=EdibleInedibleChoices.choices,
         blank=True,
-        default='',
+        default="",
         help_text="Default edible / inedible classification",
     )
     tested_product = models.BooleanField(
         default=False,
         help_text="Default tested-product flag",
     )
-    plant_address = models.TextField(blank=True, default='', help_text="Plant address")
-    plant_city = models.CharField(max_length=100, blank=True, default='', help_text="Plant city")
+    plant_address = models.TextField(blank=True, default="", help_text="Plant address")
+    plant_city = models.CharField(max_length=100, blank=True, default="", help_text="Plant city")
     plant_state_zip = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Plant state and ZIP",
     )
     contacts = models.ManyToManyField(
@@ -282,21 +280,19 @@ class Carrier(FinancialTermsMixin, TenantAwareModel):
         blank=True,
         help_text="Multiple contacts associated with this carrier",
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         ordering = ["name"]
         verbose_name = "Carrier"
         verbose_name_plural = "Carriers"
         indexes = [
-            models.Index(fields=['tenant', 'name']),
-            models.Index(fields=['mc_number']),
-            models.Index(fields=['dot_number']),
+            models.Index(fields=["tenant", "name"]),
+            models.Index(fields=["mc_number"]),
+            models.Index(fields=["dot_number"]),
         ]
 
     def __str__(self):

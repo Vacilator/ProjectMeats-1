@@ -1,12 +1,11 @@
 from rest_framework import serializers
+
 from tenant_apps.carriers.models import Carrier
 
 
 class CarrierSerializer(serializers.ModelSerializer):
-    created_by_name = serializers.CharField(
-        source="created_by.username", read_only=True
-    )
-    
+    created_by_name = serializers.CharField(source="created_by.username", read_only=True)
+
     # ArrayField serialization
     departments_array = serializers.ListField(
         child=serializers.CharField(max_length=50),

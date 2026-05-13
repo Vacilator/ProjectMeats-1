@@ -5,9 +5,10 @@ Provides serialization for supplier API endpoints.
 """
 from rest_framework import serializers
 
-from apps.core.models import PhoneTypeChoices
-from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem
 from tenant_apps.locations.serializers import LocationListSerializer
+from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem
+
+from apps.core.models import PhoneTypeChoices
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -17,7 +18,7 @@ class SupplierSerializer(serializers.ModelSerializer):
         child=serializers.IntegerField(),
         read_only=True,
         required=False,
-        help_text='Distinct master product IDs aggregated from child plants.',
+        help_text="Distinct master product IDs aggregated from child plants.",
     )
 
     # ArrayField serialization
@@ -116,35 +117,35 @@ class SupplierSerializer(serializers.ModelSerializer):
         """
 
         def _clean(v: object) -> str:
-            return str(v).strip() if isinstance(v, str) else ''
+            return str(v).strip() if isinstance(v, str) else ""
 
-        has_mobile_key = 'phone_mobile' in attrs
-        has_office_key = 'phone_office' in attrs
-        has_legacy_phone_key = 'phone' in attrs
-        has_legacy_type_key = 'phone_type' in attrs
+        has_mobile_key = "phone_mobile" in attrs
+        has_office_key = "phone_office" in attrs
+        has_legacy_phone_key = "phone" in attrs
+        has_legacy_type_key = "phone_type" in attrs
 
-        mobile = _clean(attrs.get('phone_mobile')) if has_mobile_key else ''
-        office = _clean(attrs.get('phone_office')) if has_office_key else ''
+        mobile = _clean(attrs.get("phone_mobile")) if has_mobile_key else ""
+        office = _clean(attrs.get("phone_office")) if has_office_key else ""
 
         # If an older client sends legacy phone only, populate new slots.
         if has_legacy_phone_key and not has_mobile_key and not has_office_key:
-            legacy_phone = _clean(attrs.get('phone'))
-            legacy_type = _clean(attrs.get('phone_type')) if has_legacy_type_key else ''
+            legacy_phone = _clean(attrs.get("phone"))
+            legacy_type = _clean(attrs.get("phone_type")) if has_legacy_type_key else ""
 
             if legacy_phone:
                 if legacy_type == PhoneTypeChoices.MOBILE:
-                    attrs['phone_mobile'] = legacy_phone
+                    attrs["phone_mobile"] = legacy_phone
                 else:
-                    attrs['phone_office'] = legacy_phone
+                    attrs["phone_office"] = legacy_phone
 
         # If new slots are provided and legacy phone isn't, derive legacy.
-        if (mobile or office) and not (has_legacy_phone_key and _clean(attrs.get('phone'))):
+        if (mobile or office) and not (has_legacy_phone_key and _clean(attrs.get("phone"))):
             if office:
-                attrs['phone'] = office
-                attrs['phone_type'] = PhoneTypeChoices.OFFICE
+                attrs["phone"] = office
+                attrs["phone_type"] = PhoneTypeChoices.OFFICE
             else:
-                attrs['phone'] = mobile
-                attrs['phone_type'] = PhoneTypeChoices.MOBILE
+                attrs["phone"] = mobile
+                attrs["phone_type"] = PhoneTypeChoices.MOBILE
 
         return attrs
 
@@ -158,21 +159,21 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 
 class SupplierAvailableItemSerializer(serializers.ModelSerializer):
-    product_code = serializers.CharField(source='product.product_code', read_only=True)
-    product_name = serializers.CharField(source='product.name', read_only=True)
-    protein_type = serializers.CharField(source='product.protein_type', read_only=True)
+    product_code = serializers.CharField(source="product.product_code", read_only=True)
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    protein_type = serializers.CharField(source="product.protein_type", read_only=True)
 
     class Meta:
         model = SupplierAvailableItem
         fields = [
-            'id',
-            'supplier',
-            'product',
-            'product_code',
-            'product_name',
-            'protein_type',
-            'is_active',
-            'created_on',
-            'modified_on',
+            "id",
+            "supplier",
+            "product",
+            "product_code",
+            "product_name",
+            "protein_type",
+            "is_active",
+            "created_on",
+            "modified_on",
         ]
-        read_only_fields = ['id', 'created_on', 'modified_on', 'product_code', 'product_name', 'protein_type']
+        read_only_fields = ["id", "created_on", "modified_on", "product_code", "product_name", "protein_type"]

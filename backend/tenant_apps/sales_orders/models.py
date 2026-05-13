@@ -8,6 +8,18 @@ Uses OrderMethodsMixin for shared order behavior (payment calculations, status c
 """
 from django.conf import settings
 from django.db import models
+
+from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
+
+from apps.core.model_mixins import (
+    BaseLineItem,
+    BillingAddressSnapshotMixin,
+    BillingContactSnapshotMixin,
+    LogisticsMixin,
+    ShippingAddressSnapshotMixin,
+    ShippingContactSnapshotMixin,
+    sync_alias_pair,
+)
 from apps.core.models import (
     EdibleInedibleChoices,
     FreshOrFrozenChoices,
@@ -18,16 +30,6 @@ from apps.core.models import (
     TenantAwareModel,
     WeightUnitChoices,
 )
-from apps.core.model_mixins import (
-    BaseLineItem,
-    BillingAddressSnapshotMixin,
-    BillingContactSnapshotMixin,
-    LogisticsMixin,
-    ShippingAddressSnapshotMixin,
-    ShippingContactSnapshotMixin,
-    sync_alias_pair,
-)
-from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
 
 
 class SalesOrderStatus(models.TextChoices):
@@ -71,12 +73,12 @@ class SalesOrder(
 ):
     """
     Sales Order model for managing customer sales orders.
-    
+
     Inherits from OrderMethodsMixin for shared order behavior:
     - is_paid, is_complete, has_outstanding_balance properties
     - calculate_outstanding(), update_payment_status() methods
     """
-    
+
     # Order identification
     our_sales_order_num = models.CharField(
         max_length=100,
@@ -92,7 +94,7 @@ class SalesOrder(
         auto_now_add=True,
         help_text="Date and time when SO was created",
     )
-    
+
     # Related entities
     supplier = models.ForeignKey(
         "suppliers.Supplier",
@@ -149,7 +151,7 @@ class SalesOrder(
         blank=True,
         help_text="Primary contact for this order",
     )
-    
+
     # Order details
     logistics_scenario = models.CharField(
         max_length=50,
@@ -160,7 +162,7 @@ class SalesOrder(
     delivery_po_num = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Delivery PO number",
     )
     delivery_po_number = models.CharField(
@@ -172,13 +174,13 @@ class SalesOrder(
     carrier_release_num = models.CharField(
         max_length=100,
         blank=True,
-        default='',
+        default="",
         help_text="Carrier release number",
     )
     plant_est_number = models.CharField(
         max_length=50,
         blank=True,
-        default='',
+        default="",
         help_text="Plant establishment number",
     )
     quantity = models.IntegerField(
@@ -190,20 +192,20 @@ class SalesOrder(
         max_length=50,
         choices=ProteinTypeChoices.choices,
         blank=True,
-        default='',
+        default="",
     )
-    description_of_product_item = models.TextField(blank=True, default='')
+    description_of_product_item = models.TextField(blank=True, default="")
     fresh_or_frozen = models.CharField(
         max_length=20,
         choices=FreshOrFrozenChoices.choices,
         blank=True,
-        default='',
+        default="",
     )
     package_type = models.CharField(
         max_length=50,
         choices=PackageTypeChoices.choices,
         blank=True,
-        default='',
+        default="",
     )
     uom = models.CharField(
         max_length=10,
@@ -214,13 +216,13 @@ class SalesOrder(
         max_length=20,
         choices=NetOrCatchChoices.choices,
         blank=True,
-        default='',
+        default="",
     )
     edible_or_inedible = models.CharField(
         max_length=50,
         choices=EdibleInedibleChoices.choices,
         blank=True,
-        default='',
+        default="",
     )
     tested_product = models.BooleanField(default=False)
     total_net_weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -237,7 +239,7 @@ class SalesOrder(
         default=WeightUnitChoices.LBS,
         help_text="Unit of weight (LBS or KG)",
     )
-    
+
     # Status and pricing
     status = models.CharField(
         max_length=20,
@@ -265,13 +267,13 @@ class SalesOrder(
         null=True,
         help_text="Total order amount",
     )
-    receiving_contact_name = models.CharField(max_length=255, blank=True, default='')
-    receiving_contact_phone = models.CharField(max_length=20, blank=True, default='')
-    receiving_contact_email = models.EmailField(blank=True, default='')
-    receiving_contact_title = models.CharField(max_length=100, blank=True, default='')
+    receiving_contact_name = models.CharField(max_length=255, blank=True, default="")
+    receiving_contact_phone = models.CharField(max_length=20, blank=True, default="")
+    receiving_contact_email = models.EmailField(blank=True, default="")
+    receiving_contact_title = models.CharField(max_length=100, blank=True, default="")
     notes = models.TextField(
         blank=True,
-        default='',
+        default="",
         help_text="Additional notes",
     )
     trade_session = models.ForeignKey(
@@ -282,15 +284,13 @@ class SalesOrder(
         related_name="sales_orders",
         help_text="Trade session lineage key (CTE-05.1).",
     )
+
     class Meta:
         indexes = [
-            models.Index(fields=['tenant', 'our_sales_order_num']),
+            models.Index(fields=["tenant", "our_sales_order_num"]),
         ]
         constraints = [
-            models.UniqueConstraint(
-                fields=['tenant', 'our_sales_order_num'],
-                name='unique_tenant_sales_order_num'
-            ),
+            models.UniqueConstraint(fields=["tenant", "our_sales_order_num"], name="unique_tenant_sales_order_num"),
         ]
 
     def __str__(self):
