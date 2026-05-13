@@ -15,6 +15,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { NavigationProvider, useNavigation } from '@/contexts/NavigationContext';
 import { businessApi } from '@/services/businessApi';
 import Breadcrumb from './Breadcrumb';
+import BreadcrumbHierarchySync from './BreadcrumbHierarchySync';
 
 export {};
 
@@ -43,6 +44,7 @@ const renderWithRouter = (initialPath: string = '/') => {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialPath]}>
         <NavigationProvider>
+          <BreadcrumbHierarchySync />
           <Breadcrumb />
           <HierarchyProbe />
         </NavigationProvider>
