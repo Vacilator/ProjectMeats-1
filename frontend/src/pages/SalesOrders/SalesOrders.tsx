@@ -12,8 +12,8 @@
  * 
  * Pattern: Follows Claims.tsx architecture for consistency
  */
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useCallback, useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 import { PackagePlus } from 'lucide-react';
@@ -24,7 +24,7 @@ import {
   TransactionalEmptyStateGuidanceItem,
 } from '../../components/Onboarding';
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
 import { formatTradeDate, formatTradeDateTime, formatTradeWeight } from '../../utils/trade';
@@ -537,17 +537,6 @@ export const SalesOrdersPage: React.FC = () => {
   useDocumentTitle('Sales Orders');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
-
-  type CockpitPrefill = {
-    source?: string;
-    query?: string;
-    customerId?: string;
-    contextEntity?: { id?: string; type?: string; label?: string };
-  };
-
-  const cockpitPrefill = (location.state as any)?.prefill as CockpitPrefill | undefined;
-  const [createPrefill, setCreatePrefill] = useState<CockpitPrefill | null>(null);
 
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -558,48 +547,18 @@ export const SalesOrdersPage: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const modalInitialValues = useMemo(() => {
-    if (!createPrefill) return undefined;
-
-    const noteParts: string[] = [];
-    if (createPrefill.query) noteParts.push(`Cockpit search: \"${createPrefill.query}\"`);
-    if (createPrefill.contextEntity?.label) noteParts.push(`Context: ${createPrefill.contextEntity.label}`);
-
-    return {
-      customer: createPrefill.customerId ?? '',
-      notes: noteParts.join('\n'),
-    };
-  }, [createPrefill]);
-
-  // Auto-open modal if ?action=create in URL (e.g., from Cockpit suggested actions)
+  // Auto-open modal if ?action=create in URL
   useEffect(() => {
     if (searchParams.get('action') !== 'create') return;
-
-    const customerId =
-      searchParams.get('customer_id') ??
-      cockpitPrefill?.customerId ??
-      undefined;
-
-    const cockpitQuery =
-      searchParams.get('cockpit_q') ??
-      cockpitPrefill?.query ??
-      undefined;
-
-    setCreatePrefill({
-      source: 'cockpit',
-      customerId: customerId || undefined,
-      query: cockpitQuery || undefined,
-      contextEntity: cockpitPrefill?.contextEntity,
-    });
 
     setIsModalOpen(true);
 
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      ['action', 'customer_id', 'cockpit_q'].forEach((key) => next.delete(key));
+      ['action', 'customer_id'].forEach((key) => next.delete(key));
       return next;
     });
-  }, [searchParams, setSearchParams, cockpitPrefill]);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     fetchOrders();
@@ -608,7 +567,7 @@ export const SalesOrdersPage: React.FC = () => {
   const exportToCsv = async () => {
     try {
       setExporting(true);
-      const response = await apiClient.get('sales-orders/', {
+      const response = await businessApi.get('sales-orders/', {
         params: { format: 'csv' },
         responseType: 'blob',
       });
@@ -636,7 +595,7 @@ export const SalesOrdersPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get('sales-orders/');
+      const response = await businessApi.get('sales-orders/');
       setOrders(response.data.results || response.data);
     } catch (err: unknown) {
       logger.error('Failed to fetch sales orders:', err);
@@ -666,7 +625,6 @@ export const SalesOrdersPage: React.FC = () => {
   };
 
   const openCreateSalesOrder = () => {
-    setCreatePrefill(null);
     setIsModalOpen(true);
   };
 
@@ -958,7 +916,6 @@ export const SalesOrdersPage: React.FC = () => {
         isOpen={isModalOpen}
         onClose={handleCreateClose}
         onSuccess={handleCreateSuccess}
-        initialValues={modalInitialValues as any}
       />
     </PageContainer>
   );

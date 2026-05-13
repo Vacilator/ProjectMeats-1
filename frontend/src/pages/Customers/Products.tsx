@@ -14,7 +14,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, Modal, message, Tag, Space, Skeleton, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -164,7 +164,7 @@ const CustomerProducts: React.FC = () => {
   const fetchCustomer = async () => {
     if (!id) return;
     try {
-      const response = await apiClient.get(`/customers/${id}/`);
+      const response = await businessApi.get(`/customers/${id}/`);
       setCustomer(response.data);
     } catch (error) {
       logger.error('Error fetching customer:', error);
@@ -176,7 +176,7 @@ const CustomerProducts: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const response = await apiClient.get(`/customers/${id}/products/`);
+      const response = await businessApi.get(`/customers/${id}/products/`);
       setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       logger.error('Error fetching products:', error);
@@ -197,7 +197,7 @@ const CustomerProducts: React.FC = () => {
       const params: Record<string, any> = { page_size: '500', is_active: true };
       if (search) params.search = search;
       if (proteinFilter.length) params.protein = proteinFilter.map((t) => String(t).toLowerCase());
-      const response = await apiClient.get('/system/products/', { params });
+      const response = await businessApi.get('/system/products/', { params });
       const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       setSystemProducts(data);
     } catch (error) {
@@ -206,7 +206,7 @@ const CustomerProducts: React.FC = () => {
     } finally {
       setLoadingSystemProducts(false);
     }
-  }, [proteinFilter]); // apiClient, message, and state setters are all stable references
+  }, [proteinFilter]);
 
   const debouncedFetchSystemProducts = useCallback((search: string) => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -228,7 +228,7 @@ const CustomerProducts: React.FC = () => {
     try {
       const currentIds = products.map(p => p.id);
       const mergedIds = [...new Set([...currentIds, ...selectedProductIds])];
-      await apiClient.patch(`/customers/${id}/`, { products: mergedIds });
+      await businessApi.patch(`/customers/${id}/`, { products: mergedIds });
       message.success(`Added ${selectedProductIds.length} product(s) successfully`);
       setAddModalVisible(false);
       setSelectedProductIds([]);
@@ -253,7 +253,7 @@ const CustomerProducts: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await apiClient.patch(`/customers/${id}/`, {
+      await businessApi.patch(`/customers/${id}/`, {
         products: products.filter(p => p.id !== productId).map(p => p.id),
       });
       message.success('Product association removed successfully');
