@@ -4196,3 +4196,76 @@ This section incorporates additional DRY/canonical standards for **(1) frontend/
 - Implicit feedback: zero UI, batched 30s flush, fire-and-forget, sendBeacon on page close
 - Approval queue: 72h auto-expire, batch approve/reject, delegable
 - Learning aggregation: daily snapshots per entity type, accuracy trending
+
+## Phase 41: Comprehensive UI/UX Overhaul & Pitch-Readiness Polish
+
+**Status**: ✅ Complete
+**PRs**: #5346, #5349–#5370 (25 PRs total)
+
+### Summary
+Massive front-end overhaul spanning navigation, entity pages, premium forms, AI chat, search, inline editing, workflow visibility, cascading dropdowns, E2E tests, CI/CD hardening, and documentation polish. Goal: investor-pitch-ready demo with zero console errors.
+
+### Delivered
+
+#### A. Core Navigation & Architecture
+1. **Archived** Cockpit + Command Center + old Workspace (moved to `archived/`, removed from routes/nav)
+2. **New Home Page** — clean dashboard with Today's Numbers, My Tasks, Recent Activity, Quick Actions
+3. **Unified Breadcrumb** — `Home / Entity` trail + record name as page header (drop-last-segment pattern)
+4. **Search Fix** — CommandPalette with grouped results by entity type, correct route mappings
+5. **404 Page** — Clean NotFoundPage with theme tokens
+6. **Auth Guard** — RequireAuth route protection on all authenticated routes
+7. **Code-splitting** — ~75 page imports converted to React.lazy
+
+#### B. Entity Form System (Critical Fix)
+8. **New Plant button fix** — `Promise.all` → `Promise.allSettled` in EntityFormSurface FK batch loading; form renders immediately with dropdowns populated async
+9. **FormErrorBoundary** — wraps all 11 entity forms, catches React Error #185 (max update depth)
+10. **Cascading FK dropdowns** — parent→child filtering (e.g. Supplier→Plant, Customer→Location) via `fkCascadeMap.ts`
+
+#### C. Premium Entity Forms
+11. **SupplierPOCreateForm** — 3-scenario delivery type switcher, auto-populate from supplier/plant
+12. **SalesOrderCreateForm** — Customer auto-populate, auto-generate order numbers
+13. **InvoiceCreateForm** — Customer auto-populate with exact field spec
+14. **CarrierCreateForm** — Multi-section carrier master with credit/dept checkboxes
+15. **CarrierPOCreateForm** — Full transportation PO with location cascading
+
+#### D. Entity List Pages
+16. **StatusFilterBar** — reusable tabs + search component
+17. **5 pages enhanced** — Customers, Suppliers, Carriers, Contacts, PurchaseOrders with status tabs + search
+
+#### E. Entity Detail Pages
+18. **Inline editing** — InlineEditField component, click-to-edit with save on blur/Enter
+19. **Workflow visibility** — EntityWorkflowStatusPanel integrated on ALL entity detail pages
+20. **AI insights** — AIEntityInsights banner on entity records
+
+#### F. AI Chat Widget
+21. **Jitter fix** — stable animation, no unnecessary re-renders
+22. **Textarea** — Enter-to-send, Shift+Enter newline
+23. **Markdown rendering** — bold, italic, code, links, lists
+24. **Session history** — clickable previous sessions panel
+25. **Settings** — approval toggle, suggestions, sound, auto-expand
+26. **Fullscreen mode** — maximize/restore
+27. **Feedback** — thumbs up/down buttons
+28. **Retry** — retry button on failed messages
+
+#### G. Service Layer & Code Quality
+29. **apiClient → businessApi migration** — 37 files across two batches
+30. **Styled-component transient props** — `$` prefix on 20+ files (no DOM leaks)
+31. **Console error elimination** — HTML nesting, a11y, form bugs
+
+#### H. Backend & CI/CD
+32. **SECRET_KEY hardening** — removed fallback in production.py
+33. **TenantFilteredAdmin** — 26 admin classes enforced
+34. **Deprecated Actions** — release.yml softprops v1→v2
+35. **SHA pinning** — softprops/action-gh-release pinned to commit SHA (fixed deploy pipeline)
+
+#### I. Testing & Documentation
+36. **Smoke tests** — FormErrorBoundary, businessApi, useApprovalGate, Home page
+37. **E2E specs** — search, AI chat, supplier create, demo smoke
+38. **Docs polish** — README, CONTRIBUTING, GOLDEN_FILES, RLS_POLICIES, mobile instructions
+
+### Key Design Decisions
+- **Archive, don't delete** — all old code in `archived/` for rollback safety
+- **Rollback tag** — `pre-broad-overhaul-v1` on development
+- **Non-blocking FK** — dropdowns load async, form never blocked by slow FK endpoints
+- **Cascade filtering** — declarative rules in fkCascadeMap, zero coupling to form UI
+- **Theme compliance** — zero hardcoded colors, all `rgb(var(--color-*))` tokens
