@@ -234,35 +234,55 @@ const Breadcrumb: React.FC = () => {
     return next;
   }, [resolvableItems, resolvedNames]);
 
-  // If at root, show nothing (user knows where they are)
+  // If at root or single segment (page name shown as header instead), show nothing
   if (pathnames.length === 0) {
     return null;
   }
 
+  // Drop the last segment — it will be rendered as the page header, not in the breadcrumb.
+  const trailItems = breadcrumbItems.slice(0, -1);
+
+  // Always show Home as the root breadcrumb
+  const homeItem = { routeTo: '/', staticDisplayName: 'Home' };
+
   return (
     <BreadcrumbContainer aria-label="Breadcrumb navigation">
-      {breadcrumbItems.map(({ routeTo, isLast, staticDisplayName, resolver, pathname }) => {
-        const displayName =
-          resolvedNameMap.get(routeTo) ||
-          (resolver ? fallbackEntityLabel(resolver.singularLabel, pathname) : staticDisplayName);
-
-        return (
-          <BreadcrumbItem key={routeTo}>
-            {isLast ? (
-              <BreadcrumbText aria-current="page">
-                {displayName}
-              </BreadcrumbText>
-            ) : (
-              <>
-                <BreadcrumbLink to={routeTo}>
-                  {displayName}
-                </BreadcrumbLink>
-                <Separator aria-hidden="true">/</Separator>
-              </>
-            )}
+      {trailItems.length === 0 ? (
+        // Single-segment path (e.g., /suppliers): just show Home
+        <BreadcrumbItem>
+          <BreadcrumbText>Home</BreadcrumbText>
+        </BreadcrumbItem>
+      ) : (
+        <>
+          <BreadcrumbItem>
+            <BreadcrumbLink to={homeItem.routeTo}>
+              {homeItem.staticDisplayName}
+            </BreadcrumbLink>
+            <Separator aria-hidden="true">/</Separator>
           </BreadcrumbItem>
-        );
-      })}
+          {trailItems.map(({ routeTo, staticDisplayName, resolver, pathname }, index) => {
+            const displayName =
+              resolvedNameMap.get(routeTo) ||
+              (resolver ? fallbackEntityLabel(resolver.singularLabel, pathname) : staticDisplayName);
+            const isLastTrail = index === trailItems.length - 1;
+
+            return (
+              <BreadcrumbItem key={routeTo}>
+                {isLastTrail ? (
+                  <BreadcrumbText>{displayName}</BreadcrumbText>
+                ) : (
+                  <>
+                    <BreadcrumbLink to={routeTo}>
+                      {displayName}
+                    </BreadcrumbLink>
+                    <Separator aria-hidden="true">/</Separator>
+                  </>
+                )}
+              </BreadcrumbItem>
+            );
+          })}
+        </>
+      )}
     </BreadcrumbContainer>
   );
 };

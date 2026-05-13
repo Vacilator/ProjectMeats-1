@@ -148,8 +148,18 @@ describe('EntityFormSurface', () => {
     expect(screen.queryByTestId('universal-entity-form')).not.toBeInTheDocument();
     expect(formLifecycle.mounts).toBe(0);
 
+    // Form mounts as soon as schema + record load (FK options are non-blocking)
     await waitFor(() => {
       expect(screen.getByTestId('universal-entity-form')).toBeInTheDocument();
+    });
+
+    // FK options arrive asynchronously — wait for them to propagate to props
+    await waitFor(() => {
+      const latestProps = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
+      const fkOpts = latestProps?.externalFkOptions as
+        | Record<string, Array<{ id: string; name: string }>>
+        | undefined;
+      expect(fkOpts?.customer?.[0]?.name).toBe('Acme Foods');
     });
 
     const latest = formLifecycle.props.at(-1) as Record<string, unknown> | undefined;
@@ -158,13 +168,6 @@ describe('EntityFormSurface', () => {
     expect((latest?.externalRecordValues as { name?: string } | undefined)?.name).toBe(
       'North Plant'
     );
-    expect(
-      (
-        latest?.externalFkOptions as
-          | Record<string, Array<{ id: string; name: string }>>
-          | undefined
-      )?.customer?.[0]?.name
-    ).toBe('Acme Foods');
 
     expect(businessApiMock.get).toHaveBeenCalledTimes(3);
     expect(formLifecycle.mounts).toBe(1);

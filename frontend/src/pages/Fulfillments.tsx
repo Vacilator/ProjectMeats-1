@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
 import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
 import { logger } from '@/utils/logger';
@@ -155,7 +155,7 @@ const EntityInfo = styled.div`
   }
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $status: string }>`
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.625rem;
@@ -163,7 +163,7 @@ const StatusBadge = styled.span<{ status: string }>`
   font-size: 0.75rem;
   font-weight: 500;
   background: ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'completed':
       case 'delivered': return 'rgba(var(--color-success), 0.15)';
       case 'shipped': return 'rgba(var(--color-info), 0.1)';
@@ -174,7 +174,7 @@ const StatusBadge = styled.span<{ status: string }>`
     }
   }};
   color: ${props => {
-    switch (props.status) {
+    switch (props.$status) {
       case 'completed':
       case 'delivered': return 'rgb(var(--color-success))';
       case 'shipped': return 'rgb(var(--color-info))';
@@ -204,7 +204,7 @@ const DateCell = styled.span`
   color: rgb(var(--color-text-secondary));
 `;
 
-const ActionButton = styled.button<{ variant?: 'primary' | 'success' | 'secondary' }>`
+const ActionButton = styled.button<{ $variant?: 'primary' | 'success' | 'secondary' }>`
   padding: 0.375rem 0.75rem;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
@@ -213,7 +213,7 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'success' | 'secondar
   transition: all 0.15s;
 
   ${props => {
-    switch (props.variant) {
+    switch (props.$variant) {
       case 'primary':
         return `
           background: rgb(var(--color-primary));
@@ -359,7 +359,7 @@ const Fulfillments: React.FC = () => {
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
 
-      const response = await apiClient.get('fulfillments/', { params });
+      const response = await businessApi.get('fulfillments/', { params });
       const data = response.data;
 
       setFulfillments(data.results || data);
@@ -380,7 +380,7 @@ const Fulfillments: React.FC = () => {
     setActionLoading(fulfillmentId);
 
     try {
-      await apiClient.post(`fulfillments/${fulfillmentId}/${action}/`);
+      await businessApi.post(`fulfillments/${fulfillmentId}/${action}/`);
       fetchFulfillments();
     } catch (err) {
       logger.error(`Failed to ${action} fulfillment:`, err);
@@ -397,7 +397,7 @@ const Fulfillments: React.FC = () => {
       case 'in_progress':
         return (
           <ActionButton
-            variant="primary"
+            $variant="primary"
             onClick={(e) => {
               e.stopPropagation();
               handleAction(fulfillment.id, 'ship');
@@ -410,7 +410,7 @@ const Fulfillments: React.FC = () => {
       case 'shipped':
         return (
           <ActionButton
-            variant="success"
+            $variant="success"
             onClick={(e) => {
               e.stopPropagation();
               handleAction(fulfillment.id, 'deliver');
@@ -423,7 +423,7 @@ const Fulfillments: React.FC = () => {
       case 'delivered':
         return (
           <ActionButton
-            variant="success"
+            $variant="success"
             onClick={(e) => {
               e.stopPropagation();
               handleAction(fulfillment.id, 'complete');
@@ -457,7 +457,7 @@ const Fulfillments: React.FC = () => {
     <Container>
       <Header>
         <Title>📦 Fulfillments</Title>
-        <ActionButton variant="primary" onClick={() => setShowCreateModal(true)}>
+        <ActionButton $variant="primary" onClick={() => setShowCreateModal(true)}>
           + Create Fulfillment
         </ActionButton>
       </Header>
@@ -539,7 +539,7 @@ const Fulfillments: React.FC = () => {
                     <div className="supplier">from {fulfillment.supplier_name}</div>
                   )}
                 </EntityInfo>
-                <StatusBadge status={fulfillment.status}>
+                <StatusBadge $status={fulfillment.status}>
                   {fulfillment.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                 </StatusBadge>
                 <TrackingInfo>

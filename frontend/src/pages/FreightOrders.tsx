@@ -46,6 +46,15 @@ const formatStatus = (value?: string): string =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
+const getFreightStatusColor = (status?: string): string => {
+  const s = (status ?? '').toLowerCase();
+  if (['completed', 'delivered'].includes(s)) return 'green';
+  if (['in_progress', 'processing', 'confirmed', 'shipped', 'in_transit'].includes(s)) return 'blue';
+  if (['cancelled', 'failed', 'rejected', 'void'].includes(s)) return 'red';
+  if (['hold', 'on_hold', 'review', 'partial'].includes(s)) return 'orange';
+  return 'default';
+};
+
 const FreightOrders: React.FC = () => {
   useDocumentTitle('Freight Orders');
   const navigate = useNavigate();
@@ -144,7 +153,7 @@ const FreightOrders: React.FC = () => {
         title: 'Status',
         dataIndex: 'status',
         key: 'status',
-        render: (value: string | undefined) => <Tag color="blue">{formatStatus(value)}</Tag>,
+        render: (value: string | undefined) => <Tag color={getFreightStatusColor(value)}>{formatStatus(value)}</Tag>,
       },
       {
         title: 'Actions',
