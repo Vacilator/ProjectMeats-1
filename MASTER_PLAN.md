@@ -4175,3 +4175,24 @@ This section incorporates additional DRY/canonical standards for **(1) frontend/
 **Phase 10 Estimated Completion**: August 2026
 
 ---
+
+## Phase 40: Intelligent AI Feedback Loop & Approval System Overhaul
+
+**Status**: ✅ Complete
+**PRs**: #5353, #5354, #5355, #5356, #5357
+
+### Delivered
+1. **Backend Models** — Extended AIFeedbackLog with implicit signal fields; created ExternalApprovalRequest, UserAIPreferences, AILearningSnapshot models (all TenantAwareModel with RLS)
+2. **Backend Services** — FeedbackCollector (batch events), ApprovalGateService (intercept/approve/reject/delegate/expire), LearningAggregator (daily accuracy snapshots)
+3. **Celery Tasks** — Hourly approval timeout expiry, daily learning aggregation
+4. **Frontend Hooks** — useImplicitFeedback (30s batched, invisible), useApprovalGate (intercept + modal), useAIPreferences (TanStack Query + optimistic updates)
+5. **Frontend Components** — ApprovalPreviewModal (full preview, ⌘+Enter approve), ApprovalQueuePanel (filterable, batch-capable)
+6. **AI Settings Hub Page** (/settings/ai) — 3 tabs: Approval Queue, AI Settings, Learning Dashboard
+7. **Form Integration** — Approval gate wired into SupplierPO, SalesOrder, Invoice, CarrierPO forms
+8. **Navigation** — "AI & Approvals" added to sidebar
+
+### Key Design Decisions
+- External communication approval: **default ON** for all users (UserAIPreferences.require_external_approval = True)
+- Implicit feedback: zero UI, batched 30s flush, fire-and-forget, sendBeacon on page close
+- Approval queue: 72h auto-expire, batch approve/reject, delegable
+- Learning aggregation: daily snapshots per entity type, accuracy trending
