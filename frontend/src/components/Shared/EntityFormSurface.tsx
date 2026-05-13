@@ -13,8 +13,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
-import { Modal, Skeleton } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { Modal, Skeleton, Button } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import isEqual from 'lodash/isEqual';
 
 import { getRuntimeConfigBoolean } from '@/config/runtime';
@@ -161,6 +161,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const normalized = useMemo(() => normalizeEntityType(entityType), [entityType]);
   const normalizedEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
   const { isAuthenticated, loading: authLoading } = useAuthState();
+  const queryClient = useQueryClient();
   const stableInitialValues = useDeepStableValue(initialValues ?? EMPTY_INITIAL_VALUES);
   const stableContext = useDeepStableValue(context);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -337,11 +338,14 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     (!shouldLoadRecord || Boolean(recordQuery.data || recordQuery.error)) &&
     (!shouldHydrate ||
       !stableFkDescriptors.length ||
-      !(fkOptionsQuery.isLoading || fkOptionsQuery.isPending));
+      // FK options are non-blocking: form renders even if they fail or finish loading
+      !(fkOptionsQuery.isLoading || fkOptionsQuery.isPending) ||
+      Boolean(fkOptionsQuery.error));
   const formLoadError =
     !authLoading && !isAuthenticated && isOpen
       ? buildUnauthorizedLoadError()
-      : schemaQuery.error || recordQuery.error || fkOptionsQuery.error || null;
+      : schemaQuery.error || recordQuery.error || null;
+  // FK option errors are non-fatal — form renders with empty dropdowns
   const formKey = useMemo(
     () =>
       getStableSignature({
@@ -362,17 +366,40 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     if (mode === 'clone') return `Clone ${baseLabel}`;
     return baseLabel;
   }, [augmentedSchema?.name, entityType, mode, schemaQuery.data?.name]);
+  const handleRetry = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: withTenantQueryKey('entity-form-schema', normalizedEntityKey),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: withTenantQueryKey('entity-form-fk-options-batch', normalizedEntityKey),
+    });
+    if (entityId != null) {
+      void queryClient.invalidateQueries({
+        queryKey: withTenantQueryKey('entity-form-record', normalizedEntityKey, String(entityId)),
+      });
+    }
+  }, [queryClient, normalizedEntityKey, entityId]);
+
   const loaderBody = (
     <div style={{ padding: 16 }}>
       <Skeleton active paragraph={{ rows: 6 }} />
     </div>
   );
+  const isAuthError =
+    (formLoadError as any)?.response?.status === 401 ||
+    (formLoadError as any)?.response?.status === 403;
   const errorBody = (
-    <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-      {(formLoadError as any)?.response?.status === 401 ||
-      (formLoadError as any)?.response?.status === 403
-        ? 'Authentication required. Redirecting to login…'
-      : 'Unable to load form.'}
+    <div style={{ padding: 16, textAlign: 'center', color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+      <div style={{ marginBottom: 12 }}>
+        {isAuthError
+          ? 'Authentication required. Redirecting to login…'
+          : 'Unable to load form. The schema or record data could not be fetched.'}
+      </div>
+      {!isAuthError && (
+        <Button type="primary" onClick={handleRetry} size="small">
+          Retry
+        </Button>
+      )}
     </div>
   );
   const shouldMountForm = isOpen && formReady && !formLoading && !formLoadError;

@@ -139,6 +139,11 @@ const EXTRACTABLE_ENTITY_KEYS = new Set([
   'carrier-pos',
 ]);
 
+const FK_PARENT_FILTERS: Record<string, { parentKey: string; paramName: string }> = {
+  plant: { parentKey: 'supplier', paramName: 'supplier' },
+  location: { parentKey: 'customer', paramName: 'customer' },
+};
+
 function useDeepStableValue<T>(value: T): T {
   const ref = useRef(value);
 
@@ -1049,8 +1054,9 @@ export const augmentSchemaForFrontend = (
         return {
           ...field,
           label: 'Establishment #',
-          required: true,
+          required: false,
           placeholder: field.placeholder || 'Enter establishment number',
+          help_text: field.help_text || 'Auto-generated if left blank',
           ui,
         };
       }
@@ -2956,16 +2962,37 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         };
       });
 
-    if (!preferredKeys.length) return raw;
+    const sorted = preferredKeys.length
+      ? [...raw].sort((a, b) => {
+          const rank = new Map(preferredKeys.map((k, idx) => [String(k).toLowerCase(), idx] as const));
+          const ra = rank.has(a.key.toLowerCase()) ? (rank.get(a.key.toLowerCase()) as number) : 9999;
+          const rb = rank.has(b.key.toLowerCase()) ? (rank.get(b.key.toLowerCase()) as number) : 9999;
+          if (ra !== rb) return ra - rb;
+          return a.label.localeCompare(b.label);
+        })
+      : raw;
 
-    const rank = new Map(preferredKeys.map((k, idx) => [String(k).toLowerCase(), idx] as const));
-    return [...raw].sort((a, b) => {
-      const ra = rank.has(a.key.toLowerCase()) ? (rank.get(a.key.toLowerCase()) as number) : 9999;
-      const rb = rank.has(b.key.toLowerCase()) ? (rank.get(b.key.toLowerCase()) as number) : 9999;
-      if (ra !== rb) return ra - rb;
-      return a.label.localeCompare(b.label);
-    });
-  }, [preferredKeys, resolvedSchema?.fields]);
+    // Smart create mode: auto-number and auto-calculated field overrides
+    if (activeMode === 'create') {
+      return sorted.map((field) => {
+        const lowerKey = field.key.toLowerCase();
+        const isAutoNumber =
+          ['po_number', 'so_number', 'order_number', 'inquiry_number', 'plant_est_num'].includes(lowerKey) ||
+          ((/_(number|num)$/.test(lowerKey)) && !lowerKey.includes('phone'));
+        const isAutoCalculated = ['total_amount', 'total', 'amount'].includes(lowerKey);
+
+        if (isAutoNumber) {
+          return { ...field, required: false, placeholder: 'Auto-generated if left blank' };
+        }
+        if (isAutoCalculated) {
+          return { ...field, required: false, placeholder: 'Calculated automatically' };
+        }
+        return field;
+      });
+    }
+
+    return sorted;
+  }, [activeMode, preferredKeys, resolvedSchema?.fields]);
 
   type DynamicSchema = {
     step_index: number;
@@ -3553,6 +3580,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                 const isLocked = lockedFieldKeySet.has(String(f.key).trim().toLowerCase());
 
                 if (mapped && mapped !== 'product') {
+                  const fkFilter = FK_PARENT_FILTERS[String(f.key).toLowerCase()];
+                  const parentValue = fkFilter ? getCurrentFkValue(fkFilter.parentKey) : undefined;
+                  const filterParams = fkFilter && parentValue
+                    ? { [fkFilter.paramName]: String(parentValue) }
+                    : undefined;
+
                   return (
                     <div key={f.key}>
                       <FkFieldLabel>
@@ -3566,6 +3599,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                         forceSearch
                         debounceMs={0}
                         disabled={isLocked || submitting || resolvedLoading}
+                        filterParams={filterParams}
                       />
                     </div>
                   );

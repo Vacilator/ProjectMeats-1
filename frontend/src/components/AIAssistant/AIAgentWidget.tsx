@@ -21,6 +21,8 @@ import {
   GitBranch,
   History,
   LoaderCircle,
+  Maximize2,
+  Minimize2,
   Paperclip,
   Plus,
   Send,
@@ -155,9 +157,9 @@ const renderAttachmentIcon = (
   );
 };
 
+// Idle state: no animation — static shadow for zero visual noise
 const calmPulse = keyframes`
-  0%, 100% { transform: translateY(0); box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10); }
-  50% { transform: translateY(-1px); box-shadow: 0 12px 34px rgb(var(--color-text-primary) / 0.14); }
+  0%, 100% { box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10); }
 `;
 
 const urgentGlow = keyframes`
@@ -173,37 +175,46 @@ const urgentGlow = keyframes`
   }
 `;
 
+// Thinking: gentle pulse (slower, box-shadow only — no transform jitter)
 const thinkingFlicker = keyframes`
   0%, 100% { box-shadow: 0 12px 34px rgb(var(--color-text-primary) / 0.14); }
-  50% { box-shadow: 0 18px 52px rgb(var(--color-text-primary) / 0.20); }
+  50% { box-shadow: 0 14px 40px rgb(var(--color-text-primary) / 0.18); }
 `;
 
-const WidgetShell = styled.div<{ $state: AgentState }>`
+const WidgetShell = styled.div<{ $state: AgentState; $fullscreen?: boolean }>`
   position: fixed;
-  right: calc(16px + env(safe-area-inset-right, 0px));
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  z-index: 1000;
+  ${(p) => p.$fullscreen ? css`
+    right: 0;
+    bottom: 0;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+  ` : css`
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: 1000;
+  `}
   pointer-events: auto;
 
   ${(p) =>
     p.$state === 'action_required'
       ? css`
-          animation: ${urgentGlow} 1.2s ease-in-out infinite;
+          animation: ${urgentGlow} 2s ease-in-out infinite;
         `
       : p.$state === 'thinking'
         ? css`
-            animation: ${thinkingFlicker} 0.65s ease-in-out infinite;
+            animation: ${thinkingFlicker} 2s ease-in-out infinite;
           `
         : css`
-            animation: ${calmPulse} 3s ease-in-out infinite;
+            box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10);
           `}
 `;
 
-const Card = styled.div<{ $expanded: boolean; $state: AgentState }>`
-  width: ${(p) => (p.$expanded ? '420px' : '56px')};
-  max-width: calc(100vw - 32px);
-  height: ${(p) => (p.$expanded ? '560px' : '56px')};
-  border-radius: ${(p) => (p.$expanded ? '14px' : '999px')};
+const Card = styled.div<{ $expanded: boolean; $state: AgentState; $fullscreen?: boolean }>`
+  width: ${(p) => p.$fullscreen ? '100vw' : p.$expanded ? '420px' : '56px'};
+  max-width: ${(p) => p.$fullscreen ? '100vw' : 'calc(100vw - 32px)'};
+  height: ${(p) => p.$fullscreen ? '100vh' : p.$expanded ? '560px' : '56px'};
+  border-radius: ${(p) => p.$fullscreen ? '0' : p.$expanded ? '14px' : '999px'};
   overflow: hidden;
   background: ${(p) => (p.$expanded ? 'rgb(var(--color-surface))' : 'rgb(var(--color-primary))')};
   border: 1px solid
@@ -213,6 +224,7 @@ const Card = styled.div<{ $expanded: boolean; $state: AgentState }>`
           ? 'rgb(var(--color-primary) / 0.60)'
           : 'rgb(var(--color-border))'
         : 'rgb(var(--color-primary))'};
+  transition: width 0.25s ease, height 0.25s ease, border-radius 0.25s ease;
 `;
 
 const HeaderBtn = styled.button<{ $expanded: boolean }>`
@@ -784,6 +796,7 @@ export const AIAgentWidget: React.FC = () => {
 
   const [state, setState] = useState<AgentState>('idle');
   const [expanded, setExpanded] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const { data: health } = useHealth();
   const aiEnabled = health?.features?.ai ?? true;
   const [aiInboxCount, setAiInboxCount] = useState(0);
@@ -2006,8 +2019,8 @@ export const AIAgentWidget: React.FC = () => {
   })();
 
   return (
-    <WidgetShell $state={state} aria-live="polite">
-      <Card $expanded={expanded} $state={state}>
+    <WidgetShell $state={state} $fullscreen={fullscreen} aria-live="polite">
+      <Card $expanded={expanded} $state={state} $fullscreen={fullscreen}>
         <HeaderBtn
           $expanded={expanded}
           onClick={() => setExpanded((v) => !v)}
@@ -2036,10 +2049,18 @@ export const AIAgentWidget: React.FC = () => {
                 <span>{activeSessionTitle}</span>
               </SessionTitle>
               <SessionActions>
+                <IconBtn
+                  type="button"
+                  title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                  aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                  onClick={() => setFullscreen((v) => !v)}
+                >
+                  {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </IconBtn>
                 <IconBtn type="button" title="New session" aria-label="New session" onClick={() => void handleNewChat()}>
                   <Plus size={16} />
                 </IconBtn>
-                <IconBtn type="button" title="Close" aria-label="Close chat" onClick={() => setExpanded(false)}>
+                <IconBtn type="button" title="Close" aria-label="Close chat" onClick={() => { setFullscreen(false); setExpanded(false); }}>
                   <X size={16} />
                 </IconBtn>
               </SessionActions>

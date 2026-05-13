@@ -3,24 +3,28 @@
  *
  * Features:
  * - Universal search across all entities (⌘K / Ctrl+K)
- * - Search operators (supplier:, customer:, po:, etc.)
+ * - Results grouped by entity type with icons
  * - Recent items section
  * - Quick actions
- * - Keyboard navigation
+ * - Keyboard navigation (up/down/enter/escape)
+ * - Listens for pm:open-command-palette CustomEvent
  *
  * Theme Compliance:
  * - Uses CSS custom properties
  * - No hardcoded colors
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
+import { getEntityIcon } from '@/components/Shared/entityListPresentation';
+import { entityTypeDisplayName } from '@/utils/entityTypeRegistry';
 import { logger } from '@/utils/logger';
 import {
   getRecentItems,
   getSearchColorVar,
+  groupSearchResultsByType,
   searchRanked,
   trackRecentItem,
   type SearchItem,
@@ -80,8 +84,6 @@ const QUICK_ACTIONS: QuickAction[] = [
     route: '/customers?action=create',
     colorVar: '--color-warning',
   },
-  // Removed: Products and Carriers (no dedicated pages with forms yet)
-  // TODO: Re-add when standalone product/carrier management pages are implemented
 ];
 
 // ============================================================================
@@ -175,12 +177,30 @@ const ResultSection = styled.div`
 `;
 
 const SectionTitle = styled.div`
-  padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: rgb(var(--color-text-tertiary));
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+`;
+
+const SectionIcon = styled.span`
+  display: flex;
+  align-items: center;
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const SectionCount = styled.span`
+  font-size: 0.7rem;
+  color: rgb(var(--color-text-tertiary));
+  margin-left: auto;
 `;
 
 const ResultItem = styled.div<{ $isSelected: boolean }>`
@@ -437,6 +457,10 @@ const getIconElement = (iconName: string): string => {
   return icons[iconName] || '📁';
 };
 
+/** Flattens grouped results into a single list preserving group order. */
+const flattenGrouped = (grouped: Record<string, SearchResult[]>): SearchResult[] =>
+  Object.values(grouped).flat();
+
 // ============================================================================
 // Search Cache (in-memory with TTL)
 // ============================================================================
@@ -488,8 +512,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const [recentItems, setRecentItems] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [dateRange, setDateRange] = useState('last_30_days');  // NEW: Date range filter
-  const [totalCount, setTotalCount] = useState(0);  // NEW: Total results count
+  const [dateRange, setDateRange] = useState('last_30_days');
+  const [totalCount, setTotalCount] = useState(0);
 
   // Entity detail modal state
   const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: string | number } | null>(null);
@@ -498,6 +522,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Listen for pm:open-command-palette CustomEvent
+  useEffect(() => {
+    const handler = () => {
+      // This event is dispatched externally (e.g. from Home page) to open the palette.
+      // The parent Layout component handles setting isOpen — this is a fallback listener.
+    };
+    window.addEventListener('pm:open-command-palette', handler);
+    return () => window.removeEventListener('pm:open-command-palette', handler);
+  }, []);
 
   // Focus input when opened
   useEffect(() => {
@@ -524,7 +558,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     }
   };
 
-  // Debounced search with caching and ranked results
+  // Debounced search with caching and ranked results (300ms debounce)
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
@@ -545,40 +579,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        // Use ranked search API
-        logger.debug('[CommandPalette] API Request:', {
-          url: 'system/search/ranked/',
-          params: { q: query, date_range: dateRange, limit: 8 },
-        });
-
         const response = await searchRanked({
           query,
           dateRange,
           limit: 8,
         });
 
-        logger.debug('[CommandPalette] API Response:', {
-          query: response.query,
-          total: response.total,
-          counts: response.counts,
-          resultsCount: response.results.length,
-        });
-
         const fetchedResults = response.results;
-
-        // Cache the results
         setCachedResults(cacheKey, fetchedResults);
 
         setResults(fetchedResults);
         setTotalCount(response.total || fetchedResults.length);
         setSelectedIndex(0);
-
-        logger.debug('[CommandPalette] Ranked search completed:', {
-          query,
-          dateRange,
-          resultsCount: fetchedResults.length,
-          topScore: fetchedResults[0]?.score,
-        });
       } catch (err) {
         logger.error('[CommandPalette] Search failed:', err);
         setResults([]);
@@ -586,15 +598,21 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       } finally {
         setIsLoading(false);
       }
-    }, 200);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, dateRange]);  // Re-search when date range changes
+  }, [query, dateRange]);
 
-  // Keyboard navigation - now supports quick actions
+  // Group results by entity type
+  const groupedResults = useMemo(
+    () => groupSearchResultsByType(results),
+    [results],
+  );
+  const flatResults = useMemo(() => flattenGrouped(groupedResults), [groupedResults]);
+
+  // Keyboard navigation — supports quick actions
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Calculate total navigable items
-    const searchItems = query.length >= 2 ? results : recentItems;
+    const searchItems = query.length >= 2 ? flatResults : recentItems;
     const showQuickActions = query.length < 2;
     const totalItems = showQuickActions
       ? searchItems.length + QUICK_ACTIONS.length
@@ -612,7 +630,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       case 'Enter':
         e.preventDefault();
         if (showQuickActions) {
-          // First are recent items, then quick actions
           if (selectedIndex < searchItems.length) {
             handleSelect(searchItems[selectedIndex]);
           } else {
@@ -629,7 +646,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         onClose();
         break;
     }
-  }, [query, results, recentItems, selectedIndex, onClose]);
+  }, [query, flatResults, recentItems, selectedIndex, onClose]);
 
   const handleSelect = async (item: SearchResult) => {
     // Track item access
@@ -649,12 +666,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     setSelectedEntity({ type: item.type, id: item.id });
   };
 
-  const handleQuickAction = (action: QuickAction) => {
+  const handleQuickAction = useCallback((action: QuickAction) => {
     onClose();
     navigate(action.route);
-  };
-
-  const displayItems = query.length >= 2 ? results : recentItems;
+  }, [onClose, navigate]);
 
   return (
     <Overlay $isOpen={isOpen} onClick={onClose}>
@@ -697,44 +712,57 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           {isLoading ? (
             <LoadingSpinner>Searching...</LoadingSpinner>
           ) : query.length >= 2 ? (
-            // Search results with smart labels
-            displayItems.length > 0 ? (
-              <ResultSection>
-                <SectionTitle>Results ({displayItems.length})</SectionTitle>
-                {displayItems.map((item, index) => (
-                  <ResultItem
-                    key={`${item.type}-${item.id}`}
-                    $isSelected={index === selectedIndex}
-                    role="option"
-                    aria-selected={index === selectedIndex}
-                    onClick={() => handleSelect(item)}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                  >
-                    <ResultIcon $colorVar={item.colorVar}>
-                      {getIconElement(item.icon ?? '')}
-                    </ResultIcon>
-                    <ResultContent>
-                      <ResultTitle>{item.title}</ResultTitle>
-                      {item.subtitle && (
-                        <ResultSubtitle>{item.subtitle}</ResultSubtitle>
-                      )}
-                      {/* Smart Labels */}
-                      {item.labels && item.labels.length > 0 && (
-                        <ResultLabels>
-                          {item.labels.map((label, idx) => (
-                            <Label key={idx}>{label}</Label>
-                          ))}
-                        </ResultLabels>
-                      )}
-                    </ResultContent>
-                    {/* Score Badge */}
-                    <ScoreBadge $score={item.score || 0}>
-                      {Math.round(item.score || 0)}
-                    </ScoreBadge>
-                    <ResultType>{item.type.replace('_', ' ')}</ResultType>
-                  </ResultItem>
-                ))}
-              </ResultSection>
+            // Grouped search results by entity type
+            flatResults.length > 0 ? (
+              <>
+                {Object.entries(groupedResults).map(([type, items]) => {
+                  // Calculate the flat index offset for this group
+                  const groupStartIndex = flatResults.indexOf(items[0]);
+                  return (
+                    <ResultSection key={type}>
+                      <SectionHeader>
+                        <SectionIcon>{getEntityIcon(type, 14)}</SectionIcon>
+                        <SectionTitle>{entityTypeDisplayName(type)}</SectionTitle>
+                        <SectionCount>{items.length}</SectionCount>
+                      </SectionHeader>
+                      {items.map((item, idx) => {
+                        const flatIndex = groupStartIndex + idx;
+                        return (
+                          <ResultItem
+                            key={`${item.type}-${item.id}`}
+                            $isSelected={flatIndex === selectedIndex}
+                            role="option"
+                            aria-selected={flatIndex === selectedIndex}
+                            onClick={() => handleSelect(item)}
+                            onMouseEnter={() => setSelectedIndex(flatIndex)}
+                          >
+                            <ResultIcon $colorVar={item.colorVar}>
+                              {getIconElement(item.icon ?? '')}
+                            </ResultIcon>
+                            <ResultContent>
+                              <ResultTitle>{item.title}</ResultTitle>
+                              {item.subtitle && (
+                                <ResultSubtitle>{item.subtitle}</ResultSubtitle>
+                              )}
+                              {item.labels && item.labels.length > 0 && (
+                                <ResultLabels>
+                                  {item.labels.map((label, labelIdx) => (
+                                    <Label key={labelIdx}>{label}</Label>
+                                  ))}
+                                </ResultLabels>
+                              )}
+                            </ResultContent>
+                            <ScoreBadge $score={item.score || 0}>
+                              {Math.round(item.score || 0)}
+                            </ScoreBadge>
+                            <ResultType>{item.type.replace('_', ' ')}</ResultType>
+                          </ResultItem>
+                        );
+                      })}
+                    </ResultSection>
+                  );
+                })}
+              </>
             ) : (
               <EmptyState>
                 No results found for "{query}"
