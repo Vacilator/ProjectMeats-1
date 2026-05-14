@@ -29,19 +29,29 @@ export interface NavigationItem {
 
 export const navigation: NavigationItem[] = [
   {
-    label: 'Home',
+    label: 'Workspace',
     icon: '🏠',
     path: '/',
-  },
-  {
-    label: 'My Tasks',
-    icon: '✅',
-    path: '/my-tasks',
-  },
-  {
-    label: 'My Trades',
-    icon: '🔄',
-    path: '/my-trades',
+    children: [
+      {
+        label: 'My Tasks',
+        icon: '✅',
+        path: '/my-tasks',
+        badgeKey: 'actionRequired',
+      },
+      {
+        label: 'My Trades',
+        icon: '🔄',
+        path: '/my-trades',
+        children: [
+          {
+            label: 'Calls',
+            icon: '📞',
+            path: '/calls',
+          },
+        ],
+      },
+    ],
   },
   {
     label: 'Suppliers',

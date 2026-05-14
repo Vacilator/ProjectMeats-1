@@ -26,10 +26,7 @@ import './i18n/config'; // Initialize i18n
 // canonicalSearch utilities kept available for Header; App.tsx no longer uses them directly
 import LegacyCommandCenterTabRedirect from './routes/LegacyCommandCenterTabRedirect';
 
-const MyTasksRedirect: React.FC = () => {
-  const location = useLocation();
-  return <Navigate to={`/workforms/tasks${location.search || ''}`} replace />;
-};
+// MyTasksRedirect removed — /my-tasks renders directly, no workforms dependency
 
 // Cockpit routes removed — all cockpit paths redirect to Home
 
@@ -440,7 +437,7 @@ const App: React.FC = () => {
 
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
-                <Route path="my-tasks" element={<MyTasksRedirect />} />
+                <Route path="my-tasks" element={<MyTasks />} />
                 <Route path="my-trades" element={<MyTrades />} />
 
                 {/* Admin Workspace - Wrapped with error boundary */}

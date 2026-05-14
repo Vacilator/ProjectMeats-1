@@ -23,13 +23,13 @@ type BreadcrumbResolver = {
 };
 
 const breadcrumbNameMap: { [key: string]: string } = {
-  // Home aliases
-  '': 'Home',
-  cockpit: 'Home',
-  workspace: 'Home',
-  'command-center': 'Home',
+  // Home/Workspace aliases
+  '': 'Workspace',
+  cockpit: 'Workspace',
+  'command-center': 'Workspace',
   calls: 'Calls',
   'call-log': 'Calls',
+  'my-trades': 'My Trades',
   reports: 'Reports',
 
   // WorkForms section
@@ -247,7 +247,7 @@ const Breadcrumb: React.FC = () => {
     <BreadcrumbWrapper>
       <BreadcrumbContainer aria-label="Breadcrumb navigation">
         <BreadcrumbItem>
-          <BreadcrumbLink to="/">Home</BreadcrumbLink>
+          <BreadcrumbLink to="/">Workspace</BreadcrumbLink>
           {trailItems.length > 0 && <Separator aria-hidden="true">/</Separator>}
         </BreadcrumbItem>
         {trailItems.map(({ routeTo, staticDisplayName, resolver, pathname }, index) => {

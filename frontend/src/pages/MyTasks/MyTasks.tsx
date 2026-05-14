@@ -2,10 +2,9 @@
  * MyTasks — Unified Task Inbox
  *
  * Industry-leading task management UI inspired by Linear, Asana & Notion.
- * Three smart categories:
+ * Two focused categories:
  *   1. Action Required — tasks YOU must act on right now
  *   2. AI Inbox       — AI-generated drafts awaiting human review
- *   3. Workflows      — in-progress workflow executions with progress
  *
  * Minimal chrome. Every pixel earns its place.
  */
@@ -27,8 +26,6 @@ import {
   aiStaffApi,
   PendingReviewItem,
 } from '../../services/aiService';
-import { workflowExecutionService } from '../../services/workflowExecutionService';
-import { WorkflowExecution } from '../../types/workflows';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { compareTasksSmart, isAtRiskTask } from '../../utils/taskPrioritization';
 
@@ -41,7 +38,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: 'var(--color-text-tertiary)',
 };
 
-type TasksTab = 'action' | 'ai' | 'workflows';
+type TasksTab = 'action' | 'ai';
 type PriorityFilter = 'all' | 'urgent' | 'high' | 'normal' | 'low';
 type SortOption = 'smart' | 'due_date' | 'priority';
 
@@ -347,57 +344,6 @@ const SmallBtn = styled.button<{ $primary?: boolean }>`
   }
 `;
 
-/* ─── workflow cards ─── */
-const WorkflowGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 12px;
-`;
-
-const WFCard = styled.div`
-  padding: 16px;
-  border-radius: 10px;
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  transition: all 0.12s;
-  &:hover { border-color: rgb(var(--color-primary)); box-shadow: var(--shadow-sm); }
-`;
-
-const WFTitle = styled.h4`
-  font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 4px;
-`;
-
-const WFMeta = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary));
-  margin-bottom: 10px;
-`;
-
-const Progress = styled.div`
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(var(--color-border), 0.5);
-  overflow: hidden;
-  margin-bottom: 6px;
-`;
-
-const ProgressFill = styled.div<{ $pct: number }>`
-  height: 100%;
-  width: ${({ $pct }) => $pct}%;
-  background: rgb(var(--color-primary));
-  border-radius: 2px;
-  transition: width 0.3s ease;
-`;
-
-const WFFooter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
 /* ─── empty & loading ─── */
 const Empty = styled.div`
   text-align: center;
@@ -457,7 +403,7 @@ export const MyTasks: React.FC = () => {
 
   // Tab state from URL (accept legacy `ai-review` as alias for `ai`)
   const rawTab = searchParams.get('tab');
-  const activeTab: TasksTab = (rawTab === 'ai' || rawTab === 'ai-review') ? 'ai' : rawTab === 'workflows' ? 'workflows' : 'action';
+  const activeTab: TasksTab = (rawTab === 'ai' || rawTab === 'ai-review') ? 'ai' : 'action';
   const highlightedDraftId = searchParams.get('draft');
 
   // Local UI state
@@ -483,11 +429,7 @@ export const MyTasks: React.FC = () => {
   const [aiIntentFilter, setAiIntentFilter] = useState('all');
   const [aiSelectedKeys, setAiSelectedKeys] = useState<React.Key[]>([]);
 
-  // Workflow state
-  const [workflows, setWorkflows] = useState<WorkflowExecution[]>([]);
-  const [wfLoading, setWfLoading] = useState(true);
-  const [wfError, setWfError] = useState('');
-  const [resumingId, setResumingId] = useState<string | null>(null);
+  // (Workflows tab removed — no workforms dependency)
 
   /* ── tab helpers ── */
   const setTab = useCallback((tab: TasksTab) => {
@@ -513,28 +455,7 @@ export const MyTasks: React.FC = () => {
     }
   }, [highlightedDraftId]);
 
-  /* ── fetch workflows ── */
-  const fetchWorkflows = useCallback(async () => {
-    setWfLoading(true);
-    setWfError('');
-    try {
-      const res = await workflowExecutionService.getExecutions({
-        status: 'in_progress', assigned_to: 'me', page_size: 25,
-      });
-      setWorkflows(res.results);
-    } catch (err) {
-      logger.error('Failed to fetch workflows', err);
-      const status = (err as any)?.response?.status;
-      if (status === 404 || status === 403) setWfError('No workflows available yet.');
-      else setWfError('');
-      setWorkflows([]);
-    } finally {
-      setWfLoading(false);
-    }
-  }, []);
-
   /* ── lifecycle ── */
-  useEffect(() => { fetchWorkflows(); }, [fetchWorkflows]);
 
   useEffect(() => {
     if (activeTab === 'ai' || highlightedDraftId) void fetchReviews();
@@ -674,20 +595,6 @@ export const MyTasks: React.FC = () => {
     },
   ], [handleFeedback, openReview]);
 
-  /* ── workflow resume ── */
-  const resumeWF = useCallback(async (wf: WorkflowExecution) => {
-    setResumingId(wf.id);
-    try {
-      await workflowExecutionService.resumeExecution(wf.id);
-      window.location.href = `/workflows/run/${wf.id}`;
-    } catch (err) {
-      logger.error('Resume failed', err);
-      showAlert({ type: 'error', title: 'Error', content: 'Failed to resume workflow.' });
-    } finally {
-      setResumingId(null);
-    }
-  }, []);
-
   /* ── delegation ── */
   const handleDelegate = useCallback(async (data: DelegationData) => {
     if (!delegateTask) return;
@@ -732,7 +639,7 @@ export const MyTasks: React.FC = () => {
   return (
     <Page>
       <PageTitle>My Tasks</PageTitle>
-      <PageSubline>Your unified inbox for tasks, AI drafts, and workflows</PageSubline>
+      <PageSubline>Your unified inbox for tasks and AI drafts</PageSubline>
 
       {/* ── Tab bar ── */}
       <TabBar role="tablist">
@@ -743,10 +650,6 @@ export const MyTasks: React.FC = () => {
         <Tab $active={activeTab === 'ai'} onClick={() => setTab('ai')} role="tab" aria-selected={activeTab === 'ai'}>
           AI Inbox
           {pendingReviews.length > 0 && <TabBadge>{pendingReviews.length}</TabBadge>}
-        </Tab>
-        <Tab $active={activeTab === 'workflows'} onClick={() => setTab('workflows')} role="tab" aria-selected={activeTab === 'workflows'}>
-          Workflows
-          {workflows.length > 0 && <TabBadge>{workflows.length}</TabBadge>}
         </Tab>
       </TabBar>
 
@@ -938,48 +841,6 @@ export const MyTasks: React.FC = () => {
             onResolved={handleReviewResolved}
             onFeedbackSubmitted={handleFeedback}
           />
-        </>
-      )}
-
-      {/* ═══════ WORKFLOWS TAB ═══════ */}
-      {activeTab === 'workflows' && (
-        <>
-          <Toolbar>
-            <span style={{ fontSize: 13, color: 'rgb(var(--color-text-secondary))' }}>
-              {workflows.length} active workflow{workflows.length !== 1 ? 's' : ''}
-            </span>
-            <RefreshBtn onClick={fetchWorkflows} style={{ marginLeft: 'auto' }} aria-label="Refresh workflows">↻</RefreshBtn>
-          </Toolbar>
-
-          {wfError && <ErrorBanner>{wfError}</ErrorBanner>}
-
-          {wfLoading ? (
-            <><Skeleton /><Skeleton /></>
-          ) : workflows.length === 0 ? (
-            <Empty>
-              <EmptyIcon>🔄</EmptyIcon>
-              <EmptyTitle>No active workflows</EmptyTitle>
-              <EmptyDesc>In-progress workflows assigned to you will appear here.</EmptyDesc>
-            </Empty>
-          ) : (
-            <WorkflowGrid>
-              {workflows.map(wf => (
-                <WFCard key={wf.id}>
-                  <WFTitle>{wf.workflow_name}</WFTitle>
-                  <WFMeta>📍 {wf.current_step_name} · {formatTimeAgo(wf.created_at)}</WFMeta>
-                  <Progress><ProgressFill $pct={wf.progress_percent} /></Progress>
-                  <WFFooter>
-                    <span style={{ fontSize: 11, color: 'rgb(var(--color-text-tertiary))' }}>
-                      Step {wf.completed_nodes}/{wf.total_nodes} · {wf.progress_percent}%
-                    </span>
-                    <SmallBtn $primary onClick={() => resumeWF(wf)} disabled={resumingId === wf.id}>
-                      {resumingId === wf.id ? '...' : '▶ Resume'}
-                    </SmallBtn>
-                  </WFFooter>
-                </WFCard>
-              ))}
-            </WorkflowGrid>
-          )}
         </>
       )}
 

@@ -1,7 +1,8 @@
 /**
- * Home Page — Modern SaaS Dashboard
+ * Workspace Page — Central Hub Dashboard
  *
- * Clean, minimal 4-widget grid dashboard.
+ * Clean, minimal dashboard with quick navigation to
+ * My Tasks, My Trades, and Calls alongside KPI widgets.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -41,7 +42,7 @@ interface QuickStat {
 /* ------------------------------------------------------------------ */
 
 const Home: React.FC = () => {
-  useDocumentTitle('Home');
+  useDocumentTitle('Workspace');
   const navigate = useNavigate();
   const [user, setUser] = useState<UserProfile | null>(null);
 
@@ -191,28 +192,49 @@ const Home: React.FC = () => {
         </SearchTrigger>
       </HeroSection>
 
-      {/* 4-widget grid */}
+      {/* Workspace Navigation Tiles */}
+      <NavTileRow>
+        <NavTile onClick={() => navigate('/my-tasks')} aria-label="Go to My Tasks">
+          <NavTileIcon>✅</NavTileIcon>
+          <NavTileContent>
+            <NavTileLabel>My Tasks</NavTileLabel>
+            <NavTileDesc>Action items, approvals &amp; AI drafts</NavTileDesc>
+          </NavTileContent>
+          {actionItems.length > 0 && <NavTileBadge>{actionItems.length}</NavTileBadge>}
+        </NavTile>
+        <NavTile onClick={() => navigate('/my-trades')} aria-label="Go to My Trades">
+          <NavTileIcon>🔄</NavTileIcon>
+          <NavTileContent>
+            <NavTileLabel>My Trades</NavTileLabel>
+            <NavTileDesc>Active trade pipelines &amp; document flow</NavTileDesc>
+          </NavTileContent>
+        </NavTile>
+        <NavTile onClick={() => navigate('/calls')} aria-label="Go to Calls">
+          <NavTileIcon>📞</NavTileIcon>
+          <NavTileContent>
+            <NavTileLabel>Calls</NavTileLabel>
+            <NavTileDesc>Schedule, log &amp; track calls</NavTileDesc>
+          </NavTileContent>
+        </NavTile>
+      </NavTileRow>
+
+      {/* Widget grid */}
       <WidgetGrid>
-        {/* 1. My Tasks */}
+        {/* 1. Today's Numbers */}
         <WidgetCard>
           <WidgetHeader>
-            <WidgetIcon aria-hidden="true">✅</WidgetIcon>
-            <WidgetTitle>My Tasks</WidgetTitle>
-            {actionItems.length > 0 && <Badge>{actionItems.length}</Badge>}
+            <WidgetIcon aria-hidden="true">📈</WidgetIcon>
+            <WidgetTitle>Today&apos;s Numbers</WidgetTitle>
           </WidgetHeader>
           <WidgetBody>
-            {actionItems.length === 0 ? (
-              <EmptyState>No pending items — you&#39;re all caught up!</EmptyState>
-            ) : (
-              <ItemList>
-                {actionItems.slice(0, 5).map((item) => (
-                  <ListItem key={item.id}>
-                    <ItemType>{item.type}</ItemType>
-                    <ItemTitle>{item.title}</ItemTitle>
-                  </ListItem>
-                ))}
-              </ItemList>
-            )}
+            <StatsGrid>
+              {(stats.length > 0 ? stats : fallbackStats).map((stat) => (
+                <StatItem key={stat.label}>
+                  <StatValue>{String(stat.value)}</StatValue>
+                  <StatLabel>{stat.label}</StatLabel>
+                </StatItem>
+              ))}
+            </StatsGrid>
           </WidgetBody>
         </WidgetCard>
 
@@ -238,26 +260,8 @@ const Home: React.FC = () => {
           </WidgetBody>
         </WidgetCard>
 
-        {/* 3. Today's Numbers */}
-        <WidgetCard>
-          <WidgetHeader>
-            <WidgetIcon aria-hidden="true">📈</WidgetIcon>
-            <WidgetTitle>Today&apos;s Numbers</WidgetTitle>
-          </WidgetHeader>
-          <WidgetBody>
-            <StatsGrid>
-              {(stats.length > 0 ? stats : fallbackStats).map((stat) => (
-                <StatItem key={stat.label}>
-                  <StatValue>{String(stat.value)}</StatValue>
-                  <StatLabel>{stat.label}</StatLabel>
-                </StatItem>
-              ))}
-            </StatsGrid>
-          </WidgetBody>
-        </WidgetCard>
-
-        {/* 4. Quick Actions */}
-        <WidgetCard>
+        {/* 3. Quick Actions */}
+        <WidgetCard $fullWidth>
           <WidgetHeader>
             <WidgetIcon aria-hidden="true">⚡</WidgetIcon>
             <WidgetTitle>Quick Actions</WidgetTitle>
@@ -372,6 +376,80 @@ const SearchPlaceholder = styled.span`
   color: rgb(var(--color-text-secondary, 108, 117, 125));
 `;
 
+/* ---- Workspace Navigation Tiles ---- */
+
+const NavTileRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const NavTile = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--color-border, 222, 226, 230));
+  background: rgb(var(--color-surface, 255, 255, 255));
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: rgb(var(--color-primary, 102, 126, 234));
+    box-shadow: 0 2px 8px rgba(var(--color-primary, 102, 126, 234), 0.1);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary, 102, 126, 234));
+    outline-offset: 2px;
+  }
+`;
+
+const NavTileIcon = styled.span`
+  font-size: 1.5rem;
+  flex-shrink: 0;
+`;
+
+const NavTileContent = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const NavTileLabel = styled.div`
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary, 73, 80, 87));
+`;
+
+const NavTileDesc = styled.div`
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-secondary, 108, 117, 125));
+  margin-top: 2px;
+`;
+
+const NavTileBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgb(var(--color-primary, 102, 126, 234));
+  color: rgb(255, 255, 255);
+  flex-shrink: 0;
+`;
+
 /* ---- Widget grid ---- */
 
 const WidgetGrid = styled.div`
@@ -384,13 +462,14 @@ const WidgetGrid = styled.div`
   }
 `;
 
-const WidgetCard = styled.article`
+const WidgetCard = styled.article<{ $fullWidth?: boolean }>`
   background: rgb(var(--color-surface, 255, 255, 255));
   border: 1px solid rgb(var(--color-border, 222, 226, 230));
   border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  ${(p) => p.$fullWidth ? 'grid-column: 1 / -1;' : ''}
 `;
 
 const WidgetHeader = styled.div`
@@ -411,20 +490,6 @@ const WidgetTitle = styled.h2`
   color: rgb(var(--color-text-primary, 73, 80, 87));
   margin: 0;
   flex: 1;
-`;
-
-const Badge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: rgb(var(--color-primary, 102, 126, 234));
-  color: rgb(255, 255, 255);
 `;
 
 const WidgetBody = styled.div`
@@ -461,14 +526,6 @@ const ListItem = styled.li`
   &:last-child {
     border-bottom: none;
   }
-`;
-
-const ItemType = styled.span`
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: rgb(var(--color-primary, 102, 126, 234));
-  white-space: nowrap;
 `;
 
 const ItemTitle = styled.span`
