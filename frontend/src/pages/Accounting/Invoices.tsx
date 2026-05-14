@@ -52,7 +52,7 @@ interface Invoice {
   our_sales_order_num: string;
   date_time_stamp: string;
   due_date: string | null;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  status: 'draft' | 'pending_approval' | 'approved' | 'sent' | 'partial_paid' | 'paid' | 'overdue' | 'cancelled';
   total_amount: string;
   paid_amount?: string;
   outstanding_amount?: string;
@@ -67,7 +67,7 @@ interface Invoice {
   trade_timeline?: TradeTimelinePayload;
 }
 
-type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+type InvoiceStatus = 'draft' | 'pending_approval' | 'approved' | 'sent' | 'partial_paid' | 'paid' | 'overdue' | 'cancelled';
 
 // ============================================================================
 // Styled Components (Theme-Compliant)
@@ -488,8 +488,19 @@ const Invoices: React.FC = () => {
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.pathname, location.state, navigate]);
 
-  // Filter invoices by search query
+  // Filter invoices by status and search query
   const filteredInvoices = invoices.filter(invoice => {
+    // Status filter
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'pending_approval') {
+        if (invoice.status !== 'pending_approval' && invoice.status !== 'approved') return false;
+      } else if (statusFilter === 'paid') {
+        if (invoice.status !== 'paid' && invoice.status !== 'partial_paid') return false;
+      } else if (invoice.status !== statusFilter) {
+        return false;
+      }
+    }
+
     if (!searchQuery) return true;
 
     const query = searchQuery.toLowerCase();
@@ -504,8 +515,9 @@ const Invoices: React.FC = () => {
   const counts = {
     all: invoices.length,
     draft: invoices.filter(i => i.status === 'draft').length,
+    pending: invoices.filter(i => i.status === 'pending_approval' || i.status === 'approved').length,
     sent: invoices.filter(i => i.status === 'sent').length,
-    paid: invoices.filter(i => i.status === 'paid').length,
+    paid: invoices.filter(i => i.status === 'paid' || i.status === 'partial_paid').length,
     overdue: invoices.filter(i => i.status === 'overdue').length,
     cancelled: invoices.filter(i => i.status === 'cancelled').length,
   };
@@ -547,6 +559,9 @@ const Invoices: React.FC = () => {
             </FilterButton>
             <FilterButton $active={statusFilter === 'draft'} onClick={() => setStatusFilter('draft')}>
               Draft ({counts.draft})
+            </FilterButton>
+            <FilterButton $active={statusFilter === 'pending_approval'} onClick={() => setStatusFilter('pending_approval')}>
+              Pending ({counts.pending})
             </FilterButton>
             <FilterButton $active={statusFilter === 'sent'} onClick={() => setStatusFilter('sent')}>
               Sent ({counts.sent})

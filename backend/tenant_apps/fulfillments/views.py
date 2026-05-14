@@ -21,7 +21,32 @@ class FulfillmentViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet)
     """ViewSet for Fulfillment CRUD operations."""
     
     permission_classes = [IsAuthenticated]
-    
+
+    def perform_document_status_transition(self, request, document, next_status):
+        """Handle side effects when transitioning fulfillment status."""
+        document.status = next_status
+
+        if next_status == FulfillmentStatusChoices.SHIPPED:
+            document.shipped_by = request.user
+            if not document.ship_date:
+                document.ship_date = timezone.now().date()
+
+        elif next_status == FulfillmentStatusChoices.DELIVERED:
+            if not document.actual_delivery:
+                document.actual_delivery = timezone.now().date()
+
+        document.save()
+
+        if next_status == FulfillmentStatusChoices.COMPLETED:
+            inquiry = document.inquiry
+            if inquiry and not inquiry.fulfillments.exclude(
+                status=FulfillmentStatusChoices.COMPLETED
+            ).exists():
+                inquiry.status = 'fulfilled'
+                inquiry.save(update_fields=['status'])
+
+        return None
+
     def get_queryset(self):
         """Filter by tenant.
 

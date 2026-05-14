@@ -49,7 +49,7 @@ interface SalesOrder {
   customer_name?: string;
   order_date: string;
   delivery_date: string | null;
-  status: 'draft' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'draft' | 'pending' | 'pending_approval' | 'approved' | 'confirmed' | 'sent' | 'in_transit' | 'delivered' | 'invoiced' | 'cancelled';
   total_amount: string;
   notes: string;
   created_by: number | null;
@@ -62,7 +62,7 @@ interface SalesOrder {
   trade_timeline?: TradeTimelinePayload;
 }
 
-type OrderStatus = 'draft' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'draft' | 'pending' | 'pending_approval' | 'approved' | 'confirmed' | 'sent' | 'in_transit' | 'delivered' | 'invoiced' | 'cancelled';
 
 // ============================================================================
 // Styled Components (Theme-Compliant)
@@ -559,9 +559,15 @@ export const SalesOrdersPage: React.FC = () => {
 
   // Filter and search logic
   const filteredOrders = orders.filter(order => {
-    // Status filter
-    if (statusFilter !== 'all' && order.status !== statusFilter) {
-      return false;
+    // Status filter — group related statuses
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'pending') {
+        if (order.status !== 'pending' && order.status !== 'pending_approval') return false;
+      } else if (statusFilter === 'confirmed') {
+        if (order.status !== 'confirmed' && order.status !== 'sent') return false;
+      } else if (order.status !== statusFilter) {
+        return false;
+      }
     }
 
     // Search filter
@@ -580,11 +586,12 @@ export const SalesOrdersPage: React.FC = () => {
   const statusCounts = {
     all: orders.length,
     draft: orders.filter(o => o.status === 'draft').length,
-    confirmed: orders.filter(o => o.status === 'confirmed').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    shipped: orders.filter(o => o.status === 'shipped').length,
+    pending: orders.filter(o => o.status === 'pending' || o.status === 'pending_approval').length,
+    approved: orders.filter(o => o.status === 'approved').length,
+    confirmed: orders.filter(o => o.status === 'confirmed' || o.status === 'sent').length,
+    in_transit: orders.filter(o => o.status === 'in_transit').length,
     delivered: orders.filter(o => o.status === 'delivered').length,
-    cancelled: orders.filter(o => o.status === 'cancelled').length,
+    invoiced: orders.filter(o => o.status === 'invoiced').length,
   };
 
   return (
@@ -620,28 +627,40 @@ export const SalesOrdersPage: React.FC = () => {
               Draft ({statusCounts.draft})
             </FilterButton>
             <FilterButton 
+              $isActive={statusFilter === 'pending'}
+              onClick={() => setStatusFilter('pending')}
+            >
+              Pending ({statusCounts.pending})
+            </FilterButton>
+            <FilterButton 
+              $isActive={statusFilter === 'approved'}
+              onClick={() => setStatusFilter('approved')}
+            >
+              Approved ({statusCounts.approved})
+            </FilterButton>
+            <FilterButton 
               $isActive={statusFilter === 'confirmed'}
               onClick={() => setStatusFilter('confirmed')}
             >
               Confirmed ({statusCounts.confirmed})
             </FilterButton>
             <FilterButton 
-              $isActive={statusFilter === 'processing'}
-              onClick={() => setStatusFilter('processing')}
+              $isActive={statusFilter === 'in_transit'}
+              onClick={() => setStatusFilter('in_transit')}
             >
-              Processing ({statusCounts.processing})
-            </FilterButton>
-            <FilterButton 
-              $isActive={statusFilter === 'shipped'}
-              onClick={() => setStatusFilter('shipped')}
-            >
-              Shipped ({statusCounts.shipped})
+              In Transit ({statusCounts.in_transit})
             </FilterButton>
             <FilterButton 
               $isActive={statusFilter === 'delivered'}
               onClick={() => setStatusFilter('delivered')}
             >
               Delivered ({statusCounts.delivered})
+            </FilterButton>
+            <FilterButton 
+              $isActive={statusFilter === 'invoiced'}
+              onClick={() => setStatusFilter('invoiced')}
+            >
+              Invoiced ({statusCounts.invoiced})
             </FilterButton>
             <SearchBar
               type="text"

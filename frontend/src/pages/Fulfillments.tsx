@@ -15,6 +15,7 @@ import { businessApi } from '@/services/businessApi';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
 import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
 import StatusFilterBar from '@/components/Shared/StatusFilterBar';
+import { StatusActionCell } from '@/components/Workflow';
 import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -100,7 +101,7 @@ const Table = styled.div`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 140px 140px 1fr 120px 180px 120px 100px;
+  grid-template-columns: 140px 140px 1fr 160px 180px 120px;
   gap: 1rem;
   padding: 1rem 1.5rem;
   background: rgba(var(--color-primary), 0.05);
@@ -113,7 +114,7 @@ const TableHeader = styled.div`
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 140px 140px 1fr 120px 180px 120px 100px;
+  grid-template-columns: 140px 140px 1fr 160px 180px 120px;
   gap: 1rem;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid rgb(var(--color-border));
@@ -156,35 +157,9 @@ const EntityInfo = styled.div`
   }
 `;
 
-const StatusBadge = styled.span<{ $status: string }>`
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.625rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 500;
-  background: ${props => {
-    switch (props.$status) {
-      case 'completed':
-      case 'delivered': return 'rgba(var(--color-success), 0.15)';
-      case 'shipped': return 'rgba(var(--color-info), 0.1)';
-      case 'in_progress': return 'rgba(var(--color-warning), 0.1)';
-      case 'pending': return 'rgba(var(--color-neutral), 0.1)';
-      case 'cancelled': return 'rgba(var(--color-error), 0.1)';
-      default: return 'rgba(var(--color-neutral), 0.1)';
-    }
-  }};
-  color: ${props => {
-    switch (props.$status) {
-      case 'completed':
-      case 'delivered': return 'rgb(var(--color-success))';
-      case 'shipped': return 'rgb(var(--color-info))';
-      case 'in_progress': return 'rgb(var(--color-warning))';
-      case 'pending': return 'rgb(var(--color-neutral))';
-      case 'cancelled': return 'rgb(var(--color-error))';
-      default: return 'rgb(var(--color-neutral))';
-    }
-  }};
+const DateCell = styled.span`
+  font-size: 0.875rem;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const TrackingInfo = styled.div`
@@ -197,51 +172,6 @@ const TrackingInfo = styled.div`
   .count {
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
-  }
-`;
-
-const DateCell = styled.span`
-  font-size: 0.875rem;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const ActionButton = styled.button<{ $variant?: 'primary' | 'success' | 'secondary' }>`
-  padding: 0.375rem 0.75rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  ${props => {
-    switch (props.$variant) {
-      case 'primary':
-        return `
-          background: rgb(var(--color-primary));
-          color: rgb(var(--color-text-inverse));
-          border: none;
-          &:hover { opacity: 0.9; }
-        `;
-      case 'success':
-        return `
-          background: rgb(var(--color-success));
-          color: rgb(var(--color-text-inverse));
-          border: none;
-          &:hover { opacity: 0.9; }
-        `;
-      default:
-        return `
-          background: transparent;
-          color: rgb(var(--color-text-primary));
-          border: 1px solid rgb(var(--color-border));
-          &:hover { background: rgba(var(--color-text-primary), 0.05); }
-        `;
-    }
-  }}
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 `;
 
@@ -319,6 +249,19 @@ const PartialBadge = styled.span`
   margin-left: 0.5rem;
 `;
 
+const CreateButton = styled.button`
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-text-inverse));
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.9; }
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -347,9 +290,6 @@ const Fulfillments: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
-
-  // Action loading
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -387,68 +327,6 @@ const Fulfillments: React.FC = () => {
     fetchFulfillments();
   }, [fetchFulfillments]);
 
-  const handleAction = async (fulfillmentId: string, action: 'ship' | 'deliver' | 'complete') => {
-    setActionLoading(fulfillmentId);
-
-    try {
-      await businessApi.post(`fulfillments/${fulfillmentId}/${action}/`);
-      fetchFulfillments();
-    } catch (err) {
-      logger.error(`Failed to ${action} fulfillment:`, err);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const getActionButton = (fulfillment: FulfillmentListItem) => {
-    const isLoading = actionLoading === fulfillment.id;
-
-    switch (fulfillment.status) {
-      case 'pending':
-      case 'in_progress':
-        return (
-          <ActionButton
-            $variant="primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAction(fulfillment.id, 'ship');
-            }}
-            disabled={isLoading}
-          >
-            {isLoading ? '...' : '📦 Ship'}
-          </ActionButton>
-        );
-      case 'shipped':
-        return (
-          <ActionButton
-            $variant="success"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAction(fulfillment.id, 'deliver');
-            }}
-            disabled={isLoading}
-          >
-            {isLoading ? '...' : '✓ Deliver'}
-          </ActionButton>
-        );
-      case 'delivered':
-        return (
-          <ActionButton
-            $variant="success"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAction(fulfillment.id, 'complete');
-            }}
-            disabled={isLoading}
-          >
-            {isLoading ? '...' : '✓ Complete'}
-          </ActionButton>
-        );
-      default:
-        return null;
-    }
-  };
-
   const handleCreateClose = useCallback(() => {
     setShowCreateModal(false);
   }, []);
@@ -468,9 +346,9 @@ const Fulfillments: React.FC = () => {
     <Container>
       <Header>
         <Title>📦 Fulfillments</Title>
-        <ActionButton $variant="primary" onClick={() => setShowCreateModal(true)}>
+        <CreateButton onClick={() => setShowCreateModal(true)}>
           + Create Fulfillment
-        </ActionButton>
+        </CreateButton>
       </Header>
 
       <StatusFilterBar
@@ -497,7 +375,6 @@ const Fulfillments: React.FC = () => {
           <span>Status</span>
           <span>Tracking</span>
           <span>Est. Delivery</span>
-          <span>Action</span>
         </TableHeader>
 
         {loading ? (
@@ -538,9 +415,14 @@ const Fulfillments: React.FC = () => {
                     <div className="supplier">from {fulfillment.supplier_name}</div>
                   )}
                 </EntityInfo>
-                <StatusBadge $status={fulfillment.status}>
-                  {fulfillment.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </StatusBadge>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StatusActionCell
+                    entityType="fulfillment"
+                    entityId={fulfillment.id}
+                    status={fulfillment.status}
+                    onTransitioned={fetchFulfillments}
+                  />
+                </div>
                 <TrackingInfo>
                   {fulfillment.tracking_numbers && fulfillment.tracking_numbers.length > 0 ? (
                     <>
@@ -554,7 +436,6 @@ const Fulfillments: React.FC = () => {
                   )}
                 </TrackingInfo>
                 <DateCell>{formatDateLocal((fulfillment as any).expected_delivery ?? (fulfillment as any).estimated_delivery)}</DateCell>
-                <div>{getActionButton(fulfillment)}</div>
               </TableRow>
             ))}
 
