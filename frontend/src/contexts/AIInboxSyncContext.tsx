@@ -404,8 +404,8 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
         source,
         startedAt: now,
         finishedAt: Date.now(),
-        message: 'Email sync could not be started right now.',
-        summary: 'Email sync could not be started right now.',
+        message: 'Email integration is not configured. Connect your email in Settings to enable sync.',
+        summary: 'Email integration is not configured. Connect your email in Settings to enable sync.',
         retryable: true,
         action: {
           type: 'retry_sync',

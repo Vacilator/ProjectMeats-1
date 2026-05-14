@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
+import { Alert, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
@@ -156,22 +156,6 @@ export const LocationDetail: React.FC = () => {
     };
   }, [authError, authLoading, isAuthenticated, lid]);
 
-  const title = useMemo(() => {
-    return resolveEntityDisplay(
-      { name: location?.name, id: lid },
-      { entityType: 'location', fallbackStyle: 'id' }
-    );
-  }, [lid, location?.name]);
-
-  const customerDisplay = useMemo(
-    () =>
-      resolveEntityDisplay(
-        { name: customer?.name, id: cid },
-        { entityType: 'customer', fallbackStyle: 'id' }
-      ),
-    [cid, customer?.name]
-  );
-
   const handleNavigateToEntity = useCallback(
     (entityType: string, entityId: string, _label: string) => {
       const t = String(entityType || '').trim().toLowerCase();
@@ -270,46 +254,14 @@ export const LocationDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           gap: 12,
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button onClick={() => navigate(-1)}>Back</Button>
-          <Breadcrumb
-            items={[
-              {
-                title: (
-                  <span>
-                    Customer:{' '}
-                    <Link to={cid ? `/customers/${cid}` : '/customers'}>
-                      <span title={customerDisplay.tooltip || customerDisplay.text}>
-                        {customerDisplay.text}
-                      </span>
-                    </Link>
-                  </span>
-                ),
-              },
-              {
-                title: (
-                    <span>
-                     Locations:{' '}
-                     <span style={{ fontWeight: 700 }} title={title.tooltip || title.text}>
-                       {title.text}
-                     </span>
-                    </span>
-                  ),
-                },
-            ]}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!lid || loading || showAuthFallback}>
-            Edit Location
-          </Button>
-        </div>
+        <Button type="primary" onClick={() => setShowEditModal(true)} disabled={!lid || loading || showAuthFallback}>
+          Edit Location
+        </Button>
       </div>
 
       {showEditModal && lid && !showAuthFallback && (

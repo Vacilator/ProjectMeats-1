@@ -1,11 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Breadcrumb, Button, Card, Empty, Spin, Tabs } from 'antd';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Card, Empty, Spin, Tabs } from 'antd';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { ActivityFeed } from '@/components/Shared';
 import { businessApi } from '@/services/businessApi';
-import { resolveEntityDisplay } from '@/utils/entityDisplay';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type RouteParams = { customerId?: string; locationId?: string; contactId?: string };
@@ -58,31 +57,6 @@ export const LocationContactDetail: React.FC = () => {
     };
   }, [cid, lid, coid]);
 
-  const contactLabel = useMemo(() => {
-    return resolveEntityDisplay(
-      { first_name: contact?.first_name, last_name: contact?.last_name, id: coid },
-      { entityType: 'contact', fallbackStyle: 'id' }
-    );
-  }, [coid, contact?.first_name, contact?.last_name]);
-
-  const customerDisplay = useMemo(
-    () =>
-      resolveEntityDisplay(
-        { name: customer?.name, id: cid },
-        { entityType: 'customer', fallbackStyle: 'id' }
-      ),
-    [cid, customer?.name]
-  );
-
-  const locationDisplay = useMemo(
-    () =>
-      resolveEntityDisplay(
-        { name: location?.name, id: lid },
-        { entityType: 'location', fallbackStyle: 'id' }
-      ),
-    [lid, location?.name]
-  );
-
   const handleNavigateToEntity = useCallback(
     (entityType: string, entityId: string, _label: string) => {
       const type = String(entityType || '').trim().toLowerCase();
@@ -121,47 +95,6 @@ export const LocationContactDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button onClick={() => navigate(-1)}>Back</Button>
-          <Breadcrumb
-            items={[
-              {
-                title: (
-                  <span>
-                    Customer:{' '}
-                    <Link to={cid ? `/customers/${cid}` : '/customers'}>
-                      <span title={customerDisplay.tooltip || customerDisplay.text}>
-                        {customerDisplay.text}
-                      </span>
-                    </Link>
-                  </span>
-                ),
-              },
-              {
-                title: (
-                  <span>
-                    Locations:{' '}
-                    <Link to={`/customers/${cid}/locations/${lid}`}>
-                      <span title={locationDisplay.tooltip || locationDisplay.text}>
-                        {locationDisplay.text}
-                      </span>
-                    </Link>
-                  </span>
-                ),
-              },
-              {
-                title: (
-                  <span style={{ fontWeight: 700 }} title={contactLabel.tooltip || contactLabel.text}>
-                    {contactLabel.text}
-                  </span>
-                ),
-              },
-            ]}
-          />
-        </div>
-      </div>
-
       <div style={{ marginTop: 12 }}>
         {loading ? (
           <Card>

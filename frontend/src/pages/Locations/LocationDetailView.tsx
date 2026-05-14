@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Empty, Spin, Tabs, Tag } from 'antd';
 import styled from 'styled-components';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityFormSurface } from '@/components/Shared';
@@ -217,11 +217,6 @@ export const LocationDetailView: React.FC = () => {
     <PageWrapper>
       <TopBar>
         <TitleGroup>
-          <BreadcrumbTrail>
-            <Link to="/">Home</Link>
-            <BreadcrumbSep>/</BreadcrumbSep>
-            <Link to="/customers/locations">Locations</Link>
-          </BreadcrumbTrail>
           <PageTitle>Location</PageTitle>
         </TitleGroup>
 
@@ -322,23 +317,6 @@ const TitleGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
-`;
-
-const BreadcrumbTrail = styled.nav`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: rgb(var(--color-text-tertiary));
-  a {
-    color: rgb(var(--color-primary));
-    text-decoration: none;
-    &:hover { text-decoration: underline; }
-  }
-`;
-
-const BreadcrumbSep = styled.span`
-  color: rgb(var(--color-text-tertiary));
 `;
 
 const PageTitle = styled.h1`

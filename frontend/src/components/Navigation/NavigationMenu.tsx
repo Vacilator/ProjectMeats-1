@@ -325,6 +325,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
 
         return (
           <MenuItem key={item.label} $level={level}>
+            {item.divider && <NavDivider />}
             {menuItemContent}
             {hasChildren && (
               <AccordionContent $isExpanded={isItemExpanded && sidebarExpanded} $isDarkMode={isDarkMode}>
@@ -353,6 +354,12 @@ const MenuItem = styled.div<{ $level: number }>`
   /* Ensure each menu item is in proper stacking context */
   z-index: ${(props) => 100 - props.$level};
   /* Removed margin-bottom to ensure consistent spacing handled by baseItemStyles */
+`;
+
+const NavDivider = styled.hr`
+  border: none;
+  border-top: 1px solid rgba(var(--color-text-primary), 0.08);
+  margin: 4px 12px;
 `;
 
 const baseItemStyles = css<{ $level: number; $active: boolean; $isDarkMode: boolean }>`
