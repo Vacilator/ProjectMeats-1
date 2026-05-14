@@ -1,7 +1,12 @@
 /**
- * Golden Form Shell — Reusable form layout primitives
+ * Golden Form Shell — Reusable **presentational** form layout primitives.
  *
- * Provides the "golden standard" form design used across all create/edit modals.
+ * This file exports styled-components only. It does NOT render inside an Ant
+ * Design `<Modal>`. Consumers that need modal chrome must follow the Air Gap
+ * component-swap pattern (ADR-0002) and render GoldenFormShell primitives in a
+ * page-level or panel-level surface — never directly inside `<Modal>`.
+ *
+ * Provides the "golden standard" form design used across all create/edit surfaces.
  * Based on the Purchase Order form pattern, elevated to production quality.
  *
  * Features:
