@@ -3,27 +3,23 @@
  *
  * Clean, minimal dashboard with quick navigation to
  * My Tasks, My Trades, and Calls alongside KPI widgets.
+ * Urgency-first design: surfaces overdue items, action counts,
+ * and pipeline value so users see what needs attention immediately.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 
 import { businessApi } from '@/services/businessApi';
 import { authService } from '@/services/authService';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { UserProfile } from '@/types';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-
-interface ActionItem {
-  id: string;
-  title: string;
-  type: string;
-  created_at: string;
-}
 
 interface ActivityEntry {
   id: string;
@@ -45,6 +41,12 @@ const Home: React.FC = () => {
   useDocumentTitle('Workspace');
   const navigate = useNavigate();
   const [user, setUser] = useState<UserProfile | null>(null);
+  const { actionItems, actionItemCounts } = useNotifications();
+
+  const overdueCount = actionItemCounts?.overdue ?? 0;
+  const dueTodayCount = actionItemCounts?.due_today ?? 0;
+  const dueThisWeekCount = actionItemCounts?.due_this_week ?? 0;
+  const totalActionItems = actionItemCounts?.total ?? actionItems.length;
 
   useEffect(() => {
     void Promise.resolve(authService.getCurrentUser())
@@ -73,20 +75,6 @@ const Home: React.FC = () => {
   );
 
   /* ---- data queries ---- */
-
-  const actionItemsQuery = useQuery<ActionItem[]>({
-    queryKey: ['home', 'action-items'],
-    queryFn: async () => {
-      try {
-        const res = await businessApi.get('/action-items/');
-        return Array.isArray(res?.data) ? res.data : [];
-      } catch {
-        return [];
-      }
-    },
-    staleTime: 2 * 60 * 1000,
-    retry: 0,
-  });
 
   const recentActivityQuery = useQuery<ActivityEntry[]>({
     queryKey: ['home', 'recent-activity'],
@@ -153,7 +141,6 @@ const Home: React.FC = () => {
 
   /* ---- placeholders when endpoints don't exist yet ---- */
 
-  const actionItems: ActionItem[] = actionItemsQuery.data ?? [];
   const recentActivity: ActivityEntry[] = recentActivityQuery.data ?? [];
   const stats: QuickStat[] = quickStatsQuery.data ?? [];
   const fallbackStats: QuickStat[] = useMemo(
@@ -192,6 +179,33 @@ const Home: React.FC = () => {
         </SearchTrigger>
       </HeroSection>
 
+      {/* Urgency Callout — only shown when items need attention */}
+      {(overdueCount > 0 || dueTodayCount > 0) && (
+        <UrgencyCallout
+          $level={overdueCount > 0 ? 'critical' : 'warning'}
+          onClick={() => navigate('/my-tasks')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter') navigate('/my-tasks'); }}
+          aria-label="View items needing attention"
+        >
+          <UrgencyIcon aria-hidden="true">{overdueCount > 0 ? '🔴' : '🟠'}</UrgencyIcon>
+          <UrgencyText>
+            <UrgencyHeadline>
+              {overdueCount > 0
+                ? `${overdueCount} overdue item${overdueCount === 1 ? '' : 's'} need${overdueCount === 1 ? 's' : ''} your attention`
+                : `${dueTodayCount} item${dueTodayCount === 1 ? '' : 's'} due today`}
+            </UrgencyHeadline>
+            <UrgencyDetail>
+              {overdueCount > 0 && dueTodayCount > 0
+                ? `Plus ${dueTodayCount} due today · ${dueThisWeekCount} this week`
+                : `${dueThisWeekCount} more this week`}
+            </UrgencyDetail>
+          </UrgencyText>
+          <UrgencyAction>View Tasks →</UrgencyAction>
+        </UrgencyCallout>
+      )}
+
       {/* Workspace Navigation Tiles */}
       <NavTileRow>
         <NavTile onClick={() => navigate('/my-tasks')} aria-label="Go to My Tasks">
@@ -200,7 +214,12 @@ const Home: React.FC = () => {
             <NavTileLabel>My Tasks</NavTileLabel>
             <NavTileDesc>Action items, approvals &amp; AI drafts</NavTileDesc>
           </NavTileContent>
-          {actionItems.length > 0 && <NavTileBadge>{actionItems.length}</NavTileBadge>}
+          {overdueCount > 0 && (
+            <NavTileBadge $variant="danger">{overdueCount} overdue</NavTileBadge>
+          )}
+          {overdueCount === 0 && totalActionItems > 0 && (
+            <NavTileBadge $variant="primary">{totalActionItems}</NavTileBadge>
+          )}
         </NavTile>
         <NavTile onClick={() => navigate('/my-trades')} aria-label="Go to My Trades">
           <NavTileIcon>🔄</NavTileIcon>
@@ -246,7 +265,13 @@ const Home: React.FC = () => {
           </WidgetHeader>
           <WidgetBody>
             {recentActivity.length === 0 ? (
-              <EmptyState>No recent activity to display.</EmptyState>
+              <EmptyState>
+                <EmptyStateIcon>📊</EmptyStateIcon>
+                <EmptyStateText>No recent activity yet.</EmptyStateText>
+                <EmptyStateCTA onClick={() => navigate('/inquiries?action=create')}>
+                  Create your first inquiry →
+                </EmptyStateCTA>
+              </EmptyState>
             ) : (
               <ItemList>
                 {recentActivity.slice(0, 5).map((entry) => (
@@ -260,8 +285,43 @@ const Home: React.FC = () => {
           </WidgetBody>
         </WidgetCard>
 
-        {/* 3. Quick Actions */}
-        <WidgetCard $fullWidth>
+        {/* 3. Task Summary — quick glance at pending work */}
+        <WidgetCard>
+          <WidgetHeader>
+            <WidgetIcon aria-hidden="true">📋</WidgetIcon>
+            <WidgetTitle>Task Summary</WidgetTitle>
+            <WidgetAction onClick={() => navigate('/my-tasks')}>View all →</WidgetAction>
+          </WidgetHeader>
+          <WidgetBody>
+            <TaskSummaryGrid>
+              <TaskSummaryStat $color="error">
+                <TaskSummaryValue>{overdueCount}</TaskSummaryValue>
+                <TaskSummaryLabel>Overdue</TaskSummaryLabel>
+              </TaskSummaryStat>
+              <TaskSummaryStat $color="warning">
+                <TaskSummaryValue>{dueTodayCount}</TaskSummaryValue>
+                <TaskSummaryLabel>Due Today</TaskSummaryLabel>
+              </TaskSummaryStat>
+              <TaskSummaryStat $color="info">
+                <TaskSummaryValue>{dueThisWeekCount}</TaskSummaryValue>
+                <TaskSummaryLabel>This Week</TaskSummaryLabel>
+              </TaskSummaryStat>
+              <TaskSummaryStat $color="primary">
+                <TaskSummaryValue>{totalActionItems}</TaskSummaryValue>
+                <TaskSummaryLabel>Total</TaskSummaryLabel>
+              </TaskSummaryStat>
+            </TaskSummaryGrid>
+            {totalActionItems === 0 && (
+              <EmptyState>
+                <EmptyStateIcon>🎉</EmptyStateIcon>
+                <EmptyStateText>You&apos;re all caught up!</EmptyStateText>
+              </EmptyState>
+            )}
+          </WidgetBody>
+        </WidgetCard>
+
+        {/* 4. Quick Actions */}
+        <WidgetCard>
           <WidgetHeader>
             <WidgetIcon aria-hidden="true">⚡</WidgetIcon>
             <WidgetTitle>Quick Actions</WidgetTitle>
@@ -435,18 +495,98 @@ const NavTileDesc = styled.div`
   margin-top: 2px;
 `;
 
-const NavTileBadge = styled.span`
+const NavTileBadge = styled.span<{ $variant?: 'primary' | 'danger' }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 22px;
   height: 22px;
-  padding: 0 6px;
+  padding: 0 8px;
   border-radius: 11px;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  background: rgb(var(--color-primary, 102, 126, 234));
-  color: rgb(255, 255, 255);
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  ${(p) =>
+    p.$variant === 'danger'
+      ? css`
+          background: rgb(var(--color-error, 239, 68, 68));
+          color: rgb(255, 255, 255);
+        `
+      : css`
+          background: rgb(var(--color-primary, 102, 126, 234));
+          color: rgb(255, 255, 255);
+        `}
+`;
+
+/* ---- Urgency Callout ---- */
+
+const subtlePulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+`;
+
+const UrgencyCallout = styled.div<{ $level: 'critical' | 'warning' }>`
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+
+  ${(p) =>
+    p.$level === 'critical'
+      ? css`
+          background: rgb(var(--color-error, 239, 68, 68) / 0.08);
+          border: 1px solid rgb(var(--color-error, 239, 68, 68) / 0.3);
+          animation: ${subtlePulse} 3s ease-in-out infinite;
+        `
+      : css`
+          background: rgb(var(--color-warning, 234, 179, 8) / 0.08);
+          border: 1px solid rgb(var(--color-warning, 234, 179, 8) / 0.3);
+        `}
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary, 102, 126, 234));
+    outline-offset: 2px;
+  }
+`;
+
+const UrgencyIcon = styled.span`
+  font-size: 1.25rem;
+  flex-shrink: 0;
+`;
+
+const UrgencyText = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const UrgencyHeadline = styled.div`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary, 73, 80, 87));
+`;
+
+const UrgencyDetail = styled.div`
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-secondary, 108, 117, 125));
+  margin-top: 1px;
+`;
+
+const UrgencyAction = styled.span`
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(var(--color-primary, 102, 126, 234));
+  white-space: nowrap;
   flex-shrink: 0;
 `;
 
@@ -497,12 +637,90 @@ const WidgetBody = styled.div`
   flex: 1;
 `;
 
-const EmptyState = styled.p`
+const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 1.25rem 0;
+  text-align: center;
+`;
+
+const EmptyStateIcon = styled.span`
+  font-size: 1.5rem;
+`;
+
+const EmptyStateText = styled.p`
   font-size: 0.8125rem;
   color: rgb(var(--color-text-secondary, 108, 117, 125));
-  text-align: center;
-  padding: 1rem 0;
   margin: 0;
+`;
+
+const EmptyStateCTA = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(var(--color-primary, 102, 126, 234));
+  cursor: pointer;
+  margin-top: 0.25rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+/* ---- Task Summary ---- */
+
+const colorMap: Record<string, string> = {
+  error: 'var(--color-error, 239, 68, 68)',
+  warning: 'var(--color-warning, 234, 179, 8)',
+  info: 'var(--color-info, 59, 130, 246)',
+  primary: 'var(--color-primary, 102, 126, 234)',
+};
+
+const TaskSummaryGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+`;
+
+const TaskSummaryStat = styled.div<{ $color?: string }>`
+  text-align: center;
+  padding: 0.5rem 0.25rem;
+  border-radius: 8px;
+  background: ${(p) => `rgb(${colorMap[p.$color ?? 'primary']} / 0.06)`};
+`;
+
+const TaskSummaryValue = styled.div`
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary, 73, 80, 87));
+`;
+
+const TaskSummaryLabel = styled.div`
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: rgb(var(--color-text-secondary, 108, 117, 125));
+  margin-top: 0.125rem;
+`;
+
+/* ---- Widget header action ---- */
+
+const WidgetAction = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(var(--color-primary, 102, 126, 234));
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 /* ---- List items ---- */
