@@ -742,18 +742,18 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     navigation.clearPath();
 
     if (canonicalType === 'supplier') {
-      navigate(`/suppliers/${encodeURIComponent(id)}`);
+      navigate(`/suppliers/${encodeURIComponent(id)}?ref=search`);
       onClose?.();
       return;
     }
 
     if (canonicalType === 'customer') {
-      navigate(`/customers/${encodeURIComponent(id)}`);
+      navigate(`/customers/${encodeURIComponent(id)}?ref=search`);
       onClose?.();
       return;
     }
 
-    navigate(`/records/${encodeURIComponent(canonicalType)}/${encodeURIComponent(id)}`);
+    navigate(`/records/${encodeURIComponent(canonicalType)}/${encodeURIComponent(id)}?ref=search`);
     onClose?.();
   }, [navigate, navigation, onClose, onSelectEntity]);
 
