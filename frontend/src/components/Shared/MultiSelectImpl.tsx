@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { Select } from 'antd';
+import StableAntSelect from '../ui/StableAntSelect';
 import styled from 'styled-components';
 import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -64,7 +64,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
         </Label>
       )}
 
-      <Select
+      <StableAntSelect
         id={id}
         mode="multiple"
         showSearch

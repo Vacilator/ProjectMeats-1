@@ -10,8 +10,9 @@
  */
 
 import React, { useCallback } from 'react';
-import { Select as AntSelect, Typography } from 'antd';
+import { Typography } from 'antd';
 
+import StableAntSelect from './StableAntSelect';
 import { getAntdPopupContainer, type AntdGetPopupContainer } from '../../utils/antdPopupContainer';
 
 // Stable style references to prevent re-renders in AntD Select
@@ -60,7 +61,7 @@ export const Select: React.FC<SelectProps> = ({
 
   return (
     <div style={WRAPPER_STYLE}>
-      <AntSelect
+      <StableAntSelect
         id={id}
         aria-label={ariaLabel}
         value={normalizedValue}

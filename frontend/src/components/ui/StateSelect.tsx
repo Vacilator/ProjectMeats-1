@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { Select as AntSelect } from 'antd';
+import StableAntSelect from './StableAntSelect';
 
 import { getAntdPopupContainer, type AntdGetPopupContainer } from '../../utils/antdPopupContainer';
 import { US_STATES } from '../../utils/constants/states';
@@ -37,7 +37,7 @@ export const StateSelect: React.FC<StateSelectProps> = ({
   'aria-label': ariaLabel,
 }) => {
   return (
-    <AntSelect
+    <StableAntSelect
       value={value || undefined}
       onChange={(next) => onChange(String(next || ''))}
       placeholder={placeholder}

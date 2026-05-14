@@ -7,7 +7,7 @@
  * Wave 4 - Task 4.12: Integrated with ConfigResolver for dynamic settings.
  */
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Select as AntSelect } from 'antd';
+import { StableAntSelect } from '../../components/ui/StableAntSelect';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import cloneDeep from 'lodash/cloneDeep';
@@ -876,7 +876,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               name={namePath as never}
               control={control}
               render={({ field: controllerField }) => (
-                <AntSelect
+                <StableAntSelect
                   mode="tags"
                   value={Array.isArray(controllerField.value) ? controllerField.value : []}
                   onChange={controllerField.onChange}
@@ -907,7 +907,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               name={namePath as never}
               control={control}
               render={({ field: controllerField }) => (
-                <AntSelect
+                <StableAntSelect
                   showSearch
                   value={controllerField.value || undefined}
                   onChange={controllerField.onChange}
@@ -1093,7 +1093,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           name={field.key}
           control={control}
           render={({ field: controllerField }) => (
-            <AntSelect
+            <StableAntSelect
               id={field.key}
               mode={field.ui?.widget === 'tags' ? 'tags' : 'multiple'}
               value={Array.isArray(controllerField.value) ? controllerField.value : []}
@@ -1285,7 +1285,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
             name={field.key}
             control={control}
             render={({ field: controllerField }) => (
-                <AntSelect
+                <StableAntSelect
                   value={controllerField.value || undefined}
                   onChange={controllerField.onChange}
                   options={resolvedOptions}

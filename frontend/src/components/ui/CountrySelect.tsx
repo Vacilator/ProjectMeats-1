@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Select as AntSelect } from 'antd';
+import StableAntSelect from './StableAntSelect';
 
 import { getAntdPopupContainer, type AntdGetPopupContainer } from '../../utils/antdPopupContainer';
 import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from '../../utils/constants/countries';
@@ -44,7 +44,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   const effectiveValue = value || DEFAULT_COUNTRY;
 
   return (
-    <AntSelect
+    <StableAntSelect
       value={effectiveValue || undefined}
       onChange={(next) => onChange?.(String(next || DEFAULT_COUNTRY))}
       placeholder={placeholder}

@@ -15,13 +15,14 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthState } from '@/contexts/AuthContext';
-import { Button, Modal, Spin, message, Select, Skeleton } from 'antd';
+import { Button, Modal, Spin, message, Skeleton } from 'antd';
 import isEqual from 'lodash/isEqual';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import type { DynamicFormConfig } from '../../features/system/DynamicFormEngine';
 import EntityOptionsSelect from '../FormSubmission/SearchableSelect';
+import StableAntSelect from '../ui/StableAntSelect';
 import { isValidEmail } from '../../shared/utils';
 import { normalizeUsPhone } from '../../utils/phone';
 import { getSelectPopupContainer as getDefaultSelectPopupContainer } from '../../utils/antd';
@@ -2268,7 +2269,7 @@ const AutofillToolbar: React.FC<NonNullable<UniversalEntityFormProps['autofill']
 
   return (
     <AutofillToolbarContainer>
-      <Select
+      <StableAntSelect
         style={{ minWidth: 260, flex: '1 1 260px' }}
         placeholder="Select AI document"
         value={selectedDocumentId || undefined}
@@ -3610,7 +3611,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       <FkFieldLabel>
                         {f.label || f.key}
                       </FkFieldLabel>
-                      <Select
+                      <StableAntSelect
                         showSearch
                         filterOption={false}
                         onDropdownVisibleChange={(open) => {
@@ -3666,7 +3667,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                     <FkFieldLabel>
                       {f.label || f.key}
                     </FkFieldLabel>
-                    <Select
+                    <StableAntSelect
                       showSearch
                       options={stableFkOpts}
                       value={value || undefined}
