@@ -27,6 +27,7 @@ import {
 
 import type { DependencyItem } from '../../services/traderService';
 import { EntityFormSurface } from '../Shared';
+import { FormErrorBoundary } from '../Shared/FormErrorBoundary';
 
 // ============================================================================
 // Types
@@ -260,13 +261,15 @@ export const DependencyWizard: React.FC<DependencyWizardProps> = ({
 
       {/* Quick-create modal for missing entities */}
       {createModalType && (
-        <EntityFormSurface
-          entityType={createModalType}
-          mode="create"
-          isOpen={true}
-          onClose={handleCreateModalClose}
-          onSuccess={handleCreateSuccess}
-        />
+        <FormErrorBoundary entityType={createModalType} onClose={handleCreateModalClose}>
+          <EntityFormSurface
+            entityType={createModalType}
+            mode="create"
+            isOpen={true}
+            onClose={handleCreateModalClose}
+            onSuccess={handleCreateSuccess}
+          />
+        </FormErrorBoundary>
       )}
     </Container>
   );

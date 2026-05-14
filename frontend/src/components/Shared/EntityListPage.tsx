@@ -22,6 +22,7 @@ import { entityListPath, entityRecordPath } from '@/utils/entityTypeRegistry';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import EntityFormSurface from './EntityFormSurface';
+import { FormErrorBoundary } from './FormErrorBoundary';
 
 // ============================================================================
 // Types
@@ -300,15 +301,17 @@ export const EntityListPage: React.FC<EntityListPageProps> = ({
       />
 
       {createLabel && (
-        <EntityFormSurface
-          entityType={entityType}
-          mode="create"
-          variant="modal"
-          isOpen={showCreateForm}
-          onClose={handleCreateClose}
-          initialValues={createInitialValues}
-          onSuccess={handleCreateSuccess}
-        />
+        <FormErrorBoundary entityType={entityType} onClose={handleCreateClose}>
+          <EntityFormSurface
+            entityType={entityType}
+            mode="create"
+            variant="modal"
+            isOpen={showCreateForm}
+            onClose={handleCreateClose}
+            initialValues={createInitialValues}
+            onSuccess={handleCreateSuccess}
+          />
+        </FormErrorBoundary>
       )}
     </PageContainer>
   );

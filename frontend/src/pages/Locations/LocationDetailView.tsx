@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import { EntityFormSurface } from '@/components/Shared';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
@@ -242,15 +243,17 @@ export const LocationDetailView: React.FC = () => {
       </ContentSection>
 
       {locationId ? (
-        <EntityFormSurface
-          entityType="location"
-          mode="edit"
-          variant="modal"
-          isOpen={editOpen}
-          entityId={locationId}
-          onClose={handleEditClose}
-          onSuccess={handleEditSuccess}
-        />
+        <FormErrorBoundary entityType="location" onClose={handleEditClose}>
+          <EntityFormSurface
+            entityType="location"
+            mode="edit"
+            variant="modal"
+            isOpen={editOpen}
+            entityId={locationId}
+            onClose={handleEditClose}
+            onSuccess={handleEditSuccess}
+          />
+        </FormErrorBoundary>
       ) : null}
 
       <Card style={{ marginTop: 16 }} title="Contacts">
