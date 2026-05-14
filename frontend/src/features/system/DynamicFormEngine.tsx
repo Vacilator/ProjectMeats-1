@@ -256,36 +256,88 @@ const materializeSchemaTree = (tree: Record<string, unknown>): z.ZodObject<Recor
 
 const FormContainer = styled.form`
   width: 100%;
-  max-width: 800px;
+  max-width: 860px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 `;
 
 const FormHeader = styled.div`
-  margin-bottom: 2rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgb(var(--color-border));
 `;
 
 const FormTitle = styled.h2`
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
   color: rgb(var(--color-text-primary));
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.25rem 0;
 `;
 
 const FormDescription = styled.p`
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: rgb(var(--color-text-secondary));
+  margin: 0;
 `;
 
 const FieldGroup = styled.div`
-  margin-bottom: 1.5rem;
+  /* Individual field wrapper inside a section grid cell */
+`;
+
+const SectionCardWrapper = styled.div`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+`;
+
+const SectionCardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: rgb(var(--color-background, 249 250 251));
+  border-bottom: 1px solid rgb(var(--color-border));
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const SectionCardBody = styled.div`
+  padding: 1rem 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem 1.25rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const FullWidthField = styled.div`
+  grid-column: 1 / -1;
+`;
+
+const UnsectionedFieldsWrapper = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem 1.25rem;
+  margin-bottom: 0.5rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const Label = styled.label<{ required?: boolean }>`
   display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 0.375rem;
 
   ${props => props.required && `
     &::after {
@@ -297,14 +349,14 @@ const Label = styled.label<{ required?: boolean }>`
 
 const Input = styled.input<{ $hasError?: boolean }>`
   width: 100%;
-  padding: 0.625rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   font-family: var(--font-sans);
   color: rgb(var(--color-text-primary));
   background-color: rgb(var(--color-surface));
   border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-danger))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
   &:focus {
     outline: none;
@@ -319,21 +371,21 @@ const Input = styled.input<{ $hasError?: boolean }>`
   }
 
   &::placeholder {
-    color: rgb(var(--color-text-secondary));
+    color: rgb(var(--color-text-tertiary, 156 163 175));
   }
 `;
 
 const TextArea = styled.textarea<{ $hasError?: boolean }>`
   width: 100%;
-  min-height: 100px;
-  padding: 0.625rem 0.75rem;
+  min-height: 80px;
+  padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   font-family: var(--font-sans);
   color: rgb(var(--color-text-primary));
   background-color: rgb(var(--color-surface));
   border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-danger))' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   resize: vertical;
 
   &:focus {
@@ -343,7 +395,7 @@ const TextArea = styled.textarea<{ $hasError?: boolean }>`
   }
 
   &::placeholder {
-    color: rgb(var(--color-text-secondary));
+    color: rgb(var(--color-text-tertiary, 156 163 175));
   }
 `;
 
@@ -387,11 +439,15 @@ const ErrorText = styled.span`
 
 const FormActions = styled.div`
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   justify-content: flex-end;
-  margin-top: 2rem;
-  padding-top: 2rem;
+  margin-top: 1rem;
+  padding: 1rem 0 0;
   border-top: 1px solid rgb(var(--color-border));
+  position: sticky;
+  bottom: 0;
+  background: rgb(var(--color-surface));
+  z-index: 5;
 `;
 
 // Build Zod schema dynamically from field definitions
@@ -1474,28 +1530,82 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   };
 
   /** Renders fields with section dividers inserted between groups. */
+  const isFullWidthField = (field: FieldDefinition): boolean => {
+    const t = field.type;
+    return (
+      t === 'textarea' ||
+      t === 'inline_form_array' ||
+      field.ui?.widget === 'multi_select' ||
+      field.ui?.widget === 'tags'
+    );
+  };
+
   const renderFieldsWithSections = (fields: FieldDefinition[]) => {
-    const renderedSections = new Set<string>();
-    const output: React.ReactNode[] = [];
+    // Group visible fields by section (preserving order of first appearance)
+    const sectionOrder: string[] = [];
+    const sectionMap = new Map<string, FieldDefinition[]>();
+    const unsectionedFields: FieldDefinition[] = [];
 
     for (const field of fields) {
       if (!isFieldVisible(field)) continue;
 
       const section = field.ui?.section;
       const sectionTitle = typeof section === 'string' ? section : section?.title;
-      const sectionDescription = typeof section === 'object' ? section?.description : undefined;
 
-      if (sectionTitle && !renderedSections.has(sectionTitle)) {
-        renderedSections.add(sectionTitle);
-        output.push(
-          <SectionHeaderContainer key={`section-${sectionTitle}`}>
-            <SectionTitle>{sectionTitle}</SectionTitle>
-            {sectionDescription && <SectionDescription>{sectionDescription}</SectionDescription>}
-          </SectionHeaderContainer>
-        );
+      if (sectionTitle) {
+        if (!sectionMap.has(sectionTitle)) {
+          sectionOrder.push(sectionTitle);
+          sectionMap.set(sectionTitle, []);
+        }
+        sectionMap.get(sectionTitle)!.push(field);
+      } else {
+        unsectionedFields.push(field);
       }
+    }
 
-      output.push(renderField(field));
+    const output: React.ReactNode[] = [];
+
+    // Render unsectioned fields in a 2-column grid
+    if (unsectionedFields.length > 0) {
+      output.push(
+        <UnsectionedFieldsWrapper key="__unsectioned">
+          {unsectionedFields.map((f) => {
+            const rendered = renderField(f);
+            if (!rendered) return null;
+            return isFullWidthField(f) ? (
+              <FullWidthField key={f.key}>{rendered}</FullWidthField>
+            ) : rendered;
+          })}
+        </UnsectionedFieldsWrapper>
+      );
+    }
+
+    // Render each section as a golden card with 2-column grid
+    for (const title of sectionOrder) {
+      const sectionFields = sectionMap.get(title)!;
+      const firstField = sectionFields[0];
+      const section = firstField?.ui?.section;
+      const description = typeof section === 'object' ? section?.description : undefined;
+
+      output.push(
+        <SectionCardWrapper key={`section-${title}`}>
+          <SectionCardHeader>{title}</SectionCardHeader>
+          <SectionCardBody>
+            {sectionFields.map((f) => {
+              const rendered = renderField(f);
+              if (!rendered) return null;
+              return isFullWidthField(f) ? (
+                <FullWidthField key={f.key}>{rendered}</FullWidthField>
+              ) : rendered;
+            })}
+          </SectionCardBody>
+          {description && (
+            <div style={{ padding: '0 1.25rem 0.75rem', fontSize: '0.75rem', color: 'rgb(var(--color-text-tertiary))' }}>
+              {description}
+            </div>
+          )}
+        </SectionCardWrapper>
+      );
     }
 
     return output;
