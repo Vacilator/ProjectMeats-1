@@ -36,10 +36,17 @@ const CASCADE_RULES: Record<string, CascadeRule[]> = {
   carrierpo: [
     { parentField: 'carrier', childField: 'carrier_contact', foreignKey: 'carrier' },
   ],
+  carrier_purchase_order: [
+    { parentField: 'carrier', childField: 'carrier_contact', foreignKey: 'carrier' },
+  ],
   inquiry: [
     { parentField: 'customer', childField: 'customer_contact', foreignKey: 'customer' },
     { parentField: 'supplier', childField: 'plant', foreignKey: 'supplier' },
     { parentField: 'supplier', childField: 'supplier_contact', foreignKey: 'supplier' },
+  ],
+  fulfillment: [
+    { parentField: 'customer', childField: 'customer_location', foreignKey: 'customer' },
+    { parentField: 'supplier', childField: 'plant', foreignKey: 'supplier' },
   ],
 };
 

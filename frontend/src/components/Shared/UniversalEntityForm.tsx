@@ -148,6 +148,10 @@ const EXTRACTABLE_ENTITY_KEYS = new Set([
 const FK_PARENT_FILTERS: Record<string, { parentKey: string; paramName: string }> = {
   plant: { parentKey: 'supplier', paramName: 'supplier' },
   location: { parentKey: 'customer', paramName: 'customer' },
+  supplier_contact: { parentKey: 'supplier', paramName: 'supplier' },
+  customer_contact: { parentKey: 'customer', paramName: 'customer' },
+  carrier_contact: { parentKey: 'carrier', paramName: 'carrier' },
+  customer_location: { parentKey: 'customer', paramName: 'customer' },
 };
 
 function useDeepStableValue<T>(value: T): T {
