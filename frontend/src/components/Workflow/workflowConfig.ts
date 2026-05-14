@@ -268,6 +268,23 @@ export function getTransitionLabel(
 }
 
 /**
+ * Get allowed transitions for an entity type from a given status (client-side).
+ * Mirrors the backend `DocumentWorkflow.allowed_transitions()` by parsing
+ * transition keys in the config. Returns target status strings.
+ */
+export function getAllowedTransitions(
+  entityType: string,
+  currentStatus: string,
+): string[] {
+  const config = getWorkflowConfig(entityType);
+  if (!config) return [];
+  const prefix = `${currentStatus}→`;
+  return Object.keys(config.transitions)
+    .filter((key) => key.startsWith(prefix))
+    .map((key) => key.slice(prefix.length));
+}
+
+/**
  * Given an entity type and its current status, return the single "primary"
  * next action (the first non-cancel transition). Used for quick-action buttons
  * at the row level.
@@ -275,9 +292,10 @@ export function getTransitionLabel(
 export function getPrimaryTransition(
   entityType: string,
   currentStatus: string,
-  allowedTransitions: string[],
+  allowedTransitions?: string[],
 ): { nextStatus: string; meta: TransitionMeta } | null {
-  const nonCancel = allowedTransitions.filter((s) => s !== 'cancelled');
+  const transitions = allowedTransitions ?? getAllowedTransitions(entityType, currentStatus);
+  const nonCancel = transitions.filter((s) => s !== 'cancelled');
   if (nonCancel.length === 0) return null;
   const nextStatus = nonCancel[0];
   return { nextStatus, meta: getTransitionLabel(entityType, currentStatus, nextStatus) };
