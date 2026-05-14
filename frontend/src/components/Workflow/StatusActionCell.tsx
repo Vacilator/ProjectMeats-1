@@ -151,9 +151,20 @@ export const StatusActionCell: React.FC<StatusActionCellProps> = ({
       );
       return response.data;
     },
-    onSuccess: (_data, nextStatus) => {
+    onSuccess: (data, nextStatus) => {
       const meta = getTransitionLabel(entityType, status, nextStatus);
       message.success(`${workflowConfig?.label ?? 'Record'} → ${meta.label}`);
+
+      // Show cascade notification if a downstream entity was auto-created
+      const cascade = data?._cascade;
+      if (cascade?.triggered && cascade?.created_entity_type && !cascade?.error) {
+        const verb = cascade.already_existed ? 'already exists' : 'auto-created';
+        message.info(
+          `${cascade.created_entity_label || 'Downstream record'} ${verb}`,
+          4,
+        );
+      }
+
       void queryClient.invalidateQueries();
       onTransitioned?.();
     },
