@@ -28,6 +28,8 @@ import {
 } from '@/components/Shared';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
+import { WorkflowStatusBar } from '@/components/Workflow';
+import { getWorkflowConfig } from '@/components/Workflow/workflowConfig';
 import { businessApi } from '@/services/businessApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { type ResolvedEntityDisplay } from '@/utils/entityDisplay';
@@ -94,6 +96,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const showTabs = mode === 'view' && Boolean(entityId);
   const canShowOperationalActions = supportsOperationalActions(normalizedEntityType);
   const canShowAuditHistory = supportsAuditHistory(normalizedEntityType);
+  const hasWorkflow = Boolean(getWorkflowConfig(normalizedEntityType));
 
   const childEntityType = isSupplier ? 'plant' : 'location';
   const childEntityDisplayName = isSupplier ? 'Plant' : 'Location';
@@ -543,6 +546,14 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
             layout="grid"
             variant="compact"
           />
+
+          {hasWorkflow && (
+            <WorkflowStatusBar
+              entityType={normalizedEntityType}
+              entityId={entityId}
+              onTransitioned={handleOperationalChanged}
+            />
+          )}
 
           <AIEntityInsights entityType={normalizedEntityType} entityId={entityId} />
 

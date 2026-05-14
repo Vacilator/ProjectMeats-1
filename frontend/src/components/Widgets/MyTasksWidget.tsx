@@ -19,6 +19,7 @@ import { CheckCircle, Clock, AlertTriangle, ChevronRight, ListTodo } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
+import { StatusActionCell } from '@/components/Workflow';
 import { compareTasksSmart, isAtRiskTask, isTaskOverdue } from '../../utils/taskPrioritization';
 
 // ============================================================================
@@ -246,6 +247,17 @@ export const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
                   <TaskContent>
                     <TaskTitle>{task.title}</TaskTitle>
                     <TaskMeta>
+                      {task.entity_type && task.entity_id && task.status && (
+                        <div onClick={e => e.stopPropagation()} style={{ marginRight: 4 }}>
+                          <StatusActionCell
+                            entityType={task.entity_type}
+                            entityId={task.entity_id}
+                            status={task.status}
+                            compact
+                            onTransitioned={fetchActionItems}
+                          />
+                        </div>
+                      )}
                       {task.form_name && (
                         <TaskFormName>{task.form_name}</TaskFormName>
                       )}
