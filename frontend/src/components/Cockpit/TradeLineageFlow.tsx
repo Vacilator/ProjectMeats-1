@@ -573,7 +573,7 @@ export const TradeLineageFlow: React.FC<TradeLineageFlowProps> = ({
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
         fitView
-        fitViewOptions={{ padding: 0.3 }}
+        fitViewOptions={{ padding: 0.08, maxZoom: 1.5 }}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={!compact}

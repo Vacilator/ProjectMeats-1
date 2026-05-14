@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 
+from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 from .models import Fulfillment, FulfillmentProduct, FulfillmentStatusChoices
 from .serializers import (
     FulfillmentListSerializer,
@@ -16,7 +17,7 @@ from .serializers import (
 )
 
 
-class FulfillmentViewSet(viewsets.ModelViewSet):
+class FulfillmentViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     """ViewSet for Fulfillment CRUD operations."""
     
     permission_classes = [IsAuthenticated]
