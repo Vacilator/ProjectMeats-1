@@ -864,9 +864,12 @@ const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([400, 401, 403, 405, 426]);
  */
 const checkWSEndpointReachable = async (): Promise<boolean> => {
   try {
+    // HEAD request: lighter than GET; still confirms the endpoint exists.
+    // The browser will log the non-2xx response in devtools — that's unavoidable
+    // and harmless (426 = "upgrade to WebSocket" = endpoint exists).
     // eslint-disable-next-line no-restricted-globals -- raw fetch intentional: lightweight pre-flight probe must bypass auth interceptors
     const response = await fetch(AI_INBOX_SOCKET_PATH, {
-      method: 'GET',
+      method: 'HEAD',
       cache: 'no-store',
       credentials: 'same-origin',
       redirect: 'manual',

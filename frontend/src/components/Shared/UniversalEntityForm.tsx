@@ -3001,21 +3001,24 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
     // Smart create mode: auto-number and auto-calculated field overrides
     if (activeMode === 'create') {
-      return sorted.map((field) => {
-        const lowerKey = field.key.toLowerCase();
-        const isAutoNumber =
-          ['po_number', 'so_number', 'order_number', 'inquiry_number', 'plant_est_num'].includes(lowerKey) ||
-          ((/_(number|num)$/.test(lowerKey)) && !lowerKey.includes('phone'));
-        const isAutoCalculated = ['total_amount', 'total', 'amount'].includes(lowerKey);
+      return sorted
+        .filter((field) => {
+          const lowerKey = field.key.toLowerCase();
+          // Hide auto-calculated fields entirely on create — users don't enter these
+          const isAutoCalculated = ['total_amount', 'total', 'amount', 'subtotal', 'tax_amount', 'grand_total'].includes(lowerKey);
+          return !isAutoCalculated;
+        })
+        .map((field) => {
+          const lowerKey = field.key.toLowerCase();
+          const isAutoNumber =
+            ['po_number', 'so_number', 'order_number', 'inquiry_number', 'plant_est_num'].includes(lowerKey) ||
+            ((/_(number|num)$/.test(lowerKey)) && !lowerKey.includes('phone'));
 
-        if (isAutoNumber) {
-          return { ...field, required: false, placeholder: 'Auto-generated if left blank' };
-        }
-        if (isAutoCalculated) {
-          return { ...field, required: false, placeholder: 'Calculated automatically' };
-        }
-        return field;
-      });
+          if (isAutoNumber) {
+            return { ...field, required: false, placeholder: 'Auto-generated if left blank' };
+          }
+          return field;
+        });
     }
 
     return sorted;
