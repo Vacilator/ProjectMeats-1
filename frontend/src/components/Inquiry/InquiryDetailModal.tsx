@@ -30,6 +30,7 @@ import { TradeLineageFlow } from '../Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../Cockpit/ProcessFlowHeader';
 import { logger } from '@/utils/logger';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
+import { WorkflowStatusBar } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 // ============================================================================
@@ -153,37 +154,6 @@ const InfoItem = styled.div`
   }
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
-  display: inline-flex;
-  align-items: center;
-  padding: 0.375rem 0.75rem;
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-weight: 500;
-  background: ${props => {
-    switch (props.status) {
-      case 'accepted': return 'rgba(var(--color-success), 0.1)';
-      case 'fulfilled': return 'rgba(var(--color-success), 0.2)';
-      case 'pending': return 'rgba(var(--color-warning), 0.1)';
-      case 'quoted': return 'rgba(var(--color-info), 0.1)';
-      case 'rejected': return 'rgba(var(--color-error), 0.1)';
-      case 'expired': return 'rgba(var(--color-neutral), 0.1)';
-      default: return 'rgba(var(--color-neutral), 0.1)';
-    }
-  }};
-  color: ${props => {
-    switch (props.status) {
-      case 'accepted': return 'rgb(var(--color-success))';
-      case 'fulfilled': return 'rgb(var(--color-success))';
-      case 'pending': return 'rgb(var(--color-warning))';
-      case 'quoted': return 'rgb(var(--color-info))';
-      case 'rejected': return 'rgb(var(--color-error))';
-      case 'expired': return 'rgb(var(--color-neutral))';
-      default: return 'rgb(var(--color-neutral))';
-    }
-  }};
-`;
-
 const ProductsTable = styled.div`
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
@@ -305,12 +275,6 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'succes
   }
 `;
 
-const StatusActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-`;
-
 const ModalFooter = styled.div`
   padding: 1.5rem;
   border-top: 1px solid rgb(var(--color-border));
@@ -425,8 +389,6 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   };
 
   const canCreateFulfillment = inquiry.status === 'accepted';
-  const canQuote = inquiry.status === 'draft' || inquiry.status === 'pending';
-  const canAcceptReject = inquiry.status === 'quoted';
 
   return (
     <>
@@ -453,53 +415,16 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               </ReviewBanner>
             )}
 
-            {/* Status & Actions */}
+            {/* Status & Actions — golden workflow component */}
             <Section>
-              <SectionHeader>
-                <SectionTitle>Status</SectionTitle>
-                <StatusBadge status={inquiry.status}>
-                  {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
-                </StatusBadge>
-              </SectionHeader>
-
-              <StatusActions>
-                {canQuote && (
-                  <ActionButton
-                    variant="primary"
-                    onClick={() => handleStatusUpdate('quoted')}
-                    disabled={updatingStatus}
-                  >
-                    Mark as Quoted
-                  </ActionButton>
-                )}
-                {canAcceptReject && (
-                  <>
-                    <ActionButton
-                      variant="success"
-                      onClick={() => handleStatusUpdate('accepted')}
-                      disabled={updatingStatus}
-                    >
-                      ✓ Accept
-                    </ActionButton>
-                    <ActionButton
-                      variant="danger"
-                      onClick={() => handleStatusUpdate('rejected')}
-                      disabled={updatingStatus}
-                    >
-                      ✗ Reject
-                    </ActionButton>
-                  </>
-                )}
-                {canCreateFulfillment && (
-                  <ActionButton
-                    variant="success"
-                    onClick={() => setShowFulfillmentModal(true)}
-                    disabled={updatingStatus}
-                  >
-                    📦 Create Fulfillment
-                  </ActionButton>
-                )}
-              </StatusActions>
+              <WorkflowStatusBar
+                entityType="inquiry"
+                entityId={String(inquiry.id)}
+                compact
+                onTransitioned={() => {
+                  onUpdate?.(inquiry);
+                }}
+              />
             </Section>
 
             {/* Customer/Supplier Info */}

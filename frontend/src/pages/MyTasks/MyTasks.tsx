@@ -26,6 +26,7 @@ import {
   aiStaffApi,
   PendingReviewItem,
 } from '../../services/aiService';
+import { StatusActionCell } from '@/components/Workflow';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { compareTasksSmart, isAtRiskTask } from '../../utils/taskPrioritization';
 
@@ -737,6 +738,18 @@ export const MyTasks: React.FC = () => {
                     <Tooltip title={item.priority}>
                       <PriorityDot $priority={item.priority} />
                     </Tooltip>
+
+                    {item.entity_type && item.entity_id && item.status && (
+                      <div onClick={e => e.stopPropagation()}>
+                        <StatusActionCell
+                          entityType={item.entity_type}
+                          entityId={item.entity_id}
+                          status={item.status}
+                          compact
+                          onTransitioned={fetchActionItems}
+                        />
+                      </div>
+                    )}
 
                     <RowContent>
                       <RowTitle>{item.title}</RowTitle>
