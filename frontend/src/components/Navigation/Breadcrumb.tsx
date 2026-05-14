@@ -239,14 +239,9 @@ const Breadcrumb: React.FC = () => {
     return null;
   }
 
-  // The last breadcrumb item is rendered as the page header, not in the trail.
+  // The last breadcrumb item is NOT rendered in the trail — it's handled by
+  // each page's own EntityPageHeader component.
   const trailItems = breadcrumbItems.slice(0, -1);
-  const lastItem = breadcrumbItems[breadcrumbItems.length - 1];
-  const pageTitle =
-    resolvedNameMap.get(lastItem.routeTo) ||
-    (lastItem.resolver
-      ? fallbackEntityLabel(lastItem.resolver.singularLabel, lastItem.pathname)
-      : lastItem.staticDisplayName);
 
   return (
     <BreadcrumbWrapper>
@@ -269,7 +264,6 @@ const Breadcrumb: React.FC = () => {
           );
         })}
       </BreadcrumbContainer>
-      <PageHeading>{pageTitle}</PageHeading>
     </BreadcrumbWrapper>
   );
 };
@@ -308,14 +302,6 @@ const BreadcrumbContainer = styled.nav`
   font-size: 14px;
   flex-wrap: wrap;
   gap: 4px;
-`;
-
-const PageHeading = styled.h1`
-  margin: 8px 0 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary, 73, 80, 87));
-  line-height: 1.3;
 `;
 
 const BreadcrumbItem = styled.div`
