@@ -19,7 +19,7 @@
 
 | Priority | Ticket | Phase | Domain |
 |----------|--------|-------|--------|
-| Ready | AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice | Phase 38 | backend/tests |
+| Shipped | AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice | Phase 38 | backend/tests |
 | Shipped | AUTO-38.3 recoverable-sync-retry-reconnect-and-progress-cta | Phase 38 | full-stack |
 | Shipped | AUTO-38.1 backend-email-ingest-error-contract-and-status-metadata | Phase 38 | backend/api |
 | Shipped | AUTO-38.2 ai-inbox-provenance-parse-status-and-retryability-badges | Phase 38 | frontend |
@@ -260,8 +260,9 @@ Phase 19 (AMB-01→AMB-04)           │                                  │
   - **Completion evidence destination:** `.github/MASTER_PLAN.md`
   - **Shipped evidence:** PR #5339
 
-- [ ] **AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice**
-  - **Status:** Ready
+- [x] **AUTO-38.4 sample-email-dev-regression-for-po-so-fulfillment-invoice**
+  - **Status:** Shipped
+  - **Shipped evidence:** PR #5399
   - **Why now:** The automation chain is shipped, but sample-email end-to-end coverage was explicitly deferred; once the reliability/diagnostics contract is complete, the last-mile guardrail is deterministic regression coverage through the ingest-to-fulfillment path.
   - **Canonical source reference:** `MASTER_PLAN.md` -> Phase 21 deferred sample-email note; `MASTER_PLAN.md` -> Phase 38
   - **Scope:** Add deterministic sample-email regression coverage for the PO→SO→fulfillment→invoice chain using stable fixtures and the new reliability semantics.
