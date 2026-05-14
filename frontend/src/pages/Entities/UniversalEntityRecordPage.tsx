@@ -26,6 +26,7 @@ import {
   EntityFormSurface,
   UnifiedEntityTable,
 } from '@/components/Shared';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { businessApi } from '@/services/businessApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -832,15 +833,17 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
           />
 
           {(isSupplier || isCustomer) && (
-            <EntityFormSurface
-              entityType={childEntityType}
-              mode="create"
-              variant="modal"
-              isOpen={childCreateOpen}
-              onClose={handleChildCreateClose}
-              onSuccess={handleChildCreateSuccess}
-              initialValues={childCreateInitialValues}
-            />
+            <FormErrorBoundary entityType={childEntityType} onClose={handleChildCreateClose}>
+              <EntityFormSurface
+                entityType={childEntityType}
+                mode="create"
+                variant="modal"
+                isOpen={childCreateOpen}
+                onClose={handleChildCreateClose}
+                onSuccess={handleChildCreateSuccess}
+                initialValues={childCreateInitialValues}
+              />
+            </FormErrorBoundary>
           )}
         </>
       )}

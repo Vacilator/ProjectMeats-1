@@ -60,11 +60,6 @@ export const navigation: NavigationItem[] = [
     divider: true,
     children: [
       {
-        label: 'All Suppliers',
-        icon: '🏭',
-        path: '/suppliers',
-      },
-      {
         label: 'Plants',
         icon: '🏗️',
         path: '/suppliers/plants',
@@ -81,11 +76,6 @@ export const navigation: NavigationItem[] = [
     icon: '👥',
     path: '/customers',
     children: [
-      {
-        label: 'All Customers',
-        icon: '👥',
-        path: '/customers',
-      },
       {
         label: 'Locations',
         icon: '📍',
