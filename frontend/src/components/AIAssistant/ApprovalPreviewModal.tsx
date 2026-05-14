@@ -158,8 +158,7 @@ const ApprovalPreviewModal: React.FC<ApprovalPreviewModalProps> = ({
       width={640}
       destroyOnClose
     >
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-      <div onKeyDown={handleKeyDown}>
+      <div role="presentation" onKeyDown={handleKeyDown}>
         {request.aiGenerated && (
           <Alert
             message="AI-Generated Content"

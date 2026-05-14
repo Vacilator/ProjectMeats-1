@@ -125,12 +125,12 @@ describe('Breadcrumb', () => {
       expect(homeLink).toHaveAttribute('href', '/');
     });
 
-    it('renders last trail item as text, not link', () => {
+    it('renders last trail item as link to parent', () => {
       renderWithRouter('/suppliers/details');
 
-      // "Suppliers" is the last item in the trail (Details is the page header, not shown)
-      const suppliersText = screen.getByText('Suppliers');
-      expect(suppliersText.tagName).not.toBe('A');
+      // "Suppliers" is the last item in the trail — still a link to the parent route
+      const suppliersLink = screen.getByText('Suppliers');
+      expect(suppliersLink.tagName).toBe('A');
     });
   });
 

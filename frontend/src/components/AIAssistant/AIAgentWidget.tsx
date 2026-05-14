@@ -162,7 +162,7 @@ const renderAttachmentIcon = (
 };
 
 // Idle state: no animation — static shadow for zero visual noise
-const calmPulse = keyframes`
+const _calmPulse = keyframes`
   0%, 100% { box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10); }
 `;
 
@@ -1007,7 +1007,7 @@ function processInline(text: string): React.ReactNode {
     parts.push(text.slice(lastIdx));
   }
 
-  return parts.length ? <>{parts}</> : text;
+  return parts.length ? <span>{parts}</span> : text;
 }
 
 function renderInlineMarkdown(text: string): React.ReactNode {
@@ -1033,7 +1033,7 @@ function renderInlineMarkdown(text: string): React.ReactNode {
       </React.Fragment>
     ));
 
-    return paragraphs.length > 1 ? <p key={pIdx}>{lineElements}</p> : <>{lineElements}</>;
+    return paragraphs.length > 1 ? <p key={pIdx}>{lineElements}</p> : <span>{lineElements}</span>;
   });
 }
 
@@ -1076,7 +1076,7 @@ export const AIAgentWidget: React.FC = () => {
   const [fullscreen, setFullscreen] = useState(false);
   const { data: health } = useHealth();
   const aiEnabled = health?.features?.ai ?? true;
-  const { preferences: aiPrefs, updatePreference: updateAIPref, isLoading: prefsLoading } = useAIPreferences();
+  const { preferences: aiPrefs, updatePreference: updateAIPref, isLoading: _prefsLoading } = useAIPreferences();
   const [aiInboxCount, setAiInboxCount] = useState(0);
   const [detail, setDetail] = useState<ReviewRequiredDetail>({});
   const [draft, setDraft] = useState('');

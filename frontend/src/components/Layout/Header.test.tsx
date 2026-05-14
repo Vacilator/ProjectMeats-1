@@ -421,10 +421,10 @@ describe('Header', () => {
       fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
       fireEvent.click(screen.getByText('Resume Workspace Tour'));
 
-      expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard?tour=cockpit');
+      expect(mockNavigate).toHaveBeenCalledWith('/?tour=cockpit');
     });
 
-    it('links the onboarding menu to the Cockpit workspace', () => {
+    it('links the onboarding menu to the Home workspace', () => {
       render(
         <MemoryRouter initialEntries={['/sales-orders']}>
           <Header />
@@ -432,9 +432,9 @@ describe('Header', () => {
       );
 
       fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
-      fireEvent.click(screen.getByText('Open Workspace Dashboard'));
+      fireEvent.click(screen.getByText('Start Workspace Tour'));
 
-      expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard');
+      expect(mockNavigate).toHaveBeenCalledWith('/?tour=cockpit');
     });
   });
 
@@ -468,7 +468,7 @@ describe('Header', () => {
         expect(screen.getByText('New Supplier')).toBeInTheDocument();
         expect(screen.getByText('New Customer')).toBeInTheDocument();
         expect(screen.getByText('New Purchase Order')).toBeInTheDocument();
-        expect(screen.getByText('Home')).toBeInTheDocument();
+        expect(screen.getByText('New Inquiry')).toBeInTheDocument();
       });
     });
 
