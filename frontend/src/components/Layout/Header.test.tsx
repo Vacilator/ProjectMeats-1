@@ -421,10 +421,10 @@ describe('Header', () => {
       fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
       fireEvent.click(screen.getByText('Resume Workspace Tour'));
 
-      expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard?tour=cockpit');
+      expect(mockNavigate).toHaveBeenCalledWith('/?tour=cockpit');
     });
 
-    it('links the onboarding menu to the Cockpit workspace', () => {
+    it('links the onboarding menu to the Home workspace', () => {
       render(
         <MemoryRouter initialEntries={['/sales-orders']}>
           <Header />
@@ -434,7 +434,7 @@ describe('Header', () => {
       fireEvent.click(screen.getByRole('button', { name: /onboarding help/i }));
       fireEvent.click(screen.getByText('Open Workspace Dashboard'));
 
-      expect(mockNavigate).toHaveBeenCalledWith('/cockpit/dashboard');
+      expect(mockNavigate).toHaveBeenCalledWith('/');
     });
   });
 
