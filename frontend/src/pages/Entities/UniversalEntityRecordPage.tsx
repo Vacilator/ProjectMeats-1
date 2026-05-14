@@ -30,7 +30,7 @@ import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { TradeJourneyTimeline } from '@/components/Trader/TradeJourneyTimeline';
 import { TradeLineageActions } from '@/components/Trader/TradeLineageActions';
-import { WorkflowStatusBar } from '@/components/Workflow';
+import { PartyRoleBadges, WorkflowStatusBar } from '@/components/Workflow';
 import { getWorkflowConfig } from '@/components/Workflow/workflowConfig';
 import { businessApi } from '@/services/businessApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -573,6 +573,13 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
               entityType={normalizedEntityType}
               entityId={entityId}
               onTransitioned={handleOperationalChanged}
+            />
+          )}
+
+          {isTradeEntity && (
+            <PartyRoleBadges
+              entityType={normalizedEntityType}
+              entityId={entityId}
             />
           )}
 

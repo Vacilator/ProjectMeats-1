@@ -10,6 +10,9 @@ export type { StatusActionCellProps } from './StatusActionCell';
 export { WorkflowStatusBar } from './WorkflowStatusBar';
 export type { WorkflowStatusBarProps } from './WorkflowStatusBar';
 
+export { PartyRoleBadges } from './PartyRoleBadges';
+export type { PartyRoleBadgesProps } from './PartyRoleBadges';
+
 export {
   getWorkflowConfig,
   getTransitionLabel,
