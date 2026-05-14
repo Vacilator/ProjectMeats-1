@@ -408,15 +408,23 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const fkOptionsQuery = useQuery(fkOptionsQueryOptions);
   const rawFkOptions = useMemo<FkOptionsMap>(() => fkOptionsQuery.data ?? {}, [fkOptionsQuery.data]);
 
-  // Cascade filtering: filter child FK options based on parent field values
+  // Cascade filtering: filter child FK options based on parent field values.
+  // Deep-equality guard prevents render cascades: DFE fires onValuesChange on
+  // every watched value update (new ref each time). Without this check,
+  // setLiveFormValues → re-render → new props to UEF → DFE re-render →
+  // onValuesChange → loop → React error #185.
   const [liveFormValues, setLiveFormValues] = useState<Record<string, unknown>>({});
+  const liveFormValuesRef = useRef<Record<string, unknown>>({});
   const fkOptions = useMemo<FkOptionsMap>(
     () => applyCascadeFilter(normalizedEntityKey, rawFkOptions as CascadeFkOptionsMap, liveFormValues) as unknown as FkOptionsMap,
     [normalizedEntityKey, rawFkOptions, liveFormValues],
   );
   const handleValuesChange = useCallback(
     (values: Record<string, unknown>) => {
-      setLiveFormValues(values);
+      if (!isEqual(liveFormValuesRef.current, values)) {
+        liveFormValuesRef.current = values;
+        setLiveFormValues(values);
+      }
       onValuesChange?.(values);
     },
     [onValuesChange],

@@ -704,10 +704,22 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     return stableFields.filter((f) => !keySet.has(String(f.key).toLowerCase()));
   }, [hasKeySplit, keySet, stableFields]);
 
-  // Get options for a select field (static or dynamic)
+  // Get options for a select field (static or dynamic).
+  // Memoized per field key to prevent new array references on every render,
+  // which would cause AntD Select to re-evaluate its internal motion/status
+  // hooks and trigger React error #185 (max update depth exceeded).
+  const fieldOptionsCache = useRef<Record<string, { input: unknown; result: PreloadedOption[] }>>({});
   const getFieldOptions = (field: FieldDefinition): PreloadedOption[] => {
+    const cacheKey = String(field.key);
+    const inputSignature = field.options?.length
+      ? field.options
+      : dropdownOptions[field.key] || EMPTY_OPTIONS;
+    const cached = fieldOptionsCache.current[cacheKey];
+    if (cached && cached.input === inputSignature) {
+      return cached.result;
+    }
+
     let options: PreloadedOption[];
-    // Use provided options first
     if (field.options?.length) {
       options = field.options.map((opt) => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
     } else {
@@ -721,9 +733,10 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         value: '__CREATE_NEW__',
         label: `+ Add New ${entityLabel}`,
       };
-      return [addNewOption, ...options];
+      options = [addNewOption, ...options];
     }
 
+    fieldOptionsCache.current[cacheKey] = { input: inputSignature, result: options };
     return options;
   };
 
@@ -1166,6 +1179,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       field.ui?.option_groups?.[dependencyLookupKey] ||
       field.ui?.option_groups?.[dependencyLookupKey.toLowerCase()] ||
       field.ui?.option_groups?.default;
+    // Use cached field options to maintain stable references for AntD Select
     const resolvedOptions = conditionalOptions?.length
       ? conditionalOptions.map((option) =>
           typeof option === 'string' ? { value: option, label: option } : option

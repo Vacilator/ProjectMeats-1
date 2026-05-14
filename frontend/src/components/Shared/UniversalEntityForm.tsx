@@ -131,6 +131,7 @@ type PreloadedDropdownOption = {
 };
 
 const EMPTY_FORM_VALUES: Record<string, unknown> = {};
+const EMPTY_FK_SELECT_OPTIONS: { value: string; label: string }[] = [];
 const EXTRACTABLE_ENTITY_KEYS = new Set([
   'purchase_order',
   'sales_order',
@@ -2450,6 +2451,23 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     ? initialResolvedValues
     : stableResolvedInitialValues;
   const resolvedFkOptions = externalFkOptions ?? fkOptions;
+
+  // Pre-computed AntD-compatible Select options for FK fallback fields.
+  // Avoids creating new array/object references inside JSX on every render,
+  // which triggers AntD Select internal state updates → React error #185.
+  const fkSelectOptionsMap = useMemo(() => {
+    const map: Record<string, { value: string; label: string }[]> = {};
+    for (const [key, opts] of Object.entries(resolvedFkOptions)) {
+      if (Array.isArray(opts)) {
+        map[key] = (opts as Array<{ id?: unknown; name?: unknown }>).map((o) => ({
+          value: String(o.id),
+          label: String(o.name ?? o.id ?? ''),
+        }));
+      }
+    }
+    return map;
+  }, [resolvedFkOptions]);
+
   const mergedDropdownOptions = useMemo(() => {
     const allKeys = new Set([
       ...Object.keys(asyncDropdownOptions),
@@ -3630,7 +3648,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                   );
                 }
 
-                const options = resolvedFkOptions[f.key] || [];
+                const stableFkOpts = fkSelectOptionsMap[f.key] || EMPTY_FK_SELECT_OPTIONS;
                 return (
                   <div key={f.key}>
                     <FkFieldLabel>
@@ -3638,7 +3656,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                     </FkFieldLabel>
                     <Select
                       showSearch
-                      options={options.map((o) => ({ value: String(o.id), label: o.name }))}
+                      options={stableFkOpts}
                       value={value || undefined}
                       onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
                       getPopupContainer={getSelectPopupContainer}
