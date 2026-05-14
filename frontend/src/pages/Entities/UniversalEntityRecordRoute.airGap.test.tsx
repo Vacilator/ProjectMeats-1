@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import UniversalEntityRecordRoute from './UniversalEntityRecordRoute';
 
@@ -91,22 +92,25 @@ const LocationEcho: React.FC = () => {
 describe('UniversalEntityRecordRoute air gap', () => {
   it('routes invoice edit actions onto the standalone edit route instead of opening a modal', async () => {
     const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
     render(
-      <MemoryRouter initialEntries={['/records/invoice/123']}>
-        <Routes>
-          <Route path="/records/:entityType/:id" element={<><LocationEcho /><UniversalEntityRecordRoute /></>} />
-          <Route
-            path="/records/:entityType/:id/edit"
-            element={
-              <>
-                <LocationEcho />
-                <UniversalEntityRecordRoute mode="edit" />
-              </>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/records/invoice/123']}>
+          <Routes>
+            <Route path="/records/:entityType/:id" element={<><LocationEcho /><UniversalEntityRecordRoute /></>} />
+            <Route
+              path="/records/:entityType/:id/edit"
+              element={
+                <>
+                  <LocationEcho />
+                  <UniversalEntityRecordRoute mode="edit" />
+                </>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     );
 
     expect(await screen.findByRole('button', { name: /^edit$/i })).toBeInTheDocument();
