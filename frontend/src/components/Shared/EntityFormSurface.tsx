@@ -9,6 +9,11 @@
  * This is the consolidation layer that lets the same form be embedded
  * in a modal today, and later embedded inline/panels/workforms without
  * duplicating per-entry-point logic.
+ *
+ * The Modal variant includes an **internal** error boundary so that React
+ * render crashes (e.g. Error #185 — maximum update depth) are caught and
+ * displayed *inside* the modal instead of silently replacing it with an
+ * invisible inline fallback.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
@@ -22,6 +27,7 @@ import { useAuthState } from '@/contexts/AuthContext';
 import { buildEntityCascade, buildRouteHierarchy } from '@/hooks/useEntityCascade';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { applyCascadeFilter, type FkOptionsMap as CascadeFkOptionsMap } from '@/utils/fkCascadeMap';
+import { logger } from '@/utils/logger';
 
 import UniversalEntityForm, {
   augmentSchemaForFrontend,
@@ -86,6 +92,9 @@ type FkOption = { id: string | number; name: string };
 type FkOptionsMap = Record<string, FkOption[]>;
 type FkDescriptor = { fieldKey: string; relatedEntity: string };
 
+/** Loading timeout in milliseconds — after this, show a retry prompt instead of infinite skeleton. */
+const SCHEMA_LOAD_TIMEOUT_MS = 12_000;
+
 function useDeepStableValue<T>(value: T): T {
   const ref = useRef(value);
 
@@ -149,6 +158,75 @@ const fetchEntityFormFkOptionsBatch = async (
   }, {});
 };
 
+// ---------------------------------------------------------------------------
+// Internal error boundary — renders inside the Modal so crashes are visible
+// ---------------------------------------------------------------------------
+
+interface ModalFormErrorBoundaryProps {
+  children: React.ReactNode;
+  onRetry: () => void;
+  entityType: string;
+}
+
+interface ModalFormErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ModalFormErrorBoundary extends React.Component<ModalFormErrorBoundaryProps, ModalFormErrorBoundaryState> {
+  constructor(props: ModalFormErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ModalFormErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    logger.warn(`[EntityFormSurface] ${this.props.entityType} form crashed`, {
+      component: 'ModalFormErrorBoundary',
+      metadata: { error: error.message, stack: errorInfo.componentStack?.slice(0, 500) },
+    });
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+    this.props.onRetry();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      const isMaxUpdate =
+        this.state.error?.message?.includes('Maximum update depth') ||
+        this.state.error?.message?.includes('#185');
+
+      return (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: 'rgb(var(--color-text-primary))' }}>
+            {isMaxUpdate ? 'Form loading issue' : 'Something went wrong'}
+          </div>
+          <div style={{ fontSize: 13, color: 'rgb(var(--color-text-secondary))', marginBottom: 16, maxWidth: 360, margin: '0 auto 16px' }}>
+            {isMaxUpdate
+              ? `The ${this.props.entityType} form encountered a rendering loop. This usually resolves on retry.`
+              : `An unexpected error occurred while loading the ${this.props.entityType} form.`}
+          </div>
+          <Button type="primary" onClick={this.handleRetry} size="small">
+            Try Again
+          </Button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   entityType,
   mode,
@@ -169,6 +247,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const stableInitialValues = useDeepStableValue(initialValues ?? EMPTY_INITIAL_VALUES);
   const stableContext = useDeepStableValue(context);
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
 
   const useUniversalInquiryCreate = getRuntimeConfigBoolean('USE_UNIVERSAL_INQUIRY_CREATE', false);
   const handleClose = useStableCallback(onClose);
@@ -190,34 +269,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     [derivedInitialValues, routeHierarchy, stableContext]
   );
 
-  useEffect(() => {
-    if (!isOpen) {
-      setFormSubmitting(false);
-    }
-  }, [isOpen]);
-
-  // Enhanced form: Inquiry (create) — can be swapped to UniversalEntityForm via runtime flag.
-  if (normalized === 'inquiry' && mode === 'create' && !useUniversalInquiryCreate && !forceUniversal) {
-    const initialEntityType = context?.customerId
-      ? 'customer'
-      : context?.supplierId
-        ? 'supplier'
-        : undefined;
-    const initialEntityId = context?.customerId ?? context?.supplierId;
-
-    return (
-      <InquiryCreateModal
-        isOpen={isOpen}
-        onClose={handleClose}
-        onSuccess={handleSuccess}
-        initialEntityType={initialEntityType}
-        initialEntityId={initialEntityId}
-        sourceCallId={context?.sourceCallId}
-        initialValues={stableInitialValues}
-        onValuesChange={onValuesChange}
-      />
-    );
-  }
+  // --- All hooks MUST be above this line (before any conditional returns) ---
 
   // Default: Universal schema-driven form.
   const shouldHydrate = isOpen && !authLoading && isAuthenticated;
@@ -227,6 +279,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     entityId != null &&
     String(entityId).trim().length > 0;
 
+  // Auth redirect for unauthenticated users
   useEffect(() => {
     if (!isOpen || authLoading || isAuthenticated || typeof window === 'undefined') {
       return;
@@ -250,12 +303,41 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     }
   }, [authLoading, isAuthenticated, isOpen]);
 
+  // Reset submitting state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setFormSubmitting(false);
+      setLoadTimedOut(false);
+    }
+  }, [isOpen]);
+
+  // Loading timeout: if form hasn't loaded after SCHEMA_LOAD_TIMEOUT_MS, show retry prompt
+  useEffect(() => {
+    if (!isOpen || !shouldHydrate) return;
+
+    const timer = window.setTimeout(() => {
+      setLoadTimedOut(true);
+    }, SCHEMA_LOAD_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isOpen, shouldHydrate]);
+
   const schemaQueryOptions = useMemo(
     () => ({
       queryKey: withTenantQueryKey('entity-form-schema', normalizedEntityKey),
-      queryFn: () => fetchUniversalEntitySchema(entityType),
+      queryFn: async () => {
+        const result = await fetchUniversalEntitySchema(entityType);
+        if (!result || !Array.isArray(result.fields) || result.fields.length === 0) {
+          logger.warn('[EntityFormSurface] Schema loaded but has no fields', {
+            component: 'EntityFormSurface',
+            metadata: { entityType, normalizedEntityKey, resultKeys: result ? Object.keys(result) : 'null' },
+          });
+        }
+        return result;
+      },
       enabled: shouldHydrate,
       staleTime: 5 * 60 * 1000,
+      retry: 2,
     }),
     [entityType, normalizedEntityKey, shouldHydrate]
   );
@@ -377,6 +459,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     return baseLabel;
   }, [augmentedSchema?.name, entityType, mode, schemaQuery.data?.name]);
   const handleRetry = useCallback(() => {
+    setLoadTimedOut(false);
     void queryClient.invalidateQueries({
       queryKey: withTenantQueryKey('entity-form-schema', normalizedEntityKey),
     });
@@ -390,30 +473,6 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     }
   }, [queryClient, normalizedEntityKey, entityId]);
 
-  const loaderBody = (
-    <div style={{ padding: 16 }}>
-      <Skeleton active paragraph={{ rows: 6 }} />
-    </div>
-  );
-  const isAuthError =
-    (formLoadError as any)?.response?.status === 401 ||
-    (formLoadError as any)?.response?.status === 403;
-  const errorBody = (
-    <div style={{ padding: 16, textAlign: 'center', color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-      <div style={{ marginBottom: 12 }}>
-        {isAuthError
-          ? 'Authentication required. Redirecting to login…'
-          : 'Unable to load form. The schema or record data could not be fetched.'}
-      </div>
-      {!isAuthError && (
-        <Button type="primary" onClick={handleRetry} size="small">
-          Retry
-        </Button>
-      )}
-    </div>
-  );
-  const shouldMountForm = isOpen && formReady && !formLoading && !formLoadError;
-
   const formSubmittingRef = useRef(formSubmitting);
   formSubmittingRef.current = formSubmitting;
   const handleCancel = useCallback(() => {
@@ -424,19 +483,83 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     () => ({ closable: !formSubmitting }),
     [formSubmitting]
   );
+
+  // Determine effective load error (including timeout)
+  const effectiveLoadError = formLoadError || (loadTimedOut && formLoading ? { timeout: true } : null);
+  const shouldMountForm = isOpen && formReady && !formLoading && !effectiveLoadError;
+
+  const isAuthError =
+    (effectiveLoadError as any)?.response?.status === 401 ||
+    (effectiveLoadError as any)?.response?.status === 403;
+  const isTimeoutError = (effectiveLoadError as any)?.timeout === true;
+
+  const loaderBody = (
+    <div style={{ padding: 16 }}>
+      <Skeleton active paragraph={{ rows: 6 }} />
+    </div>
+  );
+
+  const errorBody = (
+    <div style={{ padding: 24, textAlign: 'center' }}>
+      <div style={{ fontSize: 36, marginBottom: 12 }}>
+        {isTimeoutError ? '⏱️' : isAuthError ? '🔒' : '⚠️'}
+      </div>
+      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: 'rgb(var(--color-text-primary))' }}>
+        {isTimeoutError
+          ? 'Loading is taking too long'
+          : isAuthError
+            ? 'Authentication required'
+            : 'Unable to load form'}
+      </div>
+      <div style={{ fontSize: 13, color: 'rgb(var(--color-text-secondary))', marginBottom: 16, maxWidth: 360, margin: '0 auto 16px' }}>
+        {isTimeoutError
+          ? 'The form schema is taking longer than expected. The backend may be unavailable. You can retry or close this dialog.'
+          : isAuthError
+            ? 'Your session may have expired. Please log in again.'
+            : 'The form schema or record data could not be fetched. Please try again.'}
+      </div>
+      {!isAuthError && (
+        <Button type="primary" onClick={handleRetry} size="small">
+          Retry
+        </Button>
+      )}
+    </div>
+  );
+
+  // --- Conditional renders ---
+
+  // Enhanced form: Inquiry (create) — can be swapped to UniversalEntityForm via runtime flag.
+  if (normalized === 'inquiry' && mode === 'create' && !useUniversalInquiryCreate && !forceUniversal) {
+    const initialEntityType = context?.customerId
+      ? 'customer'
+      : context?.supplierId
+        ? 'supplier'
+        : undefined;
+    const initialEntityId = context?.customerId ?? context?.supplierId;
+
+    return (
+      <InquiryCreateModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        onSuccess={handleSuccess}
+        initialEntityType={initialEntityType}
+        initialEntityId={initialEntityId}
+        sourceCallId={context?.sourceCallId}
+        initialValues={stableInitialValues}
+        onValuesChange={onValuesChange}
+      />
+    );
+  }
+
   if (variant === 'modal' && !isOpen) {
     return null;
   }
 
-  if (!formReady || formLoading || formLoadError) {
-    const fallbackContent = formLoadError ? errorBody : loaderBody;
-
-    if (variant === 'inline') {
-      return fallbackContent;
-    }
-  }
-
   if (variant === 'inline') {
+    if (!formReady || formLoading || effectiveLoadError) {
+      return effectiveLoadError ? errorBody : loaderBody;
+    }
+
     return (
       <UniversalEntityForm
         key={formKey}
@@ -452,7 +575,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         externalSchema={augmentedSchema}
         externalRecordValues={recordQuery.data ?? null}
         externalLoading={formLoading}
-        externalLoadError={formLoadError}
+        externalLoadError={effectiveLoadError}
         externalFkOptions={fkOptions}
         onSubmittingChange={setFormSubmitting}
         onValuesChange={handleValuesChange}
@@ -460,6 +583,9 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     );
   }
 
+  // --- Modal variant ---
+  // The ModalFormErrorBoundary catches React render errors INSIDE the modal
+  // so the user sees the error in the dialog, not as an invisible inline fallback.
   return (
     <Modal
       open={isOpen}
@@ -473,31 +599,33 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       destroyOnHidden
       title={modalTitle}
     >
-      {shouldMountForm ? (
-        <UniversalEntityForm
-          key={formKey}
-          entityType={entityType}
-          mode={mode}
-          variant="inline"
-          entityId={mode === 'edit' || mode === 'view' || mode === 'clone' ? entityId : undefined}
-          isOpen={shouldMountForm}
-          onClose={handleClose}
-          onSuccess={handleSuccess}
-          initialValues={cascadedInitialValues}
-          lockedFieldKeys={lockedFieldKeys}
-          externalSchema={augmentedSchema}
-          externalRecordValues={recordQuery.data ?? null}
-          externalLoading={formLoading}
-          externalLoadError={formLoadError}
-          externalFkOptions={fkOptions}
-          onSubmittingChange={setFormSubmitting}
-          onValuesChange={handleValuesChange}
-        />
-      ) : formLoadError ? (
-        errorBody
-      ) : (
-        loaderBody
-      )}
+      <ModalFormErrorBoundary entityType={entityType} onRetry={handleRetry}>
+        {shouldMountForm ? (
+          <UniversalEntityForm
+            key={formKey}
+            entityType={entityType}
+            mode={mode}
+            variant="inline"
+            entityId={mode === 'edit' || mode === 'view' || mode === 'clone' ? entityId : undefined}
+            isOpen={shouldMountForm}
+            onClose={handleClose}
+            onSuccess={handleSuccess}
+            initialValues={cascadedInitialValues}
+            lockedFieldKeys={lockedFieldKeys}
+            externalSchema={augmentedSchema}
+            externalRecordValues={recordQuery.data ?? null}
+            externalLoading={formLoading}
+            externalLoadError={effectiveLoadError}
+            externalFkOptions={fkOptions}
+            onSubmittingChange={setFormSubmitting}
+            onValuesChange={handleValuesChange}
+          />
+        ) : effectiveLoadError ? (
+          errorBody
+        ) : (
+          loaderBody
+        )}
+      </ModalFormErrorBoundary>
     </Modal>
   );
 };
