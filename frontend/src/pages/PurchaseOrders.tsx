@@ -20,6 +20,7 @@ import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow'
 import { formatTradeDate } from '@/utils/trade';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { StatusActionCell } from '@/components/Workflow';
 
 // Styled Components
 const SecondaryButton = styled.button`
@@ -125,15 +126,6 @@ const TableCell = styled.td`
   padding: 16px 20px;
   color: rgb(var(--color-text-secondary));
   font-size: 14px;
-`;
-
-const StatusBadge = styled.span<{ $color: string }>`
-  background: ${(props) => props.$color};
-  color: rgb(var(--color-text-inverse));
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
 `;
 
 const ActionButton = styled.button`
@@ -327,21 +319,6 @@ const PurchaseOrders: React.FC = () => {
         title: 'Error',
         content: `Error: ${errorMessage}`,
       });
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'rgb(var(--color-warning))';
-      case 'approved':
-        return 'rgb(var(--color-success))';
-      case 'delivered':
-        return 'rgb(var(--color-primary))';
-      case 'cancelled':
-        return 'rgb(var(--color-error))';
-      default:
-        return 'rgb(var(--color-text-secondary))';
     }
   };
 
@@ -603,9 +580,12 @@ const PurchaseOrders: React.FC = () => {
                           }).format(Number(purchaseOrder.total_amount) || 0)}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge $color={getStatusColor(purchaseOrder.status)}>
-                            {purchaseOrder.status.toUpperCase()}
-                          </StatusBadge>
+                          <StatusActionCell
+                            entityType="purchase_order"
+                            entityId={purchaseOrder.id}
+                            status={purchaseOrder.status}
+                            onTransitioned={loadPurchaseOrders}
+                          />
                         </TableCell>
                         <TableCell>
                           {formatTradeDate(

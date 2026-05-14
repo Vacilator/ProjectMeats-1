@@ -29,6 +29,7 @@ import { formatDateLocal, formatToLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
+import { StatusActionCell } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 // ============================================================================
@@ -239,46 +240,6 @@ const TableCell = styled.td`
   color: rgb(var(--color-text-primary));
 `;
 
-const StatusBadge = styled.span<{ $status: ClaimStatus }>`
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-
-  ${props => {
-    switch (props.$status) {
-      case 'pending':
-        return `
-          background: rgba(var(--color-warning), 0.1);
-          color: rgb(var(--color-warning));
-        `;
-      case 'approved':
-        return `
-          background: rgba(var(--color-success), 0.1);
-          color: rgb(var(--color-success));
-        `;
-      case 'denied':
-        return `
-          background: rgba(var(--color-error), 0.1);
-          color: rgb(var(--color-error));
-        `;
-      case 'settled':
-        return `
-          background: rgba(var(--color-info), 0.1);
-          color: rgb(var(--color-info));
-        `;
-      case 'cancelled':
-        return `
-          background: rgba(var(--color-neutral), 0.1);
-          color: rgb(var(--color-neutral));
-        `;
-      default:
-        return '';
-    }
-  }}
-`;
 
 
 const ErrorState = styled.div`
@@ -649,9 +610,12 @@ export const Claims: React.FC = () => {
                       <TableCell>{formatCurrency(parseFloat(claim.claimed_amount))}</TableCell>
                       <TableCell>{claim.description.substring(0, 50)}...</TableCell>
                       <TableCell>
-                        <StatusBadge $status={claim.status}>
-                          {claim.status.toUpperCase()}
-                        </StatusBadge>
+                        <StatusActionCell
+                          entityType="claim"
+                          entityId={claim.id}
+                          status={claim.status}
+                          onTransitioned={() => fetchClaims()}
+                        />
                       </TableCell>
                       <TableCell>{claim.created_by_name}</TableCell>
                     </TableRow>
@@ -674,9 +638,12 @@ export const Claims: React.FC = () => {
             <SidePanelContent>
               <DetailSection>
                 <DetailLabel>Status</DetailLabel>
-                <StatusBadge $status={selectedClaim.status}>
-                  {selectedClaim.status.toUpperCase()}
-                </StatusBadge>
+                <StatusActionCell
+                  entityType="claim"
+                  entityId={selectedClaim.id}
+                  status={selectedClaim.status}
+                  compact
+                />
               </DetailSection>
 
               <DetailSection>

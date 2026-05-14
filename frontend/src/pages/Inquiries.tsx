@@ -28,6 +28,7 @@ import { inquiryService } from '../services/inquiryService';
 import { formatDateLocal } from '@/utils/formatters';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
+import { StatusActionCell } from '@/components/Workflow';
 
 // ============================================================================
 // Styled Components
@@ -296,39 +297,6 @@ const EntityInfo = styled.div`
     font-size: 0.75rem;
     color: rgb(var(--color-text-secondary));
   }
-`;
-
-const StatusBadge = styled.span<{ $status: string }>`
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.625rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 500;
-  background: ${props => {
-    switch (props.$status) {
-      case 'accepted': return 'rgba(var(--color-success), 0.12)';
-      case 'fulfilled': return 'rgba(var(--color-success), 0.18)';
-      case 'pending': return 'rgba(var(--color-warning), 0.12)';
-      case 'quoted': return 'rgba(var(--color-info), 0.12)';
-      case 'rejected': return 'rgba(var(--color-danger), 0.12)';
-      case 'expired': return 'rgba(var(--color-text-secondary), 0.12)';
-      case 'draft': return 'rgba(var(--color-text-secondary), 0.12)';
-      default: return 'rgba(var(--color-text-secondary), 0.12)';
-    }
-  }};
-  color: ${props => {
-    switch (props.$status) {
-      case 'accepted': return 'rgb(var(--color-success))';
-      case 'fulfilled': return 'rgb(var(--color-success))';
-      case 'pending': return 'rgb(var(--color-warning))';
-      case 'quoted': return 'rgb(var(--color-info))';
-      case 'rejected': return 'rgb(var(--color-danger))';
-      case 'expired': return 'rgb(var(--color-text-secondary))';
-      case 'draft': return 'rgb(var(--color-text-secondary))';
-      default: return 'rgb(var(--color-text-secondary))';
-    }
-  }};
 `;
 
 const ProductCount = styled.span`
@@ -787,9 +755,16 @@ const Inquiries: React.FC = () => {
                     <div className="contact">{inquiry.contact_name}</div>
                   )}
                 </EntityInfo>
-                <StatusBadge $status={inquiry.status}>
-                  {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
-                </StatusBadge>
+                <StatusActionCell
+                  entityType="inquiry"
+                  entityId={inquiry.id}
+                  status={inquiry.status}
+                  onTransitioned={() => {
+                    queryClient.invalidateQueries({
+                      queryKey: withTenantQueryKey('inquiries'),
+                    });
+                  }}
+                />
                 <ProductCount>{inquiry.product_count || 0}</ProductCount>
                 <Amount>{formatCurrency(inquiry.total_actual || inquiry.total_desired)}</Amount>
                 <DateCell style={{ color: inquiry.is_expired ? 'rgb(var(--color-danger))' : undefined }}>

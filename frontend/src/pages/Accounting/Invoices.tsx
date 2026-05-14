@@ -35,6 +35,7 @@ import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { buildCsv, downloadCsv } from '@/utils/csv';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
+import { StatusActionCell } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 // ============================================================================
@@ -292,29 +293,6 @@ const TableCell = styled.td`
   padding: 1rem;
   font-size: 0.875rem;
   color: rgb(var(--color-text-primary));
-`;
-
-const StatusBadge = styled.span<{ $status: InvoiceStatus }>`
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  ${props => {
-    switch (props.$status) {
-      case 'paid':
-        return 'background: rgba(var(--color-success), 0.15); color: rgba(var(--color-success), 1);';
-      case 'sent':
-        return 'background: rgba(var(--color-info), 0.15); color: rgba(var(--color-info), 1);';
-      case 'overdue':
-        return 'background: rgba(var(--color-error), 0.15); color: rgba(var(--color-error), 1);';
-      case 'cancelled':
-        return 'background: rgba(var(--color-neutral), 0.15); color: rgba(var(--color-neutral), 1);';
-      case 'draft':
-      default:
-        return 'background: rgba(var(--color-warning), 0.15); color: rgba(var(--color-warning), 1);';
-    }
-  }}
 `;
 
 const SidePanel = styled.div`
@@ -670,9 +648,12 @@ const Invoices: React.FC = () => {
                           {formatCurrency(invoice.outstanding_amount || invoice.total_amount)}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge $status={invoice.status}>
-                            {invoice.status.toUpperCase()}
-                          </StatusBadge>
+                          <StatusActionCell
+                            entityType="invoice"
+                            entityId={invoice.id}
+                            status={invoice.status}
+                            onTransitioned={() => fetchInvoices()}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -774,9 +755,12 @@ const Invoices: React.FC = () => {
                 <DetailSection>
                   <DetailLabel>Status</DetailLabel>
                   <DetailValue>
-                    <StatusBadge $status={selectedInvoice.status}>
-                      {selectedInvoice.status.toUpperCase()}
-                    </StatusBadge>
+                    <StatusActionCell
+                      entityType="invoice"
+                      entityId={selectedInvoice.id}
+                      status={selectedInvoice.status}
+                      compact
+                    />
                   </DetailValue>
                 </DetailSection>
 
