@@ -22,6 +22,34 @@ import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutoc
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
 import { useApprovalGate } from '@/hooks/useApprovalGate';
 import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
+import {
+  GoldenFormOverlay,
+  GoldenFormContainer,
+  GoldenFormHeader,
+  GoldenFormTitleGroup,
+  GoldenFormTitle,
+  GoldenCloseButton,
+  GoldenFormBody,
+  GoldenSectionCard,
+  GoldenSectionHeader,
+  GoldenSectionIcon,
+  GoldenSectionTitle,
+  GoldenFieldGrid,
+  GoldenFormGroup,
+  GoldenLabel,
+  GoldenInput,
+  GoldenSelect,
+  GoldenTextArea,
+  GoldenFieldHint,
+  GoldenFormFooter,
+  GoldenDraftButton,
+  GoldenSubmitButton,
+  GoldenCheckboxRow,
+  GoldenCheckbox,
+  GoldenAutoFilledBadge,
+  GoldenDateTimeStamp,
+  GoldenConditionalSection,
+} from '@/components/Forms/GoldenFormShell';
 
 // ============================================================================
 // Types
@@ -242,100 +270,6 @@ const getDefaultFormValues = (): SupplierPOFormValues => ({
 // Styled Components
 // ============================================================================
 
-const FormWrapper = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  overflow-y: auto;
-  backdrop-filter: blur(4px);
-
-  @media (max-width: 768px) {
-    align-items: flex-start;
-    padding: 8px;
-  }
-`;
-
-const FormShell = styled.div`
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-surface-foreground));
-  border-radius: 16px;
-  width: 100%;
-  max-width: 960px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
-
-  @media (max-width: 768px) {
-    max-height: calc(100vh - 16px);
-    border-radius: 12px;
-  }
-`;
-
-const FormHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  position: sticky;
-  top: 0;
-  background: rgb(var(--color-surface));
-  z-index: 10;
-  border-radius: 16px 16px 0 0;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const FormTitleGroup = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const FormTitle = styled.h2`
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-`;
-
-const CloseBtn = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  padding: 8px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    color: rgb(var(--color-text-primary));
-  }
-`;
-
-const FormBody = styled.div`
-  padding: 24px 32px 32px;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
 const ScenarioCard = styled.div`
   background: rgba(var(--color-primary), 0.04);
   border: 2px solid rgba(var(--color-primary), 0.15);
@@ -396,208 +330,6 @@ const ScenarioHint = styled.div`
   gap: 6px;
 `;
 
-const SectionCard = styled.div`
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const SectionHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgb(var(--color-border));
-`;
-
-const SectionIcon = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(var(--color-primary), 0.08);
-  color: rgb(var(--color-primary));
-`;
-
-const SectionTitle = styled.h3`
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
-
-const FieldGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const FieldGroup = styled.div<{ $span?: number }>`
-  grid-column: ${({ $span }) => ($span === 2 ? 'span 2' : 'auto')};
-
-  @media (max-width: 768px) {
-    grid-column: auto;
-  }
-`;
-
-const FieldLabel = styled.label`
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const RequiredMark = styled.span`
-  color: rgb(var(--color-error));
-  margin-left: 2px;
-`;
-
-const StyledInput = styled.input<{ $autoFilled?: boolean; $readOnly?: boolean }>`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s, box-shadow 0.2s;
-  min-height: 42px;
-  box-sizing: border-box;
-
-  ${({ $autoFilled }) => $autoFilled && `
-    background: rgba(var(--color-primary), 0.04);
-    border-color: rgba(var(--color-primary), 0.2);
-  `}
-
-  ${({ $readOnly }) => $readOnly && `
-    background: rgb(var(--color-surface-hover));
-    cursor: default;
-  `}
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  &::placeholder {
-    color: rgb(var(--color-text-secondary));
-    opacity: 0.6;
-  }
-
-  &[type='number']::-webkit-inner-spin-button,
-  &[type='number']::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  &[type='number'] {
-    -moz-appearance: textfield;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const StyledSelect = styled.select<{ $autoFilled?: boolean }>`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s;
-  min-height: 42px;
-  box-sizing: border-box;
-
-  ${({ $autoFilled }) => $autoFilled && `
-    background: rgba(var(--color-primary), 0.04);
-    border-color: rgba(var(--color-primary), 0.2);
-  `}
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const StyledTextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  resize: vertical;
-  min-height: 80px;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const CheckboxRow = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  padding: 8px 0;
-`;
-
-const StyledCheckbox = styled.input`
-  width: 18px;
-  height: 18px;
-  accent-color: rgb(var(--color-primary));
-  cursor: pointer;
-`;
-
-const AutoFilledBadge = styled.span`
-  font-size: 11px;
-  color: rgb(var(--color-primary));
-  opacity: 0.7;
-  margin-left: 8px;
-  font-weight: 400;
-`;
-
-const FieldHint = styled.div`
-  margin-top: 4px;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary));
-  opacity: 0.8;
-`;
-
 const ContactRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr 1fr auto;
@@ -649,93 +381,6 @@ const AddContactBtn = styled.button`
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.04);
-  }
-`;
-
-const DateTimeStamp = styled.div`
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-  padding: 8px 12px;
-  background: rgb(var(--color-surface-hover));
-  border-radius: 8px;
-  display: inline-block;
-  margin-bottom: 16px;
-`;
-
-const ConditionalSection = styled.div<{ $visible: boolean }>`
-  display: ${({ $visible }) => ($visible ? 'block' : 'none')};
-`;
-
-const FormFooter = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 20px 32px;
-  border-top: 1px solid rgb(var(--color-border));
-  position: sticky;
-  bottom: 0;
-  background: rgb(var(--color-surface));
-  border-radius: 0 0 16px 16px;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-    flex-wrap: wrap;
-
-    & > button {
-      flex: 1 1 100%;
-    }
-  }
-`;
-
-const DraftButton = styled.button`
-  background: transparent;
-  color: rgb(var(--color-text-primary));
-  border: 1.5px solid rgb(var(--color-border));
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-height: 44px;
-
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    border-color: rgb(var(--color-text-secondary));
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const SubmitButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  padding: 12px 28px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-
-  &:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
   }
 `;
 
@@ -1054,22 +699,22 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
   const scenarioInfo = SCENARIO_OPTIONS.find((s) => s.value === scenario);
 
   return (
-    <FormWrapper onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
-      <FormShell>
+    <GoldenFormOverlay onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <GoldenFormContainer>
         {/* Header */}
-        <FormHeader>
-          <FormTitleGroup>
+        <GoldenFormHeader>
+          <GoldenFormTitleGroup>
             <ClipboardList size={24} color="rgb(var(--color-primary))" />
-            <FormTitle>
+            <GoldenFormTitle>
               {mode === 'edit' ? 'Edit Purchase Order' : 'New Purchase Order'}
-            </FormTitle>
-          </FormTitleGroup>
-          <CloseBtn onClick={onCancel} aria-label="Close form">
+            </GoldenFormTitle>
+          </GoldenFormTitleGroup>
+          <GoldenCloseButton onClick={onCancel} aria-label="Close form">
             <X size={20} />
-          </CloseBtn>
-        </FormHeader>
+          </GoldenCloseButton>
+        </GoldenFormHeader>
 
-        <FormBody>
+        <GoldenFormBody as="div">
           {/* Scenario Selector */}
           <ScenarioCard>
             <ScenarioLabel>
@@ -1102,18 +747,16 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
           </ScenarioCard>
 
           {/* Section 1: Supplier & Plant Information */}
-          <SectionCard>
-            <SectionHeader>
-              <SectionIcon><Building2 size={18} /></SectionIcon>
-              <SectionTitle>Supplier &amp; Plant Information</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon><Building2 size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>Supplier &amp; Plant Information</GoldenSectionTitle>
               {loadingSupplier && <Spin size="small" />}
-            </SectionHeader>
-            <FieldGrid>
-              <FieldGroup $span={2}>
-                <FieldLabel>
-                  Supplier Name <RequiredMark>*</RequiredMark>
-                </FieldLabel>
-                <StyledSelect
+            </GoldenSectionHeader>
+            <GoldenFieldGrid>
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel $required>Supplier Name</GoldenLabel>
+                <GoldenSelect
                   name="supplier"
                   value={formValues.supplier}
                   onChange={handleSupplierChange}
@@ -1124,42 +767,42 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {suppliers.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
-                <FieldLabel>
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>
                   Corporate Address
                   {supplierAutoFilled && (
-                    <AutoFilledBadge>
+                    <GoldenAutoFilledBadge>
                       Auto-filled from supplier
-                    </AutoFilledBadge>
+                    </GoldenAutoFilledBadge>
                   )}
-                </FieldLabel>
-                <StyledInput
+                </GoldenLabel>
+                <GoldenInput
                   name="supplier_corporate_address"
                   value={formValues.supplier_corporate_address}
                   onChange={handleChange}
                   $autoFilled={supplierAutoFilled}
                   placeholder="Street address"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>City</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>City</GoldenLabel>
+                <GoldenInput
                   name="supplier_city"
                   value={formValues.supplier_city}
                   onChange={handleChange}
                   $autoFilled={supplierAutoFilled}
                   placeholder="City"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>State / Zip</FieldLabel>
+              <GoldenFormGroup>
+                <GoldenLabel>State / Zip</GoldenLabel>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <StyledInput
+                  <GoldenInput
                     name="supplier_state"
                     value={formValues.supplier_state}
                     onChange={handleChange}
@@ -1167,7 +810,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                     placeholder="State"
                     style={{ flex: 1 }}
                   />
-                  <StyledInput
+                  <GoldenInput
                     name="supplier_zip"
                     value={formValues.supplier_zip}
                     onChange={handleChange}
@@ -1176,9 +819,9 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                     style={{ flex: 1 }}
                   />
                 </div>
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
+              <GoldenFormGroup $span={2}>
                 <LocationSelector
                   value={formValues.plant}
                   onChange={(id) => setFormValues((prev) => ({
@@ -1192,80 +835,80 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   label="Plant Location"
                   placeholder="Select plant…"
                 />
-              </FieldGroup>
-            </FieldGrid>
-          </SectionCard>
+              </GoldenFormGroup>
+            </GoldenFieldGrid>
+          </GoldenSectionCard>
 
           {/* Section 2: Order & Confirmation Numbers */}
-          <SectionCard>
-            <SectionHeader>
-              <SectionIcon><FileText size={18} /></SectionIcon>
-              <SectionTitle>Order &amp; Confirmation Numbers</SectionTitle>
-            </SectionHeader>
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon><FileText size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>Order &amp; Confirmation Numbers</GoldenSectionTitle>
+            </GoldenSectionHeader>
 
-            <DateTimeStamp>
+            <GoldenDateTimeStamp>
               📅 Created: {formatDateTime(createdAt)}
-            </DateTimeStamp>
+            </GoldenDateTimeStamp>
 
-            <FieldGrid>
-              <FieldGroup>
-                <FieldLabel>Our PO # To Supplier</FieldLabel>
-                <StyledInput
+            <GoldenFieldGrid>
+              <GoldenFormGroup>
+                <GoldenLabel>Our PO # To Supplier</GoldenLabel>
+                <GoldenInput
                   name="our_purchase_order_number_to_supplier"
                   value={formValues.our_purchase_order_number_to_supplier}
                   onChange={handleChange}
                   onBlur={() => handlePONumberBlur('our_purchase_order_number_to_supplier')}
                   placeholder="Leave blank to auto-generate"
                 />
-                <FieldHint>e.g. PO-20260513-847291</FieldHint>
-              </FieldGroup>
+                <GoldenFieldHint>e.g. PO-20260513-847291</GoldenFieldHint>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>My Customer # From Supplier</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>My Customer # From Supplier</GoldenLabel>
+                <GoldenInput
                   name="my_customer_number_from_supplier"
                   value={formValues.my_customer_number_from_supplier}
                   onChange={handleChange}
                   onBlur={() => handlePONumberBlur('my_customer_number_from_supplier')}
                   placeholder="Leave blank to auto-generate"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Supplier Confirmation #</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>Supplier Confirmation #</GoldenLabel>
+                <GoldenInput
                   name="supplier_confirmation_order_num"
                   value={formValues.supplier_confirmation_order_num}
                   onChange={handleChange}
                   onBlur={() => handlePONumberBlur('supplier_confirmation_order_num')}
                   placeholder="Leave blank to auto-generate"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Supplier Confirmation Order #</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>Supplier Confirmation Order #</GoldenLabel>
+                <GoldenInput
                   name="supplier_confirmation_order_number"
                   value={formValues.supplier_confirmation_order_number}
                   onChange={handleChange}
                   placeholder="Optional"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Carrier Release #</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>Carrier Release #</GoldenLabel>
+                <GoldenInput
                   name="carrier_release_num"
                   value={formValues.carrier_release_num}
                   onChange={handleChange}
                   onBlur={() => handlePONumberBlur('carrier_release_num')}
                   placeholder="Leave blank to auto-generate"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Carrier Release Format</FieldLabel>
-                <StyledSelect
+              <GoldenFormGroup>
+                <GoldenLabel>Carrier Release Format</GoldenLabel>
+                <GoldenSelect
                   name="carrier_release_format"
                   value={formValues.carrier_release_format}
                   onChange={handleChange}
@@ -1274,21 +917,21 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {CARRIER_RELEASE_FORMATS.map((f) => (
                     <option key={f} value={f}>{f}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
-            </FieldGrid>
-          </SectionCard>
+                </GoldenSelect>
+              </GoldenFormGroup>
+            </GoldenFieldGrid>
+          </GoldenSectionCard>
 
           {/* Section 3: Product Details */}
-          <SectionCard>
-            <SectionHeader>
-              <SectionIcon><Package size={18} /></SectionIcon>
-              <SectionTitle>Product Details</SectionTitle>
-            </SectionHeader>
-            <FieldGrid>
-              <FieldGroup>
-                <FieldLabel>Type of Protein</FieldLabel>
-                <StyledSelect
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon><Package size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>Product Details</GoldenSectionTitle>
+            </GoldenSectionHeader>
+            <GoldenFieldGrid>
+              <GoldenFormGroup>
+                <GoldenLabel>Type of Protein</GoldenLabel>
+                <GoldenSelect
                   name="type_of_protein"
                   value={formValues.type_of_protein}
                   onChange={handleChange}
@@ -1297,12 +940,12 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {effectiveProteinOptions.map((o) => (
                     <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Fresh / Frozen</FieldLabel>
-                <StyledSelect
+              <GoldenFormGroup>
+                <GoldenLabel>Fresh / Frozen</GoldenLabel>
+                <GoldenSelect
                   name="fresh_or_frozen"
                   value={formValues.fresh_or_frozen}
                   onChange={handleChange}
@@ -1311,11 +954,11 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {effectiveFreshFrozen.map((o) => (
                     <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
-                <FieldLabel>Product / Description</FieldLabel>
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Product / Description</GoldenLabel>
                 <SmartProductAutocomplete
                   value={formValues.product}
                   onChange={(productId, product) => {
@@ -1335,22 +978,22 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   proteinTypeFilter={formValues.type_of_protein || undefined}
                   placeholder="Search products…"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
-                <FieldLabel>Item Description</FieldLabel>
-                <StyledTextArea
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Item Description</GoldenLabel>
+                <GoldenTextArea
                   name="item_description"
                   value={formValues.item_description}
                   onChange={handleChange}
                   rows={2}
                   placeholder="Detailed product description"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Package Type</FieldLabel>
-                <StyledSelect
+              <GoldenFormGroup>
+                <GoldenLabel>Package Type</GoldenLabel>
+                <GoldenSelect
                   name="package_type"
                   value={formValues.package_type}
                   onChange={handleChange}
@@ -1359,12 +1002,12 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {effectivePackageTypes.map((o) => (
                     <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Quantity</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>Quantity</GoldenLabel>
+                <GoldenInput
                   type="number"
                   name="quantity"
                   value={formValues.quantity}
@@ -1372,11 +1015,11 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   min="0"
                   placeholder="0"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Total Weight</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>Total Weight</GoldenLabel>
+                <GoldenInput
                   type="number"
                   step="0.01"
                   name="total_weight"
@@ -1384,11 +1027,11 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   onChange={handleChange}
                   placeholder="0.00"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Weight Unit</FieldLabel>
-                <StyledSelect
+              <GoldenFormGroup>
+                <GoldenLabel>Weight Unit</GoldenLabel>
+                <GoldenSelect
                   name="weight_unit"
                   value={formValues.weight_unit}
                   onChange={handleChange}
@@ -1396,12 +1039,12 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {effectiveWeightUnits.map((o) => (
                     <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Net or Catch</FieldLabel>
-                <StyledSelect
+              <GoldenFormGroup>
+                <GoldenLabel>Net or Catch</GoldenLabel>
+                <GoldenSelect
                   name="net_or_catch"
                   value={formValues.net_or_catch}
                   onChange={handleChange}
@@ -1409,24 +1052,24 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {effectiveNetCatch.map((o) => (
                     <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Edible / Inedible</FieldLabel>
-                <StyledSelect
+              <GoldenFormGroup>
+                <GoldenLabel>Edible / Inedible</GoldenLabel>
+                <GoldenSelect
                   name="edible_or_inedible"
                   value={formValues.edible_or_inedible}
                   onChange={handleChange}
                 >
                   <option value="Edible">Edible</option>
                   <option value="Inedible">Inedible</option>
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Price Per Unit</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>Price Per Unit</GoldenLabel>
+                <GoldenInput
                   type="number"
                   step="0.01"
                   name="price_per_unit"
@@ -1434,11 +1077,11 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   onChange={handleChange}
                   placeholder="0.00"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Item Production Date</FieldLabel>
-                <StyledSelect
+              <GoldenFormGroup>
+                <GoldenLabel>Item Production Date</GoldenLabel>
+                <GoldenSelect
                   name="item_production_date"
                   value={formValues.item_production_date}
                   onChange={handleChange}
@@ -1447,53 +1090,53 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {PRODUCTION_DATE_OPTIONS.map((o) => (
                     <option key={o} value={o}>{o}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <CheckboxRow>
-                  <StyledCheckbox
+              <GoldenFormGroup>
+                <GoldenCheckboxRow>
+                  <GoldenCheckbox
                     type="checkbox"
                     name="tested_product"
                     checked={formValues.tested_product}
                     onChange={handleCheckboxChange}
                   />
                   Tested Product
-                </CheckboxRow>
-              </FieldGroup>
-            </FieldGrid>
-          </SectionCard>
+                </GoldenCheckboxRow>
+              </GoldenFormGroup>
+            </GoldenFieldGrid>
+          </GoldenSectionCard>
 
           {/* Section 4: Logistics & Pickup/Delivery */}
-          <SectionCard>
-            <SectionHeader>
-              <SectionIcon><Truck size={18} /></SectionIcon>
-              <SectionTitle>Logistics &amp; Delivery</SectionTitle>
-            </SectionHeader>
-            <FieldGrid>
-              <ConditionalSection $visible={visibility.pickupDate}>
-                <FieldLabel>Pick Up Date</FieldLabel>
-                <StyledInput
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon><Truck size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>Logistics &amp; Delivery</GoldenSectionTitle>
+            </GoldenSectionHeader>
+            <GoldenFieldGrid>
+              <GoldenConditionalSection $visible={visibility.pickupDate}>
+                <GoldenLabel>Pick Up Date</GoldenLabel>
+                <GoldenInput
                   type="date"
                   name="pick_up_date"
                   value={formValues.pick_up_date}
                   onChange={handleChange}
                 />
-              </ConditionalSection>
+              </GoldenConditionalSection>
 
-              <FieldGroup>
-                <FieldLabel>Delivery Date</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>Delivery Date</GoldenLabel>
+                <GoldenInput
                   type="date"
                   name="delivery_date"
                   value={formValues.delivery_date}
                   onChange={handleChange}
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <ConditionalSection $visible={visibility.pickupAddress}>
-                <FieldGroup $span={2}>
-                  <FieldLabel>Pickup Location</FieldLabel>
+              <GoldenConditionalSection $visible={visibility.pickupAddress}>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>Pickup Location</GoldenLabel>
                   <LocationSelector
                     value={formValues.pick_up_location}
                     onChange={(id) => setFormValues((prev) => ({
@@ -1503,12 +1146,12 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                     label="Pickup Location"
                     placeholder="Select pickup location…"
                   />
-                </FieldGroup>
-              </ConditionalSection>
+                </GoldenFormGroup>
+              </GoldenConditionalSection>
 
-              <ConditionalSection $visible={visibility.deliveryAddress}>
-                <FieldGroup>
-                  <FieldLabel>Delivery Location</FieldLabel>
+              <GoldenConditionalSection $visible={visibility.deliveryAddress}>
+                <GoldenFormGroup>
+                  <GoldenLabel>Delivery Location</GoldenLabel>
                   <LocationSelector
                     value={formValues.delivery_location}
                     onChange={(id) => setFormValues((prev) => ({
@@ -1518,12 +1161,12 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                     label="Delivery Location"
                     placeholder="Select delivery location…"
                   />
-                </FieldGroup>
-              </ConditionalSection>
+                </GoldenFormGroup>
+              </GoldenConditionalSection>
 
-              <ConditionalSection $visible={visibility.howCarrierAppt}>
-                <FieldLabel>How Carrier Makes Appointment</FieldLabel>
-                <StyledSelect
+              <GoldenConditionalSection $visible={visibility.howCarrierAppt}>
+                <GoldenLabel>How Carrier Makes Appointment</GoldenLabel>
+                <GoldenSelect
                   name="how_carrier_make_appointment"
                   value={formValues.how_carrier_make_appointment}
                   onChange={handleChange}
@@ -1532,48 +1175,48 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {effectiveAppointmentMethods.map((o) => (
                     <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
-                </StyledSelect>
-              </ConditionalSection>
-            </FieldGrid>
-          </SectionCard>
+                </GoldenSelect>
+              </GoldenConditionalSection>
+            </GoldenFieldGrid>
+          </GoldenSectionCard>
 
           {/* Section 5: Contacts */}
-          <SectionCard>
-            <SectionHeader>
-              <SectionIcon><Users size={18} /></SectionIcon>
-              <SectionTitle>Contacts</SectionTitle>
-            </SectionHeader>
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon><Users size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>Contacts</GoldenSectionTitle>
+            </GoldenSectionHeader>
 
             {/* Supplier / Accounting Contact */}
             <div style={{ marginBottom: '20px' }}>
-              <FieldLabel style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'rgb(var(--color-text-primary))' }}>
+              <GoldenLabel style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'rgb(var(--color-text-primary))' }}>
                 Supplier Contact
-                {supplierAutoFilled && <AutoFilledBadge>Auto-filled from supplier</AutoFilledBadge>}
-              </FieldLabel>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>Name</FieldLabel>
-                  <StyledInput
+                {supplierAutoFilled && <GoldenAutoFilledBadge>Auto-filled from supplier</GoldenAutoFilledBadge>}
+              </GoldenLabel>
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>Name</GoldenLabel>
+                  <GoldenInput
                     name="supplier_contact_name"
                     value={formValues.supplier_contact_name}
                     onChange={handleChange}
                     $autoFilled={supplierAutoFilled}
                     placeholder="Contact name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Phone</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Phone</GoldenLabel>
+                  <GoldenInput
                     name="supplier_contact_phone"
                     value={formValues.supplier_contact_phone}
                     onChange={handleChange}
                     $autoFilled={supplierAutoFilled}
                     placeholder="Phone number"
                   />
-                </FieldGroup>
-                <FieldGroup $span={2}>
-                  <FieldLabel>Email</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>Email</GoldenLabel>
+                  <GoldenInput
                     type="email"
                     name="supplier_contact_email"
                     value={formValues.supplier_contact_email}
@@ -1581,37 +1224,37 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                     $autoFilled={supplierAutoFilled}
                     placeholder="Email address"
                   />
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </div>
 
             {/* Dynamic Shipping Contacts */}
-            <ConditionalSection $visible={visibility.shippingContacts}>
+            <GoldenConditionalSection $visible={visibility.shippingContacts}>
               <div style={{ marginBottom: '20px' }}>
-                <FieldLabel style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'rgb(var(--color-text-primary))' }}>
+                <GoldenLabel style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'rgb(var(--color-text-primary))' }}>
                   Shipping Contacts
-                </FieldLabel>
+                </GoldenLabel>
                 {shippingContacts.map((contact, idx) => (
                   <ContactRow key={contact.id}>
                     <div>
-                      <FieldLabel>Name</FieldLabel>
-                      <StyledInput
+                      <GoldenLabel>Name</GoldenLabel>
+                      <GoldenInput
                         value={contact.name}
                         onChange={(e) => updateShippingContact(idx, 'name', e.target.value)}
                         placeholder={`Contact ${idx + 1} name`}
                       />
                     </div>
                     <div>
-                      <FieldLabel>Phone</FieldLabel>
-                      <StyledInput
+                      <GoldenLabel>Phone</GoldenLabel>
+                      <GoldenInput
                         value={contact.phone}
                         onChange={(e) => updateShippingContact(idx, 'phone', e.target.value)}
                         placeholder="Phone"
                       />
                     </div>
                     <div>
-                      <FieldLabel>Email</FieldLabel>
-                      <StyledInput
+                      <GoldenLabel>Email</GoldenLabel>
+                      <GoldenInput
                         type="email"
                         value={contact.email}
                         onChange={(e) => updateShippingContact(idx, 'email', e.target.value)}
@@ -1633,58 +1276,58 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   <Plus size={14} /> Add Shipping Contact
                 </AddContactBtn>
               </div>
-            </ConditionalSection>
+            </GoldenConditionalSection>
 
             {/* Receiving Contact */}
-            <ConditionalSection $visible={visibility.receivingContact || false}>
+            <GoldenConditionalSection $visible={visibility.receivingContact || false}>
               <div>
-                <FieldLabel style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'rgb(var(--color-text-primary))' }}>
+                <GoldenLabel style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'rgb(var(--color-text-primary))' }}>
                   Receiving Contact
-                </FieldLabel>
-                <FieldGrid>
-                  <FieldGroup>
-                    <FieldLabel>Name</FieldLabel>
-                    <StyledInput
+                </GoldenLabel>
+                <GoldenFieldGrid>
+                  <GoldenFormGroup>
+                    <GoldenLabel>Name</GoldenLabel>
+                    <GoldenInput
                       name="receiving_contact_name"
                       value={formValues.receiving_contact_name}
                       onChange={handleChange}
                       placeholder="Receiving contact name"
                     />
-                  </FieldGroup>
-                  <FieldGroup>
-                    <FieldLabel>Phone</FieldLabel>
-                    <StyledInput
+                  </GoldenFormGroup>
+                  <GoldenFormGroup>
+                    <GoldenLabel>Phone</GoldenLabel>
+                    <GoldenInput
                       name="receiving_contact_phone"
                       value={formValues.receiving_contact_phone}
                       onChange={handleChange}
                       placeholder="Phone number"
                     />
-                  </FieldGroup>
-                  <FieldGroup $span={2}>
-                    <FieldLabel>Email</FieldLabel>
-                    <StyledInput
+                  </GoldenFormGroup>
+                  <GoldenFormGroup $span={2}>
+                    <GoldenLabel>Email</GoldenLabel>
+                    <GoldenInput
                       type="email"
                       name="receiving_contact_email"
                       value={formValues.receiving_contact_email}
                       onChange={handleChange}
                       placeholder="Email address"
                     />
-                  </FieldGroup>
-                </FieldGrid>
+                  </GoldenFormGroup>
+                </GoldenFieldGrid>
               </div>
-            </ConditionalSection>
-          </SectionCard>
+            </GoldenConditionalSection>
+          </GoldenSectionCard>
 
           {/* Section 6: Comments & Totals */}
-          <SectionCard>
-            <SectionHeader>
-              <SectionIcon><DollarSign size={18} /></SectionIcon>
-              <SectionTitle>Accounting, Comments &amp; Totals</SectionTitle>
-            </SectionHeader>
-            <FieldGrid>
-              <FieldGroup>
-                <FieldLabel>Payment Terms</FieldLabel>
-                <StyledSelect
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon><DollarSign size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>Accounting, Comments &amp; Totals</GoldenSectionTitle>
+            </GoldenSectionHeader>
+            <GoldenFieldGrid>
+              <GoldenFormGroup>
+                <GoldenLabel>Payment Terms</GoldenLabel>
+                <GoldenSelect
                   name="payment_terms"
                   value={formValues.payment_terms}
                   onChange={handleChange}
@@ -1693,12 +1336,12 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   {effectivePaymentTerms.map((o) => (
                     <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                   ))}
-                </StyledSelect>
-              </FieldGroup>
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-              <FieldGroup>
-                <FieldLabel>Total Net Weight</FieldLabel>
-                <StyledInput
+              <GoldenFormGroup>
+                <GoldenLabel>Total Net Weight</GoldenLabel>
+                <GoldenInput
                   type="number"
                   step="0.01"
                   name="total_net_weight"
@@ -1706,75 +1349,75 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                   onChange={handleChange}
                   placeholder="0.00"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
-                <FieldLabel>Bill of Lading Comments</FieldLabel>
-                <StyledTextArea
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Bill of Lading Comments</GoldenLabel>
+                <GoldenTextArea
                   name="bill_of_lading_comments"
                   value={formValues.bill_of_lading_comments}
                   onChange={handleChange}
                   rows={3}
                   placeholder="Comments for the bill of lading…"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
-                <FieldLabel>Invoicing Comments</FieldLabel>
-                <StyledTextArea
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Invoicing Comments</GoldenLabel>
+                <GoldenTextArea
                   name="invoicing_comments"
                   value={formValues.invoicing_comments}
                   onChange={handleChange}
                   rows={3}
                   placeholder="Comments for invoicing…"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
-                <FieldLabel>Special Instructions</FieldLabel>
-                <StyledTextArea
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Special Instructions</GoldenLabel>
+                <GoldenTextArea
                   name="special_instructions"
                   value={formValues.special_instructions}
                   onChange={handleChange}
                   rows={3}
                   placeholder="Any special instructions…"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
-                <FieldLabel>Notes</FieldLabel>
-                <StyledTextArea
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Notes</GoldenLabel>
+                <GoldenTextArea
                   name="notes"
                   value={formValues.notes}
                   onChange={handleChange}
                   rows={2}
                   placeholder="Additional notes…"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
 
-              <FieldGroup $span={2}>
-                <FieldLabel>Total Amount (auto-calculated)</FieldLabel>
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Total Amount (auto-calculated)</GoldenLabel>
                 <CalculatedValue>
                   ${calculatedTotal}
                 </CalculatedValue>
-                <FieldHint>
+                <GoldenFieldHint>
                   Calculated from total weight × price per unit (or qty × price per unit)
-                </FieldHint>
-              </FieldGroup>
-            </FieldGrid>
-          </SectionCard>
-        </FormBody>
+                </GoldenFieldHint>
+              </GoldenFormGroup>
+            </GoldenFieldGrid>
+          </GoldenSectionCard>
+        </GoldenFormBody>
 
         {/* Footer */}
-        <FormFooter>
-          <DraftButton
+        <GoldenFormFooter>
+          <GoldenDraftButton
             type="button"
             onClick={() => handleSubmit('draft')}
             disabled={submitting}
           >
             {submitting ? 'Saving…' : 'Save as Draft'}
-          </DraftButton>
-          <SubmitButton
+          </GoldenDraftButton>
+          <GoldenSubmitButton
             type="button"
             onClick={() => handleSubmit('pending')}
             disabled={submitting}
@@ -1786,9 +1429,9 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                 {mode === 'edit' ? 'Update PO' : 'Create PO'} ✓
               </>
             )}
-          </SubmitButton>
-        </FormFooter>
-      </FormShell>
+          </GoldenSubmitButton>
+        </GoldenFormFooter>
+      </GoldenFormContainer>
       <ApprovalPreviewModal
         open={approvalGate.showModal}
         request={approvalGate.currentRequest}
@@ -1797,7 +1440,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
         onEditApprove={approvalGate.handleEditApprove}
         onCancel={approvalGate.handleCancel}
       />
-    </FormWrapper>
+    </GoldenFormOverlay>
   );
 };
 
