@@ -206,21 +206,38 @@ describe('CommandPalette search behavior', () => {
       );
 
       const input = screen.getByPlaceholderText(/search/i);
-      fireEvent.change(input, { target: { value: 'acme' } });
 
+      // Type search query — this triggers React state update
+      await act(async () => {
+        fireEvent.change(input, { target: { value: 'acme' } });
+      });
+
+      // Advance past the 300ms debounce timer
       await act(async () => {
         vi.advanceTimersByTime(350);
-        await Promise.resolve();
-        await Promise.resolve();
       });
+
+      // Flush microtask queue for the async searchRanked mock + React state updates
+      for (let i = 0; i < 10; i++) {
+        await act(async () => {
+          await Promise.resolve();
+        });
+      }
 
       const result = screen.getByText('Acme Supplier');
+
       await act(async () => {
         fireEvent.click(result);
-        await Promise.resolve();
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('/suppliers/supplier-1');
+      // Flush microtasks for the async trackRecentItem + navigation
+      for (let i = 0; i < 5; i++) {
+        await act(async () => {
+          await Promise.resolve();
+        });
+      }
+
+      expect(mockNavigate).toHaveBeenCalledWith('/suppliers/supplier-1?ref=search');
     } finally {
       vi.useRealTimers();
     }
