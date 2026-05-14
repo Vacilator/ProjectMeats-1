@@ -7,6 +7,7 @@ import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
@@ -418,14 +419,16 @@ export const PlantDetail: React.FC = () => {
 
         ]}
       />}
-      <EntityFormSurface
-        entityType="contact"
-        mode="create"
-        isOpen={isCreatingDepartmentContact}
-        onClose={handleDeptContactClose}
-        initialValues={departmentContactInitialValues}
-        onSuccess={handleDeptContactSuccess}
-      />
+      <FormErrorBoundary entityType="contact" onClose={handleDeptContactClose}>
+        <EntityFormSurface
+          entityType="contact"
+          mode="create"
+          isOpen={isCreatingDepartmentContact}
+          onClose={handleDeptContactClose}
+          initialValues={departmentContactInitialValues}
+          onSuccess={handleDeptContactSuccess}
+        />
+      </FormErrorBoundary>
     </div>
   );
 };

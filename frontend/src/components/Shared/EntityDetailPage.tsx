@@ -25,6 +25,7 @@ import { entityListPath, entityTypeDisplayName } from '@/utils/entityTypeRegistr
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import EntityFormSurface from './EntityFormSurface';
+import { FormErrorBoundary } from './FormErrorBoundary';
 import InlineEditField from './InlineEditField';
 
 // ============================================================================
@@ -494,15 +495,17 @@ export const EntityDetailPage: React.FC<EntityDetailPageProps> = ({
       )}
 
       {/* Edit Form Surface */}
-      <EntityFormSurface
-        entityType={entityType}
-        entityId={entityId}
-        mode="edit"
-        variant="modal"
-        isOpen={isEditing}
-        onClose={handleEditClose}
-        onSuccess={handleEditSuccess}
-      />
+      <FormErrorBoundary entityType={entityType} onClose={handleEditClose}>
+        <EntityFormSurface
+          entityType={entityType}
+          entityId={entityId}
+          mode="edit"
+          variant="modal"
+          isOpen={isEditing}
+          onClose={handleEditClose}
+          onSuccess={handleEditSuccess}
+        />
+      </FormErrorBoundary>
     </PageContainer>
   );
 };

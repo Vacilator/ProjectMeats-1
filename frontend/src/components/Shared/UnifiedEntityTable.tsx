@@ -7,6 +7,7 @@ import { businessApi } from '@/services/businessApi';
 import { containsUuidToken, isIdentifierLike, resolveEntityDisplay } from '@/utils/entityDisplay';
 
 import { EntityFormSurface } from './EntityFormSurface';
+import { FormErrorBoundary } from './FormErrorBoundary';
 import { EntityListPrimaryCell, type EntityListItem } from './entityListPresentation';
 
 type BackendSchemaField = {
@@ -359,15 +360,17 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
         })}
       />
 
-      <EntityFormSurface
-        entityType={entityType}
-        mode="edit"
-        variant="modal"
-        isOpen={quickEditOpen}
-        entityId={editingId ?? undefined}
-        onClose={closeQuickEdit}
-        onSuccess={handleQuickEditSuccess}
-      />
+      <FormErrorBoundary entityType={entityType} onClose={closeQuickEdit}>
+        <EntityFormSurface
+          entityType={entityType}
+          mode="edit"
+          variant="modal"
+          isOpen={quickEditOpen}
+          entityId={editingId ?? undefined}
+          onClose={closeQuickEdit}
+          onSuccess={handleQuickEditSuccess}
+        />
+      </FormErrorBoundary>
     </>
   );
 };

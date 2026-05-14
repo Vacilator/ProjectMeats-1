@@ -7,6 +7,7 @@ import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { ActivityFeed, EntityFormSurface } from '@/components/Shared';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
@@ -265,14 +266,16 @@ export const LocationDetail: React.FC = () => {
       </div>
 
       {showEditModal && lid && !showAuthFallback && (
-        <EntityFormSurface
-          entityType="location"
-          mode="edit"
-          entityId={lid}
-          isOpen={showEditModal}
-          onClose={handleEditClose}
-          onSuccess={handleEditSuccess}
-        />
+        <FormErrorBoundary entityType="location" onClose={handleEditClose}>
+          <EntityFormSurface
+            entityType="location"
+            mode="edit"
+            entityId={lid}
+            isOpen={showEditModal}
+            onClose={handleEditClose}
+            onSuccess={handleEditSuccess}
+          />
+        </FormErrorBoundary>
       )}
 
       <div style={{ marginTop: 12 }}>

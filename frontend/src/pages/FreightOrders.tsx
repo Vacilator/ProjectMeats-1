@@ -14,6 +14,7 @@ import { AuditHistoryTimeline } from '@/components/Operations/AuditHistoryTimeli
 import SharePortalLinkPanel from '@/components/Portal/SharePortalLinkPanel';
 import { OperationalDocumentActions } from '@/components/Operations/OperationalDocumentActions';
 import { EntityFormSurface } from '@/components/Shared';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
@@ -378,24 +379,28 @@ const FreightOrders: React.FC = () => {
         </Card>
       ) : null}
 
-      <EntityFormSurface
-        entityType="freight-orders"
-        mode="create"
-        variant="modal"
-        isOpen={isCreateOpen}
-        onClose={handleCreateClose}
-        onSuccess={handleCreateSuccess}
-      />
+      <FormErrorBoundary entityType="freight-orders" onClose={handleCreateClose}>
+        <EntityFormSurface
+          entityType="freight-orders"
+          mode="create"
+          variant="modal"
+          isOpen={isCreateOpen}
+          onClose={handleCreateClose}
+          onSuccess={handleCreateSuccess}
+        />
+      </FormErrorBoundary>
 
-      <EntityFormSurface
-        entityType="freight-orders"
-        mode="edit"
-        variant="modal"
-        entityId={editingOrderId || undefined}
-        isOpen={Boolean(editingOrderId)}
-        onClose={handleEditClose}
-        onSuccess={handleEditSuccess}
-      />
+      <FormErrorBoundary entityType="freight-orders" onClose={handleEditClose}>
+        <EntityFormSurface
+          entityType="freight-orders"
+          mode="edit"
+          variant="modal"
+          entityId={editingOrderId || undefined}
+          isOpen={Boolean(editingOrderId)}
+          onClose={handleEditClose}
+          onSuccess={handleEditSuccess}
+        />
+      </FormErrorBoundary>
     </div>
   );
 };

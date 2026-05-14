@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 import { EntityFormSurface, ScheduleCallModal } from '@/components/Shared';
+import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { InquiryCallModal } from '@/components/Calls/InquiryCallModal';
 import { UnifiedForm } from '@/components/UnifiedForm';
 import { useNavigate } from 'react-router-dom';
@@ -811,14 +812,16 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       />
 
       {canonicalType === 'customer' && (
-        <EntityFormSurface
-          entityType="sales-orders"
-          mode="create"
-          isOpen={isSalesOrderCreateOpen}
-          onClose={handleSalesOrderClose}
-          context={{ customerId: entityId }}
-          onSuccess={handleSalesOrderSuccess}
-        />
+        <FormErrorBoundary entityType="sales-orders" onClose={handleSalesOrderClose}>
+          <EntityFormSurface
+            entityType="sales-orders"
+            mode="create"
+            isOpen={isSalesOrderCreateOpen}
+            onClose={handleSalesOrderClose}
+            context={{ customerId: entityId }}
+            onSuccess={handleSalesOrderSuccess}
+          />
+        </FormErrorBoundary>
       )}
 
       <ScheduleCallModal
