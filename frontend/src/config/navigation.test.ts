@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { navigation } from './navigation';
 
 describe('navigation', () => {
-  it('exposes Home as the top-level entry with no legacy hubs', () => {
+  it('exposes Workspace as the top-level entry with no legacy hubs', () => {
     const topLevelLabels = navigation.map((item) => item.label);
 
-    expect(topLevelLabels).toContain('Home');
+    expect(topLevelLabels).toContain('Workspace');
     expect(topLevelLabels).not.toContain('Command Center');
     expect(topLevelLabels).not.toContain('Cockpit');
   });
