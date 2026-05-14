@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 from tenant_apps.purchase_orders.serializers import PurchaseOrderSerializer
 
 from .models import (
@@ -36,10 +37,21 @@ from .services import create_supplier_quote_purchase_order_draft
 from .services.supplier_quote_po_draft import SupplierQuotePODraftError
 
 
-class InquiryViewSet(viewsets.ModelViewSet):
+class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     """ViewSet for Inquiry CRUD operations."""
 
     permission_classes = [IsAuthenticated]
+
+    def perform_document_status_transition(self, request, document, next_status):
+        """Override to track inquiry-specific timestamps on status change."""
+        now = timezone.now()
+        if next_status == "quoted":
+            document.quoted_date = now
+        elif next_status in ("accepted", "rejected"):
+            document.decision_date = now
+            if next_status == "rejected":
+                document.win_loss_reason = request.data.get("reason", "")
+        return super().perform_document_status_transition(request, document, next_status)
 
     def get_queryset(self):
         """Filter by tenant and apply common list filters.
@@ -244,7 +256,7 @@ class InquiryViewSet(viewsets.ModelViewSet):
 
         return Response(data)
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], url_path="update-status")
     def update_status(self, request, pk=None):
         """Update inquiry status with timestamp tracking."""
         inquiry = self.get_object()

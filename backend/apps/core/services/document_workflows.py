@@ -82,11 +82,50 @@ CARRIER_PO_WORKFLOW = DocumentWorkflow(
 )
 
 
+INQUIRY_WORKFLOW = DocumentWorkflow(
+    initial_statuses=("draft", "pending"),
+    transitions={
+        "draft": ("pending", "quoted", "cancelled"),
+        "pending": ("quoted", "cancelled"),
+        "quoted": ("accepted", "rejected", "cancelled"),
+        "accepted": ("fulfilled", "cancelled"),
+        "rejected": (),
+        "fulfilled": (),
+        "cancelled": (),
+    },
+)
+
+FULFILLMENT_WORKFLOW = DocumentWorkflow(
+    initial_statuses=("pending",),
+    transitions={
+        "pending": ("in_progress", "cancelled"),
+        "in_progress": ("shipped", "cancelled"),
+        "shipped": ("delivered", "cancelled"),
+        "delivered": ("completed",),
+        "completed": (),
+        "cancelled": (),
+    },
+)
+
+CLAIM_WORKFLOW = DocumentWorkflow(
+    initial_statuses=("pending",),
+    transitions={
+        "pending": ("approved", "denied", "cancelled"),
+        "approved": ("settled", "cancelled"),
+        "denied": (),
+        "settled": (),
+        "cancelled": (),
+    },
+)
+
 WORKFLOW_BY_MODEL_NAME: dict[str, DocumentWorkflow] = {
+    "Inquiry": INQUIRY_WORKFLOW,
     "PurchaseOrder": PURCHASE_ORDER_WORKFLOW,
     "SalesOrder": SALES_ORDER_WORKFLOW,
     "Invoice": INVOICE_WORKFLOW,
     "CarrierPurchaseOrder": CARRIER_PO_WORKFLOW,
+    "Fulfillment": FULFILLMENT_WORKFLOW,
+    "Claim": CLAIM_WORKFLOW,
 }
 
 

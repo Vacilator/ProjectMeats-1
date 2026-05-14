@@ -11,6 +11,7 @@
  */
 import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
+import { message } from 'antd';
 import { formatDateLocal } from '@/utils/formatters';
 import {
   Inquiry,
@@ -404,11 +405,14 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
     setUpdatingStatus(true);
     try {
       const response = await inquiryService.updateInquiryStatus(String(inquiry.id), newStatus);
+      const statusLabel = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+      message.success(`Inquiry marked as ${statusLabel}`);
       if (onUpdate) {
         onUpdate(response);
       }
     } catch (err) {
       logger.error('Failed to update status:', err);
+      message.error('Failed to update inquiry status. Please try again.');
     } finally {
       setUpdatingStatus(false);
     }

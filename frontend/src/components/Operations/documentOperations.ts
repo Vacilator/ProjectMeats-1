@@ -1,8 +1,11 @@
 export type SupportedOperationalEntityType =
+  | 'inquiry'
   | 'purchase_order'
   | 'sales_order'
   | 'invoice'
   | 'carrier_purchase_order'
+  | 'fulfillment'
+  | 'claim'
   | 'carrier';
 
 type DocumentEntityConfig = {
@@ -15,6 +18,22 @@ type DocumentEntityConfig = {
 };
 
 const CONFIG_BY_ALIAS: Record<string, DocumentEntityConfig> = {
+  inquiry: {
+    entityType: 'inquiry',
+    endpoint: 'inquiries',
+    recordPath: (id) => `/records/inquiry/${encodeURIComponent(String(id))}`,
+    auditEntityType: 'Inquiry',
+    label: 'Inquiry',
+    supportsOptimisticStatus: true,
+  },
+  inquiries: {
+    entityType: 'inquiry',
+    endpoint: 'inquiries',
+    recordPath: (id) => `/records/inquiry/${encodeURIComponent(String(id))}`,
+    auditEntityType: 'Inquiry',
+    label: 'Inquiry',
+    supportsOptimisticStatus: true,
+  },
   purchase_order: {
     entityType: 'purchase_order',
     endpoint: 'purchase-orders',
@@ -125,6 +144,36 @@ const CONFIG_BY_ALIAS: Record<string, DocumentEntityConfig> = {
     recordPath: (id) => `/records/carrier/${encodeURIComponent(String(id))}`,
     auditEntityType: 'Carrier',
     label: 'Carrier',
+  },
+  fulfillment: {
+    entityType: 'fulfillment',
+    endpoint: 'fulfillments',
+    recordPath: (id) => `/records/fulfillment/${encodeURIComponent(String(id))}`,
+    auditEntityType: 'Fulfillment',
+    label: 'Fulfillment',
+    supportsOptimisticStatus: true,
+  },
+  fulfillments: {
+    entityType: 'fulfillment',
+    endpoint: 'fulfillments',
+    recordPath: (id) => `/records/fulfillment/${encodeURIComponent(String(id))}`,
+    auditEntityType: 'Fulfillment',
+    label: 'Fulfillment',
+    supportsOptimisticStatus: true,
+  },
+  claim: {
+    entityType: 'claim',
+    endpoint: 'accounting/claims',
+    recordPath: (id) => `/records/claim/${encodeURIComponent(String(id))}`,
+    auditEntityType: 'Claim',
+    label: 'Claim',
+  },
+  claims: {
+    entityType: 'claim',
+    endpoint: 'accounting/claims',
+    recordPath: (id) => `/records/claim/${encodeURIComponent(String(id))}`,
+    auditEntityType: 'Claim',
+    label: 'Claim',
   },
 };
 

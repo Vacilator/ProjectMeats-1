@@ -87,7 +87,7 @@ class InvoiceViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
         return Response(InvoiceSerializer(inv).data)
 
 
-class ClaimViewSet(viewsets.ModelViewSet):
+class ClaimViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     """ViewSet for managing claims with strict tenant isolation."""
     
     queryset = Claim.objects.all()
