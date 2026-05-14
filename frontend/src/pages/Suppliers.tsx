@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Result, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Result, Space, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DownloadOutlined } from '@ant-design/icons';
 
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import StatusFilterBar from '../components/Shared/StatusFilterBar';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
@@ -277,25 +278,20 @@ const Suppliers: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            Suppliers
-          </Typography.Title>
-          <Typography.Text style={{ color: 'rgb(var(--color-text-tertiary))' }}>
-            Headquarters list
-          </Typography.Text>
-        </div>
-
-        <Space>
-          <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={!suppliers.length}>
-            Export CSV
-          </Button>
-          <Button type="primary" onClick={() => setCreateOpen(true)}>
-            New Supplier
-          </Button>
-        </Space>
-      </div>
+      <EntityPageHeader
+        title="Suppliers"
+        subtitle="Headquarters list"
+        actions={
+          <Space>
+            <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={!suppliers.length}>
+              Export CSV
+            </Button>
+            <Button type="primary" onClick={() => setCreateOpen(true)}>
+              New Supplier
+            </Button>
+          </Space>
+        }
+      />
 
       <StatusFilterBar
         tabs={supplierTabs}

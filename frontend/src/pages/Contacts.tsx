@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { logger } from '@/utils/logger';
 import type { Contact } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import StatusFilterBar from '../components/Shared/StatusFilterBar';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
@@ -20,58 +21,7 @@ const Container = styled.div`
   margin: 0 auto;
 `;
 
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-`;
 
-const Title = styled.h1`
-  font-size: 28px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-`;
-
-const AddButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: rgb(var(--color-text-inverse));
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-primary-hover));
-    transform: translateY(-1px);
-  }
-`;
-
-const ExportButton = styled.button`
-  background: rgb(var(--color-bg-secondary));
-  color: rgb(var(--color-text-secondary));
-  border: 1px solid rgb(var(--color-border));
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover:not(:disabled) {
-    background: rgb(var(--color-bg-tertiary));
-    color: rgb(var(--color-text-primary));
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
 
 const StatsCards = styled.div`
   display: grid;
@@ -430,13 +380,45 @@ const Contacts: React.FC = () => {
 
   return (
     <Container>
-      <Header>
-        <Title>Contacts</Title>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <ExportButton onClick={handleExportCsv} disabled={!contacts.length}>Export CSV</ExportButton>
-          <AddButton onClick={() => { setEditingContact(null); setShowForm(true); }}>+ Add Contact</AddButton>
-        </div>
-      </Header>
+      <EntityPageHeader
+        title="Contacts"
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleExportCsv}
+              disabled={!contacts.length}
+              style={{
+                background: 'rgb(var(--color-bg-secondary))',
+                color: 'rgb(var(--color-text-secondary))',
+                border: '1px solid rgb(var(--color-border))',
+                padding: '12px 24px',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: contacts.length ? 'pointer' : 'not-allowed',
+                opacity: contacts.length ? 1 : 0.5,
+              }}
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={() => { setEditingContact(null); setShowForm(true); }}
+              style={{
+                background: 'rgb(var(--color-primary))',
+                color: 'rgb(var(--color-text-inverse))',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              + Add Contact
+            </button>
+          </div>
+        }
+      />
 
       <StatusFilterBar
         tabs={contactTabs}

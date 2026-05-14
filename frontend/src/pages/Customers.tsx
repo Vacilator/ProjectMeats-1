@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Result, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Result, Space, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { DownloadOutlined } from '@ant-design/icons';
 
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import EntityFormSurface from '../components/Shared/EntityFormSurface';
 import StatusFilterBar from '../components/Shared/StatusFilterBar';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
@@ -39,27 +40,7 @@ const PageContainer = styled.div`
   }
 `;
 
-const HeaderRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-  flex-wrap: wrap;
-  min-width: 0;
-`;
 
-const HeaderActions = styled.div`
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
-  flex: 1 1 320px;
-  min-width: 0;
-
-  @media (max-width: 520px) {
-    width: 100%;
-  }
-`;
 
 const TableContainer = styled.div`
   width: 100%;
@@ -273,25 +254,20 @@ const Customers: React.FC = () => {
 
   return (
     <PageContainer>
-      <HeaderRow>
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            Customers
-          </Typography.Title>
-          <Typography.Text style={{ color: 'rgb(var(--color-text-tertiary))' }}>
-            Headquarters list
-          </Typography.Text>
-        </div>
-
-        <HeaderActions>
-          <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={!customers.length}>
-            Export CSV
-          </Button>
-          <Button type="primary" onClick={() => setCreateOpen(true)}>
-            New Customer
-          </Button>
-        </HeaderActions>
-      </HeaderRow>
+      <EntityPageHeader
+        title="Customers"
+        subtitle="Headquarters list"
+        actions={
+          <Space>
+            <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={!customers.length}>
+              Export CSV
+            </Button>
+            <Button type="primary" onClick={() => setCreateOpen(true)}>
+              New Customer
+            </Button>
+          </Space>
+        }
+      />
 
       <StatusFilterBar
         tabs={customerTabs}
