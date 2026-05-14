@@ -18,11 +18,12 @@ import {
 } from '@/components/Onboarding';
 import { StatCardGrid } from '@/components/Shared/StatCardGrid';
 import StatusFilterBar from '@/components/Shared/StatusFilterBar';
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface StorageLocation {
   id: number;
@@ -55,15 +56,6 @@ const PageContainer = styled.div`
   padding: 1rem;
   max-width: 1600px;
   margin: 0 auto;
-`;
-
-const PageHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
 `;
 
 const CapacityGrid = styled.div`
@@ -306,21 +298,17 @@ const ColdStorage: React.FC = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <div>
-          <Title level={3} style={{ marginBottom: 0 }}>
-            Cold Storage
-          </Title>
-          <Text type="secondary">
-            Inventory tracking, temperature zones, and lot management across facilities.
-          </Text>
-        </div>
-        <Space>
-          <Button type="primary" icon={<Plus size={14} />} onClick={() => setNewLotOpen(true)}>
-            New Lot
-          </Button>
-        </Space>
-      </PageHeader>
+      <EntityPageHeader
+        title="Cold Storage"
+        subtitle="Inventory tracking, temperature zones, and lot management across facilities."
+        actions={
+          <Space>
+            <Button type="primary" icon={<Plus size={14} />} onClick={() => setNewLotOpen(true)}>
+              New Lot
+            </Button>
+          </Space>
+        }
+      />
 
       <StatusFilterBar
         tabs={coldStorageTabs}

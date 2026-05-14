@@ -18,6 +18,7 @@ import {
 } from '@/components/Onboarding';
 import { StatCardGrid } from '@/components/Shared/StatCardGrid';
 import StatusFilterBar from '@/components/Shared/StatusFilterBar';
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import { CarrierCreateForm } from './Carriers/CarrierCreateForm';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { businessApi } from '@/services/businessApi';
@@ -25,7 +26,7 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { buildCsv, downloadCsv } from '@/utils/csv';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface Carrier {
   id: number;
@@ -50,17 +51,6 @@ const PageContainer = styled.div`
   max-width: 1600px;
   margin: 0 auto;
 `;
-
-const PageHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-`;
-
-const HeaderLeft = styled.div``;
 
 const isInsuranceExpiringSoon = (expiry?: string): boolean => {
   if (!expiry) return false;
@@ -269,24 +259,20 @@ const Carriers: React.FC = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <HeaderLeft>
-          <Title level={3} style={{ marginBottom: 0 }}>
-            Carrier Management
-          </Title>
-          <Text type="secondary">
-            Manage carriers, track compliance, and monitor performance.
-          </Text>
-        </HeaderLeft>
-        <Space>
-          <Button onClick={handleExportCsv} disabled={!carriers.length}>
-            Export CSV
-          </Button>
-          <Button type="primary" icon={<Plus size={14} />} onClick={() => setIsCreateOpen(true)}>
-            Add Carrier
-          </Button>
-        </Space>
-      </PageHeader>
+      <EntityPageHeader
+        title="Carrier Management"
+        subtitle="Manage carriers, track compliance, and monitor performance."
+        actions={
+          <Space>
+            <Button onClick={handleExportCsv} disabled={!carriers.length}>
+              Export CSV
+            </Button>
+            <Button type="primary" icon={<Plus size={14} />} onClick={() => setIsCreateOpen(true)}>
+              Add Carrier
+            </Button>
+          </Space>
+        }
+      />
 
       <StatCardGrid items={[
         { value: stats.total, label: 'Total Carriers' },
