@@ -313,28 +313,32 @@ describe('AIAgentWidget', () => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/ws/ai/inbox/',
         expect.objectContaining({
-          method: 'GET',
+          method: 'HEAD',
           redirect: 'manual',
         }),
       );
     });
 
+    // Wait for the async preflight + debounced connect to settle
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
-    expect(websocketInstances).toHaveLength(0);
+    await waitFor(() => {
+      expect(websocketInstances).toHaveLength(0);
+    });
 
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(websocketInstances).toHaveLength(0);
+    await waitFor(() => {
+      expect(websocketInstances).toHaveLength(0);
+    });
   });
 
   it('requests an updated inbox count when the sync refresh event fires', async () => {

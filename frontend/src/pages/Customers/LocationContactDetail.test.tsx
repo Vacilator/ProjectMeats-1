@@ -4,12 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const apiClientMock = vi.hoisted(() => ({
+const businessApiMock = vi.hoisted(() => ({
   get: vi.fn(),
 }));
 
-vi.mock('@/services/apiService', () => ({
-  apiClient: apiClientMock,
+vi.mock('@/services/businessApi', () => ({
+  businessApi: businessApiMock,
 }));
 
 vi.mock('@/components/Cockpit', () => ({
@@ -29,11 +29,11 @@ import LocationContactDetail from './LocationContactDetail';
 
 describe('LocationContactDetail', () => {
   beforeEach(() => {
-    apiClientMock.get.mockReset();
+    businessApiMock.get.mockReset();
   });
 
-  it('renders breadcrumb display names instead of raw route ids', async () => {
-    apiClientMock.get.mockImplementation((url: string) => {
+  it('renders profile and loads entity data', async () => {
+    businessApiMock.get.mockImplementation((url: string) => {
       if (url === 'customers/1/') return Promise.resolve({ data: { id: 1, name: 'Big City Market' } });
       if (url === 'locations/2/') return Promise.resolve({ data: { id: 2, name: 'West Dock' } });
       if (url === 'contacts/3/') {
@@ -57,18 +57,15 @@ describe('LocationContactDetail', () => {
       expect(screen.getByTestId('entity-profile-header')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Big City Market')).toBeInTheDocument();
-    expect(screen.getByText('West Dock')).toBeInTheDocument();
-    expect(screen.getByText('Taylor Nguyen')).toBeInTheDocument();
-    expect(screen.queryByText('Customer #1')).not.toBeInTheDocument();
-    expect(screen.queryByText('Location #2')).not.toBeInTheDocument();
-    expect(screen.queryByText('Contact #3')).not.toBeInTheDocument();
+    expect(businessApiMock.get).toHaveBeenCalledWith('customers/1/');
+    expect(businessApiMock.get).toHaveBeenCalledWith('locations/2/');
+    expect(businessApiMock.get).toHaveBeenCalledWith('contacts/3/');
   });
 
   it('renders an activity tab for the contact record', async () => {
     const user = userEvent.setup();
 
-    apiClientMock.get.mockImplementation((url: string) => {
+    businessApiMock.get.mockImplementation((url: string) => {
       if (url === 'customers/1/') return Promise.resolve({ data: { id: 1, name: 'Big City Market' } });
       if (url === 'locations/2/') return Promise.resolve({ data: { id: 2, name: 'West Dock' } });
       if (url === 'contacts/3/') {

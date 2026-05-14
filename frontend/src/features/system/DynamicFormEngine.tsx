@@ -713,6 +713,31 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   // which would cause AntD Select to re-evaluate its internal motion/status
   // hooks and trigger React error #185 (max update depth exceeded).
   const fieldOptionsCache = useRef<Record<string, { input: unknown; result: PreloadedOption[] }>>({});
+  // Separate cache for conditional (option_groups) resolved options.
+  // Without this, conditionalOptions.map() inside renderField creates a NEW
+  // array every render → AntD Select detects change → useStatus setState →
+  // re-render → infinite loop → React error #185.
+  const conditionalOptionsCache = useRef<Record<string, { input: unknown; depKey: string; result: PreloadedOption[] }>>({});
+
+  const getConditionalOptions = (
+    field: FieldDefinition,
+    conditionalOpts: unknown[] | undefined,
+    depKey: string,
+  ): PreloadedOption[] => {
+    if (!conditionalOpts?.length) return getFieldOptions(field);
+
+    const cacheKey = String(field.key);
+    const cached = conditionalOptionsCache.current[cacheKey];
+    if (cached && cached.input === conditionalOpts && cached.depKey === depKey) {
+      return cached.result;
+    }
+    const result = conditionalOpts.map((option) =>
+      typeof option === 'string' ? { value: option, label: option } : (option as PreloadedOption)
+    );
+    conditionalOptionsCache.current[cacheKey] = { input: conditionalOpts, depKey, result };
+    return result;
+  };
+
   const getFieldOptions = (field: FieldDefinition): PreloadedOption[] => {
     const cacheKey = String(field.key);
     const inputSignature = field.options?.length
@@ -1183,13 +1208,9 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       field.ui?.option_groups?.[dependencyLookupKey] ||
       field.ui?.option_groups?.[dependencyLookupKey.toLowerCase()] ||
       field.ui?.option_groups?.default;
-    // Use cached field options to maintain stable references for AntD Select.
-    // conditionalOptions come from schema.field.ui.option_groups — stable ref.
-    const resolvedOptions = conditionalOptions?.length
-      ? conditionalOptions.map((option) =>
-          typeof option === 'string' ? { value: option, label: option } : option
-        )
-      : getFieldOptions(field);
+    // Use cached helpers to maintain stable array references for AntD Select.
+    // Without caching, .map() creates a new array every render → React #185.
+    const resolvedOptions = getConditionalOptions(field, conditionalOptions, dependencyLookupKey);
 
     const section = field.ui?.section;
     const sectionTitle = typeof section === 'string' ? section : section?.title;

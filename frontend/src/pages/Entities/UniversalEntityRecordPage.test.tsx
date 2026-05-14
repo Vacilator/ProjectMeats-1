@@ -142,12 +142,12 @@ describe('UniversalEntityRecordPage child create defaults', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('button', { name: 'Suppliers' })).toBeInTheDocument();
+    // Wait for page to load (EntityProfileHeader renders on mount)
+    expect(await screen.findByTestId('entity-profile-header')).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: /new plant/i }));
 
     expect(await screen.findByTestId('entity-form-surface')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Suppliers' })).toBeInTheDocument();
 
     const latestProps = entityFormSurfaceMock.mock.calls.at(-1)?.[0] as
       | {

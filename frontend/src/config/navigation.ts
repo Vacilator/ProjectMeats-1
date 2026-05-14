@@ -55,9 +55,14 @@ export const navigation: NavigationItem[] = [
         path: '/suppliers',
       },
       {
-        label: 'Plants & Facilities',
+        label: 'Plants',
         icon: '🏗️',
         path: '/suppliers/plants',
+      },
+      {
+        label: 'Contacts',
+        icon: '📇',
+        path: '/suppliers/contacts',
       },
     ],
   },
@@ -76,6 +81,11 @@ export const navigation: NavigationItem[] = [
         icon: '📍',
         path: '/customers/locations',
       },
+      {
+        label: 'Contacts',
+        icon: '📇',
+        path: '/customers/contacts',
+      },
     ],
   },
   {
@@ -93,11 +103,6 @@ export const navigation: NavigationItem[] = [
         path: '/inquiries',
       },
       {
-        label: 'Fulfillments',
-        icon: '📦',
-        path: '/fulfillments',
-      },
-      {
         label: "P.O.'s",
         icon: '📦',
         path: '/purchase-orders',
@@ -107,6 +112,16 @@ export const navigation: NavigationItem[] = [
         icon: '🚚',
         path: '/sales-orders',
       },
+      {
+        label: 'Fulfillments',
+        icon: '📦',
+        path: '/fulfillments',
+      },
+      {
+        label: 'Freight',
+        icon: '🧾',
+        path: '/freight-orders',
+      },
     ],
   },
   {
@@ -114,43 +129,19 @@ export const navigation: NavigationItem[] = [
     icon: '💰',
     children: [
       {
-        label: 'Payables',
-        icon: '💸',
-        path: '/accounting/payables',
-        children: [
-          {
-            label: 'Claims',
-            icon: '📋',
-            path: '/accounting/payables/claims',
-          },
-          {
-            label: "P.O.'s",
-            icon: '📦',
-            path: '/accounting/payables/pos',
-          },
-        ],
+        label: 'Invoices',
+        icon: '🧾',
+        path: '/accounting/receivables/invoices',
       },
       {
-        label: 'Receivables',
+        label: 'Accounts Receivable',
         icon: '💵',
         path: '/accounts-receivables',
-        children: [
-          {
-            label: 'Claims',
-            icon: '📋',
-            path: '/accounting/receivables/claims',
-          },
-          {
-            label: "S.O.'s",
-            icon: '🚚',
-            path: '/accounting/receivables/sos',
-          },
-          {
-            label: 'Invoices',
-            icon: '🧾',
-            path: '/accounting/receivables/invoices',
-          },
-        ],
+      },
+      {
+        label: 'Claims',
+        icon: '📋',
+        path: '/accounting/payables/claims',
       },
       {
         label: 'Settlements',
@@ -174,44 +165,12 @@ export const navigation: NavigationItem[] = [
         icon: '🚛',
         path: '/carriers',
       },
-      {
-        label: 'Freight Orders',
-        icon: '🧾',
-        path: '/freight-orders',
-      },
-    ],
-  },
-  {
-    label: 'Tools',
-    icon: '🔧',
-    children: [
-      {
-        label: 'Calls',
-        icon: '📞',
-        path: '/calls',
-      },
-      {
-        label: 'Reports',
-        icon: '📈',
-        path: '/reports',
-      },
-      {
-        label: 'Deals',
-        icon: '🤝',
-        path: '/deals',
-      },
     ],
   },
   {
     label: 'WorkForms',
     icon: '📋',
     path: '/workforms',
-  },
-  {
-    label: 'AI & Approvals',
-    icon: '🤖',
-    path: '/settings/ai',
-    badgeKey: 'actionRequired',
   },
 ];
 
