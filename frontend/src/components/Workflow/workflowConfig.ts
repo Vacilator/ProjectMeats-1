@@ -186,6 +186,7 @@ const FULFILLMENT_CONFIG: EntityWorkflowConfig = {
   icon: ClipboardCheck,
   partyField: 'customer_name',
   partyLabel: 'Customer',
+  contactField: 'contact_name',
   transitions: {
     [t('pending', 'in_progress')]: { label: 'Start Processing', intent: 'primary' },
     [t('pending', 'cancelled')]: { label: 'Cancel', intent: 'danger' },
@@ -202,6 +203,7 @@ const CLAIM_CONFIG: EntityWorkflowConfig = {
   icon: AlertTriangle,
   partyField: 'customer_name',
   partyLabel: 'Customer',
+  contactField: 'contact_name',
   transitions: {
     [t('pending', 'approved')]: { label: 'Approve Claim', intent: 'success' },
     [t('pending', 'denied')]: { label: 'Deny Claim', intent: 'danger', confirm: 'Deny this claim?' },
