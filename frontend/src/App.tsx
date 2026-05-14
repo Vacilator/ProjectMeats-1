@@ -110,6 +110,7 @@ const EntityFormSurfaceSmoke = React.lazy(() => import('./pages/Diagnostics/Enti
 const OperationalStatusReplaySmoke = React.lazy(() => import('./pages/Diagnostics/OperationalStatusReplaySmoke'));
 const MySubmissions = React.lazy(() => import('./pages/MySubmissions'));
 const MyTasks = React.lazy(() => import('./pages/MyTasks'));
+const MyTrades = React.lazy(() => import('./pages/MyTrades'));
 const Inquiries = React.lazy(() => import('./pages/Inquiries'));
 const Fulfillments = React.lazy(() => import('./pages/Fulfillments'));
 const InquiryTemplates = React.lazy(() => import('./pages/InquiryTemplates'));
@@ -440,6 +441,7 @@ const App: React.FC = () => {
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
                 <Route path="my-tasks" element={<MyTasksRedirect />} />
+                <Route path="my-trades" element={<MyTrades />} />
 
                 {/* Admin Workspace - Wrapped with error boundary */}
                 <Route path="workspace" element={

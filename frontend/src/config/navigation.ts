@@ -23,6 +23,8 @@ export interface NavigationItem {
   badge?: number | string;
   /** Key for fetching dynamic badge count from context */
   badgeKey?: 'actionRequired' | 'waiting' | 'overdue' | 'total';
+  /** When true, renders a visual divider/separator line above this item */
+  divider?: boolean;
 }
 
 export const navigation: NavigationItem[] = [
@@ -32,9 +34,20 @@ export const navigation: NavigationItem[] = [
     path: '/',
   },
   {
+    label: 'My Tasks',
+    icon: '✅',
+    path: '/my-tasks',
+  },
+  {
+    label: 'My Trades',
+    icon: '🔄',
+    path: '/my-trades',
+  },
+  {
     label: 'Suppliers',
     icon: '🏭',
     path: '/suppliers',
+    divider: true,
     children: [
       {
         label: 'All Suppliers',

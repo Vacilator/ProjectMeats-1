@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Breadcrumb, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
+import { Alert, Button, Card, Empty, Spin, Table, Tabs } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { AIOverviewCard, EntityProfileHeader } from '@/components/Cockpit';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
@@ -172,22 +172,6 @@ export const PlantDetail: React.FC = () => {
     }
   }, [startEditing]);
 
-  const title = useMemo(() => {
-    return resolveEntityDisplay(
-      { name: plant?.name, id: pid },
-      { entityType: 'plant', fallbackStyle: 'id' }
-    );
-  }, [pid, plant?.name]);
-
-  const supplierDisplay = useMemo(
-    () =>
-      resolveEntityDisplay(
-        { name: supplier?.name, id: sid },
-        { entityType: 'supplier', fallbackStyle: 'id' }
-      ),
-    [sid, supplier?.name]
-  );
-
   const handleNavigateToEntity = useCallback(
     (entityType: string, entityId: string, _label: string) => {
       const t = String(entityType || '').trim().toLowerCase();
@@ -335,46 +319,14 @@ export const PlantDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           gap: 12,
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button onClick={() => navigate(-1)}>Back</Button>
-          <Breadcrumb
-            items={[
-              {
-                title: (
-                  <span>
-                    Supplier:{' '}
-                    <Link to={sid ? `/suppliers/${sid}` : '/suppliers'}>
-                      <span title={supplierDisplay.tooltip || supplierDisplay.text}>
-                        {supplierDisplay.text}
-                      </span>
-                    </Link>
-                  </span>
-                ),
-              },
-              {
-                title: (
-                    <span>
-                     Plants:{' '}
-                     <span style={{ fontWeight: 700 }} title={title.tooltip || title.text}>
-                       {title.text}
-                     </span>
-                    </span>
-                  ),
-                },
-            ]}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary" onClick={handleEditOpen} disabled={!pid || loading || showAuthFallback}>
-            Edit Plant
-          </Button>
-        </div>
+        <Button type="primary" onClick={handleEditOpen} disabled={!pid || loading || showAuthFallback}>
+          Edit Plant
+        </Button>
       </div>
       <div style={{ marginTop: 12 }}>
         {authLoading || loading ? (

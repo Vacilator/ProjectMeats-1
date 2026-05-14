@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Breadcrumb, Button, Card, Spin, Tabs } from 'antd';
+import { Button, Card, Spin, Tabs } from 'antd';
 import { Building2, ClipboardList, MessageSquarePlus, UsersRound } from 'lucide-react';
 import styled from 'styled-components';
 
@@ -415,25 +415,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     ],
     [childEntityDisplayName, handleChildCreateOpen, openRelatedContactCreate]
   );
-  const breadcrumbItems = useMemo(
-    () => [
-      {
-        title: (
-          <BreadcrumbLink type="button" onClick={handleNavigateToBasePath}>
-            {sectionLabel}
-          </BreadcrumbLink>
-        ),
-      },
-      {
-        title: (
-          <BreadcrumbTitle>
-            <span title={recordDisplay?.tooltip || title}>{title}</span>
-          </BreadcrumbTitle>
-        ),
-      },
-    ],
-    [handleNavigateToBasePath, recordDisplay?.tooltip, sectionLabel, title]
-  );
   const childCreateButtonLabel = useMemo(
     () => `New ${childEntityDisplayName}`,
     [childEntityDisplayName]
@@ -517,10 +498,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   return (
     <PageWrapper>
       <PageToolbar>
-        <Breadcrumb
-          items={breadcrumbItems}
-        />
-
         {mode === 'view' && entityId && (
           <SpaceWrap>
             {canShowOperationalActions ? (
@@ -885,20 +862,6 @@ const PageToolbar = styled.div`
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
-`;
-
-const BreadcrumbLink = styled.button`
-  border: none;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-  color: rgb(var(--color-primary));
-  font-weight: 700;
-`;
-
-const BreadcrumbTitle = styled.span`
-  color: rgb(var(--color-text-primary));
-  font-weight: 700;
 `;
 
 const RelationCard = styled(Card)`
