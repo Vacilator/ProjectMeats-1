@@ -2,6 +2,8 @@
  * Create Fulfillment Modal
  *
  * Modal for creating fulfillments from accepted inquiries.
+ * Uses GoldenFormShell for consistent form layout.
+ *
  * Features:
  * - Smart supplier filtering (only suppliers with selected products)
  * - Partial fulfillment support (select quantities per line)
@@ -21,6 +23,31 @@ import {
   Inquiry,
   InquiryProduct,
 } from '../../types';
+import {
+  GoldenFormOverlay,
+  GoldenFormContainer,
+  GoldenFormHeader,
+  GoldenFormTitleGroup,
+  GoldenFormTitle,
+  GoldenCloseButton,
+  GoldenFormBody,
+  GoldenSectionCard,
+  GoldenSectionHeader,
+  GoldenSectionIcon,
+  GoldenSectionTitle,
+  GoldenFieldGrid,
+  GoldenFormGroup,
+  GoldenLabel,
+  GoldenInput,
+  GoldenSelect,
+  GoldenTextArea,
+  GoldenFieldHint,
+  GoldenFieldError,
+  GoldenFormFooter,
+  GoldenCancelButton,
+  GoldenSubmitButton,
+  GoldenCheckbox,
+} from '@/components/Forms/GoldenFormShell';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -82,174 +109,14 @@ const createFulfillmentFormDefaults: CreateFulfillmentFormValues = {
 };
 
 // ============================================================================
-// Styled Components
+// Styled Components (fulfillment-specific — no Golden equivalent)
 // ============================================================================
-
-const Overlay = styled.div<{ isOpen: boolean }>`
-  display: ${props => props.isOpen ? 'flex' : 'none'};
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(var(--color-overlay), 0.6);
-  z-index: 1000;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-`;
-
-const Modal = styled.div`
-  background: rgb(var(--color-surface));
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-float);
-`;
-
-const ModalHeader = styled.div`
-  padding: 1.5rem;
-  border-bottom: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  background: rgb(var(--color-surface));
-  z-index: 10;
-`;
-
-const ModalTitle = styled.h2`
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const CloseButton = styled.button`
-  background: transparent;
-  border: none;
-  color: rgb(var(--color-text-secondary));
-  cursor: pointer;
-  font-size: 1.5rem;
-  line-height: 1;
-  padding: 0.25rem;
-  border-radius: var(--radius-md);
-
-  &:hover {
-    color: rgb(var(--color-text-primary));
-    background: rgba(var(--color-text-primary), 0.1);
-  }
-`;
-
-const ModalBody = styled.div`
-  padding: 1.5rem;
-`;
-
-const Section = styled.div`
-  margin-bottom: 1.5rem;
-`;
-
-const SectionTitle = styled.h3`
-  font-size: 1rem;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 1rem 0;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgb(var(--color-border));
-`;
-
-const FormRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const Label = styled.label`
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 0.375rem;
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 0.625rem;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-
-  &:disabled {
-    background: rgba(var(--color-text-secondary), 0.1);
-    cursor: not-allowed;
-  }
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 0.625rem;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-
-  &:disabled {
-    background: rgba(var(--color-text-secondary), 0.1);
-    cursor: not-allowed;
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 0.625rem;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  min-height: 80px;
-  resize: vertical;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
 
 const InquiryInfoCard = styled.div`
   background: rgba(var(--color-primary), 0.05);
   border: 1px solid rgba(var(--color-primary), 0.2);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   padding: 1rem;
-  margin-bottom: 1rem;
 `;
 
 const InquiryInfoRow = styled.div`
@@ -261,17 +128,17 @@ const InquiryInfoRow = styled.div`
 const InquiryInfoItem = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 2px;
 
   .label {
-    font-size: 0.75rem;
+    font-size: 12px;
     color: rgb(var(--color-text-secondary));
     text-transform: uppercase;
     letter-spacing: 0.025em;
   }
 
   .value {
-    font-size: 0.875rem;
+    font-size: 14px;
     color: rgb(var(--color-text-primary));
     font-weight: 500;
   }
@@ -279,7 +146,7 @@ const InquiryInfoItem = styled.div`
 
 const ProductsTable = styled.div`
   border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   overflow: hidden;
 `;
 
@@ -289,7 +156,7 @@ const ProductsHeader = styled.div`
   gap: 0.5rem;
   padding: 0.75rem;
   background: rgba(var(--color-primary), 0.1);
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
   text-transform: uppercase;
@@ -314,115 +181,24 @@ const ProductRow = styled.div<{ selected?: boolean }>`
   }
 `;
 
-const Checkbox = styled.input`
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: rgb(var(--color-primary));
-`;
-
-const ProductInput = styled(Input)`
-  padding: 0.5rem;
-  font-size: 0.8125rem;
+const ProductInput = styled(GoldenInput)`
+  padding: 8px;
+  font-size: 13px;
+  min-height: 32px;
 `;
 
 const QuantityWarning = styled.span`
   color: rgb(var(--color-warning));
-  font-size: 0.75rem;
-  margin-left: 0.25rem;
-`;
-
-const ModalFooter = styled.div`
-  padding: 1.5rem;
-  border-top: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  bottom: 0;
-  background: rgb(var(--color-surface));
-`;
-
-const FooterInfo = styled.div`
-  font-size: 0.875rem;
-  color: rgb(var(--color-text-secondary));
-
-  .highlight {
-    color: rgb(var(--color-primary));
-    font-weight: 600;
-  }
-`;
-
-const FooterActions = styled.div`
-  display: flex;
-  gap: 0.75rem;
-`;
-
-const CancelButton = styled.button`
-  padding: 0.625rem 1.25rem;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: rgb(var(--color-text-primary));
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-
-  &:hover {
-    background: rgba(var(--color-text-primary), 0.05);
-  }
-`;
-
-const SubmitButton = styled.button`
-  padding: 0.625rem 1.25rem;
-  border: none;
-  border-radius: var(--radius-md);
-  background: rgb(var(--color-primary));
-  color: rgb(var(--color-text-inverse));
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  &:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const ErrorMessage = styled.div`
-  color: rgb(var(--color-error));
-  font-size: 0.875rem;
-  padding: 0.75rem;
-  background: rgba(var(--color-error), 0.1);
-  border-radius: var(--radius-md);
-  margin-bottom: 1rem;
-`;
-
-const FieldError = styled.div`
-  color: rgb(var(--color-error));
-  font-size: 0.75rem;
-  margin-top: 0.25rem;
-`;
-
-const HelpText = styled.p`
-  font-size: 0.75rem;
-  color: rgb(var(--color-text-secondary));
-  margin-top: 0.25rem;
+  font-size: 12px;
+  margin-left: 4px;
 `;
 
 const StatusBadge = styled.span<{ status: string }>`
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 500;
   background: ${props => {
     switch (props.status) {
@@ -440,6 +216,37 @@ const StatusBadge = styled.span<{ status: string }>`
       default: return 'rgb(var(--color-neutral))';
     }
   }};
+`;
+
+const ErrorBanner = styled.div`
+  color: rgb(var(--color-error));
+  font-size: 14px;
+  padding: 12px;
+  background: rgba(var(--color-error), 0.1);
+  border-radius: 8px;
+  margin-bottom: 16px;
+`;
+
+const FulfillmentFooterLayout = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+`;
+
+const FooterInfo = styled.div`
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+
+  .highlight {
+    color: rgb(var(--color-primary));
+    font-weight: 600;
+  }
+`;
+
+const FooterActions = styled.div`
+  display: flex;
+  gap: 12px;
 `;
 
 // ============================================================================
@@ -788,238 +595,253 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Overlay isOpen={isOpen} onClick={handleClose}>
-      <Modal onClick={(e) => e.stopPropagation()}>
-        <form onSubmit={handleSubmit}>
-          <ModalHeader>
-            <ModalTitle>
-              📦 Create Fulfillment
-            </ModalTitle>
-            <CloseButton type="button" onClick={handleClose}>×</CloseButton>
-          </ModalHeader>
+    <GoldenFormOverlay onClick={handleClose}>
+      <GoldenFormContainer $maxWidth="800px" onClick={(e) => e.stopPropagation()}>
+        <GoldenFormHeader>
+          <GoldenFormTitleGroup>
+            <GoldenFormTitle>📦 Create Fulfillment</GoldenFormTitle>
+          </GoldenFormTitleGroup>
+          <GoldenCloseButton type="button" onClick={handleClose} aria-label="Close">
+            ×
+          </GoldenCloseButton>
+        </GoldenFormHeader>
 
-          <ModalBody>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
+        <GoldenFormBody as="div">
+          {error && <ErrorBanner>{error}</ErrorBanner>}
 
-            {/* Selection (guided mode) */}
-            {!inquiry && (
-              <Section>
-                <SectionTitle>Select Customer & Inquiry</SectionTitle>
-                <FormRow>
-                  <FormGroup>
-                    <Label>Customer *</Label>
-                    <Select
-                      value={selectedCustomerId}
-                      onChange={(e) => setSelectedCustomerId(e.target.value)}
-                      disabled={submitting || loadingCustomers}
-                    >
-                      <option value="">{loadingCustomers ? 'Loading…' : 'Select customer'}</option>
-                      {customerOptions.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </Select>
-                    <HelpText>Customers are ordered by most recent inquiry created.</HelpText>
-                  </FormGroup>
-
-                  <FormGroup>
-                    <Label>Inquiry *</Label>
-                    <Select
-                      value={selectedInquiryId}
-                      onChange={(e) => setSelectedInquiryId(e.target.value)}
-                      disabled={submitting || !selectedCustomerId || loadingInquiries}
-                    >
-                      <option value="">{loadingInquiries ? 'Loading…' : 'Select inquiry'}</option>
-                      {inquiryOptions.map((opt) => (
-                        <option key={opt.id} value={opt.id}>{opt.label}</option>
-                      ))}
-                    </Select>
-                    <HelpText>Inquiries are ordered most recent first.</HelpText>
-                  </FormGroup>
-                </FormRow>
-              </Section>
-            )}
-
-            {/* Inquiry Info */}
-            {resolvedInquiry && (
-              <Section>
-                <SectionTitle>Inquiry Information</SectionTitle>
-                <InquiryInfoCard>
-                  <InquiryInfoRow>
-                    <InquiryInfoItem>
-                      <span className="label">Inquiry #</span>
-                      <span className="value">{resolvedInquiry.inquiry_number}</span>
-                    </InquiryInfoItem>
-                    <InquiryInfoItem>
-                      <span className="label">Status</span>
-                      <StatusBadge status={resolvedInquiry.status}>{resolvedInquiry.status}</StatusBadge>
-                    </InquiryInfoItem>
-                    <InquiryInfoItem>
-                      <span className="label">Customer</span>
-                      <span className="value">{resolvedInquiry.customer_name || resolvedInquiry.supplier_name}</span>
-                    </InquiryInfoItem>
-                    {(resolvedInquiry.contact_snapshot_name || resolvedInquiry.contact_name) && (
-                      <InquiryInfoItem>
-                        <span className="label">Contact</span>
-                        <span className="value">{resolvedInquiry.contact_snapshot_name || resolvedInquiry.contact_name}</span>
-                      </InquiryInfoItem>
-                    )}
-                    <InquiryInfoItem>
-                      <span className="label">Total Value</span>
-                      <span className="value">${resolvedInquiry.total_actual?.toLocaleString() || resolvedInquiry.total_desired?.toLocaleString() || '0'}</span>
-                    </InquiryInfoItem>
-                  </InquiryInfoRow>
-                </InquiryInfoCard>
-              </Section>
-            )}
-
-            {/* Supplier & Carrier Selection */}
-            <Section>
-              <SectionTitle>Shipping Information</SectionTitle>
-              <FormRow>
-                <FormGroup>
-                  <Label>Shipping Type</Label>
-                  <Select
-                    {...form.register('shippingType')}
-                    disabled={submitting}
+          {/* Guided selection (when inquiry is not provided) */}
+          {!inquiry && (
+            <GoldenSectionCard>
+              <GoldenSectionHeader>
+                <GoldenSectionIcon>👤</GoldenSectionIcon>
+                <GoldenSectionTitle>Select Customer &amp; Inquiry</GoldenSectionTitle>
+              </GoldenSectionHeader>
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel $required>Customer</GoldenLabel>
+                  <GoldenSelect
+                    value={selectedCustomerId}
+                    onChange={(e) => setSelectedCustomerId(e.target.value)}
+                    disabled={submitting || loadingCustomers}
                   >
-                    <option value="tenant">Tenant</option>
-                    <option value="customer_pickup">Customer Pick-Up</option>
-                    <option value="supplier_delivering">Supplier Delivering</option>
-                  </Select>
-                </FormGroup>
-
-                <FormGroup>
-                  <Label>Supplier *</Label>
-                  <Select
-                    {...form.register('supplierId')}
-                    disabled={submitting || loadingSuppliers}
-                  >
-                    <option value="">
-                      {loadingSuppliers ? 'Loading...' : 'Select supplier'}
-                    </option>
-                    {supplierOptions.map(option => (
-                      <option key={option.id} value={option.id}>
-                        {option.name}
-                      </option>
+                    <option value="">{loadingCustomers ? 'Loading…' : 'Select customer'}</option>
+                    {customerOptions.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
-                  </Select>
-                  {form.formState.errors.supplierId?.message && (
-                    <FieldError role="alert">{String(form.formState.errors.supplierId.message)}</FieldError>
+                  </GoldenSelect>
+                  <GoldenFieldHint>Customers are ordered by most recent inquiry created.</GoldenFieldHint>
+                </GoldenFormGroup>
+
+                <GoldenFormGroup>
+                  <GoldenLabel $required>Inquiry</GoldenLabel>
+                  <GoldenSelect
+                    value={selectedInquiryId}
+                    onChange={(e) => setSelectedInquiryId(e.target.value)}
+                    disabled={submitting || !selectedCustomerId || loadingInquiries}
+                  >
+                    <option value="">{loadingInquiries ? 'Loading…' : 'Select inquiry'}</option>
+                    {inquiryOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>{opt.label}</option>
+                    ))}
+                  </GoldenSelect>
+                  <GoldenFieldHint>Inquiries are ordered most recent first.</GoldenFieldHint>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
+            </GoldenSectionCard>
+          )}
+
+          {/* Inquiry Info */}
+          {resolvedInquiry && (
+            <GoldenSectionCard>
+              <GoldenSectionHeader>
+                <GoldenSectionIcon>📋</GoldenSectionIcon>
+                <GoldenSectionTitle>Inquiry Information</GoldenSectionTitle>
+              </GoldenSectionHeader>
+              <InquiryInfoCard>
+                <InquiryInfoRow>
+                  <InquiryInfoItem>
+                    <span className="label">Inquiry #</span>
+                    <span className="value">{resolvedInquiry.inquiry_number}</span>
+                  </InquiryInfoItem>
+                  <InquiryInfoItem>
+                    <span className="label">Status</span>
+                    <StatusBadge status={resolvedInquiry.status}>{resolvedInquiry.status}</StatusBadge>
+                  </InquiryInfoItem>
+                  <InquiryInfoItem>
+                    <span className="label">Customer</span>
+                    <span className="value">{resolvedInquiry.customer_name || resolvedInquiry.supplier_name}</span>
+                  </InquiryInfoItem>
+                  {(resolvedInquiry.contact_snapshot_name || resolvedInquiry.contact_name) && (
+                    <InquiryInfoItem>
+                      <span className="label">Contact</span>
+                      <span className="value">{resolvedInquiry.contact_snapshot_name || resolvedInquiry.contact_name}</span>
+                    </InquiryInfoItem>
                   )}
-                  <HelpText>Only suppliers with selected products are shown</HelpText>
-                </FormGroup>
+                  <InquiryInfoItem>
+                    <span className="label">Total Value</span>
+                    <span className="value">${resolvedInquiry.total_actual?.toLocaleString() || resolvedInquiry.total_desired?.toLocaleString() || '0'}</span>
+                  </InquiryInfoItem>
+                </InquiryInfoRow>
+              </InquiryInfoCard>
+            </GoldenSectionCard>
+          )}
 
-                <FormGroup>
-                  <Label>Carrier</Label>
-                  <Select
-                    {...form.register('carrierId')}
-                    disabled={submitting || loadingCarriers}
-                  >
-                    <option value="">
-                      {loadingCarriers ? 'Loading...' : 'Select carrier (optional)'}
+          {/* Shipping Information */}
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon>🚚</GoldenSectionIcon>
+              <GoldenSectionTitle>Shipping Information</GoldenSectionTitle>
+            </GoldenSectionHeader>
+            <GoldenFieldGrid>
+              <GoldenFormGroup>
+                <GoldenLabel>Shipping Type</GoldenLabel>
+                <GoldenSelect
+                  {...form.register('shippingType')}
+                  disabled={submitting}
+                >
+                  <option value="tenant">Tenant</option>
+                  <option value="customer_pickup">Customer Pick-Up</option>
+                  <option value="supplier_delivering">Supplier Delivering</option>
+                </GoldenSelect>
+              </GoldenFormGroup>
+
+              <GoldenFormGroup>
+                <GoldenLabel $required>Supplier</GoldenLabel>
+                <GoldenSelect
+                  {...form.register('supplierId')}
+                  disabled={submitting || loadingSuppliers}
+                >
+                  <option value="">
+                    {loadingSuppliers ? 'Loading...' : 'Select supplier'}
+                  </option>
+                  {supplierOptions.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
                     </option>
-                    {carrierOptions.map(option => (
-                      <option key={option.id} value={option.id}>
-                        {option.name} {option.code ? `(${option.code})` : ''}
-                      </option>
-                    ))}
-                  </Select>
-                </FormGroup>
-              </FormRow>
+                  ))}
+                </GoldenSelect>
+                {form.formState.errors.supplierId?.message && (
+                  <GoldenFieldError role="alert">{String(form.formState.errors.supplierId.message)}</GoldenFieldError>
+                )}
+                <GoldenFieldHint>Only suppliers with selected products are shown</GoldenFieldHint>
+              </GoldenFormGroup>
 
-              <FormRow>
-                <FormGroup>
-                  <Label>Tracking Numbers</Label>
-                  <Input
-                    type="text"
-                    placeholder="Comma-separated tracking numbers"
-                    disabled={submitting}
-                    {...form.register('trackingNumbers')}
-                  />
-                  <HelpText>Enter multiple tracking numbers separated by commas</HelpText>
-                </FormGroup>
+              <GoldenFormGroup>
+                <GoldenLabel>Carrier</GoldenLabel>
+                <GoldenSelect
+                  {...form.register('carrierId')}
+                  disabled={submitting || loadingCarriers}
+                >
+                  <option value="">
+                    {loadingCarriers ? 'Loading...' : 'Select carrier (optional)'}
+                  </option>
+                  {carrierOptions.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.name} {option.code ? `(${option.code})` : ''}
+                    </option>
+                  ))}
+                </GoldenSelect>
+              </GoldenFormGroup>
 
-                <FormGroup>
-                  <Label>Estimated Delivery</Label>
-                  <Input
-                    type="date"
-                    disabled={submitting}
-                    {...form.register('estimatedDelivery')}
-                  />
-                </FormGroup>
-              </FormRow>
-            </Section>
+              <GoldenFormGroup>
+                <GoldenLabel>Estimated Delivery</GoldenLabel>
+                <GoldenInput
+                  type="date"
+                  disabled={submitting}
+                  {...form.register('estimatedDelivery')}
+                />
+              </GoldenFormGroup>
 
-            {/* Products to Fulfill */}
-            <Section>
-              <SectionTitle>
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Tracking Numbers</GoldenLabel>
+                <GoldenInput
+                  type="text"
+                  placeholder="Comma-separated tracking numbers"
+                  disabled={submitting}
+                  {...form.register('trackingNumbers')}
+                />
+                <GoldenFieldHint>Enter multiple tracking numbers separated by commas</GoldenFieldHint>
+              </GoldenFormGroup>
+            </GoldenFieldGrid>
+          </GoldenSectionCard>
+
+          {/* Products to Fulfill */}
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon>📦</GoldenSectionIcon>
+              <GoldenSectionTitle>
                 Products to Fulfill
                 {isPartialFulfillment && (
                   <QuantityWarning> (Partial Fulfillment)</QuantityWarning>
                 )}
-              </SectionTitle>
+              </GoldenSectionTitle>
+            </GoldenSectionHeader>
 
-              <ProductsTable>
-                <ProductsHeader>
-                  <span />
-                  <span>Product</span>
-                  <span>Ordered</span>
-                  <span>To Fulfill</span>
-                  <span>Unit Price</span>
-                  <span>Line Total</span>
-                </ProductsHeader>
+            <ProductsTable>
+              <ProductsHeader>
+                <span />
+                <span>Product</span>
+                <span>Ordered</span>
+                <span>To Fulfill</span>
+                <span>Unit Price</span>
+                <span>Line Total</span>
+              </ProductsHeader>
 
-                {lineItems.map((item) => (
-                  <ProductRow key={item.inquiryProductId} selected={item.selected}>
-                    <Checkbox
-                      type="checkbox"
-                      checked={item.selected}
-                      onChange={() => toggleLineItem(item.inquiryProductId)}
-                      disabled={submitting}
-                    />
+              {lineItems.map((item) => (
+                <ProductRow key={item.inquiryProductId} selected={item.selected}>
+                  <GoldenCheckbox
+                    type="checkbox"
+                    checked={item.selected}
+                    onChange={() => toggleLineItem(item.inquiryProductId)}
+                    disabled={submitting}
+                  />
 
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{item.productCode}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'rgb(var(--color-text-secondary))' }}>
-                        {item.productDescription}
-                      </div>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{item.productCode}</div>
+                    <div style={{ fontSize: '12px', color: 'rgb(var(--color-text-secondary))' }}>
+                      {item.productDescription}
                     </div>
+                  </div>
 
-                    <div>{item.quantityOrdered}</div>
+                  <div>{item.quantityOrdered}</div>
 
-                    <ProductInput
-                      type="number"
-                      min="0"
-                      max={item.quantityOrdered}
-                      value={item.quantityToFulfill}
-                      onChange={(e) => updateQuantity(item.inquiryProductId, parseInt(e.target.value) || 0)}
-                      disabled={submitting || !item.selected}
-                    />
+                  <ProductInput
+                    type="number"
+                    min="0"
+                    max={item.quantityOrdered}
+                    value={item.quantityToFulfill}
+                    onChange={(e) => updateQuantity(item.inquiryProductId, parseInt(e.target.value) || 0)}
+                    disabled={submitting || !item.selected}
+                  />
 
-                    <div>${item.unitPrice?.toFixed(2) || '0.00'}</div>
+                  <div>${item.unitPrice?.toFixed(2) || '0.00'}</div>
 
-                    <div style={{ fontWeight: 500 }}>
-                      ${((item.unitPrice || 0) * (item.selected ? item.quantityToFulfill : 0)).toFixed(2)}
-                    </div>
-                  </ProductRow>
-                ))}
-              </ProductsTable>
-            </Section>
+                  <div style={{ fontWeight: 500 }}>
+                    ${((item.unitPrice || 0) * (item.selected ? item.quantityToFulfill : 0)).toFixed(2)}
+                  </div>
+                </ProductRow>
+              ))}
+            </ProductsTable>
+          </GoldenSectionCard>
 
-            {/* Notes */}
-            <Section>
-              <FormGroup>
-                <Label>Notes</Label>
-                <TextArea
-                  placeholder="Add any notes about this fulfillment..."
-                  disabled={submitting}
-                  {...form.register('notes')}
-                />
-              </FormGroup>
-            </Section>
-          </ModalBody>
+          {/* Notes */}
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon>📝</GoldenSectionIcon>
+              <GoldenSectionTitle>Notes</GoldenSectionTitle>
+            </GoldenSectionHeader>
+            <GoldenFormGroup>
+              <GoldenTextArea
+                placeholder="Add any notes about this fulfillment..."
+                disabled={submitting}
+                {...form.register('notes')}
+              />
+            </GoldenFormGroup>
+          </GoldenSectionCard>
+        </GoldenFormBody>
 
-          <ModalFooter>
+        <GoldenFormFooter>
+          <FulfillmentFooterLayout>
             <FooterInfo>
               <span className="highlight">{selectedItems.length}</span> of {lineItems.length} products selected
               {' • '}
@@ -1027,17 +849,22 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
               {isPartialFulfillment && ' (Partial)'}
             </FooterInfo>
             <FooterActions>
-              <CancelButton type="button" onClick={handleClose} disabled={submitting}>
+              <GoldenCancelButton type="button" onClick={handleClose} disabled={submitting}>
                 Cancel
-              </CancelButton>
-              <SubmitButton type="submit" disabled={submitting || selectedItems.length === 0}>
+              </GoldenCancelButton>
+              <GoldenSubmitButton
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting || selectedItems.length === 0}
+                $loading={submitting}
+              >
                 {submitting ? 'Creating...' : 'Create Fulfillment'}
-              </SubmitButton>
+              </GoldenSubmitButton>
             </FooterActions>
-          </ModalFooter>
-        </form>
-      </Modal>
-    </Overlay>
+          </FulfillmentFooterLayout>
+        </GoldenFormFooter>
+      </GoldenFormContainer>
+    </GoldenFormOverlay>
   );
 };
 

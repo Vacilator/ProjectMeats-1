@@ -16,6 +16,9 @@ export type { PartyRoleBadgesProps } from './PartyRoleBadges';
 export { PendingApprovalsTab } from './PendingApprovalsTab';
 export type { PendingApprovalsTabProps } from './PendingApprovalsTab';
 
+export { RecordActivityFeed } from './RecordActivityFeed';
+export type { RecordActivityFeedProps } from './RecordActivityFeed';
+
 export {
   getWorkflowConfig,
   getTransitionLabel,
