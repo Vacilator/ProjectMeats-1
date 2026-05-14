@@ -15,11 +15,35 @@ import {
 import { businessApi } from '@/services/businessApi';
 import { useApprovalGate } from '@/hooks/useApprovalGate';
 import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
-
+import {
+  GoldenFormOverlay,
+  GoldenFormContainer,
+  GoldenFormHeader,
+  GoldenFormTitleGroup,
+  GoldenFormTitle,
+  GoldenCloseButton,
+  GoldenFormBody,
+  GoldenFormFooter,
+  GoldenSectionCard,
+  GoldenSectionHeader,
+  GoldenSectionIcon,
+  GoldenSectionTitle,
+  GoldenFieldGrid,
+  GoldenFormGroup,
+  GoldenLabel,
+  GoldenInput,
+  GoldenSelect,
+  GoldenTextArea,
+  GoldenCheckboxRow,
+  GoldenCheckbox,
+  GoldenAutoFilledBadge,
+  GoldenDateTimeStamp,
+  GoldenSubmitButton,
+  GoldenCancelButton,
+} from '@/components/Forms/GoldenFormShell';
 // ============================================================================
 // Types
 // ============================================================================
-
 interface CarrierOption {
   id: number | string;
   name: string;
@@ -32,7 +56,6 @@ interface CarrierOption {
   accounting_payable_contact_email?: string;
   how_carrier_make_appointment?: string;
 }
-
 interface EntityOption {
   id: number | string;
   name: string;
@@ -44,7 +67,6 @@ interface EntityOption {
   phone?: string;
   email?: string;
 }
-
 interface CarrierPOFormValues {
   date_time_stamp: string;
   carrier: string;
@@ -90,7 +112,6 @@ interface CarrierPOFormValues {
   departments_array: string[];
   notes: string;
 }
-
 export interface CarrierPOFormProps {
   mode: 'create' | 'edit';
   initialValues?: Partial<CarrierPOFormValues>;
@@ -98,41 +119,32 @@ export interface CarrierPOFormProps {
   onCancel: () => void;
   entityId?: number | string;
 }
-
 // ============================================================================
 // Constants
 // ============================================================================
-
 const PROTEIN_TYPES = [
   'Beef', 'Chicken', 'Fowl', 'Turkey', 'Lamb', 'Veal', 'Seafood',
   'Venison', 'Bison', 'Duck', 'Rabbit', 'Goat', 'Mutton', 'Pork',
   'Fish', 'Horse', 'Other',
 ];
-
 const PACKAGE_TYPES = [
   'Boxed wax lined', 'Boxed Poly', 'Combos', 'Nude Block', 'Boxed COV',
   'Boxed CO2', 'Combo bins', 'Totes', 'Bags', 'Bulk', 'Poly-Multiple', 'Nude',
 ];
-
 const APPOINTMENT_METHODS = ['Email', 'Phone', 'Website', 'FCFS', 'First Come First Serve'];
-
 const DEPARTMENTS = ['BOL', 'COA', 'POD'];
-
 // ============================================================================
 // Helpers
 // ============================================================================
-
 const genNum = (pfx: string) => {
   const d = new Date();
   return `${pfx}-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`;
 };
-
 const addDays = (date: Date, days: number): string => {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
 };
-
 const formatDateTime = (date: Date): string => {
   return date.toLocaleString('en-US', {
     year: 'numeric',
@@ -142,7 +154,6 @@ const formatDateTime = (date: Date): string => {
     minute: '2-digit',
   });
 };
-
 const getDefaultFormValues = (initial?: Partial<CarrierPOFormValues>): CarrierPOFormValues => ({
   date_time_stamp: new Date().toISOString(),
   carrier: '',
@@ -189,158 +200,9 @@ const getDefaultFormValues = (initial?: Partial<CarrierPOFormValues>): CarrierPO
   notes: '',
   ...initial,
 });
-
 // ============================================================================
-// Styled Components
+// Styled Components (form-specific; shared primitives come from GoldenFormShell)
 // ============================================================================
-
-const FormWrapper = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  overflow-y: auto;
-  backdrop-filter: blur(4px);
-
-  @media (max-width: 768px) {
-    align-items: flex-start;
-    padding: 8px;
-  }
-`;
-
-const FormShell = styled.div`
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  border-radius: 16px;
-  width: 100%;
-  max-width: 1020px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
-
-  @media (max-width: 768px) {
-    max-height: calc(100vh - 16px);
-    border-radius: 12px;
-  }
-`;
-
-const FormHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  position: sticky;
-  top: 0;
-  background: rgb(var(--color-surface));
-  z-index: 10;
-  border-radius: 16px 16px 0 0;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const FormTitleGroup = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const FormTitle = styled.h2`
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-`;
-
-const CloseBtn = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  padding: 8px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    color: rgb(var(--color-text-primary));
-  }
-`;
-
-const FormBody = styled.div`
-  padding: 24px 32px 32px;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const DateTimeStamp = styled.div`
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-  padding: 8px 12px;
-  background: rgb(var(--color-surface-hover));
-  border-radius: 8px;
-  display: inline-block;
-  margin-bottom: 16px;
-`;
-
-const SectionCard = styled.div`
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const SectionHeader = styled.div<{ $clickable?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  cursor: ${({ $clickable }) => ($clickable ? 'pointer' : 'default')};
-  user-select: none;
-`;
-
-const SectionIcon = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(var(--color-primary), 0.08);
-  color: rgb(var(--color-primary));
-`;
-
-const SectionTitle = styled.h3`
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  flex: 1;
-`;
-
 const CollapseChevron = styled.span<{ $expanded: boolean }>`
   display: flex;
   align-items: center;
@@ -348,169 +210,14 @@ const CollapseChevron = styled.span<{ $expanded: boolean }>`
   color: rgb(var(--color-text-secondary));
   transform: rotate(${({ $expanded }) => ($expanded ? '0deg' : '-90deg')});
 `;
-
 const SectionContent = styled.div<{ $expanded: boolean }>`
   display: ${({ $expanded }) => ($expanded ? 'block' : 'none')};
 `;
-
-const FieldGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const FieldGroup = styled.div<{ $span?: number }>`
-  grid-column: ${({ $span }) => ($span === 2 ? 'span 2' : 'auto')};
-
-  @media (max-width: 768px) {
-    grid-column: auto;
-  }
-`;
-
-const FieldLabel = styled.label`
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const RequiredMark = styled.span`
-  color: rgb(var(--color-error));
-  margin-left: 2px;
-`;
-
-const StyledInput = styled.input<{ $autoFilled?: boolean; $readOnly?: boolean }>`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s, box-shadow 0.2s;
-  min-height: 42px;
-  box-sizing: border-box;
-
-  ${({ $autoFilled }) =>
-    $autoFilled &&
-    `
-    background: rgba(var(--color-primary), 0.04);
-    border-color: rgba(var(--color-primary), 0.2);
-  `}
-
-  ${({ $readOnly }) =>
-    $readOnly &&
-    `
-    background: rgb(var(--color-surface-hover));
-    cursor: default;
-  `}
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  &::placeholder {
-    color: rgb(var(--color-text-secondary));
-    opacity: 0.6;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const StyledSelect = styled.select<{ $autoFilled?: boolean }>`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s;
-  min-height: 42px;
-  box-sizing: border-box;
-
-  ${({ $autoFilled }) =>
-    $autoFilled &&
-    `
-    background: rgba(var(--color-primary), 0.04);
-    border-color: rgba(var(--color-primary), 0.2);
-  `}
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const StyledTextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  resize: vertical;
-  min-height: 80px;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const CheckboxRow = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  padding: 8px 0;
-`;
-
-const StyledCheckbox = styled.input`
-  width: 18px;
-  height: 18px;
-  accent-color: rgb(var(--color-primary));
-  cursor: pointer;
-`;
-
-const AutoFilledBadge = styled.span`
-  font-size: 11px;
-  color: rgb(var(--color-primary));
-  opacity: 0.7;
-  margin-left: 8px;
-  font-weight: 400;
-`;
-
 const SearchSelectWrapper = styled.div`
   position: relative;
   display: flex;
   gap: 8px;
 `;
-
 const CreateNewBtn = styled.button`
   background: rgba(var(--color-primary), 0.08);
   color: rgb(var(--color-primary));
@@ -526,13 +233,11 @@ const CreateNewBtn = styled.button`
   white-space: nowrap;
   transition: all 0.2s;
   min-height: 42px;
-
   &:hover {
     background: rgba(var(--color-primary), 0.12);
     border-color: rgb(var(--color-primary));
   }
 `;
-
 const InlineCarrierForm = styled.div`
   background: rgba(var(--color-primary), 0.03);
   border: 1px solid rgba(var(--color-primary), 0.15);
@@ -540,7 +245,6 @@ const InlineCarrierForm = styled.div`
   padding: 20px;
   margin-top: 12px;
 `;
-
 const InlineFormTitle = styled.div`
   font-size: 14px;
   font-weight: 600;
@@ -550,14 +254,12 @@ const InlineFormTitle = styled.div`
   align-items: center;
   gap: 8px;
 `;
-
 const InlineFormActions = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
 `;
-
 const SmallBtn = styled.button<{ $primary?: boolean }>`
   padding: 8px 16px;
   border-radius: 8px;
@@ -571,90 +273,14 @@ const SmallBtn = styled.button<{ $primary?: boolean }>`
     $primary ? 'rgb(var(--color-primary))' : 'transparent'};
   color: ${({ $primary }) =>
     $primary ? 'white' : 'rgb(var(--color-text-primary))'};
-
   &:hover {
     opacity: 0.9;
   }
-
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
 `;
-
-const FormFooter = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 20px 32px;
-  border-top: 1px solid rgb(var(--color-border));
-  position: sticky;
-  bottom: 0;
-  background: rgb(var(--color-surface));
-  border-radius: 0 0 16px 16px;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-    flex-wrap: wrap;
-
-    & > button {
-      flex: 1 1 100%;
-    }
-  }
-`;
-
-const CancelButton = styled.button`
-  background: transparent;
-  color: rgb(var(--color-text-primary));
-  border: 1.5px solid rgb(var(--color-border));
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-height: 44px;
-
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    border-color: rgb(var(--color-text-secondary));
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const SubmitButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  padding: 12px 28px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-
-  &:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-`;
-
 const SubSectionLabel = styled.div`
   font-size: 14px;
   font-weight: 600;
@@ -663,16 +289,13 @@ const SubSectionLabel = styled.div`
   margin-top: 20px;
   padding-bottom: 8px;
   border-bottom: 1px dashed rgb(var(--color-border));
-
   &:first-child {
     margin-top: 0;
   }
 `;
-
 // ============================================================================
 // Component
 // ============================================================================
-
 export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
   mode,
   initialValues,
@@ -686,25 +309,20 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [createdAt] = useState(() => new Date());
   const approvalGate = useApprovalGate();
-
   // Lookups
   const [carriers, setCarriers] = useState<CarrierOption[]>([]);
   const [suppliers, setSuppliers] = useState<EntityOption[]>([]);
   const [customers, setCustomers] = useState<EntityOption[]>([]);
   const [loadingCarrier, setLoadingCarrier] = useState(false);
-
   // Auto-filled tracking
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
-
   // Carrier search
   const [carrierSearch, setCarrierSearch] = useState('');
-
   // Inline carrier creation
   const [showInlineCarrier, setShowInlineCarrier] = useState(false);
   const [inlineCarrierName, setInlineCarrierName] = useState('');
   const [inlineCarrierType, setInlineCarrierType] = useState('');
   const [creatingCarrier, setCreatingCarrier] = useState(false);
-
   // Collapsible sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     carrier: true,
@@ -714,11 +332,9 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     contacts: true,
     notes: false,
   });
-
   const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   }, []);
-
   // Load reference data
   useEffect(() => {
     const loadData = async () => {
@@ -740,14 +356,12 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     };
     loadData();
   }, []);
-
   // Filtered carriers for search
   const filteredCarriers = useMemo(() => {
     if (!carrierSearch.trim()) return carriers;
     const q = carrierSearch.toLowerCase();
     return carriers.filter((c) => c.name.toLowerCase().includes(q));
   }, [carriers, carrierSearch]);
-
   // Generic field change handler
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -756,7 +370,6 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     },
     [],
   );
-
   // Auto-generate number on blur if empty
   const handleAutoGenBlur = useCallback(
     (field: keyof CarrierPOFormValues, prefix: string) => {
@@ -770,26 +383,21 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     },
     [],
   );
-
   // Carrier auto-populate
   const handleCarrierSelect = useCallback(
     async (carrierId: string) => {
       setFormValues((prev) => ({ ...prev, carrier: carrierId }));
       setAutoFilledFields(new Set());
-
       if (!carrierId) return;
-
       try {
         setLoadingCarrier(true);
         const resp = await businessApi.get(`carriers/${carrierId}/`);
         const c = resp.data;
         const newAutoFields = new Set<string>();
-
         setFormValues((prev) => {
           const updates: Partial<CarrierPOFormValues> = {
             carrier: carrierId,
           };
-
           if (c.address) {
             updates.carrier_address = c.address;
             newAutoFields.add('carrier_address');
@@ -818,10 +426,8 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
             updates.how_carrier_make_appointment = c.how_carrier_make_appointment;
             newAutoFields.add('how_carrier_make_appointment');
           }
-
           return { ...prev, ...updates };
         });
-
         setAutoFilledFields(newAutoFields);
       } catch {
         message.error('Failed to load carrier details');
@@ -831,14 +437,11 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     },
     [],
   );
-
   // Supplier auto-populate (pickup info)
   const handleSupplierSelect = useCallback(
     async (supplierId: string) => {
       setFormValues((prev) => ({ ...prev, supplier: supplierId }));
-
       if (!supplierId) return;
-
       try {
         const resp = await businessApi.get(`suppliers/${supplierId}/`);
         const s = resp.data;
@@ -863,14 +466,11 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     },
     [],
   );
-
   // Customer auto-populate (delivery info)
   const handleCustomerSelect = useCallback(
     async (customerId: string) => {
       setFormValues((prev) => ({ ...prev, customer: customerId }));
-
       if (!customerId) return;
-
       try {
         const resp = await businessApi.get(`customers/${customerId}/`);
         const c = resp.data;
@@ -895,14 +495,12 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     },
     [],
   );
-
   // Inline carrier creation
   const handleCreateInlineCarrier = useCallback(async () => {
     if (!inlineCarrierName.trim()) {
       message.warning('Carrier name is required');
       return;
     }
-
     setCreatingCarrier(true);
     try {
       const resp = await businessApi.post('carriers/', {
@@ -916,7 +514,6 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
       setInlineCarrierName('');
       setInlineCarrierType('');
       message.success(`Carrier "${newCarrier.name}" created`);
-
       // Auto-select the new carrier
       await handleCarrierSelect(String(newCarrier.id));
     } catch {
@@ -925,7 +522,6 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
       setCreatingCarrier(false);
     }
   }, [inlineCarrierName, inlineCarrierType, handleCarrierSelect]);
-
   // Department checkbox handler
   const handleDepartmentToggle = useCallback((dept: string) => {
     setFormValues((prev) => {
@@ -934,7 +530,6 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
       return { ...prev, departments_array: next };
     });
   }, []);
-
   // Build payload
   const buildPayload = useCallback(() => {
     return {
@@ -979,18 +574,15 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
       notes: formValues.notes || undefined,
     };
   }, [formValues]);
-
   // Submit handler
   const handleSubmit = useCallback(async () => {
     if (!formValues.carrier) {
       message.warning('Please select a carrier');
       return;
     }
-
     setSubmitting(true);
     try {
       const payload = buildPayload();
-
       // Approval gate: intercept before external send
       const gateResult = await approvalGate.intercept({
         requestType: 'carrier_release',
@@ -1003,7 +595,6 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
         setSubmitting(false);
         return;
       }
-
       if (mode === 'edit' && entityId) {
         await businessApi.patch(`freight-orders/${entityId}/`, payload);
       } else {
@@ -1022,57 +613,51 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
       setSubmitting(false);
     }
   }, [formValues.carrier, buildPayload, mode, entityId, onSuccess]);
-
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) onCancel();
     },
     [onCancel],
   );
-
   const isAutoFilled = useCallback(
     (field: string) => autoFilledFields.has(field),
     [autoFilledFields],
   );
-
   return (
-    <FormWrapper onClick={handleBackdropClick}>
-      <FormShell>
+    <GoldenFormOverlay onClick={handleBackdropClick}>
+      <GoldenFormContainer $maxWidth="1020px">
         {/* Header */}
-        <FormHeader>
-          <FormTitleGroup>
+        <GoldenFormHeader>
+          <GoldenFormTitleGroup>
             <ClipboardList size={24} color="rgb(var(--color-primary))" />
-            <FormTitle>
+            <GoldenFormTitle>
               {mode === 'edit' ? 'Edit Carrier PO' : 'New Carrier PO (Freight Order)'}
-            </FormTitle>
-          </FormTitleGroup>
-          <CloseBtn onClick={onCancel} aria-label="Close form">
+            </GoldenFormTitle>
+          </GoldenFormTitleGroup>
+          <GoldenCloseButton onClick={onCancel} aria-label="Close form">
             <X size={20} />
-          </CloseBtn>
-        </FormHeader>
-
-        <FormBody>
-          <DateTimeStamp>
+          </GoldenCloseButton>
+        </GoldenFormHeader>
+        <GoldenFormBody as="div">
+          <GoldenDateTimeStamp>
             📅 Created: {formatDateTime(createdAt)}
-          </DateTimeStamp>
-
+          </GoldenDateTimeStamp>
           {/* Section 1: Carrier Information */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('carrier')}>
-              <SectionIcon><Truck size={18} /></SectionIcon>
-              <SectionTitle>🚚 Carrier Information</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('carrier')}>
+              <GoldenSectionIcon><Truck size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>🚚 Carrier Information</GoldenSectionTitle>
               {loadingCarrier && <Spin size="small" />}
               <CollapseChevron $expanded={!!expandedSections.carrier}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.carrier}>
-              <FieldGroup $span={2}>
-                <FieldLabel>
-                  Carrier <RequiredMark>*</RequiredMark>
-                </FieldLabel>
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel $required>Carrier</GoldenLabel>
                 <SearchSelectWrapper>
-                  <StyledSelect
+                  
+<GoldenSelect
                     name="carrier"
                     value={formValues.carrier}
                     onChange={(e) => handleCarrierSelect(e.target.value)}
@@ -1085,7 +670,7 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                         {c.name}
                       </option>
                     ))}
-                  </StyledSelect>
+                  </GoldenSelect>
                   <CreateNewBtn
                     type="button"
                     onClick={() => setShowInlineCarrier(!showInlineCarrier)}
@@ -1094,29 +679,28 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     <Plus size={14} /> New
                   </CreateNewBtn>
                 </SearchSelectWrapper>
-              </FieldGroup>
-
+              </GoldenFormGroup>
               {/* Inline carrier create */}
               {showInlineCarrier && (
                 <InlineCarrierForm>
                   <InlineFormTitle>
                     <Plus size={16} /> Quick Create Carrier
                   </InlineFormTitle>
-                  <FieldGrid>
-                    <FieldGroup>
-                      <FieldLabel>
-                        Carrier Name <RequiredMark>*</RequiredMark>
-                      </FieldLabel>
-                      <StyledInput
+                  <GoldenFieldGrid>
+                    <GoldenFormGroup>
+                      <GoldenLabel $required>Carrier Name</GoldenLabel>
+                      
+<GoldenInput
                         value={inlineCarrierName}
                         onChange={(e) => setInlineCarrierName(e.target.value)}
                         placeholder="Enter carrier name"
                         aria-label="New Carrier Name"
                       />
-                    </FieldGroup>
-                    <FieldGroup>
-                      <FieldLabel>Carrier Type</FieldLabel>
-                      <StyledSelect
+                    </GoldenFormGroup>
+                    <GoldenFormGroup>
+                      <GoldenLabel>Carrier Type</GoldenLabel>
+                      
+<GoldenSelect
                         value={inlineCarrierType}
                         onChange={(e) => setInlineCarrierType(e.target.value)}
                         aria-label="New Carrier Type"
@@ -1126,9 +710,9 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                         <option value="Rail">Rail</option>
                         <option value="Ocean">Ocean</option>
                         <option value="Air">Air</option>
-                      </StyledSelect>
-                    </FieldGroup>
-                  </FieldGrid>
+                      </GoldenSelect>
+                    </GoldenFormGroup>
+                  </GoldenFieldGrid>
                   <InlineFormActions>
                     <SmallBtn
                       type="button"
@@ -1151,18 +735,18 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                   </InlineFormActions>
                 </InlineCarrierForm>
               )}
-
               {/* Auto-populated carrier fields */}
               {formValues.carrier && (
-                <FieldGrid style={{ marginTop: 16 }}>
-                  <FieldGroup $span={2}>
-                    <FieldLabel>
+                <GoldenFieldGrid style={{ marginTop: 16 }}>
+                  <GoldenFormGroup $span={2}>
+                    <GoldenLabel>
                       Carrier Address
                       {isAutoFilled('carrier_address') && (
-                        <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                        <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                       )}
-                    </FieldLabel>
-                    <StyledInput
+                    </GoldenLabel>
+                    
+<GoldenInput
                       name="carrier_address"
                       value={formValues.carrier_address}
                       onChange={handleChange}
@@ -1170,15 +754,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                       placeholder="Carrier address"
                       aria-label="Carrier Address"
                     />
-                  </FieldGroup>
-                  <FieldGroup>
-                    <FieldLabel>
+                  </GoldenFormGroup>
+                  <GoldenFormGroup>
+                    <GoldenLabel>
                       City
                       {isAutoFilled('carrier_city') && (
-                        <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                        <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                       )}
-                    </FieldLabel>
-                    <StyledInput
+                    </GoldenLabel>
+                    
+<GoldenInput
                       name="carrier_city"
                       value={formValues.carrier_city}
                       onChange={handleChange}
@@ -1186,15 +771,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                       placeholder="City"
                       aria-label="Carrier City"
                     />
-                  </FieldGroup>
-                  <FieldGroup>
-                    <FieldLabel>
+                  </GoldenFormGroup>
+                  <GoldenFormGroup>
+                    <GoldenLabel>
                       State / Zip
                       {isAutoFilled('carrier_state_zip') && (
-                        <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                        <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                       )}
-                    </FieldLabel>
-                    <StyledInput
+                    </GoldenLabel>
+                    
+<GoldenInput
                       name="carrier_state_zip"
                       value={formValues.carrier_state_zip}
                       onChange={handleChange}
@@ -1202,26 +788,26 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                       placeholder="State Zip"
                       aria-label="Carrier State Zip"
                     />
-                  </FieldGroup>
-                </FieldGrid>
+                  </GoldenFormGroup>
+                </GoldenFieldGrid>
               )}
             </SectionContent>
-          </SectionCard>
-
+          </GoldenSectionCard>
           {/* Section 2: Order & Release Numbers */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('orders')}>
-              <SectionIcon><FileText size={18} /></SectionIcon>
-              <SectionTitle>📋 Order &amp; Release Numbers</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('orders')}>
+              <GoldenSectionIcon><FileText size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>📋 Order &amp; Release Numbers</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.orders}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.orders}>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>Order Number</FieldLabel>
-                  <StyledInput
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>Order Number</GoldenLabel>
+                  
+<GoldenInput
                     name="order_number"
                     value={formValues.order_number}
                     onChange={handleChange}
@@ -1229,10 +815,11 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Auto-generates on blur if empty"
                     aria-label="Order Number"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Carrier Release #</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Carrier Release #</GoldenLabel>
+                  
+<GoldenInput
                     name="carrier_release_num"
                     value={formValues.carrier_release_num}
                     onChange={handleChange}
@@ -1240,10 +827,11 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Auto-generates on blur if empty"
                     aria-label="Carrier Release Number"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Supplier Confirmation Order #</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Supplier Confirmation Order #</GoldenLabel>
+                  
+<GoldenInput
                     name="supplier_confirmation_order_number"
                     value={formValues.supplier_confirmation_order_number}
                     onChange={handleChange}
@@ -1253,10 +841,11 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Auto-generates on blur if empty"
                     aria-label="Supplier Confirmation Order Number"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Delivery PO Number</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Delivery PO Number</GoldenLabel>
+                  
+<GoldenInput
                     name="delivery_po_number"
                     value={formValues.delivery_po_number}
                     onChange={handleChange}
@@ -1264,25 +853,25 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Auto-generates on blur if empty"
                     aria-label="Delivery PO Number"
                   />
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </SectionContent>
-          </SectionCard>
-
+          </GoldenSectionCard>
           {/* Section 3: Product & Logistics */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('product')}>
-              <SectionIcon><Package size={18} /></SectionIcon>
-              <SectionTitle>📦 Product &amp; Logistics</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('product')}>
+              <GoldenSectionIcon><Package size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>📦 Product &amp; Logistics</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.product}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.product}>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>Type of Protein</FieldLabel>
-                  <StyledSelect
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>Type of Protein</GoldenLabel>
+                  
+<GoldenSelect
                     name="type_of_protein"
                     value={formValues.type_of_protein}
                     onChange={handleChange}
@@ -1292,21 +881,23 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     {PROTEIN_TYPES.map((t) => (
                       <option key={t} value={t}>{t}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Description of Product/Item</FieldLabel>
-                  <StyledInput
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Description of Product/Item</GoldenLabel>
+                  
+<GoldenInput
                     name="description_of_product_item"
                     value={formValues.description_of_product_item}
                     onChange={handleChange}
                     placeholder="Product description"
                     aria-label="Product Description"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Fresh or Frozen</FieldLabel>
-                  <StyledSelect
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Fresh or Frozen</GoldenLabel>
+                  
+<GoldenSelect
                     name="fresh_or_frozen"
                     value={formValues.fresh_or_frozen}
                     onChange={handleChange}
@@ -1315,11 +906,12 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     <option value="">Select…</option>
                     <option value="Fresh">Fresh</option>
                     <option value="Frozen">Frozen</option>
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Package Type</FieldLabel>
-                  <StyledSelect
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Package Type</GoldenLabel>
+                  
+<GoldenSelect
                     name="package_type"
                     value={formValues.package_type}
                     onChange={handleChange}
@@ -1329,11 +921,12 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     {PACKAGE_TYPES.map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Quantity</FieldLabel>
-                  <StyledInput
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Quantity</GoldenLabel>
+                  
+<GoldenInput
                     name="quantity"
                     type="number"
                     value={formValues.quantity}
@@ -1342,10 +935,11 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     min="0"
                     aria-label="Quantity"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Total Weight</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Total Weight</GoldenLabel>
+                  
+<GoldenInput
                     name="total_weight"
                     type="number"
                     value={formValues.total_weight}
@@ -1355,10 +949,11 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     step="0.01"
                     aria-label="Total Weight"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Weight Unit</FieldLabel>
-                  <StyledSelect
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Weight Unit</GoldenLabel>
+                  
+<GoldenSelect
                     name="weight_unit"
                     value={formValues.weight_unit}
                     onChange={handleChange}
@@ -1366,11 +961,12 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                   >
                     <option value="LBS">LBS</option>
                     <option value="KG">KG</option>
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Net or Catch</FieldLabel>
-                  <StyledSelect
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Net or Catch</GoldenLabel>
+                  
+<GoldenSelect
                     name="net_or_catch"
                     value={formValues.net_or_catch}
                     onChange={handleChange}
@@ -1378,11 +974,12 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                   >
                     <option value="Net">Net</option>
                     <option value="Catch">Catch</option>
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Edible or Inedible</FieldLabel>
-                  <StyledSelect
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Edible or Inedible</GoldenLabel>
+                  
+<GoldenSelect
                     name="edible_or_inedible"
                     value={formValues.edible_or_inedible}
                     onChange={handleChange}
@@ -1390,12 +987,12 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                   >
                     <option value="Edible">Edible</option>
                     <option value="Inedible">Inedible</option>
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Tested Product</FieldLabel>
-                  <CheckboxRow>
-                    <StyledCheckbox
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Tested Product</GoldenLabel>
+                  <GoldenCheckboxRow>
+                    <GoldenCheckbox
                       type="checkbox"
                       checked={formValues.tested_product}
                       onChange={(e) =>
@@ -1407,56 +1004,55 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                       aria-label="Tested Product"
                     />
                     Product has been tested
-                  </CheckboxRow>
-                </FieldGroup>
-              </FieldGrid>
+                  </GoldenCheckboxRow>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </SectionContent>
-          </SectionCard>
-
+          </GoldenSectionCard>
           {/* Section 4: Pickup & Delivery */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('logistics')}>
-              <SectionIcon><Building2 size={18} /></SectionIcon>
-              <SectionTitle>📍 Pickup &amp; Delivery</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('logistics')}>
+              <GoldenSectionIcon><Building2 size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>📍 Pickup &amp; Delivery</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.logistics}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.logistics}>
               {/* Dates */}
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>Pick Up Date</FieldLabel>
-                  <StyledInput
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>Pick Up Date</GoldenLabel>
+                  
+<GoldenInput
                     name="pick_up_date"
                     type="date"
                     value={formValues.pick_up_date}
                     onChange={handleChange}
                     aria-label="Pick Up Date"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Delivery Date</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Delivery Date</GoldenLabel>
+                  
+<GoldenInput
                     name="delivery_date"
                     type="date"
                     value={formValues.delivery_date}
                     onChange={handleChange}
                     aria-label="Delivery Date"
                   />
-                </FieldGroup>
-              </FieldGrid>
-
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
               {/* Pickup - Supplier */}
               <SubSectionLabel>
                 Pickup Location (from Supplier)
               </SubSectionLabel>
-              <FieldGrid>
-                <FieldGroup $span={2}>
-                  <FieldLabel>
-                    Supplier <RequiredMark>*</RequiredMark>
-                  </FieldLabel>
-                  <StyledSelect
+              <GoldenFieldGrid>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel $required>Supplier</GoldenLabel>
+                  
+<GoldenSelect
                     name="supplier"
                     value={formValues.supplier}
                     onChange={(e) => handleSupplierSelect(e.target.value)}
@@ -1466,16 +1062,17 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     {suppliers.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Pickup Building
                     {isAutoFilled('pickup_building_name') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="pickup_building_name"
                     value={formValues.pickup_building_name}
                     onChange={handleChange}
@@ -1483,15 +1080,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Building name"
                     aria-label="Pickup Building Name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Pickup Address
                     {isAutoFilled('pickup_address') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="pickup_address"
                     value={formValues.pickup_address}
                     onChange={handleChange}
@@ -1499,15 +1097,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Address"
                     aria-label="Pickup Address"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Pickup City
                     {isAutoFilled('pickup_city') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="pickup_city"
                     value={formValues.pickup_city}
                     onChange={handleChange}
@@ -1515,15 +1114,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="City"
                     aria-label="Pickup City"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Pickup State/Zip
                     {isAutoFilled('pickup_state_zip') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="pickup_state_zip"
                     value={formValues.pickup_state_zip}
                     onChange={handleChange}
@@ -1531,17 +1131,17 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="State Zip"
                     aria-label="Pickup State Zip"
                   />
-                </FieldGroup>
-              </FieldGrid>
-
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
               {/* Delivery - Customer */}
               <SubSectionLabel>
                 Delivery Location (from Customer)
               </SubSectionLabel>
-              <FieldGrid>
-                <FieldGroup $span={2}>
-                  <FieldLabel>Customer</FieldLabel>
-                  <StyledSelect
+              <GoldenFieldGrid>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>Customer</GoldenLabel>
+                  
+<GoldenSelect
                     name="customer"
                     value={formValues.customer}
                     onChange={(e) => handleCustomerSelect(e.target.value)}
@@ -1551,16 +1151,17 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Delivery Building
                     {isAutoFilled('delivery_building_name') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="delivery_building_name"
                     value={formValues.delivery_building_name}
                     onChange={handleChange}
@@ -1568,15 +1169,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Building name"
                     aria-label="Delivery Building Name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Delivery Address
                     {isAutoFilled('delivery_address') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="delivery_address"
                     value={formValues.delivery_address}
                     onChange={handleChange}
@@ -1584,15 +1186,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Address"
                     aria-label="Delivery Address"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Delivery City
                     {isAutoFilled('delivery_city') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="delivery_city"
                     value={formValues.delivery_city}
                     onChange={handleChange}
@@ -1600,15 +1203,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="City"
                     aria-label="Delivery City"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Delivery State/Zip
                     {isAutoFilled('delivery_state_zip') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="delivery_state_zip"
                     value={formValues.delivery_state_zip}
                     onChange={handleChange}
@@ -1616,19 +1220,19 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="State Zip"
                     aria-label="Delivery State Zip"
                   />
-                </FieldGroup>
-              </FieldGrid>
-
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
               {/* Appointment */}
-              <FieldGrid style={{ marginTop: 16 }}>
-                <FieldGroup>
-                  <FieldLabel>
+              <GoldenFieldGrid style={{ marginTop: 16 }}>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Appointment Method
                     {isAutoFilled('how_carrier_make_appointment') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledSelect
+                  </GoldenLabel>
+                  
+<GoldenSelect
                     name="how_carrier_make_appointment"
                     value={formValues.how_carrier_make_appointment}
                     onChange={handleChange}
@@ -1639,35 +1243,35 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     {APPOINTMENT_METHODS.map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-              </FieldGrid>
+                  </GoldenSelect>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </SectionContent>
-          </SectionCard>
-
+          </GoldenSectionCard>
           {/* Section 5: Contacts */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('contacts')}>
-              <SectionIcon><Users size={18} /></SectionIcon>
-              <SectionTitle>👤 Contacts</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('contacts')}>
+              <GoldenSectionIcon><Users size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>👤 Contacts</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.contacts}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.contacts}>
               {/* AP Contact (from carrier) */}
               <SubSectionLabel>
                 Accounting Payable (from Carrier)
               </SubSectionLabel>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     AP Contact Name
                     {isAutoFilled('accounting_payable_contact_name') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="accounting_payable_contact_name"
                     value={formValues.accounting_payable_contact_name}
                     onChange={handleChange}
@@ -1675,15 +1279,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Name"
                     aria-label="AP Contact Name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     AP Contact Phone
                     {isAutoFilled('accounting_payable_contact_phone') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="accounting_payable_contact_phone"
                     value={formValues.accounting_payable_contact_phone}
                     onChange={handleChange}
@@ -1691,15 +1296,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Phone"
                     aria-label="AP Contact Phone"
                   />
-                </FieldGroup>
-                <FieldGroup $span={2}>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>
                     AP Contact Email
                     {isAutoFilled('accounting_payable_contact_email') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="accounting_payable_contact_email"
                     value={formValues.accounting_payable_contact_email}
                     onChange={handleChange}
@@ -1708,22 +1314,22 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     type="email"
                     aria-label="AP Contact Email"
                   />
-                </FieldGroup>
-              </FieldGrid>
-
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
               {/* Shipping Contact (from supplier) */}
               <SubSectionLabel>
                 Shipping Contact (from Supplier)
               </SubSectionLabel>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Shipping Contact Name
                     {isAutoFilled('shipping_contact_name') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="shipping_contact_name"
                     value={formValues.shipping_contact_name}
                     onChange={handleChange}
@@ -1731,15 +1337,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Name"
                     aria-label="Shipping Contact Name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Shipping Contact Phone
                     {isAutoFilled('shipping_contact_phone') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="shipping_contact_phone"
                     value={formValues.shipping_contact_phone}
                     onChange={handleChange}
@@ -1747,15 +1354,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Phone"
                     aria-label="Shipping Contact Phone"
                   />
-                </FieldGroup>
-                <FieldGroup $span={2}>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>
                     Shipping Contact Email
                     {isAutoFilled('shipping_contact_email') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="shipping_contact_email"
                     value={formValues.shipping_contact_email}
                     onChange={handleChange}
@@ -1764,22 +1372,22 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     type="email"
                     aria-label="Shipping Contact Email"
                   />
-                </FieldGroup>
-              </FieldGrid>
-
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
               {/* Receiving Contact (from customer) */}
               <SubSectionLabel>
                 Receiving Contact (from Customer)
               </SubSectionLabel>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Receiving Contact Name
                     {isAutoFilled('receiving_contact_name') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="receiving_contact_name"
                     value={formValues.receiving_contact_name}
                     onChange={handleChange}
@@ -1787,15 +1395,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Name"
                     aria-label="Receiving Contact Name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>
                     Receiving Contact Phone
                     {isAutoFilled('receiving_contact_phone') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="receiving_contact_phone"
                     value={formValues.receiving_contact_phone}
                     onChange={handleChange}
@@ -1803,15 +1412,16 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     placeholder="Phone"
                     aria-label="Receiving Contact Phone"
                   />
-                </FieldGroup>
-                <FieldGroup $span={2}>
-                  <FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>
                     Receiving Contact Email
                     {isAutoFilled('receiving_contact_email') && (
-                      <AutoFilledBadge>● auto-filled</AutoFilledBadge>
+                      <GoldenAutoFilledBadge>● auto-filled</GoldenAutoFilledBadge>
                     )}
-                  </FieldLabel>
-                  <StyledInput
+                  </GoldenLabel>
+                  
+<GoldenInput
                     name="receiving_contact_email"
                     value={formValues.receiving_contact_email}
                     onChange={handleChange}
@@ -1820,39 +1430,38 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                     type="email"
                     aria-label="Receiving Contact Email"
                   />
-                </FieldGroup>
-              </FieldGrid>
-
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
               {/* Departments */}
               <SubSectionLabel>Departments</SubSectionLabel>
               <div style={{ display: 'flex', gap: 24 }}>
                 {DEPARTMENTS.map((dept) => (
-                  <CheckboxRow key={dept}>
-                    <StyledCheckbox
+                  <GoldenCheckboxRow key={dept}>
+                    <GoldenCheckbox
                       type="checkbox"
                       checked={formValues.departments_array.includes(dept)}
                       onChange={() => handleDepartmentToggle(dept)}
                       aria-label={`Department ${dept}`}
                     />
                     {dept}
-                  </CheckboxRow>
+                  </GoldenCheckboxRow>
                 ))}
               </div>
             </SectionContent>
-          </SectionCard>
-
+          </GoldenSectionCard>
           {/* Section 6: Comments & Notes */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('notes')}>
-              <SectionIcon><FileText size={18} /></SectionIcon>
-              <SectionTitle>📝 Comments &amp; Notes</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('notes')}>
+              <GoldenSectionIcon><FileText size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>📝 Comments &amp; Notes</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.notes}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.notes}>
-              <FieldGroup $span={2}>
-                <StyledTextArea
+              <GoldenFormGroup $span={2}>
+                
+<GoldenTextArea
                   name="notes"
                   value={formValues.notes}
                   onChange={handleChange}
@@ -1860,25 +1469,24 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                   rows={5}
                   aria-label="Notes"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
             </SectionContent>
-          </SectionCard>
-        </FormBody>
-
+          </GoldenSectionCard>
+        </GoldenFormBody>
         {/* Footer */}
-        <FormFooter>
-          <CancelButton onClick={onCancel} disabled={submitting} type="button">
+        <GoldenFormFooter>
+          <GoldenCancelButton onClick={onCancel} disabled={submitting} type="button">
             Cancel
-          </CancelButton>
-          <SubmitButton onClick={handleSubmit} disabled={submitting} type="button">
+          </GoldenCancelButton>
+          <GoldenSubmitButton onClick={handleSubmit} disabled={submitting} type="button">
             {submitting
               ? 'Saving…'
               : mode === 'edit'
                 ? 'Update Carrier PO'
                 : 'Create Carrier PO'}
-          </SubmitButton>
-        </FormFooter>
-      </FormShell>
+          </GoldenSubmitButton>
+        </GoldenFormFooter>
+      </GoldenFormContainer>
       <ApprovalPreviewModal
         open={approvalGate.showModal}
         request={approvalGate.currentRequest}
@@ -1887,8 +1495,7 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
         onEditApprove={approvalGate.handleEditApprove}
         onCancel={approvalGate.handleCancel}
       />
-    </FormWrapper>
+    </GoldenFormOverlay>
   );
 };
-
 export default CarrierPOForm;
