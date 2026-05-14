@@ -204,6 +204,11 @@ export const adminWorkspaceNavigation: NavigationItem[] = [
         path: '/workspace/option-lists',
       },
       {
+        label: 'My AI',
+        icon: '✨',
+        path: '/workspace/my-ai',
+      },
+      {
         label: 'Activity & Audit Logs',
         icon: '🕒',
         path: '/workspace/activity',
