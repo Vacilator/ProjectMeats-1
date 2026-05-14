@@ -16,8 +16,8 @@ import {
   ConfirmDialog,
   LoadingSkeleton,
   RoleBadge,
-  StatusBadge,
 } from '@/components/Admin';
+import { StatusBadge } from '@/components/Shared/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';

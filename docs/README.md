@@ -2,7 +2,7 @@
 
 **Status**: 🔄 LIVING DOCUMENT
 **Category**: Navigation Index
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-05-14
 
 ---
 
@@ -14,7 +14,7 @@ Welcome to the ProjectMeats documentation. This index helps you find what you ne
 
 ## 🎉 What's New
 
-### June 2026: Phase 38 Active · 40 Phases Complete 🚀
+### May 2026: Phase 38 Active · 37 Phases Complete 🚀
 
 **Platform Maturity**: Production-grade meat supply-chain platform with 213+ test files and 1900+ tests.
 
@@ -59,14 +59,14 @@ Everything under `docs/` is supporting reference/historical context. If anything
 
 ### ⚠️ Superseded Plans (Archived)
 
-These documents have been **archived** to `archive/superseded-plans/`:
+These documents have been **archived** to `plans/archive/`:
 
 | Document | Superseded By | Status |
 |----------|---------------|--------|
-| `FORM_SYSTEM_OVERHAUL_PLAN.md` | [Master Plan Wave 3](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-3-forms--flows) | 📦 Archived |
-| `FORM_EDITOR_AND_EXECUTION.md` | [Forms Enhancement Plan](plans/FORMS_FLOWS_ENHANCEMENT_PLAN.md) | 📦 Archived |
-| `DATA_ENTITY_RESTRUCTURING_PLAN.md` | [Master Plan Wave 6](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-6-model-migrations) | 📦 Archived |
-| `ADMIN_BACKEND_REVAMP_PLAN.md` | [Master Plan Wave 4](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-4-admin-studio-enhancement) | 📦 Archived |
+| `FORM_SYSTEM_OVERHAUL_PLAN.md` | [MASTER_PLAN.md](../MASTER_PLAN.md) | 📦 Archived |
+| `FORM_EDITOR_AND_EXECUTION.md` | [MASTER_PLAN.md](../MASTER_PLAN.md) | 📦 Archived |
+| `DATA_ENTITY_RESTRUCTURING_PLAN.md` | [MASTER_PLAN.md](../MASTER_PLAN.md) | 📦 Archived |
+| `ADMIN_BACKEND_REVAMP_PLAN.md` | [MASTER_PLAN.md](../MASTER_PLAN.md) | 📦 Archived |
 
 ---
 
@@ -104,13 +104,7 @@ docs/
 │   ├── README.md                # Index
 │   └── *.md                     # Guest mode, payments, etc.
 │
-├── implementation-history/      # Historical implementation records
-│   ├── README.md                # Index
-│   ├── WAVE_2_COMPLETION_EXPLAINED.md  # 🆕 Wave 2 deep dive
-│   └── *.md                     # Completed feature docs
-│
-└── archive/                     # Superseded/completed docs
-    └── superseded-plans/        # Replaced by Master Plan
+└── plans/archive/               # Superseded/completed historical plans
 ```
 
 ---
@@ -136,10 +130,7 @@ docs/
 | Document | Description | Status |
 |----------|-------------|--------|
 | [MASTER_PLAN.md](../MASTER_PLAN.md) | Canonical priorities, sequencing, and current truth | 🎯 **Active** |
-| [Progress Tracker](plans/PROGRESS_TRACKER.md) | Real-time progress tracking | 🎯 **Active** |
 | [Documentation Standards](plans/DOCUMENTATION_STANDARDS.md) | Canonical planning and naming rules | 🎯 **Active** |
-| [Forms Enhancement](plans/FORMS_FLOWS_ENHANCEMENT_PLAN.md) | Forms & workflows plan | 🎯 **Active** |
-| [Doc Organization](plans/DOCUMENTATION_ORGANIZATION_PLAN.md) | This reorganization effort | 🎯 **Active** |
 
 ### ⚙️ Configuration & Operations
 | Document | Description |
@@ -160,14 +151,14 @@ docs/
 |----------|-------------|
 | [Authentication](architecture/AUTHENTICATION_EXPLANATION.md) | Auth flow explanation |
 | [Tenant Access Control](features/TENANT_ACCESS_CONTROL.md) | Multi-tenant permissions |
-| [Guest Mode](features/GUEST_MODE_IMPLEMENTATION.md) | Guest user system |
-| [Invite System](features/INVITE_ONLY_SYSTEM.md) | Invitation flow |
+| [Guest Mode](features/GUEST_MODE.md) | Guest user system |
+| [Invitation System](features/INVITATION_SYSTEM.md) | Invitation flow |
 
 ### 📧 Integrations
 | Document | Description |
 |----------|-------------|
-| [SendGrid Config](guides/SENDGRID_CONFIGURATION_GUIDE.md) | Email setup |
-| [Payment Workflow](features/PAYMENT_WORKFLOW_GUIDE.md) | Payment integration |
+| [Email Configuration](guides/EMAIL_CONFIGURATION.md) | Email setup |
+| [Payment Guide](features/PAYMENT_DEVELOPER_GUIDE.md) | Payment integration |
 
 ---
 
@@ -200,10 +191,10 @@ docs/
 
 ## 🆘 Need Help?
 
-1. **Can't find a document?** Check [implementation-history/](implementation-history/) for completed features
+1. **Can't find a document?** Check [plans/archive/](plans/archive/) for completed/superseded features
 2. **Conflicting information?** See repo-root **`MASTER_PLAN.md`** (canonical) and `.github/MASTER_PLAN.md` (shipped PR log)
 3. **Outdated docs?** Flag them for archive in a PR
 
 ---
 
-*This index is part of the [Documentation Organization Plan](plans/DOCUMENTATION_ORGANIZATION_PLAN.md)*
+*This index is part of the [Documentation Standards](plans/DOCUMENTATION_STANDARDS.md)*

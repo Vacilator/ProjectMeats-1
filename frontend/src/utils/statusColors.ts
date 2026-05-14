@@ -24,7 +24,8 @@ export type StatusLevel =
   | 'approved'
   | 'rejected'
   | 'active'
-  | 'inactive';
+  | 'inactive'
+  | 'invited';
 
 /** Maps any status string to a semantic color token name. */
 function resolveToken(
@@ -56,6 +57,7 @@ function resolveToken(
     case 'pendingapproval':
     case 'draft':
     case 'partialpaid':
+    case 'invited':
       return 'warning';
 
     case 'error':
