@@ -122,11 +122,6 @@ export const navigation: NavigationItem[] = [
         icon: '📦',
         path: '/fulfillments',
       },
-      {
-        label: 'Freight',
-        icon: '🧾',
-        path: '/freight-orders',
-      },
     ],
   },
   {
@@ -165,6 +160,11 @@ export const navigation: NavigationItem[] = [
     label: 'Logistics',
     icon: '🚛',
     children: [
+      {
+        label: 'Freight',
+        icon: '🧾',
+        path: '/freight-orders',
+      },
       {
         label: 'Carriers',
         icon: '🚛',

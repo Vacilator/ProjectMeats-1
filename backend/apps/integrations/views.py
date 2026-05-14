@@ -546,6 +546,7 @@ def sync_emails(request):
         failure = build_email_failure("OUTLOOK_NOT_CONNECTED", stage="sync_manual")
         return Response(
             {
+                "ok": False,
                 "error": failure["message"],
                 "code": "not_connected",
                 "error_code": "not_connected",
@@ -555,7 +556,7 @@ def sync_emails(request):
                 "tenant_id": tenant_id,
                 "failure": failure,
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_200_OK,
         )
 
     try:
@@ -578,9 +579,10 @@ def sync_emails(request):
                 provider_email=provider.connected_email,
                 stats=stats,
             )
-            if response_status == status.HTTP_200_OK:
-                response_status = status.HTTP_400_BAD_REQUEST
-            return Response(payload, status=response_status)
+            # Return 200 + ok:false so the frontend can show actionable hints
+            # instead of treating this as a transport-level failure.
+            payload.setdefault("ok", False)
+            return Response(payload, status=status.HTTP_200_OK)
 
         # If Graph/token/decrypt failed, do NOT report "no new emails".
         # IMPORTANT: This is still an application-level failure, but not a server availability failure.
