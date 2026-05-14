@@ -55,60 +55,60 @@ describe('Breadcrumb', () => {
   });
 
   describe('single level path', () => {
-    it('renders Home breadcrumb for single-segment paths (entity name is page header)', () => {
+    it('renders Workspace breadcrumb for single-segment paths (entity name is page header)', () => {
       renderWithRouter('/suppliers');
 
-      // Last segment is dropped (shown as page header), breadcrumb shows Home
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      // Last segment is dropped (shown as page header), breadcrumb shows Workspace
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
       expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders Home breadcrumb for customers path', () => {
+    it('renders Workspace breadcrumb for customers path', () => {
       renderWithRouter('/customers');
 
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
     });
 
-    it('renders Home breadcrumb for purchase-orders path', () => {
+    it('renders Workspace breadcrumb for purchase-orders path', () => {
       renderWithRouter('/purchase-orders');
 
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
     });
 
-    it('renders Home breadcrumb for accounts-receivables path', () => {
+    it('renders Workspace breadcrumb for accounts-receivables path', () => {
       renderWithRouter('/accounts-receivables');
 
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
     });
 
-    it('renders Home breadcrumb for contacts path', () => {
+    it('renders Workspace breadcrumb for contacts path', () => {
       renderWithRouter('/contacts');
 
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
     });
 
-    it('renders Home breadcrumb for carriers path', () => {
+    it('renders Workspace breadcrumb for carriers path', () => {
       renderWithRouter('/carriers');
 
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
     });
 
-    it('renders Home breadcrumb for ai-assistant path', () => {
+    it('renders Workspace breadcrumb for ai-assistant path', () => {
       renderWithRouter('/ai-assistant');
 
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
     });
 
-    it('renders Home breadcrumb for profile path', () => {
+    it('renders Workspace breadcrumb for profile path', () => {
       renderWithRouter('/profile');
 
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
     });
 
-    it('renders Home breadcrumb for settings path', () => {
+    it('renders Workspace breadcrumb for settings path', () => {
       renderWithRouter('/settings');
 
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
     });
   });
 
@@ -118,10 +118,10 @@ describe('Breadcrumb', () => {
       expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
-    it('renders Home as link when multi-level', () => {
+    it('renders Workspace as link when multi-level', () => {
       renderWithRouter('/suppliers/details');
 
-      const homeLink = screen.getByRole('link', { name: 'Home' });
+      const homeLink = screen.getByRole('link', { name: 'Workspace' });
       expect(homeLink).toHaveAttribute('href', '/');
     });
 
@@ -135,19 +135,19 @@ describe('Breadcrumb', () => {
   });
 
   describe('multi-level path', () => {
-    it('renders Home and intermediate segments, drops last', () => {
+    it('renders Workspace and intermediate segments, drops last', () => {
       renderWithRouter('/suppliers/details');
 
-      // Home is root link, Suppliers is trail text (Details is page header, not in breadcrumb)
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      // Workspace is root link, Suppliers is trail text (Details is page header, not in breadcrumb)
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
       expect(screen.getByText('Suppliers')).toBeInTheDocument();
       expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders Home as link in multi-level', () => {
+    it('renders Workspace as link in multi-level', () => {
       renderWithRouter('/suppliers/details');
 
-      const homeLink = screen.getByRole('link', { name: 'Home' });
+      const homeLink = screen.getByRole('link', { name: 'Workspace' });
       expect(homeLink).toHaveAttribute('href', '/');
     });
 
@@ -191,11 +191,11 @@ describe('Breadcrumb', () => {
   });
 
   describe('unknown paths', () => {
-    it('displays Home for single-segment unmapped routes', () => {
+    it('displays Workspace for single-segment unmapped routes', () => {
       renderWithRouter('/custom-page');
 
-      // Single segment: breadcrumb shows Home (custom-page is page header)
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      // Single segment: breadcrumb shows Workspace (custom-page is page header)
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
       expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
@@ -204,7 +204,7 @@ describe('Breadcrumb', () => {
       renderWithRouter(`/suppliers/${uuid}`);
 
       // Home / Suppliers (uuid resolved as page header, dropped from trail)
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Workspace')).toBeInTheDocument();
       expect(screen.getByText('Suppliers')).toBeInTheDocument();
       expect(screen.queryByText(uuid)).not.toBeInTheDocument();
     });
