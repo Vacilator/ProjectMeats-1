@@ -198,14 +198,13 @@ def create_purchase_order_from_email(self, email_log_id: int, tenant_id: str):
             if contact_company:
                 supplier = Supplier.objects.filter(
                     tenant_id=tenant_id,
-                    company_name__iexact=contact_company,
+                    name__iexact=contact_company,
                 ).first()
 
                 if not supplier:
                     supplier = Supplier.objects.create(
                         tenant_id=tenant_id,
-                        company_name=contact_company,
-                        notes="Auto-created by email pipeline",
+                        name=contact_company,
                     )
                     _log_pipeline_event(
                         tenant_id,
@@ -223,6 +222,7 @@ def create_purchase_order_from_email(self, email_log_id: int, tenant_id: str):
                     tenant_id=tenant_id,
                     order_number=order_number,
                     our_purchase_order_num=order_number,
+                    order_date=timezone.now().date(),
                     status=PurchaseOrderStatus.DRAFT,
                     supplier=supplier,
                     item_description=extracted.get("requested_product_name", ""),
@@ -326,12 +326,25 @@ def generate_sales_order_from_po(self, po_id: int | None, tenant_id: str):
                 )
                 so_num = f"SO-{(last_so.id + 1) if last_so else 1:06d}"
 
+                # Resolve customer: check existing inquiry or create placeholder
+                from tenant_apps.customers.models import Customer
+
+                customer = None
+                if existing_inquiry and existing_inquiry.customer_id:
+                    customer = existing_inquiry.customer
+                if not customer:
+                    customer, _ = Customer.objects.get_or_create(
+                        tenant_id=tenant_id,
+                        name="Pending Assignment",
+                        defaults={"email": ""},
+                    )
+
                 so = SalesOrder(
                     tenant_id=tenant_id,
                     our_sales_order_num=so_num,
                     status=SalesOrderStatus.DRAFT,
                     supplier=po.supplier,
-                    item_description=po.item_description,
+                    customer=customer,
                     notes=f"Auto-generated from PO {po.order_number}",
                     date_time_stamp=timezone.now(),
                 )

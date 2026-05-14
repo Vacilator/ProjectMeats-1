@@ -32,6 +32,7 @@ from datetime import date
 
 import factory
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from factory.django import DjangoModelFactory
 
 User = get_user_model()
@@ -233,3 +234,41 @@ class TradeEventLogFactory(DjangoModelFactory):
     event_type = "inquiry.created"
     trade_id = factory.Sequence(lambda n: f"TRD-2026-{n:05d}")
     payload = factory.LazyFunction(dict)
+
+
+# ---------------------------------------------------------------------------
+# Integrations: Email Pipeline
+# ---------------------------------------------------------------------------
+
+
+class ExternalAuthProviderFactory(DjangoModelFactory):
+    """Creates an ExternalAuthProvider with auto-created tenant."""
+
+    class Meta:
+        model = "integrations.ExternalAuthProvider"
+
+    tenant = factory.SubFactory(TenantFactory)
+    provider_type = "microsoft"
+    access_token = "test-encrypted-access-token"
+    refresh_token = "test-encrypted-refresh-token"
+    token_expiry = factory.LazyFunction(timezone.now)
+    is_active = True
+
+
+class EmailLogFactory(DjangoModelFactory):
+    """Creates an EmailLog with auto-created tenant and provider."""
+
+    class Meta:
+        model = "integrations.EmailLog"
+
+    tenant = factory.SubFactory(TenantFactory)
+    provider = factory.SubFactory(
+        ExternalAuthProviderFactory, tenant=factory.SelfAttribute("..tenant")
+    )
+    message_id = factory.LazyFunction(lambda: f"<msg-{uuid.uuid4().hex[:12]}@example.com>")
+    subject = factory.Sequence(lambda n: f"PO Request #{n}")
+    sender_email = factory.Faker("email")
+    sender_name = factory.Faker("name")
+    received_at = factory.LazyFunction(timezone.now)
+    body_text = "Sample email body for testing"
+    status = "logged"
