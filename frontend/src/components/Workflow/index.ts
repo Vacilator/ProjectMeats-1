@@ -14,5 +14,6 @@ export {
   getWorkflowConfig,
   getTransitionLabel,
   getPrimaryTransition,
+  getAllowedTransitions,
 } from './workflowConfig';
 export type { EntityWorkflowConfig, TransitionMeta } from './workflowConfig';

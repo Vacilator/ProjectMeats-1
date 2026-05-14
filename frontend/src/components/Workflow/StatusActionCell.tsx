@@ -14,15 +14,15 @@ import styled from 'styled-components';
 import { Dropdown, message, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import { ChevronDown, Loader2 } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { businessApi } from '@/services/businessApi';
-import { withTenantQueryKey } from '@/utils/queryKeys';
 import { getStatusColors } from '@/utils/statusColors';
 import { getDocumentEntityConfig } from '@/components/Operations/documentOperations';
 import {
   getTransitionLabel,
   getPrimaryTransition,
+  getAllowedTransitions,
   getWorkflowConfig,
 } from './workflowConfig';
 
@@ -42,12 +42,6 @@ export interface StatusActionCellProps {
   /** Callback after a successful transition */
   onTransitioned?: () => void;
 }
-
-type WorkflowResponse = {
-  current_status: string;
-  allowed_transitions: string[];
-  statuses: Array<{ value: string; label: string }>;
-};
 
 // ============================================================================
 // Styled Components
@@ -137,25 +131,17 @@ export const StatusActionCell: React.FC<StatusActionCellProps> = ({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const config = useMemo(() => getDocumentEntityConfig(entityType), [entityType]);
   const workflowConfig = useMemo(() => getWorkflowConfig(entityType), [entityType]);
-  const normalizedEntityType = config?.entityType ?? entityType;
   const normalizedEntityId = String(entityId);
 
-  const workflowQueryKey = useMemo(
-    () => withTenantQueryKey('document-status-workflow', normalizedEntityType, normalizedEntityId),
-    [normalizedEntityId, normalizedEntityType],
+  // Client-side transitions — no per-row API call needed
+  const allowed = useMemo(
+    () => getAllowedTransitions(entityType, status),
+    [entityType, status],
   );
-
-  const workflowQuery = useQuery({
-    queryKey: workflowQueryKey,
-    queryFn: async () => {
-      const response = await businessApi.get<WorkflowResponse>(
-        `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/status-workflow/`,
-      );
-      return response.data;
-    },
-    enabled: Boolean(config) && Boolean(entityId) && !compact,
-    staleTime: 30_000,
-  });
+  const primary = useMemo(
+    () => getPrimaryTransition(entityType, status, allowed),
+    [entityType, status, allowed],
+  );
 
   const transitionMutation = useMutation({
     mutationFn: async (nextStatus: string) => {
@@ -168,7 +154,7 @@ export const StatusActionCell: React.FC<StatusActionCellProps> = ({
     onSuccess: (_data, nextStatus) => {
       const meta = getTransitionLabel(entityType, status, nextStatus);
       message.success(`${workflowConfig?.label ?? 'Record'} → ${meta.label}`);
-      void queryClient.invalidateQueries({ queryKey: workflowQueryKey });
+      void queryClient.invalidateQueries();
       onTransitioned?.();
     },
     onError: (err: unknown) => {
@@ -201,9 +187,6 @@ export const StatusActionCell: React.FC<StatusActionCellProps> = ({
   if (compact || !config) {
     return <CellWrapper>{pill}</CellWrapper>;
   }
-
-  const allowed = workflowQuery.data?.allowed_transitions ?? [];
-  const primary = getPrimaryTransition(entityType, status, allowed);
 
   if (!primary || allowed.length === 0) {
     return <CellWrapper>{pill}</CellWrapper>;
