@@ -2,6 +2,31 @@ import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { message } from 'antd';
 import {
+  GoldenFormOverlay,
+  GoldenFormContainer,
+  GoldenFormHeader,
+  GoldenFormTitleGroup,
+  GoldenFormTitle,
+  GoldenCloseButton,
+  GoldenFormBody,
+  GoldenSectionCard,
+  GoldenSectionHeader,
+  GoldenSectionIcon,
+  GoldenSectionTitle,
+  GoldenFieldGrid,
+  GoldenFormGroup,
+  GoldenLabel,
+  GoldenInput,
+  GoldenSelect,
+  GoldenTextArea,
+  GoldenCheckboxRow,
+  GoldenCheckbox,
+  GoldenFormFooter,
+  GoldenCancelButton,
+  GoldenSubmitButton,
+  GoldenAutoFilledBadge,
+} from '@/components/Forms/GoldenFormShell';
+import {
   Truck,
   Users,
   DollarSign,
@@ -125,145 +150,8 @@ const getDefaultFormValues = (initial?: Partial<CarrierFormValues>): CarrierForm
 });
 
 // ============================================================================
-// Styled Components
+// Form-specific Styled Components (not in GoldenFormShell)
 // ============================================================================
-
-const FormWrapper = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  overflow-y: auto;
-  backdrop-filter: blur(4px);
-
-  @media (max-width: 768px) {
-    align-items: flex-start;
-    padding: 8px;
-  }
-`;
-
-const FormShell = styled.div`
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  border-radius: 16px;
-  width: 100%;
-  max-width: 960px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
-
-  @media (max-width: 768px) {
-    max-height: calc(100vh - 16px);
-    border-radius: 12px;
-  }
-`;
-
-const FormHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  position: sticky;
-  top: 0;
-  background: rgb(var(--color-surface));
-  z-index: 10;
-  border-radius: 16px 16px 0 0;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const FormTitleGroup = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const FormTitle = styled.h2`
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-`;
-
-const CloseBtn = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  padding: 8px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    color: rgb(var(--color-text-primary));
-  }
-`;
-
-const FormBody = styled.div`
-  padding: 24px 32px 32px;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const SectionCard = styled.div`
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`;
-
-const SectionHeader = styled.div<{ $clickable?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  cursor: ${({ $clickable }) => ($clickable ? 'pointer' : 'default')};
-  user-select: none;
-`;
-
-const SectionIcon = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(var(--color-primary), 0.08);
-  color: rgb(var(--color-primary));
-`;
-
-const SectionTitle = styled.h3`
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  flex: 1;
-`;
 
 const CollapseChevron = styled.span<{ $expanded: boolean }>`
   display: flex;
@@ -275,136 +163,6 @@ const CollapseChevron = styled.span<{ $expanded: boolean }>`
 
 const SectionContent = styled.div<{ $expanded: boolean }>`
   display: ${({ $expanded }) => ($expanded ? 'block' : 'none')};
-`;
-
-const FieldGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const FieldGroup = styled.div<{ $span?: number }>`
-  grid-column: ${({ $span }) => ($span === 2 ? 'span 2' : 'auto')};
-
-  @media (max-width: 768px) {
-    grid-column: auto;
-  }
-`;
-
-const FieldLabel = styled.label`
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const RequiredMark = styled.span`
-  color: rgb(var(--color-error));
-  margin-left: 2px;
-`;
-
-const StyledInput = styled.input<{ $readOnly?: boolean }>`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s, box-shadow 0.2s;
-  min-height: 42px;
-  box-sizing: border-box;
-
-  ${({ $readOnly }) =>
-    $readOnly &&
-    `
-    background: rgb(var(--color-surface-hover));
-    cursor: default;
-  `}
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  &::placeholder {
-    color: rgb(var(--color-text-secondary));
-    opacity: 0.6;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const StyledSelect = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s;
-  min-height: 42px;
-  box-sizing: border-box;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const StyledTextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  resize: vertical;
-  min-height: 80px;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.08);
-  }
-
-  @media (max-width: 768px) {
-    font-size: 16px;
-  }
-`;
-
-const CheckboxRow = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  padding: 8px 0;
-`;
-
-const StyledCheckbox = styled.input`
-  width: 18px;
-  height: 18px;
-  accent-color: rgb(var(--color-primary));
-  cursor: pointer;
 `;
 
 const ToggleRow = styled.label`
@@ -441,87 +199,6 @@ const ToggleSwitch = styled.div<{ $active: boolean }>`
     transition: left 0.2s;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
-`;
-
-const FormFooter = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 20px 32px;
-  border-top: 1px solid rgb(var(--color-border));
-  position: sticky;
-  bottom: 0;
-  background: rgb(var(--color-surface));
-  border-radius: 0 0 16px 16px;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-    flex-wrap: wrap;
-
-    & > button {
-      flex: 1 1 100%;
-    }
-  }
-`;
-
-const CancelButton = styled.button`
-  background: transparent;
-  color: rgb(var(--color-text-primary));
-  border: 1.5px solid rgb(var(--color-border));
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-height: 44px;
-
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    border-color: rgb(var(--color-text-secondary));
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const SubmitButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  padding: 12px 28px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-
-  &:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-`;
-
-const AutoFilledBadge = styled.span`
-  font-size: 11px;
-  color: rgb(var(--color-primary));
-  opacity: 0.7;
-  margin-left: 8px;
-  font-weight: 400;
 `;
 
 // ============================================================================
@@ -661,36 +338,36 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
   );
 
   return (
-    <FormWrapper onClick={handleBackdropClick}>
-      <FormShell>
+    <GoldenFormOverlay onClick={handleBackdropClick}>
+      <GoldenFormContainer>
         {/* Header */}
-        <FormHeader>
-          <FormTitleGroup>
+        <GoldenFormHeader>
+          <GoldenFormTitleGroup>
             <Truck size={24} color="rgb(var(--color-primary))" />
-            <FormTitle>{mode === 'edit' ? 'Edit Carrier' : 'New Carrier'}</FormTitle>
-          </FormTitleGroup>
-          <CloseBtn onClick={onCancel} aria-label="Close form">
+            <GoldenFormTitle>{mode === 'edit' ? 'Edit Carrier' : 'New Carrier'}</GoldenFormTitle>
+          </GoldenFormTitleGroup>
+          <GoldenCloseButton onClick={onCancel} aria-label="Close form">
             <X size={20} />
-          </CloseBtn>
-        </FormHeader>
+          </GoldenCloseButton>
+        </GoldenFormHeader>
 
-        <FormBody>
+        <GoldenFormBody as="div">
           {/* Section 1: Carrier Details */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('details')}>
-              <SectionIcon><Truck size={18} /></SectionIcon>
-              <SectionTitle>🚚 Carrier Details</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('details')}>
+              <GoldenSectionIcon><Truck size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>🚚 Carrier Details</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.details}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.details}>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>
-                    Carrier Name <RequiredMark>*</RequiredMark>
-                  </FieldLabel>
-                  <StyledInput
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel $required>
+                    Carrier Name
+                  </GoldenLabel>
+                  <GoldenInput
                     name="name"
                     value={formValues.name}
                     onChange={handleChange}
@@ -698,20 +375,20 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                     required
                     aria-label="Carrier Name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Code</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Code</GoldenLabel>
+                  <GoldenInput
                     name="code"
                     value={formValues.code}
                     onChange={handleChange}
                     placeholder="Carrier code"
                     aria-label="Carrier Code"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Carrier Type</FieldLabel>
-                  <StyledSelect
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Carrier Type</GoldenLabel>
+                  <GoldenSelect
                     name="carrier_type"
                     value={formValues.carrier_type}
                     onChange={handleChange}
@@ -721,30 +398,30 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                     {CARRIER_TYPES.map((t) => (
                       <option key={t} value={t}>{t}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>MC Number</FieldLabel>
-                  <StyledInput
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>MC Number</GoldenLabel>
+                  <GoldenInput
                     name="mc_number"
                     value={formValues.mc_number}
                     onChange={handleChange}
                     placeholder="MC-XXXXXX"
                     aria-label="MC Number"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>DOT Number</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>DOT Number</GoldenLabel>
+                  <GoldenInput
                     name="dot_number"
                     value={formValues.dot_number}
                     onChange={handleChange}
                     placeholder="DOT-XXXXXXX"
                     aria-label="DOT Number"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Active</FieldLabel>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Active</GoldenLabel>
                   <ToggleRow>
                     <ToggleSwitch
                       $active={formValues.is_active}
@@ -757,114 +434,114 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                     />
                     {formValues.is_active ? 'Active' : 'Inactive'}
                   </ToggleRow>
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </SectionContent>
-          </SectionCard>
+          </GoldenSectionCard>
 
           {/* Section 2: Address */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('address')}>
-              <SectionIcon><Building2 size={18} /></SectionIcon>
-              <SectionTitle>📍 Address</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('address')}>
+              <GoldenSectionIcon><Building2 size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>📍 Address</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.address}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.address}>
-              <FieldGrid>
-                <FieldGroup $span={2}>
-                  <FieldLabel>Corporate Address</FieldLabel>
-                  <StyledInput
+              <GoldenFieldGrid>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>Corporate Address</GoldenLabel>
+                  <GoldenInput
                     name="address"
                     value={formValues.address}
                     onChange={handleChange}
                     placeholder="Street address"
                     aria-label="Address"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>City</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>City</GoldenLabel>
+                  <GoldenInput
                     name="city"
                     value={formValues.city}
                     onChange={handleChange}
                     placeholder="City"
                     aria-label="City"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>State</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>State</GoldenLabel>
+                  <GoldenInput
                     name="state"
                     value={formValues.state}
                     onChange={handleChange}
                     placeholder="State"
                     aria-label="State"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Zip Code</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Zip Code</GoldenLabel>
+                  <GoldenInput
                     name="zip_code"
                     value={formValues.zip_code}
                     onChange={handleChange}
                     placeholder="Zip code"
                     aria-label="Zip Code"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Country</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Country</GoldenLabel>
+                  <GoldenInput
                     name="country"
                     value={formValues.country}
                     onChange={handleChange}
                     placeholder="Country"
                     aria-label="Country"
                   />
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </SectionContent>
-          </SectionCard>
+          </GoldenSectionCard>
 
           {/* Section 3: Contacts */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('contacts')}>
-              <SectionIcon><Users size={18} /></SectionIcon>
-              <SectionTitle>👤 Contacts</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('contacts')}>
+              <GoldenSectionIcon><Users size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>👤 Contacts</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.contacts}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.contacts}>
               {/* AP Contact */}
-              <FieldLabel style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
+              <GoldenLabel style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
                 Accounting Payable Contact
-              </FieldLabel>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>AP Contact Name</FieldLabel>
-                  <StyledInput
+              </GoldenLabel>
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>AP Contact Name</GoldenLabel>
+                  <GoldenInput
                     name="accounting_payable_contact_name"
                     value={formValues.accounting_payable_contact_name}
                     onChange={handleChange}
                     placeholder="Name"
                     aria-label="AP Contact Name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>AP Contact Phone</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>AP Contact Phone</GoldenLabel>
+                  <GoldenInput
                     name="accounting_payable_contact_phone"
                     value={formValues.accounting_payable_contact_phone}
                     onChange={handleChange}
                     placeholder="Phone"
                     aria-label="AP Contact Phone"
                   />
-                </FieldGroup>
-                <FieldGroup $span={2}>
-                  <FieldLabel>AP Contact Email</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>AP Contact Email</GoldenLabel>
+                  <GoldenInput
                     name="accounting_payable_contact_email"
                     value={formValues.accounting_payable_contact_email}
                     onChange={handleChange}
@@ -872,39 +549,39 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                     type="email"
                     aria-label="AP Contact Email"
                   />
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
 
               {/* Sales Contact */}
-              <FieldLabel
+              <GoldenLabel
                 style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, marginTop: 24 }}
               >
                 Sales Contact
-              </FieldLabel>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>Sales Contact Name</FieldLabel>
-                  <StyledInput
+              </GoldenLabel>
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>Sales Contact Name</GoldenLabel>
+                  <GoldenInput
                     name="sales_contact_name"
                     value={formValues.sales_contact_name}
                     onChange={handleChange}
                     placeholder="Name"
                     aria-label="Sales Contact Name"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Contact Title</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Contact Title</GoldenLabel>
+                  <GoldenInput
                     name="contact_title"
                     value={formValues.contact_title}
                     onChange={handleChange}
                     placeholder="Title"
                     aria-label="Contact Title"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Sales Email</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Sales Email</GoldenLabel>
+                  <GoldenInput
                     name="sales_contact_email"
                     value={formValues.sales_contact_email}
                     onChange={handleChange}
@@ -912,69 +589,69 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                     type="email"
                     aria-label="Sales Contact Email"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Sales Main Phone</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Sales Main Phone</GoldenLabel>
+                  <GoldenInput
                     name="sales_contact_main_phone"
                     value={formValues.sales_contact_main_phone}
                     onChange={handleChange}
                     placeholder="Main phone"
                     aria-label="Sales Main Phone"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Sales Direct Phone</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Sales Direct Phone</GoldenLabel>
+                  <GoldenInput
                     name="sales_contact_direct_phone"
                     value={formValues.sales_contact_direct_phone}
                     onChange={handleChange}
                     placeholder="Direct phone"
                     aria-label="Sales Direct Phone"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Sales Cell Phone</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Sales Cell Phone</GoldenLabel>
+                  <GoldenInput
                     name="sales_contact_cell_phone"
                     value={formValues.sales_contact_cell_phone}
                     onChange={handleChange}
                     placeholder="Cell phone"
                     aria-label="Sales Cell Phone"
                   />
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
 
               {/* My Customer Num */}
-              <FieldGrid style={{ marginTop: 20 }}>
-                <FieldGroup $span={2}>
-                  <FieldLabel>My Customer # From Carrier</FieldLabel>
-                  <StyledInput
+              <GoldenFieldGrid style={{ marginTop: 20 }}>
+                <GoldenFormGroup $span={2}>
+                  <GoldenLabel>My Customer # From Carrier</GoldenLabel>
+                  <GoldenInput
                     name="my_customer_num_from_carrier"
                     value={formValues.my_customer_num_from_carrier}
                     onChange={handleChange}
                     placeholder="Customer number assigned by carrier"
                     aria-label="My Customer Number From Carrier"
                   />
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </SectionContent>
-          </SectionCard>
+          </GoldenSectionCard>
 
           {/* Section 4: Payment & Credit */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('payment')}>
-              <SectionIcon><DollarSign size={18} /></SectionIcon>
-              <SectionTitle>💰 Payment &amp; Credit</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('payment')}>
+              <GoldenSectionIcon><DollarSign size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>💰 Payment &amp; Credit</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.payment}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.payment}>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>Payment Terms</FieldLabel>
-                  <StyledSelect
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>Payment Terms</GoldenLabel>
+                  <GoldenSelect
                     name="accounting_payment_terms"
                     value={formValues.accounting_payment_terms}
                     onChange={handleChange}
@@ -984,11 +661,11 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                     {PAYMENT_TERMS.map((t) => (
                       <option key={t} value={t}>{t}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Credit Limits</FieldLabel>
-                  <StyledSelect
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Credit Limits</GoldenLabel>
+                  <GoldenSelect
                     name="credit_limits"
                     value={formValues.credit_limits}
                     onChange={handleChange}
@@ -998,11 +675,11 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                     {CREDIT_LIMITS.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Appointment Method</FieldLabel>
-                  <StyledSelect
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Appointment Method</GoldenLabel>
+                  <GoldenSelect
                     name="how_carrier_make_appointment"
                     value={formValues.how_carrier_make_appointment}
                     onChange={handleChange}
@@ -1012,83 +689,83 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                     {APPOINTMENT_METHODS.map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
-                  </StyledSelect>
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Departments</FieldLabel>
+                  </GoldenSelect>
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Departments</GoldenLabel>
                   {DEPARTMENTS.map((dept) => (
-                    <CheckboxRow key={dept}>
-                      <StyledCheckbox
+                    <GoldenCheckboxRow key={dept}>
+                      <GoldenCheckbox
                         type="checkbox"
                         checked={formValues.departments_array.includes(dept)}
                         onChange={() => handleDepartmentToggle(dept)}
                         aria-label={`Department ${dept}`}
                       />
                       {dept}
-                    </CheckboxRow>
+                    </GoldenCheckboxRow>
                   ))}
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </SectionContent>
-          </SectionCard>
+          </GoldenSectionCard>
 
           {/* Section 5: Insurance */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('insurance')}>
-              <SectionIcon><FileText size={18} /></SectionIcon>
-              <SectionTitle>🛡️ Insurance</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('insurance')}>
+              <GoldenSectionIcon><FileText size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>🛡️ Insurance</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.insurance}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.insurance}>
-              <FieldGrid>
-                <FieldGroup>
-                  <FieldLabel>Insurance Provider</FieldLabel>
-                  <StyledInput
+              <GoldenFieldGrid>
+                <GoldenFormGroup>
+                  <GoldenLabel>Insurance Provider</GoldenLabel>
+                  <GoldenInput
                     name="insurance_provider"
                     value={formValues.insurance_provider}
                     onChange={handleChange}
                     placeholder="Provider name"
                     aria-label="Insurance Provider"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Policy Number</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Policy Number</GoldenLabel>
+                  <GoldenInput
                     name="insurance_policy_number"
                     value={formValues.insurance_policy_number}
                     onChange={handleChange}
                     placeholder="Policy #"
                     aria-label="Insurance Policy Number"
                   />
-                </FieldGroup>
-                <FieldGroup>
-                  <FieldLabel>Expiry Date</FieldLabel>
-                  <StyledInput
+                </GoldenFormGroup>
+                <GoldenFormGroup>
+                  <GoldenLabel>Expiry Date</GoldenLabel>
+                  <GoldenInput
                     name="insurance_expiry"
                     type="date"
                     value={formValues.insurance_expiry}
                     onChange={handleChange}
                     aria-label="Insurance Expiry"
                   />
-                </FieldGroup>
-              </FieldGrid>
+                </GoldenFormGroup>
+              </GoldenFieldGrid>
             </SectionContent>
-          </SectionCard>
+          </GoldenSectionCard>
 
           {/* Section 6: Notes */}
-          <SectionCard>
-            <SectionHeader $clickable onClick={() => toggleSection('notes')}>
-              <SectionIcon><FileText size={18} /></SectionIcon>
-              <SectionTitle>📝 Notes</SectionTitle>
+          <GoldenSectionCard>
+            <GoldenSectionHeader $clickable onClick={() => toggleSection('notes')}>
+              <GoldenSectionIcon><FileText size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>📝 Notes</GoldenSectionTitle>
               <CollapseChevron $expanded={!!expandedSections.notes}>
                 <ChevronDown size={18} />
               </CollapseChevron>
-            </SectionHeader>
+            </GoldenSectionHeader>
             <SectionContent $expanded={!!expandedSections.notes}>
-              <FieldGroup $span={2}>
-                <StyledTextArea
+              <GoldenFormGroup $span={2}>
+                <GoldenTextArea
                   name="notes"
                   value={formValues.notes}
                   onChange={handleChange}
@@ -1096,25 +773,25 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                   rows={4}
                   aria-label="Notes"
                 />
-              </FieldGroup>
+              </GoldenFormGroup>
             </SectionContent>
-          </SectionCard>
-        </FormBody>
+          </GoldenSectionCard>
+        </GoldenFormBody>
 
         {/* Footer */}
-        <FormFooter>
-          <CancelButton onClick={onCancel} disabled={submitting} type="button">
+        <GoldenFormFooter>
+          <GoldenCancelButton onClick={onCancel} disabled={submitting} type="button">
             Cancel
-          </CancelButton>
-          <SubmitButton onClick={handleSubmit} disabled={submitting} type="button">
+          </GoldenCancelButton>
+          <GoldenSubmitButton onClick={handleSubmit} disabled={submitting} type="button">
             {submitting
               ? 'Saving…'
               : mode === 'edit'
                 ? 'Update Carrier'
                 : 'Create Carrier'}
-          </SubmitButton>
-        </FormFooter>
-      </FormShell>
+          </GoldenSubmitButton>
+        </GoldenFormFooter>
+      </GoldenFormContainer>
       <ApprovalPreviewModal
         open={approvalGate.showModal}
         request={approvalGate.currentRequest}
@@ -1123,7 +800,7 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
         onEditApprove={approvalGate.handleEditApprove}
         onCancel={approvalGate.handleCancel}
       />
-    </FormWrapper>
+    </GoldenFormOverlay>
   );
 };
 

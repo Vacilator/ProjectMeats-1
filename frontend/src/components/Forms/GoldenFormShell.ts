@@ -48,7 +48,7 @@ const slideUp = keyframes`
 export const GoldenFormOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -56,8 +56,9 @@ export const GoldenFormOverlay = styled.div`
   padding: 16px;
   overflow-y: auto;
   animation: ${fadeIn} 0.15s ease-out;
+  backdrop-filter: blur(4px);
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     align-items: flex-start;
     padding: 8px;
   }
@@ -66,19 +67,20 @@ export const GoldenFormOverlay = styled.div`
 export const GoldenFormContainer = styled.div<{ $maxWidth?: string }>`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-surface-foreground, var(--color-text-primary)));
-  border-radius: 12px;
+  border-radius: 16px;
   width: 100%;
-  max-width: ${(p) => p.$maxWidth || '680px'};
+  max-width: ${(p) => p.$maxWidth || '960px'};
   max-height: calc(100vh - 32px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   border: 1px solid rgb(var(--color-border));
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
   animation: ${slideUp} 0.2s ease-out;
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     max-height: calc(100vh - 16px);
-    border-radius: 10px;
+    border-radius: 12px;
   }
 `;
 
@@ -90,24 +92,24 @@ export const GoldenFormHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 24px 32px;
   border-bottom: 1px solid rgb(var(--color-border));
   position: sticky;
   top: 0;
   background: rgb(var(--color-surface));
-  z-index: 2;
-  border-radius: 12px 12px 0 0;
+  z-index: 10;
+  border-radius: 16px 16px 0 0;
   flex-shrink: 0;
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     padding: 16px;
   }
 `;
 
 export const GoldenFormTitle = styled.h2`
   margin: 0;
-  font-size: 18px;
-  font-weight: 650;
+  font-size: 22px;
+  font-weight: 700;
   color: rgb(var(--color-text-primary));
   display: flex;
   align-items: center;
@@ -154,9 +156,9 @@ export const GoldenCloseButton = styled.button`
 export const GoldenFormBody = styled.form`
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 24px 32px 32px;
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     padding: 16px;
   }
 `;
@@ -169,17 +171,17 @@ export const GoldenFormFooter = styled.div`
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  padding: 16px 24px;
+  padding: 20px 32px;
   border-top: 1px solid rgb(var(--color-border));
   position: sticky;
   bottom: 0;
   background: rgb(var(--color-surface));
   z-index: 2;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 16px 16px;
   flex-shrink: 0;
 
-  @media (max-width: 640px) {
-    padding: 12px 16px;
+  @media (max-width: 768px) {
+    padding: 16px;
     flex-wrap: wrap;
 
     & > button {
@@ -195,12 +197,18 @@ export const GoldenFormFooter = styled.div`
 export const GoldenSectionCard = styled.section<{ $collapsed?: boolean }>`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
-  border-radius: 10px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 
   &:last-child {
     margin-bottom: 0;
+  }
+
+  @media (max-width: 768px) {
+    padding: 16px;
   }
 `;
 
@@ -208,8 +216,8 @@ export const GoldenSectionHeader = styled.div<{ $clickable?: boolean }>`
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 18px;
-  background: rgb(var(--color-surface-raised, var(--color-surface)));
+  margin-bottom: 20px;
+  padding-bottom: 12px;
   border-bottom: 1px solid rgb(var(--color-border));
   cursor: ${(p) => (p.$clickable ? 'pointer' : 'default')};
   user-select: none;
@@ -224,14 +232,20 @@ export const GoldenSectionHeader = styled.div<{ $clickable?: boolean }>`
 `;
 
 export const GoldenSectionIcon = styled.span`
-  font-size: 16px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(var(--color-primary), 0.08);
+  color: rgb(var(--color-primary));
   flex-shrink: 0;
 `;
 
 export const GoldenSectionTitle = styled.h3`
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
   flex: 1;
@@ -330,8 +344,18 @@ const inputBase = css`
   }
 `;
 
-export const GoldenInput = styled.input`
+export const GoldenInput = styled.input<{ $autoFilled?: boolean; $readOnly?: boolean }>`
   ${inputBase}
+
+  ${({ $autoFilled }) => $autoFilled && `
+    background: rgba(var(--color-primary), 0.04);
+    border-color: rgba(var(--color-primary), 0.2);
+  `}
+
+  ${({ $readOnly }) => $readOnly && `
+    background: rgb(var(--color-border));
+    cursor: default;
+  `}
 
   &[type='number']::-webkit-inner-spin-button,
   &[type='number']::-webkit-outer-spin-button {
@@ -344,9 +368,14 @@ export const GoldenInput = styled.input`
   }
 `;
 
-export const GoldenSelect = styled.select`
+export const GoldenSelect = styled.select<{ $autoFilled?: boolean }>`
   ${inputBase}
   cursor: pointer;
+
+  ${({ $autoFilled }) => $autoFilled && `
+    background: rgba(var(--color-primary), 0.04);
+    border-color: rgba(var(--color-primary), 0.2);
+  `}
 `;
 
 export const GoldenTextArea = styled.textarea`
@@ -381,22 +410,23 @@ export const GoldenSubmitButton = styled.button<{ $loading?: boolean }>`
   background: rgb(var(--color-primary));
   color: white;
   border: none;
-  padding: 10px 24px;
-  border-radius: 8px;
+  padding: 12px 28px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
-  min-height: 40px;
+  transition: all 0.2s;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   opacity: ${(p) => (p.$loading ? 0.7 : 1)};
   pointer-events: ${(p) => (p.$loading ? 'none' : 'auto')};
 
   &:hover:not(:disabled) {
-    filter: brightness(1.05);
+    opacity: 0.9;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
   }
 
   &:focus-visible {
@@ -407,6 +437,8 @@ export const GoldenSubmitButton = styled.button<{ $loading?: boolean }>`
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 `;
 
@@ -448,4 +480,76 @@ export const GoldenReadonlyValue = styled.div`
   min-height: 40px;
   display: flex;
   align-items: center;
+`;
+
+/* ------------------------------------------------------------------ */
+/*  Form-specific shared primitives                                    */
+/* ------------------------------------------------------------------ */
+
+export const GoldenFormTitleGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+export const GoldenCheckboxRow = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: rgb(var(--color-text-primary));
+  padding: 8px 0;
+`;
+
+export const GoldenCheckbox = styled.input`
+  width: 18px;
+  height: 18px;
+  accent-color: rgb(var(--color-primary));
+  cursor: pointer;
+`;
+
+export const GoldenAutoFilledBadge = styled.span`
+  font-size: 11px;
+  color: rgb(var(--color-primary));
+  opacity: 0.7;
+  margin-left: 8px;
+  font-weight: 400;
+`;
+
+export const GoldenDateTimeStamp = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+  padding: 8px 12px;
+  background: rgb(var(--color-surface-hover, var(--color-border)));
+  border-radius: 8px;
+  display: inline-block;
+  margin-bottom: 16px;
+`;
+
+export const GoldenConditionalSection = styled.div<{ $visible: boolean }>`
+  display: ${({ $visible }) => ($visible ? 'block' : 'none')};
+`;
+
+export const GoldenDraftButton = styled.button`
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  border: 1.5px solid rgb(var(--color-border));
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 44px;
+
+  &:hover {
+    background: rgb(var(--color-border));
+    border-color: rgb(var(--color-text-secondary));
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
