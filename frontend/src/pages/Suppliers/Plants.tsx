@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Input, Button, message, Tag, Space } from 'antd';
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import StatusFilterBar from '@/components/Shared/StatusFilterBar';
@@ -65,29 +66,7 @@ const PageContainer = styled.div`
   background: rgb(var(--color-background));
 `;
 
-const PageHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-`;
 
-const TitleSection = styled.div`
-  flex: 1;
-`;
-
-const PageTitle = styled.h1`
-  font-size: 32px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 0.25rem 0;
-`;
-
-const PageSubtitle = styled.p`
-  font-size: 14px;
-  color: rgb(var(--color-text-secondary));
-  margin: 0;
-`;
 
 const ContextBanner = styled.div`
   background: rgb(var(--color-primary) / 0.1);
@@ -450,20 +429,20 @@ const Plants: React.FC = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <TitleSection>
-          <PageTitle>Plants & Facilities</PageTitle>
-          <PageSubtitle>Manage supplier processing facilities and locations</PageSubtitle>
-        </TitleSection>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          size="large"
-          onClick={handleAdd}
-        >
-          Add Plant
-        </Button>
-      </PageHeader>
+      <EntityPageHeader
+        title="Plants & Facilities"
+        subtitle="Manage supplier processing facilities and locations"
+        actions={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            size="large"
+            onClick={handleAdd}
+          >
+            Add Plant
+          </Button>
+        }
+      />
 
       {contextSupplierId && (
         <ContextBanner>

@@ -7,6 +7,7 @@ import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { buildPurchaseOrderReviewPath } from '@/services/purchaseOrderReviewService';
 import type { PurchaseOrder, Supplier } from '../services/apiService';
 import { businessApi } from '@/services/businessApi';
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -21,75 +22,6 @@ import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Styled Components
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 30px;
-
-  @media (max-width: 520px) {
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-`;
-
-const HeaderCopy = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const Title = styled.h1`
-  font-size: 28px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-`;
-
-const Subtitle = styled.p`
-  margin: 0;
-  color: rgb(var(--color-text-secondary));
-  font-size: 14px;
-`;
-
-const HeaderActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  @media (max-width: 520px) {
-    width: 100%;
-    flex-wrap: wrap;
-
-    & > button {
-      flex: 1 1 100%;
-    }
-  }
-`;
-
-const AddButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: rgb(var(--color-text-inverse));
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-height: 44px;
-
-  @media (max-width: 520px) {
-    padding: 12px 16px;
-  }
-
-  &:hover {
-    background: rgb(var(--color-primary-hover));
-    transform: translateY(-1px);
-  }
-`;
-
 const SecondaryButton = styled.button`
   background: transparent;
   color: rgb(var(--color-text-primary));
@@ -463,24 +395,37 @@ const PurchaseOrders: React.FC = () => {
 
   return (
     <>
-      <Header>
-        <HeaderCopy>
-          <Title>{headerTitle}</Title>
-          {headerSubtitle ? <Subtitle>{headerSubtitle}</Subtitle> : null}
-        </HeaderCopy>
-        <HeaderActions>
-          {showingInlineForm ? (
+      <EntityPageHeader
+        title={headerTitle}
+        subtitle={headerSubtitle ?? undefined}
+        actions={
+          showingInlineForm ? (
             <SecondaryButton onClick={handleFormClose}>Back to Purchase Orders</SecondaryButton>
           ) : (
-            <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <SecondaryButton onClick={exportToCsv} disabled={exporting}>
                 {exporting ? 'Exporting...' : 'Export CSV'}
               </SecondaryButton>
-              <AddButton onClick={openCreatePurchaseOrder}>+ Add Purchase Order</AddButton>
-            </>
-          )}
-        </HeaderActions>
-      </Header>
+              <button
+                onClick={openCreatePurchaseOrder}
+                style={{
+                  background: 'rgb(var(--color-primary))',
+                  color: 'rgb(var(--color-text-inverse))',
+                  border: 'none',
+                  padding: '12px 24px',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  minHeight: 44,
+                }}
+              >
+                + Add Purchase Order
+              </button>
+            </div>
+          )
+        }
+      />
 
       {showingInlineForm ? (
         <FormErrorBoundary entityType="purchase order" onClose={handleFormClose}>

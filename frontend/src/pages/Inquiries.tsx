@@ -20,6 +20,7 @@ import { logger } from '@/utils/logger';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
 import { buildCsv, downloadCsv } from '@/utils/csv';
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
 import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
 import { UnifiedForm } from '../components/UnifiedForm';
@@ -39,37 +40,7 @@ const Container = styled.div`
   min-width: 0;
 `;
 
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-`;
 
-const Title = styled.h1`
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const HeaderActions = styled.div`
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
-
-  @media (max-width: 520px) {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-  }
-`;
 
 const CreateButton = styled.button`
   padding: 0.625rem 1.25rem;
@@ -689,39 +660,41 @@ const Inquiries: React.FC = () => {
 
   return (
     <Container>
-      <Header>
-        <Title>📋 Inquiries</Title>
-        <HeaderActions>
-          <SecondaryButton onClick={handleExportCSV} disabled={!inquiries.length}>
-            📥 Export CSV
-          </SecondaryButton>
-          {templates.length > 0 && (
-            <DropdownContainer>
-              <SecondaryButton onClick={() => setShowTemplateMenu(!showTemplateMenu)}>
-                📝 From Template ▾
-              </SecondaryButton>
-              <DropdownMenu $isOpen={showTemplateMenu}>
-                <DropdownLabel>Templates</DropdownLabel>
-                {templates.map(template => (
-                  <DropdownItem
-                    key={template.id}
-                    onClick={() => handleCreateFromTemplate(template.id)}
-                  >
-                    {template.name}
-                    <TemplateMeta>({template.product_count} products)</TemplateMeta>
+      <EntityPageHeader
+        title="📋 Inquiries"
+        actions={
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' as const }}>
+            <SecondaryButton onClick={handleExportCSV} disabled={!inquiries.length}>
+              📥 Export CSV
+            </SecondaryButton>
+            {templates.length > 0 && (
+              <DropdownContainer>
+                <SecondaryButton onClick={() => setShowTemplateMenu(!showTemplateMenu)}>
+                  📝 From Template ▾
+                </SecondaryButton>
+                <DropdownMenu $isOpen={showTemplateMenu}>
+                  <DropdownLabel>Templates</DropdownLabel>
+                  {templates.map(template => (
+                    <DropdownItem
+                      key={template.id}
+                      onClick={() => handleCreateFromTemplate(template.id)}
+                    >
+                      {template.name}
+                      <TemplateMeta>({template.product_count} products)</TemplateMeta>
+                    </DropdownItem>
+                  ))}
+                  <DropdownItem onClick={() => navigate('/inquiries/templates')}>
+                    ⚙️ Manage Templates...
                   </DropdownItem>
-                ))}
-                <DropdownItem onClick={() => navigate('/inquiries/templates')}>
-                  ⚙️ Manage Templates...
-                </DropdownItem>
-              </DropdownMenu>
-            </DropdownContainer>
-          )}
-          <CreateButton onClick={() => setShowCreateModal(true)}>
-            + New Inquiry
-          </CreateButton>
-        </HeaderActions>
-      </Header>
+                </DropdownMenu>
+              </DropdownContainer>
+            )}
+            <CreateButton onClick={() => setShowCreateModal(true)}>
+              + New Inquiry
+            </CreateButton>
+          </div>
+        }
+      />
 
       <FiltersBar>
         <SearchInput

@@ -18,6 +18,7 @@ import styled from 'styled-components';
 import { Skeleton } from 'antd';
 import { PackagePlus } from 'lucide-react';
 
+import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import {
   TransactionalEmptyState,
   TransactionalEmptyStateGuidance,
@@ -79,38 +80,7 @@ const PageContainer = styled.div`
   }
 `;
 
-const PageHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-`;
 
-const PageTitle = styled.h1`
-  font-size: 32px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-
-  @media (max-width: 520px) {
-    font-size: 1.75rem;
-  }
-`;
-
-const HeaderActions = styled.div`
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
-
-  @media (max-width: 520px) {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-  }
-`;
 
 const SecondaryButton = styled.button`
   padding: 0.75rem 1.25rem;
@@ -664,17 +634,19 @@ export const SalesOrdersPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <PageTitle>Sales Orders</PageTitle>
-        <HeaderActions>
-          <SecondaryButton onClick={exportToCsv} disabled={exporting}>
-            {exporting ? 'Exporting...' : 'Export CSV'}
-          </SecondaryButton>
-          <PrimaryButton onClick={openCreateSalesOrder}>
-            + New Sales Order
-          </PrimaryButton>
-        </HeaderActions>
-      </PageHeader>
+      <EntityPageHeader
+        title="Sales Orders"
+        actions={
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' as const }}>
+            <SecondaryButton onClick={exportToCsv} disabled={exporting}>
+              {exporting ? 'Exporting...' : 'Export CSV'}
+            </SecondaryButton>
+            <PrimaryButton onClick={openCreateSalesOrder}>
+              + New Sales Order
+            </PrimaryButton>
+          </div>
+        }
+      />
 
       <ContentContainer $hasSidePanel={selectedOrder !== null}>
         <MainContent>
