@@ -9,10 +9,14 @@
  * - Optional placeholder
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Select as AntSelect, Typography } from 'antd';
 
 import { getAntdPopupContainer, type AntdGetPopupContainer } from '../../utils/antdPopupContainer';
+
+// Stable style references to prevent re-renders in AntD Select
+const WRAPPER_STYLE: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, width: '100%' };
+const SELECT_STYLE: React.CSSProperties = { width: '100%' };
 
 export interface SelectOption {
   value: string;
@@ -49,9 +53,13 @@ export const Select: React.FC<SelectProps> = ({
   id,
 }) => {
   const normalizedValue = value === '' ? undefined : value;
+  const handleChange = useCallback(
+    (next: string) => onChange(String(next)),
+    [onChange]
+  );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+    <div style={WRAPPER_STYLE}>
       <AntSelect
         id={id}
         aria-label={ariaLabel}
@@ -60,10 +68,10 @@ export const Select: React.FC<SelectProps> = ({
         disabled={disabled}
         status={error ? 'error' : undefined}
         options={options}
-        onChange={(next) => onChange(String(next))}
+        onChange={handleChange}
         allowClear={!required}
         getPopupContainer={getPopupContainer ?? getAntdPopupContainer}
-        style={{ width: '100%' }}
+        style={SELECT_STYLE}
       />
       {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
     </div>

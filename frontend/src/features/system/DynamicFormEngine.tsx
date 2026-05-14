@@ -141,6 +141,10 @@ export interface DynamicFormConfig {
 
 const EMPTY_INITIAL_VALUES: Record<string, unknown> = {};
 const EMPTY_OPTIONS: PreloadedOption[] = [];
+const EMPTY_DROPDOWN_OPTIONS: Record<string, PreloadedOption[]> = {};
+const STABLE_FULL_WIDTH: React.CSSProperties = { width: '100%' };
+const STABLE_SELECT_FILTER = (input: string, option?: { label?: unknown }) =>
+  String(option?.label || '').toLowerCase().includes(String(input || '').toLowerCase());
 const DEFAULT_FORM_CONFIG: DynamicFormConfig = {
   showRequiredIndicator: true,
   showHelpText: true,
@@ -551,7 +555,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   onShowAllFieldsChange,
   showAllFieldsToggle = true,
   submitLabel,
-  dropdownOptions = {},
+  dropdownOptions = EMPTY_DROPDOWN_OPTIONS,
   formConfig: preloadedFormConfig,
   onCreateEntity,
   contextVisibility,
@@ -854,7 +858,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   placeholder={itemField.placeholder || 'Add values'}
                   disabled={isSubmitting}
                   getPopupContainer={getAntdPopupContainer}
-                  style={{ width: '100%' }}
+                  style={STABLE_FULL_WIDTH}
                 />
               )}
             />
@@ -888,7 +892,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   allowClear
                   optionFilterProp="label"
                   getPopupContainer={getAntdPopupContainer}
-                  style={{ width: '100%' }}
+                  style={STABLE_FULL_WIDTH}
                 />
               )}
             />
@@ -1075,7 +1079,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               allowClear
               optionFilterProp="label"
               getPopupContainer={getAntdPopupContainer}
-              style={{ width: '100%' }}
+              style={STABLE_FULL_WIDTH}
             />
           )}
         />
@@ -1179,7 +1183,8 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       field.ui?.option_groups?.[dependencyLookupKey] ||
       field.ui?.option_groups?.[dependencyLookupKey.toLowerCase()] ||
       field.ui?.option_groups?.default;
-    // Use cached field options to maintain stable references for AntD Select
+    // Use cached field options to maintain stable references for AntD Select.
+    // conditionalOptions come from schema.field.ui.option_groups — stable ref.
     const resolvedOptions = conditionalOptions?.length
       ? conditionalOptions.map((option) =>
           typeof option === 'string' ? { value: option, label: option } : option
@@ -1269,12 +1274,8 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                 allowClear
                 optionFilterProp="label"
                 getPopupContainer={getAntdPopupContainer}
-                style={{ width: '100%' }}
-                filterOption={(input, option) =>
-                  String(option?.label || '')
-                    .toLowerCase()
-                    .includes(String(input || '').toLowerCase())
-                }
+                style={STABLE_FULL_WIDTH}
+                filterOption={STABLE_SELECT_FILTER}
               />
             )}
           />

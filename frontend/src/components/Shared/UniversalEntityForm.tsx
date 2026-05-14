@@ -132,6 +132,11 @@ type PreloadedDropdownOption = {
 
 const EMPTY_FORM_VALUES: Record<string, unknown> = {};
 const EMPTY_FK_SELECT_OPTIONS: { value: string; label: string }[] = [];
+const EMPTY_DROPDOWN_OPTIONS: Record<string, PreloadedDropdownOption[]> = {};
+// Stable filterOption for AntD Select — avoids new function ref per render
+const STABLE_SELECT_FILTER = (input: string, option?: { label?: unknown }) =>
+  String(option?.label || '').toLowerCase().includes(String(input || '').toLowerCase());
+const STABLE_FULL_WIDTH: React.CSSProperties = { width: '100%' };
 const EXTRACTABLE_ENTITY_KEYS = new Set([
   'purchase_order',
   'sales_order',
@@ -2305,7 +2310,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   initialValues,
   initialData,
   schema: legacySchema,
-  dropdownOptions = {},
+  dropdownOptions = EMPTY_DROPDOWN_OPTIONS,
   formConfig,
   loading: legacyLoading,
   loadError: legacyLoadError,
@@ -3612,7 +3617,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                         onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
                         notFoundContent={loadingProducts[f.key] ? <Spin size="small" /> : null}
                         getPopupContainer={getSelectPopupContainer}
-                        style={{ width: '100%' }}
+                        style={STABLE_FULL_WIDTH}
                         placeholder="Search products…"
                       />
                     </div>
@@ -3660,12 +3665,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                       value={value || undefined}
                       onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: String(next) }))}
                       getPopupContainer={getSelectPopupContainer}
-                      style={{ width: '100%' }}
+                      style={STABLE_FULL_WIDTH}
                       placeholder={`Select ${f.label || f.key}`}
                       disabled={isLocked || submitting || resolvedLoading}
-                      filterOption={(input, option) =>
-                        String(option?.label || '').toLowerCase().includes(String(input || '').toLowerCase())
-                      }
+                      filterOption={STABLE_SELECT_FILTER}
                     />
                   </div>
                 );
