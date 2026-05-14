@@ -658,7 +658,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
     if (item.route) {
       onClose();
-      navigate(item.route);
+      const sep = item.route.includes('?') ? '&' : '?';
+      navigate(`${item.route}${sep}ref=search`);
       return;
     }
 
