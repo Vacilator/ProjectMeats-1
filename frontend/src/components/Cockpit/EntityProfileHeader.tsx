@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { Spin, Typography, message, Tag, Select } from 'antd';
+import { Spin, Typography, message, Tag, Select, Divider } from 'antd';
 import debounce from 'lodash/debounce';
 import { businessApi } from '../../services/businessApi';
 import AmbientSuggestions from '@/components/AIAssistant/AmbientSuggestions';
@@ -847,6 +847,54 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
             ))}
           </FieldsGrid>
 
+          {/* Supplier / Customer HQ Section */}
+          {(() => {
+            const type = String(entityType || '').toLowerCase();
+            if (type !== 'supplier' && type !== 'customer') return null;
+
+            const fields = (data?.fields ?? {}) as Record<string, unknown>;
+            const addr = String(fields.address ?? fields.street_address ?? '').trim();
+            const city = String(fields.city ?? '').trim();
+            const state = String(fields.state ?? '').trim();
+            const zip = String(fields.zip_code ?? '').trim();
+            const office = String(fields.phone_office ?? '').trim();
+            const ext = String(fields.phone_office_extension ?? '').trim();
+            const mobile = String(fields.phone_mobile ?? '').trim();
+            const country = String(fields.country ?? '').trim();
+
+            const addressParts = [addr, city, [state, zip].filter(Boolean).join(' '), country].filter(Boolean);
+            const addressLine = addressParts.join(', ');
+            const hasAny = !!(addressLine || office || mobile);
+            if (!hasAny) return null;
+
+            return (
+              <HqSection>
+                <Divider style={{ margin: '12px 0 8px' }} />
+                <GroupHeading>Headquarters</GroupHeading>
+                <FieldsGrid>
+                  {addressLine && (
+                    <FieldRow style={{ gridColumn: '1 / -1' }}>
+                      <FieldLabel>Address</FieldLabel>
+                      <FieldValue>{addressLine}</FieldValue>
+                    </FieldRow>
+                  )}
+                  {office && (
+                    <FieldRow>
+                      <FieldLabel>Office Phone</FieldLabel>
+                      <FieldValue>{office}{ext ? ` ext. ${ext}` : ''}</FieldValue>
+                    </FieldRow>
+                  )}
+                  {mobile && (
+                    <FieldRow>
+                      <FieldLabel>Mobile Phone</FieldLabel>
+                      <FieldValue>{mobile}</FieldValue>
+                    </FieldRow>
+                  )}
+                </FieldsGrid>
+              </HqSection>
+            );
+          })()}
+
           {(() => {
             const type = String(entityType || '').toLowerCase();
             const isSupplier = type === 'supplier';
@@ -962,4 +1010,8 @@ const MultiValueRow = styled.div`
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+`;
+
+const HqSection = styled.div`
+  margin-top: 4px;
 `;

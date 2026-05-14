@@ -199,6 +199,9 @@ const WidgetShell = styled.div<{ $state: AgentState; $fullscreen?: boolean }>`
     z-index: 1000;
   `}
   pointer-events: auto;
+  /* GPU-promote to prevent box-shadow animation paint jitter */
+  transform: translateZ(0);
+  will-change: box-shadow;
 
   ${(p) =>
     p.$state === 'action_required'
