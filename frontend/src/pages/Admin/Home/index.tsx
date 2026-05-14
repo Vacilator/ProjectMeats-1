@@ -47,6 +47,12 @@ const CARDS: WorkspaceCard[] = [
     icon: '🕒',
   },
   {
+    title: 'My AI',
+    description: 'Chat sessions, approvals, preferences, and learning dashboard.',
+    path: '/workspace/my-ai',
+    icon: '✨',
+  },
+  {
     title: 'Billing',
     description: 'Subscription status and billing contact details.',
     path: '/workspace/billing',

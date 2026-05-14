@@ -218,10 +218,10 @@ const WidgetShell = styled.div<{ $state: AgentState; $fullscreen?: boolean }>`
 `;
 
 const Card = styled.div<{ $expanded: boolean; $state: AgentState; $fullscreen?: boolean }>`
-  width: ${(p) => p.$fullscreen ? '100vw' : p.$expanded ? '420px' : '56px'};
+  width: ${(p) => p.$fullscreen ? '100vw' : p.$expanded ? '440px' : '56px'};
   max-width: ${(p) => p.$fullscreen ? '100vw' : 'calc(100vw - 32px)'};
-  height: ${(p) => p.$fullscreen ? '100vh' : p.$expanded ? '560px' : '56px'};
-  border-radius: ${(p) => p.$fullscreen ? '0' : p.$expanded ? '14px' : '999px'};
+  height: ${(p) => p.$fullscreen ? '100vh' : p.$expanded ? '600px' : '56px'};
+  border-radius: ${(p) => p.$fullscreen ? '0' : p.$expanded ? '16px' : '999px'};
   overflow: hidden;
   background: ${(p) => (p.$expanded ? 'rgb(var(--color-surface))' : 'rgb(var(--color-primary))')};
   border: 1px solid
@@ -236,7 +236,7 @@ const Card = styled.div<{ $expanded: boolean; $state: AgentState; $fullscreen?: 
 
 const HeaderBtn = styled.button<{ $expanded: boolean }>`
   width: 100%;
-  height: 56px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: ${(p) => (p.$expanded ? 'space-between' : 'center')};
@@ -246,9 +246,10 @@ const HeaderBtn = styled.button<{ $expanded: boolean }>`
   cursor: pointer;
   background: ${(p) => (p.$expanded ? 'rgb(var(--color-surface))' : 'rgb(var(--color-primary))')};
   color: ${(p) => (p.$expanded ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-inverse))')};
+  ${(p) => p.$expanded && `border-bottom: 2px solid rgb(var(--color-primary));`}
 
   &:hover {
-    background: ${(p) => (p.$expanded ? 'rgb(var(--color-primary) / 0.10)' : 'rgb(var(--color-primary))')};
+    background: ${(p) => (p.$expanded ? 'rgb(var(--color-primary) / 0.06)' : 'rgb(var(--color-primary))')};
   }
 `;
 
@@ -260,8 +261,8 @@ const HeaderLeft = styled.div`
 `;
 
 const Title = styled.div`
-  font-weight: 900;
-  font-size: 12px;
+  font-weight: 700;
+  font-size: 13px;
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -557,10 +558,11 @@ const InlineActionButton = styled.button`
 const Messages = styled.div<{ $dragOver: boolean }>`
   flex: 1;
   overflow: auto;
-  padding: 12px 12px 0;
-  background: ${(p) => (p.$dragOver ? 'rgb(var(--color-primary) / 0.05)' : 'transparent')};
-  outline: ${(p) => (p.$dragOver ? '2px dashed rgba(var(--color-primary), 0.45)' : 'none')};
+  padding: 14px 14px 0;
+  background: ${(p) => (p.$dragOver ? 'rgb(var(--color-primary) / 0.04)' : 'transparent')};
+  outline: ${(p) => (p.$dragOver ? '2px dashed rgba(var(--color-primary), 0.40)' : 'none')};
   outline-offset: -8px;
+  scroll-behavior: smooth;
 `;
 
 const FeedbackRow = styled.div`
@@ -596,14 +598,15 @@ const FeedbackThanks = styled.span`
 `;
 
 const Bubble = styled.div<{ $role: ChatMessageRole }>`
-  max-width: 92%;
+  max-width: 88%;
   margin: 0 0 10px;
-  padding: 10px 10px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid rgb(var(--color-border));
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 12.5px;
+  line-height: 1.5;
   white-space: pre-wrap;
+  position: relative;
 
   &:hover ${FeedbackRow} {
     opacity: 1;
@@ -615,6 +618,8 @@ const Bubble = styled.div<{ $role: ChatMessageRole }>`
           margin-left: auto;
           background: rgb(var(--color-primary) / 0.10);
           color: rgb(var(--color-text-primary));
+          border-color: rgb(var(--color-primary) / 0.20);
+          border-top-right-radius: 4px;
         `
       : p.$role === 'document'
         ? css`
@@ -628,11 +633,14 @@ const Bubble = styled.div<{ $role: ChatMessageRole }>`
               margin-right: auto;
               background: rgb(var(--color-text-primary) / 0.04);
               color: rgb(var(--color-text-secondary));
+              border-color: transparent;
+              font-size: 11.5px;
             `
           : css`
               margin-right: auto;
               background: rgb(var(--color-surface));
               color: rgb(var(--color-text-primary));
+              border-top-left-radius: 4px;
             `}
 `;
 
@@ -700,11 +708,12 @@ const RetryButton = styled.button`
 `;
 
 const Composer = styled.form`
-  padding: 10px 12px 12px;
+  padding: 10px 14px 14px;
   border-top: 1px solid rgb(var(--color-border));
   display: flex;
   flex-direction: column;
   gap: 10px;
+  background: rgb(var(--color-surface));
 `;
 
 const AttachmentsBar = styled.div`
@@ -751,11 +760,11 @@ const ComposerRow = styled.div`
 const ChatTextarea = styled.textarea`
   flex: 1;
   border: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-surface));
+  background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 12px;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 12.5px;
   font-family: inherit;
   resize: none;
   min-height: 38px;
@@ -763,10 +772,15 @@ const ChatTextarea = styled.textarea`
   overflow-y: auto;
   line-height: 1.4;
 
+  &::placeholder {
+    color: rgb(var(--color-text-secondary) / 0.6);
+    font-style: italic;
+  }
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary) / 0.65);
-    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.15);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
   }
 `;
 
@@ -824,21 +838,56 @@ const typingDots = keyframes`
 
 const TypingIndicator = styled.div`
   display: flex;
-  gap: 4px;
-  padding: 8px 12px;
+  gap: 5px;
+  padding: 10px 14px;
   align-items: center;
 
   span {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    background: rgb(var(--color-text-secondary));
+    background: rgb(var(--color-primary));
     animation: ${typingDots} 1.4s ease-in-out infinite;
 
     &:nth-child(2) { animation-delay: 0.2s; }
     &:nth-child(3) { animation-delay: 0.4s; }
   }
 `;
+
+const QuickPromptsGrid = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 14px 4px;
+`;
+
+const QuickPromptChip = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-secondary));
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+
+  &:hover {
+    background: rgb(var(--color-primary) / 0.08);
+    border-color: rgb(var(--color-primary) / 0.30);
+    color: rgb(var(--color-primary));
+  }
+`;
+
+const QUICK_PROMPTS = [
+  { icon: '📋', text: 'Summarize my tasks' },
+  { icon: '📊', text: 'Show pipeline status' },
+  { icon: '✉️', text: 'Check AI inbox' },
+  { icon: '🔍', text: 'Search recent activity' },
+] as const;
 
 const newId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -1111,7 +1160,7 @@ export const AIAgentWidget: React.FC = () => {
       id: newId(),
       role: 'assistant',
       content:
-        "Hi — I'm your ProjectMeats agent. Ask me anything, attach documents for analysis, or restore a previous chat session.",
+        "👋 Hi! I'm your ProjectMeats AI assistant. I can help with tasks, analyze documents, draft communications, and manage your workflow. Try a quick prompt below or ask me anything.",
       createdAt: Date.now(),
     },
   ]);
@@ -2365,7 +2414,7 @@ export const AIAgentWidget: React.FC = () => {
     if (state === 'action_required' && (detail.document_type || detail.vendor)) {
       return `AI • ${detail.document_type ?? 'Review'}${detail.vendor ? ` (${detail.vendor})` : ''}`;
     }
-    return 'AI';
+    return 'My AI';
   })();
 
   const activeSessionTitle = (() => {
@@ -2381,7 +2430,7 @@ export const AIAgentWidget: React.FC = () => {
           onClick={() => setExpanded((v) => !v)}
           aria-label="AI chat widget"
           aria-expanded={expanded}
-          title={expanded ? undefined : 'AI'}
+          title={expanded ? undefined : 'My AI'}
         >
           {expanded ? (
             <>
@@ -2677,6 +2726,23 @@ export const AIAgentWidget: React.FC = () => {
                 );
               })}
 
+              {messages.length <= 1 && state === 'idle' && (
+                <QuickPromptsGrid>
+                  {QUICK_PROMPTS.map((qp) => (
+                    <QuickPromptChip
+                      key={qp.text}
+                      type="button"
+                      onClick={() => {
+                        setDraft(qp.text);
+                        void sendText(qp.text);
+                      }}
+                    >
+                      {qp.icon} {qp.text}
+                    </QuickPromptChip>
+                  ))}
+                </QuickPromptsGrid>
+              )}
+
               {state === 'thinking' && (
                 <Bubble $role="assistant">
                   <TypingIndicator>
@@ -2750,7 +2816,7 @@ export const AIAgentWidget: React.FC = () => {
                       void handleSend();
                     }
                   }}
-                  placeholder={state === 'action_required' ? 'Reply with the correct fields…' : 'Ask the agent…'}
+                  placeholder={state === 'action_required' ? 'Reply with the correct fields…' : 'Ask anything or describe a task…'}
                   aria-label="AI message"
                 />
 

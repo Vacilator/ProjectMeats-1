@@ -96,6 +96,7 @@ const Profile = React.lazy(() => import('./pages/Profile'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const AISettingsPage = React.lazy(() => import('./pages/AISettings'));
 const AIChatPage = React.lazy(() => import('./pages/AIChatPage'));
+const MyAIPage = React.lazy(() => import('./pages/MyAI'));
 const GuestInvoiceView = React.lazy(() => import('./pages/Portal/GuestInvoiceView'));
 const ApiTestComponent = React.lazy(() => import('./components/ApiTestComponent'));
 const WorkflowRunner = React.lazy(() => import('./pages/Workflows').then(m => ({ default: m.WorkflowRunner })));
@@ -379,8 +380,8 @@ const App: React.FC = () => {
                 />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="settings/ai" element={<AISettingsPage />} />
-                <Route path="ai-chat" element={<AIChatPage />} />
+                <Route path="settings/ai" element={<Navigate to="/workspace/my-ai?tab=preferences" replace />} />
+                <Route path="ai-chat" element={<Navigate to="/workspace/my-ai?tab=sessions" replace />} />
                 <Route path="settings/email-integrations" element={<Settings />} />
                 <Route path="settings/notifications" element={<NotificationPreferences />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
@@ -478,6 +479,11 @@ const App: React.FC = () => {
                 <Route path="workspace/activity" element={
                   <AdminErrorBoundary fallbackTitle="Activity Logs Error">
                     <ActivityPage />
+                  </AdminErrorBoundary>
+                } />
+                <Route path="workspace/my-ai" element={
+                  <AdminErrorBoundary fallbackTitle="My AI Error">
+                    <MyAIPage />
                   </AdminErrorBoundary>
                 } />
 
