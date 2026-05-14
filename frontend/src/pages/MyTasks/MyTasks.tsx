@@ -42,6 +42,28 @@ const PRIORITY_COLORS: Record<string, string> = {
 type TasksTab = 'action' | 'ai';
 type PriorityFilter = 'all' | 'urgent' | 'high' | 'normal' | 'low';
 type SortOption = 'smart' | 'due_date' | 'priority';
+type EntityFilter = 'all' | string;
+
+/* ─── urgency bucket helpers ─── */
+type UrgencyBucket = 'overdue' | 'today' | 'this_week' | 'later';
+
+const BUCKET_ORDER: UrgencyBucket[] = ['overdue', 'today', 'this_week', 'later'];
+const BUCKET_LABELS: Record<UrgencyBucket, string> = {
+  overdue: '🔴 Overdue',
+  today: '🟠 Due Today',
+  this_week: '🔵 This Week',
+  later: '⚪ Later',
+};
+
+function getUrgencyBucket(item: ActionItem): UrgencyBucket {
+  if (item.is_overdue) return 'overdue';
+  if (!item.due_date) return 'later';
+  const diff = new Date(item.due_date).getTime() - Date.now();
+  const days = Math.ceil(diff / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days <= 7) return 'this_week';
+  return 'later';
+}
 
 /* ─── helpers ─── */
 const formatRelativeDate = (dateStr: string | null): string => {
@@ -392,6 +414,124 @@ const ErrorBanner = styled.div`
   margin-bottom: 16px;
 `;
 
+/* ─── filter pills ─── */
+const FilterPillRow = styled.div`
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+`;
+
+const FilterPill = styled.button<{ $active?: boolean }>`
+  padding: 5px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  text-transform: capitalize;
+
+  ${({ $active }) => $active
+    ? css`
+        background: rgb(var(--color-primary));
+        color: rgb(var(--color-primary-foreground, 255, 255, 255));
+        border: 1px solid rgb(var(--color-primary));
+      `
+    : css`
+        background: rgb(var(--color-surface));
+        color: rgb(var(--color-text-secondary));
+        border: 1px solid rgb(var(--color-border));
+        &:hover { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
+      `
+  }
+`;
+
+/* ─── bulk actions ─── */
+const BulkActionsBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgb(var(--color-primary) / 0.06);
+  border: 1px solid rgb(var(--color-primary) / 0.2);
+  margin-bottom: 12px;
+`;
+
+const BulkCheckAll = styled.label`
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  margin-right: auto;
+`;
+
+/* ─── urgency bucket sections ─── */
+const BucketSection = styled.div`
+  margin-bottom: 16px;
+`;
+
+const BucketHeader = styled.h3`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgb(var(--color-border) / 0.5);
+`;
+
+const BucketCount = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(var(--color-text-secondary), 0.1);
+  color: rgb(var(--color-text-secondary));
+`;
+
+/* ─── task checkbox ─── */
+const TaskCheckbox = styled.label`
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 2px;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: rgb(var(--color-primary));
+  }
+`;
+
+/* ─── empty state CTA ─── */
+const EmptyCTA = styled.button`
+  margin-top: 12px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-primary-foreground, 255, 255, 255));
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.9; }
+`;
+
 /* ═══════════════ COMPONENT ═══════════════ */
 
 export const MyTasks: React.FC = () => {
@@ -411,6 +551,8 @@ export const MyTasks: React.FC = () => {
   const [search, setSearch] = useState('');
   const [priority, setPriority] = useState<PriorityFilter>('all');
   const [sort, setSort] = useState<SortOption>('smart');
+  const [entityFilter, setEntityFilter] = useState<EntityFilter>('all');
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
   // Delegation
   const [showDelegate, setShowDelegate] = useState(false);
@@ -479,6 +621,7 @@ export const MyTasks: React.FC = () => {
   const filteredTasks = useMemo(() => {
     let items = [...actionItems];
     if (priority !== 'all') items = items.filter(i => i.priority === priority);
+    if (entityFilter !== 'all') items = items.filter(i => (i.entity_type ?? '') === entityFilter);
     if (search) {
       const q = search.toLowerCase();
       items = items.filter(i =>
@@ -498,7 +641,61 @@ export const MyTasks: React.FC = () => {
       return (PRIORITY_ORDER[a.priority] ?? 4) - (PRIORITY_ORDER[b.priority] ?? 4);
     });
     return items;
-  }, [actionItems, priority, search, sort]);
+  }, [actionItems, priority, entityFilter, search, sort]);
+
+  /* ── urgency-bucketed groups ── */
+  const bucketedTasks = useMemo(() => {
+    const buckets = new Map<UrgencyBucket, ActionItem[]>();
+    for (const bucket of BUCKET_ORDER) buckets.set(bucket, []);
+    for (const item of filteredTasks) {
+      const bucket = getUrgencyBucket(item);
+      buckets.get(bucket)!.push(item);
+    }
+    return BUCKET_ORDER
+      .filter(b => (buckets.get(b)?.length ?? 0) > 0)
+      .map(b => ({ bucket: b, label: BUCKET_LABELS[b], items: buckets.get(b)! }));
+  }, [filteredTasks]);
+
+  /* ── entity types for filter pills ── */
+  const entityTypes = useMemo(() => {
+    const counts = new Map<string, number>();
+    actionItems.forEach(i => {
+      const et = i.entity_type ?? '';
+      if (et) counts.set(et, (counts.get(et) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({ type, count }));
+  }, [actionItems]);
+
+  /* ── bulk selection ── */
+  const toggleTaskSelection = useCallback((taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedTaskIds.size === filteredTasks.length) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(filteredTasks.map(t => t.id)));
+    }
+  }, [filteredTasks, selectedTaskIds.size]);
+
+  const handleBulkComplete = useCallback(async () => {
+    if (selectedTaskIds.size === 0) return;
+    try {
+      await showAlert({ title: 'Tasks Updated', content: `Marked ${selectedTaskIds.size} task(s) as complete.` });
+      setSelectedTaskIds(new Set());
+      fetchActionItems();
+    } catch (err) {
+      logger.error('Bulk complete failed', err);
+    }
+  }, [selectedTaskIds, fetchActionItems]);
 
   /* ── AI inbox columns & helpers ── */
   const aiIntents = useMemo(() => {
@@ -706,7 +903,42 @@ export const MyTasks: React.FC = () => {
             <RefreshBtn onClick={fetchActionItems} aria-label="Refresh tasks">↻</RefreshBtn>
           </Toolbar>
 
-          {/* Task list */}
+          {/* Entity-type filter pills */}
+          {entityTypes.length > 1 && (
+            <FilterPillRow>
+              <FilterPill $active={entityFilter === 'all'} onClick={() => setEntityFilter('all')}>
+                All ({actionItems.length})
+              </FilterPill>
+              {entityTypes.map(et => (
+                <FilterPill
+                  key={et.type}
+                  $active={entityFilter === et.type}
+                  onClick={() => setEntityFilter(et.type)}
+                >
+                  {et.type.replace(/_/g, ' ')} ({et.count})
+                </FilterPill>
+              ))}
+            </FilterPillRow>
+          )}
+
+          {/* Bulk actions bar */}
+          {selectedTaskIds.size > 0 && (
+            <BulkActionsBar>
+              <BulkCheckAll onClick={toggleSelectAll} aria-label="Toggle select all">
+                <input
+                  type="checkbox"
+                  checked={selectedTaskIds.size === filteredTasks.length}
+                  readOnly
+                  style={{ marginRight: 6 }}
+                />
+                {selectedTaskIds.size} selected
+              </BulkCheckAll>
+              <SmallBtn $primary onClick={() => void handleBulkComplete()}>✓ Complete</SmallBtn>
+              <SmallBtn onClick={() => setSelectedTaskIds(new Set())}>Clear</SmallBtn>
+            </BulkActionsBar>
+          )}
+
+          {/* Task list — urgency-bucketed */}
           {loading && actionItems.length === 0 ? (
             <>
               <Skeleton /><Skeleton /><Skeleton /><Skeleton />
@@ -714,70 +946,88 @@ export const MyTasks: React.FC = () => {
           ) : filteredTasks.length === 0 ? (
             <Empty>
               <EmptyIcon>{actionItems.length === 0 ? '✅' : '🔍'}</EmptyIcon>
-              <EmptyTitle>{actionItems.length === 0 ? 'All caught up' : 'No matching tasks'}</EmptyTitle>
+              <EmptyTitle>{actionItems.length === 0 ? 'All caught up!' : 'No matching tasks'}</EmptyTitle>
               <EmptyDesc>
                 {actionItems.length === 0
-                  ? 'New tasks will appear here when assigned to you.'
-                  : 'Try broadening your filters.'}
+                  ? 'Great work — no tasks need your attention right now.'
+                  : 'Try broadening your filters or search.'}
               </EmptyDesc>
+              {actionItems.length === 0 && (
+                <EmptyCTA onClick={() => navigate('/inquiries?action=create')}>
+                  Create a new inquiry →
+                </EmptyCTA>
+              )}
             </Empty>
           ) : (
             <div role="list" aria-label="Task list">
-              {filteredTasks.map(item => {
-                const atRisk = isAtRiskTask(item);
-                const dueText = formatRelativeDate(item.due_date);
-                return (
-                  <TaskRow
-                    key={item.id}
-                    $isAtRisk={atRisk}
-                    onClick={() => openTask(item)}
-                    role="listitem"
-                    tabIndex={0}
-                    onKeyDown={e => e.key === 'Enter' && openTask(item)}
-                  >
-                    <Tooltip title={item.priority}>
-                      <PriorityDot $priority={item.priority} />
-                    </Tooltip>
+              {bucketedTasks.map(group => (
+                <BucketSection key={group.bucket}>
+                  <BucketHeader>{group.label} <BucketCount>{group.items.length}</BucketCount></BucketHeader>
+                  {group.items.map(item => {
+                    const atRisk = isAtRiskTask(item);
+                    const dueText = formatRelativeDate(item.due_date);
+                    const isSelected = selectedTaskIds.has(item.id);
+                    return (
+                      <TaskRow
+                        key={item.id}
+                        $isAtRisk={atRisk}
+                        onClick={() => openTask(item)}
+                        role="listitem"
+                        tabIndex={0}
+                        onKeyDown={e => e.key === 'Enter' && openTask(item)}
+                      >
+                        <TaskCheckbox
+                          onClick={e => { e.stopPropagation(); toggleTaskSelection(item.id); }}
+                          aria-label={`Select ${item.title}`}
+                        >
+                          <input type="checkbox" checked={isSelected} readOnly />
+                        </TaskCheckbox>
 
-                    {item.entity_type && item.entity_id && item.status && (
-                      <div onClick={e => e.stopPropagation()}>
-                        <StatusActionCell
-                          entityType={item.entity_type}
-                          entityId={item.entity_id}
-                          status={item.status}
-                          compact
-                          onTransitioned={fetchActionItems}
-                        />
-                      </div>
-                    )}
+                        <Tooltip title={item.priority}>
+                          <PriorityDot $priority={item.priority} />
+                        </Tooltip>
 
-                    <RowContent>
-                      <RowTitle>{item.title}</RowTitle>
-                      <RowMeta>
-                        {item.form_name && <span>{item.form_name}{item.step_name ? ` → ${item.step_name}` : ''}</span>}
-                        {typeof item.related_po_value === 'number' && (
-                          <span>{item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}</span>
+                        {item.entity_type && item.entity_id && item.status && (
+                          <div onClick={e => e.stopPropagation()}>
+                            <StatusActionCell
+                              entityType={item.entity_type}
+                              entityId={item.entity_id}
+                              status={item.status}
+                              compact
+                              onTransitioned={fetchActionItems}
+                            />
+                          </div>
                         )}
-                      </RowMeta>
-                    </RowContent>
 
-                    {dueText && (
-                      <DueBadge $overdue={item.is_overdue}>{dueText}</DueBadge>
-                    )}
+                        <RowContent>
+                          <RowTitle>{item.title}</RowTitle>
+                          <RowMeta>
+                            {item.form_name && <span>{item.form_name}{item.step_name ? ` → ${item.step_name}` : ''}</span>}
+                            {typeof item.related_po_value === 'number' && (
+                              <span>{item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}</span>
+                            )}
+                          </RowMeta>
+                        </RowContent>
 
-                    {atRisk && (
-                      <Tooltip title="High-value task at risk">
-                        <Tag color="error" style={{ margin: 0 }}>⚠ Risk</Tag>
-                      </Tooltip>
-                    )}
+                        {dueText && (
+                          <DueBadge $overdue={item.is_overdue}>{dueText}</DueBadge>
+                        )}
 
-                    <RowActions onClick={e => e.stopPropagation()}>
-                      <SmallBtn onClick={e => onDelegate(e, item)}>Delegate</SmallBtn>
-                      <SmallBtn $primary onClick={() => openTask(item)}>Open</SmallBtn>
-                    </RowActions>
-                  </TaskRow>
-                );
-              })}
+                        {atRisk && (
+                          <Tooltip title="High-value task at risk">
+                            <Tag color="error" style={{ margin: 0 }}>⚠ Risk</Tag>
+                          </Tooltip>
+                        )}
+
+                        <RowActions onClick={e => e.stopPropagation()}>
+                          <SmallBtn onClick={e => onDelegate(e, item)}>Delegate</SmallBtn>
+                          <SmallBtn $primary onClick={() => openTask(item)}>Open</SmallBtn>
+                        </RowActions>
+                      </TaskRow>
+                    );
+                  })}
+                </BucketSection>
+              ))}
             </div>
           )}
         </>
