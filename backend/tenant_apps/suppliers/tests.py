@@ -199,3 +199,121 @@ class SupplierAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["name"], "Supplier 1")
+
+    def test_retrieve_supplier_detail(self):
+        """Test GET single supplier returns all expected fields."""
+        supplier = Supplier.objects.create(
+            name="Detail Supplier",
+            email="detail@supplier.com",
+            phone="555-9876",
+            tenant=self.tenant,
+        )
+
+        response = self.client.get(
+            f"/api/v1/suppliers/{supplier.id}/",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "Detail Supplier")
+        self.assertEqual(response.data["email"], "detail@supplier.com")
+        self.assertEqual(response.data["phone"], "555-9876")
+        self.assertIn("id", response.data)
+        self.assertIn("created_on", response.data)
+
+    def test_update_supplier_success(self):
+        """Test PATCH updates supplier name."""
+        supplier = Supplier.objects.create(
+            name="Old Supplier Name",
+            tenant=self.tenant,
+        )
+
+        response = self.client.patch(
+            f"/api/v1/suppliers/{supplier.id}/",
+            {"name": "New Supplier Name"},
+            format="json",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        supplier.refresh_from_db()
+        self.assertEqual(supplier.name, "New Supplier Name")
+
+    def test_delete_supplier(self):
+        """Test DELETE removes the supplier."""
+        supplier = Supplier.objects.create(
+            name="Delete Me",
+            tenant=self.tenant,
+        )
+
+        response = self.client.delete(
+            f"/api/v1/suppliers/{supplier.id}/",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Supplier.objects.filter(id=supplier.id).exists())
+
+    def test_cannot_access_other_tenant_supplier(self):
+        """Test that accessing a supplier from another tenant returns 404."""
+        unique_id = uuid.uuid4().hex[:8]
+        other_user = User.objects.create_user(
+            username=f"otheruser-{unique_id}",
+            email=f"other-{unique_id}@example.com",
+            password="testpass123"
+        )
+        other_tenant = Tenant.objects.create(
+            name=f"Other Company {unique_id}",
+            slug=f"other-company-{unique_id}",
+            contact_email=f"admin-{unique_id}@othercompany.com",
+            created_by=other_user,
+        )
+        other_supplier = Supplier.objects.create(
+            name="Other Tenant Supplier",
+            tenant=other_tenant,
+        )
+
+        response = self.client.get(
+            f"/api/v1/suppliers/{other_supplier.id}/",
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_list_suppliers_with_search(self):
+        """Test ?search= filters suppliers by name."""
+        Supplier.objects.create(name="Alpha Meats", tenant=self.tenant)
+        Supplier.objects.create(name="Beta Foods", tenant=self.tenant)
+        Supplier.objects.create(name="Gamma Supply", tenant=self.tenant)
+
+        url = reverse("suppliers:supplier-list")
+        response = self.client.get(
+            url,
+            {"search": "Alpha"},
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [s["name"] for s in response.data["results"]]
+        self.assertIn("Alpha Meats", names)
+        self.assertNotIn("Beta Foods", names)
+        self.assertNotIn("Gamma Supply", names)
+
+    def test_create_supplier_with_full_fields(self):
+        """Test creating a supplier with contact_person, phone_mobile, phone_office."""
+        url = reverse("suppliers:supplier-list")
+        data = {
+            "name": "Full Fields Supplier",
+            "email": "full@supplier.com",
+            "contact_person": "John Doe",
+            "phone_mobile": "555-1111",
+            "phone_office": "555-2222",
+        }
+
+        response = self.client.post(url, data, HTTP_X_TENANT_ID=str(self.tenant.id))
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        supplier = Supplier.objects.get(name="Full Fields Supplier")
+        self.assertEqual(supplier.contact_person, "John Doe")
+        self.assertEqual(supplier.phone_mobile, "555-1111")
+        self.assertEqual(supplier.phone_office, "555-2222")

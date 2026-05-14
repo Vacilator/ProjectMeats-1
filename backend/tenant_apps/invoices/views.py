@@ -20,6 +20,7 @@ class InvoiceViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
     permission_classes = [IsAuthenticated]
+    search_fields = ["invoice_number", "customer__name"]
     
     def get_queryset(self):
         """Filter invoices by tenant.

@@ -88,6 +88,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
     permission_classes = [IsAuthenticated]
+    search_fields = ["name", "contact_person", "email"]
 
     def get_queryset(self):
         """

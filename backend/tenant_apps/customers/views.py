@@ -91,6 +91,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     permission_classes = [IsAuthenticated]
+    search_fields = ["name", "contact_person", "email"]
 
     def get_queryset(self):
         """
