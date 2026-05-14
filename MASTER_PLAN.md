@@ -4382,3 +4382,70 @@ JavaScript destructuring defaults (`{ prop = {} }`) create a new object on every
 - lint:render-stability: 0 violations (new rule catches the pattern)
 - lint:colors: 0 violations
 - Unit tests: 1,933 passed, 0 failed
+
+## Phase 45: Comprehensive UI/UX Overhaul & Pipeline Hardening
+
+**Status**: ✅ Complete
+**PRs**: #5391–#5400
+
+### Summary
+Major UI/UX consolidation pass driven by user feedback. Eliminated persistent React #185 crash via defense-in-depth `StableAntSelect` wrapper, rebuilt navigation structure, created My Tasks and My Trades pages, standardized all entity page headers, fixed breadcrumb duplication, added supplier HQ info, fixed AI widget jitter, and added deterministic regression tests for the email automation pipeline (AUTO-38.4). Also discovered and fixed 5 bugs in `auto_pipeline.py`.
+
+### Delivered
+
+#### A. Definitive React #185 Fix — StableAntSelect (PR #5395)
+1. **`StableAntSelect` wrapper** — defense-in-depth component that wraps AntD Select at the boundary:
+   - `useDeepStable(options)` — deep-equality ref prevents new array references
+   - `useStableFn(onChange/onSearch)` — ref-based callback stabilization
+   - `React.memo` — prevents unnecessary re-renders
+2. **Replaced ALL raw AntD Select** — 10+ call sites across DynamicFormEngine (4), UniversalEntityForm (3), MultiSelectImpl (1), StateSelect (1), CountrySelect (1), Select.tsx (1)
+3. **Root cause**: AntD Select → `@rc-component/motion` → `useStatus` setState on prop change → infinite loop when option arrays had new references
+
+#### B. Navigation & Breadcrumb Consolidation (PRs #5391, #5396)
+4. **Eliminated duplicate breadcrumbs** — Global Breadcrumb now shows trail only; pages own their title via EntityPageHeader
+5. **Sidebar restructure** — Home → My Tasks → My Trades → divider → Suppliers(Plants) → Customers(Locations)
+6. **Removed nav items** — Contacts standalone page, WorkForms page removed per user request
+
+#### C. My Tasks Unified Inbox (PR #5394)
+7. **Redesigned My Tasks page** — industry-leader task management UX with:
+   - KPI strip (Urgent, Due Today, Pending, Completed)
+   - Category tabs (All, Approvals, Follow-ups, Overdue, AI Actions)
+   - Task cards with priority badges, due dates, entity links
+   - Inline approve/reject/snooze actions
+
+#### D. My Trades Pipeline Dashboard (PR #5397)
+8. **Full trade pipeline dashboard** — replaced empty placeholder:
+   - KPI strip (Active, Pending, Completed, Exception)
+   - Status tabs with trade counts
+   - Expandable trade cards with React Flow lineage visualization (`TradeLineageFlow`)
+   - Clickable nodes for viewing related entities
+
+#### E. Entity Page Standardization (PRs #5393, #5398)
+9. **Migrated 8 entity pages** to shared `EntityPageHeader` component
+10. **Carriers & ColdStorage** — replaced bespoke styled components with EntityPageHeader
+11. **Consistent pattern** — all 10+ entity list pages now use EntityPageHeader + StatusFilterBar
+
+#### F. Supplier HQ Section (PR #5397)
+12. **Headquarters info** on EntityProfileHeader — renders address/phone for suppliers & customers when HQ data present
+
+#### G. AI Widget Jitter Fix (PR #5397)
+13. **GPU-promoted WidgetShell** — `transform: translateZ(0)` + `will-change: box-shadow` eliminates paint jitter from box-shadow animation
+
+#### H. AUTO-38.4: Email Pipeline Regression Tests (PR #5399)
+14. **21 deterministic regression tests** covering PO → SO → Fulfillment → Invoice chain:
+    - 6 test classes: EmailToPO, POToSO, Fulfillment, Invoice, FullChainE2E, Phase38Reliability
+    - Happy-path, idempotency, null/missing input, full chain, failure contract verification
+15. **5 pipeline bugs fixed** (discovered by tests):
+    - PO missing `order_date` (NOT NULL violation)
+    - Supplier `company_name` → `name` (wrong field)
+    - Supplier `notes` kwarg (nonexistent field)
+    - SalesOrder `item_description` (nonexistent field)
+    - SO missing required customer FK (added placeholder resolution)
+16. **New factories** — `ExternalAuthProviderFactory`, `EmailLogFactory`
+
+### Verification
+- TypeScript: 0 errors
+- lint:render-stability: 0 violations
+- lint:colors: 0 violations
+- Backend regression tests: 21 passed, 0 failed
+- All EPIC_TICKETS backlog: Shipped
