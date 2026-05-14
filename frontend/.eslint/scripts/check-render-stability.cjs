@@ -87,6 +87,21 @@ const PATTERNS = [
     regex: /useCallback\([^]*?\],\s*\[[^\]]*searchParams[^\]]*\]\s*\)/gs,
     fileFilter: /\.(tsx?|jsx?)$/,
   },
+  {
+    id: 'destructured-default-object',
+    severity: 'error',
+    description: 'Destructured default `= {}` creates new object each render — use module-level constant',
+    // Matches component props like: someProp = {}, but NOT inside function bodies
+    // Looks for pattern in arrow function component parameter destructuring
+    regex: /\w+\s*=\s*\{\s*\}(?=\s*[,}])/g,
+    fileFilter: /\.(tsx)$/,
+    // Custom filter: only flag when inside a React.FC or component parameter destructuring
+    contextFilter: (content, matchIndex) => {
+      // Look backwards up to 500 chars for React.FC or }: React.FC pattern
+      const before = content.substring(Math.max(0, matchIndex - 500), matchIndex);
+      return /React\.FC|:\s*FC|\.FC</.test(before) && /\(\{/.test(before);
+    },
+  },
 ];
 
 // --- Scanner ---
@@ -112,6 +127,11 @@ function scanFile(filePath) {
       // Skip matches inside comments or JSDoc
       const trimmed = lineText.trim();
       if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+        continue;
+      }
+
+      // Apply contextFilter if defined (for rules that need surrounding context)
+      if (pattern.contextFilter && !pattern.contextFilter(content, match.index)) {
         continue;
       }
 

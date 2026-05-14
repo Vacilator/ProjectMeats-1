@@ -313,6 +313,7 @@ function getStatusIcon(status: ConnectionStatus): React.ReactNode {
  * };
  * ```
  */
+const EMPTY_EDGE_DATA = {} as Partial<EnhancedEdgeData>;
 export const EnhancedConnectionEdge: React.FC<EdgeProps<Edge<EnhancedEdgeData>>> = memo(
   ({
     id,
@@ -324,7 +325,7 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<Edge<EnhancedEdgeData>>>
     sourcePosition,
     targetPosition,
     markerEnd,
-    data = {},
+    data = EMPTY_EDGE_DATA,
     selected,
   }) => {
     const {

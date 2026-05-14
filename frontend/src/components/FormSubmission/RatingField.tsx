@@ -49,13 +49,15 @@ interface RatingFieldProps {
   ariaProps?: Record<string, any>;
 }
 
+const EMPTY_ARIA_PROPS: Record<string, any> = {};
+
 export const RatingField: React.FC<RatingFieldProps> = ({
   value,
   onChange,
   maxRating = 5,
   disabled = false,
   hasError: _hasError,  // Reserved for future error state styling
-  ariaProps = {},
+  ariaProps = EMPTY_ARIA_PROPS,
 }) => {
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
   

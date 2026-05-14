@@ -101,6 +101,8 @@ interface SliderFieldProps {
   ariaProps?: Record<string, any>;
 }
 
+const EMPTY_ARIA_PROPS: Record<string, any> = {};
+
 export const SliderField: React.FC<SliderFieldProps> = ({
   value,
   onChange,
@@ -111,7 +113,7 @@ export const SliderField: React.FC<SliderFieldProps> = ({
   showLabels = true,
   unit = '',
   hasError: _hasError,  // Reserved for future error state styling
-  ariaProps = {},
+  ariaProps = EMPTY_ARIA_PROPS,
 }) => {
   const percent = ((value - min) / (max - min)) * 100;
   

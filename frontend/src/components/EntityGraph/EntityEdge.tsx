@@ -84,6 +84,8 @@ const EdgeLabel = styled.div<{ $color: string }>`
 // Component
 // ============================================================================
 
+const EMPTY_EDGE_STYLE: React.CSSProperties = {};
+
 const EntityEdge: FC<EdgeProps<Edge<EntityEdgeData>>> = ({
   id,
   sourceX,
@@ -92,7 +94,7 @@ const EntityEdge: FC<EdgeProps<Edge<EntityEdgeData>>> = ({
   targetY,
   sourcePosition,
   targetPosition,
-  style = {},
+  style = EMPTY_EDGE_STYLE,
   data,
   markerEnd,
 }) => {

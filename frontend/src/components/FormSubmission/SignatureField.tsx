@@ -108,12 +108,14 @@ interface SignatureFieldProps {
   ariaProps?: Record<string, any>;
 }
 
+const EMPTY_ARIA_PROPS: Record<string, any> = {};
+
 export const SignatureField: React.FC<SignatureFieldProps> = ({
   value,
   onChange,
   disabled = false,
   hasError,
-  ariaProps = {},
+  ariaProps = EMPTY_ARIA_PROPS,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);

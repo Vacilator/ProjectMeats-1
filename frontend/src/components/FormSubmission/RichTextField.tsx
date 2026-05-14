@@ -134,6 +134,8 @@ interface RichTextFieldProps {
   ariaProps?: Record<string, any>;
 }
 
+const EMPTY_ARIA_PROPS: Record<string, any> = {};
+
 export const RichTextField: React.FC<RichTextFieldProps> = ({
   value,
   onChange,
@@ -141,7 +143,7 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
   maxLength,
   disabled = false,
   hasError,
-  ariaProps = {},
+  ariaProps = EMPTY_ARIA_PROPS,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());

@@ -545,7 +545,7 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
 
 export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   schema,
-  initialValues = {},
+  initialValues = EMPTY_INITIAL_VALUES,
   onSubmit,
   onValuesChange,
   onCancel,

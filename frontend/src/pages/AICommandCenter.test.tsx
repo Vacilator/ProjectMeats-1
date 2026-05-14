@@ -268,7 +268,9 @@ describe('AICommandCenter', () => {
 
     await user.click(screen.getByLabelText('Refresh all data'));
 
-    expect(mockRequestSync).toHaveBeenCalledWith('manual');
+    await waitFor(() => {
+      expect(mockRequestSync).toHaveBeenCalledWith('manual');
+    });
   });
 
   it('shows Overview tab by default', async () => {
