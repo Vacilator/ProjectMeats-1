@@ -59,6 +59,8 @@ vi.mock('@/components/Operations/OperationalDocumentActions', () => ({
 vi.mock('@/components/Operations/documentOperations', () => ({
   supportsAuditHistory: () => true,
   supportsOperationalActions: () => false,
+  supportsOptimisticOperationalStatus: () => false,
+  getDocumentEntityConfig: () => null,
 }));
 
 vi.mock('@/components/Entities/EntityWorkflowStatusPanel', () => ({
