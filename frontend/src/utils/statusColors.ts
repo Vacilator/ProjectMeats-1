@@ -40,6 +40,10 @@ function resolveToken(
     case 'resolved':
     case 'done':
     case 'low':
+    case 'accepted':
+    case 'fulfilled':
+    case 'delivered':
+    case 'settled':
       return 'success';
 
     case 'warning':
@@ -49,6 +53,9 @@ function resolveToken(
     case 'medium':
     case 'halted':
     case 'inreview':
+    case 'pendingapproval':
+    case 'draft':
+    case 'partialpaid':
       return 'warning';
 
     case 'error':
@@ -60,12 +67,21 @@ function resolveToken(
     case 'failed':
     case 'high':
     case 'critical':
+    case 'denied':
       return 'error';
 
     case 'info':
     case 'inprogress':
     case 'running':
     case 'processing':
+    case 'quoted':
+    case 'sent':
+    case 'confirmed':
+    case 'shipped':
+    case 'dispatched':
+    case 'intransit':
+    case 'carrierassigned':
+    case 'invoiced':
       return 'info';
 
     default:

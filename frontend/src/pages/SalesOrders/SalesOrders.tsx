@@ -34,6 +34,7 @@ import { formatTradeDate, formatTradeDateTime, formatTradeWeight } from '../../u
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
+import { StatusActionCell } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
 // ============================================================================
@@ -330,52 +331,6 @@ const TableCell = styled.td`
       word-break: break-word;
     }
   }
-`;
-
-const StatusBadge = styled.span<{ $status: OrderStatus }>`
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-
-  ${props => {
-    switch (props.$status) {
-      case 'draft':
-        return `
-          background: rgba(var(--color-text-secondary), 0.12);
-          color: rgb(var(--color-text-secondary));
-        `;
-      case 'confirmed':
-        return `
-          background: rgba(var(--color-info), 0.12);
-          color: rgb(var(--color-info));
-        `;
-      case 'processing':
-        return `
-          background: rgba(var(--color-warning), 0.12);
-          color: rgb(var(--color-warning));
-        `;
-      case 'shipped':
-        return `
-          background: rgba(var(--color-info), 0.12);
-          color: rgb(var(--color-info));
-        `;
-      case 'delivered':
-        return `
-          background: rgba(var(--color-success), 0.12);
-          color: rgb(var(--color-success));
-        `;
-      case 'cancelled':
-        return `
-          background: rgba(var(--color-danger), 0.12);
-          color: rgb(var(--color-danger));
-        `;
-      default:
-        return '';
-    }
-  }}
 `;
 
 const LoadingState = styled.div`
@@ -771,9 +726,12 @@ export const SalesOrdersPage: React.FC = () => {
                       </TableCell>
                       <TableCell>{formatCurrency(parseFloat(order.total_amount))}</TableCell>
                       <TableCell>
-                        <StatusBadge $status={order.status}>
-                          {order.status.toUpperCase()}
-                        </StatusBadge>
+                        <StatusActionCell
+                          entityType="sales_order"
+                          entityId={order.id}
+                          status={order.status}
+                          onTransitioned={() => fetchOrders()}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -810,9 +768,12 @@ export const SalesOrdersPage: React.FC = () => {
             <SidePanelContent>
               <DetailSection>
                 <DetailLabel>Status</DetailLabel>
-                <StatusBadge $status={selectedOrder.status}>
-                  {selectedOrder.status.toUpperCase()}
-                </StatusBadge>
+                <StatusActionCell
+                  entityType="sales_order"
+                  entityId={selectedOrder.id}
+                  status={selectedOrder.status}
+                  compact
+                />
               </DetailSection>
 
               <DetailSection>

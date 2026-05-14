@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Button, Card, Skeleton, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Skeleton, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +22,7 @@ import { buildCsv, downloadCsv } from '@/utils/csv';
 import type { TradeTimelinePayload, TradeWeightPayload } from '@/utils/trade';
 import { formatTradeDate, formatTradeWeight } from '@/utils/trade';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { StatusActionCell } from '@/components/Workflow';
 
 const { Text, Title } = Typography;
 
@@ -47,15 +48,6 @@ const formatStatus = (value?: string): string =>
   String(value || 'draft')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
-
-const getFreightStatusColor = (status?: string): string => {
-  const s = (status ?? '').toLowerCase();
-  if (['completed', 'delivered'].includes(s)) return 'green';
-  if (['in_progress', 'processing', 'confirmed', 'shipped', 'in_transit'].includes(s)) return 'blue';
-  if (['cancelled', 'failed', 'rejected', 'void'].includes(s)) return 'red';
-  if (['hold', 'on_hold', 'review', 'partial'].includes(s)) return 'orange';
-  return 'default';
-};
 
 const FreightOrders: React.FC = () => {
   useDocumentTitle('Freight Orders');
@@ -181,7 +173,14 @@ const FreightOrders: React.FC = () => {
         title: 'Status',
         dataIndex: 'status',
         key: 'status',
-        render: (value: string | undefined) => <Tag color={getFreightStatusColor(value)}>{formatStatus(value)}</Tag>,
+        render: (_value: string | undefined, record) => (
+          <StatusActionCell
+            entityType="freight_order"
+            entityId={record.id}
+            status={record.status ?? 'draft'}
+            onTransitioned={refreshFreightOrders}
+          />
+        ),
       },
       {
         title: 'Actions',
