@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
-import { useQueries } from '@tanstack/react-query';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 
-import { businessApi } from '@/services/businessApi';
-import { withTenantQueryKey } from '@/utils/queryKeys';
+import { useBreadcrumbNames, fallbackEntityLabel } from '@/hooks/useBreadcrumbNames';
+import type { BreadcrumbResolver } from '@/hooks/useBreadcrumbNames';
 
 /**
  * Context-aware Breadcrumb Component
@@ -26,11 +25,6 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
  * - /accounting/... → preserves full accounting hierarchy
  */
 
-type BreadcrumbResolver = {
-  singularLabel: string;
-  apiPath: string;
-  getDisplayName: (payload: Record<string, unknown>, id: string) => string | null;
-};
 
 const breadcrumbNameMap: { [key: string]: string } = {
   // Home/Workspace aliases
@@ -284,54 +278,7 @@ const Breadcrumb: React.FC = () => {
     });
   }, [pathnames, isRecordsPath, isWorkspacePath]);
 
-  const resolvableItems = useMemo(
-    () => breadcrumbItems.filter((item) => item.resolver),
-    [breadcrumbItems]
-  );
-
-  const resolvedNameQueries = useMemo(
-    () =>
-      resolvableItems.map((item) => ({
-        queryKey: withTenantQueryKey('breadcrumb-name', item.resolver?.apiPath, item.pathname),
-        queryFn: async () => {
-          if (!item.resolver) return null;
-          const response = await businessApi.get(`${item.resolver.apiPath}/${item.pathname}/`);
-          const payload =
-            response?.data && typeof response.data === 'object'
-              ? (response.data as Record<string, unknown>)
-              : null;
-
-          if (!payload) {
-            return fallbackEntityLabel(item.resolver.singularLabel, item.pathname);
-          }
-
-          return (
-            item.resolver.getDisplayName(payload, item.pathname) ||
-            fallbackEntityLabel(item.resolver.singularLabel, item.pathname)
-          );
-        },
-        staleTime: 5 * 60 * 1000,
-        retry: 1,
-      })),
-    [resolvableItems]
-  );
-
-  const resolvedNames = useQueries({
-    queries: resolvedNameQueries,
-  });
-
-  const resolvedNameMap = useMemo(() => {
-    const next = new Map<string, string>();
-
-    resolvableItems.forEach((item, index) => {
-      const query = resolvedNames[index];
-      if (query?.data) {
-        next.set(item.routeTo, query.data);
-      }
-    });
-
-    return next;
-  }, [resolvableItems, resolvedNames]);
+  const resolvedNameMap = useBreadcrumbNames(breadcrumbItems);
 
   // If at root, show nothing
   if (pathnames.length === 0) {
@@ -408,17 +355,6 @@ const readString = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
-};
-
-const fallbackEntityLabel = (entityLabel: string, id: string): string => {
-  const normalizedId = String(id || '').trim();
-  if (!normalizedId) return `${entityLabel} Details`;
-
-  if (/^\d+$/.test(normalizedId) && normalizedId.length <= 6) {
-    return `${entityLabel} ${normalizedId}`;
-  }
-
-  return `${entityLabel} Details`;
 };
 
 const isLikelyEntityIdentifier = (segment: string): boolean => {
