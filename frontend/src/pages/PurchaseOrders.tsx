@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Skeleton } from 'antd';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
@@ -8,6 +8,30 @@ import { LocationSelector } from '../components/Shared';
 import PurchaseOrderWorkflow from '../components/Workflow/PurchaseOrderWorkflow';
 import { SmartProductAutocomplete } from '../components/Inquiry/SmartProductAutocomplete';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
+import {
+  GoldenFormOverlay,
+  GoldenFormContainer,
+  GoldenFormHeader,
+  GoldenFormTitle,
+  GoldenCloseButton,
+  GoldenFormBody,
+  GoldenFormFooter,
+  GoldenSectionCard,
+  GoldenSectionHeader,
+  GoldenSectionIcon,
+  GoldenSectionTitle,
+  GoldenSectionBody,
+  GoldenFieldGrid,
+  GoldenFormGroup,
+  GoldenLabel,
+  GoldenInput,
+  GoldenSelect,
+  GoldenTextArea,
+  GoldenFieldHint,
+  GoldenReadonlyValue,
+  GoldenSubmitButton,
+  GoldenCancelButton,
+} from '@/components/Forms/GoldenFormShell';
 
 // Styled Components
 const Header = styled.div`
@@ -241,218 +265,34 @@ const DeleteButton = styled.button`
   }
 `;
 
-const FormOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  overflow-y: auto;
+const FormOverlay = GoldenFormOverlay;
+const FormContainer = GoldenFormContainer;
 
-  @media (max-width: 520px) {
-    align-items: flex-start;
-  }
-`;
+const FormHeader = GoldenFormHeader;
 
-const FormContainer = styled.div`
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-surface-foreground));
-  border-radius: 12px;
-  padding: 0;
-  width: 100%;
-  max-width: 600px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  border: 1px solid rgb(var(--color-border));
-`;
+const FormTitle = GoldenFormTitle;
 
-const FormHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
+const CloseButton = GoldenCloseButton;
 
-  @media (max-width: 520px) {
-    padding: 16px;
-  }
-`;
+const Form = GoldenFormBody;
 
-const FormTitle = styled.h2`
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
+const FormGroup = GoldenFormGroup;
 
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  padding: 0;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
+const Label = GoldenLabel;
 
-  &:hover {
-    color: rgb(var(--color-text-primary));
-  }
-`;
+const Input = GoldenInput;
 
-const Form = styled.form`
-  padding: 24px;
+const Select = GoldenSelect;
 
-  @media (max-width: 520px) {
-    padding: 16px;
-  }
-`;
+const TextArea = GoldenTextArea;
 
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-`;
+const FieldHint = GoldenFieldHint;
 
-const Label = styled.label`
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  font-size: 14px;
-`;
+const FormActions = GoldenFormFooter;
 
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-  min-height: 44px;
+const CancelButton = GoldenCancelButton;
 
-  @media (max-width: 520px) {
-    /* Prevent iOS Safari zoom-on-focus */
-    font-size: 16px;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-
-  /* Hide number input spinner buttons */
-  &[type='number']::-webkit-inner-spin-button,
-  &[type='number']::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  &[type='number'] {
-    -moz-appearance: textfield;
-  }
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-  min-height: 44px;
-
-  @media (max-width: 520px) {
-    /* Prevent iOS Safari zoom-on-focus */
-    font-size: 16px;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  resize: vertical;
-  transition: border-color 0.2s;
-
-  @media (max-width: 520px) {
-    /* Prevent iOS Safari zoom-on-focus */
-    font-size: 16px;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const FieldHint = styled.div`
-  margin-top: 6px;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary));
-  font-style: italic;
-`;
-
-const FormActions = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 24px;
-
-  @media (max-width: 520px) {
-    flex-wrap: wrap;
-
-    & > button {
-      flex: 1 1 100%;
-      min-height: 44px;
-    }
-  }
-`;
-
-const CancelButton = styled.button`
-  background: rgb(var(--color-text-secondary));
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-text-secondary));
-  }
-`;
-
-const SubmitButton = styled.button`
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: rgb(var(--color-primary-hover));
-  }
-`;
+const SubmitButton = GoldenSubmitButton;
 
 const PurchaseOrders: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1089,246 +929,284 @@ const PurchaseOrders: React.FC = () => {
       )}
 
       {showForm && (
-        <FormOverlay>
-          <FormContainer>
+        <FormOverlay onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}>
+          <FormContainer $maxWidth="720px">
             <FormHeader>
-              <FormTitle>
-                {editingPurchaseOrder ? 'Edit Purchase Order' : 'Add New Purchase Order'}
-              </FormTitle>
-              <CloseButton onClick={() => setShowForm(false)}>×</CloseButton>
+              <div>
+                <FormTitle>
+                  {editingPurchaseOrder ? '✏️ Edit Purchase Order' : '📦 New Purchase Order'}
+                </FormTitle>
+              </div>
+              <CloseButton onClick={() => setShowForm(false)} aria-label="Close form">×</CloseButton>
             </FormHeader>
             <Form onSubmit={handleSubmit}>
-              <FormGroup>
-                <Label>Type of Pick Up</Label>
-                <Select 
-                  name="logistics_scenario" 
-                  value={formData.logistics_scenario} 
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="we_pickup">Tenant - Pickup (We Handle Logistics)</option>
-                  <option value="supplier_delivery">Supplier - Delivering</option>
-                  <option value="customer_pickup">Customer - Picking Up</option>
-                </Select>
-                <FieldHint>
-                  {formData.logistics_scenario === 'customer_pickup' && '🚗 Customer picks up from supplier'}
-                  {formData.logistics_scenario === 'supplier_delivery' && '🚚 Supplier delivers to us'}
-                  {formData.logistics_scenario === 'we_pickup' && '🚛 Tenant pickup / our logistics'}
-                </FieldHint>
-              </FormGroup>
+              {/* Section 1: Logistics Scenario */}
+              <GoldenSectionCard>
+                <GoldenSectionHeader>
+                  <GoldenSectionIcon>🚛</GoldenSectionIcon>
+                  <GoldenSectionTitle>Logistics Scenario</GoldenSectionTitle>
+                </GoldenSectionHeader>
+                <GoldenSectionBody>
+                  <GoldenFormGroup>
+                    <Label $required>Type of Pick Up</Label>
+                    <Select
+                      name="logistics_scenario"
+                      value={formData.logistics_scenario}
+                      onChange={handleInputChange}
+                      required
+                      aria-label="Logistics scenario"
+                    >
+                      <option value="we_pickup">Tenant - Pickup (We Handle Logistics)</option>
+                      <option value="supplier_delivery">Supplier - Delivering</option>
+                      <option value="customer_pickup">Customer - Picking Up</option>
+                    </Select>
+                    <FieldHint>
+                      {formData.logistics_scenario === 'customer_pickup' && '🚗 Customer picks up from supplier'}
+                      {formData.logistics_scenario === 'supplier_delivery' && '🚚 Supplier delivers to us'}
+                      {formData.logistics_scenario === 'we_pickup' && '🚛 Tenant pickup / our logistics'}
+                    </FieldHint>
+                  </GoldenFormGroup>
+                </GoldenSectionBody>
+              </GoldenSectionCard>
 
-              <FormGroup>
-                <Label>Purchase Order Number</Label>
-                <Input
-                  type="text"
-                  name="order_number"
-                  value={formData.order_number || getNextOrderNumber()}
-                  onChange={handleInputChange}
-                  disabled
-                />
-                <FieldHint>Auto-generated format: 2YYNNN (example: 226040)</FieldHint>
-              </FormGroup>
+              {/* Section 2: Order & Supplier Info */}
+              <GoldenSectionCard>
+                <GoldenSectionHeader>
+                  <GoldenSectionIcon>📋</GoldenSectionIcon>
+                  <GoldenSectionTitle>Order & Supplier Information</GoldenSectionTitle>
+                </GoldenSectionHeader>
+                <GoldenSectionBody>
+                  <GoldenFieldGrid>
+                    <GoldenFormGroup>
+                      <Label>Purchase Order Number</Label>
+                      <Input
+                        type="text"
+                        name="order_number"
+                        value={formData.order_number || getNextOrderNumber()}
+                        onChange={handleInputChange}
+                        disabled
+                        aria-label="Purchase order number"
+                      />
+                      <FieldHint>Auto-generated: 2YYNNN</FieldHint>
+                    </GoldenFormGroup>
+                    <GoldenFormGroup>
+                      <Label $required>Supplier</Label>
+                      <Select
+                        name="supplier"
+                        value={formData.supplier}
+                        onChange={handleInputChange}
+                        required
+                        aria-label="Supplier"
+                      >
+                        <option value="">Select a supplier</option>
+                        {suppliers.map((supplier) => (
+                          <option key={supplier.id} value={supplier.id}>
+                            {supplier.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </GoldenFormGroup>
+                  </GoldenFieldGrid>
+                  <GoldenFieldGrid style={{ marginTop: 16 }}>
+                    <GoldenFormGroup>
+                      <Label $required>Order Date</Label>
+                      <Input
+                        type="date"
+                        name="order_date"
+                        value={formData.order_date}
+                        onChange={handleInputChange}
+                        required
+                        aria-label="Order date"
+                      />
+                    </GoldenFormGroup>
+                    <GoldenFormGroup>
+                      <Label>Delivery Date</Label>
+                      <Input
+                        type="date"
+                        name="delivery_date"
+                        value={formData.delivery_date}
+                        onChange={handleInputChange}
+                        aria-label="Delivery date"
+                      />
+                    </GoldenFormGroup>
+                  </GoldenFieldGrid>
+                </GoldenSectionBody>
+              </GoldenSectionCard>
 
-              <FormGroup>
-                <Label>Supplier</Label>
-                <Select
-                  name="supplier"
-                  value={formData.supplier}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select a supplier</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
+              {/* Section 3: Product Details */}
+              <GoldenSectionCard>
+                <GoldenSectionHeader>
+                  <GoldenSectionIcon>🥩</GoldenSectionIcon>
+                  <GoldenSectionTitle>Product Details</GoldenSectionTitle>
+                </GoldenSectionHeader>
+                <GoldenSectionBody>
+                  <GoldenFormGroup>
+                    <Label>Product</Label>
+                    <SmartProductAutocomplete
+                      value={formData.product}
+                      onChange={(productId, product) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          product: productId,
+                          item_description:
+                            prev.item_description
+                            || product?.name
+                            || product?.description
+                            || product?.description_of_product_item
+                            || '',
+                          fresh_or_frozen: prev.fresh_or_frozen || product?.fresh_or_frozen || '',
+                          package_type: prev.package_type || product?.package_type || '',
+                        }));
+                      }}
+                    />
+                  </GoldenFormGroup>
+                  <GoldenFormGroup style={{ marginTop: 16 }}>
+                    <Label>Description</Label>
+                    <TextArea
+                      name="item_description"
+                      value={formData.item_description}
+                      onChange={handleInputChange}
+                      rows={2}
+                      placeholder="Auto-filled from product name (editable)"
+                      aria-label="Item description"
+                    />
+                  </GoldenFormGroup>
+                  <GoldenFieldGrid style={{ marginTop: 16 }}>
+                    <GoldenFormGroup>
+                      <Label $required>Fresh / Frozen</Label>
+                      <Select name="fresh_or_frozen" value={formData.fresh_or_frozen} onChange={handleInputChange} required aria-label="Fresh or frozen">
+                        <option value="">Select…</option>
+                        {effectiveFreshFrozenOptions.map((o) => (
+                          <option key={o.value} value={String(o.value)}>{o.label}</option>
+                        ))}
+                      </Select>
+                    </GoldenFormGroup>
+                    <GoldenFormGroup>
+                      <Label $required>Package Type</Label>
+                      <Select name="package_type" value={formData.package_type} onChange={handleInputChange} required aria-label="Package type">
+                        <option value="">Select…</option>
+                        {effectivePackageTypeOptions.map((o) => (
+                          <option key={o.value} value={String(o.value)}>{o.label}</option>
+                        ))}
+                      </Select>
+                    </GoldenFormGroup>
+                  </GoldenFieldGrid>
+                </GoldenSectionBody>
+              </GoldenSectionCard>
 
-              <FormGroup>
-                <Label>Product</Label>
-                <SmartProductAutocomplete
-                  value={formData.product}
-                  onChange={(productId, product) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      product: productId,
-                      item_description:
-                        prev.item_description
-                        || product?.name
-                        || product?.description
-                        || product?.description_of_product_item
-                        || '',
-                      fresh_or_frozen: prev.fresh_or_frozen || product?.fresh_or_frozen || '',
-                      package_type: prev.package_type || product?.package_type || '',
-                    }));
-                  }}
-                />
-              </FormGroup>
+              {/* Section 4: Quantities & Pricing */}
+              <GoldenSectionCard>
+                <GoldenSectionHeader>
+                  <GoldenSectionIcon>💰</GoldenSectionIcon>
+                  <GoldenSectionTitle>Quantities & Pricing</GoldenSectionTitle>
+                </GoldenSectionHeader>
+                <GoldenSectionBody>
+                  <GoldenFieldGrid>
+                    <GoldenFormGroup>
+                      <Label $required>Qty</Label>
+                      <Input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required aria-label="Quantity" />
+                    </GoldenFormGroup>
+                    <GoldenFormGroup>
+                      <Label>Weight per Unit</Label>
+                      <Input type="number" step="0.01" name="weight_per_unit" value={formData.weight_per_unit} onChange={handleInputChange} aria-label="Weight per unit" />
+                    </GoldenFormGroup>
+                  </GoldenFieldGrid>
+                  <GoldenFieldGrid style={{ marginTop: 16 }}>
+                    <GoldenFormGroup>
+                      <Label>Total Weight</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        name="total_weight"
+                        value={formData.total_weight}
+                        onChange={handleInputChange}
+                        placeholder="Auto-calculated"
+                        aria-label="Total weight"
+                      />
+                      <FieldHint>Qty × Weight per unit</FieldHint>
+                    </GoldenFormGroup>
+                    <GoldenFormGroup>
+                      <Label $required>Weight Unit</Label>
+                      <Select name="weight_unit" value={formData.weight_unit} onChange={handleInputChange} required aria-label="Weight unit">
+                        {effectiveWeightUnitOptions.map((o) => (
+                          <option key={o.value} value={String(o.value)}>{o.label}</option>
+                        ))}
+                      </Select>
+                    </GoldenFormGroup>
+                  </GoldenFieldGrid>
+                  <GoldenFieldGrid style={{ marginTop: 16 }}>
+                    <GoldenFormGroup>
+                      <Label $required>Cost per lb</Label>
+                      <Input type="number" step="0.01" name="price_per_unit" value={formData.price_per_unit} onChange={handleInputChange} required aria-label="Cost per pound" />
+                    </GoldenFormGroup>
+                    <GoldenFormGroup>
+                      <Label $required>Total Amount</Label>
+                      <Input type="number" step="0.01" name="total_amount" value={formData.total_amount} onChange={handleInputChange} required aria-label="Total amount" />
+                    </GoldenFormGroup>
+                  </GoldenFieldGrid>
+                </GoldenSectionBody>
+              </GoldenSectionCard>
 
-              <FormGroup>
-                <Label>Description</Label>
-                <TextArea
-                  name="item_description"
-                  value={formData.item_description}
-                  onChange={handleInputChange}
-                  rows={2}
-                  placeholder="Auto-filled from product name (editable)"
-                />
-              </FormGroup>
+              {/* Section 5: Locations */}
+              <GoldenSectionCard>
+                <GoldenSectionHeader>
+                  <GoldenSectionIcon>📍</GoldenSectionIcon>
+                  <GoldenSectionTitle>Locations</GoldenSectionTitle>
+                </GoldenSectionHeader>
+                <GoldenSectionBody>
+                  <GoldenFieldGrid>
+                    <GoldenFormGroup>
+                      <LocationSelector
+                        value={formData.pick_up_location}
+                        onChange={(id) => setFormData({ ...formData, pick_up_location: id })}
+                        label="Pick-up Location"
+                        placeholder="Select pick-up location"
+                      />
+                    </GoldenFormGroup>
+                    <GoldenFormGroup>
+                      <LocationSelector
+                        value={formData.delivery_location}
+                        onChange={(id) => setFormData({ ...formData, delivery_location: id })}
+                        label="Delivery Location"
+                        placeholder="Select delivery location"
+                      />
+                    </GoldenFormGroup>
+                  </GoldenFieldGrid>
+                </GoldenSectionBody>
+              </GoldenSectionCard>
 
-              <FormGroup>
-                <Label>Fresh / Frozen</Label>
-                <Select name="fresh_or_frozen" value={formData.fresh_or_frozen} onChange={handleInputChange} required>
-                  <option value="">Select…</option>
-                  {effectiveFreshFrozenOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Package Type</Label>
-                <Select name="package_type" value={formData.package_type} onChange={handleInputChange} required>
-                  <option value="">Select…</option>
-                  {effectivePackageTypeOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Qty</Label>
-                <Input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Weight per Unit</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="weight_per_unit"
-                  value={formData.weight_per_unit}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Total Weight</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="total_weight"
-                  value={formData.total_weight}
-                  onChange={handleInputChange}
-                  placeholder="Auto-calculated (qty * weight per unit)"
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Weight Unit</Label>
-                <Select name="weight_unit" value={formData.weight_unit} onChange={handleInputChange} required>
-                  {effectiveWeightUnitOptions.map((o) => (
-                    <option key={o.value} value={String(o.value)}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Cost per lb</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="price_per_unit"
-                  value={formData.price_per_unit}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Total Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  name="total_amount"
-                  value={formData.total_amount}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Status</Label>
-                <Select name="status" value={formData.status} onChange={handleInputChange} required>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                </Select>
-              </FormGroup>
-              <FormGroup>
-                <Label>Order Date</Label>
-                <Input
-                  type="date"
-                  name="order_date"
-                  value={formData.order_date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Delivery Date</Label>
-                <Input
-                  type="date"
-                  name="delivery_date"
-                  value={formData.delivery_date}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Notes</Label>
-                <TextArea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows={3}
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <LocationSelector
-                  value={formData.pick_up_location}
-                  onChange={(id) => setFormData({ ...formData, pick_up_location: id })}
-                  label="Pick-up Location"
-                  placeholder="Select pick-up location"
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <LocationSelector
-                  value={formData.delivery_location}
-                  onChange={(id) => setFormData({ ...formData, delivery_location: id })}
-                  label="Delivery Location"
-                  placeholder="Select delivery location"
-                />
-              </FormGroup>
-
-              <FormActions>
-                <CancelButton type="button" onClick={() => setShowForm(false)}>
-                  Cancel
-                </CancelButton>
-                <SubmitButton type="submit">
-                  {editingPurchaseOrder ? 'Update' : 'Create'} Purchase Order
-                </SubmitButton>
-              </FormActions>
+              {/* Section 6: Status & Notes */}
+              <GoldenSectionCard>
+                <GoldenSectionHeader>
+                  <GoldenSectionIcon>📝</GoldenSectionIcon>
+                  <GoldenSectionTitle>Status & Notes</GoldenSectionTitle>
+                </GoldenSectionHeader>
+                <GoldenSectionBody>
+                  <GoldenFormGroup>
+                    <Label $required>Status</Label>
+                    <Select name="status" value={formData.status} onChange={handleInputChange} required aria-label="Order status">
+                      <option value="pending">Pending</option>
+                      <option value="approved">Approved</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </Select>
+                  </GoldenFormGroup>
+                  <GoldenFormGroup style={{ marginTop: 16 }}>
+                    <Label>Notes</Label>
+                    <TextArea name="notes" value={formData.notes} onChange={handleInputChange} rows={3} aria-label="Notes" />
+                  </GoldenFormGroup>
+                </GoldenSectionBody>
+              </GoldenSectionCard>
             </Form>
+
+            <FormActions>
+              <CancelButton type="button" onClick={() => setShowForm(false)}>
+                Cancel
+              </CancelButton>
+              <SubmitButton type="button" onClick={handleSubmit}>
+                {editingPurchaseOrder ? 'Update' : 'Create'} Purchase Order
+              </SubmitButton>
+            </FormActions>
           </FormContainer>
         </FormOverlay>
       )}

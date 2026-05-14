@@ -347,6 +347,7 @@ def sync_emails(request):
     if not provider:
         return Response(
             {
+                "ok": False,
                 "error": "No active Microsoft account connected.",
                 "code": "not_connected",
                 "error_code": "not_connected",
@@ -357,7 +358,7 @@ def sync_emails(request):
                 },
                 "tenant_id": tenant_id,
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_200_OK,
         )
 
     try:
@@ -371,14 +372,16 @@ def sync_emails(request):
         if isinstance(stats, dict) and stats.get('error'):
             return Response(
                 {
+                    "ok": False,
                     "error": stats.get('error'),
                     "code": "sync_failed",
                     "error_code": "sync_failed",
+                    "hint": "Try reconnecting Outlook in Settings → Email Integrations, then retry.",
                     "tenant_id": tenant_id,
                     "provider_email": provider.connected_email,
                     "stats": stats,
                 },
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_200_OK,
             )
 
         # If Graph/token/decrypt failed, do NOT report "no new emails".
