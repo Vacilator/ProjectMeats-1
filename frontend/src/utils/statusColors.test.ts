@@ -19,7 +19,7 @@ describe('getStatusColors', () => {
   });
 
   describe('warning statuses', () => {
-    it.each(['warning', 'pending', 'review', 'partial', 'medium', 'halted', 'in_review'])(
+    it.each(['warning', 'pending', 'review', 'partial', 'medium', 'halted', 'in_review', 'draft'])(
       'maps "%s" to orange/warning',
       (status) => expectToken(status, 'orange'),
     );
@@ -40,7 +40,7 @@ describe('getStatusColors', () => {
   });
 
   describe('neutral/unknown statuses', () => {
-    it.each(['draft', 'inactive', 'unknown', 'something_random', ''])(
+    it.each(['inactive', 'unknown', 'something_random', ''])(
       'maps "%s" to default/neutral',
       (status) => expectToken(status, 'default'),
     );
@@ -68,7 +68,7 @@ describe('getAntdStatusColor', () => {
     expect(getAntdStatusColor('error')).toBe('red');
     expect(getAntdStatusColor('pending')).toBe('orange');
     expect(getAntdStatusColor('running')).toBe('blue');
-    expect(getAntdStatusColor('draft')).toBe('default');
+    expect(getAntdStatusColor('draft')).toBe('orange');
   });
 });
 
