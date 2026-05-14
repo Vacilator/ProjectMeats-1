@@ -7,6 +7,10 @@ export type { SmartTradeCreatorProps } from './SmartTradeCreator';
 export { AITradeProposals } from './AITradeProposals';
 export type { AITradeProposalsProps } from './AITradeProposals';
 export { OperationsPanel } from './OperationsPanel';
+export { TradeLineageActions } from './TradeLineageActions';
+export type { TradeLineageActionsProps } from './TradeLineageActions';
+export { TradeJourneyTimeline } from './TradeJourneyTimeline';
+export type { TradeJourneyTimelineProps } from './TradeJourneyTimeline';
 export {
   computeContextualFormRules,
   buildFormContext,

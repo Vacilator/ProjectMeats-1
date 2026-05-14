@@ -28,6 +28,8 @@ import {
 } from '@/components/Shared';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
+import { TradeJourneyTimeline } from '@/components/Trader/TradeJourneyTimeline';
+import { TradeLineageActions } from '@/components/Trader/TradeLineageActions';
 import { WorkflowStatusBar } from '@/components/Workflow';
 import { getWorkflowConfig } from '@/components/Workflow/workflowConfig';
 import { businessApi } from '@/services/businessApi';
@@ -97,6 +99,18 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
   const canShowOperationalActions = supportsOperationalActions(normalizedEntityType);
   const canShowAuditHistory = supportsAuditHistory(normalizedEntityType);
   const hasWorkflow = Boolean(getWorkflowConfig(normalizedEntityType));
+  const isTradeEntity = useMemo(
+    () =>
+      [
+        'inquiry',
+        'purchase_order',
+        'sales_order',
+        'carrier_purchase_order',
+        'fulfillment',
+        'invoice',
+      ].includes(normalizedEntityType),
+    [normalizedEntityType],
+  );
 
   const childEntityType = isSupplier ? 'plant' : 'location';
   const childEntityDisplayName = isSupplier ? 'Plant' : 'Location';
@@ -513,6 +527,13 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                 onChanged={handleOperationalChanged}
               />
             ) : null}
+            {isTradeEntity && (
+              <TradeLineageActions
+                entityType={normalizedEntityType}
+                entityId={entityId}
+                onRecordCreated={handleOperationalChanged}
+              />
+            )}
             <Button type="primary" onClick={handleEditCurrentRecord}>
               Edit
             </Button>
@@ -552,6 +573,13 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
               entityType={normalizedEntityType}
               entityId={entityId}
               onTransitioned={handleOperationalChanged}
+            />
+          )}
+
+          {isTradeEntity && (
+            <TradeJourneyTimeline
+              entityType={normalizedEntityType}
+              entityId={entityId}
             />
           )}
 
