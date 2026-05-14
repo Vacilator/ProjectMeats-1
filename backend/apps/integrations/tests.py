@@ -255,7 +255,8 @@ class EmailSyncTests(APITestCase):
             HTTP_X_TENANT_ID=str(self.tenant.id),
         )
 
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(resp.data.get("ok"))
         self.assertEqual(resp.data.get("code"), "not_connected")
         self.assertEqual(resp.data.get("error_code"), "not_connected")
         self.assertEqual(resp.data.get("action", {}).get("type"), "reconnect_outlook")
