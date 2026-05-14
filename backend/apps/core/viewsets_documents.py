@@ -12,21 +12,11 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.serializers_documents import (
-    DocumentEmailRequestSerializer,
-    DocumentStatusTransitionSerializer,
-)
+from apps.core.serializers_documents import DocumentEmailRequestSerializer, DocumentStatusTransitionSerializer
 from apps.core.services.document_workflows import get_status_workflow_payload
-from apps.core.services.pdf_generator import (
-    email_document_pdf,
-    generate_document_pdf_for_instance,
-)
-from apps.core.utils.audit_context import (
-    AuditRequestContext,
-    clear_audit_context,
-    get_audit_context,
-    set_audit_context,
-)
+from apps.core.services.pdf_generator import email_document_pdf, generate_document_pdf_for_instance
+from apps.core.services.workflow_cascade import CascadeResult, attempt_cascade
+from apps.core.utils.audit_context import AuditRequestContext, clear_audit_context, get_audit_context, set_audit_context
 from apps.tenants.email_utils import classify_email_send_exception
 
 
@@ -79,14 +69,25 @@ class OperationalDocumentActionsMixin:
                     context={"document": document},
                 )
                 serializer.is_valid(raise_exception=True)
+                next_status = serializer.validated_data["status"]
                 transition_response = self.perform_document_status_transition(
                     request,
                     document,
-                    serializer.validated_data["status"],
+                    next_status,
                 )
                 if transition_response is not None:
                     return transition_response
-        return Response(self.get_serializer(document).data)
+
+        # Attempt downstream cascade (best-effort, outside the transition txn)
+        cascade = attempt_cascade(
+            tenant=getattr(request, "tenant", None),
+            document=document,
+            new_status=next_status,
+        )
+        response_data = self.get_serializer(document).data
+        if cascade.triggered:
+            response_data["_cascade"] = _serialize_cascade(cascade)
+        return Response(response_data)
 
     @action(detail=True, methods=["get"], url_path="pdf")
     def pdf(self, request, pk=None):
@@ -126,3 +127,19 @@ class OperationalDocumentActionsMixin:
             },
             status=status.HTTP_200_OK,
         )
+
+
+def _serialize_cascade(cascade: CascadeResult) -> dict:
+    """Serialize a CascadeResult for the API response."""
+    result: dict = {
+        "triggered": cascade.triggered,
+        "created_entity_type": cascade.created_entity_type,
+        "created_entity_id": cascade.created_entity_id,
+        "created_entity_label": cascade.created_entity_label,
+        "already_existed": cascade.already_existed,
+    }
+    if cascade.error:
+        result["error"] = cascade.error
+    if cascade.details:
+        result["details"] = cascade.details
+    return result

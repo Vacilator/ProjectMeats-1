@@ -3,6 +3,7 @@ Purchase Orders views for ProjectMeats.
 
 Provides REST API endpoints for purchase order management.
 """
+
 import logging
 
 from django.core.exceptions import ValidationError
@@ -123,9 +124,11 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
             logger.error(
                 "Purchase order creation attempted without tenant context",
                 extra={
-                    "user": self.request.user.username
-                    if self.request.user and self.request.user.is_authenticated
-                    else "Anonymous",
+                    "user": (
+                        self.request.user.username
+                        if self.request.user and self.request.user.is_authenticated
+                        else "Anonymous"
+                    ),
                     "has_request_tenant": hasattr(self.request, "tenant"),
                     "timestamp": timezone.now().isoformat(),
                 },
@@ -176,7 +179,21 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
                 status=result.http_status,
             )
         refreshed = get_object_or_404(self.get_queryset(), pk=pk)
-        return Response(self.get_serializer(refreshed).data)
+        response_data = self.get_serializer(refreshed).data
+
+        # Attempt downstream cascade (PO approved → SO draft)
+        from apps.core.services.workflow_cascade import attempt_cascade
+        from apps.core.viewsets_documents import _serialize_cascade
+
+        cascade = attempt_cascade(
+            tenant=request.tenant,
+            document=refreshed,
+            new_status=next_status,
+        )
+        if cascade.triggered:
+            response_data["_cascade"] = _serialize_cascade(cascade)
+
+        return Response(response_data)
 
     def create(self, request, *args, **kwargs):
         """Create a new purchase order with enhanced error handling."""
