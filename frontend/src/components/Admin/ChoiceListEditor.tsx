@@ -41,7 +41,7 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { confirmDialog } from '@/utils/uiDialogs';
 
 interface ChoiceItem {
@@ -219,13 +219,13 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   const loadChoiceList = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get(
+      const response = await businessApi.get(
         `/system/choice-lists/${choiceListSlug}/`
       );
       setChoiceList(response.data);
       
       // Load items with tenant filtering
-      const itemsResponse = await apiClient.get(
+      const itemsResponse = await businessApi.get(
         `/system/choice-lists/${choiceListSlug}/items/`
       );
       // Ensure itemsResponse.data is always an array
@@ -263,7 +263,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         order: (index + 1) * 10,
       }));
 
-      await apiClient.post(
+      await businessApi.post(
         `/system/choice-lists/${choiceListSlug}/reorder/`,
         { items: updates }
       );
@@ -280,7 +280,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     }
 
     try {
-      await apiClient.post(
+      await businessApi.post(
         `/system/choice-lists/${choiceListSlug}/items/`,
         {
           value: newItem.value.toUpperCase(),
@@ -303,7 +303,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     if (!editingItem) return;
 
     try {
-      await apiClient.patch(
+      await businessApi.patch(
         `/system/choice-items/${editingItem.id}/`,
         {
           label: editingItem.label,
@@ -329,7 +329,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/system/choice-items/${item.id}/`);
+      await businessApi.delete(`/system/choice-items/${item.id}/`);
       loadChoiceList();
     } catch (err: unknown) {
       setError('Failed to delete item');
@@ -340,7 +340,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     // For system items, we need to use choice overrides
     // This is a simplified implementation - full version would use TenantChoiceOverride
     try {
-      await apiClient.patch(`/system/choice-items/${item.id}/`, {
+      await businessApi.patch(`/system/choice-items/${item.id}/`, {
         is_active: !item.is_active,
       });
       loadChoiceList();

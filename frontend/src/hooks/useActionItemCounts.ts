@@ -12,7 +12,7 @@
  * - Caching to reduce API calls
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -73,7 +73,7 @@ export function useActionItemCounts(
     
     setLoading(true);
     try {
-      const response = await apiClient.get('/workflows/action-items/counts/');
+      const response = await businessApi.get('/workflows/action-items/counts/');
       if (mountedRef.current) {
         setCounts(response.data);
         setError(null);

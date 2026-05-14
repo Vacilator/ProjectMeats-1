@@ -26,7 +26,7 @@ import { logger } from '@/utils/logger';
 import styled from 'styled-components';
 import { Modal as AntModal } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import {
   Building2, Users, ShoppingCart, Receipt, Package,
@@ -250,7 +250,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       setError(null);
 
       try {
-        const response = await apiClient.get(`${config.apiPath}/${entityId}/`);
+        const response = await businessApi.get(`${config.apiPath}/${entityId}/`);
         setEntity(response.data);
       } catch (err: unknown) {
         logger.error(`Failed to fetch ${entityType}:`, err);
@@ -295,7 +295,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
     try {
       logger.debug('[EntityDetailModal] Fetching relations for:', { entityType, entityId });
 
-      const response = await apiClient.get(
+      const response = await businessApi.get(
         `/entities/${entityType}/${entityId}/relationships/?counts=true`
       );
 
@@ -306,7 +306,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
         relationshipsData.map(async (rel: any) => {
           if (rel.count > 0) {
             try {
-              const itemsResponse = await apiClient.get(
+              const itemsResponse = await businessApi.get(
                 `/entities/${entityType}/${entityId}/relationships/${rel.name}/?limit=5`
               );
               return {

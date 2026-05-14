@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Mail, CheckCircle, AlertTriangle, XCircle, Plus, Trash2, RefreshCw } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { toApiErrorText } from '@/services/apiErrorPresentation';
 import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
@@ -319,7 +319,7 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get('/workflows/email/email-accounts/');
+      const response = await businessApi.get('/workflows/email/email-accounts/');
       setAccounts(response.data);
     } catch (err: unknown) {
       logger.error('[EmailIntegrationWidget] Failed to fetch email accounts', err);
@@ -347,7 +347,7 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     try {
       // Use secure apiClient to get the OAuth URL, preserving JWT and Tenant headers.
       // Backend returns JSON { auth_url } (not a redirect) so the SPA can do a top-level navigation.
-      const response = await apiClient.get(`/workflows/email/email/${provider}/auth/init/`);
+      const response = await businessApi.get(`/workflows/email/email/${provider}/auth/init/`);
 
       if (response.data?.auth_url) {
         window.location.href = response.data.auth_url;
@@ -379,7 +379,7 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/workflows/email/email-accounts/${accountId}/`);
+      await businessApi.delete(`/workflows/email/email-accounts/${accountId}/`);
       setAccounts(accounts.filter(acc => acc.id !== accountId));
     } catch (err: unknown) {
       logger.error('[EmailIntegrationWidget] Failed to disconnect account', err);

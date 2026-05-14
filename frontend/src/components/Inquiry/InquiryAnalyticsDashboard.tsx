@@ -11,7 +11,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -433,7 +433,7 @@ export const InquiryAnalyticsDashboard: React.FC<InquiryAnalyticsDashboardProps>
       const params: Record<string, string> = { period };
       if (entityType) params.entity_type = entityType;
       
-      const response = await apiClient.get('/inquiries/analytics/', { params });
+      const response = await businessApi.get('/inquiries/analytics/', { params });
       setData(response.data);
     } catch (error) {
       logger.error('Failed to fetch analytics:', error);

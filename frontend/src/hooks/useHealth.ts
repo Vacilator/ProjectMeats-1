@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 export interface HealthResponse {
   status: string;
@@ -20,7 +20,7 @@ export interface HealthResponse {
 }
 
 const fetchHealth = async (): Promise<HealthResponse> => {
-  const res = await apiClient.get<HealthResponse>('/health/');
+  const res = await businessApi.get<HealthResponse>('/health/');
   return res.data;
 };
 

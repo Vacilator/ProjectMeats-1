@@ -3,7 +3,7 @@ import {
   configService,
   type SystemChoiceList,
 } from '../../../services/configService';
-import { apiClient } from '../../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 
@@ -278,7 +278,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       for (const item of items) {
         if (item.is_new) {
           // Create new item
-          await apiClient.post(`/system/choice-lists/${selectedList.id}/items/`, {
+          await businessApi.post(`/system/choice-lists/${selectedList.id}/items/`, {
             value: item.value,
             label: item.label || item.value,
             is_active: item.is_active,
@@ -286,7 +286,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
           });
         } else if (item.id) {
           // Update existing item
-          await apiClient.patch(`/system/choice-items/${item.id}/`, {
+          await businessApi.patch(`/system/choice-items/${item.id}/`, {
             value: item.value,
             label: item.label,
             is_active: item.is_active,

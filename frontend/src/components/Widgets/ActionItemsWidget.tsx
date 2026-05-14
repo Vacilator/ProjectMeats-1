@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -191,7 +191,7 @@ export const ActionItemsWidget: React.FC<ActionItemsWidgetProps> = ({
   useEffect(() => {
     const fetchActionItems = async () => {
       try {
-        const response = await apiClient.get('/workflows/action-items/', {
+        const response = await businessApi.get('/workflows/action-items/', {
           params: { status: 'pending,in_progress', limit }
         });
         setItems(response.data.results || []);

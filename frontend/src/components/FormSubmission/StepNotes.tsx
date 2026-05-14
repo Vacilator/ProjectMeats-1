@@ -6,7 +6,7 @@
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
 
@@ -249,7 +249,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
     const currentKey = `${submissionId}_${stepId}`;
     try {
       // Query activity logs for this step submission
-      const response = await apiClient.get('/api/workspace/activity-logs/', {
+      const response = await businessApi.get('/api/workspace/activity-logs/', {
         params: {
           entity_type: 'form_step_submission',
           entity_id: currentKey,
@@ -276,7 +276,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
     setIsAdding(true);
     setError(null);
     try {
-      const response = await apiClient.post('/api/workspace/activity-logs/', {
+      const response = await businessApi.post('/api/workspace/activity-logs/', {
         entity_type: 'form_step_submission',
         entity_id: `${submissionId}_${stepId}`,
         content: newNote.trim(),

@@ -28,7 +28,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import { logger } from '@/utils/logger';
 
@@ -309,7 +309,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
       // Set the appropriate entity field
       payload[entityType] = entityId;
 
-      await apiClient.post('payments/', payload);
+      await businessApi.post('payments/', payload);
 
       // Success!
       onSuccess();

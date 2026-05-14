@@ -15,7 +15,7 @@
  * Created: 2026-02-04 - Phase 1.3 Widget Real Data
  */
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
 
 // ============================================================================
@@ -87,7 +87,7 @@ export const useCockpitStats = (): UseCockpitStatsReturn => {
   const query = useQuery({
     queryKey: withTenantQueryKey('cockpit', 'stats'),
     queryFn: async () => {
-      const response = await apiClient.get<CockpitStats>('cockpit/stats/');
+      const response = await businessApi.get<CockpitStats>('cockpit/stats/');
       return response.data;
     },
     // Circuit breaker: avoid retry-spam and focus refetch loops during backend outages.

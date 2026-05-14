@@ -17,7 +17,7 @@ import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getErrorMessage } from '@/utils/errorHelpers';
 import { Location } from '../../types/index';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 
 export interface LocationSelectorProps {
@@ -57,7 +57,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
       setLoading(true);
       setFetchError(null);
 
-      const response = await apiClient.get('/locations/', {
+      const response = await businessApi.get('/locations/', {
         params: type ? { type } : undefined,
         timeout: 10000,
       });

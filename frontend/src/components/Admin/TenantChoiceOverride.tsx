@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { useToast } from '../../hooks/useToast';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
@@ -78,7 +78,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
   const loadChoiceLists = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get('/system/choice-lists/');
+      const response = await businessApi.get('/system/choice-lists/');
       const raw = response.data as any;
       const lists = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setChoiceLists(lists);
@@ -95,7 +95,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
     async (list: SystemChoiceList) => {
       setIsLoading(true);
       try {
-        const itemsRes = await apiClient.get(`/system/choice-lists/${list.slug}/items/`);
+        const itemsRes = await businessApi.get(`/system/choice-lists/${list.slug}/items/`);
         const itemsData = Array.isArray(itemsRes.data) ? itemsRes.data : [];
         const systemItemIds = new Set(
           itemsData.filter((i: SystemChoiceItem) => i.is_system_defined).map((i: SystemChoiceItem) => i.id)
@@ -105,7 +105,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
         setSystemItems(activeItems);
 
         try {
-          const overrideRes = await apiClient.get(`/system/tenant-overrides/`, {
+          const overrideRes = await businessApi.get(`/system/tenant-overrides/`, {
             params: { choice_list: list.id },
           });
 
@@ -229,7 +229,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
     if (!selectedList || !newCustomItem.value || !newCustomItem.label) return;
 
     try {
-      await apiClient.post(`/system/choice-lists/${selectedList.slug}/items/`, {
+      await businessApi.post(`/system/choice-lists/${selectedList.slug}/items/`, {
         value: newCustomItem.value,
         label: newCustomItem.label,
         extra_data: {},
@@ -262,9 +262,9 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
       };
 
       if (tenantOverride?.id) {
-        await apiClient.patch(`/system/tenant-overrides/${tenantOverride.id}/`, overrideData);
+        await businessApi.patch(`/system/tenant-overrides/${tenantOverride.id}/`, overrideData);
       } else {
-        await apiClient.post('/system/tenant-overrides/', overrideData);
+        await businessApi.post('/system/tenant-overrides/', overrideData);
       }
 
       toast.success('Saved customizations');

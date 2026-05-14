@@ -14,7 +14,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 
@@ -41,7 +41,7 @@ export function useWorkFormPermissions() {
     queryFn: async () => {
       logger.debug('[useWorkFormPermissions] Fetching permissions...');
       try {
-        const response = await apiClient.get('/workflows/permissions/');
+        const response = await businessApi.get('/workflows/permissions/');
         logger.debug('[useWorkFormPermissions] SUCCESS - Response:', response.data);
         return response.data;
       } catch (error: unknown) {

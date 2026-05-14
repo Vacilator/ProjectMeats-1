@@ -23,7 +23,7 @@ import {
   Search, Filter
 } from 'lucide-react';
 import { Modal as AntModal } from 'antd';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 
@@ -86,7 +86,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
   const loadChoiceLists = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get('/system/choice-lists/');
+      const response = await businessApi.get('/system/choice-lists/');
       setChoiceLists(response.data.results || response.data);
     } catch (error) {
       logger.error('Failed to load choice lists', { component: 'SystemChoiceManager' }, error);
@@ -101,7 +101,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
   const loadItems = useCallback(async (listId: string) => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get(`/system/choice-lists/${listId}/items/?limit=1000`);
+      const response = await businessApi.get(`/system/choice-lists/${listId}/items/?limit=1000`);
       const raw = response.data as any;
       const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setItems(data);
@@ -163,10 +163,10 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     try {
       if (editingList.id) {
         // Update
-        await apiClient.patch(`/system/choice-lists/${editingList.id}/`, editingList);
+        await businessApi.patch(`/system/choice-lists/${editingList.id}/`, editingList);
       } else {
         // Create
-        await apiClient.post('/system/choice-lists/', editingList);
+        await businessApi.post('/system/choice-lists/', editingList);
       }
 
       await loadChoiceLists();
@@ -194,7 +194,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/system/choice-lists/${listId}/`);
+      await businessApi.delete(`/system/choice-lists/${listId}/`);
       await loadChoiceLists();
       if (selectedList?.id === listId) {
         setSelectedList(null);
@@ -218,10 +218,10 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
 
       if (editingItem.id) {
         // Update
-        await apiClient.patch(`/system/choice-items/${editingItem.id}/`, itemData);
+        await businessApi.patch(`/system/choice-items/${editingItem.id}/`, itemData);
       } else {
         // Create
-        await apiClient.post('/system/choice-items/', itemData);
+        await businessApi.post('/system/choice-items/', itemData);
       }
 
       await loadItems(selectedList.slug);
@@ -249,7 +249,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/system/choice-items/${itemId}/`);
+      await businessApi.delete(`/system/choice-items/${itemId}/`);
       if (selectedList) {
         await loadItems(selectedList.slug);
       }
@@ -263,7 +263,7 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
    */
   const handleToggleItemActive = useCallback(async (item: SystemChoiceItem) => {
     try {
-      await apiClient.patch(`/system/choice-items/${item.id}/`, {
+      await businessApi.patch(`/system/choice-items/${item.id}/`, {
         is_active: !item.is_active,
       });
       if (selectedList) {

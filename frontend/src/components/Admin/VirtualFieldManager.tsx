@@ -24,7 +24,7 @@ import {
   List, Link as LinkIcon, Mail
 } from 'lucide-react';
 import { Modal as AntModal } from 'antd';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 
@@ -112,7 +112,7 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
   const loadFields = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get('/system/field-schemas/', {
+      const response = await businessApi.get('/system/field-schemas/', {
         params: { model_name: selectedModel },
       });
       setFields(response.data.results || response.data);
@@ -144,9 +144,9 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
       };
 
       if (editingField.id) {
-        await apiClient.patch(`/system/field-schemas/${editingField.id}/`, fieldData);
+        await businessApi.patch(`/system/field-schemas/${editingField.id}/`, fieldData);
       } else {
-        await apiClient.post('/system/field-schemas/', fieldData);
+        await businessApi.post('/system/field-schemas/', fieldData);
       }
 
       await loadFields();
@@ -173,7 +173,7 @@ export const VirtualFieldManager: React.FC<VirtualFieldManagerProps> = ({
     if (!confirmed) return;
 
     try {
-      await apiClient.delete(`/system/field-schemas/${fieldId}/`);
+      await businessApi.delete(`/system/field-schemas/${fieldId}/`);
       await loadFields();
     } catch (error) {
       logger.error('Failed to delete field', { component: 'VirtualFieldManager' }, error);

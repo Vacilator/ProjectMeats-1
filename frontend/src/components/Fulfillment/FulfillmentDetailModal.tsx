@@ -10,7 +10,7 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
 
@@ -388,7 +388,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
   const loadFulfillment = async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get(`/fulfillments/${fulfillmentId}/`);
+      const response = await businessApi.get(`/fulfillments/${fulfillmentId}/`);
       setFulfillment(response.data);
     } catch (error) {
       logger.error('Failed to load fulfillment:', error);
@@ -402,7 +402,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
 
     setIsActionLoading(true);
     try {
-      await apiClient.post(`/fulfillments/${fulfillment.id}/${action}/`);
+      await businessApi.post(`/fulfillments/${fulfillment.id}/${action}/`);
       await loadFulfillment();
       onUpdate?.();
     } catch (error) {
@@ -417,7 +417,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
 
     setIsActionLoading(true);
     try {
-      await apiClient.post(`/fulfillments/${fulfillment.id}/add_tracking/`, {
+      await businessApi.post(`/fulfillments/${fulfillment.id}/add_tracking/`, {
         tracking_numbers: [newTracking.trim()],
       });
       setNewTracking('');

@@ -13,7 +13,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
 
 // ============================================================================
@@ -49,18 +49,18 @@ export interface ToggleFavoriteResponse {
 // ============================================================================
 
 const fetchFavorites = async (): Promise<Favorite[]> => {
-  // apiClient.baseURL already includes /api/v1
-  const response = await apiClient.get<FavoritesResponse>('/favorites/');
+  // businessApi.baseURL already includes /api/v1
+  const response = await businessApi.get<FavoritesResponse>('/favorites/');
   return response.data.results;
 };
 
 const toggleFavorite = async (params: ToggleFavoriteParams): Promise<ToggleFavoriteResponse> => {
-  const response = await apiClient.post<ToggleFavoriteResponse>('/favorites/toggle/', params);
+  const response = await businessApi.post<ToggleFavoriteResponse>('/favorites/toggle/', params);
   return response.data;
 };
 
 const checkIsFavorited = async (entity_type: string, entity_id: number): Promise<boolean> => {
-  const response = await apiClient.get<{ is_favorited: boolean }>(
+  const response = await businessApi.get<{ is_favorited: boolean }>(
     `/favorites/check/?entity_type=${encodeURIComponent(entity_type)}&entity_id=${encodeURIComponent(String(entity_id))}`
   );
   return response.data.is_favorited;

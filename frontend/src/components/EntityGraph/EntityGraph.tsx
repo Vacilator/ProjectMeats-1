@@ -30,7 +30,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import styled from 'styled-components';
 import { X, Edit2, ExternalLink, ChevronRight } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { EntityNode, EntityNodeData } from './EntityNode';
 import EntityEdge from './EntityEdge';
 import { logger } from '@/utils/logger';
@@ -383,7 +383,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
     setError(null);
 
     try {
-      const response = await apiClient.get<GraphResponse>(
+      const response = await businessApi.get<GraphResponse>(
         `entities/${fetchEntityType}/${fetchEntityId}/graph/`,
         { params: { depth: fetchDepth, max_nodes: maxNodes } }
       );

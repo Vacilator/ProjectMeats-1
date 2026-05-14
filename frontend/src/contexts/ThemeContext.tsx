@@ -17,7 +17,7 @@ import type { ThemeConfig } from 'antd';
 import { Theme, themes, injectTenantColors } from '../config/theme';
 import { applyCanvasTheme } from '../theme/themeConfig';
 import { getRuntimeConfig } from '../config/runtime';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { useAuth } from './AuthContext';
 import { logger } from '../utils/logger';
 
@@ -89,7 +89,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       if (!isAuthenticated) return;
 
       try {
-        await apiClient.patch('/preferences/me/', { theme: themeName });
+        await businessApi.patch('/preferences/me/', { theme: themeName });
       } catch (error) {
         logger.error('Failed to sync theme to backend', { component: 'ThemeContext' }, error);
       }
@@ -115,7 +115,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
       try {
         const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
-        const response = await apiClient.get('/tenants/current_theme/');
+        const response = await businessApi.get('/tenants/current_theme/');
 
         const branding: TenantBranding = {
           logoUrl: response.data.logo_url,
@@ -186,7 +186,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   useEffect(() => {
     const loadThemeFromBackend = async () => {
       try {
-        const response = await apiClient.get('/preferences/me/');
+        const response = await businessApi.get('/preferences/me/');
 
         const backendTheme = response.data.theme;
         if (backendTheme === 'light' || backendTheme === 'dark' || backendTheme === 'high-contrast') {

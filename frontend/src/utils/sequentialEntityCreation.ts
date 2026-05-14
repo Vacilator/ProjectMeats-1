@@ -11,7 +11,7 @@
  * dependent entities (e.g., a newly created contact ID becomes the contact_id on an inquiry).
  */
 
-import { apiClient } from '@/services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { getErrorMessage } from '@/utils/errorHelpers';
 
 // ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ export async function createEntitiesSequentially(
     }
 
     try {
-      const response = await apiClient.post(endpoint, payload);
+      const response = await businessApi.post(endpoint, payload);
       const responseData = (response.data ?? {}) as Record<string, unknown>;
       const createdId = responseData.id ?? responseData.pk ?? '';
 

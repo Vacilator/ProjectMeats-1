@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-hot-toast';
 import { Mail, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 
 interface EmailConnectionProps {
@@ -60,7 +60,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
     setIsConnecting(true);
 
     try {
-      const response = await apiClient.get('/integrations/oauth/authorize/', {
+      const response = await businessApi.get('/integrations/oauth/authorize/', {
         params: { provider },
       });
 

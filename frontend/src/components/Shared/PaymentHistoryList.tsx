@@ -19,7 +19,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { getErrorMessage } from '@/utils/errorHelpers';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
@@ -148,7 +148,7 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get('payments/', {
+      const response = await businessApi.get('payments/', {
         params: { [entityType]: entityId },
       });
 

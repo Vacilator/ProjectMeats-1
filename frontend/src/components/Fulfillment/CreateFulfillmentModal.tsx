@@ -14,7 +14,7 @@ import { z } from 'zod';
 
 import { useZodForm } from '@/hooks/useZodForm';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 import {
   Fulfillment,
@@ -484,7 +484,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const loadRecentCustomers = useCallback(async () => {
     setLoadingCustomers(true);
     try {
-      const resp = await apiClient.get('inquiries/', {
+      const resp = await businessApi.get('inquiries/', {
         params: {
           entity_type: 'customer',
           ordering: '-inquiry_date',
@@ -520,7 +520,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
 
     setLoadingInquiries(true);
     try {
-      const resp = await apiClient.get('inquiries/', {
+      const resp = await businessApi.get('inquiries/', {
         params: {
           entity_type: 'customer',
           customer: customerId,
@@ -552,7 +552,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     }
 
     try {
-      const resp = await apiClient.get(`inquiries/${inquiryId}/`);
+      const resp = await businessApi.get(`inquiries/${inquiryId}/`);
       setResolvedInquiry(resp.data as Inquiry);
     } catch (err) {
       setResolvedInquiry(null);
@@ -634,7 +634,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     setLoadingSuppliers(true);
     try {
       // Fetch suppliers that have any of the selected products
-      const response = await apiClient.get('suppliers/', {
+      const response = await businessApi.get('suppliers/', {
         params: { products__id__in: productIds.join(','), page_size: 100 }
       });
       const data = response.data.results || response.data;
@@ -662,7 +662,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const fetchCarriers = async () => {
     setLoadingCarriers(true);
     try {
-      const response = await apiClient.get('carriers/', { params: { is_active: true, page_size: 100 } });
+      const response = await businessApi.get('carriers/', { params: { is_active: true, page_size: 100 } });
       const data = response.data.results || response.data;
 
       setCarrierOptions(data.map((c: any) => ({
@@ -762,7 +762,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         })),
       };
 
-      const response = await apiClient.post('fulfillments/', payload);
+      const response = await businessApi.post('fulfillments/', payload);
 
       resetForm();
       onSuccess(response.data);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService'; // FIX: Use authenticated client
+import { businessApi } from '@/services/businessApi'; // FIX: Use authenticated client
 import { toast } from 'react-hot-toast';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { Trash2, RefreshCw } from 'lucide-react';
@@ -25,7 +25,7 @@ export const IntegrationsSection: React.FC = () => {
 
   const loadConnections = useCallback(async () => {
     try {
-      const response = await apiClient.get('/integrations/oauth/status/'); // FIX: Use apiClient
+      const response = await businessApi.get('/integrations/oauth/status/'); // FIX: Use apiClient
       setConnections(response.data.connections || []);
       setLastCheckedAt(new Date().toISOString());
     } catch (error: unknown) {
@@ -75,7 +75,7 @@ export const IntegrationsSection: React.FC = () => {
 
     setIsDisconnecting(provider);
     try {
-      await apiClient.post('/integrations/oauth/disconnect/', { provider }); // FIX: Use apiClient
+      await businessApi.post('/integrations/oauth/disconnect/', { provider }); // FIX: Use apiClient
       toast.success(`${provider} disconnected successfully`);
       loadConnections();
     } catch (error: unknown) {

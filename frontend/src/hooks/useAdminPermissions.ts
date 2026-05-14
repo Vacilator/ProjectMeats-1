@@ -16,7 +16,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useAuthState } from '@/contexts/AuthContext';
-import { apiClient } from '../services/apiService';
+import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '../utils/queryKeys';
 import { logger } from '@/utils/logger';
 
@@ -50,7 +50,7 @@ export function useAdminPermissions() {
       try {
         // NOTE: TenantViewSet is registered at /api/v1/tenants/
         // so the admin permissions action is /api/v1/tenants/admin_permissions/
-        const response = await apiClient.get('/tenants/admin_permissions/');
+        const response = await businessApi.get('/tenants/admin_permissions/');
 
         // Ensure tenant context is persisted for downstream Admin Workspace calls.
         // This avoids "admin pages not working" when localStorage.tenantId is missing/stale.
@@ -76,7 +76,7 @@ export function useAdminPermissions() {
         // and retry once.
         if (status === 404) {
           try {
-            const current = await apiClient.get('/tenants/current/');
+            const current = await businessApi.get('/tenants/current/');
             const currentTenantId = current.data?.id;
 
             if (currentTenantId) {
@@ -84,7 +84,7 @@ export function useAdminPermissions() {
               if (current.data?.name) localStorage.setItem('tenantName', String(current.data.name));
               if (current.data?.slug) localStorage.setItem('tenantSlug', String(current.data.slug));
 
-              const retry = await apiClient.get('/tenants/admin_permissions/');
+              const retry = await businessApi.get('/tenants/admin_permissions/');
               return retry.data;
             }
           } catch (retryError) {
