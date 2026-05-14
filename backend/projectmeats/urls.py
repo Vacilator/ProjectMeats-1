@@ -86,15 +86,15 @@ urlpatterns = [
     path("api/v1/", include("apps.core.urls")),  # Core shared utilities
     # Bug Reports → Feedback rename (v2.0 Wave 1 Week 3)
     path("api/v1/bug-reports/", include("tenant_apps.bug_reports.urls")),  # Legacy (deprecated)
-    path("api/v1/feedback/", include("tenant_apps.bug_reports.urls")),  # NEW canonical path
+    path("api/v1/feedback/", include("tenant_apps.bug_reports.urls")),  # Canonical path
     # Cockpit → Workspace rename (v2.0 Wave 1 Week 3)
     path("api/v1/cockpit/", include("tenant_apps.cockpit.urls")),  # Legacy (deprecated)
     path("api/v1/workspace/", include("tenant_apps.cockpit.urls")),  # NEW canonical path
     path("api/v1/", include("tenant_apps.inquiries.urls")),  # Inquiry management
     path("api/v1/", include("tenant_apps.fulfillments.urls")),  # Fulfillment tracking
+    path("api/v1/workflows/", include("tenant_apps.workflows.urls")),  # Bundle Two: Tenant Workflows
     # Legacy alias (older clients) — canonical path is /api/v1/workflows/suggest-nodes/
     path("api/v1/suggest-nodes/", SuggestNodesView.as_view(), name="suggest-nodes-legacy"),
-    path("api/v1/workflows/", include("tenant_apps.workflows.urls")),  # Bundle Two: Tenant Workflows
     # NOTE: schema-builder API DELETED in v2.0 Wave 1 (superseded by workflows)
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

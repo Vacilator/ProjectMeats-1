@@ -25,6 +25,7 @@ Use this guide together with:
 
 The current PR gate is `.github/workflows/pr-validation.yml` plus `.github/workflows/ai-pr-reviewer.yml`. Require these checks on protected branches:
 
+- `Detect Changes`
 - `Infrastructure Drift Gate`
 - `Dependency Review`
 - `Automation Security`
