@@ -197,7 +197,7 @@ const ToggleSwitch = styled.div<{ $active: boolean }>`
     border-radius: 50%;
     background: white;
     transition: left 0.2s;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 3px rgb(var(--color-text-primary) / 0.15);
   }
 `;
 
