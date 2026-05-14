@@ -89,11 +89,6 @@ export const navigation: NavigationItem[] = [
     ],
   },
   {
-    label: 'Contacts',
-    icon: '📇',
-    path: '/contacts',
-  },
-  {
     label: 'Orders',
     icon: '📋',
     children: [
@@ -166,11 +161,6 @@ export const navigation: NavigationItem[] = [
         path: '/carriers',
       },
     ],
-  },
-  {
-    label: 'WorkForms',
-    icon: '📋',
-    path: '/workforms',
   },
 ];
 

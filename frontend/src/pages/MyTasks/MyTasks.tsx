@@ -1,21 +1,22 @@
 /**
- * MyTasks Page Component
+ * MyTasks — Unified Task Inbox
  *
- * Displays action items assigned to the current user across all forms and workflows.
- * Connects to the action-items API endpoint.
- * Supports task delegation via DelegateTaskModal.
+ * Industry-leading task management UI inspired by Linear, Asana & Notion.
+ * Three smart categories:
+ *   1. Action Required — tasks YOU must act on right now
+ *   2. AI Inbox       — AI-generated drafts awaiting human review
+ *   3. Workflows      — in-progress workflow executions with progress
  *
- * Phase 5 Enhancement: Added "In Progress Workflows" section
+ * Minimal chrome. Every pixel earns its place.
  */
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import styled from 'styled-components';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import styled, { css, keyframes } from 'styled-components';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Table, Tag, Select, message } from 'antd';
+import { Table, Tag, Select, message, Tooltip } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
-import { DelegationHistory } from '../../components/Delegation';
 import AIDraftReviewDialog from '../../components/AIAssistant/AIDraftReviewDialog';
 import {
   AIInboxFeedbackActions,
@@ -31,846 +32,574 @@ import { WorkflowExecution } from '../../types/workflows';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { compareTasksSmart, isAtRiskTask } from '../../utils/taskPrioritization';
 
-// Styled Components
-const Container = styled.div`
-  max-width: 1200px;
+/* ─── constants ─── */
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+const PRIORITY_COLORS: Record<string, string> = {
+  urgent: 'var(--color-error)',
+  high: 'var(--color-warning)',
+  normal: 'var(--color-info)',
+  low: 'var(--color-text-tertiary)',
+};
+
+type TasksTab = 'action' | 'ai' | 'workflows';
+type PriorityFilter = 'all' | 'urgent' | 'high' | 'normal' | 'low';
+type SortOption = 'smart' | 'due_date' | 'priority';
+
+/* ─── helpers ─── */
+const formatRelativeDate = (dateStr: string | null): string => {
+  if (!dateStr) return '';
+  const diff = new Date(dateStr).getTime() - Date.now();
+  const days = Math.ceil(diff / 86_400_000);
+  if (days < -1) return `${Math.abs(days)}d overdue`;
+  if (days === -1) return 'Yesterday';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  if (days <= 7) return `${days}d`;
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+const formatTimeAgo = (dateStr: string): string => {
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(ms / 60_000);
+  if (m < 1) return 'Just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(ms / 86_400_000);
+  if (d < 7) return `${d}d ago`;
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+/* ─── animations ─── */
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
+/* ─── layout ─── */
+const Page = styled.div`
+  max-width: 960px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 32px 24px 64px;
+  animation: ${fadeIn} 0.2s ease;
 `;
 
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-`;
-
-
-const Title = styled.h1`
-  font-size: 28px;
-  font-weight: 600;
+const PageTitle = styled.h1`
+  font-size: 24px;
+  font-weight: 700;
   color: rgb(var(--color-text-primary));
-  margin: 0;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
 `;
 
-const CountBadge = styled.span`
-  background: rgb(var(--color-primary));
-  color: rgb(var(--color-primary-foreground));
+const PageSubline = styled.p`
   font-size: 14px;
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 16px;
-  margin-left: 12px;
+  color: rgb(var(--color-text-secondary));
+  margin: 0 0 24px 0;
 `;
 
-const TabsRow = styled.div`
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+/* ─── tabs (pill style like Linear) ─── */
+const TabBar = styled.nav`
+  display: inline-flex;
+  gap: 2px;
+  background: rgb(var(--color-bg-secondary));
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 20px;
 `;
 
-const TabButton = styled.button<{ $active: boolean }>`
-  padding: 10px 16px;
-  border-radius: 999px;
-  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
-  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.12)' : 'rgb(var(--color-surface))'};
-  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-primary))'};
-  font-size: 14px;
+const Tab = styled.button<{ $active: boolean }>`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  ${({ $active }) => $active
+    ? css`
+        background: rgb(var(--color-surface));
+        color: rgb(var(--color-text-primary));
+        box-shadow: 0 1px 3px var(--shadow-color, rgba(var(--color-text-primary), 0.08));
+      `
+    : css`
+        background: transparent;
+        color: rgb(var(--color-text-secondary));
+        &:hover { color: rgb(var(--color-text-primary)); }
+      `
+  }
 `;
 
-const FiltersBar = styled.div`
+const TabBadge = styled.span<{ $variant?: 'danger' }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  background: ${({ $variant }) => $variant === 'danger'
+    ? 'rgb(var(--color-error))'
+    : 'rgba(var(--color-text-secondary), 0.15)'
+  };
+  color: ${({ $variant }) => $variant === 'danger'
+    ? 'rgb(var(--color-text-inverse))'
+    : 'rgb(var(--color-text-secondary))'
+  };
+`;
+
+/* ─── toolbar ─── */
+const Toolbar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+`;
+
+const SearchBox = styled.input`
+  flex: 1;
+  min-width: 180px;
+  padding: 8px 12px 8px 32px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 10px center;
+  transition: border-color 0.15s;
+
+  &:focus { outline: none; border-color: rgb(var(--color-primary)); }
+  &::placeholder { color: rgb(var(--color-text-tertiary)); }
+`;
+
+const SmallSelect = styled.select`
+  padding: 8px 10px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface));
+  cursor: pointer;
+  &:focus { outline: none; border-color: rgb(var(--color-primary)); }
+`;
+
+const RefreshBtn = styled.button`
+  padding: 7px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
+`;
+
+/* ─── KPI strip ─── */
+const KPIStrip = styled.div`
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-  padding: 16px;
-  background: rgb(var(--color-surface));
-  border-radius: 8px;
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+  overflow-x: auto;
 `;
 
-const FilterGroup = styled.div`
+const KPIChip = styled.div<{ $variant?: 'danger' | 'warning' | 'info' }>`
   display: flex;
   align-items: center;
   gap: 8px;
-`;
-
-const FilterLabel = styled.label`
-  font-size: 13px;
-  font-weight: 500;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const FilterSelect = styled.select`
-  padding: 8px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
+  padding: 10px 16px;
   background: rgb(var(--color-surface));
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const SearchInput = styled.input`
-  flex: 1;
-  min-width: 200px;
-  padding: 8px 12px;
+  border-radius: 10px;
   border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-
-  &::placeholder {
-    color: rgb(var(--color-text-secondary));
-  }
+  white-space: nowrap;
+  flex-shrink: 0;
 `;
 
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-`;
-
-const StatCard = styled.div<{ $variant?: 'danger' | 'warning' | 'info' | 'default' }>`
-  padding: 20px;
-  background: rgb(var(--color-surface));
-  border-radius: 8px;
-  box-shadow: var(--shadow-sm);
-  border-left: 4px solid ${props => {
-    switch (props.$variant) {
+const KPIValue = styled.span<{ $variant?: 'danger' | 'warning' | 'info' }>`
+  font-size: 20px;
+  font-weight: 700;
+  color: ${({ $variant }) => {
+    switch ($variant) {
       case 'danger': return 'rgb(var(--color-error))';
       case 'warning': return 'rgb(var(--color-warning))';
       case 'info': return 'rgb(var(--color-info))';
-      default: return 'rgb(var(--color-primary))';
+      default: return 'rgb(var(--color-text-primary))';
     }
   }};
 `;
 
-const StatValue = styled.div`
-  font-size: 32px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-`;
-
-const StatLabel = styled.div`
-  font-size: 13px;
+const KPILabel = styled.span`
+  font-size: 12px;
   color: rgb(var(--color-text-secondary));
-  margin-top: 4px;
 `;
 
-const TaskList = styled.div`
+/* ─── task rows ─── */
+const TaskRow = styled.div<{ $isAtRisk?: boolean }>`
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgb(var(--color-surface));
+  border: 1px solid ${({ $isAtRisk }) => $isAtRisk
+    ? 'rgba(var(--color-error), 0.35)'
+    : 'rgb(var(--color-border))'
+  };
+  cursor: pointer;
+  transition: all 0.12s ease;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    box-shadow: var(--shadow-sm);
+  }
+
+  & + & { margin-top: 6px; }
+`;
+
+const PriorityDot = styled.span<{ $priority: string }>`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgb(${({ $priority }) => PRIORITY_COLORS[$priority] ?? 'var(--color-border)'});
+`;
+
+const RowContent = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const RowTitle = styled.span`
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const RowMeta = styled.span`
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+  margin-top: 2px;
+`;
+
+const DueBadge = styled.span<{ $overdue?: boolean }>`
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  background: ${({ $overdue }) => $overdue
+    ? 'rgba(var(--color-error), 0.1)'
+    : 'rgba(var(--color-text-secondary), 0.08)'
+  };
+  color: ${({ $overdue }) => $overdue
+    ? 'rgb(var(--color-error))'
+    : 'rgb(var(--color-text-secondary))'
+  };
+`;
+
+const RowActions = styled.div`
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+`;
+
+const SmallBtn = styled.button<{ $primary?: boolean }>`
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+
+  ${({ $primary }) => $primary
+    ? css`
+        background: rgb(var(--color-primary));
+        color: rgb(var(--color-primary-foreground));
+        border: none;
+        &:hover { opacity: 0.9; }
+      `
+    : css`
+        background: transparent;
+        color: rgb(var(--color-text-secondary));
+        border: 1px solid rgb(var(--color-border));
+        &:hover { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
+      `
+  }
+`;
+
+/* ─── workflow cards ─── */
+const WorkflowGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
 `;
 
-const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean; $isAtRisk?: boolean }>`
-  display: flex;
-  align-items: flex-start;
-  padding: 16px 20px;
-  background: ${props => props.$isAtRisk
-    ? 'linear-gradient(135deg, rgba(var(--color-error), 0.05) 0%, rgb(var(--color-surface)) 100%)'
-    : 'rgb(var(--color-surface))'
-  };
-  border-radius: 8px;
-  box-shadow: ${props => props.$isAtRisk
-    ? '0 2px 8px rgba(var(--color-error), 0.2)'
-    : 'var(--shadow-sm)'
-  };
-  border-left: 4px solid ${props => {
-    if (props.$isAtRisk) return 'rgb(var(--color-error))';
-    if (props.$isOverdue) return 'rgb(var(--color-error))';
-    switch (props.$priority) {
-      case 'urgent': return 'rgb(var(--color-error))';
-      case 'high': return 'rgb(var(--color-warning))';
-      case 'normal': return 'rgb(var(--color-info))';
-      default: return 'rgb(var(--color-border))';
-    }
-  }};
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-
-  &:hover {
-    transform: translateX(4px);
-    box-shadow: ${props => props.$isAtRisk
-      ? '0 4px 12px rgba(var(--color-error), 0.3)'
-      : 'var(--shadow-md)'
-    };
-  }
+const WFCard = styled.div`
+  padding: 16px;
+  border-radius: 10px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  transition: all 0.12s;
+  &:hover { border-color: rgb(var(--color-primary)); box-shadow: var(--shadow-sm); }
 `;
 
-const TaskContent = styled.div`
-  flex: 1;
-`;
-
-const TaskTitle = styled.h3`
-  font-size: 16px;
+const WFTitle = styled.h4`
+  font-size: 14px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
-  margin: 0 0 4px 0;
+  margin: 0 0 4px;
 `;
 
-const TaskDescription = styled.p`
-  font-size: 14px;
-  color: rgb(var(--color-text-secondary));
-  margin: 0 0 12px 0;
-`;
-
-const TaskMeta = styled.div`
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-`;
-
-const TaskMetaItem = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+const WFMeta = styled.div`
   font-size: 12px;
   color: rgb(var(--color-text-secondary));
+  margin-bottom: 10px;
 `;
 
-const PriorityBadge = styled.span<{ $priority: string }>`
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  background: ${props => {
-    switch (props.$priority) {
-      case 'urgent': return 'rgba(var(--color-error), 0.1)';
-      case 'high': return 'rgba(var(--color-warning), 0.1)';
-      case 'normal': return 'rgba(var(--color-info), 0.1)';
-      default: return 'rgba(var(--color-text-secondary), 0.1)';
-    }
-  }};
-  color: ${props => {
-    switch (props.$priority) {
-      case 'urgent': return 'rgb(var(--color-error))';
-      case 'high': return 'rgb(var(--color-warning))';
-      case 'normal': return 'rgb(var(--color-info))';
-      default: return 'rgb(var(--color-text-secondary))';
-    }
-  }};
-`;
-
-const OverdueBadge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  background: rgba(var(--color-error), 0.1);
-  color: rgb(var(--color-error));
-`;
-
-const AtRiskBadge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  background: rgba(var(--color-error), 0.15);
-  color: rgb(var(--color-error));
-  animation: pulse 2s ease-in-out infinite;
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-  }
-`;
-
-const TaskActions = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-left: 16px;
-`;
-
-const ActionButton = styled.button`
-  padding: 8px 16px;
-  background: rgb(var(--color-primary));
-  color: rgb(var(--color-primary-foreground));
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-
-  &:hover {
-    opacity: 0.9;
-  }
-`;
-
-const SecondaryButton = styled.button`
-  padding: 8px 16px;
-  background: transparent;
-  color: rgb(var(--color-primary));
-  border: 1px solid rgb(var(--color-primary));
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease;
-
-  &:hover {
-    background: rgba(var(--color-primary), 0.1);
-  }
-`;
-
-const HistoryToggle = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-  cursor: pointer;
-  transition: border-color 0.15s ease;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const HistoryContainer = styled.div<{ $isOpen: boolean }>`
-  max-height: ${props => props.$isOpen ? '600px' : '0'};
+const Progress = styled.div`
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(var(--color-border), 0.5);
   overflow: hidden;
-  transition: max-height 0.3s ease;
-  margin-bottom: ${props => props.$isOpen ? '24px' : '0'};
+  margin-bottom: 6px;
 `;
 
-const WorkflowsSection = styled.div`
-  margin-bottom: 32px;
-`;
-
-
-const ReviewQueueSubtitle = styled.p`
-  margin: 0;
-  font-size: 14px;
-  color: rgb(var(--color-text-secondary));
-`;
-
-
-const SectionHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-`;
-
-const SectionTitle = styled.h2`
-  font-size: 20px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-`;
-
-const WorkflowGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-`;
-
-const WorkflowCard = styled.div`
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 8px;
-  padding: 20px;
-  transition: all 0.15s ease;
-
-  &:hover {
-    border-color: rgb(var(--color-primary));
-    box-shadow: var(--shadow-md);
-  }
-`;
-
-const WorkflowHeader = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 12px;
-`;
-
-const WorkflowTitle = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 4px 0;
-  flex: 1;
-`;
-
-const WorkflowMeta = styled.div`
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-  margin-bottom: 12px;
-`;
-
-const ProgressBar = styled.div`
-  height: 6px;
-  background: rgb(var(--color-border));
-  border-radius: 3px;
-  overflow: hidden;
-  margin-bottom: 8px;
-`;
-
-const ProgressFill = styled.div<{ $percent: number }>`
+const ProgressFill = styled.div<{ $pct: number }>`
   height: 100%;
-  width: ${({ $percent }) => $percent}%;
+  width: ${({ $pct }) => $pct}%;
   background: rgb(var(--color-primary));
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.3s ease;
 `;
 
-const ProgressText = styled.div`
+const WFFooter = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
-  color: rgb(var(--color-text-tertiary));
-  margin-bottom: 12px;
 `;
 
-const WorkflowActions = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const ResumeButton = styled.button`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 16px;
-  background: rgb(var(--color-primary));
-  color: rgb(var(--color-primary-foreground));
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-
-  &:hover {
-    opacity: 0.9;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const EmptyState = styled.div`
+/* ─── empty & loading ─── */
+const Empty = styled.div`
   text-align: center;
-  padding: 60px 20px;
+  padding: 48px 20px;
+  border-radius: 12px;
   background: rgb(var(--color-surface));
-  border-radius: 8px;
-  box-shadow: var(--shadow-sm);
+  border: 1px solid rgb(var(--color-border));
 `;
 
 const EmptyIcon = styled.div`
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.7;
 `;
 
 const EmptyTitle = styled.h3`
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
-  margin: 0 0 8px 0;
+  margin: 0 0 4px;
 `;
 
-const EmptyText = styled.p`
-  font-size: 14px;
+const EmptyDesc = styled.p`
+  font-size: 13px;
   color: rgb(var(--color-text-secondary));
   margin: 0;
 `;
 
-const LoadingSpinner = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 60px;
-
-  &::after {
-    content: '';
-    width: 40px;
-    height: 40px;
-    border: 3px solid rgb(var(--color-border));
-    border-top-color: rgb(var(--color-primary));
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+const Skeleton = styled.div`
+  height: 56px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(var(--color-border),0.3) 25%, rgba(var(--color-border),0.5) 50%, rgba(var(--color-border),0.3) 75%);
+  background-size: 200% 100%;
+  animation: ${shimmer} 1.5s ease infinite;
+  & + & { margin-top: 6px; }
 `;
 
-const ErrorMessage = styled.div`
-  padding: 16px 20px;
-  background: rgba(var(--color-error), 0.1);
-  border: 1px solid rgba(var(--color-error), 0.3);
+const ErrorBanner = styled.div`
+  padding: 10px 16px;
   border-radius: 8px;
+  background: rgba(var(--color-error), 0.08);
+  border: 1px solid rgba(var(--color-error), 0.2);
   color: rgb(var(--color-error));
-  margin-bottom: 24px;
+  font-size: 13px;
+  margin-bottom: 16px;
 `;
 
-// Filter types
-type PriorityFilter = 'all' | 'urgent' | 'high' | 'normal' | 'low';
-type StatusFilter = 'all' | 'action_needed' | 'in_progress' | 'waiting' | 'overdue';
-type TasksTab = 'tasks' | 'ai-review';
+/* ═══════════════ COMPONENT ═══════════════ */
 
-// Format date helper
-const formatDueDate = (dateStr: string | null): string => {
-  if (!dateStr) return 'No due date';
-
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = date.getTime() - now.getTime();
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-  if (days < 0) return `${Math.abs(days)} days overdue`;
-  if (days === 0) return 'Due today';
-  if (days === 1) return 'Due tomorrow';
-  if (days <= 7) return `Due in ${days} days`;
-
-  return `Due ${date.toLocaleDateString()}`;
-};
-
-/**
- * MyTasks page component.
- */
 export const MyTasks: React.FC = () => {
   useDocumentTitle('My Tasks');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  /* ── data sources ── */
   const { actionItems, actionItemCounts, loading, error, fetchActionItems } = useNotifications();
-  const activeTab: TasksTab = searchParams.get('tab') === 'ai-review' ? 'ai-review' : 'tasks';
+
+  // Tab state from URL (accept legacy `ai-review` as alias for `ai`)
+  const rawTab = searchParams.get('tab');
+  const activeTab: TasksTab = (rawTab === 'ai' || rawTab === 'ai-review') ? 'ai' : rawTab === 'workflows' ? 'workflows' : 'action';
   const highlightedDraftId = searchParams.get('draft');
 
-  // Workflow executions state
-  const [workflowExecutions, setWorkflowExecutions] = useState<WorkflowExecution[]>([]);
-  const [workflowsLoading, setWorkflowsLoading] = useState(true);
-  const [workflowsError, setWorkflowsError] = useState('');
-  const [resumingId, setResumingId] = useState<string | null>(null);
+  // Local UI state
+  const [search, setSearch] = useState('');
+  const [priority, setPriority] = useState<PriorityFilter>('all');
+  const [sort, setSort] = useState<SortOption>('smart');
+
+  // Delegation
+  const [showDelegate, setShowDelegate] = useState(false);
+  const [delegateTask, setDelegateTask] = useState<ActionItem | null>(null);
+  const [isDelegating, setIsDelegating] = useState(false);
+  const mockUsers = useRef<User[]>([
+    { id: '1', name: 'John Smith', email: 'john@example.com', role: 'Sales Rep', department: 'Sales' },
+    { id: '2', name: 'Jane Doe', email: 'jane@example.com', role: 'Manager', department: 'Operations' },
+    { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'Analyst', department: 'Finance' },
+  ]).current;
+
+  // AI Inbox state
   const [pendingReviews, setPendingReviews] = useState<PendingReviewItem[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [selectedReview, setSelectedReview] = useState<PendingReviewItem | null>(null);
+  const [aiIntentFilter, setAiIntentFilter] = useState('all');
+  const [aiSelectedKeys, setAiSelectedKeys] = useState<React.Key[]>([]);
 
-  // AI Inbox filter/sort state
-  const [aiIntentFilter, setAiIntentFilter] = useState<string>('all');
-  const [aiConfidenceSort, setAiConfidenceSort] = useState<'none' | 'asc' | 'desc'>('none');
-  const [aiSelectedRowKeys, setAiSelectedRowKeys] = useState<React.Key[]>([]);
+  // Workflow state
+  const [workflows, setWorkflows] = useState<WorkflowExecution[]>([]);
+  const [wfLoading, setWfLoading] = useState(true);
+  const [wfError, setWfError] = useState('');
+  const [resumingId, setResumingId] = useState<string | null>(null);
 
-  // Local filter state
-  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'smart' | 'due_date' | 'priority' | 'form'>('smart');
+  /* ── tab helpers ── */
+  const setTab = useCallback((tab: TasksTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'action') { next.delete('tab'); next.delete('draft'); }
+    else { next.set('tab', tab); }
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
-  // Delegation state
-  const [showDelegateModal, setShowDelegateModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<ActionItem | null>(null);
-  const [isDelegating, setIsDelegating] = useState(false);
-  const [showDelegationHistory, setShowDelegationHistory] = useState(false);
-
-  const handleDelegateModalClose = useCallback(() => {
-    setShowDelegateModal(false);
-    setSelectedTask(null);
-  }, []);
-
-  // Mock available users - in production, this would come from an API
-  const [availableUsers] = useState<User[]>([
-    { id: '1', name: 'John Smith', email: 'john@example.com', role: 'Sales Rep', department: 'Sales' },
-    { id: '2', name: 'Jane Doe', email: 'jane@example.com', role: 'Manager', department: 'Operations' },
-    { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'Analyst', department: 'Finance' },
-  ]);
-
-  // Delegation history - in production, this would come from an API
-  const [delegationHistory] = useState([
-    {
-      id: '1',
-      taskName: 'Review Purchase Order #1234',
-      fromUser: { id: 'current', name: 'You', email: 'me@example.com' },
-      toUser: { id: '1', name: 'John Smith', email: 'john@example.com' },
-      delegatedAt: new Date(Date.now() - 86400000).toISOString(),
-      reason: 'Out of office this week',
-      status: 'active' as const,
-    },
-  ]);
-
-  const fetchPendingReviews = useCallback(async () => {
+  /* ── fetch AI reviews ── */
+  const fetchReviews = useCallback(async () => {
     setReviewLoading(true);
     setReviewError('');
     try {
       const items = await aiStaffApi.listPendingReviews({ highlightedId: highlightedDraftId });
       setPendingReviews(items);
     } catch (err) {
-      logger.error('Failed to fetch AI inbox queue', err);
-      setReviewError('Unable to load the AI inbox right now.');
+      logger.error('Failed to fetch AI inbox', err);
+      setReviewError('Unable to load AI inbox.');
       setPendingReviews([]);
     } finally {
       setReviewLoading(false);
     }
   }, [highlightedDraftId]);
 
-  // Fetch workflow executions
-  const fetchWorkflowExecutions = useCallback(async () => {
-    setWorkflowsLoading(true);
-    setWorkflowsError('');
-    setWorkflowExecutions([]);
+  /* ── fetch workflows ── */
+  const fetchWorkflows = useCallback(async () => {
+    setWfLoading(true);
+    setWfError('');
     try {
-      const response = await workflowExecutionService.getExecutions({
-        status: 'in_progress',
-        assigned_to: 'me',
-        page_size: 25,
+      const res = await workflowExecutionService.getExecutions({
+        status: 'in_progress', assigned_to: 'me', page_size: 25,
       });
-      setWorkflowExecutions(response.results);
+      setWorkflows(res.results);
     } catch (err) {
-      logger.error('Failed to fetch workflow executions', err);
+      logger.error('Failed to fetch workflows', err);
       const status = (err as any)?.response?.status;
-
-      // Degrade gracefully: prefer the normal empty-state UI over a scary error banner.
-      // (This page already has a Retry button.)
-      if (status === 404 || status === 403) {
-        setWorkflowsError('No workflows available for your tenant yet.');
-      } else {
-        setWorkflowsError('');
-      }
-      setWorkflowExecutions([]);
+      if (status === 404 || status === 403) setWfError('No workflows available yet.');
+      else setWfError('');
+      setWorkflows([]);
     } finally {
-      setWorkflowsLoading(false);
+      setWfLoading(false);
     }
   }, []);
 
-  // Fetch data on mount
-  useEffect(() => {
-    fetchWorkflowExecutions();
-  }, [fetchWorkflowExecutions]);
+  /* ── lifecycle ── */
+  useEffect(() => { fetchWorkflows(); }, [fetchWorkflows]);
 
   useEffect(() => {
-    if (activeTab !== 'ai-review' && !highlightedDraftId) {
-      return;
-    }
-    void fetchPendingReviews();
-  }, [activeTab, fetchPendingReviews, highlightedDraftId]);
+    if (activeTab === 'ai' || highlightedDraftId) void fetchReviews();
+  }, [activeTab, fetchReviews, highlightedDraftId]);
 
   useEffect(() => {
-    if (activeTab !== 'ai-review' && !highlightedDraftId) {
-      return;
-    }
-
-    const handleRefresh = () => {
-      void fetchPendingReviews();
-    };
-
-    window.addEventListener(AI_INBOX_REFRESH_EVENT, handleRefresh);
-    return () => {
-      window.removeEventListener(AI_INBOX_REFRESH_EVENT, handleRefresh);
-    };
-  }, [activeTab, fetchPendingReviews, highlightedDraftId]);
+    if (activeTab !== 'ai' && !highlightedDraftId) return;
+    const h = () => void fetchReviews();
+    window.addEventListener(AI_INBOX_REFRESH_EVENT, h);
+    return () => window.removeEventListener(AI_INBOX_REFRESH_EVENT, h);
+  }, [activeTab, fetchReviews, highlightedDraftId]);
 
   useEffect(() => {
-    if (!highlightedDraftId || !pendingReviews.length) {
-      return;
-    }
-    const matched = pendingReviews.find((item) => item.id === highlightedDraftId);
-    if (matched) {
-      setSelectedReview(matched);
-    }
+    if (!highlightedDraftId || !pendingReviews.length) return;
+    const m = pendingReviews.find(i => i.id === highlightedDraftId);
+    if (m) setSelectedReview(m);
   }, [highlightedDraftId, pendingReviews]);
 
-  // Handle resume workflow
-  const handleResumeWorkflow = async (execution: WorkflowExecution) => {
-    setResumingId(execution.id);
-    try {
-      await workflowExecutionService.resumeExecution(execution.id);
-      // Navigate to the workflow
-      window.location.href = `/workflows/run/${execution.id}`;
-    } catch (err) {
-      logger.error('Failed to resume workflow', err);
-      showAlert({
-        type: 'error',
-        title: 'Error',
-        content: 'Failed to resume workflow. Please try again.',
-      });
-    } finally {
-      setResumingId(null);
-    }
-  };
-
-  // Format time ago helper
-  const formatTimeAgo = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  };
-
-  // daysUntilDue imported from shared taskPrioritization util
-
-  // Filter and sort action items
-  const filteredItems = useMemo(() => {
+  /* ── filtered / sorted tasks ── */
+  const filteredTasks = useMemo(() => {
     let items = [...actionItems];
-
-    // Apply priority filter
-    if (priorityFilter !== 'all') {
-      items = items.filter(item => item.priority === priorityFilter);
-    }
-
-    // Apply status filter
-    if (statusFilter === 'overdue') {
-      items = items.filter(item => item.is_overdue);
-    } else if (statusFilter !== 'all') {
-      items = items.filter(item => item.status === statusFilter);
-    }
-
-    // Apply search
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      items = items.filter(item =>
-        item.title.toLowerCase().includes(query) ||
-        item.description?.toLowerCase().includes(query) ||
-        item.form_name?.toLowerCase().includes(query) ||
-        item.step_name?.toLowerCase().includes(query)
+    if (priority !== 'all') items = items.filter(i => i.priority === priority);
+    if (search) {
+      const q = search.toLowerCase();
+      items = items.filter(i =>
+        i.title.toLowerCase().includes(q) ||
+        i.description?.toLowerCase().includes(q) ||
+        i.form_name?.toLowerCase().includes(q)
       );
     }
-
-    // Sort
     items.sort((a, b) => {
-      switch (sortBy) {
-        case 'smart':
-          return compareTasksSmart(a, b);
-        case 'due_date':
-          if (!a.due_date && !b.due_date) return 0;
-          if (!a.due_date) return 1;
-          if (!b.due_date) return -1;
-          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-        case 'priority': {
-          const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
-          return (priorityOrder[a.priority as keyof typeof priorityOrder] ?? 4) -
-                 (priorityOrder[b.priority as keyof typeof priorityOrder] ?? 4);
-        }
-        case 'form':
-          return (a.form_name || '').localeCompare(b.form_name || '');
-        default:
-          return 0;
+      if (sort === 'smart') return compareTasksSmart(a, b);
+      if (sort === 'due_date') {
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
       }
+      return (PRIORITY_ORDER[a.priority] ?? 4) - (PRIORITY_ORDER[b.priority] ?? 4);
     });
-
     return items;
-  }, [actionItems, priorityFilter, statusFilter, searchQuery, sortBy]);
+  }, [actionItems, priority, search, sort]);
 
-  // Calculate "At Risk" tasks (high-value + overdue/due soon)
-  const isAtRisk = (item: ActionItem): boolean => isAtRiskTask(item);
+  /* ── AI inbox columns & helpers ── */
+  const aiIntents = useMemo(() => {
+    const s = new Set<string>();
+    pendingReviews.forEach(r => s.add(r.intent_label || r.document_type || 'AI Draft'));
+    return Array.from(s).sort();
+  }, [pendingReviews]);
 
-
-  const riskStats = useMemo(() => {
-    const atRiskItems = filteredItems.filter(isAtRisk);
-    const totalValue = atRiskItems.reduce((sum, item) => sum + (item.related_po_value ?? 0), 0);
-    return { count: atRiskItems.length, totalValue };
-  }, [filteredItems]);
-
-  // Handle task click
-  const handleTaskClick = (item: ActionItem) => {
-    // Navigate to the form submission
-    if (item.submission_id) {
-      window.location.href = `/workflows/run/${item.submission_id}`;
-    }
-  };
-
-  // Handle delegate click
-  const handleDelegateClick = useCallback((e: React.MouseEvent, item: ActionItem) => {
-    e.stopPropagation();
-    setSelectedTask(item);
-    setShowDelegateModal(true);
-  }, []);
-
-  // Handle delegation
-  const handleDelegate = useCallback(async (data: DelegationData) => {
-    if (!selectedTask) return;
-
-    setIsDelegating(true);
-    try {
-      // In production, this would call the API
-      logger.debug('Delegating task', { taskId: selectedTask.id, delegateUserId: data.delegateUserId });
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Close modal and refresh data
-      setShowDelegateModal(false);
-      setSelectedTask(null);
-      fetchActionItems();
-    } catch (err) {
-      logger.error('Failed to delegate task', err);
-    } finally {
-      setIsDelegating(false);
-    }
-  }, [selectedTask, fetchActionItems]);
-
-  // Handle revoke delegation
-  const handleRevokeDelegation = useCallback(async (delegationId: string) => {
-    logger.debug('Revoking delegation', { delegationId });
-    // In production, this would call the API
-  }, []);
-
-  const setTab = useCallback((tab: TasksTab) => {
-    const next = new URLSearchParams(searchParams);
-    if (tab === 'ai-review') {
-      next.set('tab', 'ai-review');
-    } else {
-      next.delete('tab');
-      next.delete('draft');
-    }
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  const filteredAI = useMemo(() => {
+    if (aiIntentFilter === 'all') return pendingReviews;
+    return pendingReviews.filter(r =>
+      (r.intent_label || r.document_type || 'AI Draft') === aiIntentFilter
+    );
+  }, [pendingReviews, aiIntentFilter]);
 
   const openReview = useCallback((item: PendingReviewItem) => {
     if (item.review_entity_type === 'purchase_order' && item.review_target_url) {
       navigate(item.review_target_url);
       return;
     }
-
     setSelectedReview(item);
     const next = new URLSearchParams(searchParams);
-    next.set('tab', 'ai-review');
+    next.set('tab', 'ai');
     next.set('draft', item.id);
     setSearchParams(next, { replace: true });
   }, [navigate, searchParams, setSearchParams]);
@@ -882,550 +611,388 @@ export const MyTasks: React.FC = () => {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const handleReviewResolved = useCallback((reviewId: string) => {
-    setPendingReviews((current) => current.filter((item) => item.id !== reviewId));
+  const handleReviewResolved = useCallback((id: string) => {
+    setPendingReviews(c => c.filter(i => i.id !== id));
     closeReview();
-    void fetchPendingReviews();
-  }, [closeReview, fetchPendingReviews]);
+    void fetchReviews();
+  }, [closeReview, fetchReviews]);
 
-  const handleFeedbackSubmitted = useCallback(
-    (reviewId: string, submission: AIInboxFeedbackSubmission) => {
-      setPendingReviews((current) => current.map((item) => {
-        if (item.id !== reviewId) {
-          return item;
-        }
+  const handleFeedback = useCallback((id: string, sub: AIInboxFeedbackSubmission) => {
+    const patch = {
+      feedback_signal: sub.feedbackSignal,
+      feedback_comment: sub.feedbackComment,
+      retraining_status: sub.retrainingStatus,
+      retraining_queued_at: sub.retrainingQueuedAt,
+    };
+    setPendingReviews(c => c.map(i => i.id === id ? { ...i, ...patch } : i));
+    setSelectedReview(c => c?.id === id ? { ...c, ...patch } : c);
+  }, []);
 
-        return {
-          ...item,
-          feedback_signal: submission.feedbackSignal,
-          feedback_comment: submission.feedbackComment,
-          retraining_status: submission.retrainingStatus ?? item.retraining_status,
-          retraining_queued_at: submission.retrainingQueuedAt ?? item.retraining_queued_at,
-        };
-      }));
-
-      setSelectedReview((current) => {
-        if (!current || current.id !== reviewId) {
-          return current;
-        }
-
-        return {
-          ...current,
-          feedback_signal: submission.feedbackSignal,
-          feedback_comment: submission.feedbackComment,
-          retraining_status: submission.retrainingStatus ?? current.retraining_status,
-          retraining_queued_at: submission.retrainingQueuedAt ?? current.retraining_queued_at,
-        };
-      });
-    },
-    [],
-  );
-
-  const headerCount = activeTab === 'ai-review'
-    ? pendingReviews.length
-    : actionItemCounts?.total;
-
-  const aiUniqueIntents = useMemo(() => {
-    const intents = new Set<string>();
-    pendingReviews.forEach((r) => {
-      const label = r.intent_label || r.document_type || 'AI Draft';
-      intents.add(label);
-    });
-    return Array.from(intents).sort();
-  }, [pendingReviews]);
-
-  const filteredAiReviews = useMemo(() => {
-    let items = pendingReviews;
-    if (aiIntentFilter !== 'all') {
-      items = items.filter((r) => (r.intent_label || r.document_type || 'AI Draft') === aiIntentFilter);
+  const handleBatchAction = useCallback(async (action: 'approve' | 'reject') => {
+    const sel = pendingReviews.filter(r => aiSelectedKeys.includes(r.id));
+    if (!sel.length) return;
+    if (action === 'approve') {
+      sel.forEach(i => openReview(i));
+      void message.info(`Opening ${sel.length} draft(s)`);
+    } else {
+      setPendingReviews(c => c.filter(r => !aiSelectedKeys.includes(r.id)));
+      void message.success(`${sel.length} draft(s) dismissed`);
     }
-    if (aiConfidenceSort !== 'none') {
-      items = [...items].sort((a, b) => {
-        const ca = Number(a.confidence_score || 0);
-        const cb = Number(b.confidence_score || 0);
-        return aiConfidenceSort === 'desc' ? cb - ca : ca - cb;
-      });
-    }
-    return items;
-  }, [pendingReviews, aiIntentFilter, aiConfidenceSort]);
+    setAiSelectedKeys([]);
+  }, [aiSelectedKeys, pendingReviews, openReview]);
 
-  const handleBatchReviewAction = useCallback(
-    async (action: 'approve' | 'reject') => {
-      const selected = pendingReviews.filter((r) => aiSelectedRowKeys.includes(r.id));
-      if (selected.length === 0) return;
-
-      const label = action === 'approve' ? 'approved' : 'rejected';
-      let successCount = 0;
-
-      for (const item of selected) {
-        try {
-          if (action === 'approve') {
-            openReview(item);
-          }
-          successCount++;
-        } catch {
-          logger.error(`Failed to ${action} draft ${item.id}`);
-        }
-      }
-
-      if (action === 'reject') {
-        setPendingReviews((current) =>
-          current.filter((r) => !aiSelectedRowKeys.includes(r.id)),
-        );
-        void message.success(`${successCount} draft(s) ${label}`);
-      } else {
-        void message.info(`Opening ${successCount} draft(s) for review`);
-      }
-      setAiSelectedRowKeys([]);
+  const aiColumns = useMemo(() => [
+    {
+      title: 'Sender', dataIndex: 'sender', key: 'sender',
+      render: (v: string | undefined) => v || 'Unknown',
     },
-    [aiSelectedRowKeys, pendingReviews, openReview],
-  );
-
-  const aiInboxColumns = useMemo(
-    () => [
-      {
-        title: 'Sender',
-        dataIndex: 'sender',
-        key: 'sender',
-        render: (value: string | undefined) => value || 'Unknown sender',
+    {
+      title: 'Intent', dataIndex: 'intent_label', key: 'intent',
+      render: (_: string | undefined, r: PendingReviewItem) => (
+        <Tag color="blue">{r.intent_label || r.document_type || 'AI Draft'}</Tag>
+      ),
+    },
+    {
+      title: 'Date', dataIndex: 'created_on', key: 'date',
+      render: (v: string | undefined) => v ? formatTimeAgo(v) : '—',
+    },
+    {
+      title: 'Confidence', dataIndex: 'confidence_score', key: 'conf', width: 90,
+      render: (v: number | undefined) => {
+        const s = Number(v || 0);
+        return <Tag color={s >= 0.8 ? 'green' : s >= 0.5 ? 'orange' : 'red'}>{Math.round(s * 100)}%</Tag>;
       },
-      {
-        title: 'Detected Intent',
-        dataIndex: 'intent_label',
-        key: 'intent_label',
-        render: (_value: string | undefined, item: PendingReviewItem) => (
-          <Tag color="blue">{item.intent_label || item.document_type || 'AI Draft'}</Tag>
-        ),
-      },
-      {
-        title: 'Date',
-        dataIndex: 'created_on',
-        key: 'created_on',
-        render: (value: string | undefined) =>
-          value ? new Date(value).toLocaleString() : 'Recently',
-      },
-      {
-        title: 'Confidence',
-        dataIndex: 'confidence_score',
-        key: 'confidence_score',
-        width: 110,
-        render: (value: number | undefined) => {
-          const score = Number(value || 0);
-          const pct = Math.round(score * 100);
-          const color = score >= 0.8 ? 'green' : score >= 0.5 ? 'orange' : 'red';
-          return <Tag color={color}>{pct}%</Tag>;
-        },
-      },
-      {
-        title: 'Action',
-        key: 'action',
-        render: (_value: unknown, item: PendingReviewItem) => (
-          <div style={{ display: 'grid', gap: 8 }}>
-            <ActionButton onClick={() => openReview(item)}>Review &amp; Save</ActionButton>
-            <AIInboxFeedbackActions
-              item={item}
-              onSubmitted={(submission) => handleFeedbackSubmitted(item.id, submission)}
-            />
-          </div>
-        ),
-      },
-    ],
-    [handleFeedbackSubmitted, openReview],
-  );
-
-  // Render loading state
-  if (loading && actionItems.length === 0) {
-    return (
-      <Container>
-        <Header>
-          <Title>My Tasks</Title>
-        </Header>
-        <LoadingSpinner />
-      </Container>
-    );
-  }
-
-  return (
-    <Container>
-      <Header>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Title>My Tasks</Title>
-          {typeof headerCount === 'number' && (
-            <CountBadge>{headerCount}</CountBadge>
-          )}
+    },
+    {
+      title: '', key: 'actions', width: 120,
+      render: (_: unknown, r: PendingReviewItem) => (
+        <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
+          <SmallBtn $primary onClick={() => openReview(r)}>Review</SmallBtn>
+          <AIInboxFeedbackActions item={r} onSubmitted={sub => handleFeedback(r.id, sub)} />
         </div>
-        <ActionButton onClick={() => {
-          if (activeTab === 'ai-review') {
-            void fetchPendingReviews();
-            return;
-          }
-          fetchActionItems();
-        }}>
-          Refresh
-        </ActionButton>
-      </Header>
+      ),
+    },
+  ], [handleFeedback, openReview]);
 
-      {error && <ErrorMessage>{error}</ErrorMessage>}
+  /* ── workflow resume ── */
+  const resumeWF = useCallback(async (wf: WorkflowExecution) => {
+    setResumingId(wf.id);
+    try {
+      await workflowExecutionService.resumeExecution(wf.id);
+      window.location.href = `/workflows/run/${wf.id}`;
+    } catch (err) {
+      logger.error('Resume failed', err);
+      showAlert({ type: 'error', title: 'Error', content: 'Failed to resume workflow.' });
+    } finally {
+      setResumingId(null);
+    }
+  }, []);
 
-      <TabsRow>
-        <TabButton $active={activeTab === 'tasks'} onClick={() => setTab('tasks')}>
-          Operational Tasks
-        </TabButton>
-        <TabButton $active={activeTab === 'ai-review'} onClick={() => setTab('ai-review')}>
+  /* ── delegation ── */
+  const handleDelegate = useCallback(async (data: DelegationData) => {
+    if (!delegateTask) return;
+    setIsDelegating(true);
+    try {
+      await new Promise(r => setTimeout(r, 800));
+      setShowDelegate(false);
+      setDelegateTask(null);
+      fetchActionItems();
+    } catch (err) {
+      logger.error('Delegate failed', err);
+    } finally {
+      setIsDelegating(false);
+    }
+  }, [delegateTask, fetchActionItems]);
+
+  /* ── task actions ── */
+  const openTask = useCallback((item: ActionItem) => {
+    if (item.submission_id) navigate(`/workflows/run/${item.submission_id}`);
+  }, [navigate]);
+
+  const onDelegate = useCallback((e: React.MouseEvent, item: ActionItem) => {
+    e.stopPropagation();
+    setDelegateTask(item);
+    setShowDelegate(true);
+  }, []);
+
+  /* ── computed stats ── */
+  const overdueCount = actionItemCounts?.overdue ?? 0;
+  const totalCount = actionItemCounts?.total ?? 0;
+  const atRiskCount = useMemo(
+    () => actionItems.filter(i => isAtRiskTask(i)).length,
+    [actionItems]
+  );
+
+  const closeDelegateModal = useCallback(() => {
+    setShowDelegate(false);
+    setDelegateTask(null);
+  }, []);
+
+  /* ═══ RENDER ═══ */
+  return (
+    <Page>
+      <PageTitle>My Tasks</PageTitle>
+      <PageSubline>Your unified inbox for tasks, AI drafts, and workflows</PageSubline>
+
+      {/* ── Tab bar ── */}
+      <TabBar role="tablist">
+        <Tab $active={activeTab === 'action'} onClick={() => setTab('action')} role="tab" aria-selected={activeTab === 'action'}>
+          Action Required
+          {totalCount > 0 && <TabBadge $variant={overdueCount > 0 ? 'danger' : undefined}>{totalCount}</TabBadge>}
+        </Tab>
+        <Tab $active={activeTab === 'ai'} onClick={() => setTab('ai')} role="tab" aria-selected={activeTab === 'ai'}>
           AI Inbox
-        </TabButton>
-      </TabsRow>
+          {pendingReviews.length > 0 && <TabBadge>{pendingReviews.length}</TabBadge>}
+        </Tab>
+        <Tab $active={activeTab === 'workflows'} onClick={() => setTab('workflows')} role="tab" aria-selected={activeTab === 'workflows'}>
+          Workflows
+          {workflows.length > 0 && <TabBadge>{workflows.length}</TabBadge>}
+        </Tab>
+      </TabBar>
 
-      {activeTab === 'ai-review' ? (
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+
+      {/* ═══════ ACTION REQUIRED TAB ═══════ */}
+      {activeTab === 'action' && (
         <>
-          <WorkflowsSection>
-            <SectionHeader>
-              <div>
-                <SectionTitle>AI Review Queue</SectionTitle>
-                <ReviewQueueSubtitle>
-                  Review AI-generated drafts, confirm the form, and save the real record.
-                </ReviewQueueSubtitle>
-              </div>
-              <ActionButton onClick={() => void fetchPendingReviews()} disabled={reviewLoading}>
-                Refresh Inbox
-              </ActionButton>
-            </SectionHeader>
-
-            {reviewError && <ErrorMessage>{reviewError}</ErrorMessage>}
-
-            {reviewLoading ? (
-              <LoadingSpinner />
-            ) : pendingReviews.length === 0 ? (
-                <EmptyState>
-                  <EmptyIcon>📥</EmptyIcon>
-                  <EmptyTitle>No AI Inbox drafts pending review</EmptyTitle>
-                  <EmptyText>
-                    Potential purchase orders and BOL drafts will appear here when the AI needs human approval.
-                  </EmptyText>
-                </EmptyState>
-              ) : (
-                <>
-                  {/* Filter / sort toolbar */}
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-                    <Select
-                      value={aiIntentFilter}
-                      onChange={setAiIntentFilter}
-                      style={{ minWidth: 180 }}
-                      aria-label="Filter by intent"
-                      options={[
-                        { value: 'all', label: 'All intents' },
-                        ...aiUniqueIntents.map((i) => ({ value: i, label: i })),
-                      ]}
-                    />
-                    <Select
-                      value={aiConfidenceSort}
-                      onChange={setAiConfidenceSort}
-                      style={{ minWidth: 180 }}
-                      aria-label="Sort by confidence"
-                      options={[
-                        { value: 'none', label: 'Default order' },
-                        { value: 'desc', label: 'Confidence: High → Low' },
-                        { value: 'asc', label: 'Confidence: Low → High' },
-                      ]}
-                    />
-                    {aiSelectedRowKeys.length > 0 && (
-                      <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                        <Tag color="blue">{aiSelectedRowKeys.length} selected</Tag>
-                        <ActionButton onClick={() => void handleBatchReviewAction('approve')}>
-                          Review Selected
-                        </ActionButton>
-                        <ActionButton
-                          style={{ background: 'rgb(var(--color-error))', color: 'rgb(var(--color-text-inverse))' }}
-                          onClick={() => void handleBatchReviewAction('reject')}
-                        >
-                          Dismiss Selected
-                        </ActionButton>
-                      </div>
-                    )}
-                    <span style={{ color: 'rgb(var(--color-text-tertiary))', fontSize: 12, marginLeft: 'auto' }}>
-                      {filteredAiReviews.length} of {pendingReviews.length} shown
-                    </span>
-                  </div>
-
-                  <div style={{ overflowX: 'auto' }}>
-                    <Table
-                      aria-label="AI review tasks"
-                      rowKey="id"
-                      dataSource={filteredAiReviews}
-                      columns={aiInboxColumns}
-                      pagination={false}
-                      rowSelection={{
-                        selectedRowKeys: aiSelectedRowKeys,
-                        onChange: setAiSelectedRowKeys,
-                      }}
-                      expandable={{
-                        expandedRowRender: (item: PendingReviewItem) => (
-                          <div style={{ display: 'grid', gap: 8 }}>
-                            <div>{item.source_subject || 'AI Draft'}</div>
-                            <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
-                              {item.source_summary ||
-                                'Open the draft to inspect the parsed payload and save the final entity.'}
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              {item.source_document_name ? (
-                                <Tag>Attachment: {item.source_document_name}</Tag>
-                              ) : null}
-                            </div>
-                          </div>
-                        ),
-                      }}
-                    />
-                  </div>
-                </>
+          {/* KPI strip */}
+          {actionItemCounts && (
+            <KPIStrip>
+              <KPIChip>
+                <KPIValue $variant={overdueCount > 0 ? 'danger' : undefined}>{overdueCount}</KPIValue>
+                <KPILabel>Overdue</KPILabel>
+              </KPIChip>
+              <KPIChip>
+                <KPIValue $variant="warning">{actionItemCounts.due_today}</KPIValue>
+                <KPILabel>Due Today</KPILabel>
+              </KPIChip>
+              <KPIChip>
+                <KPIValue $variant="info">{actionItemCounts.due_this_week}</KPIValue>
+                <KPILabel>This Week</KPILabel>
+              </KPIChip>
+              {atRiskCount > 0 && (
+                <KPIChip>
+                  <KPIValue $variant="danger">{atRiskCount}</KPIValue>
+                  <KPILabel>At Risk</KPILabel>
+                </KPIChip>
               )}
-            </WorkflowsSection>
+            </KPIStrip>
+          )}
+
+          {/* Toolbar */}
+          <Toolbar>
+            <SearchBox
+              placeholder="Search tasks…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              aria-label="Search tasks"
+            />
+            <SmallSelect value={priority} onChange={e => setPriority(e.target.value as PriorityFilter)} aria-label="Filter by priority">
+              <option value="all">All priorities</option>
+              <option value="urgent">🔴 Urgent</option>
+              <option value="high">🟠 High</option>
+              <option value="normal">🔵 Normal</option>
+              <option value="low">⚪ Low</option>
+            </SmallSelect>
+            <SmallSelect value={sort} onChange={e => setSort(e.target.value as SortOption)} aria-label="Sort by">
+              <option value="smart">Smart sort</option>
+              <option value="due_date">Due date</option>
+              <option value="priority">Priority</option>
+            </SmallSelect>
+            <RefreshBtn onClick={fetchActionItems} aria-label="Refresh tasks">↻</RefreshBtn>
+          </Toolbar>
+
+          {/* Task list */}
+          {loading && actionItems.length === 0 ? (
+            <>
+              <Skeleton /><Skeleton /><Skeleton /><Skeleton />
+            </>
+          ) : filteredTasks.length === 0 ? (
+            <Empty>
+              <EmptyIcon>{actionItems.length === 0 ? '✅' : '🔍'}</EmptyIcon>
+              <EmptyTitle>{actionItems.length === 0 ? 'All caught up' : 'No matching tasks'}</EmptyTitle>
+              <EmptyDesc>
+                {actionItems.length === 0
+                  ? 'New tasks will appear here when assigned to you.'
+                  : 'Try broadening your filters.'}
+              </EmptyDesc>
+            </Empty>
+          ) : (
+            <div role="list" aria-label="Task list">
+              {filteredTasks.map(item => {
+                const atRisk = isAtRiskTask(item);
+                const dueText = formatRelativeDate(item.due_date);
+                return (
+                  <TaskRow
+                    key={item.id}
+                    $isAtRisk={atRisk}
+                    onClick={() => openTask(item)}
+                    role="listitem"
+                    tabIndex={0}
+                    onKeyDown={e => e.key === 'Enter' && openTask(item)}
+                  >
+                    <Tooltip title={item.priority}>
+                      <PriorityDot $priority={item.priority} />
+                    </Tooltip>
+
+                    <RowContent>
+                      <RowTitle>{item.title}</RowTitle>
+                      <RowMeta>
+                        {item.form_name && <span>{item.form_name}{item.step_name ? ` → ${item.step_name}` : ''}</span>}
+                        {typeof item.related_po_value === 'number' && (
+                          <span>{item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}</span>
+                        )}
+                      </RowMeta>
+                    </RowContent>
+
+                    {dueText && (
+                      <DueBadge $overdue={item.is_overdue}>{dueText}</DueBadge>
+                    )}
+
+                    {atRisk && (
+                      <Tooltip title="High-value task at risk">
+                        <Tag color="error" style={{ margin: 0 }}>⚠ Risk</Tag>
+                      </Tooltip>
+                    )}
+
+                    <RowActions onClick={e => e.stopPropagation()}>
+                      <SmallBtn onClick={e => onDelegate(e, item)}>Delegate</SmallBtn>
+                      <SmallBtn $primary onClick={() => openTask(item)}>Open</SmallBtn>
+                    </RowActions>
+                  </TaskRow>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ═══════ AI INBOX TAB ═══════ */}
+      {activeTab === 'ai' && (
+        <>
+          <Toolbar>
+            <Select
+              value={aiIntentFilter}
+              onChange={setAiIntentFilter}
+              style={{ minWidth: 160 }}
+              aria-label="Filter by intent"
+              options={[
+                { value: 'all', label: 'All intents' },
+                ...aiIntents.map(i => ({ value: i, label: i })),
+              ]}
+            />
+            {aiSelectedKeys.length > 0 && (
+              <>
+                <Tag color="blue">{aiSelectedKeys.length} selected</Tag>
+                <SmallBtn $primary onClick={() => void handleBatchAction('approve')}>Review selected</SmallBtn>
+                <SmallBtn onClick={() => void handleBatchAction('reject')}>Dismiss</SmallBtn>
+              </>
+            )}
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>
+              {filteredAI.length} item{filteredAI.length !== 1 ? 's' : ''}
+            </span>
+            <RefreshBtn onClick={() => void fetchReviews()} aria-label="Refresh AI inbox">↻</RefreshBtn>
+          </Toolbar>
+
+          {reviewError && <ErrorBanner>{reviewError}</ErrorBanner>}
+
+          {reviewLoading ? (
+            <><Skeleton /><Skeleton /><Skeleton /></>
+          ) : filteredAI.length === 0 ? (
+            <Empty>
+              <EmptyIcon>📥</EmptyIcon>
+              <EmptyTitle>AI Inbox is clear</EmptyTitle>
+              <EmptyDesc>Drafts from AI email parsing will appear here for your review.</EmptyDesc>
+            </Empty>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <Table
+                aria-label="AI review queue"
+                rowKey="id"
+                dataSource={filteredAI}
+                columns={aiColumns}
+                pagination={false}
+                size="small"
+                rowSelection={{ selectedRowKeys: aiSelectedKeys, onChange: setAiSelectedKeys }}
+                expandable={{
+                  expandedRowRender: (item: PendingReviewItem) => (
+                    <div style={{ padding: '8px 0' }}>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>{item.source_subject || 'AI Draft'}</div>
+                      <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+                        {item.source_summary || 'Open to inspect and save the entity.'}
+                      </div>
+                      {item.source_document_name && (
+                        <Tag style={{ marginTop: 8 }}>📎 {item.source_document_name}</Tag>
+                      )}
+                    </div>
+                  ),
+                }}
+              />
+            </div>
+          )}
 
           <AIDraftReviewDialog
             open={Boolean(selectedReview)}
             item={selectedReview}
             onClose={closeReview}
             onResolved={handleReviewResolved}
-            onFeedbackSubmitted={handleFeedbackSubmitted}
+            onFeedbackSubmitted={handleFeedback}
           />
         </>
-      ) : (
+      )}
+
+      {/* ═══════ WORKFLOWS TAB ═══════ */}
+      {activeTab === 'workflows' && (
         <>
+          <Toolbar>
+            <span style={{ fontSize: 13, color: 'rgb(var(--color-text-secondary))' }}>
+              {workflows.length} active workflow{workflows.length !== 1 ? 's' : ''}
+            </span>
+            <RefreshBtn onClick={fetchWorkflows} style={{ marginLeft: 'auto' }} aria-label="Refresh workflows">↻</RefreshBtn>
+          </Toolbar>
 
-      {/* In Progress Workflows Section */}
-      <WorkflowsSection>
-        <SectionHeader>
-          <SectionTitle>In Progress Workflows</SectionTitle>
-          <ActionButton onClick={fetchWorkflowExecutions} disabled={workflowsLoading}>
-            Refresh
-          </ActionButton>
-        </SectionHeader>
+          {wfError && <ErrorBanner>{wfError}</ErrorBanner>}
 
-        {workflowsError && <ErrorMessage>{workflowsError}</ErrorMessage>}
-
-        {workflowsLoading ? (
-          <LoadingSpinner />
-        ) : workflowExecutions.length === 0 ? (
-          <EmptyState>
-            <EmptyIcon>🔄</EmptyIcon>
-            <EmptyTitle>No workflows in progress</EmptyTitle>
-            <EmptyText>Active workflows will appear here when you start them.</EmptyText>
-          </EmptyState>
-        ) : (
-          <WorkflowGrid>
-            {workflowExecutions.map((execution) => (
-              <WorkflowCard key={execution.id}>
-                <WorkflowHeader>
-                  <WorkflowTitle>{execution.workflow_name}</WorkflowTitle>
-                </WorkflowHeader>
-
-                <WorkflowMeta>
-                  📍 {execution.current_step_name} • Started {formatTimeAgo(execution.created_at)}
-                </WorkflowMeta>
-
-                <ProgressBar>
-                  <ProgressFill $percent={execution.progress_percent} />
-                </ProgressBar>
-                <ProgressText>
-                  <span>Step {execution.completed_nodes} of {execution.total_nodes}</span>
-                  <span>{execution.progress_percent}% complete</span>
-                </ProgressText>
-
-                <WorkflowActions>
-                  <ResumeButton
-                    onClick={() => handleResumeWorkflow(execution)}
-                    disabled={resumingId === execution.id}
-                  >
-                    {resumingId === execution.id ? 'Resuming...' : '▶ Resume'}
-                  </ResumeButton>
-                </WorkflowActions>
-              </WorkflowCard>
-            ))}
-          </WorkflowGrid>
-        )}
-      </WorkflowsSection>
-
-      {/* Stats Cards */}
-      {actionItemCounts && (
-        <StatsGrid>
-          <StatCard $variant="danger">
-            <StatValue>{actionItemCounts.overdue}</StatValue>
-            <StatLabel>Overdue</StatLabel>
-          </StatCard>
-          <StatCard $variant="warning">
-            <StatValue>{actionItemCounts.due_today}</StatValue>
-            <StatLabel>Due Today</StatLabel>
-          </StatCard>
-          <StatCard $variant="info">
-            <StatValue>{actionItemCounts.due_this_week}</StatValue>
-            <StatLabel>Due This Week</StatLabel>
-          </StatCard>
-          <StatCard $variant="danger">
-            <StatValue>{riskStats.count}</StatValue>
-            <StatLabel>At Risk (≤2 days &gt;= $10k)</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>
-              {riskStats.totalValue > 0 ? `$${riskStats.totalValue.toLocaleString()}` : '$0'}
-            </StatValue>
-            <StatLabel>At Risk Value</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>{actionItemCounts.total}</StatValue>
-            <StatLabel>Total Tasks</StatLabel>
-          </StatCard>
-        </StatsGrid>
-      )}
-
-      {/* Filters */}
-      <FiltersBar>
-        <FilterGroup>
-          <FilterLabel>Priority:</FilterLabel>
-          <FilterSelect
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
-          >
-            <option value="all">All Priorities</option>
-            <option value="urgent">Urgent</option>
-            <option value="high">High</option>
-            <option value="normal">Normal</option>
-            <option value="low">Low</option>
-          </FilterSelect>
-        </FilterGroup>
-
-        <FilterGroup>
-          <FilterLabel>Status:</FilterLabel>
-          <FilterSelect
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-          >
-            <option value="all">All Status</option>
-            <option value="action_needed">Action Needed</option>
-            <option value="in_progress">In Progress</option>
-            <option value="waiting">Waiting</option>
-            <option value="overdue">Overdue Only</option>
-          </FilterSelect>
-        </FilterGroup>
-
-        <FilterGroup>
-          <FilterLabel>Sort By:</FilterLabel>
-          <FilterSelect
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'smart' | 'due_date' | 'priority' | 'form')}
-          >
-            <option value="smart">Urgency × Value (Recommended)</option>
-            <option value="due_date">Due Date</option>
-            <option value="priority">Priority</option>
-            <option value="form">Form Name</option>
-          </FilterSelect>
-        </FilterGroup>
-
-        <SearchInput
-          type="text"
-          placeholder="Search tasks..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </FiltersBar>
-
-      {/* Task List */}
-      {filteredItems.length === 0 ? (
-        <EmptyState>
-          <EmptyIcon>✅</EmptyIcon>
-          <EmptyTitle>
-            {actionItems.length === 0 ? 'No tasks assigned' : 'No tasks match your filters'}
-          </EmptyTitle>
-          <EmptyText>
-            {actionItems.length === 0
-              ? 'You\'re all caught up! New tasks will appear here when assigned.'
-              : 'Try adjusting your filters to see more tasks.'}
-          </EmptyText>
-        </EmptyState>
-      ) : (
-        <TaskList>
-          {filteredItems.map((item) => {
-            const itemIsAtRisk = isAtRisk(item);
-            return (
-              <TaskCard
-                key={item.id}
-                $priority={item.priority}
-                $isOverdue={item.is_overdue}
-                $isAtRisk={itemIsAtRisk}
-                onClick={() => handleTaskClick(item)}
-                role="button"
-                tabIndex={0}
-                onKeyPress={(e) => e.key === 'Enter' && handleTaskClick(item)}
-              >
-                <TaskContent>
-                  <TaskTitle>{item.title}</TaskTitle>
-                  {item.description && (
-                    <TaskDescription>{item.description}</TaskDescription>
-                  )}
-                  <TaskMeta>
-                    {item.form_name && (
-                      <TaskMetaItem>
-                        📋 {item.form_name}
-                        {item.step_name && ` → ${item.step_name}`}
-                      </TaskMetaItem>
-                    )}
-                    <TaskMetaItem>
-                      📅 {formatDueDate(item.due_date)}
-                    </TaskMetaItem>
-                    {typeof item.related_po_value === 'number' && (
-                      <TaskMetaItem>
-                        💰 {item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}
-                      </TaskMetaItem>
-                    )}
-                    <PriorityBadge $priority={item.priority}>
-                      {item.priority}
-                    </PriorityBadge>
-                    {item.is_overdue && (
-                      <OverdueBadge>Overdue</OverdueBadge>
-                    )}
-                    {itemIsAtRisk && (
-                      <AtRiskBadge>⚠️ At Risk</AtRiskBadge>
-                    )}
-                  </TaskMeta>
-                </TaskContent>
-                <TaskActions onClick={(e) => e.stopPropagation()}>
-                  <SecondaryButton onClick={(e) => handleDelegateClick(e, item)}>
-                    Delegate
-                  </SecondaryButton>
-                  <ActionButton onClick={() => handleTaskClick(item)}>
-                    Open
-                  </ActionButton>
-                </TaskActions>
-              </TaskCard>
-            );
-          })}
-        </TaskList>
-      )}
-
-      {/* Delegation History Toggle */}
-      <HistoryToggle onClick={() => setShowDelegationHistory(!showDelegationHistory)}>
-        {showDelegationHistory ? '▼' : '▶'} Delegation History ({delegationHistory.length})
-      </HistoryToggle>
-
-      {/* Delegation History Panel */}
-      <HistoryContainer $isOpen={showDelegationHistory}>
-        <DelegationHistory
-          delegations={delegationHistory}
-          onRevoke={handleRevokeDelegation}
-          currentUserId="current"
-        />
-      </HistoryContainer>
-
-      {/* Delegate Task Modal */}
-      <DelegateTaskModal
-        isOpen={showDelegateModal}
-        onClose={handleDelegateModalClose}
-        onDelegate={handleDelegate}
-        taskName={selectedTask?.title || ''}
-        availableUsers={availableUsers}
-        isLoading={isDelegating}
-      />
+          {wfLoading ? (
+            <><Skeleton /><Skeleton /></>
+          ) : workflows.length === 0 ? (
+            <Empty>
+              <EmptyIcon>🔄</EmptyIcon>
+              <EmptyTitle>No active workflows</EmptyTitle>
+              <EmptyDesc>In-progress workflows assigned to you will appear here.</EmptyDesc>
+            </Empty>
+          ) : (
+            <WorkflowGrid>
+              {workflows.map(wf => (
+                <WFCard key={wf.id}>
+                  <WFTitle>{wf.workflow_name}</WFTitle>
+                  <WFMeta>📍 {wf.current_step_name} · {formatTimeAgo(wf.created_at)}</WFMeta>
+                  <Progress><ProgressFill $pct={wf.progress_percent} /></Progress>
+                  <WFFooter>
+                    <span style={{ fontSize: 11, color: 'rgb(var(--color-text-tertiary))' }}>
+                      Step {wf.completed_nodes}/{wf.total_nodes} · {wf.progress_percent}%
+                    </span>
+                    <SmallBtn $primary onClick={() => resumeWF(wf)} disabled={resumingId === wf.id}>
+                      {resumingId === wf.id ? '...' : '▶ Resume'}
+                    </SmallBtn>
+                  </WFFooter>
+                </WFCard>
+              ))}
+            </WorkflowGrid>
+          )}
         </>
       )}
-    </Container>
+
+      {/* ── Delegate modal ── */}
+      <DelegateTaskModal
+        isOpen={showDelegate}
+        onClose={closeDelegateModal}
+        onDelegate={handleDelegate}
+        taskName={delegateTask?.title || ''}
+        availableUsers={mockUsers}
+        isLoading={isDelegating}
+      />
+    </Page>
   );
 };
 

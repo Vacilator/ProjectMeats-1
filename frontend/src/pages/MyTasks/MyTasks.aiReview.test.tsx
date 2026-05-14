@@ -82,19 +82,18 @@ describe('MyTasks AI review queue', () => {
 
   it('renders the AI inbox queue and auto-opens the highlighted draft', async () => {
     render(
-      <MemoryRouter initialEntries={['/my-tasks?tab=ai-review&draft=draft-1']}>
+      <MemoryRouter initialEntries={['/my-tasks?tab=ai&draft=draft-1']}>
         <Routes>
           <Route path="/my-tasks" element={<MyTasks />} />
         </Routes>
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('button', { name: 'AI Inbox' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'AI Review Queue' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /AI Inbox/i })).toBeInTheDocument();
 
     expect(await screen.findByText('dispatch@example.com')).toBeInTheDocument();
     expect(screen.getByText('Bill Of Lading')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Review & Save/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Review/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Thumbs up feedback/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Thumbs down feedback/i })).toBeInTheDocument();
     await waitFor(() => {
@@ -123,7 +122,7 @@ describe('MyTasks AI review queue', () => {
     ] as any);
 
     render(
-      <MemoryRouter initialEntries={['/my-tasks?tab=ai-review']}>
+      <MemoryRouter initialEntries={['/my-tasks?tab=ai']}>
         <Routes>
           <Route path="/my-tasks" element={<MyTasks />} />
           <Route path="/purchase-orders/:id/review" element={<div>PO review route</div>} />
@@ -135,7 +134,7 @@ describe('MyTasks AI review queue', () => {
     expect(screen.getByText('Purchase Order')).toBeInTheDocument();
 
     await waitFor(async () => {
-      screen.getByRole('button', { name: /Review & Save/i }).click();
+      screen.getByRole('button', { name: /Review/i }).click();
     });
 
     expect(await screen.findByText('PO review route')).toBeInTheDocument();
@@ -144,7 +143,7 @@ describe('MyTasks AI review queue', () => {
 
   it('refreshes the AI inbox when the global sync event fires', async () => {
     render(
-      <MemoryRouter initialEntries={['/my-tasks?tab=ai-review']}>
+      <MemoryRouter initialEntries={['/my-tasks?tab=ai']}>
         <Routes>
           <Route path="/my-tasks" element={<MyTasks />} />
         </Routes>
