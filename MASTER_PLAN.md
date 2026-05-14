@@ -4344,3 +4344,41 @@ Final consistency pass ensuring ALL entity list pages and detail pages follow th
 - TypeScript: 0 errors
 - lint:colors: 0 violations
 - All entity list pages use consistent StatusFilterBar pattern
+
+## Phase 44: React #185 Root Cause Elimination & Render Stability Guardrails
+
+**Status**: ✅ Complete
+**PRs**: #5383, #5384, #5385, #5386, #5387, #5388, #5389
+
+### Problem
+"New Plant" and "New Location" buttons crashed with React Error #185 (Maximum update depth exceeded). The bug evaded three separate fix attempts because the true root cause was deeply embedded in JavaScript destructuring semantics interacting with React's memoization system.
+
+### Root Cause
+`dropdownOptions = {}` default parameter destructuring in both `UniversalEntityForm` and `DynamicFormEngine` created a **new empty object on every render**. This broke `useMemo` dependency chains → cascading re-renders through AntD Select → `@rc-component/motion` useStatus infinite loop → React #185.
+
+### Delivered
+
+#### A. Critical Bug Fix — React #185 Render Loop (PRs #5383–#5386)
+1. **Modal error boundary** (PR #5383) — `ModalFormErrorBoundary` inside Modal catches crashes without hiding the entire modal
+2. **FK options memoization** (PR #5384) — Deep-equality guard on `handleValuesChange`, pre-computed `fkSelectOptionsMap`
+3. **apiClient → businessApi migration** (PR #5385) — 26 files migrated to canonical service layer
+4. **TRUE root cause fix** (PR #5386) — Module-level `EMPTY_DROPDOWN_OPTIONS` constant replacing `= {}` defaults; stabilized all inline style objects and filterOption callbacks across UniversalEntityForm, DynamicFormEngine, and Select.tsx wrapper
+
+#### B. Never-Miss-Again Guardrail (PR #5387)
+5. **New lint rule: `destructured-default-object`** — CI-enforced detection of `= {}` and `= []` in React component parameter destructuring. Prevents this entire bug class from recurring.
+6. **7 violations fixed** across EntityEdge, EnhancedConnectionEdge, RatingField, RichTextField, SignatureField, SliderField, and DynamicFormEngine (initialValues)
+7. **Flaky test fix** — AICommandCenter test wrapped assertion in `waitFor`
+
+#### C. Smart Form Enhancements (PRs #5388–#5389)
+8. **Expanded FK cascade filters** — Added supplier_contact, customer_contact, carrier_contact, customer_location to server-side parent filtering; added carrier_purchase_order and fulfillment client-side cascade rules
+9. **Hidden auto-calculated fields** — `total_amount`, `subtotal`, `tax_amount`, `grand_total` removed entirely from create forms (computed by system)
+10. **AI chat widget** — Switched WS pre-flight to HEAD for lighter footprint
+
+### Technical Insight
+JavaScript destructuring defaults (`{ prop = {} }`) create a new object on every function call — unlike `useState({})` which preserves state. When used in React component props, this breaks any `useMemo`/`useCallback` that depends on the prop, causing infinite render cascades.
+
+### Verification
+- TypeScript: 0 errors
+- lint:render-stability: 0 violations (new rule catches the pattern)
+- lint:colors: 0 violations
+- Unit tests: 1,933 passed, 0 failed
