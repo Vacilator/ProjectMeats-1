@@ -13,6 +13,9 @@ export type { WorkflowStatusBarProps } from './WorkflowStatusBar';
 export { PartyRoleBadges } from './PartyRoleBadges';
 export type { PartyRoleBadgesProps } from './PartyRoleBadges';
 
+export { PendingApprovalsTab } from './PendingApprovalsTab';
+export type { PendingApprovalsTabProps } from './PendingApprovalsTab';
+
 export {
   getWorkflowConfig,
   getTransitionLabel,

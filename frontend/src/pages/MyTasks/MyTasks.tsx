@@ -27,6 +27,7 @@ import {
   PendingReviewItem,
 } from '../../services/aiService';
 import { StatusActionCell } from '@/components/Workflow';
+import { PendingApprovalsTab } from '@/components/Workflow/PendingApprovalsTab';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { compareTasksSmart, isAtRiskTask } from '../../utils/taskPrioritization';
 
@@ -39,7 +40,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: 'var(--color-text-tertiary)',
 };
 
-type TasksTab = 'action' | 'ai';
+type TasksTab = 'action' | 'approvals' | 'ai';
 type PriorityFilter = 'all' | 'urgent' | 'high' | 'normal' | 'low';
 type SortOption = 'smart' | 'due_date' | 'priority';
 type EntityFilter = 'all' | string;
@@ -544,8 +545,13 @@ export const MyTasks: React.FC = () => {
 
   // Tab state from URL (accept legacy `ai-review` as alias for `ai`)
   const rawTab = searchParams.get('tab');
-  const activeTab: TasksTab = (rawTab === 'ai' || rawTab === 'ai-review') ? 'ai' : 'action';
+  const activeTab: TasksTab = rawTab === 'approvals' ? 'approvals'
+    : (rawTab === 'ai' || rawTab === 'ai-review') ? 'ai'
+    : 'action';
   const highlightedDraftId = searchParams.get('draft');
+
+  // Approval count for badge
+  const [approvalCount, setApprovalCount] = useState(0);
 
   // Local UI state
   const [search, setSearch] = useState('');
@@ -845,6 +851,10 @@ export const MyTasks: React.FC = () => {
           Action Required
           {totalCount > 0 && <TabBadge $variant={overdueCount > 0 ? 'danger' : undefined}>{totalCount}</TabBadge>}
         </Tab>
+        <Tab $active={activeTab === 'approvals'} onClick={() => setTab('approvals')} role="tab" aria-selected={activeTab === 'approvals'}>
+          Approvals
+          {approvalCount > 0 && <TabBadge $variant="danger">{approvalCount}</TabBadge>}
+        </Tab>
         <Tab $active={activeTab === 'ai'} onClick={() => setTab('ai')} role="tab" aria-selected={activeTab === 'ai'}>
           AI Inbox
           {pendingReviews.length > 0 && <TabBadge>{pendingReviews.length}</TabBadge>}
@@ -1031,6 +1041,11 @@ export const MyTasks: React.FC = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* ═══════ APPROVALS TAB ═══════ */}
+      {activeTab === 'approvals' && (
+        <PendingApprovalsTab onCountChange={setApprovalCount} />
       )}
 
       {/* ═══════ AI INBOX TAB ═══════ */}
