@@ -92,7 +92,7 @@ describe('NotificationsContext polling stability', () => {
       await vi.advanceTimersByTimeAsync(100);
     });
 
-    const initialFetchCount = fetchUnreadCountCalls.count;
+    const _initialFetchCount = fetchUnreadCountCalls.count;
 
     // Advance through 5 polling intervals — each returns an alternating count
     for (let i = 0; i < 5; i++) {

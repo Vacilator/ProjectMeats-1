@@ -9,7 +9,7 @@ import EntityEdge from './EntityEdge';
 // Mock @xyflow/react with all needed exports
 vi.mock('@xyflow/react', () => ({
   getBezierPath: vi.fn(() => ['M 0 0 C 50 0, 50 100, 100 100', 50, 50]),
-  EdgeLabelRenderer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  EdgeLabelRenderer: ({ children }: { children: React.ReactNode }) => children,
   BaseEdge: ({ id, path, style }: any) => (
     <path data-testid={`edge-${id}`} d={path} style={style} />
   ),

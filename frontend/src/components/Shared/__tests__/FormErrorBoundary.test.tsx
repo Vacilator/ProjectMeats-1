@@ -32,7 +32,7 @@ describe('FormErrorBoundary', () => {
   });
 
   it('provides retry button that resets error state', () => {
-    const { rerender } = render(
+    const { rerender: _rerender } = render(
       <FormErrorBoundary>
         <ThrowError shouldThrow={true} />
       </FormErrorBoundary>

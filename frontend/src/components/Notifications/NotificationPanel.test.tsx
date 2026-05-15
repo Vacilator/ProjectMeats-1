@@ -38,7 +38,7 @@ const DEFAULT_NOTIFICATION = {
   time_ago: 'Just now',
 };
 
-function setupNotificationsMock(notifications: Array<typeof DEFAULT_NOTIFICATION>) {
+function _setupNotificationsMock(notifications: Array<typeof DEFAULT_NOTIFICATION>) {
   vi.doMock('../../contexts/NotificationsContext', () => ({
     useNotifications: () => ({
       notifications,
