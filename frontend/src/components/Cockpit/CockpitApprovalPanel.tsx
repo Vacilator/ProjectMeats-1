@@ -285,6 +285,7 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
     },
     enabled: !!tenantId,
     refetchInterval: 30_000,
+    retry: false,
   });
 
   const pendingItems = useMemo(

@@ -84,32 +84,40 @@ const Home: React.FC = () => {
   const recentActivityQuery = useQuery<ActivityEntry[]>({
     queryKey: withTenantQueryKey('home', 'recent-activity'),
     queryFn: async () => {
-      const res = await businessApi.get('/activity/recent/');
-      return Array.isArray(res?.data) ? res.data : [];
+      try {
+        const res = await businessApi.get('/activity/recent/');
+        return Array.isArray(res?.data) ? res.data : [];
+      } catch {
+        return [];
+      }
     },
     staleTime: 2 * 60 * 1000,
-    retry: 1,
+    retry: false,
   });
 
   const quickStatsQuery = useQuery<QuickStat[]>({
     queryKey: withTenantQueryKey('home', 'quick-stats'),
     queryFn: async (): Promise<QuickStat[]> => {
-      const res = await businessApi.get('/dashboard/stats/');
-      if (res?.data && typeof res.data === 'object') {
-        const d = res.data as Record<string, unknown>;
-        return [
-          { label: 'Inquiries', value: String(d.inquiries ?? '—') },
-          { label: 'Purchase Orders', value: String(d.purchase_orders ?? '—') },
-          { label: 'Sales Orders', value: String(d.sales_orders ?? '—') },
-          { label: 'Invoices Due', value: String(d.invoices_due ?? d.open_items ?? '—') },
-          { label: 'Pending Approvals', value: String(d.pending_approvals ?? '—') },
-          { label: 'Active Carriers', value: String(d.active_carriers ?? '—') },
-        ];
+      try {
+        const res = await businessApi.get('/dashboard/stats/');
+        if (res?.data && typeof res.data === 'object') {
+          const d = res.data as Record<string, unknown>;
+          return [
+            { label: 'Inquiries', value: String(d.inquiries ?? '—') },
+            { label: 'Purchase Orders', value: String(d.purchase_orders ?? '—') },
+            { label: 'Sales Orders', value: String(d.sales_orders ?? '—') },
+            { label: 'Invoices Due', value: String(d.invoices_due ?? d.open_items ?? '—') },
+            { label: 'Pending Approvals', value: String(d.pending_approvals ?? '—') },
+            { label: 'Active Carriers', value: String(d.active_carriers ?? '—') },
+          ];
+        }
+        return [];
+      } catch {
+        return [];
       }
-      return [];
     },
     staleTime: 5 * 60 * 1000,
-    retry: 1,
+    retry: false,
   });
 
   /* ---- handlers ---- */
