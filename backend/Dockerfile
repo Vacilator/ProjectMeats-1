@@ -89,10 +89,8 @@ HEALTHCHECK --interval=30s --timeout=5s \
 # Start Daphne so the container serves both HTTP and websocket traffic via ASGI.
 # Use exec form for proper signal handling
 # NOTE: Heavy operations (setup_superuser, seed_tenants, collectstatic) moved to migration job
-CMD ["sh", "-c", "set -x && \
-    echo \"Starting container at $(date)\" && \
-    python manage.py check && \
-    echo \"Django check passed - starting Daphne\" && \
+CMD ["sh", "-c", "python manage.py check && \
+    echo \"Django check passed — starting Daphne\" && \
     exec daphne \
       --bind 0.0.0.0 \
       --port 8000 \

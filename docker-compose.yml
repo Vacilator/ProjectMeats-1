@@ -7,17 +7,16 @@ services:
     container_name: projectmeats-db
     restart: always
     environment:
-      POSTGRES_DB: projectmeats
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-pass}
+      POSTGRES_DB: ${POSTGRES_DB:-projectmeats}
+      POSTGRES_USER: ${POSTGRES_USER:-projectmeats}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Mount init scripts directory for database initialization
       - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d projectmeats"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-projectmeats} -d ${POSTGRES_DB:-projectmeats}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,7 +29,7 @@ services:
       dockerfile: Dockerfile
     container_name: pm-backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - ./backend/.env
     depends_on:
@@ -39,9 +38,9 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
-      - DB_NAME=projectmeats
-      - DB_USER=user
-      - DB_PASSWORD=${DB_PASSWORD:-pass}
+      - DB_NAME=${POSTGRES_DB:-projectmeats}
+      - DB_USER=${POSTGRES_USER:-projectmeats}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
     volumes:
       - ./backend:/app
       - backend_media:/app/media
@@ -62,7 +61,6 @@ services:
       - REACT_APP_API_BASE_URL=http://localhost:8000
       - BACKEND_HOST=${BACKEND_HOST:-backend}
       - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
-    # Note: SSL certificates are handled by host-level nginx, not by this container
 
 volumes:
   pgdata:
