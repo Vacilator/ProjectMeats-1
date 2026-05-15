@@ -50,7 +50,21 @@ const formatStepLabel = (step: string): string => {
   return labels[step] || step?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
 };
 
-/** Map trade session status to pipeline step index (0-5) for progress display */
+/** Map orchestrator step to pipeline stage index (0-5) for progress display */
+const STEP_TO_STAGE_INDEX: Record<string, number> = {
+  supplier_rfq: 0,
+  supplier_reply_parse: 0,
+  draft_supplier_po: 1,
+  approve_supplier_po: 1,
+  draft_sales_order: 2,
+  approve_sales_order: 2,
+  carrier_fan_out: 3,
+  carrier_reply_parse: 3,
+  draft_carrier_po: 3,
+  completed: 5,
+};
+
+/** Fallback: Map trade session status to pipeline step index when no orchestrator step */
 const STATUS_TO_STAGE_INDEX: Record<string, number> = {
   initiated: 0,
   sourcing: 0,
@@ -66,10 +80,22 @@ const PIPELINE_STAGES = ['Inquiry', 'Purchase Order', 'Sales Order', 'Carrier PO
 
 /** Get a human-readable progress summary like "Stage 2 of 6 • Purchase Order" */
 const getPipelineProgress = (trade: TradeSession): string => {
-  const idx = STATUS_TO_STAGE_INDEX[trade.status?.toLowerCase()] ?? 0;
-  if (idx < 0) return trade.status === 'cancelled' ? 'Cancelled' : 'Halted';
+  if (trade.status === 'cancelled') return 'Cancelled';
+  if (trade.status === 'halted') return 'Halted';
   if (trade.status === 'completed') return '✓ All 6 stages complete';
-  return `Stage ${idx + 1} of 6 • ${PIPELINE_STAGES[idx]}`;
+  // Prefer orchestrator step for accuracy, fallback to status
+  const step = trade.current_step;
+  let idx: number;
+  if (step === 'completed' && trade.status === 'logistics') {
+    idx = 4; // Fulfillment in progress
+  } else if (step && STEP_TO_STAGE_INDEX[step] !== undefined) {
+    idx = STEP_TO_STAGE_INDEX[step];
+  } else {
+    idx = STATUS_TO_STAGE_INDEX[trade.status?.toLowerCase()] ?? 0;
+  }
+  const stageName = PIPELINE_STAGES[idx] ?? 'Unknown';
+  const stepLabel = (step && step !== 'completed') ? formatStepLabel(step) : '';
+  return `Stage ${idx + 1} of 6 • ${stageName}${stepLabel ? ` — ${stepLabel}` : ''}`;
 };
 
 type TradeTab = 'active' | 'completed' | 'all';
