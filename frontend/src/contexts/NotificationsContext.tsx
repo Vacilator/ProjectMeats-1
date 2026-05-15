@@ -155,7 +155,12 @@ async function fetchNotificationsAPI(): Promise<Notification[]> {
   try {
     return (await notificationsService.listNotifications()) as Notification[];
   } catch (error) {
-    logger.warn('Notifications API not available', { component: 'NotificationsContext' }, error);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const isTransient = errObj.code === 'ECONNABORTED' || errObj.code === 'ERR_NETWORK' ||
+      String(errObj.message || '').includes('timeout');
+    if (!isTransient) {
+      logger.warn('Notifications API not available', { component: 'NotificationsContext' }, error);
+    }
     return [];
   }
 }
@@ -164,7 +169,12 @@ async function fetchUnreadCountAPI(): Promise<number> {
   try {
     return await notificationsService.getUnreadCount();
   } catch (error) {
-    logger.warn('Unread count API not available', { component: 'NotificationsContext' }, error);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const isTransient = errObj.code === 'ECONNABORTED' || errObj.code === 'ERR_NETWORK' ||
+      String(errObj.message || '').includes('timeout');
+    if (!isTransient) {
+      logger.warn('Unread count API not available', { component: 'NotificationsContext' }, error);
+    }
     return 0;
   }
 }
@@ -185,7 +195,12 @@ async function fetchActionItemsAPI(): Promise<ActionItem[]> {
   try {
     return (await notificationsService.listActionItems()) as ActionItem[];
   } catch (error) {
-    logger.warn('Action items API not available', { component: 'NotificationsContext' }, error);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const isTransient = errObj.code === 'ECONNABORTED' || errObj.code === 'ERR_NETWORK' ||
+      String(errObj.message || '').includes('timeout');
+    if (!isTransient) {
+      logger.warn('Action items API not available', { component: 'NotificationsContext' }, error);
+    }
     return [];
   }
 }
@@ -194,7 +209,12 @@ async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
   try {
     return (await notificationsService.getActionItemCounts()) as ActionItemCounts;
   } catch (error) {
-    logger.warn('Action item counts API not available', { component: 'NotificationsContext' }, error);
+    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
+    const isTransient = errObj.code === 'ECONNABORTED' || errObj.code === 'ERR_NETWORK' ||
+      String(errObj.message || '').includes('timeout');
+    if (!isTransient) {
+      logger.warn('Action item counts API not available', { component: 'NotificationsContext' }, error);
+    }
     return {
       total: 0,
       overdue: 0,

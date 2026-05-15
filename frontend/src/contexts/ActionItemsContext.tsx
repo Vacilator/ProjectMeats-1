@@ -141,8 +141,12 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
     if (error) {
       // Try to extract status from error message or assume 500
       const statusMatch = error.match(/status[:\s]+(\d+)/i);
-      const status = statusMatch ? parseInt(statusMatch[1], 10) : 500;
-      checkCircuitBreaker(status);
+      const isTimeout = error.includes('timeout') || error.includes('ECONNABORTED') || error.includes('ERR_NETWORK');
+      // Timeouts are transient — don't count them toward the circuit breaker
+      const status = statusMatch ? parseInt(statusMatch[1], 10) : (isTimeout ? 0 : 500);
+      if (status > 0) {
+        checkCircuitBreaker(status);
+      }
     } else if (!loading && counts) {
       // Success
       checkCircuitBreaker();
