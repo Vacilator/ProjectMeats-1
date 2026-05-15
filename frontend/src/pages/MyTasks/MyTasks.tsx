@@ -835,14 +835,23 @@ export const MyTasks: React.FC = () => {
       return;
     }
     if (item.entity_type && item.entity_id) {
+      // Trade entities → dedicated record detail page with full workflow context
+      const recordRouteMap: Record<string, string> = {
+        purchase_order: 'purchase_order',
+        sales_order: 'sales_order',
+        carrier_po: 'carrier_purchase_order',
+        fulfillment: 'fulfillment',
+        invoice: 'invoice',
+      };
+      const recordType = recordRouteMap[item.entity_type];
+      if (recordType) {
+        navigate(`/records/${recordType}/${item.entity_id}`);
+        return;
+      }
+      // Inquiry → keep existing review modal flow
       const routeMap: Record<string, (id: string) => string> = {
         inquiry: (id) => `/inquiries?review=inquiry&inquiry=${id}`,
-        purchase_order: (id) => `/purchase-orders?review=purchase_order&purchase_order=${id}`,
-        sales_order: (id) => `/sales-orders?highlight=${id}`,
-        carrier_po: (id) => `/purchase-orders?tab=carrier&highlight=${id}`,
         carrier: (id) => `/carriers?highlight=${id}`,
-        fulfillment: (id) => `/fulfillments?highlight=${id}`,
-        invoice: (id) => `/invoices?highlight=${id}`,
       };
       const buildRoute = routeMap[item.entity_type];
       if (buildRoute) {

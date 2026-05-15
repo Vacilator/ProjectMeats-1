@@ -31,10 +31,12 @@ import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
 import { TradeDocumentsPanel } from '@/components/Trader/TradeDocumentsPanel';
 import { TradeJourneyTimeline } from '@/components/Trader/TradeJourneyTimeline';
 import { TradeLineageActions } from '@/components/Trader/TradeLineageActions';
+import { TradeWorkflowStepper } from '@/components/Workflow/TradeWorkflowStepper';
 import { PartyRoleBadges, RecordActivityFeed, WorkflowStatusBar } from '@/components/Workflow';
 import { getWorkflowConfig } from '@/components/Workflow/workflowConfig';
 import { businessApi } from '@/services/businessApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useTradeSession } from '@/hooks/useTradeSession';
 import { type ResolvedEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = {
@@ -112,6 +114,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
       ].includes(normalizedEntityType),
     [normalizedEntityType],
   );
+
+  // Trade session context for the E2E pipeline stepper
+  const tradeSession = useTradeSession(normalizedEntityType, entityId);
 
   const childEntityType = isSupplier ? 'plant' : 'location';
   const childEntityDisplayName = isSupplier ? 'Plant' : 'Location';
@@ -574,6 +579,15 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
               entityType={normalizedEntityType}
               entityId={entityId}
               onTransitioned={handleOperationalChanged}
+            />
+          )}
+
+          {isTradeEntity && tradeSession.tradeStatus && (
+            <TradeWorkflowStepper
+              tradeStatus={tradeSession.tradeStatus}
+              currentStep={tradeSession.currentStep || undefined}
+              tradeSessionId={tradeSession.tradeSessionId ?? undefined}
+              compact
             />
           )}
 
