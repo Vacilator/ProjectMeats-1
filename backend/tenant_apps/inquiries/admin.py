@@ -3,7 +3,7 @@ from django.contrib import admin
 from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import (
-    Inquiry, InquiryProduct, InquirySupplierRFQ,
+    Inquiry, InquiryProduct, InquiryProductSupplierBid, InquirySupplierRFQ,
     InquiryTemplate, InquiryTemplateProduct, TradeSession,
 )
 
@@ -154,3 +154,18 @@ class TradeSessionAdmin(TenantFilteredAdmin):
 
 admin_site.register(InquirySupplierRFQ, InquirySupplierRFQAdmin)
 admin_site.register(TradeSession, TradeSessionAdmin)
+
+
+class InquiryProductSupplierBidAdmin(TenantFilteredAdmin):
+    """Admin for per-product supplier bids."""
+    list_display = ['id', 'inquiry_product', 'supplier', 'plant', 'bid_status', 'bid_price_per_unit', 'bid_total', 'requested_at', 'responded_at']
+    list_filter = ['bid_status']
+    search_fields = ['supplier__name', 'inquiry_product__inquiry__inquiry_number']
+    raw_id_fields = ['inquiry_product', 'supplier', 'plant', 'contact', 'rfq', 'tenant']
+    readonly_fields = ['created_on', 'modified_on']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('tenant', 'supplier', 'plant', 'inquiry_product')
+
+
+admin_site.register(InquiryProductSupplierBid, InquiryProductSupplierBidAdmin)
