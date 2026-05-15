@@ -569,7 +569,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         setSubmitting(false);
       }
     },
-    [formValues, mode, entityId, buildPayload, onSuccess],
+    [formValues, mode, entityId, buildPayload, onSuccess, approvalGate],
   );
 
   const handleDraft = useCallback(() => handleSubmit('draft'), [handleSubmit]);

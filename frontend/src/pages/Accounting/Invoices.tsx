@@ -423,15 +423,10 @@ const Invoices: React.FC = () => {
   const [showPortalAccess, setShowPortalAccess] = useState(false);
 
   const handlePaymentModalClose = useCallback(() => setShowPaymentModal(false), []);
-  const handlePaymentSuccess = useCallback(() => {
-    fetchInvoices();
-    setShowPaymentModal(false);
-  }, []);
   const handleCreateModalClose = useCallback(() => setIsModalOpen(false), []);
-  const handleCreateSuccess = useCallback(() => fetchInvoices(), []);
 
   // Fetch invoices
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -461,11 +456,17 @@ const Invoices: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
+
+  const handlePaymentSuccess = useCallback(() => {
+    fetchInvoices();
+    setShowPaymentModal(false);
+  }, [fetchInvoices]);
+  const handleCreateSuccess = useCallback(() => fetchInvoices(), [fetchInvoices]);
 
   useEffect(() => {
     fetchInvoices();
-  }, [statusFilter]);
+  }, [fetchInvoices]);
 
   useEffect(() => {
     if (searchParams.get('action') !== 'create') {

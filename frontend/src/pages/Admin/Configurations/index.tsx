@@ -97,13 +97,7 @@ const ConfigurationsPage: React.FC = () => {
 
   const handleResetConfirmClose = useCallback(() => setShowResetConfirm(false), []);
 
-  useEffect(() => {
-    if (!canManage) return;
-    if (currentTenantQuery.isLoading) return;
-    loadConfigurations();
-  }, [canManage, currentTenantQuery.isLoading, tenantId]);
-
-  const loadConfigurations = async () => {
+  const loadConfigurations = useCallback(async () => {
     try {
       setLoading(true);
       setLoadError(null);
@@ -121,7 +115,13 @@ const ConfigurationsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenantId, toast]);
+
+  useEffect(() => {
+    if (!canManage) return;
+    if (currentTenantQuery.isLoading) return;
+    loadConfigurations();
+  }, [canManage, currentTenantQuery.isLoading, tenantId, loadConfigurations]);
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 

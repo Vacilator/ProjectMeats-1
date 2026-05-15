@@ -215,6 +215,7 @@ const ActivityPage: React.FC = () => {
   useEffect(() => {
     if (!canView) return;
     loadLogs(1, false, appliedFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load once on mount and when canView changes; appliedFilters/loadLogs are stable at mount time
   }, [canView]);
 
   const getActionIcon = (action: string) => {

@@ -144,18 +144,20 @@ const SupplierProducts: React.FC = () => {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [addingProducts, setAddingProducts] = useState<boolean>(false);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchSupplier defined below uses only `id`
+   
   useEffect(() => {
     if (location.state?.supplier) {
       setSupplier(location.state.supplier);
     } else if (id) {
       fetchSupplier();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, location.state]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchItems defined below uses only `id`
+   
   useEffect(() => {
     if (id) fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchSupplier = async () => {

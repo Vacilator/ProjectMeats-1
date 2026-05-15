@@ -427,18 +427,8 @@ export const Claims: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleModalClose = useCallback(() => setIsModalOpen(false), []);
-  const handleCreateSuccess = useCallback(() => fetchClaims(), []);
 
-  const claimCreateInitialValues = useMemo(
-    () => ({ claim_type: activeTab } as const),
-    [activeTab]
-  );
-
-  useEffect(() => {
-    fetchClaims();
-  }, [activeTab]);
-
-  const fetchClaims = async () => {
+  const fetchClaims = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -459,7 +449,18 @@ export const Claims: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  const handleCreateSuccess = useCallback(() => fetchClaims(), [fetchClaims]);
+
+  const claimCreateInitialValues = useMemo(
+    () => ({ claim_type: activeTab } as const),
+    [activeTab]
+  );
+
+  useEffect(() => {
+    fetchClaims();
+  }, [fetchClaims]);
 
   const handleClaimClick = (claim: Claim) => {
     setSelectedClaim(claim);

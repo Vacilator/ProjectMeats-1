@@ -33,12 +33,13 @@ export const WorkflowExecutionDetails: React.FC = () => {
   const [showDataContext, setShowDataContext] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetch functions defined below use only `runId`
+   
   useEffect(() => {
     if (runId) {
       fetchRunDetails();
       fetchExecutionLog();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetch functions defined below use only `runId`
   }, [runId]);
 
   const fetchRunDetails = async () => {

@@ -3,7 +3,7 @@
  *
  * Modal for editing system choice list items with inline CRUD operations
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal as AntModal, Skeleton } from 'antd';
 import styled from 'styled-components';
 import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } from 'lucide-react';
@@ -353,13 +353,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      loadItems();
-    }
-  }, [isOpen, listSlug]);
-
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     setLoading(true);
     try {
       const response = await businessApi.get(`/system/choice-lists/${listSlug}/items/?limit=1000`);
@@ -374,7 +368,13 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [listSlug, toast]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadItems();
+    }
+  }, [isOpen, listSlug, loadItems]);
 
   const handleAddItem = () => {
     if (!isExtensible) return;

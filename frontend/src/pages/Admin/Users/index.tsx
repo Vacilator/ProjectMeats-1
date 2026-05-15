@@ -57,6 +57,29 @@ interface Invitation {
   created_at: string;
 }
 
+// Pure helper functions — no component state deps, safe to define outside the component.
+const getUserId = (row: TenantUser): number | undefined =>
+  typeof row.user === 'number' ? row.user : row.user?.id;
+
+const getUsername = (row: TenantUser): string =>
+  row.username ?? (typeof row.user === 'object' && row.user ? row.user.username : '');
+
+const getEmail = (row: TenantUser): string =>
+  row.email ?? (typeof row.user === 'object' && row.user ? row.user.email : '');
+
+const getFirstName = (row: TenantUser): string =>
+  row.first_name ?? (typeof row.user === 'object' && row.user ? row.user.first_name : '');
+
+const getLastName = (row: TenantUser): string =>
+  row.last_name ?? (typeof row.user === 'object' && row.user ? row.user.last_name : '');
+
+const getDisplayName = (row: TenantUser): string => {
+  const first = getFirstName(row);
+  const last = getLastName(row);
+  const full = `${first} ${last}`.trim();
+  return full || getUsername(row) || getEmail(row) || `User ${getUserId(row) ?? ''}`.trim();
+};
+
 const UsersPage: React.FC = () => {
   useDocumentTitle('User Management');
   const toast = useToast();
@@ -126,47 +149,25 @@ const UsersPage: React.FC = () => {
 
   const normalizedQuery = useMemo(() => searchQuery.trim().toLowerCase(), [searchQuery]);
 
-  const getUserId = (row: TenantUser): number | undefined =>
-    typeof row.user === 'number' ? row.user : row.user?.id;
-
-  const getUsername = (row: TenantUser): string =>
-    row.username ?? (typeof row.user === 'object' && row.user ? row.user.username : '');
-
-  const getEmail = (row: TenantUser): string =>
-    row.email ?? (typeof row.user === 'object' && row.user ? row.user.email : '');
-
-  const getFirstName = (row: TenantUser): string =>
-    row.first_name ?? (typeof row.user === 'object' && row.user ? row.user.first_name : '');
-
-  const getLastName = (row: TenantUser): string =>
-    row.last_name ?? (typeof row.user === 'object' && row.user ? row.user.last_name : '');
-
-  const getDisplayName = (row: TenantUser): string => {
-    const first = getFirstName(row);
-    const last = getLastName(row);
-    const full = `${first} ${last}`.trim();
-    return full || getUsername(row) || getEmail(row) || `User ${getUserId(row) ?? ''}`.trim();
-  };
-
-  const matchesUser = (row: TenantUser) => {
+  const matchesUser = useCallback((row: TenantUser) => {
     if (!normalizedQuery) return true;
     const name = getDisplayName(row).toLowerCase();
     const username = getUsername(row).toLowerCase();
     const email = getEmail(row).toLowerCase();
 
     return username.includes(normalizedQuery) || email.includes(normalizedQuery) || name.includes(normalizedQuery);
-  };
+  }, [normalizedQuery]);
 
-  const matchesInvitation = (row: Invitation) => {
+  const matchesInvitation = useCallback((row: Invitation) => {
     if (!normalizedQuery) return true;
     return row.email.toLowerCase().includes(normalizedQuery) || (row.role || '').toLowerCase().includes(normalizedQuery);
-  };
+  }, [normalizedQuery]);
 
-  const activeUsers = useMemo(() => users.filter((u) => u.is_active).filter(matchesUser), [users, normalizedQuery]);
-  const inactiveUsers = useMemo(() => users.filter((u) => !u.is_active).filter(matchesUser), [users, normalizedQuery]);
+  const activeUsers = useMemo(() => users.filter((u) => u.is_active).filter(matchesUser), [users, matchesUser]);
+  const inactiveUsers = useMemo(() => users.filter((u) => !u.is_active).filter(matchesUser), [users, matchesUser]);
   const pendingInvitations = useMemo(
     () => invitations.filter((inv) => inv.status === 'pending' || !inv.status).filter(matchesInvitation),
-    [invitations, normalizedQuery]
+    [invitations, matchesInvitation]
   );
 
   useEffect(() => {
@@ -530,7 +531,6 @@ const UsersPage: React.FC = () => {
       permissions.can_manage_users,
       currentUser?.id,
       reactivateMutation,
-      deleteMutation,
       toast,
     ]
   );
