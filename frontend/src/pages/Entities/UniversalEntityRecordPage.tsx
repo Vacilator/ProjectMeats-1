@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Spin, Tabs } from 'antd';
+import { Button, Card, Modal, Spin, Tabs } from 'antd';
 import { Building2, ClipboardList, MessageSquarePlus, UsersRound } from 'lucide-react';
 import styled from 'styled-components';
 
@@ -912,17 +912,31 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
           />
 
           {(isSupplier || isCustomer) && (
-            <FormErrorBoundary entityType={childEntityType} onClose={handleChildCreateClose}>
-              <EntityFormSurface
-                entityType={childEntityType}
-                mode="create"
-                variant="modal"
-                isOpen={childCreateOpen}
-                onClose={handleChildCreateClose}
-                onSuccess={handleChildCreateSuccess}
-                initialValues={childCreateInitialValues}
-              />
-            </FormErrorBoundary>
+            <Modal
+              open={childCreateOpen}
+              onCancel={handleChildCreateClose}
+              footer={null}
+              width="min(720px, calc(100vw - 32px))"
+              centered
+              destroyOnHidden
+              title={`New ${childEntityDisplayName}`}
+              transitionName=""
+              maskTransitionName=""
+            >
+              {childCreateOpen && (
+                <FormErrorBoundary entityType={childEntityType} onClose={handleChildCreateClose}>
+                  <EntityFormSurface
+                    entityType={childEntityType}
+                    mode="create"
+                    variant="inline"
+                    isOpen={childCreateOpen}
+                    onClose={handleChildCreateClose}
+                    onSuccess={handleChildCreateSuccess}
+                    initialValues={childCreateInitialValues}
+                  />
+                </FormErrorBoundary>
+              )}
+            </Modal>
           )}
         </>
       )}
