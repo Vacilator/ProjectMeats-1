@@ -264,6 +264,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Phase 38 fully shipped.** AUTO-38.1 through AUTO-38.4 are all on `development`: backend ingest error contract, AI Inbox provenance badges, recoverable sync retry/progress UX, and sample-email regression fixtures.
 - **Production-ready sweep shipped (PRs #5428-#5435).** Infrastructure cleanup, auto-cascade workflow transitions (Inquiry→PO→SO→CarrierPO→Fulfillment→Invoice), frontend production polish (hardcoded colors, plant form, dashboard states), infrastructure hardening (docker-compose, Dockerfile), type safety (11 `any` removals), accessibility (aria-labels), backend input validation, and workflow UX overhaul (inquiry cascade, TradeSession auto-creation, React Flow zoom/arrows, action button tooltips, query invalidation).
 - **Cascade auto-advance shipped (PR #5437).** All 5 cascade handlers now set FK back on source Inquiry after creating downstream entities. Lineage chain expanded from 4 to 6 nodes (added Fulfillment + Invoice). Transition descriptions added to PO/SO/CarrierPO/Fulfillment configs. Cascade toast improved with query invalidation.
+- **Inquiry workflow UX overhaul shipped (PR #5439).** Simplified inquiry transitions to linear 2-step flow (Send Quote → Accept Deal), fixed invisible React Flow arrows, added trade action items to My Tasks, fixed query invalidation for My Trades/Trades/ProcessHeader, cleaned up ProcessFlowHeader status variants and labels.
 - **Zero open PRs.** All work is merged to `development`.
 - **TypeScript: 0 errors.** `tsc --noEmit` clean.
 - **Python: 0 critical errors.** `flake8 E9/F63/F7/F82` clean. Django system check clean.
@@ -4478,3 +4479,44 @@ Fixed the core gap where workflow cascade creates downstream entities but the Re
 - AI PR Gatekeeper: pass
 - Frontend Type Check: pass
 - Frontend Prod Smoke (3/3): pass
+
+## Phase 47: Inquiry Workflow UX Overhaul
+
+**Status**: ✅ Complete
+**PRs**: #5439
+
+### Summary
+Comprehensive fix for 5 inquiry workflow UX issues: confusing transitions, invisible React Flow arrows, stale lineage diagram, empty My Tasks/Trades, and misleading status indicators.
+
+### Delivered
+
+#### A. Simplified Inquiry Transitions (#5439)
+1. Removed redundant `draft → pending` transition from INQUIRY_WORKFLOW
+2. Linear 2-step flow: draft → quoted (Send Quote) → accepted (Accept Deal)
+3. Clear action descriptions explaining what each step does
+
+#### B. React Flow Arrow Fix (#5439)
+4. Added `color` property to `markerEnd` — fixes invisible arrows in TradeLineageFlow
+5. Reduced `staleTime` from 30s to 5s for faster diagram refresh after transitions
+
+#### C. Query Invalidation (#5439)
+6. WorkflowStatusBar now invalidates `my-trades`, `process-header`, `action-items` after transitions
+7. Trade lineage, document status workflows, and trade lists all refreshed on transition
+
+#### D. Trade Action Items for My Tasks (#5439)
+8. ActionItemsAPIView generates `trade_action` items from active TradeSession objects
+9. ActionItemCountsAPIView includes trade session counts in totals
+10. ActionItemSerializer updated to accept `trade_action` type and string IDs
+
+#### E. ProcessFlowHeader Cleanup (#5439)
+11. Fixed `getStatusVariant()` — draft/pending use 'default' (not warning), quoted uses 'info'
+12. Added `STEP_LABELS` lookup for human-friendly orchestrator step names
+13. Removed dead code (unused imports, orphaned styled components)
+
+### Verification
+- TypeScript: 0 errors
+- Python: syntax verified via `ast.parse()`
+- Frontend Type Check: pass
+- Frontend Prod Smoke (3/3): pass
+- Validate Migrations: pass
+- 7 files changed, 202 insertions, 34 deletions
