@@ -613,6 +613,10 @@ export interface Inquiry {
   trade_session_id?: string;
   trade_session_status?: string;
   trade_session_current_step?: string;
+  // Linked trade entities (FK IDs from cascade chain)
+  supplier_purchase_order?: string;
+  sales_order?: string;
+  carrier_purchase_order?: string;
 }
 
 /**

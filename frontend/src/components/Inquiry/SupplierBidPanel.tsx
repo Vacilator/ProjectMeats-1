@@ -7,13 +7,13 @@
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import { message, Tooltip, Tag, Popconfirm, Input, Select, DatePicker } from 'antd';
+import { message, Tooltip, Tag, Popconfirm, Select, DatePicker } from 'antd';
 import { Plus, Send, Check, X, ChevronDown, ChevronRight, Clock, MapPin, Calendar } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { InquiryProduct, InquiryProductSupplierBid, SupplierBidStatus } from '../../types';
 import { inquiryService } from '../../services/inquiryService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
-import { businessApi } from '@/services/businessApi';
+import { businessApi, suppliersApi, type Supplier } from '@/services/businessApi';
 import dayjs from 'dayjs';
 
 // ── Status visual config ──
@@ -81,6 +81,32 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     staleTime: 60_000,
     retry: false,
   });
+
+  // Fetch suppliers for searchable dropdown
+  const { data: suppliers } = useQuery({
+    queryKey: withTenantQueryKey('suppliers-list'),
+    queryFn: async () => {
+      try {
+        return await suppliersApi.list();
+      } catch {
+        return [];
+      }
+    },
+    enabled: canManageBids,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const supplierOptions = useMemo(() => {
+    if (!suppliers?.length) return [];
+    return suppliers
+      .filter((s: Supplier) => s.is_active !== false)
+      .map((s: Supplier) => ({
+        value: String(s.id),
+        label: s.name,
+        searchText: `${s.name} ${s.contact_person ?? ''} ${s.city ?? ''} ${s.supplier_type ?? ''}`.toLowerCase(),
+      }));
+  }, [suppliers]);
 
   const locationOptions = useMemo(() => {
     if (!customerLocations?.length) return [];
@@ -391,19 +417,24 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
 
           {addingBid && (
             <AddBidRow>
-              <Input
+              <Select
+                showSearch
                 size="small"
-                placeholder="Supplier ID or search..."
-                value={newSupplierId}
-                onChange={(e) => setNewSupplierId(e.target.value)}
-                onPressEnter={handleAddBid}
+                placeholder="Search supplier..."
+                value={newSupplierId || undefined}
+                onChange={(val: string) => setNewSupplierId(val)}
+                options={supplierOptions}
+                filterOption={(input, option) =>
+                  (option?.searchText as string)?.includes(input.toLowerCase()) ?? false
+                }
                 style={{ flex: 1 }}
                 autoFocus
+                notFoundContent="No suppliers found"
               />
               <ActionBtn
                 $variant="success"
                 onClick={handleAddBid}
-                disabled={createBidMutation.isPending}
+                disabled={createBidMutation.isPending || !newSupplierId}
               >
                 <Check size={12} />
               </ActionBtn>

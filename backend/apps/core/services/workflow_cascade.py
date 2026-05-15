@@ -59,6 +59,16 @@ def _create_trade_document(
         logger.error("Failed to create trade document for %s %s", entity_type, entity_id, exc_info=True)
 
 
+def _resolve_trade_session(tenant, parent_doc):
+    """Resolve the TradeSession associated with a document, walking up lineage if needed."""
+    from tenant_apps.inquiries.models import TradeSession
+
+    inquiry = _resolve_source_inquiry(tenant, parent_doc)
+    if not inquiry:
+        return None
+    return TradeSession.objects.filter(tenant=tenant, inquiry=inquiry).first()
+
+
 @dataclass
 class CascadeResult:
     """Return value describing any downstream entities created."""
@@ -133,6 +143,18 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
         if existing_po:
             # Still advance trade session even for existing PO
             _update_trade_session_status_from_doc(tenant, inquiry, "ordered")
+            _create_trade_document(
+                tenant=tenant,
+                trade_session=trade_session,
+                entity_type="purchase_order",
+                entity_id=existing_po.id,
+                stage="purchase_order",
+                direction="sent",
+                document_type="confirmation",
+                title=f"PO {existing_po.po_number or existing_po.id} (existing)",
+                description="Purchase order already existed during cascade re-run.",
+                stage_order=0,
+            )
             return CascadeResult(
                 triggered=True,
                 created_entity_type="purchase_order",
@@ -337,6 +359,20 @@ def _cascade_so_confirmed_to_carrier_po(*, tenant: Any, document: Any) -> Cascad
         existing = CarrierPurchaseOrder.objects.for_tenant(tenant).filter(sales_order=so).first()
         if existing:
             _update_trade_session_status_from_doc(tenant, so, "logistics")
+            ts = _resolve_trade_session(tenant, so)
+            if ts:
+                _create_trade_document(
+                    tenant=tenant,
+                    trade_session=ts,
+                    entity_type="carrier_purchase_order",
+                    entity_id=existing.id,
+                    stage="carrier_po",
+                    direction="sent",
+                    document_type="confirmation",
+                    title=f"Carrier PO {existing.order_number or existing.id} (existing)",
+                    description="Carrier PO already existed during cascade re-run.",
+                    stage_order=0,
+                )
             return CascadeResult(
                 triggered=True,
                 created_entity_type="carrier_purchase_order",
@@ -438,6 +474,20 @@ def _cascade_carrier_po_delivered_to_fulfillment(*, tenant: Any, document: Any) 
         )
         if existing:
             _update_trade_session_status_from_doc(tenant, carrier_po, "logistics")
+            ts = _resolve_trade_session(tenant, carrier_po)
+            if ts:
+                _create_trade_document(
+                    tenant=tenant,
+                    trade_session=ts,
+                    entity_type="fulfillment",
+                    entity_id=existing.id,
+                    stage="fulfillment",
+                    direction="received",
+                    document_type="confirmation",
+                    title=f"Fulfillment {existing.fulfillment_number or existing.id} (existing)",
+                    description="Fulfillment already existed during cascade re-run.",
+                    stage_order=0,
+                )
             return CascadeResult(
                 triggered=True,
                 created_entity_type="fulfillment",
@@ -523,6 +573,20 @@ def _cascade_fulfillment_completed_to_invoice(*, tenant: Any, document: Any) -> 
         )
         if existing:
             _update_trade_session_status_from_doc(tenant, fulfillment, "completed")
+            ts = _resolve_trade_session(tenant, fulfillment)
+            if ts:
+                _create_trade_document(
+                    tenant=tenant,
+                    trade_session=ts,
+                    entity_type="invoice",
+                    entity_id=existing.id,
+                    stage="invoice",
+                    direction="sent",
+                    document_type="confirmation",
+                    title=f"Invoice {existing.invoice_number or existing.id} (existing)",
+                    description="Invoice already existed during cascade re-run.",
+                    stage_order=0,
+                )
             return CascadeResult(
                 triggered=True,
                 created_entity_type="invoice",

@@ -1037,7 +1037,11 @@ class InquiryProductSupplierBidViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='accept')
     def accept_bid(self, request, pk=None):
-        """Accept a received bid — sets it as accepted and updates parent product pricing."""
+        """Accept a received bid — sets it as accepted and updates parent product pricing.
+
+        When all inquiry products have an accepted bid, attempts to advance the
+        trade session to the next orchestrator step (draft PO).
+        """
         bid = self.get_object()
         if bid.bid_status != SupplierBidStatusChoices.RECEIVED:
             return Response(
@@ -1068,10 +1072,41 @@ class InquiryProductSupplierBidViewSet(viewsets.ModelViewSet):
             tenant=self.request.tenant,
         ).exclude(pk=bid.pk).update(bid_status=SupplierBidStatusChoices.REJECTED)
 
-        return Response(
-            InquiryProductSupplierBidSerializer(bid).data,
-            status=status.HTTP_200_OK,
-        )
+        resp_data = InquiryProductSupplierBidSerializer(bid).data
+
+        # Check if ALL products now have an accepted bid → advance trade session
+        try:
+            inquiry = product.inquiry
+            tenant = self.request.tenant
+            all_products = InquiryProduct.objects.filter(inquiry=inquiry, tenant=tenant)
+            products_with_accepted = InquiryProductSupplierBid.objects.filter(
+                inquiry_product__in=all_products,
+                bid_status=SupplierBidStatusChoices.ACCEPTED,
+                tenant=tenant,
+            ).values_list('inquiry_product_id', flat=True).distinct()
+
+            if all_products.count() > 0 and set(all_products.values_list('id', flat=True)).issubset(set(products_with_accepted)):
+                # All products have accepted bids — try to advance orchestrator
+                from tenant_apps.inquiries.services.happy_path_orchestrator import advance_orchestrator
+                result = advance_orchestrator(
+                    tenant=tenant,
+                    inquiry=inquiry,
+                    user=request.user if request.user.is_authenticated else None,
+                )
+                if result.steps_executed:
+                    resp_data['_orchestrator'] = {
+                        'advanced': True,
+                        'current_step': str(result.current_step.value) if result.current_step else None,
+                        'completed': result.completed,
+                    }
+                    logger.info(
+                        "accept_bid: all products have bids accepted, orchestrator advanced to %s for inquiry %s",
+                        result.current_step, inquiry.id,
+                    )
+        except Exception:
+            logger.exception("accept_bid: failed to advance orchestrator after bid acceptance")
+
+        return Response(resp_data, status=status.HTTP_200_OK)
 
 
 class InquiryTemplateViewSet(viewsets.ModelViewSet):
