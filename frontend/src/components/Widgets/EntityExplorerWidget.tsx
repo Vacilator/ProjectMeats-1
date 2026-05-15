@@ -306,7 +306,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- tenantId is not used inside fetchEntities; getRecentItems handles tenant context internally
+   
   }, []);
 
   useEffect(() => {

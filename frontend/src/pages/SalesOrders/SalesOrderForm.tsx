@@ -415,13 +415,13 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
   const [shippingContacts, setShippingContacts] = useState<ShippingContact[]>([
     { id: Date.now().toString(), name: '', phone: '', email: '' },
   ]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [customers, setCustomers] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [suppliers, setSuppliers] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [carriers, setCarriers] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const [contacts, setContacts] = useState<any[]>([]);
   const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
   const [supplierAutoFilled, setSupplierAutoFilled] = useState(false);

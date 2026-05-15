@@ -113,13 +113,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
 
   const proposalsQuery = useQuery({
     queryKey: proposalsQueryKey,
-    queryFn: async () => {
-      try {
-        return await traderService.getProposals();
-      } catch {
-        return [];
-      }
-    },
+    queryFn: () => traderService.getProposals(),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });
