@@ -78,7 +78,7 @@ async function bootstrapApplication(): Promise<void> {
             boxSizing: 'border-box',
           }}
         >
-          <h1 style={{ marginTop: 0 }}>Unable to load ProjectMeats</h1>
+          <h1 style={{ marginTop: 0 }}>Unable to load Meats Central</h1>
           <p style={{ color: 'rgb(var(--color-text-secondary))' }}>{chunkRecoveryMessage}</p>
           <button
             type="button"
