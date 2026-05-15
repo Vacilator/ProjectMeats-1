@@ -11,6 +11,8 @@ export { TradeLineageActions } from './TradeLineageActions';
 export type { TradeLineageActionsProps } from './TradeLineageActions';
 export { TradeJourneyTimeline } from './TradeJourneyTimeline';
 export type { TradeJourneyTimelineProps } from './TradeJourneyTimeline';
+export { TradeDocumentsPanel } from './TradeDocumentsPanel';
+export type { TradeDocumentsPanelProps } from './TradeDocumentsPanel';
 export {
   computeContextualFormRules,
   buildFormContext,
