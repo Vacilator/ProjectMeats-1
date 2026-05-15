@@ -14,7 +14,7 @@ export interface ApiErrorPresentation {
 type ErrorWithResponse = {
   response?: {
     status?: number;
-    data?: any;
+    data?: Record<string, unknown>;
   };
   code?: string;
   message?: string;

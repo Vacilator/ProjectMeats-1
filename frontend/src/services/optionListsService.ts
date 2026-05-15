@@ -1,6 +1,6 @@
 /**
  * Service for managing Option Lists and Choice Overrides
- * 
+ *
  * Provides API for:
  * - System-level option lists (FieldOptionList)
  * - Tenant-level custom lists (TenantList)
@@ -288,9 +288,9 @@ export interface AuditLogEntry {
   field_name: string;
   action: 'create' | 'update' | 'delete' | 'activate' | 'deactivate';
   action_display: string;
-  previous_state: Record<string, any>;
-  new_state: Record<string, any>;
-  changes: Array<{ field: string; old: any; new: any }>;
+  previous_state: Record<string, unknown>;
+  new_state: Record<string, unknown>;
+  changes: Array<{ field: string; old: unknown; new: unknown }>;
   performed_by: number | null;
   performed_by_name: string | null;
   performed_at: string;

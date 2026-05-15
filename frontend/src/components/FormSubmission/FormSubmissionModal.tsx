@@ -954,13 +954,13 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Parse steps from submission
   const steps: StepData[] = useMemo(() => {
     if (!submission?.form_snapshot?.steps) return [];
-    return submission.form_snapshot.steps
+    return (submission.form_snapshot.steps as SnapshotStep[])
       .sort((a: SnapshotStep, b: SnapshotStep) => a.order - b.order)
       .map((step: SnapshotStep) => ({
         id: step.id,
         name: step.name,
         order: step.order,
-        entity_type: step.entity_type,
+        entity_type: step.entity_type || '',
         fields: (step.fields || [])
           .sort((a: SnapshotField, b: SnapshotField) => (a.order ?? 0) - (b.order ?? 0))  // Sort fields by order
           .map((f: SnapshotField) => ({
@@ -988,7 +988,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Parse rules
   const rules: RuleData[] = useMemo(() => {
     if (!submission?.form_snapshot?.rules) return [];
-    return submission.form_snapshot.rules.filter((r: RuleData) => r.is_active !== false);
+    return (submission.form_snapshot.rules as RuleData[]).filter((r: RuleData) => r.is_active !== false);
   }, [submission?.form_snapshot]);
 
   const currentStep = steps[currentStepIndex];

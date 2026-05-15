@@ -1,6 +1,6 @@
 /**
  * Authentication service for managing user authentication state.
- * 
+ *
  * Wave S1: Security Hardening - JWT Authentication
  * - Uses JWT tokens (access + refresh) for authentication
  * - Short-lived access tokens (15 min) with automatic refresh
@@ -10,7 +10,7 @@ import { apiClient } from './apiService';
 import { UserProfile } from '../types';
 import { logger } from '../utils/logger';
 
-const normalizeUserProfile = (raw: any): UserProfile => {
+const normalizeUserProfile = (raw: Record<string, unknown>): UserProfile => {
   const isActive =
     typeof raw?.is_active === 'boolean'
       ? raw.is_active
@@ -27,8 +27,8 @@ const normalizeUserProfile = (raw: any): UserProfile => {
     is_active: isActive,
     is_staff: typeof raw?.is_staff === 'boolean' ? raw.is_staff : undefined,
     is_superuser: typeof raw?.is_superuser === 'boolean' ? raw.is_superuser : undefined,
-    role: raw?.role,
-    tenants: raw?.tenants,
+    role: raw?.role as string | undefined,
+    tenants: raw?.tenants as UserProfile['tenants'],
   };
 };
 import {
@@ -101,7 +101,7 @@ export class AuthService {
         const normalizedUser = normalizeUserProfile(user);
         this.user = normalizedUser;
         localStorage.setItem('user', JSON.stringify(normalizedUser));
-        
+
         // Store tenant information
         if (tenants && tenants.length > 0) {
           const primaryTenant = tenants[0];
@@ -113,7 +113,7 @@ export class AuthService {
         logger.debug('JWT login successful', { component: 'AuthService' });
         return normalizedUser;
       }
-      
+
       throw new Error('Invalid JWT response');
     } catch (jwtError: unknown) {
       // If JWT fails with 404 (endpoint not available), fall back to legacy
@@ -122,7 +122,7 @@ export class AuthService {
         logger.debug('JWT endpoint not available, using legacy login', { component: 'AuthService' });
         return this.legacyLogin(credentials);
       }
-      
+
       throw new Error(axiosErr.response?.data?.detail || axiosErr.response?.data?.error || 'Login failed');
     }
   }
@@ -199,8 +199,8 @@ export class AuthService {
   async signUp(credentials: SignUpCredentials): Promise<UserProfile> {
     try {
       // Determine endpoint based on presence of token
-      const endpoint = credentials.token 
-        ? '/auth/signup-with-invitation/' 
+      const endpoint = credentials.token
+        ? '/auth/signup-with-invitation/'
         : '/auth/signup/';
 
       // Construct payload with correct field mapping
@@ -226,7 +226,7 @@ export class AuthService {
         // Legacy token
         localStorage.setItem('authToken', token);
       }
-      
+
       const normalizedUser = normalizeUserProfile(user);
       this.user = normalizedUser;
       localStorage.setItem('user', JSON.stringify(normalizedUser));
@@ -245,7 +245,7 @@ export class AuthService {
       const serverData = (resp.data && typeof resp.data === 'object' ? resp.data : null) as Record<string, unknown> | null;
       // Enhanced error handling to capture validation errors
       let errorMessage = 'Sign up failed';
-      
+
       if (serverData) {
           if (typeof serverData.error === 'string') {
               errorMessage = serverData.error;

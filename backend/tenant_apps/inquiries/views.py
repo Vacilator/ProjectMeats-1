@@ -11,16 +11,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 from tenant_apps.purchase_orders.serializers import PurchaseOrderSerializer
 
-from .models import (
-    Inquiry,
-    InquiryProduct,
-    InquiryRouteDecisionChoices,
-    InquiryTemplate,
-    InquiryTemplateProduct,
-)
+from apps.core.viewsets_documents import OperationalDocumentActionsMixin
+
+from .models import Inquiry, InquiryProduct, InquiryRouteDecisionChoices, InquiryTemplate, InquiryTemplateProduct
 from .serializers import (
     AddProductsSerializer,
     CloneInquirySerializer,
@@ -161,33 +156,65 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def create_fulfillment(self, request, pk=None):
         """Create a fulfillment from this inquiry."""
+        from tenant_apps.carriers.models import Carrier
         from tenant_apps.fulfillments.models import Fulfillment, FulfillmentProduct
         from tenant_apps.fulfillments.serializers import FulfillmentDetailSerializer
+        from tenant_apps.suppliers.models import Supplier
 
         inquiry = self.get_object()
 
-        # Get optional data from request
         supplier_id = request.data.get("supplier")
         carrier_id = request.data.get("carrier")
         product_quantities = request.data.get("products", [])
+
+        # Validate supplier belongs to this tenant
+        supplier = None
+        if supplier_id:
+            try:
+                supplier = Supplier.objects.get(pk=supplier_id, tenant=inquiry.tenant)
+            except Supplier.DoesNotExist:
+                raise ValidationError({"supplier": "Supplier not found for this tenant."})
+
+        # Validate carrier belongs to this tenant
+        carrier = None
+        if carrier_id:
+            try:
+                carrier = Carrier.objects.get(pk=carrier_id, tenant=inquiry.tenant)
+            except Carrier.DoesNotExist:
+                raise ValidationError({"carrier": "Carrier not found for this tenant."})
+
+        # Validate product quantities payload structure
+        if product_quantities:
+            if not isinstance(product_quantities, list):
+                raise ValidationError({"products": "Products must be a list."})
+            inquiry_product_ids = set(inquiry.products.values_list("pk", flat=True))
+            for idx, pq in enumerate(product_quantities):
+                if not isinstance(pq, dict):
+                    raise ValidationError({"products": f"Item {idx} must be an object."})
+                ipid = pq.get("inquiry_product_id")
+                if not ipid:
+                    raise ValidationError({"products": f"Item {idx} missing inquiry_product_id."})
+                if ipid not in inquiry_product_ids:
+                    raise ValidationError(
+                        {"products": (f"inquiry_product_id {ipid} does not belong " "to this inquiry.")}
+                    )
 
         # Create fulfillment
         fulfillment = Fulfillment.objects.create(
             tenant=inquiry.tenant,
             inquiry=inquiry,
-            supplier_id=supplier_id,
+            supplier=supplier,
             customer=inquiry.customer,
             shipping_type=getattr(inquiry, "shipping_type", None) or "tenant",
             created_by=request.user,
         )
 
-        if carrier_id:
-            fulfillment.carrier_id = carrier_id
-            fulfillment.save()
+        if carrier:
+            fulfillment.carrier = carrier
+            fulfillment.save(update_fields=["carrier"])
 
         # Create fulfillment products
         if product_quantities:
-            # Use provided quantities
             for pq in product_quantities:
                 FulfillmentProduct.objects.create(
                     fulfillment=fulfillment,
@@ -196,7 +223,6 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
                     unit_price=pq.get("unit_price"),
                 )
         else:
-            # Default: include all inquiry products with full quantities
             for ip in inquiry.products.all():
                 FulfillmentProduct.objects.create(
                     fulfillment=fulfillment,
@@ -315,10 +341,7 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
         POST /api/v1/inquiries/{id}/create-sales-order-draft/
         """
         from tenant_apps.sales_orders.serializers import SalesOrderSerializer as SOSerializer
-        from tenant_apps.sales_orders.services.draft_sales_order import (
-            DraftSalesOrderError,
-            create_draft_from_fulfill,
-        )
+        from tenant_apps.sales_orders.services.draft_sales_order import DraftSalesOrderError, create_draft_from_fulfill
 
         inquiry = self.get_object()
 
@@ -625,10 +648,7 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
 
         GET /api/v1/inquiries/{id}/orchestrator-state/
         """
-        from .services.happy_path_orchestrator import (
-            get_lineage_chain,
-            get_orchestrator_state,
-        )
+        from .services.happy_path_orchestrator import get_lineage_chain, get_orchestrator_state
 
         inquiry = self.get_object()
         current_step = get_orchestrator_state(tenant=request.tenant, inquiry=inquiry)
@@ -648,10 +668,7 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
         POST /api/v1/inquiries/{id}/orchestrator-advance/
         Body (optional): {"advance_through": "draft_sales_order"}
         """
-        from .services.happy_path_orchestrator import (
-            OrchestratorStep,
-            advance_orchestrator,
-        )
+        from .services.happy_path_orchestrator import OrchestratorStep, advance_orchestrator
 
         inquiry = self.get_object()
         advance_through = request.data.get("advance_through")

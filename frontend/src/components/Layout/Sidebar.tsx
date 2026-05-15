@@ -62,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
   // Using function to safely access window for SSR compatibility
   const getIsDesktop = () => typeof window !== 'undefined' && window.innerWidth >= 768;
   const [isDesktop, setIsDesktop] = useState(getIsDesktop);
-  
+
   useEffect(() => {
     const handleResize = () => {
       setIsDesktop(getIsDesktop());
@@ -130,9 +130,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
           {isExpanded && <LogoText $isDarkMode={isDarkMode}>{tenantBranding?.tenantName || 'Meats Central'}</LogoText>}
         </Logo>
         {isExpanded && isDesktop && (
-          <PinButton 
-            onClick={handleKeepOpenToggle} 
-            $theme={theme} 
+          <PinButton
+            onClick={handleKeepOpenToggle}
+            $theme={theme}
             $active={keepOpen}
             title={keepOpen ? "Unpin sidebar" : "Pin sidebar open"}
             aria-label={keepOpen ? "Unpin sidebar" : "Pin sidebar open"}
@@ -142,13 +142,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
         )}
       </SidebarHeader>
 
-      <NavigationSection>
+      <NavigationSection aria-label="Main navigation">
         <NavigationMenu items={navigation} isExpanded={isExpanded} />
       </NavigationSection>
 
       {/* Admin Workspace Section - Bottom Navigation */}
       {showAdminWorkspace ? (
-        <AdminWorkspaceSection>
+        <AdminWorkspaceSection aria-label="Workspace navigation">
           <NavigationMenu items={adminWorkspaceNavigation} isExpanded={isExpanded} />
         </AdminWorkspaceSection>
       ) : null}
@@ -211,8 +211,8 @@ const LogoIconWrapper = styled.div<{ $isDarkMode: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: ${(props) => props.$isDarkMode 
-    ? 'linear-gradient(135deg, rgba(var(--color-primary), 0.8), rgba(var(--color-primary), 1))' 
+  background: ${(props) => props.$isDarkMode
+    ? 'linear-gradient(135deg, rgba(var(--color-primary), 0.8), rgba(var(--color-primary), 1))'
     : 'linear-gradient(135deg, rgb(var(--color-primary)), rgba(var(--color-primary), 0.8))'};
   border-radius: 8px;
   font-size: 18px;
@@ -244,23 +244,23 @@ const PinButton = styled.button<{ $theme: Theme; $active: boolean }>`
   width: 32px;
   height: 32px;
   flex: 0 0 auto;
-  background: ${(props) => props.$active 
-    ? 'rgba(var(--color-primary), 0.2)' 
+  background: ${(props) => props.$active
+    ? 'rgba(var(--color-primary), 0.2)'
     : 'transparent'};
   border: none;
   border-radius: 6px;
-  color: ${(props) => props.$active 
-    ? 'rgb(var(--color-primary))' 
+  color: ${(props) => props.$active
+    ? 'rgb(var(--color-primary))'
     : 'rgb(var(--color-text-secondary))'};
   cursor: pointer;
   transition: all 0.15s ease;
 
   &:hover {
-    background: ${(props) => props.$active 
-      ? 'rgba(var(--color-primary), 0.3)' 
+    background: ${(props) => props.$active
+      ? 'rgba(var(--color-primary), 0.3)'
       : 'rgba(var(--color-text-primary), 0.06)'};
-    color: ${(props) => props.$active 
-      ? 'rgb(var(--color-primary))' 
+    color: ${(props) => props.$active
+      ? 'rgb(var(--color-primary))'
       : 'rgb(var(--color-text-primary))'};
   }
 
@@ -298,7 +298,7 @@ const AdminWorkspaceSection = styled.nav`
   border-top: 1px solid rgba(var(--color-text-primary), 0.08);
   padding: 8px 0;
   margin-top: auto;
-  
+
   /* Subtle background to differentiate admin section */
   background: rgba(var(--color-overlay), 0.04);
 `;
