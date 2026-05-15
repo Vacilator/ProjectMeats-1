@@ -46,6 +46,12 @@ export interface TradeSession {
   source_email_subject: string;
   initiated_at: string | null;
   updated_at: string | null;
+  // Linked entity IDs for stepper deep-linking
+  supplier_purchase_order_id?: string | null;
+  sales_order_id?: string | null;
+  carrier_purchase_order_id?: string | null;
+  fulfillment_id?: string | null;
+  invoice_id?: string | null;
 }
 
 export interface TradeListResponse {

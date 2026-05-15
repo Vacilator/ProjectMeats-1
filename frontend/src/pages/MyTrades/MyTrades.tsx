@@ -173,7 +173,26 @@ const MyTrades: React.FC = () => {
 
   /** Navigate to linked entity record when a stepper action is clicked */
   const handleStepperActionClick = useCallback(
-    (action: { label: string; section?: string }, step: { key: string; entityType?: string }) => {
+    (action: { label: string; section?: string }, step: { key: string; entityType?: string }, trade?: TradeSession) => {
+      if (!trade) return;
+      // Map step keys to entity record paths using linked IDs on the trade
+      const STEP_ENTITY_MAP: Record<string, { field: keyof TradeSession; prefix: string }> = {
+        inquiry: { field: 'inquiry_id', prefix: '/inquiries' },
+        purchase_order: { field: 'supplier_purchase_order_id', prefix: '/records/purchase_order' },
+        sales_order: { field: 'sales_order_id', prefix: '/records/sales_order' },
+        carrier_po: { field: 'carrier_purchase_order_id', prefix: '/records/carrier' },
+        fulfillment: { field: 'fulfillment_id', prefix: '/records/fulfillment' },
+        invoice: { field: 'invoice_id', prefix: '/records/invoice' },
+      };
+      const mapping = STEP_ENTITY_MAP[step.key];
+      if (mapping) {
+        const entityId = trade[mapping.field];
+        if (entityId) {
+          navigate(`${mapping.prefix}/${entityId}`);
+          return;
+        }
+      }
+      // Fallback: navigate to the route prefix for the step type
       const STEP_ROUTE_PREFIX: Record<string, string> = {
         inquiry: '/inquiries',
         purchase_order: '/records/purchase_order',
@@ -205,7 +224,7 @@ const MyTrades: React.FC = () => {
             <RefreshButton onClick={handleRefresh} disabled={isFetching} title="Refresh trades" aria-label="Refresh trades list">
               <RefreshCw size={16} className={isFetching ? 'spin' : ''} />
             </RefreshButton>
-            <InitiateButton onClick={handleInitiateTrade}>
+            <InitiateButton onClick={handleInitiateTrade} aria-label="Initiate new trade">
               <Plus size={14} /> Initiate Trade
             </InitiateButton>
           </HeaderActions>
@@ -318,7 +337,7 @@ const MyTrades: React.FC = () => {
             const isActive = isActiveStatus(trade.status);
             return (
               <TradeCard key={trade.id} $expanded={expandedId === trade.id}>
-                <TradeCardHeader onClick={() => toggleExpand(trade.id)}>
+                <TradeCardHeader onClick={() => toggleExpand(trade.id)} role="button" tabIndex={0} aria-expanded={expandedId === trade.id} onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(trade.id); } }}>
                   <ExpandIcon>
                     {expandedId === trade.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </ExpandIcon>
@@ -383,7 +402,7 @@ const MyTrades: React.FC = () => {
                         tradeStatus={trade.status}
                         currentStep={trade.current_step}
                         tradeSessionId={trade.id}
-                        onActionClick={handleStepperActionClick}
+                        onActionClick={(action, step) => handleStepperActionClick(action, step, trade)}
                       />
                     </FlowSection>
                     <FlowSection>
