@@ -413,15 +413,32 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   // every watched value update (new ref each time). Without this check,
   // setLiveFormValues → re-render → new props to UEF → DFE re-render →
   // onValuesChange → loop → React error #185.
+  //
+  // Mount-guard: Skip cascade state updates for the first 2 render cycles
+  // after the form opens. AntD Select's internal useStatus hook triggers
+  // setState on prop changes; rapid state updates during mount exceed React's
+  // max update depth (Error #185). Deferring cascade updates until after the
+  // form has settled eliminates the loop.
   const [liveFormValues, setLiveFormValues] = useState<Record<string, unknown>>({});
   const liveFormValuesRef = useRef<Record<string, unknown>>({});
+  const cascadeSettledRef = useRef(false);
+  useEffect(() => {
+    if (!isOpen) {
+      cascadeSettledRef.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      cascadeSettledRef.current = true;
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
   const fkOptions = useMemo<FkOptionsMap>(
     () => applyCascadeFilter(normalizedEntityKey, rawFkOptions as CascadeFkOptionsMap, liveFormValues) as unknown as FkOptionsMap,
     [normalizedEntityKey, rawFkOptions, liveFormValues],
   );
   const handleValuesChange = useCallback(
     (values: Record<string, unknown>) => {
-      if (!isEqual(liveFormValuesRef.current, values)) {
+      if (cascadeSettledRef.current && !isEqual(liveFormValuesRef.current, values)) {
         liveFormValuesRef.current = values;
         setLiveFormValues(values);
       }

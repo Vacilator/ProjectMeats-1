@@ -1426,11 +1426,12 @@ export const AIAgentWidget: React.FC = () => {
         // Pre-flight: verify backend API is reachable before opening WebSocket
         // This prevents the browser from logging uncatchable WebSocket errors
         // when the backend is not available (dev, network down, etc.)
-        if (!wsEndpointCheckedRef.current || !wsEndpointReachableRef.current) {
+        // Cache the "checked" flag even on failure to avoid re-probing every cycle.
+        if (!wsEndpointCheckedRef.current) {
           const reachable = await checkWSEndpointReachable();
           if (disposed) return;
           wsEndpointReachableRef.current = reachable;
-          wsEndpointCheckedRef.current = reachable;
+          wsEndpointCheckedRef.current = true;
         }
 
         if (!wsEndpointReachableRef.current) {
