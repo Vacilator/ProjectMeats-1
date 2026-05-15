@@ -40,6 +40,23 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: 'var(--color-text-tertiary)',
 };
 
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  inquiry: 'Inquiry',
+  purchase_order: 'Purchase Order',
+  sales_order: 'Sales Order',
+  carrier: 'Carrier',
+  fulfillment: 'Fulfillment',
+  invoice: 'Invoice',
+  form: 'Form',
+};
+const humanizeEntityType = (type: string) => ENTITY_TYPE_LABELS[type] ?? type.replace(/_/g, ' ');
+
+const TYPE_ICONS: Record<string, string> = {
+  trade_action: '🔄',
+  form_step: '📋',
+  workflow_task: '⚙️',
+};
+
 type TasksTab = 'action' | 'approvals' | 'ai';
 type PriorityFilter = 'all' | 'urgent' | 'high' | 'normal' | 'low';
 type SortOption = 'smart' | 'due_date' | 'priority';
@@ -812,7 +829,25 @@ export const MyTasks: React.FC = () => {
 
   /* ── task actions ── */
   const openTask = useCallback((item: ActionItem) => {
-    if (item.submission_id) navigate(`/workflows/run/${item.submission_id}`);
+    if (item.submission_id) {
+      navigate(`/workflows/run/${item.submission_id}`);
+      return;
+    }
+    if (item.entity_type && item.entity_id) {
+      const routeMap: Record<string, (id: string) => string> = {
+        inquiry: (id) => `/inquiries?review=inquiry&inquiry=${id}`,
+        purchase_order: (id) => `/purchase-orders?review=purchase_order&purchase_order=${id}`,
+        sales_order: (id) => `/sales-orders?highlight=${id}`,
+        carrier: (id) => `/carriers?highlight=${id}`,
+        fulfillment: (id) => `/fulfillments?highlight=${id}`,
+        invoice: (id) => `/invoices?highlight=${id}`,
+      };
+      const buildRoute = routeMap[item.entity_type];
+      if (buildRoute) {
+        navigate(buildRoute(item.entity_id));
+        return;
+      }
+    }
   }, [navigate]);
 
   const onDelegate = useCallback((e: React.MouseEvent, item: ActionItem) => {
@@ -920,7 +955,7 @@ export const MyTasks: React.FC = () => {
                   $active={entityFilter === et.type}
                   onClick={() => setEntityFilter(et.type)}
                 >
-                  {et.type.replace(/_/g, ' ')} ({et.count})
+                  {humanizeEntityType(et.type)} ({et.count})
                 </FilterPill>
               ))}
             </FilterPillRow>
@@ -1005,8 +1040,14 @@ export const MyTasks: React.FC = () => {
                         )}
 
                         <RowContent>
-                          <RowTitle>{item.title}</RowTitle>
+                          <RowTitle>
+                            {TYPE_ICONS[item.type] && <span style={{ marginRight: 6 }}>{TYPE_ICONS[item.type]}</span>}
+                            {item.title}
+                          </RowTitle>
                           <RowMeta>
+                            {item.type === 'trade_action' && item.entity_type && (
+                              <Tag color="blue" style={{ margin: 0, fontSize: 11 }}>{humanizeEntityType(item.entity_type)}</Tag>
+                            )}
                             {item.form_name && <span>{item.form_name}{item.step_name ? ` → ${item.step_name}` : ''}</span>}
                             {typeof item.related_po_value === 'number' && (
                               <span>{item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}</span>
