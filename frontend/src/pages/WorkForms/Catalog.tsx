@@ -91,7 +91,7 @@ interface CatalogItem {
 }
 
 type ViewMode = 'grid' | 'list';
-type FilterOption = 'all' | 'active' | 'draft' | 'recent' | 'favorites';
+type FilterOption = 'all' | 'active' | 'draft' | 'recent';
 type TabOption = 'workflows' | 'forms' | 'templates';
 type ProteinType = 'all' | 'beef' | 'pork' | 'poultry' | 'seafood' | 'lamb' | 'other';
 type Department = 'all' | 'receiving' | 'processing' | 'packaging' | 'quality_control' | 'shipping';
@@ -770,7 +770,6 @@ const FormsFlowsCatalog: React.FC = () => {
           .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
           .slice(0, 10);
       }
-      // TODO: Implement favorites when backend supports it
     }
 
     return filtered;
