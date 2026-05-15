@@ -207,4 +207,30 @@ export const traderService = {
   async submitProposalFeedback(proposalId: string, signal: 'thumbs_up' | 'thumbs_down', comment?: string): Promise<void> {
     await businessApi.post(`/trades/${proposalId}/proposal-feedback/`, { signal, comment });
   },
+
+  // --------------------------------------------------------------------------
+  // Email dispatch (fulfillment + invoice)
+  // --------------------------------------------------------------------------
+
+  /** Send fulfillment notification email (shipped or delivered) */
+  async sendFulfillmentNotification(
+    fulfillmentId: string,
+    type: 'shipped' | 'delivered' = 'shipped',
+  ): Promise<{ status: string; recipient: string; message_id: string }> {
+    const response = await businessApi.post(
+      `/fulfillments/${fulfillmentId}/send-notification/`,
+      { type },
+    );
+    return response.data;
+  },
+
+  /** Send invoice email with PDF attachment */
+  async sendInvoiceEmail(
+    invoiceId: string,
+  ): Promise<{ status: string; recipient: string; message_id: string }> {
+    const response = await businessApi.post(
+      `/invoices/${invoiceId}/email-invoice/`,
+    );
+    return response.data;
+  },
 };
