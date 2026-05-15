@@ -173,6 +173,9 @@ export const WorkflowStatusBar: React.FC<WorkflowStatusBarProps> = ({
       }
 
       void queryClient.invalidateQueries({ queryKey: workflowQueryKey });
+      // Refresh trade lineage and trades list after any status change
+      void queryClient.invalidateQueries({ queryKey: ['trade-lineage'] });
+      void queryClient.invalidateQueries({ queryKey: ['trades'] });
       onTransitioned?.();
     },
     onError: (err: unknown) => {
@@ -251,20 +254,21 @@ export const WorkflowStatusBar: React.FC<WorkflowStatusBarProps> = ({
         <RightSection>
           <Space size={6}>
             {primaryActions.map((a) => (
-              <Button
-                key={a.nextStatus}
-                type={intentToType(a.meta.intent)}
-                size="small"
-                loading={isTransitioning}
-                onClick={() => handleTransition(a.nextStatus)}
-                style={
-                  a.meta.intent === 'success'
-                    ? { background: 'rgb(var(--color-success))', borderColor: 'rgb(var(--color-success))' }
-                    : undefined
-                }
-              >
-                {a.meta.label}
-              </Button>
+              <Tooltip key={a.nextStatus} title={a.meta.description}>
+                <Button
+                  type={intentToType(a.meta.intent)}
+                  size="small"
+                  loading={isTransitioning}
+                  onClick={() => handleTransition(a.nextStatus)}
+                  style={
+                    a.meta.intent === 'success'
+                      ? { background: 'rgb(var(--color-success))', borderColor: 'rgb(var(--color-success))' }
+                      : undefined
+                  }
+                >
+                  {a.meta.label}
+                </Button>
+              </Tooltip>
             ))}
           </Space>
           {secondaryMenu.length > 0 && (

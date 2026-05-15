@@ -12,6 +12,7 @@
 import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { message } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatDateLocal } from '@/utils/formatters';
 import {
   Inquiry,
@@ -360,6 +361,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
 }) => {
   const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleFulfillmentClose = useCallback(() => setShowFulfillmentModal(false), []);
 
@@ -422,6 +424,9 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 entityId={String(inquiry.id)}
                 compact
                 onTransitioned={() => {
+                  // Refresh lineage flow + trades after status change
+                  void queryClient.invalidateQueries({ queryKey: ['trade-lineage'] });
+                  void queryClient.invalidateQueries({ queryKey: ['trades'] });
                   onUpdate?.(inquiry);
                 }}
               />

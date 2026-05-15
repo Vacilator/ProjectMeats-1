@@ -29,6 +29,8 @@ export interface TransitionMeta {
   intent: 'primary' | 'success' | 'danger' | 'warning' | 'neutral';
   /** Optional confirmation message before executing */
   confirm?: string;
+  /** Short description of what this action does (shown as tooltip) */
+  description?: string;
 }
 
 export interface EntityWorkflowConfig {
@@ -64,15 +66,15 @@ const INQUIRY_CONFIG: EntityWorkflowConfig = {
   partyLabel: 'Customer',
   contactField: 'contact_name',
   transitions: {
-    [t('draft', 'pending')]: { label: 'Submit', intent: 'primary' },
-    [t('draft', 'quoted')]: { label: 'Mark as Quoted', intent: 'primary' },
+    [t('draft', 'pending')]: { label: 'Submit', intent: 'primary', description: 'Submit inquiry for review' },
+    [t('draft', 'quoted')]: { label: 'Mark as Quoted', intent: 'primary', description: 'Record that a price quote has been provided to the customer' },
     [t('draft', 'cancelled')]: { label: 'Cancel', intent: 'danger', confirm: 'Cancel this inquiry?' },
-    [t('pending', 'quoted')]: { label: 'Mark as Quoted', intent: 'primary' },
+    [t('pending', 'quoted')]: { label: 'Mark as Quoted', intent: 'primary', description: 'Record that a price quote has been provided to the customer' },
     [t('pending', 'cancelled')]: { label: 'Cancel', intent: 'danger', confirm: 'Cancel this inquiry?' },
-    [t('quoted', 'accepted')]: { label: 'Accept', intent: 'success' },
+    [t('quoted', 'accepted')]: { label: 'Accept Inquiry', intent: 'success', description: 'Accept this inquiry and auto-create a Purchase Order', confirm: 'Accept this inquiry? A draft Purchase Order will be created automatically.' },
     [t('quoted', 'rejected')]: { label: 'Reject', intent: 'danger', confirm: 'Reject this inquiry?' },
     [t('quoted', 'cancelled')]: { label: 'Cancel', intent: 'danger', confirm: 'Cancel this inquiry?' },
-    [t('accepted', 'fulfilled')]: { label: 'Mark Fulfilled', intent: 'success' },
+    [t('accepted', 'fulfilled')]: { label: 'Mark Fulfilled', intent: 'success', description: 'Mark this inquiry as fully fulfilled' },
     [t('accepted', 'cancelled')]: { label: 'Cancel', intent: 'danger', confirm: 'Cancel this inquiry?' },
   },
 };

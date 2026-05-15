@@ -77,6 +77,106 @@ def attempt_cascade(
 # ---------------------------------------------------------------------------
 
 
+def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeResult:
+    """Inquiry accepted → auto-create draft Purchase Order.
+
+    Uses the existing supplier_quote_po_draft service when an RFQ reply
+    exists, otherwise creates a bare PO draft linked to the inquiry.
+    Also ensures a TradeSession exists (so My Trades picks it up).
+    """
+    from tenant_apps.inquiries.models import Inquiry, InquirySupplierRFQ
+    from tenant_apps.inquiries.services.trade_session import get_or_create_trade_session
+    from tenant_apps.purchase_orders.models import PurchaseOrder
+
+    inquiry: Inquiry = document
+
+    # Always ensure a TradeSession exists for this inquiry
+    get_or_create_trade_session(tenant=tenant, inquiry=inquiry)
+
+    with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
+        # Idempotency: check if a PO already exists for this inquiry
+        existing_po = PurchaseOrder.objects.for_tenant(tenant).filter(inquiry=inquiry).first()
+        if existing_po:
+            return CascadeResult(
+                triggered=True,
+                created_entity_type="purchase_order",
+                created_entity_id=str(existing_po.id),
+                created_entity_label=(f"PO #{existing_po.po_number or existing_po.id}"),
+                already_existed=True,
+            )
+
+        # Try the supplier-quote path first (RFQ with a reply)
+        rfq = (
+            InquirySupplierRFQ.objects.filter(inquiry=inquiry, tenant=tenant)
+            .exclude(reply_status="pending")
+            .order_by("-replied_at")
+            .first()
+        )
+        if rfq:
+            try:
+                from tenant_apps.inquiries.services.supplier_quote_po_draft import (
+                    create_supplier_quote_purchase_order_draft,
+                )
+
+                result = create_supplier_quote_purchase_order_draft(tenant=tenant, inquiry=inquiry, rfq_id=rfq.id)
+                po = result.purchase_order
+                return CascadeResult(
+                    triggered=True,
+                    created_entity_type="purchase_order",
+                    created_entity_id=str(po.id),
+                    created_entity_label=f"PO #{po.po_number or po.id}",
+                    already_existed=not result.created,
+                    details={
+                        "purchase_order_id": str(po.id),
+                        "created_via": "supplier_quote_po_draft",
+                    },
+                )
+            except Exception:
+                logger.warning(
+                    "RFQ-based PO creation failed for inquiry %s, " "falling back to bare PO draft",
+                    inquiry.id,
+                    exc_info=True,
+                )
+
+        # Fallback: create a bare draft PO linked to this inquiry
+        po = PurchaseOrder.objects.create(
+            tenant=tenant,
+            inquiry=inquiry,
+            supplier=inquiry.supplier,
+            customer=inquiry.customer,
+            type_of_protein=inquiry.type_of_protein or "",
+            fresh_or_frozen=inquiry.fresh_or_frozen or "",
+            package_type=inquiry.package_type or "",
+            net_or_catch=inquiry.net_or_catch or "",
+            edible_or_inedible=inquiry.edible_or_inedible or "",
+            status="draft",
+            notes=(f"Auto-created from Inquiry " f"{inquiry.inquiry_number or inquiry.id}."),
+            custom_data={
+                "cascade_source": "inquiry",
+                "source_inquiry_id": str(inquiry.id),
+                "source_inquiry_number": inquiry.inquiry_number or "",
+                "created_via": "workflow_cascade",
+            },
+        )
+
+        logger.info(
+            "Cascade: Inquiry %s (accepted) → PO %s created",
+            inquiry.id,
+            po.id,
+        )
+
+        return CascadeResult(
+            triggered=True,
+            created_entity_type="purchase_order",
+            created_entity_id=str(po.id),
+            created_entity_label=f"PO #{po.po_number or po.id}",
+            details={
+                "purchase_order_id": str(po.id),
+                "created_via": "workflow_cascade_bare",
+            },
+        )
+
+
 def _cascade_po_approved_to_so(*, tenant: Any, document: Any) -> CascadeResult:
     """PO approved → auto-create draft Sales Order."""
     from tenant_apps.sales_orders.services.draft_sales_order import (
@@ -336,6 +436,7 @@ def _resolve_linked_po(tenant: Any, sales_order: Any):
 # ---------------------------------------------------------------------------
 
 _CASCADE_HANDLERS: dict[tuple[str, str], Any] = {
+    ("Inquiry", "accepted"): _cascade_inquiry_accepted_to_po,
     ("PurchaseOrder", "approved"): _cascade_po_approved_to_so,
     ("SalesOrder", "confirmed"): _cascade_so_confirmed_to_carrier_po,
     ("CarrierPurchaseOrder", "delivered"): _cascade_carrier_po_delivered_to_fulfillment,
