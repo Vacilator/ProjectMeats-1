@@ -108,7 +108,7 @@ const FreightOrders: React.FC = () => {
     void refreshFreightOrders();
   }, [refreshFreightOrders]);
 
-  const orders = freightOrdersQuery.data ?? [];
+  const orders = useMemo(() => freightOrdersQuery.data ?? [], [freightOrdersQuery.data]);
 
   const filteredOrders = useMemo(() => {
     let result = orders;
@@ -205,7 +205,7 @@ const FreightOrders: React.FC = () => {
         ),
       },
     ],
-    []
+    [refreshFreightOrders]
   );
 
   return (

@@ -152,7 +152,7 @@ const ColdStorage: React.FC = () => {
     retry: false,
   });
 
-  const facilities = facilitiesQuery.data || [];
+  const facilities = useMemo(() => facilitiesQuery.data || [], [facilitiesQuery.data]);
 
   // Mock lot data derived from real facilities (until dedicated lot model exists)
   const lots = useMemo<ColdStorageLot[]>(() => {

@@ -79,7 +79,7 @@ const Customers: React.FC = () => {
     },
   });
 
-  const customers = (customersQuery.data ?? []) as CustomerListRow[];
+  const customers = useMemo(() => (customersQuery.data ?? []) as CustomerListRow[], [customersQuery.data]);
 
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('all');

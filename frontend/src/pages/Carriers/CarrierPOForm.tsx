@@ -616,7 +616,7 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [formValues.carrier, buildPayload, mode, entityId, onSuccess]);
+  }, [formValues.carrier, formValues.carrier_release_num, buildPayload, mode, entityId, onSuccess, approvalGate]);
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) onCancel();

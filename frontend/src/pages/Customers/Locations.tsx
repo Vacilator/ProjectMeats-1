@@ -193,6 +193,7 @@ const CustomerLocations: React.FC = () => {
 
   useEffect(() => {
     filterLocations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- filterLocations is unstable; all values it reads are already listed
   }, [locations, searchText, contextCustomerId, activeTab]);
 
   const loadLocations = async (customerFilterId: number | null) => {
