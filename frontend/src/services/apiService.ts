@@ -28,6 +28,27 @@ import type { TradeTimelinePayload, TradeWeightPayload } from '../utils/trade';
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
 
+// ---------------------------------------------------------------------------
+// 5xx error deduplication — suppress repeated console noise for the same
+// endpoint returning the same status within a short window.
+// ---------------------------------------------------------------------------
+const _recentServerErrors = new Map<string, number>();
+const SERVER_ERROR_DEDUP_MS = 10_000;
+function shouldLogServerError(url: string | undefined, status: number): boolean {
+  const key = `${status}:${url ?? 'unknown'}`;
+  const lastSeen = _recentServerErrors.get(key) ?? 0;
+  const now = Date.now();
+  if (now - lastSeen < SERVER_ERROR_DEDUP_MS) return false;
+  _recentServerErrors.set(key, now);
+  // Prune old entries periodically
+  if (_recentServerErrors.size > 50) {
+    for (const [k, t] of _recentServerErrors) {
+      if (now - t > SERVER_ERROR_DEDUP_MS * 3) _recentServerErrors.delete(k);
+    }
+  }
+  return true;
+}
+
 // Extract base URL without /api/v1/ suffix for admin endpoints
 const BASE_DOMAIN = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
 
@@ -294,11 +315,14 @@ apiClient.interceptors.response.use(
           ? 'Server temporarily unreachable. Please try again shortly.'
           : 'Server error. Please try again shortly.';
 
-      logger.error('[API] Server error (circuit breaker)', {
-        status,
-        url: originalRequest?.url,
-        method: originalRequest?.method,
-      });
+      // Deduplicate repeated 5xx logs for the same endpoint within 10s
+      if (shouldLogServerError(originalRequest?.url, status)) {
+        logger.error('[API] Server error (circuit breaker)', {
+          status,
+          url: originalRequest?.url,
+          method: originalRequest?.method,
+        });
+      }
 
       // Sentry hardening: capture the original axios error with context before we
       // replace it with a friendly message.
@@ -436,11 +460,13 @@ adminClient.interceptors.response.use(
           ? 'Server temporarily unreachable. Please try again shortly.'
           : 'Server error. Please try again shortly.';
 
-      logger.error('[Admin API] Server error (circuit breaker)', {
-        status,
-        url: originalRequest?.url,
-        method: originalRequest?.method,
-      });
+      if (shouldLogServerError(originalRequest?.url, status)) {
+        logger.error('[Admin API] Server error (circuit breaker)', {
+          status,
+          url: originalRequest?.url,
+          method: originalRequest?.method,
+        });
+      }
 
       return Promise.reject(
         createCircuitBreakerError({

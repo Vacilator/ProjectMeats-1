@@ -123,7 +123,17 @@ export class AuthService {
         return this.legacyLogin(credentials);
       }
 
-      throw new Error(axiosErr.response?.data?.detail || axiosErr.response?.data?.error || 'Login failed');
+      // Detect circuit-breaker (5xx) errors and surface a helpful message
+      // instead of generic "Login failed".
+      const cbErr = jwtError as { kind?: string; friendlyMessage?: string; status?: number };
+      if (cbErr.kind === 'circuit_breaker' || (cbErr.status && cbErr.status >= 500)) {
+        throw new Error(
+          cbErr.friendlyMessage ||
+            'The server is temporarily unavailable. Please wait a moment and try again.'
+        );
+      }
+
+      throw new Error(axiosErr.response?.data?.detail || axiosErr.response?.data?.error || 'Login failed. Please check your credentials and try again.');
     }
   }
 
