@@ -83,7 +83,7 @@ const MyTrades: React.FC = () => {
   const [routeFilter, setRouteFilter] = useState<RouteFilter>('all');
   const [advancingId, setAdvancingId] = useState<string | null>(null);
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: withTenantQueryKey('my-trades'),
     queryFn: () => traderService.listActiveTrades(),
     staleTime: 30_000,
@@ -237,6 +237,15 @@ const MyTrades: React.FC = () => {
             </SkeletonCard>
           ))}
         </SkeletonList>
+      ) : isError ? (
+        <EmptyStateWrapper>
+          <EmptyStateIcon>⚠️</EmptyStateIcon>
+          <EmptyStateTitle>Unable to load trades</EmptyStateTitle>
+          <EmptyStateDesc>Something went wrong while fetching your trades. Please try again.</EmptyStateDesc>
+          <EmptyStateCTA onClick={() => void refetch()}>
+            <RefreshCw size={14} /> Retry
+          </EmptyStateCTA>
+        </EmptyStateWrapper>
       ) : filteredTrades.length === 0 ? (
         <EmptyStateWrapper>
           <EmptyStateIcon>{activeTab === 'completed' ? '🏆' : '📋'}</EmptyStateIcon>
