@@ -13,6 +13,7 @@ import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { message } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { formatDateLocal } from '@/utils/formatters';
 import {
@@ -537,8 +538,42 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const handleFulfillmentClose = useCallback(() => setShowFulfillmentModal(false), []);
+
+  /** Navigate to linked entity record when a stepper action is clicked */
+  const handleStepperActionClick = useCallback(
+    (action: { label: string; section?: string }, step: { key: string; entityType?: string }) => {
+      if (!inquiry) return;
+
+      // Map step keys to entity record paths using linked FKs on the inquiry
+      const STEP_ENTITY_MAP: Record<string, { field: string; prefix: string }> = {
+        purchase_order: { field: 'supplier_purchase_order', prefix: '/records/purchase_order' },
+        sales_order: { field: 'sales_order', prefix: '/records/sales_order' },
+        carrier_po: { field: 'carrier_purchase_order', prefix: '/records/carrier' },
+        fulfillment: { field: 'supplier_purchase_order', prefix: '/records/fulfillment' },
+        invoice: { field: 'supplier_purchase_order', prefix: '/records/invoice' },
+      };
+
+      const mapping = STEP_ENTITY_MAP[step.key];
+      if (mapping) {
+        const entityId = (inquiry as unknown as Record<string, unknown>)[mapping.field];
+        if (entityId) {
+          onClose();
+          navigate(`${mapping.prefix}/${entityId}`);
+          return;
+        }
+      }
+
+      // For inquiry step or if no linked entity yet, scroll to relevant section
+      if (action.section) {
+        const el = document.getElementById(action.section);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    [inquiry, navigate, onClose],
+  );
 
   if (!isOpen || !inquiry) return null;
 
@@ -600,6 +635,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 currentStep={inquiry.trade_session_current_step}
                 inquiryStatus={inquiry.status}
                 tradeSessionId={inquiry.trade_session_id}
+                onActionClick={handleStepperActionClick}
                 compact
               />
             )}

@@ -171,6 +171,25 @@ const MyTrades: React.FC = () => {
     navigate('/inquiries?action=create');
   }, [navigate]);
 
+  /** Navigate to linked entity record when a stepper action is clicked */
+  const handleStepperActionClick = useCallback(
+    (action: { label: string; section?: string }, step: { key: string; entityType?: string }) => {
+      const STEP_ROUTE_PREFIX: Record<string, string> = {
+        inquiry: '/inquiries',
+        purchase_order: '/records/purchase_order',
+        sales_order: '/records/sales_order',
+        carrier_po: '/records/carrier',
+        fulfillment: '/records/fulfillment',
+        invoice: '/records/invoice',
+      };
+      const prefix = STEP_ROUTE_PREFIX[step.key];
+      if (prefix) {
+        navigate(prefix);
+      }
+    },
+    [navigate],
+  );
+
   const tabItems: { key: TradeTab; label: string; count: number }[] = [
     { key: 'active', label: 'Active', count: counts.active },
     { key: 'completed', label: 'Completed', count: counts.completed },
@@ -364,6 +383,7 @@ const MyTrades: React.FC = () => {
                         tradeStatus={trade.status}
                         currentStep={trade.current_step}
                         tradeSessionId={trade.id}
+                        onActionClick={handleStepperActionClick}
                       />
                     </FlowSection>
                     <FlowSection>
