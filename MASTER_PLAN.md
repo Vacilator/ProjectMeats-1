@@ -4580,3 +4580,78 @@ Production audit identified silent error swallowing and inconsistent logging. Fi
 - Frontend Prod Smoke (3/3): pass
 - Validate Migrations: pass
 - 3 files changed, 13 insertions, 8 deletions
+
+## Phase 50: Dead Code Removal — 4,754 Lines Cleaned
+
+**Status**: ✅ Complete
+**PRs**: #5445
+
+### Summary
+Comprehensive dead code audit and removal for production readiness. Verified zero-import status before deletion.
+
+### Removed
+1. **Pages** (2,860 lines): AICommandCenter (1734+863 test), Dashboard (804), Processes (234), ActivityFeedPage (29) — none routed in App.tsx
+2. **Hooks** (825 lines): useAIHooks (179), useAutoSave (252+71 test), usePerformanceMonitoring (323) — zero production imports
+3. **Components** (264 lines): PerformanceOverlay (185), duplicate Shared/ErrorBoundary (79) — never imported
+4. **Consolidated ErrorBoundary**: Shared/index.ts re-exports from common/ErrorBoundary (production-grade: Sentry + chunk recovery)
+
+### Verification
+- TypeScript: 0 errors
+- All CI checks pass including Infrastructure Drift Gate ✅
+- Frontend Unit Tests: pass (6m48s)
+- 12 files changed, -4,754 lines
+
+## Phase 51: Settings Route Fix + UX Polish
+
+**Status**: ✅ Complete
+**PRs**: #5446
+
+### Summary
+Fixed broken Settings route and added missing error states for production demo readiness.
+
+### Delivered
+1. **SettingsPage.tsx**: New tab-based Settings hub (Email Integrations | Notifications) with URL-synced tab state
+2. **Fixed /settings crash**: Route had no default export (barrel file only exported named NotificationPreferences) → now renders SettingsPage
+3. **Route cleanup**: /settings/email-integrations and /settings/notifications redirect to tab URLs
+4. **MyTrades error state**: Added isError handling with retry CTA (previously showed nothing on API failure)
+5. **Removed unused NotificationPreferences lazy import** from App.tsx
+
+### Verification
+- TypeScript: 0 errors
+- All CI checks pass
+- Frontend Unit Tests: pass (6m48s)
+- 4 files changed, +89 -4
+
+## Production Readiness Audit Results (Phase 49-51)
+
+### ✅ Code Quality (All Green)
+- TypeScript: 0 errors
+- Console.log: 0 in production code
+- Direct axios imports: 0 violations (service layer pattern enforced)
+- Empty catch blocks: 0 frontend, 0 backend
+- Silent exception handlers: 0 (fixed in Phase 49)
+- Tenant isolation: verified safe across all ViewSets
+- print() statements: 0 in backend production code
+- Security: DEBUG=False in production, no hardcoded secrets
+- Unused imports: 0
+
+### ✅ Architecture
+- Error boundaries: 37+ files, covering all major page sections
+- Loading states: 63 pages with skeleton/spinner
+- Empty states: 173 components with user-friendly messaging
+- Service layer: businessApi/workformsApi used everywhere (0 direct axios)
+- Rate limiting: DRF throttling + custom middleware
+- API docs: OpenAPI/Swagger/ReDoc at /api/docs/, /api/redoc/
+- Health check: /api/v1/health/ with comprehensive checks
+- Custom DRF exception handler with Sentry capture
+
+### ✅ Testing
+- Frontend test files: 217
+- Backend test files: 210
+- CI pipeline: All checks green (Frontend Type Check, Unit Tests, Prod Smoke, Infrastructure Drift Gate)
+
+### ⚠️ Known Non-Blocking Items (Post-Launch)
+- 104 files over 500 lines (refactoring opportunity, not production-blocking)
+- ~180 backend functions missing docstrings
+- Notification pattern inconsistency (showAlert vs AntD message vs toast — cosmetic)
+- AccountsReceivables uses react-hot-toast (only page) while rest uses showAlert/message
