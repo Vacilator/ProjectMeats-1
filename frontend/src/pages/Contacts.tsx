@@ -220,11 +220,15 @@ const Contacts: React.FC = () => {
       contactFilters.location
     ),
     queryFn: async () => {
-      const filteredParams = contactFilters
-        ? Object.fromEntries(Object.entries(contactFilters).filter(([, v]) => v !== undefined && v !== null && v !== ''))
-        : undefined;
-      const resp = await businessApi.get('contacts/', { params: filteredParams });
-      return (resp.data.results || resp.data) as Contact[];
+      try {
+        const filteredParams = contactFilters
+          ? Object.fromEntries(Object.entries(contactFilters).filter(([, v]) => v !== undefined && v !== null && v !== ''))
+          : undefined;
+        const resp = await businessApi.get('contacts/', { params: filteredParams });
+        return (resp.data.results || resp.data) as Contact[];
+      } catch {
+        return [] as Contact[];
+      }
     },
   });
 

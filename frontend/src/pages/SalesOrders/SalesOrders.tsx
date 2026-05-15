@@ -484,8 +484,12 @@ export const SalesOrdersPage: React.FC = () => {
   } = useQuery({
     queryKey: withTenantQueryKey('sales-orders'),
     queryFn: async () => {
-      const response = await businessApi.get('sales-orders/');
-      return (response.data.results || response.data) as SalesOrder[];
+      try {
+        const response = await businessApi.get('sales-orders/');
+        return (response.data.results || response.data) as SalesOrder[];
+      } catch {
+        return [] as SalesOrder[];
+      }
     },
     staleTime: 30_000,
   });
