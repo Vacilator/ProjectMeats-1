@@ -112,7 +112,6 @@ function useDeepStableValue<T>(value: T): T {
 function useStableCallback<T extends (...args: any[]) => any>(fn: T | undefined): T {
   const ref: RefObject<T | undefined> = useRef(fn);
   ref.current = fn;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   return useCallback(((...args: any[]) => ref.current?.(...args)) as unknown as T, []);
 }
 
@@ -422,15 +421,19 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const [liveFormValues, setLiveFormValues] = useState<Record<string, unknown>>({});
   const liveFormValuesRef = useRef<Record<string, unknown>>({});
   const cascadeSettledRef = useRef(false);
+  // Track how many onValuesChange calls we've seen since mount — ignore the
+  // first few which are AntD form hydration, not user edits.
+  const valuesChangeCountRef = useRef(0);
   useEffect(() => {
     if (!isOpen) {
       cascadeSettledRef.current = false;
+      valuesChangeCountRef.current = 0;
       return;
     }
-    const timer = window.setTimeout(() => {
-      cascadeSettledRef.current = true;
-    }, 100);
-    return () => window.clearTimeout(timer);
+    // NOTE: Do NOT start the settle timer here. It will fire BEFORE the form
+    // actually mounts (afterOpenChange fires ~200ms after isOpen), leaving
+    // the guard open during initial form hydration. The timer is started by
+    // the shouldMountForm effect below instead.
   }, [isOpen]);
   const fkOptions = useMemo<FkOptionsMap>(
     () => applyCascadeFilter(normalizedEntityKey, rawFkOptions as CascadeFkOptionsMap, liveFormValues) as unknown as FkOptionsMap,
@@ -438,7 +441,15 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   );
   const handleValuesChange = useCallback(
     (values: Record<string, unknown>) => {
-      if (cascadeSettledRef.current && !isEqual(liveFormValuesRef.current, values)) {
+      valuesChangeCountRef.current += 1;
+      // Block cascade state updates during the settle window AND for the
+      // first 3 onValuesChange calls (AntD form hydration). This prevents
+      // the setState→re-render→useStatus loop that causes React error #185.
+      if (
+        cascadeSettledRef.current &&
+        valuesChangeCountRef.current > 3 &&
+        !isEqual(liveFormValuesRef.current, values)
+      ) {
         liveFormValuesRef.current = values;
         setLiveFormValues(values);
       }
@@ -539,6 +550,22 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     !formLoading &&
     !effectiveLoadError &&
     (!isModalVariant || modalAnimReady);
+
+  // Start the cascade settle timer when the form actually mounts — NOT when
+  // `isOpen` flips. The modal animation takes ~200ms; if we started at isOpen
+  // the 100ms timer would fire before the form mounts, leaving the guard open
+  // during AntD form hydration (the root cause of React error #185).
+  useEffect(() => {
+    if (!shouldMountForm) {
+      cascadeSettledRef.current = false;
+      valuesChangeCountRef.current = 0;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      cascadeSettledRef.current = true;
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [shouldMountForm]);
 
   const isAuthError =
     (effectiveLoadError as any)?.response?.status === 401 ||
