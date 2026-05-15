@@ -29,6 +29,8 @@ import {
   ShoppingCart,
   Package,
   Truck,
+  ClipboardCheck,
+  Receipt,
   AlertCircle,
   Loader2,
   UserX,
@@ -66,6 +68,8 @@ interface LineageChain {
   supplier_purchase_order: LineageEntity | null;
   sales_order: LineageEntity | null;
   carrier_purchase_order: LineageEntity | null;
+  fulfillment: LineageEntity | null;
+  invoice: LineageEntity | null;
   current_step: string;
 }
 
@@ -103,6 +107,8 @@ const ENTITY_ICONS: Record<string, React.FC<{ size?: number }>> = {
   supplier_purchase_order: ShoppingCart,
   sales_order: Package,
   carrier_purchase_order: Truck,
+  fulfillment: ClipboardCheck,
+  invoice: Receipt,
 };
 
 // ============================================================================
@@ -182,7 +188,7 @@ const NodeWrapper = styled.div<{ $color: string; $isActive: boolean; $isEmpty: b
   background: ${(p) => (p.$isEmpty ? 'rgb(var(--color-surface))' : 'rgb(var(--color-surface))')};
   border: 2px solid ${(p) => (p.$isEmpty ? 'rgb(var(--color-border))' : p.$color)};
   opacity: ${(p) => (p.$isEmpty ? 0.5 : 1)};
-  min-width: 210px;
+  min-width: 170px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: ${(p) =>
@@ -400,6 +406,8 @@ const ENTITY_LABELS: Record<string, string> = {
   supplier_purchase_order: 'Supplier PO',
   sales_order: 'Sales Order',
   carrier_purchase_order: 'Carrier PO',
+  fulfillment: 'Fulfillment',
+  invoice: 'Invoice',
 };
 
 function buildGraph(
@@ -423,6 +431,12 @@ function buildGraph(
     if (key === 'carrier_purchase_order' && !chain.carrier_purchase_order) {
       return 'Create Carrier PO for logistics';
     }
+    if (key === 'fulfillment' && !chain.fulfillment) {
+      return 'Create fulfillment record';
+    }
+    if (key === 'invoice' && !chain.invoice) {
+      return 'Generate invoice from order';
+    }
     return undefined;
   };
 
@@ -431,9 +445,11 @@ function buildGraph(
     { key: 'supplier_purchase_order', data: chain.supplier_purchase_order },
     { key: 'sales_order', data: chain.sales_order },
     { key: 'carrier_purchase_order', data: chain.carrier_purchase_order },
+    { key: 'fulfillment', data: chain.fulfillment },
+    { key: 'invoice', data: chain.invoice },
   ];
 
-  const spacing = 220;
+  const spacing = 190;
   const nodes: Node<LineageNodeData>[] = entities.map((entity, i) => ({
     id: entity.key,
     type: 'lineageNode',

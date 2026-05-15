@@ -162,20 +162,22 @@ export const WorkflowStatusBar: React.FC<WorkflowStatusBarProps> = ({
       const meta = getTransitionLabel(entityType, currentStatus, nextStatus);
       message.success(`${workflowConfig?.label ?? 'Record'} → ${meta.label}`);
 
-      // Show cascade notification if a downstream entity was auto-created
+      // Show cascade notification with link to the auto-created entity
       const cascade = data?._cascade;
       if (cascade?.triggered && cascade?.created_entity_type && !cascade?.error) {
         const verb = cascade.already_existed ? 'already exists' : 'auto-created';
+        const entityLabel = cascade.created_entity_label || 'Downstream record';
         message.info(
-          `${cascade.created_entity_label || 'Downstream record'} ${verb}`,
-          4,
+          `✅ ${entityLabel} ${verb} — workflow advanced automatically`,
+          5,
         );
       }
 
+      // Invalidate all relevant queries so lineage, trades, and entity lists refresh
       void queryClient.invalidateQueries({ queryKey: workflowQueryKey });
-      // Refresh trade lineage and trades list after any status change
       void queryClient.invalidateQueries({ queryKey: ['trade-lineage'] });
       void queryClient.invalidateQueries({ queryKey: ['trades'] });
+      void queryClient.invalidateQueries({ queryKey: ['document-status-workflow'] });
       onTransitioned?.();
     },
     onError: (err: unknown) => {
