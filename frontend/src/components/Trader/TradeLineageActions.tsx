@@ -111,7 +111,7 @@ export const TradeLineageActions: React.FC<TradeLineageActionsProps> = ({
     retry: 1,
   });
 
-  const record = recordProp ?? fetchedRecord ?? {};
+  const record = useMemo(() => recordProp ?? fetchedRecord ?? {}, [recordProp, fetchedRecord]);
   const normalizedStatus = String(statusProp || record.status || '').trim().toLowerCase();
 
   const handleCreateSOFromInquiry = useCallback(async () => {

@@ -590,12 +590,12 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   isOpen,
   onClose,
   inquiry,
-  reviewMode = false,
+  reviewMode: _reviewMode = false,
   onUpdate,
   onClone,
 }) => {
   const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [_updatingStatus, setUpdatingStatus] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 

@@ -295,7 +295,7 @@ export interface TradeWorkflowStepperProps {
 export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
   tradeStatus,
   currentStep,
-  inquiryStatus,
+  inquiryStatus: _inquiryStatus,
   compact = false,
   tradeSessionId,
   onActionClick,
