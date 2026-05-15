@@ -16,7 +16,7 @@
  *   entityId={123}
  * />
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { getErrorMessage } from '@/utils/errorHelpers';
 import { businessApi } from '@/services/businessApi';
@@ -139,11 +139,7 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPaymentHistory();
-  }, [entityType, entityId]);
-
-  const fetchPaymentHistory = async () => {
+  const fetchPaymentHistory = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -171,7 +167,11 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [entityType, entityId]);
+
+  useEffect(() => {
+    fetchPaymentHistory();
+  }, [fetchPaymentHistory]);
 
   const getPaymentMethodLabel = (method: string): string => {
     const labels: Record<string, string> = {

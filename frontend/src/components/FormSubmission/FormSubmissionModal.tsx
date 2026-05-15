@@ -1028,7 +1028,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     if (currentStep && formData[currentStep.id]) {
       workflowContext.setNodeData(currentStep.id, formData[currentStep.id]);
     }
-  }, [currentStep?.id, formData, workflowContext]);
+  }, [currentStep, formData, workflowContext]);
 
   // Phase 1: Initialize workflow context from legacy steps (AFTER steps are defined)
 
@@ -1115,6 +1115,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       }
     };
     if (steps.length > 0) loadOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- entityOptions is read to skip already-loaded types; including it would cause infinite loop
   }, [steps]);
 
   // Evaluate conditional rules

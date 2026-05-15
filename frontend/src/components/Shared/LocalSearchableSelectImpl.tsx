@@ -232,7 +232,7 @@ export const LocalSearchableSelect: React.FC<LocalSearchableSelectProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Safely handle options with null checks
-  const safeOptions = options || [];
+  const safeOptions = useMemo(() => options || [], [options]);
 
   // Get the display name for the selected value
   const selectedOption = safeOptions.find(opt => opt && String(opt.id) === String(value));

@@ -317,52 +317,6 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
     setMindMapNodes([rootNode]);
   }, [entityType, entityId, entityName]);
 
-  // Convert mindMapNodes to React Flow nodes/edges
-  useEffect(() => {
-    const positions = calculateTreeLayout(mindMapNodes);
-
-    const flowNodes: Node[] = mindMapNodes.map(node => ({
-      id: node.id,
-      type: 'custom',
-      position: positions[node.id] || { x: 0, y: 0 },
-      data: {
-        ...node,
-        onExpand: () => handleExpand(node),
-        onCollapse: () => handleCollapse(node),
-      },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-    }));
-
-    const flowEdges: Edge[] = [];
-    mindMapNodes.forEach(node => {
-      if (node.depth > 0) {
-        // Find parent node
-        const parentDepth = node.depth - 1;
-        const parentNode = mindMapNodes.find(
-          n => n.depth === parentDepth && n.expanded
-        );
-
-        if (parentNode) {
-          flowEdges.push({
-            id: `${parentNode.id}-${node.id}`,
-            source: parentNode.id,
-            target: node.id,
-            type: 'smoothstep',
-            animated: true,
-            style: { stroke: 'rgb(var(--color-primary))', strokeWidth: 2 },
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              color: 'rgb(var(--color-primary))',
-            },
-          });
-        }
-      }
-    });
-
-    setNodes(flowNodes);
-    setEdges(flowEdges);
-  }, [mindMapNodes, setNodes, setEdges]);
 
   const handleExpand = useCallback(async (node: MindMapNode) => {
     if (node.depth >= maxDepth) {
@@ -435,6 +389,54 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
         })
     );
   }, []);
+
+  // Convert mindMapNodes to React Flow nodes/edges
+  useEffect(() => {
+    const positions = calculateTreeLayout(mindMapNodes);
+
+    const flowNodes: Node[] = mindMapNodes.map(node => ({
+      id: node.id,
+      type: 'custom',
+      position: positions[node.id] || { x: 0, y: 0 },
+      data: {
+        ...node,
+        onExpand: () => handleExpand(node),
+        onCollapse: () => handleCollapse(node),
+      },
+      sourcePosition: Position.Bottom,
+      targetPosition: Position.Top,
+    }));
+
+    const flowEdges: Edge[] = [];
+    mindMapNodes.forEach(node => {
+      if (node.depth > 0) {
+        // Find parent node
+        const parentDepth = node.depth - 1;
+        const parentNode = mindMapNodes.find(
+          n => n.depth === parentDepth && n.expanded
+        );
+
+        if (parentNode) {
+          flowEdges.push({
+            id: `${parentNode.id}-${node.id}`,
+            source: parentNode.id,
+            target: node.id,
+            type: 'smoothstep',
+            animated: true,
+            style: { stroke: 'rgb(var(--color-primary))', strokeWidth: 2 },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: 'rgb(var(--color-primary))',
+            },
+          });
+        }
+      }
+    });
+
+    setNodes(flowNodes);
+    setEdges(flowEdges);
+  }, [mindMapNodes, setNodes, setEdges, handleExpand, handleCollapse]);
+
 
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {

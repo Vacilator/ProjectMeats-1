@@ -197,9 +197,9 @@ export function useCustomerProducts(
     ]);
   }, [queryClient]);
 
-  const allProducts = allProductsQuery.data ?? [];
-  const associatedProducts = associatedProductsQuery.data ?? [];
-  const suggestedProducts = suggestedProductsQuery.data ?? [];
+  const allProducts = useMemo(() => allProductsQuery.data ?? [], [allProductsQuery.data]);
+  const associatedProducts = useMemo(() => associatedProductsQuery.data ?? [], [associatedProductsQuery.data]);
+  const suggestedProducts = useMemo(() => suggestedProductsQuery.data ?? [], [suggestedProductsQuery.data]);
 
   const loading =
     allProductsQuery.isLoading ||

@@ -88,55 +88,6 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
     loadConfigs();
   }, [loadConfigs]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        // Allow Ctrl+S even in inputs
-        if (!((e.ctrlKey || e.metaKey) && e.key === 's')) {
-          return;
-        }
-      }
-
-      // Ctrl/Cmd + S: Save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        if (hasChanges && !saving) {
-          handleSave();
-        }
-      }
-      // Ctrl/Cmd + N: Add new config
-      else if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-        e.preventDefault();
-        handleAddConfig();
-      }
-      // Escape: Close editor
-      else if (e.key === 'Escape') {
-        if (onClose) {
-          void (async () => {
-            const ok =
-              !hasChanges ||
-              (await confirmDialog({
-                title: 'Discard unsaved changes?',
-                content: 'You have unsaved changes. Discard them?',
-                okText: 'Discard',
-                cancelText: 'Keep editing',
-                danger: true,
-              }));
-            if (ok) {
-              onClose();
-            }
-          })();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasChanges, saving, onClose]);
-
   const handleCategoryChange = async (category: ConfigCategory) => {
     if (hasChanges) {
       const ok = await confirmDialog({
@@ -152,7 +103,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
     setSearchQuery('');
   };
 
-  const handleAddConfig = () => {
+  const handleAddConfig = useCallback(() => {
     const newConfig: EditingConfig = {
       key: '',
       value: '',
@@ -160,9 +111,9 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
       description: '',
       is_new: true,
     };
-    setConfigs([newConfig, ...configs]);
+    setConfigs(prev => [newConfig, ...prev]);
     setHasChanges(true);
-  };
+  }, [selectedCategory]);
 
   const handleConfigChange = (
     index: number,
@@ -214,7 +165,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
     setHasChanges(newConfigs.some((c) => c.is_new || c.is_modified));
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     // Validate configs
     const emptyKeys = configs.filter((config) => !config.key.trim());
     if (emptyKeys.length > 0) {
@@ -262,7 +213,48 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
     } finally {
       setSaving(false);
     }
-  };
+  }, [configs, loadConfigs]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        if (!((e.ctrlKey || e.metaKey) && e.key === 's')) {
+          return;
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (hasChanges && !saving) {
+          handleSave();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        handleAddConfig();
+      } else if (e.key === 'Escape') {
+        if (onClose) {
+          void (async () => {
+            const ok =
+              !hasChanges ||
+              (await confirmDialog({
+                title: 'Discard unsaved changes?',
+                content: 'You have unsaved changes. Discard them?',
+                okText: 'Discard',
+                cancelText: 'Keep editing',
+                danger: true,
+              }));
+            if (ok) {
+              onClose();
+            }
+          })();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasChanges, saving, onClose, handleAddConfig, handleSave]);
 
   const formatValueForDisplay = (value: unknown): string => {
     if (value === null || value === undefined) return '';

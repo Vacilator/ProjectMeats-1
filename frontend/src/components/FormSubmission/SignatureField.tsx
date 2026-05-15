@@ -150,6 +150,7 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
       };
       img.src = value;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: canvas init and signature load must run once; re-running on value change would clear drawing
   }, []);
 
   const getPosition = useCallback((e: React.MouseEvent | React.TouchEvent) => {

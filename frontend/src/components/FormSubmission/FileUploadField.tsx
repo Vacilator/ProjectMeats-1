@@ -8,7 +8,7 @@
  * - Remove button
  * - File size/type validation
  */
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { formSubmissionService } from '../../services/quickActionsService';
 
@@ -228,7 +228,10 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const files = Array.isArray(value) ? value : value ? [value] : [];
+  const files = useMemo(() => Array.isArray(value) ? value : value ? [value] : [], [value]);
+
+  // Ref keeps uploadFile always fresh without requiring it in useCallback deps
+  const uploadFileRef = useRef<(file: File) => Promise<FileValue | null>>(null!);
 
   const validateFile = (file: File): string | null => {
     const maxBytes = maxSizeMB * 1024 * 1024;
@@ -314,6 +317,8 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
     }
   };
 
+  useEffect(() => { uploadFileRef.current = uploadFile; });
+
   const handleFiles = useCallback(async (fileList: FileList) => {
     const filesToUpload = Array.from(fileList);
 
@@ -325,14 +330,14 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
     if (multiple) {
       const uploaded: FileValue[] = [];
       for (const file of filesToUpload) {
-        const result = await uploadFile(file);
+        const result = await uploadFileRef.current(file);
         if (result) uploaded.push(result);
       }
       if (uploaded.length > 0) {
         onChange([...files, ...uploaded]);
       }
     } else {
-      const result = await uploadFile(filesToUpload[0]);
+      const result = await uploadFileRef.current(filesToUpload[0]);
       if (result) {
         onChange(result);
       }

@@ -25,7 +25,7 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const sampleCommands = [
+  const sampleCommands = useMemo(() => [
     'Create a purchase order for ABC Meats',
     'Show me supplier performance for this month',
     'Generate a customer report',
@@ -34,7 +34,7 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
     'Send payment reminder to overdue customers',
     'Schedule delivery for order #12345',
     'Compare supplier prices for beef products',
-  ];
+  ], []);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -52,7 +52,7 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
       setSuggestions([]);
     }
     setSelectedSuggestionIndex(-1);
-  }, [command]);
+  }, [command, sampleCommands]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
