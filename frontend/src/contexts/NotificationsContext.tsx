@@ -71,7 +71,7 @@ export interface NotificationPreferences {
 
 export interface ActionItem {
   id: string;
-  type: 'form_step' | 'workflow_task';
+  type: 'form_step' | 'workflow_task' | 'trade_action';
   title: string;
   description: string;
   form_name?: string;
