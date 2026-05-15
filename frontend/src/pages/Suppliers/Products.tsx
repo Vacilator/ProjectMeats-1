@@ -144,6 +144,7 @@ const SupplierProducts: React.FC = () => {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [addingProducts, setAddingProducts] = useState<boolean>(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchSupplier defined below uses only `id`
   useEffect(() => {
     if (location.state?.supplier) {
       setSupplier(location.state.supplier);
@@ -152,6 +153,7 @@ const SupplierProducts: React.FC = () => {
     }
   }, [id, location.state]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchItems defined below uses only `id`
   useEffect(() => {
     if (id) fetchItems();
   }, [id]);
@@ -212,7 +214,7 @@ const SupplierProducts: React.FC = () => {
     if (addModalVisible) {
       void fetchSystemProducts(productSearchText);
     }
-  }, [addModalVisible, fetchSystemProducts]);
+  }, [addModalVisible, fetchSystemProducts, productSearchText]);
 
   const handleAddProducts = async () => {
     if (!selectedProductIds.length) {
