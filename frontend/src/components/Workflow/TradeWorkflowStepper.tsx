@@ -30,12 +30,20 @@ import { tradeDocumentsService, type TradeDocument } from '@/services/tradeDocum
 
 // ── Step definitions ──
 
+interface StepAction {
+  label: string;
+  /** Section of the record to scroll to or highlight */
+  section?: string;
+}
+
 interface TradeStep {
   key: string;
   label: string;
   icon: React.ReactNode;
   description: string;
-  requiredActions: string[];
+  requiredActions: StepAction[];
+  /** Entity type used to navigate to the record */
+  entityType?: string;
 }
 
 export const TRADE_STEPS: TradeStep[] = [
@@ -44,11 +52,13 @@ export const TRADE_STEPS: TradeStep[] = [
     label: 'Inquiry',
     icon: <FileText size={18} />,
     description: 'Customer inquiry received and quoted',
+    entityType: 'inquiry',
     requiredActions: [
-      'Add products and pricing',
-      'Add supplier bids',
-      'Send quote to customer',
-      'Accept or reject deal',
+      { label: 'Add products and pricing', section: 'products' },
+      { label: 'Add supplier bids', section: 'supplier-bids' },
+      { label: 'Set respond-by & fulfillment dates', section: 'supplier-bids' },
+      { label: 'Send quote to customer', section: 'actions' },
+      { label: 'Accept or reject deal', section: 'status' },
     ],
   },
   {
@@ -56,10 +66,11 @@ export const TRADE_STEPS: TradeStep[] = [
     label: 'Purchase Order',
     icon: <ShoppingCart size={18} />,
     description: 'Supplier PO created and approved',
+    entityType: 'purchase_order',
     requiredActions: [
-      'Review PO details',
-      'Approve purchase order',
-      'Send to supplier',
+      { label: 'Review PO details', section: 'details' },
+      { label: 'Approve purchase order', section: 'status' },
+      { label: 'Send to supplier', section: 'actions' },
     ],
   },
   {
@@ -67,10 +78,11 @@ export const TRADE_STEPS: TradeStep[] = [
     label: 'Sales Order',
     icon: <Receipt size={18} />,
     description: 'Customer sales order confirmed',
+    entityType: 'sales_order',
     requiredActions: [
-      'Review SO details',
-      'Get customer confirmation',
-      'Approve sales order',
+      { label: 'Review SO details', section: 'details' },
+      { label: 'Get customer confirmation', section: 'actions' },
+      { label: 'Approve sales order', section: 'status' },
     ],
   },
   {
@@ -78,10 +90,11 @@ export const TRADE_STEPS: TradeStep[] = [
     label: 'Carrier PO',
     icon: <Truck size={18} />,
     description: 'Carrier logistics arranged',
+    entityType: 'carrier_po',
     requiredActions: [
-      'Select carrier',
-      'Confirm pickup/delivery schedule',
-      'Approve carrier PO',
+      { label: 'Select carrier', section: 'carrier' },
+      { label: 'Confirm pickup/delivery schedule', section: 'schedule' },
+      { label: 'Approve carrier PO', section: 'status' },
     ],
   },
   {
@@ -89,10 +102,11 @@ export const TRADE_STEPS: TradeStep[] = [
     label: 'Fulfillment',
     icon: <Package size={18} />,
     description: 'Product shipped and delivered',
+    entityType: 'fulfillment',
     requiredActions: [
-      'Confirm shipment dispatched',
-      'Track delivery',
-      'Confirm receipt',
+      { label: 'Confirm shipment dispatched', section: 'dispatch' },
+      { label: 'Track delivery', section: 'tracking' },
+      { label: 'Confirm receipt', section: 'status' },
     ],
   },
   {
@@ -100,10 +114,11 @@ export const TRADE_STEPS: TradeStep[] = [
     label: 'Invoice',
     icon: <CreditCard size={18} />,
     description: 'Invoice sent and payment received',
+    entityType: 'invoice',
     requiredActions: [
-      'Generate invoice',
-      'Send to customer',
-      'Track payment',
+      { label: 'Generate invoice', section: 'generate' },
+      { label: 'Send to customer', section: 'actions' },
+      { label: 'Track payment', section: 'payment' },
     ],
   },
 ];
@@ -137,7 +152,8 @@ const StageDocumentsContent: React.FC<{
   step: TradeStep;
   isActive: boolean;
   isDone: boolean;
-}> = ({ stageKey, tradeSessionId, step, isActive, isDone }) => {
+  onActionClick?: (action: StepAction, step: TradeStep) => void;
+}> = ({ stageKey, tradeSessionId, step, isActive, isDone, onActionClick }) => {
   const queryKey = useMemo(
     () => withTenantQueryKey('trade-docs-stage', stageKey, String(tradeSessionId ?? '')),
     [stageKey, tradeSessionId],
@@ -165,7 +181,16 @@ const StageDocumentsContent: React.FC<{
           <PopoverSectionTitle>Action Required</PopoverSectionTitle>
           <ActionList>
             {step.requiredActions.map((action) => (
-              <ActionItem key={action}>{action}</ActionItem>
+              <ActionItem
+                key={action.label}
+                $clickable={Boolean(onActionClick)}
+                onClick={() => onActionClick?.(action, step)}
+                role={onActionClick ? 'button' : undefined}
+                tabIndex={onActionClick ? 0 : undefined}
+              >
+                {action.label}
+                {onActionClick && <ArrowUpRight size={10} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
+              </ActionItem>
             ))}
           </ActionList>
         </PopoverSection>
@@ -228,6 +253,8 @@ export interface TradeWorkflowStepperProps {
   compact?: boolean;
   /** Trade session ID — enables per-stage document preview on step click */
   tradeSessionId?: number | string;
+  /** Called when a required action item is clicked — navigate to relevant record/section */
+  onActionClick?: (action: { label: string; section?: string }, step: { key: string; entityType?: string }) => void;
 }
 
 // ── Component ──
@@ -238,6 +265,7 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
   inquiryStatus,
   compact = false,
   tradeSessionId,
+  onActionClick,
 }) => {
   const [openStep, setOpenStep] = useState<string | null>(null);
 
@@ -309,6 +337,7 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
                     step={step}
                     isActive={isActive}
                     isDone={isDone}
+                    onActionClick={onActionClick}
                   />
                 }
               >
@@ -451,14 +480,35 @@ const PopoverSectionTitle = styled.div`
 
 const ActionList = styled.ul`
   margin: 0;
-  padding: 0 0 0 16px;
-  list-style: disc;
+  padding: 0;
+  list-style: none;
 `;
 
-const ActionItem = styled.li`
+const ActionItem = styled.li<{ $clickable?: boolean }>`
   font-size: 12px;
   color: rgb(var(--color-text-secondary));
   margin-bottom: 2px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 4px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: ${({ $clickable }) => $clickable ? 'pointer' : 'default'};
+
+  &::before {
+    content: '→';
+    margin-right: 4px;
+    color: rgb(var(--color-primary));
+    font-weight: 600;
+    opacity: ${({ $clickable }) => $clickable ? 1 : 0.4};
+  }
+
+  ${({ $clickable }) => $clickable && `
+    &:hover {
+      background: rgba(var(--color-primary), 0.08);
+      color: rgb(var(--color-primary));
+    }
+  `}
 `;
 
 const NoDocs = styled.div`

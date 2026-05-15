@@ -219,9 +219,9 @@ export const WorkflowExecutionDetails: React.FC = () => {
                 {executionLog.length === 0 ? (
                   <p className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>No execution log entries yet</p>
                 ) : (
-                  executionLog.map((entry, idx) => (
+                  executionLog.map((entry) => (
                     <div
-                      key={idx}
+                      key={`${entry.event}-${entry.step_name ?? ''}-${entry.timestamp ?? ''}`}
                       className="pl-3 py-2"
                       style={{ borderLeft: '2px solid rgb(var(--color-primary))' }}
                     >

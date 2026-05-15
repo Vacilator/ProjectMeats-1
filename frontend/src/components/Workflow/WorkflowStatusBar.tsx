@@ -140,13 +140,18 @@ export const WorkflowStatusBar: React.FC<WorkflowStatusBarProps> = ({
   const workflowQuery = useQuery({
     queryKey: workflowQueryKey,
     queryFn: async () => {
-      const response = await businessApi.get<WorkflowResponse>(
-        `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/status-workflow/`,
-      );
-      return response.data;
+      try {
+        const response = await businessApi.get<WorkflowResponse>(
+          `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/status-workflow/`,
+        );
+        return response.data;
+      } catch {
+        return null;
+      }
     },
     enabled: Boolean(config) && Boolean(entityId),
     staleTime: 15_000,
+    retry: false,
   });
 
   const transitionMutation = useMutation({

@@ -1,8 +1,11 @@
 """ViewSets for Inquiries app."""
 
+import logging
 from datetime import timedelta
 
 from django.db.models import Avg, Count, F, Prefetch, Q, Sum
+
+logger = logging.getLogger(__name__)
 from django.db.models.functions import TruncWeek
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -943,11 +946,32 @@ class InquiryProductSupplierBidViewSet(viewsets.ModelViewSet):
         bid.requested_at = timezone.now()
         bid.save(update_fields=['bid_status', 'requested_at', 'modified_on'])
 
-        # TODO: trigger outbound RFQ email via InquirySupplierRFQ system
-        return Response(
-            InquiryProductSupplierBidSerializer(bid).data,
-            status=status.HTTP_200_OK,
-        )
+        # Dispatch outbound RFQ email for this supplier
+        rfq_error = None
+        try:
+            from tenant_apps.inquiries.services.supplier_rfq_email import send_supplier_rfqs_for_inquiry
+
+            inquiry = bid.inquiry_product.inquiry
+            result = send_supplier_rfqs_for_inquiry(
+                tenant=request.tenant,
+                inquiry=inquiry,
+                user=request.user,
+                supplier_ids=[bid.supplier_id],
+            )
+            # Link the RFQ audit row to the bid
+            for entry in result.entries:
+                if entry.rfq_id and entry.supplier_id == bid.supplier_id:
+                    bid.rfq_id = entry.rfq_id
+                    bid.save(update_fields=['rfq_id', 'modified_on'])
+                    break
+        except Exception as exc:
+            logger.warning("RFQ email dispatch failed for bid %s: %s", bid.id, exc, exc_info=True)
+            rfq_error = str(exc)
+
+        data = InquiryProductSupplierBidSerializer(bid).data
+        if rfq_error:
+            data["rfq_dispatch_error"] = rfq_error
+        return Response(data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='request-all-bids')
     def request_all_bids(self, request):
@@ -964,17 +988,52 @@ class InquiryProductSupplierBidViewSet(viewsets.ModelViewSet):
             bid_status__in=[SupplierBidStatusChoices.DRAFT, SupplierBidStatusChoices.EXPIRED],
         )
 
+        supplier_ids = list(draft_bids.values_list('supplier_id', flat=True))
+
         now = timezone.now()
         updated = draft_bids.update(
             bid_status=SupplierBidStatusChoices.REQUESTED,
             requested_at=now,
         )
 
-        # TODO: trigger outbound RFQ emails in bulk
-        return Response(
-            {"updated": updated, "message": f"Requested bids for {updated} supplier(s)"},
-            status=status.HTTP_200_OK,
-        )
+        # Dispatch outbound RFQ emails for all suppliers in one batch
+        rfq_error = None
+        rfq_dispatched = 0
+        if supplier_ids:
+            try:
+                from tenant_apps.inquiries.services.supplier_rfq_email import send_supplier_rfqs_for_inquiry
+
+                inquiry_product = InquiryProduct.objects.filter(
+                    id=inquiry_product_id, tenant=request.tenant
+                ).select_related('inquiry').first()
+                if inquiry_product:
+                    result = send_supplier_rfqs_for_inquiry(
+                        tenant=request.tenant,
+                        inquiry=inquiry_product.inquiry,
+                        user=request.user,
+                        supplier_ids=supplier_ids,
+                    )
+                    rfq_dispatched = result.dispatched_count
+                    # Link RFQ audit rows back to bid records
+                    rfq_map = {e.supplier_id: e.rfq_id for e in result.entries if e.rfq_id}
+                    for bid in self.get_queryset().filter(
+                        inquiry_product_id=inquiry_product_id,
+                        supplier_id__in=rfq_map.keys(),
+                    ):
+                        bid.rfq_id = rfq_map[bid.supplier_id]
+                        bid.save(update_fields=['rfq_id', 'modified_on'])
+            except Exception as exc:
+                logger.warning("Bulk RFQ email dispatch failed: %s", exc, exc_info=True)
+                rfq_error = str(exc)
+
+        resp = {
+            "updated": updated,
+            "rfq_dispatched": rfq_dispatched,
+            "message": f"Requested bids for {updated} supplier(s), {rfq_dispatched} email(s) sent",
+        }
+        if rfq_error:
+            resp["rfq_dispatch_error"] = rfq_error
+        return Response(resp, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='accept')
     def accept_bid(self, request, pk=None):

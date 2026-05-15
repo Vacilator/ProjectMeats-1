@@ -422,3 +422,88 @@ def _persist_latest_reply_parse(*, rfq: InquirySupplierRFQ, payload: dict[str, A
     rfq.custom_data = custom_data
     rfq.modified_on = timezone.now()
     rfq.save(update_fields=["custom_data", "modified_on"])
+
+    # Propagate parsed quote data to linked InquiryProductSupplierBid rows
+    _update_supplier_bids_from_parse(rfq=rfq, payload=payload)
+
+
+def _update_supplier_bids_from_parse(*, rfq: InquirySupplierRFQ, payload: dict[str, Any]) -> None:
+    """Update InquiryProductSupplierBid rows linked to this RFQ with parsed quote data."""
+    import logging
+    from decimal import Decimal, InvalidOperation
+
+    from tenant_apps.inquiries.models import InquiryProductSupplierBid, SupplierBidStatusChoices
+
+    logger = logging.getLogger(__name__)
+
+    parse_status = payload.get("parse_status", "")
+    if parse_status != "parsed":
+        return
+
+    normalized = payload.get("normalized_quote") or {}
+    availability = normalized.get("availability_status", "unclear")
+
+    # Find all bid rows linked to this RFQ or matching inquiry+supplier
+    linked_bids = InquiryProductSupplierBid.objects.filter(
+        tenant_id=rfq.tenant_id,
+        rfq=rfq,
+        bid_status=SupplierBidStatusChoices.REQUESTED,
+    )
+    if not linked_bids.exists():
+        # Fallback: match by inquiry+supplier (bids may not have rfq FK set)
+        linked_bids = InquiryProductSupplierBid.objects.filter(
+            tenant_id=rfq.tenant_id,
+            inquiry_product__inquiry=rfq.inquiry,
+            supplier=rfq.supplier,
+            bid_status=SupplierBidStatusChoices.REQUESTED,
+        )
+
+    if not linked_bids.exists():
+        logger.info("No requested bids found for RFQ %s to update from parsed reply.", rfq.id)
+        return
+
+    now = timezone.now()
+    updated_count = 0
+    for bid in linked_bids:
+        bid.responded_at = now
+        bid.bid_response_data = payload
+        bid.supplier_notes = normalized.get("notes", "")
+
+        if availability == "negative":
+            bid.bid_status = SupplierBidStatusChoices.REJECTED
+        else:
+            bid.bid_status = SupplierBidStatusChoices.RECEIVED
+
+        # Extract pricing if provided
+        price = normalized.get("price_per_unit")
+        if price is not None:
+            try:
+                bid.bid_price_per_unit = Decimal(str(price))
+            except (InvalidOperation, ValueError):
+                pass
+
+        quantity = normalized.get("quantity")
+        if quantity is not None:
+            try:
+                bid.bid_quantity = Decimal(str(quantity))
+            except (InvalidOperation, ValueError):
+                pass
+
+        uom = normalized.get("uom", "")
+        if uom:
+            bid.bid_uom = uom[:10]
+
+        # Compute bid_total if we have price and quantity
+        if bid.bid_price_per_unit and bid.bid_quantity:
+            bid.bid_total = bid.bid_price_per_unit * bid.bid_quantity
+
+        bid.save(update_fields=[
+            'bid_status', 'responded_at', 'bid_response_data', 'supplier_notes',
+            'bid_price_per_unit', 'bid_quantity', 'bid_uom', 'bid_total', 'modified_on',
+        ])
+        updated_count += 1
+
+    logger.info(
+        "Updated %d supplier bid(s) from parsed RFQ %s reply (availability=%s).",
+        updated_count, rfq.id, availability,
+    )

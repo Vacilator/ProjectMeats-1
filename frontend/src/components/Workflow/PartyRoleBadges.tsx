@@ -224,13 +224,18 @@ export const PartyRoleBadges: React.FC<PartyRoleBadgesProps> = ({
   const { data: record } = useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await businessApi.get<Record<string, unknown>>(
-        `/${config!.endpoint}/${encodeURIComponent(String(entityId))}/`,
-      );
-      return response.data;
+      try {
+        const response = await businessApi.get<Record<string, unknown>>(
+          `/${config!.endpoint}/${encodeURIComponent(String(entityId))}/`,
+        );
+        return response.data;
+      } catch {
+        return null;
+      }
     },
     enabled: Boolean(config) && Boolean(entityId) && Boolean(partyConfig),
     staleTime: 30_000,
+    retry: false,
   });
 
   const badges = useMemo(() => {

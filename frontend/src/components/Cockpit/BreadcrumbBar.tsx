@@ -136,7 +136,7 @@ export const BreadcrumbBar: React.FC<BreadcrumbBarProps> = ({ extraCrumbs = [] }
         const resolvedLabel = resolveCrumbLabel(step);
 
         return (
-          <React.Fragment key={`${step.type}-${step.id}-${step.timestamp}-${index}`}>
+          <React.Fragment key={`${step.type}-${step.id}-${step.timestamp}`}>
             <Separator size={16} />
             <Crumb
                $isLast={isLast}

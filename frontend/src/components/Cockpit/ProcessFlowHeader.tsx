@@ -311,13 +311,18 @@ export const NodeDetailPopover: React.FC<NodeDetailPopoverProps> = ({
   const { data, isLoading } = useQuery({
     queryKey: withTenantQueryKey('node-detail', inquiryId, entityType, entityId),
     queryFn: async () => {
-      const res = await businessApi.get(
-        `/inquiries/${inquiryId}/lineage/node-detail/`,
-        { params: { entity_type: entityType, entity_id: entityId } }
-      );
-      return res.data as NodeContactDetail;
+      try {
+        const res = await businessApi.get(
+          `/inquiries/${inquiryId}/lineage/node-detail/`,
+          { params: { entity_type: entityType, entity_id: entityId } }
+        );
+        return res.data as NodeContactDetail;
+      } catch {
+        return null;
+      }
     },
     enabled: !!entityId && !!inquiryId,
+    retry: false,
   });
 
   return (
@@ -415,23 +420,27 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
   const { data } = useQuery({
     queryKey: withTenantQueryKey('process-header', inquiryId),
     queryFn: async () => {
-      const res = await businessApi.get(`/inquiries/${inquiryId}/lineage/`);
-      const lineage = res.data;
-      // Derive header info from lineage
-      const headerInfo: ProcessHeaderInfo = {
-        current_step: lineage.current_step ?? 'unknown',
-        current_step_label: formatStepLabel(lineage.current_step),
-        status: lineage.inquiry?.status ?? 'unknown',
-        started_at: null,
-        last_activity_at: null,
-        duration_seconds: null,
-        failure_info: lineage.failure_info ?? null,
-      };
-      return headerInfo;
+      try {
+        const res = await businessApi.get(`/inquiries/${inquiryId}/lineage/`);
+        const lineage = res.data;
+        const headerInfo: ProcessHeaderInfo = {
+          current_step: lineage.current_step ?? 'unknown',
+          current_step_label: formatStepLabel(lineage.current_step),
+          status: lineage.inquiry?.status ?? 'unknown',
+          started_at: null,
+          last_activity_at: null,
+          duration_seconds: null,
+          failure_info: lineage.failure_info ?? null,
+        };
+        return headerInfo;
+      } catch {
+        return null;
+      }
     },
     enabled: !!inquiryId,
     staleTime: 5_000,
     refetchInterval: 30_000,
+    retry: false,
   });
 
   if (!data) return null;
