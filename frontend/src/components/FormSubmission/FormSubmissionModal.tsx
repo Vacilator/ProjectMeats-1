@@ -1017,7 +1017,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       if (parsed && typeof parsed === 'object') {
         workflowContext.setNodeData('activeRecord', parsed);
       }
-    } catch (e) {
+    } catch (_e) {
       // Non-fatal: context injection is best-effort
       logger.debug('[FormSubmission] Failed to load active record context');
     }
@@ -1093,7 +1093,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                 setEntityOptions(prev => ({ ...prev, [choiceKey]: effectiveResult.choices }));
                 continue; // Successfully loaded effective choices
               }
-            } catch (e) {
+            } catch (_e) {
               // Effective choices endpoint might not exist for this field, fall back to static
               logger.debug(`No effective choices override for ${step.entity_type}.${field.key}, trying static choices`, { component: 'FormSubmissionModal' });
             }

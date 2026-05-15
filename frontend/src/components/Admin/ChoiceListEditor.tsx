@@ -267,7 +267,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         `/system/choice-lists/${choiceListSlug}/reorder/`,
         { items: updates }
       );
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       setError('Failed to reorder items');
       loadChoiceList(); // Reload to restore original order
     }
@@ -312,7 +312,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       );
       setEditingItem(null);
       loadChoiceList();
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       setError('Failed to update item');
     }
   };
@@ -331,7 +331,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     try {
       await businessApi.delete(`/system/choice-items/${item.id}/`);
       loadChoiceList();
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       setError('Failed to delete item');
     }
   };
@@ -344,7 +344,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         is_active: !item.is_active,
       });
       loadChoiceList();
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       setError('Failed to toggle visibility');
     }
   };

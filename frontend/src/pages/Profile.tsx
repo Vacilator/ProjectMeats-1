@@ -86,7 +86,7 @@ const Profile: React.FC = () => {
 
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setIsEditing(false);
-    } catch (error) {
+    } catch (_error) {
       setMessage({
         type: 'error',
         text: 'Failed to update profile. Please try again.',

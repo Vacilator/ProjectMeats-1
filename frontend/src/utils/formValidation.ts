@@ -128,7 +128,7 @@ export function validateField(
           error: rules.patternMessage || `${fieldLabel} format is invalid`,
         };
       }
-    } catch (e) {
+    } catch (_e) {
       logger.warn('Invalid regex pattern', { component: 'formValidation', metadata: { pattern: rules.pattern } });
     }
   }

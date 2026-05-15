@@ -87,7 +87,7 @@ export function useAdminPermissions() {
               const retry = await businessApi.get('/tenants/admin_permissions/');
               return retry.data;
             }
-          } catch (retryError) {
+          } catch (_retryError) {
             // ignore; fall through to default permissions
           }
         }

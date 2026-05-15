@@ -379,7 +379,7 @@ export async function resolveConfig<T = unknown>(
     memoryCache.resolvedConfigs.data[cacheKey] = resolved as ResolvedConfig;
 
     return resolved;
-  } catch (error) {
+  } catch (_error) {
     // If not found, return default
     return {
       key,

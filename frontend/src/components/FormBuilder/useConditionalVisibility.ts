@@ -5,7 +5,7 @@
  * which fields should be visible.
  */
 import { useMemo, useCallback } from 'react';
-import type { VisibilityRule, VisibilityCondition, ConditionOperator } from './ConditionalVisibilityRules';
+import type { VisibilityRule, VisibilityCondition } from './ConditionalVisibilityRules';
 
 // ============================================================================
 // TYPES

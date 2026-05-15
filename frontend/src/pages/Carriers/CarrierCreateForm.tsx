@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { message } from 'antd';
 import {
@@ -24,7 +24,6 @@ import {
   GoldenFormFooter,
   GoldenCancelButton,
   GoldenSubmitButton,
-  GoldenAutoFilledBadge,
 } from '@/components/Forms/GoldenFormShell';
 import {
   Truck,

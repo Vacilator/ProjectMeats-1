@@ -49,49 +49,6 @@ const Title = styled.h1`
   gap: 0.5rem;
 `;
 
-const FiltersBar = styled.div`
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-`;
-
-const SearchInput = styled.input`
-  padding: 0.625rem 1rem;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  min-width: 250px;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-
-  &::placeholder {
-    color: rgb(var(--color-text-secondary));
-  }
-`;
-
-const FilterSelect = styled.select`
-  padding: 0.625rem 1rem;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
 const Table = styled.div`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));

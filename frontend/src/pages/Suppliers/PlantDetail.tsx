@@ -58,8 +58,8 @@ export const PlantDetail: React.FC = () => {
   );
 
   const [loading, setLoading] = useState(true);
-  const [supplier, setSupplier] = useState<SupplierRow | null>(null);
-  const [plant, setPlant] = useState<PlantRow | null>(null);
+  const [_supplier, setSupplier] = useState<SupplierRow | null>(null);
+  const [_plant, setPlant] = useState<PlantRow | null>(null);
   const [authError, setAuthError] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 

@@ -409,7 +409,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
           setUnreadCount(count);
           void fetchNotifications();
         }
-      } catch (err) {
+      } catch (_err) {
         // Silently fail polling - it's not critical
       }
     }, pollingInterval);

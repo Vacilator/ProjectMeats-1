@@ -5,7 +5,7 @@
  * Full Business Management System with AI Assistant
  */
 import React, { Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Skeleton } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
@@ -95,8 +95,8 @@ const DealDesk = React.lazy(() => import('./pages/Deals/DealDesk'));
 const Reports = React.lazy(() => import('./pages/Reports'));
 const Profile = React.lazy(() => import('./pages/Profile'));
 const Settings = React.lazy(() => import('./pages/Settings'));
-const AISettingsPage = React.lazy(() => import('./pages/AISettings'));
-const AIChatPage = React.lazy(() => import('./pages/AIChatPage'));
+const _AISettingsPage = React.lazy(() => import('./pages/AISettings'));
+const _AIChatPage = React.lazy(() => import('./pages/AIChatPage'));
 const MyAIPage = React.lazy(() => import('./pages/MyAI'));
 const GuestInvoiceView = React.lazy(() => import('./pages/Portal/GuestInvoiceView'));
 const ApiTestComponent = React.lazy(() => import('./components/ApiTestComponent'));

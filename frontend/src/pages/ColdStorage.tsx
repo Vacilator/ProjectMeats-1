@@ -8,7 +8,7 @@ import React, { useMemo, useState } from 'react';
 import { Button, Card, Input, Progress, Skeleton, Space, Table, Tag, Tooltip, Typography, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
-import { Thermometer, Search, Plus, Package, MapPin, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Thermometer, Plus, Package, MapPin, AlertTriangle, AlertCircle } from 'lucide-react';
 import styled from 'styled-components';
 
 import {
