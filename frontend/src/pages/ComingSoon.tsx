@@ -34,7 +34,7 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({
         {features && features.length > 0 && (
           <FeatureList>
             {features.map((f, i) => (
-              <FeatureItem key={i}>
+              <FeatureItem key={f}>
                 <FeatureCheck>✓</FeatureCheck>
                 {f}
               </FeatureItem>
