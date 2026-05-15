@@ -15,6 +15,7 @@ import {
 import { businessApi } from '@/services/businessApi';
 import { useApprovalGate } from '@/hooks/useApprovalGate';
 import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
+import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutocomplete';
 import {
   GoldenFormOverlay,
   GoldenFormContainer,
@@ -82,6 +83,7 @@ interface CarrierPOFormValues {
   supplier_confirmation_order_number: string;
   delivery_po_number: string;
   type_of_protein: string;
+  product: string;
   description_of_product_item: string;
   fresh_or_frozen: string;
   package_type: string;
@@ -169,6 +171,7 @@ const getDefaultFormValues = (initial?: Partial<CarrierPOFormValues>): CarrierPO
   supplier_confirmation_order_number: '',
   delivery_po_number: '',
   type_of_protein: '',
+  product: '',
   description_of_product_item: '',
   fresh_or_frozen: '',
   package_type: '',
@@ -543,6 +546,7 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
       supplier_confirmation_order_number: formValues.supplier_confirmation_order_number || undefined,
       delivery_po_number: formValues.delivery_po_number || undefined,
       type_of_protein: formValues.type_of_protein || undefined,
+      product: formValues.product || undefined,
       description_of_product_item: formValues.description_of_product_item || undefined,
       fresh_or_frozen: formValues.fresh_or_frozen || undefined,
       package_type: formValues.package_type || undefined,
@@ -870,8 +874,7 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
               <GoldenFieldGrid>
                 <GoldenFormGroup>
                   <GoldenLabel>Type of Protein</GoldenLabel>
-                  
-<GoldenSelect
+                  <GoldenSelect
                     name="type_of_protein"
                     value={formValues.type_of_protein}
                     onChange={handleChange}
@@ -884,9 +887,30 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
                   </GoldenSelect>
                 </GoldenFormGroup>
                 <GoldenFormGroup>
+                  <GoldenLabel>Product</GoldenLabel>
+                  <SmartProductAutocomplete
+                    value={formValues.product}
+                    onChange={(productId, product) => {
+                      setFormValues((prev) => ({
+                        ...prev,
+                        product: productId,
+                        description_of_product_item:
+                          prev.description_of_product_item
+                          || product?.name
+                          || product?.description
+                          || product?.description_of_product_item
+                          || '',
+                        fresh_or_frozen: prev.fresh_or_frozen || product?.fresh_or_frozen || '',
+                        package_type: prev.package_type || product?.package_type || '',
+                      }));
+                    }}
+                    proteinTypeFilter={formValues.type_of_protein || undefined}
+                    placeholder="Search products…"
+                  />
+                </GoldenFormGroup>
+                <GoldenFormGroup>
                   <GoldenLabel>Description of Product/Item</GoldenLabel>
-                  
-<GoldenInput
+                  <GoldenInput
                     name="description_of_product_item"
                     value={formValues.description_of_product_item}
                     onChange={handleChange}

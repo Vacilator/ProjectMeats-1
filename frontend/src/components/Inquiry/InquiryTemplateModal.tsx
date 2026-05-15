@@ -284,7 +284,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
           page_size: 500,
           is_active: true,
           ...(proteinFilter.length
-            ? { protein: proteinFilter.map((t) => String(t).toLowerCase()) }
+            ? { protein: proteinFilter.map((t) => String(t).toLowerCase()).join(',') }
             : {}),
         },
       })

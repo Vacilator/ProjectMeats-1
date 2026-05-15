@@ -358,12 +358,13 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
         })();
 
         // Query master product catalog directly so we can apply protein filtering.
+        // Backend expects comma-separated string for ?protein=beef,pork
         const response = await businessApi.get('system/products/', {
           params: {
             search: query,
             is_active: true,
             page_size: 20,
-            ...(normalizedProteinFilter ? { protein: normalizedProteinFilter } : {}),
+            ...(normalizedProteinFilter ? { protein: normalizedProteinFilter.join(',') } : {}),
           },
         });
 
