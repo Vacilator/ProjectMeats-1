@@ -13,7 +13,7 @@
  *   <ChoiceListEditor choiceListSlug="protein_types" />
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -212,11 +212,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     })
   );
 
-  useEffect(() => {
-    loadChoiceList();
-  }, [choiceListSlug]);
-
-  const loadChoiceList = async () => {
+  const loadChoiceList = useCallback(async () => {
     try {
       setLoading(true);
       const response = await businessApi.get(
@@ -241,7 +237,11 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [choiceListSlug]);
+
+  useEffect(() => {
+    loadChoiceList();
+  }, [loadChoiceList]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;

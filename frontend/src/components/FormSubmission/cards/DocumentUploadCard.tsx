@@ -268,6 +268,9 @@ function formatFileSize(bytes: number): string {
 // Component
 // ============================================================================
 
+
+const DEFAULT_ALLOWED_TYPES = ['*/*'];
+
 export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
   node,
   context: _context,
@@ -286,7 +289,7 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
   const config = node.data || {};
   const title = config.title || 'Upload Document';
   const description = config.description || 'Please upload the required document to continue.';
-  const allowedTypes = config.allowedTypes || ['*/*'];
+  const allowedTypes = config.allowedTypes || DEFAULT_ALLOWED_TYPES;
   const maxSizeBytes = config.maxSizeBytes || 10 * 1024 * 1024; // 10MB default
 
   // Handle file selection

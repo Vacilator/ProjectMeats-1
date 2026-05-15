@@ -276,6 +276,9 @@ const ProductListSection: React.FC<{
     );
   }, [entries]);
 
+  const proteinFilterKey = proteinFilter.join('|');
+  const valueKey = value.join('|');
+
   const fetchOptions = useMemo(
     () => debounce(async (q: string) => {
       setLoadingOptions(true);
@@ -315,7 +318,8 @@ const ProductListSection: React.FC<{
         setLoadingOptions(false);
       }
     }, 250),
-    [proteinFilter.join('|'), value.join('|')]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- proteinFilter/value accessed via stable string keys to avoid object-identity churn
+    [proteinFilterKey, valueKey]
   );
 
   useEffect(() => () => fetchOptions.cancel(), [fetchOptions]);

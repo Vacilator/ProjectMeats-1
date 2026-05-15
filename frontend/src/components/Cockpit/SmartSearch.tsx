@@ -851,6 +851,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       default:
         logger.warn('Unhandled quick action', { component: 'SmartSearch', metadata: { actionType, entityId } });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- activeEntity is derived from navigation.path (already in deps); adding it directly causes TDZ error
   }, [navigate, navigation.path, onOpenInlineCreate, query, searchParams, setSearchParams]);
 
   /**
