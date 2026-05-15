@@ -354,13 +354,6 @@ const EmptyNotes = styled.div`
 // Contextual Action Banner — shows what the trader needs to do next
 // ============================================================================
 
-interface ActionBannerConfig {
-  icon: string;
-  title: string;
-  description: string;
-  intent: 'info' | 'warning' | 'success';
-}
-
 const INQUIRY_ACTION_MAP: Record<string, ActionBannerConfig> = {
   draft: {
     icon: '📝',
@@ -394,6 +387,15 @@ const INQUIRY_ACTION_MAP: Record<string, ActionBannerConfig> = {
   },
 };
 
+interface ActionBannerConfig {
+  icon: string;
+  title: string;
+  description: string;
+  intent: 'info' | 'warning' | 'success';
+  /** If set, the banner shows a "Go to…" CTA pointing to this entity type */
+  navigateTo?: 'purchase_order' | 'sales_order' | 'carrier_po';
+}
+
 /** Extended action guidance based on trade session orchestrator step */
 const TRADE_STEP_ACTION_MAP: Record<string, ActionBannerConfig> = {
   supplier_rfq: {
@@ -413,24 +415,28 @@ const TRADE_STEP_ACTION_MAP: Record<string, ActionBannerConfig> = {
     title: 'Purchase Order Pending Approval',
     description: 'Review the auto-generated Purchase Order and approve it to advance to the next stage.',
     intent: 'info',
+    navigateTo: 'purchase_order',
   },
   approve_supplier_po: {
     icon: '✍️',
     title: 'Approve Purchase Order',
     description: 'The PO is ready for approval. Once approved, a Sales Order will be auto-created for the customer.',
     intent: 'warning',
+    navigateTo: 'purchase_order',
   },
   draft_sales_order: {
     icon: '📋',
     title: 'Sales Order Created',
     description: 'Review the Sales Order details and get customer confirmation before approving.',
     intent: 'info',
+    navigateTo: 'sales_order',
   },
   approve_sales_order: {
     icon: '✍️',
     title: 'Approve Sales Order',
     description: 'The SO is ready for approval. Once approved, carrier logistics will be arranged.',
     intent: 'warning',
+    navigateTo: 'sales_order',
   },
   carrier_fan_out: {
     icon: '🚛',
@@ -449,6 +455,7 @@ const TRADE_STEP_ACTION_MAP: Record<string, ActionBannerConfig> = {
     title: 'Carrier PO Pending Approval',
     description: 'Review and approve the Carrier PO to begin fulfillment.',
     intent: 'info',
+    navigateTo: 'carrier_po',
   },
   completed: {
     icon: '🏆',
@@ -458,7 +465,16 @@ const TRADE_STEP_ACTION_MAP: Record<string, ActionBannerConfig> = {
   },
 };
 
-const WorkflowActionBanner: React.FC<{ inquiry: Inquiry }> = ({ inquiry }) => {
+const NAVIGATE_TO_LABELS: Record<string, { label: string; field: string; prefix: string }> = {
+  purchase_order: { label: 'Go to Purchase Order', field: 'supplier_purchase_order', prefix: '/records/purchase_order' },
+  sales_order: { label: 'Go to Sales Order', field: 'sales_order', prefix: '/records/sales_order' },
+  carrier_po: { label: 'Go to Carrier PO', field: 'carrier_purchase_order', prefix: '/records/carrier' },
+};
+
+const WorkflowActionBanner: React.FC<{
+  inquiry: Inquiry;
+  onNavigate?: (path: string) => void;
+}> = ({ inquiry, onNavigate }) => {
   // Prefer trade-step-level guidance when the inquiry has been accepted and trade session is active
   const tradeStep = inquiry.trade_session_current_step;
   const config = (tradeStep && TRADE_STEP_ACTION_MAP[tradeStep])
@@ -476,12 +492,26 @@ const WorkflowActionBanner: React.FC<{ inquiry: Inquiry }> = ({ inquiry }) => {
     ? 'var(--color-warning)'
     : 'var(--color-info)';
 
+  // Resolve navigation CTA if config specifies a linked entity
+  const navTarget = config.navigateTo ? NAVIGATE_TO_LABELS[config.navigateTo] : null;
+  const linkedEntityId = navTarget
+    ? String((inquiry as unknown as Record<string, unknown>)[navTarget.field] ?? '')
+    : '';
+
   return (
     <ActionBannerContainer $borderColor={borderColor} $bgColor={bgColor}>
       <ActionBannerIcon>{config.icon}</ActionBannerIcon>
       <ActionBannerContent>
         <ActionBannerTitle>{config.title}</ActionBannerTitle>
         <ActionBannerDesc>{config.description}</ActionBannerDesc>
+        {navTarget && linkedEntityId && onNavigate && (
+          <ActionBannerCTA
+            onClick={() => onNavigate(`${navTarget.prefix}/${linkedEntityId}`)}
+            aria-label={navTarget.label}
+          >
+            {navTarget.label} →
+          </ActionBannerCTA>
+        )}
       </ActionBannerContent>
     </ActionBannerContainer>
   );
@@ -521,6 +551,23 @@ const ActionBannerDesc = styled.span`
   font-size: 0.8125rem;
   color: rgb(var(--color-text-secondary));
   line-height: 1.5;
+`;
+
+const ActionBannerCTA = styled.button`
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid rgb(var(--color-primary));
+  border-radius: var(--radius-sm);
+  background: rgb(var(--color-primary));
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.85; }
+  &:focus-visible { outline: 2px solid rgb(var(--color-primary)); outline-offset: 2px; }
 `;
 
 // ============================================================================
@@ -621,7 +668,10 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
 
           <ModalBody>
             {/* Contextual Action Banner — shows what the user needs to do at the current step */}
-            <WorkflowActionBanner inquiry={inquiry} />
+            <WorkflowActionBanner
+              inquiry={inquiry}
+              onNavigate={(path) => { onClose(); navigate(path); }}
+            />
 
             {/* Trade Workflow Progress — shows where in the E2E process this inquiry is */}
             {inquiry.status !== 'rejected' && (
@@ -641,7 +691,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
             )}
 
             {/* Status & Actions — golden workflow component */}
-            <Section>
+            <Section id="actions">
               <WorkflowStatusBar
                 entityType="inquiry"
                 entityId={String(inquiry.id)}
@@ -706,7 +756,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
             </Section>
 
             {/* Products */}
-            <Section>
+            <Section id="products">
               <SectionHeader>
                 <SectionTitle>Products ({inquiry.products?.length || 0})</SectionTitle>
               </SectionHeader>
