@@ -265,6 +265,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Production-ready sweep shipped (PRs #5428-#5435).** Infrastructure cleanup, auto-cascade workflow transitions (Inquiry→PO→SO→CarrierPO→Fulfillment→Invoice), frontend production polish (hardcoded colors, plant form, dashboard states), infrastructure hardening (docker-compose, Dockerfile), type safety (11 `any` removals), accessibility (aria-labels), backend input validation, and workflow UX overhaul (inquiry cascade, TradeSession auto-creation, React Flow zoom/arrows, action button tooltips, query invalidation).
 - **Cascade auto-advance shipped (PR #5437).** All 5 cascade handlers now set FK back on source Inquiry after creating downstream entities. Lineage chain expanded from 4 to 6 nodes (added Fulfillment + Invoice). Transition descriptions added to PO/SO/CarrierPO/Fulfillment configs. Cascade toast improved with query invalidation.
 - **Inquiry workflow UX overhaul shipped (PR #5439).** Simplified inquiry transitions to linear 2-step flow (Send Quote → Accept Deal), fixed invisible React Flow arrows, added trade action items to My Tasks, fixed query invalidation for My Trades/Trades/ProcessHeader, cleaned up ProcessFlowHeader status variants and labels.
+- **Protein → product filtering fixed (PR #5441).** Selecting a protein type now correctly filters product dropdown options in all forms. Core bug: array serialization instead of comma-separated string. Also wired proteinTypeFilter to InvoiceForm and added SmartProductAutocomplete to CarrierPOForm.
 - **Zero open PRs.** All work is merged to `development`.
 - **TypeScript: 0 errors.** `tsc --noEmit` clean.
 - **Python: 0 critical errors.** `flake8 E9/F63/F7/F82` clean. Django system check clean.
@@ -4520,3 +4521,29 @@ Comprehensive fix for 5 inquiry workflow UX issues: confusing transitions, invis
 - Frontend Prod Smoke (3/3): pass
 - Validate Migrations: pass
 - 7 files changed, 202 insertions, 34 deletions
+
+## Phase 48: Protein Type → Product Filtering Fix
+
+**Status**: ✅ Complete
+**PRs**: #5441
+
+### Summary
+Fixed protein type filtering for product dropdowns — selecting a protein type (e.g., Beef) now correctly narrows the product options in all forms. The core bug was array serialization: frontend passed JavaScript arrays to axios params, but the backend expected a comma-separated string.
+
+### Delivered
+
+#### A. Core Serialization Fix (#5441)
+1. **SmartProductAutocomplete**: `.join(',')` before sending protein param to backend
+2. **InquiryTemplateModal**: Same `.join(',')` fix
+3. **useCustomerProducts hook**: Same fix at 2 call sites (suggested products query + fetchProductsByProteinTypes)
+4. EntityProfileHeader was already correct (pre-existing `.join(',')`)
+
+#### B. Missing proteinTypeFilter Wiring (#5441)
+5. **InvoiceForm**: Added `proteinTypeFilter={formValues.type_of_protein}` to SmartProductAutocomplete + auto-fills description/fresh_or_frozen/package_type from selected product
+6. **CarrierPOForm**: Added `product` field + SmartProductAutocomplete with `proteinTypeFilter` (backend model had product FK but form never used it)
+
+### Verification
+- TypeScript: 0 errors
+- Frontend Type Check: pass
+- Frontend Prod Smoke (3/3): pass
+- 5 files changed, 48 insertions, 10 deletions
