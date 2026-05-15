@@ -8,14 +8,14 @@
  *
  * Minimal chrome. Every pixel earns its place.
  */
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Table, Tag, Select, message, Tooltip } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
-import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
+import { DelegateTaskModal, DelegationData } from '../../components/Delegation';
 import AIDraftReviewDialog from '../../components/AIAssistant/AIDraftReviewDialog';
 import {
   AIInboxFeedbackActions,
@@ -564,11 +564,6 @@ export const MyTasks: React.FC = () => {
   const [showDelegate, setShowDelegate] = useState(false);
   const [delegateTask, setDelegateTask] = useState<ActionItem | null>(null);
   const [isDelegating, setIsDelegating] = useState(false);
-  const mockUsers = useRef<User[]>([
-    { id: '1', name: 'John Smith', email: 'john@example.com', role: 'Sales Rep', department: 'Sales' },
-    { id: '2', name: 'Jane Doe', email: 'jane@example.com', role: 'Manager', department: 'Operations' },
-    { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'Analyst', department: 'Finance' },
-  ]).current;
 
   // AI Inbox state
   const [pendingReviews, setPendingReviews] = useState<PendingReviewItem[]>([]);
@@ -1128,7 +1123,6 @@ export const MyTasks: React.FC = () => {
         onClose={closeDelegateModal}
         onDelegate={handleDelegate}
         taskName={delegateTask?.title || ''}
-        availableUsers={mockUsers}
         isLoading={isDelegating}
       />
     </Page>

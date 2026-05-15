@@ -39,7 +39,7 @@ export interface DelegateTaskModalProps {
   onDelegate: (data: DelegationData) => Promise<void>;
   taskName: string;
   currentAssignee?: User;
-  availableUsers: User[];
+  availableUsers?: User[];
   isLoading?: boolean;
 }
 
@@ -404,12 +404,43 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
   onDelegate,
   taskName,
   currentAssignee,
-  availableUsers,
+  availableUsers: externalUsers,
   isLoading = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fetchedUsers, setFetchedUsers] = useState<User[]>([]);
+
+  const availableUsers = externalUsers ?? fetchedUsers;
+
+  // Fetch tenant users when modal opens and no external users provided
+  useEffect(() => {
+    if (!isOpen || externalUsers) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { default: apiClient } = await import('@/services/businessApi');
+        const { data } = await apiClient.get('/tenant-users/', {
+          params: { is_active: true, page_size: 50 },
+        });
+        if (cancelled) return;
+        const rows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+        setFetchedUsers(
+          rows.map((u: Record<string, unknown>) => ({
+            id: String(u.user ?? u.id ?? ''),
+            name: [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || String(u.username ?? 'User'),
+            email: String(u.email ?? ''),
+            role: String(u.role ?? ''),
+          })),
+        );
+      } catch {
+        logger.warn('Could not load tenant users for delegation');
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isOpen, externalUsers]);
 
   const form = useZodForm<DelegateTaskFormValues>(delegateTaskFormSchema, {
     defaultValues: delegateTaskFormDefaults,
