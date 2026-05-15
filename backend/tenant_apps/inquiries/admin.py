@@ -4,7 +4,7 @@ from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import (
     Inquiry, InquiryProduct, InquiryProductSupplierBid, InquirySupplierRFQ,
-    InquiryTemplate, InquiryTemplateProduct, TradeSession,
+    InquiryTemplate, InquiryTemplateProduct, TradeDocument, TradeSession,
 )
 
 
@@ -169,3 +169,17 @@ class InquiryProductSupplierBidAdmin(TenantFilteredAdmin):
 
 
 admin_site.register(InquiryProductSupplierBid, InquiryProductSupplierBidAdmin)
+
+
+class TradeDocumentAdmin(TenantFilteredAdmin):
+    """Admin for trade document records."""
+    list_display = ['title', 'trade_session', 'stage', 'direction', 'document_type', 'created_on']
+    list_filter = ['stage', 'direction', 'document_type', 'generated_by']
+    search_fields = ['title', 'description']
+    raw_id_fields = ['trade_session', 'email_log']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('tenant', 'trade_session', 'email_log')
+
+
+admin_site.register(TradeDocument, TradeDocumentAdmin)

@@ -23,6 +23,7 @@ from .models import (
     InquiryTemplate,
     InquiryTemplateProduct,
     SupplierBidStatusChoices,
+    TradeDocument,
 )
 from .serializers import (
     AddProductsSerializer,
@@ -36,6 +37,8 @@ from .serializers import (
     InquiryTemplateCreateSerializer,
     InquiryTemplateDetailSerializer,
     InquiryTemplateListSerializer,
+    TradeDocumentSerializer,
+    TradeDocumentUploadSerializer,
 )
 from .services import create_supplier_quote_purchase_order_draft
 from .services.supplier_quote_po_draft import SupplierQuotePODraftError
@@ -1065,3 +1068,45 @@ class InquiryTemplateViewSet(viewsets.ModelViewSet):
             created_products.append(product)
 
         return Response(InquiryTemplateDetailSerializer(template).data, status=status.HTTP_201_CREATED)
+
+
+# ---------------------------------------------------------------------------
+# Trade Document CRUD
+# ---------------------------------------------------------------------------
+
+
+class TradeDocumentViewSet(viewsets.ModelViewSet):
+    """Tenant-scoped CRUD for trade documents.
+
+    Supports listing documents by trade session or by entity type/id.
+    Supports file upload for manual document attachment.
+    """
+
+    serializer_class = TradeDocumentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = TradeDocument.objects.filter(tenant=self.request.tenant)
+
+        session_id = self.request.query_params.get("trade_session")
+        if session_id:
+            qs = qs.filter(trade_session_id=session_id)
+
+        entity_type = self.request.query_params.get("entity_type")
+        entity_id = self.request.query_params.get("entity_id")
+        if entity_type and entity_id:
+            qs = qs.filter(entity_type=entity_type, entity_id=entity_id)
+
+        stage = self.request.query_params.get("stage")
+        if stage:
+            qs = qs.filter(stage=stage)
+
+        return qs.select_related("email_log", "trade_session")
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return TradeDocumentUploadSerializer
+        return TradeDocumentSerializer

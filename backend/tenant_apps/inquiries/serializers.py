@@ -12,6 +12,7 @@ from .models import (
     InquiryTemplate,
     InquiryTemplateProduct,
     SupplierBidStatusChoices,
+    TradeDocument,
 )
 
 
@@ -583,3 +584,78 @@ class CloneInquirySerializer(serializers.Serializer):
     include_pricing = serializers.BooleanField(default=False)
     new_entity_id = serializers.UUIDField(required=False, allow_null=True)
     new_contact_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+# ---------------------------------------------------------------------------
+# Trade Document serializers
+# ---------------------------------------------------------------------------
+
+
+class TradeDocumentSerializer(serializers.ModelSerializer):
+    """Serializer for trade documents with read-only computed fields."""
+
+    download_url = serializers.SerializerMethodField()
+    email_subject = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TradeDocument
+        fields = [
+            "id",
+            "trade_session",
+            "entity_type",
+            "entity_id",
+            "stage",
+            "direction",
+            "document_type",
+            "title",
+            "description",
+            "file",
+            "file_size",
+            "mime_type",
+            "email_log",
+            "generated_by",
+            "stage_order",
+            "metadata",
+            "download_url",
+            "email_subject",
+            "created_on",
+            "modified_on",
+        ]
+        read_only_fields = ["id", "created_on", "modified_on", "download_url", "email_subject"]
+
+    def get_download_url(self, obj):
+        if obj.file:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+        return None
+
+    def get_email_subject(self, obj):
+        if obj.email_log_id:
+            return obj.email_log.subject if obj.email_log else None
+        return None
+
+
+class TradeDocumentUploadSerializer(serializers.ModelSerializer):
+    """Serializer for user-uploaded trade documents."""
+
+    class Meta:
+        model = TradeDocument
+        fields = [
+            "trade_session",
+            "entity_type",
+            "entity_id",
+            "stage",
+            "direction",
+            "document_type",
+            "title",
+            "description",
+            "file",
+        ]
+
+    def create(self, validated_data):
+        validated_data["generated_by"] = "user"
+        if validated_data.get("file"):
+            validated_data["file_size"] = validated_data["file"].size
+            validated_data["mime_type"] = getattr(validated_data["file"], "content_type", "")
+        return super().create(validated_data)
