@@ -40,6 +40,7 @@
 | Python coverage threshold | CI gate | `pyproject.toml` `fail_under = 50` | PR #5461 |
 | Vitest coverage threshold | CI gate | `frontend/vite.config.ts` coverage.thresholds | PR #5461 |
 | API import boundary lint | CI lint | `frontend/.eslint/scripts/check-api-import-boundaries.cjs` / `npm run lint:api-boundaries` | PR #5466 |
+| Idempotent RLS policy lint | CI lint | `.github/scripts/check-idempotent-rls.sh` | PR #5471 |
 
 ## Features Added (Phase 60)
 
@@ -48,3 +49,19 @@
 | TradeDocument model + API | Backend | Document tracking per trade session/stage with sent/received direction, auto-gen hooks, email integration | PR #5463 |
 | TradeDocumentsPanel | Frontend | Stage-grouped document viewer with upload, direction badges, collapsible sections | PR #5464 |
 | Stepper document links | Frontend | Click workflow steps to see stage actions + related documents in popover | PR #5465 |
+
+## Bug Fixes (Phase 62–65)
+
+| Fix | Domain | Description | PRs |
+|-----|--------|-------------|-----|
+| React #185 modal render loop | Frontend | `afterOpenChange` gate in EntityFormSurface delays UEF mounting until antd Modal animation completes | PR #5467 |
+| Email sync fallback | Backend | Synchronous fallback via `EmailIngestionService.poll_tenant_by_id()` when Celery broker unavailable | PR #5467 |
+| Trade session status cascade | Backend | Added `_update_trade_session_status_from_doc` calls in inquiry→PO (ordered) and SO→CarrierPO (logistics) | PR #5467 |
+| Console 404 floods | Frontend | Home, RecordActivityFeed, CockpitApprovalPanel, aiService — try/catch + retry:false | PR #5468 |
+| Cascade RFQ/existing-PO gap | Backend | RFQ success and existing_po paths now create trade docs + advance status | PR #5468 |
+| All cascade idempotency gaps | Backend | SO→CarrierPO, CarrierPO→Fulfillment, Fulfillment→Invoice "already exists" paths now advance trade session status | PR #5469 |
+| Stepper a11y | Frontend | ARIA role/label/tabIndex on clickable step nodes, aria-expanded on expand buttons | PR #5469 |
+| Deployment: idempotent RLS migration | Backend | Migration 0016 `CREATE POLICY` wrapped in `DO $$/EXCEPTION WHEN duplicate_object` for idempotency | PR #5470 |
+| Cockpit 404 hardening | Frontend | NextActionChips, AnalyticsDashboard, FinancialsPanel, InterventionDashboard, AILearningMetrics — try/catch + retry:false | PR #5470 |
+| OAuth broad except narrowed | Backend | `integrations/views.py` OAuth callback: removed `Exception` from except tuple, kept only `BadSignature/SignatureExpired` | PR #5470 |
+| Trade doc logging upgrade | Backend | `_create_trade_document` failure now logs `error` instead of `warning` | PR #5470 |
