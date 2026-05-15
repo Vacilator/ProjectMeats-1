@@ -424,12 +424,20 @@ export const TradeDocumentsPanel: React.FC<TradeDocumentsPanelProps> = ({
                   {doc.title}
                 </DocTitle>
               ) : (
-                <Tooltip title={doc.email_subject ?? doc.title}>
+                <Tooltip title={doc.email_subject ?? doc.description ?? doc.title}>
                   <DocTitle as="span">{doc.title}</DocTitle>
                 </Tooltip>
               )}
             </DocLeft>
             <DocRight>
+              {doc.email_sender && (
+                <Tooltip title={`From: ${doc.email_sender}`}>
+                  <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>
+                    <Mail size={10} style={{ marginRight: 3 }} />
+                    {doc.email_sender.length > 25 ? `${doc.email_sender.slice(0, 25)}…` : doc.email_sender}
+                  </Tag>
+                </Tooltip>
+              )}
               <MetaText>{GENERATED_LABELS[doc.generated_by] ?? ''}</MetaText>
               <MetaText>{formatFileSize(doc.file_size)}</MetaText>
               <Tooltip title={new Date(doc.created_on).toLocaleString()}>
