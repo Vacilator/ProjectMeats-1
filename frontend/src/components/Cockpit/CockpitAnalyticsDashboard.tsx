@@ -34,6 +34,7 @@ import {
   FilterOutlined,
 } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // -------------------------------------------------------------------
 // Types
@@ -143,7 +144,7 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
   const [dateRange, setDateRange] = useState<string>('30');
 
   const { data, isLoading, isError, refetch } = useQuery<AnalyticsDashboardData>({
-    queryKey: ['cockpit', 'analytics', dateRange],
+    queryKey: withTenantQueryKey('cockpit', 'analytics', dateRange),
     queryFn: async () => {
       const res = await businessApi.get('/workflows/analytics/dashboard/', {
         params: { days: dateRange },

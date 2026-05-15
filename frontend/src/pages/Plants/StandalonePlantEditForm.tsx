@@ -18,6 +18,7 @@ import {
 
 import type { Plant } from '@/services/apiService';
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 const { Paragraph, Title } = Typography;
 
@@ -98,7 +99,7 @@ export const StandalonePlantEditForm: React.FC<StandalonePlantEditFormProps> = (
   const isValidPlantId = Number.isFinite(numericPlantId);
 
   const plantQuery = useQuery({
-    queryKey: ['plant-standalone-edit', plantId],
+    queryKey: withTenantQueryKey('plant-standalone-edit', plantId),
     queryFn: async () => {
       if (!isValidPlantId) {
         throw new Error('Plant ID is invalid.');

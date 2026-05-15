@@ -175,12 +175,12 @@ export const WorkflowStatusBar: React.FC<WorkflowStatusBarProps> = ({
 
       // Invalidate all relevant queries so lineage, trades, and entity lists refresh
       void queryClient.invalidateQueries({ queryKey: workflowQueryKey });
-      void queryClient.invalidateQueries({ queryKey: ['trade-lineage'] });
-      void queryClient.invalidateQueries({ queryKey: ['trades'] });
-      void queryClient.invalidateQueries({ queryKey: ['my-trades'] });
-      void queryClient.invalidateQueries({ queryKey: ['process-header'] });
-      void queryClient.invalidateQueries({ queryKey: ['document-status-workflow'] });
-      void queryClient.invalidateQueries({ queryKey: ['action-items'] });
+      void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trade-lineage') });
+      void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trades') });
+      void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('my-trades') });
+      void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('process-header') });
+      void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('document-status-workflow') });
+      void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('action-items') });
       onTransitioned?.();
     },
     onError: (err: unknown) => {
