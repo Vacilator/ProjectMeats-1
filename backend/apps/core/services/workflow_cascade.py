@@ -230,6 +230,9 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
             stage_order=0,
         )
 
+        # Advance trade session: INITIATED → ORDERED
+        _update_trade_session_status_from_doc(tenant, inquiry, "ordered")
+
         return CascadeResult(
             triggered=True,
             created_entity_type="purchase_order",
@@ -366,6 +369,9 @@ def _cascade_so_confirmed_to_carrier_po(*, tenant: Any, document: Any) -> Cascad
                 description=f"Draft carrier PO auto-created from confirmed SO {so.our_sales_order_num or so.id}.",
                 stage_order=0,
             )
+
+        # Advance trade session: ORDERED → LOGISTICS
+        _update_trade_session_status_from_doc(tenant, so, "logistics")
 
         return CascadeResult(
             triggered=True,

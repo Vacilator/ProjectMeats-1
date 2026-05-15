@@ -2438,7 +2438,13 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   onSubmittingChangeRef.current = onSubmittingChange;
 
   useEffect(() => {
-    onSubmittingChangeRef.current?.(submitting);
+    // Only notify parent when submitting becomes true. Calling
+    // onSubmittingChange(false) on mount triggers a parent re-render
+    // during the same tick the form initialises — which (when combined
+    // with antd CSSMotion) causes React error #185.
+    if (submitting) {
+      onSubmittingChangeRef.current?.(true);
+    }
 
     return () => {
       onSubmittingChangeRef.current?.(false);

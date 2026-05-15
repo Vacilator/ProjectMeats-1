@@ -511,7 +511,34 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
 
   // Determine effective load error (including timeout)
   const effectiveLoadError = formLoadError || (loadTimedOut && formLoading ? { timeout: true } : null);
-  const shouldMountForm = isOpen && formReady && !formLoading && !effectiveLoadError;
+
+  // ── Modal animation guard ──
+  // Gate form mounting behind the Modal's enter-animation completion.
+  // antd's CSSMotion (rc-motion) drives open/close animations via a
+  // `useStatus` layout-effect that calls `setAsyncVisible` each cycle.
+  // If UEF + DFE mount *during* that animation they schedule dozens of
+  // synchronous state updates (form init, useWatch, FK options, async
+  // dropdown loading) which re-render the Modal subtree faster than
+  // CSSMotion can settle — triggering React error #185 (max update depth).
+  //
+  // Fix: For modal-variant forms, keep `modalAnimReady` false until the
+  // modal's `afterOpenChange(true)` fires (animation done). Inline
+  // variant forms bypass this gate entirely.
+  const [modalAnimReady, setModalAnimReady] = useState(false);
+  useEffect(() => {
+    if (!isOpen) setModalAnimReady(false);
+  }, [isOpen]);
+  const handleAfterOpenChange = useCallback((open: boolean) => {
+    if (open) setModalAnimReady(true);
+  }, []);
+
+  const isModalVariant = variant === 'modal';
+  const shouldMountForm =
+    isOpen &&
+    formReady &&
+    !formLoading &&
+    !effectiveLoadError &&
+    (!isModalVariant || modalAnimReady);
 
   const isAuthError =
     (effectiveLoadError as any)?.response?.status === 401 ||
@@ -622,6 +649,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       footer={null}
       width="min(720px, calc(100vw - 32px))"
       destroyOnHidden
+      afterOpenChange={handleAfterOpenChange}
       title={modalTitle}
     >
       <ModalFormErrorBoundary entityType={entityType} onRetry={handleRetry}>
