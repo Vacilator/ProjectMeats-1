@@ -560,8 +560,8 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 from apps.tenants.rls import set_current_tenant
 
                 set_current_tenant(tenant_id)
-            except Exception:
-                pass
+            except Exception as rls_err:
+                logger.warning("set_current_tenant fallback failed for tenant %s: %s", tenant_id, rls_err)
 
             openai_api_key = getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY")
             if not openai_api_key:
@@ -657,8 +657,8 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                                 content += f"\n- file_url: {file_url}"
 
                         history.append({"role": role, "content": content})
-                except Exception:
-                    pass
+                except Exception as hist_err:
+                    logger.warning("Failed to load chat history for session %s: %s", session.id, hist_err, exc_info=True)
 
                 context_signature = ai_semantic_cache.build_context_signature(
                     history=history,
@@ -775,8 +775,8 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                             name = fn.get("name")
                             if isinstance(name, str) and name:
                                 tools_used.append(name)
-                except Exception:
-                    pass
+                except Exception as tools_err:
+                    logger.debug("Failed to extract tools_used from Swarm response: %s", tools_err)
 
             except Exception as e:
                 logger.warning("Swarm tool loop failed: %s", str(e), exc_info=True)

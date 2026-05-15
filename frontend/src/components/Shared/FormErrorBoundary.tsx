@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { logger } from '@/utils/logger';
 
 interface FormErrorBoundaryProps {
   children: React.ReactNode;
@@ -91,7 +92,11 @@ export class FormErrorBoundary extends React.Component<FormErrorBoundaryProps, F
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(`[FormErrorBoundary] ${this.props.entityType ?? 'Form'} crashed:`, error, errorInfo);
+    logger.error(
+      `[FormErrorBoundary] ${this.props.entityType ?? 'Form'} crashed: ${error.message}`,
+      { component: 'FormErrorBoundary' },
+      { error, errorInfo },
+    );
   }
 
   handleRetry = () => {

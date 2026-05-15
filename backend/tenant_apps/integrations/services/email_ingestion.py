@@ -608,7 +608,7 @@ class EmailIngestionService:
                 },
             )
         except Exception as act_err:
-            logger.debug("Activity log entry skipped: %s", act_err)
+            logger.warning("Activity log entry skipped for email %s: %s", email_log.id, act_err)
 
     def poll_provider_by_id(self, provider_id: int, *, tenant_id: str | None = None) -> Dict[str, int]:
         """Poll inbox for a specific ExternalAuthProvider.
