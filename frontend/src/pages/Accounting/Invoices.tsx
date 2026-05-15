@@ -15,7 +15,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { Skeleton } from 'antd';
+import { Skeleton, message } from 'antd';
 import { FileText } from 'lucide-react';
 
 import {
@@ -28,6 +28,7 @@ import { ActivityFeed, RecordPaymentModal, PaymentHistoryList } from '../../comp
 import InvoiceForm from './InvoiceForm';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { businessApi } from '@/services/businessApi';
+import { traderService } from '@/services/traderService';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
 import { formatTradeDate, formatTradeWeight } from '../../utils/trade';
@@ -700,9 +701,21 @@ const Invoices: React.FC = () => {
                       Portal Access
                     </RecordPaymentButton>
                     {selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled' && (
-                      <RecordPaymentButton onClick={() => setShowPaymentModal(true)}>
-                        💰 Record Payment
-                      </RecordPaymentButton>
+                      <>
+                        <RecordPaymentButton onClick={() => setShowPaymentModal(true)}>
+                          💰 Record Payment
+                        </RecordPaymentButton>
+                        <RecordPaymentButton onClick={async () => {
+                          try {
+                            await traderService.sendInvoiceEmail(String(selectedInvoice.id));
+                            message.success('Invoice email sent successfully');
+                          } catch {
+                            message.error('Failed to send invoice email');
+                          }
+                        }}>
+                          ✉️ Email Invoice
+                        </RecordPaymentButton>
+                      </>
                     )}
                   </>
                 ) : null}

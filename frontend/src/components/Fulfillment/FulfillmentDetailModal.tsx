@@ -10,7 +10,9 @@
  */
 import React, { useCallback, useState } from 'react';
 import styled from 'styled-components';
+import { message } from 'antd';
 import { businessApi } from '@/services/businessApi';
+import { traderService } from '@/services/traderService';
 import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
 
@@ -443,6 +445,20 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
     return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 
+  const handleSendNotification = async (type: 'shipped' | 'delivered') => {
+    if (!fulfillment) return;
+    setIsActionLoading(true);
+    try {
+      await traderService.sendFulfillmentNotification(fulfillment.id, type);
+      message.success(`${type === 'shipped' ? 'Shipment' : 'Delivery'} notification sent`);
+    } catch (error) {
+      logger.error('Failed to send notification:', error);
+      message.error('Failed to send notification email');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   const renderActionButtons = () => {
     if (!fulfillment) return null;
 
@@ -460,23 +476,41 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
         );
       case 'shipped':
         return (
-          <Button
-            $variant="success"
-            onClick={() => handleAction('deliver')}
-            disabled={isActionLoading}
-          >
-            ✓ Mark as Delivered
-          </Button>
+          <>
+            <Button
+              $variant="success"
+              onClick={() => handleAction('deliver')}
+              disabled={isActionLoading}
+            >
+              ✓ Mark as Delivered
+            </Button>
+            <Button
+              $variant="secondary"
+              onClick={() => handleSendNotification('shipped')}
+              disabled={isActionLoading}
+            >
+              ✉️ Send Shipment Notification
+            </Button>
+          </>
         );
       case 'delivered':
         return (
-          <Button
-            $variant="success"
-            onClick={() => handleAction('complete')}
-            disabled={isActionLoading}
-          >
-            ✓ Mark as Complete
-          </Button>
+          <>
+            <Button
+              $variant="success"
+              onClick={() => handleAction('complete')}
+              disabled={isActionLoading}
+            >
+              ✓ Mark as Complete
+            </Button>
+            <Button
+              $variant="secondary"
+              onClick={() => handleSendNotification('delivered')}
+              disabled={isActionLoading}
+            >
+              ✉️ Send Delivery Confirmation
+            </Button>
+          </>
         );
       default:
         return null;
