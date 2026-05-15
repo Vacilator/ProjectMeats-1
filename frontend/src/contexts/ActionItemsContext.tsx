@@ -119,7 +119,7 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
     }
     
     return false;
-  }, []);
+  }, [CIRCUIT_OPEN_DURATION_MS]);
   
   // Reset circuit breaker when user logs out
   useEffect(() => {

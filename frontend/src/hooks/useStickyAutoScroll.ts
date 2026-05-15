@@ -52,6 +52,7 @@ export const useStickyAutoScroll = <T extends HTMLElement>(
       scrollToBottom('auto');
     });
     return () => window.cancelAnimationFrame(frame);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- dependencies is a dynamic DependencyList spread; static analysis cannot validate spread elements
   }, [scrollToBottom, ...dependencies]);
 
   return {

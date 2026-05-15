@@ -151,7 +151,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const isAdmin = useMemo(() => authService.isAdmin(), [user]);
+  const isAdmin = useMemo(() => authService.isAdmin(), []);
 
   const value = useMemo<AuthContextType>(() => {
     return {

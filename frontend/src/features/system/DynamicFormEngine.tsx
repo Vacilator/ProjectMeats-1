@@ -1138,7 +1138,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           shouldValidate: false,
         });
       }
-    }, [currentValue, field.key, field.ui?.widget, resolvedOptions, setValue]);
+    }, [currentValue, field.key, field.ui?.widget, resolvedOptions]);
 
     return (
       <FieldGroup key={field.key}>
