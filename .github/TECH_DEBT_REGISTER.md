@@ -50,7 +50,7 @@
 | TradeDocumentsPanel | Frontend | Stage-grouped document viewer with upload, direction badges, collapsible sections | PR #5464 |
 | Stepper document links | Frontend | Click workflow steps to see stage actions + related documents in popover | PR #5465 |
 
-## Bug Fixes (Phase 62–65)
+## Bug Fixes (Phase 62–67)
 
 | Fix | Domain | Description | PRs |
 |-----|--------|-------------|-----|
@@ -65,3 +65,18 @@
 | Cockpit 404 hardening | Frontend | NextActionChips, AnalyticsDashboard, FinancialsPanel, InterventionDashboard, AILearningMetrics — try/catch + retry:false | PR #5470 |
 | OAuth broad except narrowed | Backend | `integrations/views.py` OAuth callback: removed `Exception` from except tuple, kept only `BadSignature/SignatureExpired` | PR #5470 |
 | Trade doc logging upgrade | Backend | `_create_trade_document` failure now logs `error` instead of `warning` | PR #5470 |
+| Console errors: 4 more components | Frontend | WorkflowStatusBar, ProcessFlowHeader (2 queries), TradeLineageFlow, PartyRoleBadges — try/catch + retry:false | PR #5472 |
+| React index keys | Frontend | BreadcrumbBar: remove index from key; WorkflowExecutionDetails: stable composite key | PR #5472 |
+
+## Features Added (Phase 60–67b)
+
+| Feature | Domain | Description | PRs |
+|---------|--------|-------------|-----|
+| TradeDocument model + API | Backend | Document tracking per trade session/stage with sent/received direction, auto-gen hooks, email integration | PR #5463 |
+| TradeDocumentsPanel | Frontend | Stage-grouped document viewer with upload, direction badges, collapsible sections | PR #5464 |
+| Stepper document links | Frontend | Click workflow steps to see stage actions + related documents in popover | PR #5465 |
+| RFQ email dispatch wired | Backend | request-bid and request-all-bids endpoints now actually send RFQ emails via Microsoft Graph | PR #5472 |
+| Bid response → bid record update | Backend | Email reply parser now updates InquiryProductSupplierBid rows (status, pricing, dates) | PR #5472 |
+| SupplierBidPanel date/location | Frontend | Respond-by, fulfillment date, ship-to location columns with inline editing | PR #5472 |
+| Stepper actionable items | Frontend | Required actions now clickable with arrow indicators and onActionClick callback | PR #5472 |
+| Trade session context on inquiry | Backend + Frontend | Inquiry detail now shows real trade session status/step, extended action banner for 10+ trade stages | PR #5473 |
