@@ -113,10 +113,14 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   const workflowQuery = useQuery({
     queryKey: workflowQueryKey,
     queryFn: async () => {
-      const response = await businessApi.get<WorkflowResponse>(
-        `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/status-workflow/`
-      );
-      return response.data;
+      try {
+        const response = await businessApi.get<WorkflowResponse>(
+          `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/status-workflow/`
+        );
+        return response.data;
+      } catch {
+        return null as unknown as WorkflowResponse;
+      }
     },
     enabled: Boolean(config) && Boolean(entityId) && config?.entityType !== 'carrier',
     staleTime: 15 * 1000,
@@ -216,6 +220,7 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   }, [effectiveWorkflow?.allowed_transitions]);
 
   const transitionMutation = useMutation({
+    retry: false,
     mutationFn: async (statusValue: string) => {
       const response = await businessApi.post(
         `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/transition-status/`,
@@ -278,6 +283,7 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   });
 
   const emailMutation = useMutation({
+    retry: false,
     mutationFn: async (payload: { to: string[]; subject: string; body: string }) => {
       const response = await businessApi.post(
         `/${config?.endpoint}/${encodeURIComponent(String(entityId))}/email/`,

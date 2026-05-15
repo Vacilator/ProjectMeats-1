@@ -134,8 +134,12 @@ const AdminProfilePage: React.FC = () => {
     queryKey: withTenantQueryKey('tenant'),
     enabled: canManage,
     queryFn: async () => {
-      const response = await businessApi.get('/tenants/current/');
-      return response.data;
+      try {
+        const response = await businessApi.get('/tenants/current/');
+        return response.data;
+      } catch {
+        return null as unknown as Tenant;
+      }
     },
   });
 
@@ -170,6 +174,7 @@ const AdminProfilePage: React.FC = () => {
   }, [tenant, defaults.dark, defaults.light]);
 
   const updateProfileMutation = useMutation({
+    retry: false,
     mutationFn: async (data: FormData | Record<string, unknown>) => {
       const url = `/tenants/${tenant?.id}/`;
 

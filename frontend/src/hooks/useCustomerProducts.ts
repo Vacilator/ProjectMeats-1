@@ -86,11 +86,15 @@ export function useCustomerProducts(
   const allProductsQuery = useQuery({
     queryKey: allProductsQueryKey,
     queryFn: async () => {
-      const response = await businessApi.get('system/products/', {
-        params: { is_active: true, page_size: 500 },
-      });
-      const data = (response.data as { results?: Product[] } | Product[]);
-      return Array.isArray(data) ? data : data.results ?? [];
+      try {
+        const response = await businessApi.get('system/products/', {
+          params: { is_active: true, page_size: 500 },
+        });
+        const data = (response.data as { results?: Product[] } | Product[]);
+        return Array.isArray(data) ? data : data.results ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -98,8 +102,12 @@ export function useCustomerProducts(
     queryKey: withTenantQueryKey('customers', customerId),
     enabled: Boolean(customerId),
     queryFn: async () => {
-      const response = await businessApi.get<Customer>(`customers/${customerId}/`);
-      return response.data;
+      try {
+        const response = await businessApi.get<Customer>(`customers/${customerId}/`);
+        return response.data;
+      } catch {
+        return null as unknown as Customer;
+      }
     },
   });
 
@@ -107,9 +115,13 @@ export function useCustomerProducts(
     queryKey: withTenantQueryKey('customers', customerId, 'products'),
     enabled: Boolean(customerId),
     queryFn: async () => {
-      const response = await businessApi.get<{ results?: Product[] } | Product[]>(`customers/${customerId}/products/`);
-      const data = Array.isArray(response.data) ? response.data : response.data.results;
-      return Array.isArray(data) ? data : [];
+      try {
+        const response = await businessApi.get<{ results?: Product[] } | Product[]>(`customers/${customerId}/products/`);
+        const data = Array.isArray(response.data) ? response.data : response.data.results;
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -134,19 +146,23 @@ export function useCustomerProducts(
     queryKey: suggestedProductsQueryKey,
     enabled: customerPreferences.length > 0,
     queryFn: async () => {
-      const normalizedProteins = customerPreferences
-        .map((t) => String(t).toLowerCase().trim())
-        .filter(Boolean);
+      try {
+        const normalizedProteins = customerPreferences
+          .map((t) => String(t).toLowerCase().trim())
+          .filter(Boolean);
 
-      const response = await businessApi.get<{ results?: Product[] } | Product[]>('system/products/', {
-        params: {
-          is_active: true,
-          protein: normalizedProteins.join(','),
-          page_size: 500,
-        },
-      });
-      const data = Array.isArray(response.data) ? response.data : response.data.results;
-      return Array.isArray(data) ? data : [];
+        const response = await businessApi.get<{ results?: Product[] } | Product[]>('system/products/', {
+          params: {
+            is_active: true,
+            protein: normalizedProteins.join(','),
+            page_size: 500,
+          },
+        });
+        const data = Array.isArray(response.data) ? response.data : response.data.results;
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
     },
   });
 

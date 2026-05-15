@@ -113,7 +113,13 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
 
   const proposalsQuery = useQuery({
     queryKey: proposalsQueryKey,
-    queryFn: () => traderService.getProposals(),
+    queryFn: async () => {
+      try {
+        return await traderService.getProposals();
+      } catch {
+        return [];
+      }
+    },
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });
@@ -124,6 +130,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
   );
 
   const executeMutation = useMutation({
+    retry: false,
     mutationFn: (proposalId: string) => traderService.executeProposal(proposalId),
     onSuccess: (result) => {
       message.success(`Trade ${result.trade_id} launched from AI proposal!`);
@@ -137,6 +144,7 @@ export const AITradeProposals: React.FC<AITradeProposalsProps> = ({
   });
 
   const feedbackMutation = useMutation({
+    retry: false,
     mutationFn: (params: { id: string; signal: 'thumbs_up' | 'thumbs_down'; comment?: string }) =>
       traderService.submitProposalFeedback(params.id, params.signal, params.comment),
     onSuccess: () => {

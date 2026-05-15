@@ -99,8 +99,12 @@ export const TradeLineageActions: React.FC<TradeLineageActionsProps> = ({
   const { data: fetchedRecord } = useQuery({
     queryKey,
     queryFn: async () => {
-      const res = await businessApi.get(`${endpoint}/${encodeURIComponent(normalizedId)}/`);
-      return (res.data ?? {}) as Record<string, unknown>;
+      try {
+        const res = await businessApi.get(`${endpoint}/${encodeURIComponent(normalizedId)}/`);
+        return (res.data ?? {}) as Record<string, unknown>;
+      } catch {
+        return {} as Record<string, unknown>;
+      }
     },
     enabled: TRADE_ENTITY_TYPES.has(normalizedType) && Boolean(normalizedId) && !recordProp,
     staleTime: 30_000,

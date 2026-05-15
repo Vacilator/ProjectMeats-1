@@ -144,6 +144,7 @@ export const StatusActionCell: React.FC<StatusActionCellProps> = ({
   );
 
   const transitionMutation = useMutation({
+    retry: false,
     mutationFn: async (nextStatus: string) => {
       const response = await businessApi.post(
         `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/transition-status/`,

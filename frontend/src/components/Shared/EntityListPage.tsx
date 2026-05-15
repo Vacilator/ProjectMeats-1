@@ -213,9 +213,13 @@ export const EntityListPage: React.FC<EntityListPageProps> = ({
   const { data, isLoading, refetch } = useQuery({
     queryKey: stableQueryKey,
     queryFn: async () => {
-      const response = await businessApi.get(apiEndpoint, { params: queryParams });
-      const raw = response.data;
-      return (raw?.results ?? raw) as Record<string, unknown>[];
+      try {
+        const response = await businessApi.get(apiEndpoint, { params: queryParams });
+        const raw = response.data;
+        return (raw?.results ?? raw) as Record<string, unknown>[];
+      } catch {
+        return [];
+      }
     },
     staleTime: 30_000,
   });
