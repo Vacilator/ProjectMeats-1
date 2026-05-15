@@ -56,7 +56,11 @@ def _create_trade_document(
             stage_order=stage_order,
         )
     except Exception:
-        logger.error("Failed to create trade document for %s %s", entity_type, entity_id, exc_info=True)
+        logger.error(
+            "Failed to create trade document: type=%s id=%s stage=%s trade_session=%s",
+            entity_type, entity_id, stage, trade_session.id if trade_session else None,
+            exc_info=True,
+        )
 
 
 def _resolve_trade_session(tenant, parent_doc):

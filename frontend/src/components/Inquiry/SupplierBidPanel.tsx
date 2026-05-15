@@ -262,6 +262,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
             }}
             disabled={requestAllMutation.isPending}
             title="Request bids from all draft suppliers"
+            aria-label="Request bids from all draft suppliers"
           >
             <Send size={12} /> Request All Bids
           </BulkRequestBtn>
@@ -453,7 +454,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
           )}
 
           {canManageBids && !addingBid && (
-            <AddBidButton onClick={() => setAddingBid(true)}>
+            <AddBidButton onClick={() => setAddingBid(true)} aria-label="Add supplier bid">
               <Plus size={14} /> Add Supplier / Bid
             </AddBidButton>
           )}
