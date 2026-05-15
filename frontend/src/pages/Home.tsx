@@ -9,7 +9,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { css, keyframes } from 'styled-components';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Skeleton, Button } from 'antd';
+import { ExclamationCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { businessApi } from '@/services/businessApi';
 import { authService } from '@/services/authService';
@@ -76,43 +78,37 @@ const Home: React.FC = () => {
 
   /* ---- data queries ---- */
 
+  const queryClient = useQueryClient();
+
   const recentActivityQuery = useQuery<ActivityEntry[]>({
     queryKey: ['home', 'recent-activity'],
     queryFn: async () => {
-      try {
-        const res = await businessApi.get('/activity/recent/');
-        return Array.isArray(res?.data) ? res.data : [];
-      } catch {
-        return [];
-      }
+      const res = await businessApi.get('/activity/recent/');
+      return Array.isArray(res?.data) ? res.data : [];
     },
     staleTime: 2 * 60 * 1000,
-    retry: 0,
+    retry: 1,
   });
 
   const quickStatsQuery = useQuery<QuickStat[]>({
     queryKey: ['home', 'quick-stats'],
     queryFn: async (): Promise<QuickStat[]> => {
-      try {
-        const res = await businessApi.get('/dashboard/stats/');
-        if (res?.data && typeof res.data === 'object') {
-          const d = res.data as Record<string, unknown>;
-          return [
-            { label: 'Inquiries', value: String(d.inquiries ?? '—') },
-            { label: 'Purchase Orders', value: String(d.purchase_orders ?? '—') },
-            { label: 'Sales Orders', value: String(d.sales_orders ?? '—') },
-            { label: 'Invoices Due', value: String(d.invoices_due ?? d.open_items ?? '—') },
-            { label: 'Pending Approvals', value: String(d.pending_approvals ?? '—') },
-            { label: 'Active Carriers', value: String(d.active_carriers ?? '—') },
-          ];
-        }
-        return [];
-      } catch {
-        return [];
+      const res = await businessApi.get('/dashboard/stats/');
+      if (res?.data && typeof res.data === 'object') {
+        const d = res.data as Record<string, unknown>;
+        return [
+          { label: 'Inquiries', value: String(d.inquiries ?? '—') },
+          { label: 'Purchase Orders', value: String(d.purchase_orders ?? '—') },
+          { label: 'Sales Orders', value: String(d.sales_orders ?? '—') },
+          { label: 'Invoices Due', value: String(d.invoices_due ?? d.open_items ?? '—') },
+          { label: 'Pending Approvals', value: String(d.pending_approvals ?? '—') },
+          { label: 'Active Carriers', value: String(d.active_carriers ?? '—') },
+        ];
       }
+      return [];
     },
     staleTime: 5 * 60 * 1000,
-    retry: 0,
+    retry: 1,
   });
 
   /* ---- handlers ---- */
@@ -139,21 +135,20 @@ const Home: React.FC = () => {
     [navigate],
   );
 
+  /* ---- retry handlers (stable refs via queryClient) ---- */
+
+  const retryStats = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['home', 'quick-stats'] });
+  }, [queryClient]);
+
+  const retryActivity = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['home', 'recent-activity'] });
+  }, [queryClient]);
+
   /* ---- placeholders when endpoints don't exist yet ---- */
 
   const recentActivity: ActivityEntry[] = recentActivityQuery.data ?? [];
   const stats: QuickStat[] = quickStatsQuery.data ?? [];
-  const fallbackStats: QuickStat[] = useMemo(
-    () => [
-      { label: 'Inquiries', value: '—' },
-      { label: 'Purchase Orders', value: '—' },
-      { label: 'Sales Orders', value: '—' },
-      { label: 'Invoices Due', value: '—' },
-      { label: 'Pending Approvals', value: '—' },
-      { label: 'Active Carriers', value: '—' },
-    ],
-    [],
-  );
 
   return (
     <PageWrapper>
@@ -246,14 +241,45 @@ const Home: React.FC = () => {
             <WidgetTitle>Today&apos;s Numbers</WidgetTitle>
           </WidgetHeader>
           <WidgetBody>
-            <StatsGrid>
-              {(stats.length > 0 ? stats : fallbackStats).map((stat) => (
-                <StatItem key={stat.label}>
-                  <StatValue>{String(stat.value)}</StatValue>
-                  <StatLabel>{stat.label}</StatLabel>
-                </StatItem>
-              ))}
-            </StatsGrid>
+            {quickStatsQuery.isLoading ? (
+              <StatsGrid>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <StatItem key={i}>
+                    <Skeleton.Button active size="small" block style={{ height: 28, marginBottom: 4 }} />
+                    <Skeleton.Input active size="small" block style={{ height: 14 }} />
+                  </StatItem>
+                ))}
+              </StatsGrid>
+            ) : quickStatsQuery.isError ? (
+              <WidgetErrorState>
+                <ExclamationCircleOutlined style={{ fontSize: 24, color: 'rgb(var(--color-error, 239, 68, 68))' }} />
+                <WidgetErrorText>Something went wrong loading stats</WidgetErrorText>
+                <Button
+                  size="small"
+                  icon={<ReloadOutlined />}
+                  onClick={retryStats}
+                >
+                  Retry
+                </Button>
+              </WidgetErrorState>
+            ) : stats.length === 0 ? (
+              <EmptyState>
+                <EmptyStateIcon>📈</EmptyStateIcon>
+                <EmptyStateText>No stats available yet</EmptyStateText>
+                <EmptyStateCTA onClick={() => navigate('/inquiries?action=create')}>
+                  Create your first inquiry to get started →
+                </EmptyStateCTA>
+              </EmptyState>
+            ) : (
+              <StatsGrid>
+                {stats.map((stat) => (
+                  <StatItem key={stat.label}>
+                    <StatValue>{String(stat.value)}</StatValue>
+                    <StatLabel>{stat.label}</StatLabel>
+                  </StatItem>
+                ))}
+              </StatsGrid>
+            )}
           </WidgetBody>
         </WidgetCard>
 
@@ -264,10 +290,28 @@ const Home: React.FC = () => {
             <WidgetTitle>Recent Activity</WidgetTitle>
           </WidgetHeader>
           <WidgetBody>
-            {recentActivity.length === 0 ? (
+            {recentActivityQuery.isLoading ? (
+              <ActivitySkeletonList>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} active title={false} paragraph={{ rows: 1, width: '80%' }} style={{ marginBottom: 8 }} />
+                ))}
+              </ActivitySkeletonList>
+            ) : recentActivityQuery.isError ? (
+              <WidgetErrorState>
+                <ExclamationCircleOutlined style={{ fontSize: 24, color: 'rgb(var(--color-error, 239, 68, 68))' }} />
+                <WidgetErrorText>Something went wrong loading activity</WidgetErrorText>
+                <Button
+                  size="small"
+                  icon={<ReloadOutlined />}
+                  onClick={retryActivity}
+                >
+                  Retry
+                </Button>
+              </WidgetErrorState>
+            ) : recentActivity.length === 0 ? (
               <EmptyState>
                 <EmptyStateIcon>📊</EmptyStateIcon>
-                <EmptyStateText>No recent activity yet.</EmptyStateText>
+                <EmptyStateText>No recent activity yet</EmptyStateText>
                 <EmptyStateCTA onClick={() => navigate('/inquiries?action=create')}>
                   Create your first inquiry →
                 </EmptyStateCTA>
@@ -669,6 +713,31 @@ const EmptyStateCTA = styled.button`
   &:hover {
     text-decoration: underline;
   }
+`;
+
+/* ---- Widget error state ---- */
+
+const WidgetErrorState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+`;
+
+const WidgetErrorText = styled.p`
+  font-size: 0.8125rem;
+  color: rgb(var(--color-text-secondary, 108, 117, 125));
+  margin: 0;
+`;
+
+/* ---- Activity skeleton list ---- */
+
+const ActivitySkeletonList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 `;
 
 /* ---- Task Summary ---- */
