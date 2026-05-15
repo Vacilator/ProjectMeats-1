@@ -1,15 +1,17 @@
 /**
  * TradeWorkflowStepper — Data-driven trade workflow progress indicator
  *
- * Replaces the hardcoded PurchaseOrderWorkflow demo React Flow diagram.
  * Shows real progress through the E2E trade pipeline:
  *   Inquiry → PO → SO → Carrier PO → Fulfillment → Invoice
  *
- * Each step shows its status, required actions, and clickability.
+ * Clicking on a completed or active step opens a popover with:
+ * - Required action checklist
+ * - Related documents from that stage (fetched from trade-documents API)
  */
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import styled from 'styled-components';
-import { Tooltip, Tag } from 'antd';
+import { Popover, Tag, Spin } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import {
   FileText,
   ShoppingCart,
@@ -18,8 +20,13 @@ import {
   Package,
   CreditCard,
   Check,
-  ArrowRight,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Paperclip,
+  Mail,
 } from 'lucide-react';
+import { withTenantQueryKey } from '@/utils/queryKeys';
+import { tradeDocumentsService, type TradeDocument } from '@/services/tradeDocumentsService';
 
 // ── Step definitions ──
 
@@ -31,7 +38,7 @@ interface TradeStep {
   requiredActions: string[];
 }
 
-const TRADE_STEPS: TradeStep[] = [
+export const TRADE_STEPS: TradeStep[] = [
   {
     key: 'inquiry',
     label: 'Inquiry',
@@ -114,13 +121,112 @@ const STATUS_TO_STEP: Record<string, number> = {
   halted: -1,
 };
 
+// ── Document type icon map ──
+
+const DOC_ICON: Record<string, React.ReactNode> = {
+  pdf: <FileText size={12} />,
+  email: <Mail size={12} />,
+  attachment: <Paperclip size={12} />,
+};
+
+// ── Popover document content for a stage ──
+
+const StageDocumentsContent: React.FC<{
+  stageKey: string;
+  tradeSessionId?: number | string;
+  step: TradeStep;
+  isActive: boolean;
+  isDone: boolean;
+}> = ({ stageKey, tradeSessionId, step, isActive, isDone }) => {
+  const queryKey = useMemo(
+    () => withTenantQueryKey('trade-docs-stage', stageKey, String(tradeSessionId ?? '')),
+    [stageKey, tradeSessionId],
+  );
+
+  const { data: docs, isLoading } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!tradeSessionId) return [];
+      const all = await tradeDocumentsService.listByTradeSession(tradeSessionId);
+      return all.filter((d) => d.stage === stageKey);
+    },
+    enabled: Boolean(tradeSessionId),
+    staleTime: 30_000,
+  });
+
+  return (
+    <PopoverContent>
+      <PopoverTitle>{step.label}</PopoverTitle>
+      <PopoverDesc>{step.description}</PopoverDesc>
+
+      {isActive && step.requiredActions.length > 0 && (
+        <PopoverSection>
+          <PopoverSectionTitle>Action Required</PopoverSectionTitle>
+          <ActionList>
+            {step.requiredActions.map((action, i) => (
+              <ActionItem key={i}>{action}</ActionItem>
+            ))}
+          </ActionList>
+        </PopoverSection>
+      )}
+
+      {isDone && (
+        <PopoverSection>
+          <PopoverSectionTitle>
+            {isActive ? '✓ Completed' : '✓ Stage Complete'}
+          </PopoverSectionTitle>
+        </PopoverSection>
+      )}
+
+      <PopoverSection>
+        <PopoverSectionTitle>
+          Documents {docs && docs.length > 0 ? `(${docs.length})` : ''}
+        </PopoverSectionTitle>
+        {isLoading ? (
+          <Spin size="small" />
+        ) : !docs || docs.length === 0 ? (
+          <NoDocs>No documents in this stage yet.</NoDocs>
+        ) : (
+          <DocList>
+            {docs.map((doc: TradeDocument) => (
+              <DocItem key={doc.id}>
+                <DocDirection>
+                  {doc.direction === 'sent' ? (
+                    <Tag color="blue" style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 4px' }}>
+                      <ArrowUpRight size={10} /> Sent
+                    </Tag>
+                  ) : (
+                    <Tag color="green" style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 4px' }}>
+                      <ArrowDownLeft size={10} /> Rcvd
+                    </Tag>
+                  )}
+                </DocDirection>
+                <DocIcon>{DOC_ICON[doc.document_type] ?? <FileText size={12} />}</DocIcon>
+                {doc.download_url ? (
+                  <DocLink href={doc.download_url} target="_blank" rel="noopener noreferrer">
+                    {doc.title}
+                  </DocLink>
+                ) : (
+                  <DocName>{doc.title}</DocName>
+                )}
+              </DocItem>
+            ))}
+          </DocList>
+        )}
+      </PopoverSection>
+    </PopoverContent>
+  );
+};
+
 // ── Props ──
 
-interface TradeWorkflowStepperProps {
+export interface TradeWorkflowStepperProps {
   tradeStatus: string;
   currentStep?: string;
   inquiryStatus?: string;
   compact?: boolean;
+  /** Trade session ID — enables per-stage document preview on step click */
+  tradeSessionId?: number | string;
 }
 
 // ── Component ──
@@ -130,10 +236,12 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
   currentStep,
   inquiryStatus,
   compact = false,
+  tradeSessionId,
 }) => {
+  const [openStep, setOpenStep] = useState<string | null>(null);
+
   const activeStepIndex = useMemo(() => {
     const fromStatus = STATUS_TO_STEP[tradeStatus] ?? 0;
-    // Refine with orchestrator step if available
     if (currentStep) {
       if (currentStep.includes('supplier_rfq') || currentStep.includes('supplier_reply')) return 0;
       if (currentStep.includes('supplier_po') || currentStep.includes('draft_supplier')) return 1;
@@ -148,46 +256,57 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
   const isCancelled = tradeStatus === 'cancelled' || tradeStatus === 'halted';
   const isCompleted = tradeStatus === 'completed';
 
+  const handleOpenChange = useCallback((stepKey: string, open: boolean) => {
+    setOpenStep(open ? stepKey : null);
+  }, []);
+
   return (
     <StepperContainer $compact={compact}>
       {TRADE_STEPS.map((step, index) => {
         const isActive = index === activeStepIndex && !isCancelled && !isCompleted;
         const isDone = index < activeStepIndex || isCompleted;
         const isFuture = index > activeStepIndex && !isCompleted;
+        const isClickable = (isActive || isDone) && !compact;
+
+        const stepNode = (
+          <StepNode $active={isActive} $done={isDone} $future={isFuture} $compact={compact} $clickable={isClickable}>
+            <StepIcon $active={isActive} $done={isDone}>
+              {isDone ? <Check size={compact ? 14 : 16} /> : step.icon}
+            </StepIcon>
+            {!compact && <StepLabel $active={isActive} $done={isDone}>{step.label}</StepLabel>}
+            {isActive && !compact && (
+              <ActiveIndicator />
+            )}
+          </StepNode>
+        );
 
         return (
           <React.Fragment key={step.key}>
             {index > 0 && (
               <StepConnector $done={isDone} $active={isActive} />
             )}
-            <Tooltip
-              title={
-                <div>
-                  <strong>{step.label}</strong>
-                  <div style={{ fontSize: '0.8rem', marginTop: 4 }}>{step.description}</div>
-                  {isActive && step.requiredActions.length > 0 && (
-                    <div style={{ marginTop: 6 }}>
-                      <strong>Action Required:</strong>
-                      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                        {step.requiredActions.map((action, i) => (
-                          <li key={i} style={{ fontSize: '0.8rem' }}>{action}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              }
-            >
-              <StepNode $active={isActive} $done={isDone} $future={isFuture} $compact={compact}>
-                <StepIcon $active={isActive} $done={isDone}>
-                  {isDone ? <Check size={compact ? 14 : 16} /> : step.icon}
-                </StepIcon>
-                {!compact && <StepLabel $active={isActive} $done={isDone}>{step.label}</StepLabel>}
-                {isActive && !compact && (
-                  <ActiveIndicator />
-                )}
-              </StepNode>
-            </Tooltip>
+            {isClickable ? (
+              <Popover
+                open={openStep === step.key}
+                onOpenChange={(open) => handleOpenChange(step.key, open)}
+                trigger="click"
+                placement="bottom"
+                overlayStyle={{ maxWidth: 360 }}
+                content={
+                  <StageDocumentsContent
+                    stageKey={step.key}
+                    tradeSessionId={tradeSessionId}
+                    step={step}
+                    isActive={isActive}
+                    isDone={isDone}
+                  />
+                }
+              >
+                {stepNode}
+              </Popover>
+            ) : (
+              stepNode
+            )}
           </React.Fragment>
         );
       })}
@@ -218,14 +337,14 @@ const StepConnector = styled.div<{ $done: boolean; $active: boolean }>`
   transition: background 0.3s ease;
 `;
 
-const StepNode = styled.div<{ $active: boolean; $done: boolean; $future: boolean; $compact?: boolean }>`
+const StepNode = styled.div<{ $active: boolean; $done: boolean; $future: boolean; $compact?: boolean; $clickable?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.375rem;
   position: relative;
   min-width: ${({ $compact }) => $compact ? '32px' : '64px'};
-  cursor: ${({ $active }) => $active ? 'pointer' : 'default'};
+  cursor: ${({ $clickable }) => $clickable ? 'pointer' : 'default'};
   opacity: ${({ $future }) => $future ? 0.4 : 1};
   transition: opacity 0.3s ease;
 `;
@@ -286,6 +405,99 @@ const ActiveIndicator = styled.div`
     0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
     50% { opacity: 0.5; transform: translateX(-50%) scale(1.5); }
   }
+`;
+
+// ── Popover inner styles ──
+
+const PopoverContent = styled.div`
+  max-width: 320px;
+`;
+
+const PopoverTitle = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 2px;
+`;
+
+const PopoverDesc = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 8px;
+`;
+
+const PopoverSection = styled.div`
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(var(--color-border), 0.3);
+`;
+
+const PopoverSectionTitle = styled.div`
+  font-weight: 600;
+  font-size: 12px;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 6px;
+`;
+
+const ActionList = styled.ul`
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: disc;
+`;
+
+const ActionItem = styled.li`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 2px;
+`;
+
+const NoDocs = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+  font-style: italic;
+`;
+
+const DocList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const DocItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+`;
+
+const DocDirection = styled.span`
+  flex-shrink: 0;
+`;
+
+const DocIcon = styled.span`
+  flex-shrink: 0;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const DocLink = styled.a`
+  font-size: 12px;
+  color: rgb(var(--color-primary));
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const DocName = styled.span`
+  font-size: 12px;
+  color: rgb(var(--color-text-primary));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 export default TradeWorkflowStepper;

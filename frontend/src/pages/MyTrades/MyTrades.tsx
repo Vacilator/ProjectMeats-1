@@ -359,6 +359,7 @@ const MyTrades: React.FC = () => {
                       <TradeWorkflowStepper
                         tradeStatus={trade.status}
                         currentStep={trade.current_step}
+                        tradeSessionId={trade.id}
                       />
                     </FlowSection>
                     <FlowSection>

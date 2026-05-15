@@ -38,7 +38,7 @@ import {
 // Props
 // ============================================================================
 
-interface TradeDocumentsPanelProps {
+export interface TradeDocumentsPanelProps {
   entityType: string;
   entityId: string;
   tradeSessionId?: number | string;
