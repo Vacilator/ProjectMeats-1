@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 import { PackagePlus } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import {
@@ -36,6 +37,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { StatusActionCell } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -465,16 +467,36 @@ const DetailAmount = styled.div`
 export const SalesOrdersPage: React.FC = () => {
   useDocumentTitle('Sales Orders');
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [orders, setOrders] = useState<SalesOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // React Query: tenant-scoped sales orders
+  const {
+    data: orders = [],
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey: withTenantQueryKey('sales-orders'),
+    queryFn: async () => {
+      const response = await businessApi.get('sales-orders/');
+      return (response.data.results || response.data) as SalesOrder[];
+    },
+    staleTime: 30_000,
+  });
+
+  const error = queryError
+    ? (queryError as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to load sales orders'
+    : null;
+
+  const invalidateSalesOrders = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('sales-orders') });
+  }, [queryClient]);
 
   // Auto-open modal if ?action=create in URL
   useEffect(() => {
@@ -488,10 +510,6 @@ export const SalesOrdersPage: React.FC = () => {
       return next;
     });
   }, [searchParams, setSearchParams]);
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
 
   const exportToCsv = async () => {
     try {
@@ -513,27 +531,8 @@ export const SalesOrdersPage: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (err: unknown) {
       logger.error('Error exporting sales orders:', err);
-      setError('Failed to export sales orders');
     } finally {
       setExporting(false);
-    }
-  };
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await businessApi.get('sales-orders/');
-      setOrders(response.data.results || response.data);
-    } catch (err: unknown) {
-      logger.error('Failed to fetch sales orders:', err);
-      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
-      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
-      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
-      setError((data.detail as string) || 'Failed to load sales orders');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -542,8 +541,8 @@ export const SalesOrdersPage: React.FC = () => {
   }, []);
 
   const handleCreateSuccess = useCallback(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    invalidateSalesOrders();
+  }, [invalidateSalesOrders]);
 
   const handleOrderClick = (order: SalesOrder) => {
     setSelectedOrder(order);
@@ -749,7 +748,7 @@ export const SalesOrdersPage: React.FC = () => {
                           entityType="sales_order"
                           entityId={order.id}
                           status={order.status}
-                          onTransitioned={() => fetchOrders()}
+                          onTransitioned={invalidateSalesOrders}
                         />
                       </TableCell>
                     </TableRow>

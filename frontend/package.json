@@ -65,6 +65,7 @@
     "lint:colors": "node .eslint/scripts/check-colors.cjs",
     "lint:colors:fix": "node .eslint/scripts/check-colors.cjs --fix",
     "lint:render-stability": "node .eslint/scripts/check-render-stability.cjs",
+    "lint:query-keys": "node .eslint/scripts/check-query-key-scoping.cjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
@@ -72,7 +73,7 @@
     "serve": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "verify-standards": "npm run type-check && npm run lint && npm run lint:colors && npm run lint:render-stability && echo '✅ Frontend standards verification passed'"
+    "verify-standards": "npm run type-check && npm run lint && npm run lint:colors && npm run lint:render-stability && npm run lint:query-keys && echo '✅ Frontend standards verification passed'"
   },
   "browserslist": {
     "production": [

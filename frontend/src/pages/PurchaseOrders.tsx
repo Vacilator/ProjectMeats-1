@@ -3,6 +3,7 @@ import { Skeleton } from 'antd';
 import { ClipboardList } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { buildPurchaseOrderReviewPath } from '@/services/purchaseOrderReviewService';
 import type { PurchaseOrder, Supplier } from '../services/apiService';
@@ -21,6 +22,7 @@ import { formatTradeDate } from '@/utils/trade';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { StatusActionCell } from '@/components/Workflow';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // Styled Components
 const SecondaryButton = styled.button`
@@ -162,15 +164,42 @@ const DeleteButton = styled.button`
 const PurchaseOrders: React.FC = () => {
   useDocumentTitle('Purchase Orders');
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [poSearchText, setPoSearchText] = useState('');
   const [poActiveTab, setPoActiveTab] = useState('all');
+
+  // React Query: tenant-scoped purchase orders
+  const {
+    data: purchaseOrders = [],
+    isLoading: posLoading,
+  } = useQuery({
+    queryKey: withTenantQueryKey('purchase-orders'),
+    queryFn: async () => {
+      const resp = await businessApi.get('purchase-orders/');
+      return (resp.data.results || resp.data) as PurchaseOrder[];
+    },
+    staleTime: 30_000,
+  });
+
+  // React Query: tenant-scoped suppliers (for name resolution)
+  const {
+    data: suppliers = [],
+    isLoading: suppLoading,
+  } = useQuery({
+    queryKey: withTenantQueryKey('suppliers'),
+    queryFn: async () => {
+      const resp = await businessApi.get('suppliers/');
+      return (resp.data.results || resp.data) as Supplier[];
+    },
+    staleTime: 60_000,
+  });
+
+  const loading = posLoading || suppLoading;
+
   const poTabs = useMemo(() => [
     { key: 'all', label: 'All' },
     { key: 'pending', label: 'Pending' },
@@ -217,17 +246,16 @@ const PurchaseOrders: React.FC = () => {
     });
   }, [searchParams, setSearchParams]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const [exporting, setExporting] = useState(false);
+
+  const invalidatePurchaseOrders = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('purchase-orders') });
+  }, [queryClient]);
 
   const exportToCsv = async () => {
     try {
       setExporting(true);
 
-      // Use backend streaming export (tenant-safe via get_queryset + filter_queryset)
       const response = await businessApi.get('/purchase-orders/', {
         params: { format: 'csv' },
         responseType: 'blob',
@@ -252,31 +280,6 @@ const PurchaseOrders: React.FC = () => {
       });
     } finally {
       setExporting(false);
-    }
-  };
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [posResp, suppResp] = await Promise.all([
-        businessApi.get('purchase-orders/'),
-        businessApi.get('suppliers/'),
-      ]);
-      setPurchaseOrders((posResp.data.results || posResp.data) as PurchaseOrder[]);
-      setSuppliers((suppResp.data.results || suppResp.data) as Supplier[]);
-    } catch (error) {
-      logger.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadPurchaseOrders = async () => {
-    try {
-      const resp = await businessApi.get('purchase-orders/');
-      setPurchaseOrders((resp.data.results || resp.data) as PurchaseOrder[]);
-    } catch (error) {
-      logger.error('Error loading purchase orders:', error);
     }
   };
 
@@ -305,9 +308,8 @@ const PurchaseOrders: React.FC = () => {
         title: 'Deleted',
         content: 'Purchase order deleted successfully.',
       });
-      await loadPurchaseOrders(); // Re-fetch to update the list
+      invalidatePurchaseOrders();
     } catch (error: unknown) {
-      // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
       logger.error('Error deleting purchase order:', error);
       const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
       const errorMessage = err?.response?.data?.detail
@@ -341,14 +343,11 @@ const PurchaseOrders: React.FC = () => {
     setEditingPurchaseOrder(null);
   };
 
-  const handleFormSuccess = async () => {
-    await loadPurchaseOrders();
-    handleFormClose();
-  };
-
   const handleFormSuccessCallback = useCallback(() => {
-    void handleFormSuccess();
-  }, [handleFormSuccess]);
+    invalidatePurchaseOrders();
+    setShowForm(false);
+    setEditingPurchaseOrder(null);
+  }, [invalidatePurchaseOrders]);
 
   const showingInlineForm = showForm;
   const headerTitle = showingInlineForm
@@ -584,7 +583,7 @@ const PurchaseOrders: React.FC = () => {
                             entityType="purchase_order"
                             entityId={purchaseOrder.id}
                             status={purchaseOrder.status}
-                            onTransitioned={loadPurchaseOrders}
+                            onTransitioned={invalidatePurchaseOrders}
                           />
                         </TableCell>
                         <TableCell>
