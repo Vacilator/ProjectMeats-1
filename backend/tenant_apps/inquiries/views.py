@@ -905,8 +905,11 @@ class InquiryProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter by tenant via inquiry, prefetch supplier bids."""
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return InquiryProduct.objects.none()
         return (
-            InquiryProduct.objects.filter(inquiry__tenant=self.request.tenant)
+            InquiryProduct.objects.filter(inquiry__tenant=tenant)
             .select_related("product", "inquiry", "ship_to_location")
             .prefetch_related("supplier_bids", "supplier_bids__supplier", "supplier_bids__plant", "supplier_bids__contact")
         )
@@ -920,8 +923,11 @@ class InquiryProductSupplierBidViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter by tenant — bids belong to inquiry products scoped by tenant."""
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return InquiryProductSupplierBid.objects.none()
         return (
-            InquiryProductSupplierBid.objects.filter(tenant=self.request.tenant)
+            InquiryProductSupplierBid.objects.filter(tenant=tenant)
             .select_related("supplier", "plant", "contact", "inquiry_product", "inquiry_product__product")
         )
 
@@ -1116,7 +1122,10 @@ class InquiryTemplateViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter by tenant."""
-        queryset = InquiryTemplate.objects.filter(tenant=self.request.tenant).prefetch_related("products")
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return InquiryTemplate.objects.none()
+        queryset = InquiryTemplate.objects.filter(tenant=tenant).prefetch_related("products")
 
         # Filter by entity_type if provided
         entity_type = self.request.query_params.get("entity_type")
@@ -1180,7 +1189,10 @@ class TradeDocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = TradeDocument.objects.filter(tenant=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return TradeDocument.objects.none()
+        qs = TradeDocument.objects.filter(tenant=tenant)
 
         session_id = self.request.query_params.get("trade_session")
         if session_id:
