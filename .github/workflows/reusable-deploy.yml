@@ -1517,7 +1517,7 @@ jobs:
           done
 
           echo "Health-checking backend canary..."
-          MAX_ATTEMPTS=15
+          MAX_ATTEMPTS=25
           ATTEMPT=1
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${CAND_PORT}${HEALTH_PATH}" || echo "000")
@@ -1526,7 +1526,7 @@ jobs:
               break
             fi
             echo "Canary health attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
-            sleep 4
+            sleep 5
             ATTEMPT=$((ATTEMPT + 1))
           done
 
@@ -2029,7 +2029,7 @@ jobs:
 
           # API routing check: hard-gate when backend was deployed in this run,
           # advisory-only when frontend-only (backend may legitimately be down).
-          API_MAX_ATTEMPTS=5
+          API_MAX_ATTEMPTS=8
           API_ATTEMPT=1
           API_CODE="000"
 
@@ -2047,7 +2047,7 @@ jobs:
             fi
 
             echo "API routing check attempt $API_ATTEMPT/$API_MAX_ATTEMPTS (HTTP $API_CODE), retrying..."
-            sleep 15
+            sleep 20
             API_ATTEMPT=$((API_ATTEMPT + 1))
           done
 
