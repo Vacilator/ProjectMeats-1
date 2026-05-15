@@ -85,10 +85,15 @@ export function CockpitFinancialsPanel(): React.ReactElement {
   const { data: trades, isLoading: tradesLoading } = useQuery<TradeFinancials[]>({
     queryKey: withTenantQueryKey('cockpit', 'financials', 'trades'),
     queryFn: async () => {
-      const res = await businessApi.get('/workflows/financials/trades/');
-      return res.data ?? [];
+      try {
+        const res = await businessApi.get('/workflows/financials/trades/');
+        return res.data ?? [];
+      } catch {
+        return [];
+      }
     },
     refetchInterval: 60_000,
+    retry: false,
   });
 
   const summary = useMemo<PortfolioSummary>(() => {

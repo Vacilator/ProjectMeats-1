@@ -56,7 +56,7 @@ def _create_trade_document(
             stage_order=stage_order,
         )
     except Exception:
-        logger.warning("Failed to create trade document for %s %s", entity_type, entity_id, exc_info=True)
+        logger.error("Failed to create trade document for %s %s", entity_type, entity_id, exc_info=True)
 
 
 @dataclass

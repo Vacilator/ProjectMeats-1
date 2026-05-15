@@ -122,12 +122,18 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
             ALTER TABLE inquiries_tradedocument ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY tradedocument_tenant_isolation ON inquiries_tradedocument
-                USING (tenant_id = current_setting('app.current_tenant')::uuid);
+            DO $$ BEGIN
+                CREATE POLICY tradedocument_tenant_isolation ON inquiries_tradedocument
+                    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
 
             ALTER TABLE inquiries_tradesession ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY tradesession_tenant_isolation ON inquiries_tradesession
-                USING (tenant_id = current_setting('app.current_tenant')::uuid);
+            DO $$ BEGIN
+                CREATE POLICY tradesession_tenant_isolation ON inquiries_tradesession
+                    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
             """,
             reverse_sql="""
             DROP POLICY IF EXISTS tradedocument_tenant_isolation ON inquiries_tradedocument;

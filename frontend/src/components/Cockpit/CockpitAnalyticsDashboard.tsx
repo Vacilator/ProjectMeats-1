@@ -146,12 +146,17 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
   const { data, isLoading, isError, refetch } = useQuery<AnalyticsDashboardData>({
     queryKey: withTenantQueryKey('cockpit', 'analytics', dateRange),
     queryFn: async () => {
-      const res = await businessApi.get('/workflows/analytics/dashboard/', {
-        params: { days: dateRange },
-      });
-      return res.data;
+      try {
+        const res = await businessApi.get('/workflows/analytics/dashboard/', {
+          params: { days: dateRange },
+        });
+        return res.data;
+      } catch {
+        return null;
+      }
     },
     refetchInterval: 120_000,
+    retry: false,
   });
 
   const handleExport = useCallback(() => {

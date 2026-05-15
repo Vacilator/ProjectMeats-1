@@ -110,10 +110,15 @@ export function TradesInterventionDashboard(): React.ReactElement {
   const { data: trades, isLoading } = useQuery<InterventionTrade[]>({
     queryKey: withTenantQueryKey('intervention', 'trades'),
     queryFn: async () => {
-      const res = await businessApi.get('/workflows/intervention/trades/');
-      return res.data ?? [];
+      try {
+        const res = await businessApi.get('/workflows/intervention/trades/');
+        return res.data ?? [];
+      } catch {
+        return [];
+      }
     },
     refetchInterval: 30_000,
+    retry: false,
   });
 
   const recoveryMutation = useMutation({
