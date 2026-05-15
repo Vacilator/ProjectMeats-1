@@ -1,12 +1,12 @@
 /**
  * Forms & Flows History Page
- * 
+ *
  * View completed and cancelled form submissions.
  * Implements Phase 1 of the Forms & Flows Enhancement Plan.
- * 
+ *
  * Created: 2026-02-03
  * Updated: Phase 5 - Added WorkForm Runs tab
- * 
+ *
  * Features:
  * - List of completed/cancelled submissions
  * - Workflow executions tab with audit trail
@@ -20,8 +20,8 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { showAlert } from '@/utils/uiDialogs';
-import { 
-  CheckCircle, XCircle, Calendar, Search, Download, 
+import {
+  CheckCircle, XCircle, Calendar, Search, Download,
   Eye, RefreshCw, FileText, ChevronRight, ChevronDown,
   AlertCircle
 } from 'lucide-react';
@@ -66,10 +66,10 @@ const Tab = styled.button<{ $active: boolean }>`
   background: none;
   font-size: 14px;
   font-weight: 500;
-  color: ${({ $active }) => 
+  color: ${({ $active }) =>
     $active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'
   };
-  border-bottom: 2px solid ${({ $active }) => 
+  border-bottom: 2px solid ${({ $active }) =>
     $active ? 'rgb(var(--color-primary))' : 'transparent'
   };
   margin-bottom: -2px;
@@ -109,17 +109,17 @@ const SearchInput = styled.input`
   color: rgb(var(--color-text-primary));
   font-size: 14px;
   width: 280px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
-  
+
   @media (max-width: 640px) {
     width: 100%;
   }
@@ -146,7 +146,7 @@ const DateInput = styled.input`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   font-size: 14px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -169,17 +169,17 @@ const ActionButton = styled.button`
   color: rgb(var(--color-text-secondary));
   font-size: 14px;
   cursor: pointer;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-text-primary));
   }
-  
+
   &:focus-visible {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -193,7 +193,7 @@ const Table = styled.table`
   border-radius: var(--radius-lg, 12px);
   overflow: hidden;
   border: 1px solid rgb(var(--color-border));
-  
+
   @media (max-width: 768px) {
     display: block;
     overflow-x: auto;
@@ -207,11 +207,11 @@ const TableHead = styled.thead`
 
 const TableRow = styled.tr`
   border-bottom: 1px solid rgb(var(--color-border));
-  
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   &:hover {
     background: rgb(var(--color-surface-hover));
   }
@@ -283,12 +283,12 @@ const ViewButton = styled.button`
   color: rgb(var(--color-text-secondary));
   font-size: 13px;
   cursor: pointer;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
   }
-  
+
   &:focus-visible {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
@@ -354,28 +354,28 @@ const PageButtons = styled.div`
 
 const PageButton = styled.button<{ $active?: boolean }>`
   padding: 6px 12px;
-  border: 1px solid ${({ $active }) => 
+  border: 1px solid ${({ $active }) =>
     $active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'
   };
   border-radius: var(--radius-sm, 6px);
-  background: ${({ $active }) => 
+  background: ${({ $active }) =>
     $active ? 'rgb(var(--color-primary))' : 'transparent'
   };
-  color: ${({ $active }) => 
+  color: ${({ $active }) =>
     $active ? 'rgb(var(--color-text-inverse))' : 'rgb(var(--color-text-secondary))'
   };
   font-size: 14px;
   cursor: pointer;
-  
+
   &:hover:not(:disabled) {
     border-color: rgb(var(--color-primary));
   }
-  
+
   &:focus-visible {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -383,7 +383,7 @@ const PageButton = styled.button<{ $active?: boolean }>`
 `;
 
 const ExpandableRow = styled.tr<{ $expanded: boolean }>`
-  background: ${({ $expanded }) => 
+  background: ${({ $expanded }) =>
     $expanded ? 'rgb(var(--color-background))' : 'transparent'
   };
 `;
@@ -403,7 +403,7 @@ const FormsFlowsHistory: React.FC = () => {
   // Tab state
   const [activeTab, setActiveTab] = useState<'submissions' | 'workflows'>('submissions');
   const navigate = useNavigate();
-  
+
   // Submissions state
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -413,14 +413,14 @@ const FormsFlowsHistory: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
-  
+
   // Workflow executions state
   const [workflowExecutions, setWorkflowExecutions] = useState<WorkFormExecution[]>([]);
   const [workflowsLoading, setWorkflowsLoading] = useState(false);
   const [expandedWorkflow, setExpandedWorkflow] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [runsLoadError, setRunsLoadError] = useState<string | null>(null);
-  
+
   const tabOrder: Array<'submissions' | 'workflows'> = ['submissions', 'workflows'];
 
   const handleTabKeyDown = (
@@ -460,7 +460,7 @@ const FormsFlowsHistory: React.FC = () => {
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
       if (searchQuery) params.search = searchQuery;
-      
+
       const response = await businessApi.get('/workflows/form-submissions/', { params });
       setSubmissions(response.data.results || response.data || []);
       setTotalCount(response.data.count || 0);
@@ -472,8 +472,8 @@ const FormsFlowsHistory: React.FC = () => {
       setLoading(false);
     }
   };
-  
-  
+
+
   // Debounced search (respect active tab)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -490,8 +490,9 @@ const FormsFlowsHistory: React.FC = () => {
     }, 300);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSubmissions/fetchWorkflowExecutions read current state at call-time; adding them would defeat debounce
   }, [activeTab, page, searchQuery]);
-  
+
   // Fetch workflow executions
   const fetchWorkflowExecutions = async () => {
     setWorkflowsLoading(true);
@@ -522,7 +523,7 @@ const FormsFlowsHistory: React.FC = () => {
   const toggleWorkflowExpansion = (workflowId: string) => {
     setExpandedWorkflow((cur) => (cur === workflowId ? null : workflowId));
   };
-  
+
   // Fetch data when tab changes
   useEffect(() => {
     if (activeTab === 'submissions') {
@@ -530,9 +531,10 @@ const FormsFlowsHistory: React.FC = () => {
     } else {
       fetchWorkflowExecutions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSubmissions/fetchWorkflowExecutions read current state at call-time; including them would cause extra re-fetches
   }, [activeTab, page, startDate, endDate]);
-  
-  
+
+
   // Calculate duration in readable format
   const formatDuration = (start: string, end?: string) => {
     if (!end) return '-';
@@ -540,18 +542,18 @@ const FormsFlowsHistory: React.FC = () => {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-    
+
     if (diffMins < 60) return `${diffMins}m`;
     if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m`;
     return `${diffDays}d ${diffHours % 24}h`;
   };
-  
+
   // Handle view details
   const handleViewDetails = (submission: FormSubmission) => {
     // Navigate to submission details page
     window.location.href = `/workflows/details/${submission.id}`;
   };
-  
+
   // Export to CSV
   const handleExport = () => {
     const rows = activeTab === 'submissions' ? submissions : workflowExecutions;
@@ -592,11 +594,11 @@ const FormsFlowsHistory: React.FC = () => {
     link.click();
     URL.revokeObjectURL(url);
   };
-  
+
   const totalPages = Math.ceil(totalCount / pageSize);
   const currentLoading = activeTab === 'submissions' ? loading : workflowsLoading;
   const currentData = activeTab === 'submissions' ? submissions : workflowExecutions;
-  
+
   return (
     <ErrorBoundary>
       <Container role="region" aria-label="Form History">
@@ -633,7 +635,7 @@ const FormsFlowsHistory: React.FC = () => {
           WorkForm Runs
         </Tab>
       </TabsContainer>
-      
+
       <Toolbar>
         <ToolbarLeft>
           <SearchWrapper>
@@ -648,7 +650,7 @@ const FormsFlowsHistory: React.FC = () => {
               aria-label="Search history by form name"
             />
           </SearchWrapper>
-          
+
           <DateFilter role="group" aria-label="Date range filter">
             <Calendar size={16} color="rgb(var(--color-text-tertiary))" aria-hidden="true" />
             <DateInput
@@ -666,13 +668,13 @@ const FormsFlowsHistory: React.FC = () => {
             />
           </DateFilter>
         </ToolbarLeft>
-        
+
         <div style={{ display: 'flex', gap: '8px' }}>
           <ActionButton onClick={handleExport} aria-label="Export to CSV">
             <Download size={16} aria-hidden="true" />
             Export
           </ActionButton>
-          <ActionButton 
+          <ActionButton
             onClick={() => (activeTab === 'submissions' ? fetchSubmissions() : fetchWorkflowExecutions())}
             disabled={currentLoading}
             aria-label={currentLoading ? 'Loading...' : 'Refresh history'}
@@ -681,7 +683,7 @@ const FormsFlowsHistory: React.FC = () => {
           </ActionButton>
         </div>
       </Toolbar>
-      
+
       {currentLoading ? (
         <LoadingState role="status" aria-live="polite">Loading history...</LoadingState>
       ) : currentData.length === 0 && ((activeTab === 'submissions' && loadError) || (activeTab === 'workflows' && runsLoadError)) ? (
@@ -734,7 +736,7 @@ const FormsFlowsHistory: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <StatusBadge $status={submission.status}>
-                      {submission.status === 'completed' 
+                      {submission.status === 'completed'
                         ? <><CheckCircle size={12} aria-hidden="true" /> Completed</>
                         : <><XCircle size={12} aria-hidden="true" /> Cancelled</>
                       }
@@ -744,7 +746,7 @@ const FormsFlowsHistory: React.FC = () => {
                   <TableCell>{formatDateLocal(submission.completed_at || '')}</TableCell>
                   <TableCell>{submission.created_by_name || '-'}</TableCell>
                   <TableCell>
-                    <ViewButton 
+                    <ViewButton
                       onClick={() => handleViewDetails(submission)}
                       aria-label={`View details for ${submission.form_name}`}
                     >
@@ -812,7 +814,7 @@ const FormsFlowsHistory: React.FC = () => {
                           </ViewButton>
                         </TableCell>
                       </ExpandableRow>
-                      
+
                       {isExpanded && (
                         <tr>
                           <ExpandedContent colSpan={8}>
@@ -842,16 +844,16 @@ const FormsFlowsHistory: React.FC = () => {
               </tbody>
             </Table>
           )}
-          
-          
+
+
           {totalPages > 1 && (
             <Pagination role="navigation" aria-label="Pagination">
               <PageInfo aria-live="polite">
                 Showing {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount}
               </PageInfo>
               <PageButtons>
-                <PageButton 
-                  onClick={() => setPage(p => p - 1)} 
+                <PageButton
+                  onClick={() => setPage(p => p - 1)}
                   disabled={page <= 1}
                   aria-label="Go to previous page"
                 >
@@ -871,8 +873,8 @@ const FormsFlowsHistory: React.FC = () => {
                     </PageButton>
                   );
                 })}
-                <PageButton 
-                  onClick={() => setPage(p => p + 1)} 
+                <PageButton
+                  onClick={() => setPage(p => p + 1)}
                   disabled={page >= totalPages}
                   aria-label="Go to next page"
                 >

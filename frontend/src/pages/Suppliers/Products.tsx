@@ -1,6 +1,6 @@
 /**
  * Supplier Available Products Management Page
- * 
+ *
  * Manages the list of system products that a supplier has available.
  * Uses SupplierAvailableItem model (supplier + system.Product).
  */
@@ -79,7 +79,7 @@ const ContextBanner = styled.div`
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -105,14 +105,14 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 3rem 1rem;
   color: rgb(var(--color-text-secondary));
-  
+
   h3 {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: rgb(var(--color-text-primary));
   }
-  
+
   p {
     margin-bottom: 1.5rem;
   }
@@ -144,6 +144,7 @@ const SupplierProducts: React.FC = () => {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [addingProducts, setAddingProducts] = useState<boolean>(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchSupplier defined below uses only `id`
   useEffect(() => {
     if (location.state?.supplier) {
       setSupplier(location.state.supplier);
@@ -152,6 +153,7 @@ const SupplierProducts: React.FC = () => {
     }
   }, [id, location.state]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchItems defined below uses only `id`
   useEffect(() => {
     if (id) fetchItems();
   }, [id]);
@@ -212,7 +214,7 @@ const SupplierProducts: React.FC = () => {
     if (addModalVisible) {
       void fetchSystemProducts(productSearchText);
     }
-  }, [addModalVisible, fetchSystemProducts]);
+  }, [addModalVisible, fetchSystemProducts, productSearchText]);
 
   const handleAddProducts = async () => {
     if (!selectedProductIds.length) {

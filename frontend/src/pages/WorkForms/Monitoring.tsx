@@ -16,7 +16,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { workformExecutionService } from '@/services/workformExecutionService';
-import { getTenantQueryScope, withTenantQueryKey } from '@/utils/queryKeys';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const formatDuration = (value: number | null | undefined) => {
@@ -29,14 +29,13 @@ export const Monitoring: React.FC = () => {
   useDocumentTitle('WorkForms Monitoring');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const tenantQueryScope = getTenantQueryScope();
   const analyticsQueryKey = useMemo(
     () => withTenantQueryKey('workform-executions', 'analytics'),
-    [tenantQueryScope],
+    [],
   );
   const activeExecutionsQueryKey = useMemo(
     () => withTenantQueryKey('workform-executions', 'active'),
-    [tenantQueryScope],
+    [],
   );
   const analyticsQuery = useQuery({
     queryKey: analyticsQueryKey,

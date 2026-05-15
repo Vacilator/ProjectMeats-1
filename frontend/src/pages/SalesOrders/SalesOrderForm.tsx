@@ -746,7 +746,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
         setSubmitting(false);
       }
     },
-    [formValues, mode, entityId, buildPayload, onSuccess],
+    [formValues, mode, entityId, buildPayload, onSuccess, approvalGate],
   );
 
   // Selected scenario info

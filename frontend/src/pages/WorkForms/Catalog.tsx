@@ -773,7 +773,7 @@ const FormsFlowsCatalog: React.FC = () => {
     }
 
     return filtered;
-  }, [forms, searchQuery, filter, activeTab, proteinTypeFilter, departmentFilter, isWorkflow]);
+  }, [forms, searchQuery, filter, activeTab, proteinTypeFilter, departmentFilter, isWorkflow, isLoading]);
 
   // Count forms by type for tab badges
   const workflowsCount = React.useMemo(() => {

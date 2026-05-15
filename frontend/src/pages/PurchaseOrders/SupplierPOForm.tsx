@@ -692,7 +692,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
         setSubmitting(false);
       }
     },
-    [formValues, mode, entityId, buildPayload, onSuccess],
+    [formValues, mode, entityId, buildPayload, onSuccess, approvalGate],
   );
 
   // Selected scenario info

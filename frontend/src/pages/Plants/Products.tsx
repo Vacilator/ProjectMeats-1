@@ -1,6 +1,6 @@
 /**
  * Plant Available Products Management Page
- * 
+ *
  * Manages the list of system products available at a specific plant.
  * Uses PlantAssociatedProduct model (plant + system.Product).
  */
@@ -74,7 +74,7 @@ const ContextBanner = styled.div`
   margin-bottom: 1rem;
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
-  
+
   span {
     font-weight: 500;
   }
@@ -100,14 +100,14 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 3rem 1rem;
   color: rgb(var(--color-text-secondary));
-  
+
   h3 {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: rgb(var(--color-text-primary));
   }
-  
+
   p {
     margin-bottom: 1.5rem;
   }
@@ -139,6 +139,7 @@ const PlantProducts: React.FC = () => {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [addingProducts, setAddingProducts] = useState<boolean>(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchPlant defined below uses only `id`
   useEffect(() => {
     if (location.state?.plant) {
       setPlant(location.state.plant);
@@ -147,6 +148,7 @@ const PlantProducts: React.FC = () => {
     }
   }, [id, location.state]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchProducts defined below uses only `id`
   useEffect(() => {
     if (id) fetchProducts();
   }, [id]);
@@ -207,7 +209,7 @@ const PlantProducts: React.FC = () => {
     if (addModalVisible) {
       void fetchSystemProducts(productSearchText);
     }
-  }, [addModalVisible, fetchSystemProducts]);
+  }, [addModalVisible, fetchSystemProducts, productSearchText]);
 
   const handleAddProducts = async () => {
     if (!selectedProductIds.length) {

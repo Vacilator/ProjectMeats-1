@@ -1,12 +1,12 @@
 /**
  * Forms & Flows In Progress Page
- * 
+ *
  * View and manage active form submissions.
  * Implements Phase 1 of the Forms & Flows Enhancement Plan.
- * 
+ *
  * Created: 2026-02-03
  * Updated: Phase 5 - Added real-time polling and cancel functionality
- * 
+ *
  * Features:
  * - Card grid of active submissions
  * - Progress indicators
@@ -60,7 +60,7 @@ const Toolbar = styled.div`
   margin-bottom: 20px;
   flex-wrap: wrap;
   gap: 12px;
-  
+
   @media (max-width: 640px) {
     flex-direction: column;
     align-items: stretch;
@@ -100,7 +100,7 @@ const ToolbarLeft = styled.div`
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  
+
   @media (max-width: 640px) {
     width: 100%;
   }
@@ -114,17 +114,17 @@ const SearchInput = styled.input`
   color: rgb(var(--color-text-primary));
   font-size: 14px;
   width: 280px;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
   }
-  
+
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
   }
-  
+
   @media (max-width: 640px) {
     width: 100%;
     flex: 1;
@@ -143,22 +143,22 @@ const RefreshButton = styled.button`
   background: rgb(var(--color-surface));
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
   }
-  
+
   &:focus-visible {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   @media (max-width: 640px) {
     position: absolute;
     right: 0;
@@ -170,7 +170,7 @@ const CardGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
-  
+
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
@@ -183,7 +183,7 @@ const Card = styled.div<{ $clickable?: boolean }>`
   padding: 20px;
   transition: all 0.15s ease;
   cursor: ${(p) => (p.$clickable ? 'pointer' : 'default')};
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 4px 12px rgb(var(--color-text-primary) / 0.10);
@@ -295,11 +295,11 @@ const ResumeButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.15s ease;
-  
+
   &:hover {
     opacity: 0.9;
   }
-  
+
   &:focus-visible {
     outline: 2px solid rgb(var(--color-primary));
     outline-offset: 2px;
@@ -355,7 +355,7 @@ const FilterSelect = styled.select`
   color: rgb(var(--color-text-primary));
   font-size: 14px;
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
@@ -373,11 +373,11 @@ const CancelButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgba(var(--color-error), 0.10);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -416,19 +416,19 @@ const FormsFlowsInProgress: React.FC = () => {
       });
     });
   }, [resumeSubmission, submissionId]);
-  
+
   // Fetch in-progress submissions
   const fetchSubmissions = async () => {
     setLoading(true);
     setLoadError(null);
     try {
       const params: any = { status: 'in_progress,draft' };
-      
+
       // Apply filter mode
       if (filterMode === 'my') {
         params.assigned_to = 'me';
       }
-      
+
       const response = await businessApi.get('/workflows/form-submissions/', { params });
       setSubmissions(response.data.results || response.data || []);
       setLastUpdated(new Date());
@@ -440,13 +440,15 @@ const FormsFlowsInProgress: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSubmissions reads filterMode at call-time; including it would duplicate the trigger
   // Initial fetch
   useEffect(() => {
     if (activeTab !== 'submissions') return;
     fetchSubmissions();
   }, [activeTab, filterMode]);
-  
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSubmissions reads filterMode at call-time; including it would duplicate the trigger
   // Real-time polling (10 seconds)
   useEffect(() => {
     if (activeTab !== 'submissions') return;
@@ -454,10 +456,10 @@ const FormsFlowsInProgress: React.FC = () => {
     const interval = setInterval(() => {
       fetchSubmissions();
     }, 10000);
-    
+
     return () => clearInterval(interval);
   }, [activeTab, filterMode]);
-  
+
   const executionsQuery = useQuery({
     queryKey: withTenantQueryKey('workform-executions', 'in-progress', filterMode),
     queryFn: async () =>
@@ -500,17 +502,17 @@ const FormsFlowsInProgress: React.FC = () => {
       setCancelingId(null);
     }
   };
-  
+
   // Filter submissions by search query
   const filteredSubmissions = submissions.filter(sub =>
     sub.form_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   // Handle resume action
   const handleResume = (submission: FormSubmission) => {
     resumeSubmission(submission.id);
   };
-  
+
   // Format relative time
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -519,14 +521,14 @@ const FormsFlowsInProgress: React.FC = () => {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
   };
-  
+
   return (
     <ErrorBoundary resetKeys={[submissionId, filterMode, searchQuery]}>
       <Container role="region" aria-label="In Progress Work">
