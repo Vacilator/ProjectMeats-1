@@ -12,7 +12,7 @@
 | TD-FE-004 | Frontend | No OpenAPI-generated TS types; handwritten `any` payloads drift | High | L | `manifests/openapi/openapi-schema.baseline.json`, `frontend/src/services/workformsApi.ts`, `frontend/src/services/schemaService.ts`, `frontend/src/components/Cockpit/SmartSearch.tsx` | Generate frontend/mobile contract artifacts from OpenAPI and replace handwritten DTO hotspots | EH-03 | Open |
 | TD-FE-005 | Frontend | Search UX is fragmented across multiple endpoints and result contracts | High | L | `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/components/Cockpit/SmartSearch.tsx`, `frontend/src/components/Search/ContinuousSearch.tsx` | Create one search SDK/result taxonomy and phase all surfaces onto it | EH-04 | Open |
 | TD-FE-006 | Frontend | FlowEditor is monolithic and coexists with dual graph libraries | High | XL | `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`, `frontend/src/components/Workflow/PurchaseOrderWorkflow.tsx`, `frontend/src/components/EntityGraph/EntityGraph.tsx` | Split editor into store/modules and standardize on `@xyflow/react` | EH-04 | Open |
-| TD-FE-007 | Frontend | Theme-token, logging, a11y, and page test compliance is incomplete | Medium-High | L | `frontend/src/pages/PurchaseOrders.tsx`, `frontend/src/apps/admin-studio/components/SchemaEditor.tsx`, `frontend/src/components/Admin/AdminErrorBoundary.tsx`, `frontend/src/pages/SalesOrders/SalesOrders.tsx` | Expand token/logger enforcement, consolidate boundaries, add a11y + interaction coverage | EH-04 | ✅ Partially Resolved — SchemaEditor ARIA labels added for all icon controls, dialog roles added (PR #5466); remaining: broader a11y audit |
+| TD-FE-007 | Frontend | Theme-token, logging, a11y, and page test compliance is incomplete | Medium-High | L | `frontend/src/pages/PurchaseOrders.tsx`, `frontend/src/apps/admin-studio/components/SchemaEditor.tsx`, `frontend/src/components/Admin/AdminErrorBoundary.tsx`, `frontend/src/pages/SalesOrders/SalesOrders.tsx` | Expand token/logger enforcement, consolidate boundaries, add a11y + interaction coverage | EH-04 | ✅ Partially Resolved — SchemaEditor ARIA labels (PR #5466); SupplierBidPanel keyboard + aria-labels (PR #5479-#5480); MyTrades card a11y (PR #5479); InquiryDetailModal close aria-label (PR #5479); color lint + render stability lint pass ✅; remaining: broader page-level audit |
 | TD-BE-001 | Backend | Tenant/RLS setup still contains fail-open paths in middleware and tasks | Critical | M | `backend/apps/tenants/middleware.py`, `backend/apps/tenants/rls.py`, `backend/apps/core/tasks.py`, `backend/apps/tenants/tasks.py` | Fail closed when tenant/RLS session state cannot be asserted and remove `strict=False` from protected paths | EH-02 | Open |
 | TD-BE-002 | Backend | First-batch tenant idempotency shipped, but remaining mutating APIs still lack explicit idempotency coverage or exemption guidance | High | M | `backend/apps/core/services/idempotency.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/apps/system/workform_views.py` | Keep the shipped core idempotency layer for workform execute + AI document upload, then extend or explicitly exempt remaining mutating APIs such as chat and feedback paths | EH-02 | Open |
 | TD-BE-003 | Backend | AI chat persistence is not tenant-native and lacks RLS | High | L | `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, `manifests/RLS_POLICIES.md` | Add `tenant` FK, backfill, add RLS policies, and stop querying by JSON-stamped tenant context | EH-02 | Open |
@@ -41,6 +41,7 @@
 | Vitest coverage threshold | CI gate | `frontend/vite.config.ts` coverage.thresholds | PR #5461 |
 | API import boundary lint | CI lint | `frontend/.eslint/scripts/check-api-import-boundaries.cjs` / `npm run lint:api-boundaries` | PR #5466 |
 | Idempotent RLS policy lint | CI lint | `.github/scripts/check-idempotent-rls.sh` | PR #5471 |
+| Frontend deploy API check advisory | CI/CD | Advisory-only API routing check when `run_backend_lane=false` in reusable-deploy.yml | PR #5478 |
 
 ## Features Added (Phase 60)
 
@@ -67,6 +68,13 @@
 | Trade doc logging upgrade | Backend | `_create_trade_document` failure now logs `error` instead of `warning` | PR #5470 |
 | Console errors: 4 more components | Frontend | WorkflowStatusBar, ProcessFlowHeader (2 queries), TradeLineageFlow, PartyRoleBadges — try/catch + retry:false | PR #5472 |
 | React index keys | Frontend | BreadcrumbBar: remove index from key; WorkflowExecutionDetails: stable composite key | PR #5472 |
+| Frontend deploy API check advisory | Ops | API routing check made advisory (warning only) for frontend-only deploys when backend is unreachable | PR #5478 |
+| Tenant safety: InquiryTemplate counter | Backend | Added `tenant=request.tenant` to InquiryTemplate usage counter update (was unscoped) | PR #5479 |
+| Hardcoded #fff removed | Frontend | ActionBannerCTA color changed to `rgb(var(--color-primary-foreground, 255 255 255))` | PR #5479 |
+| A11y: SupplierBidPanel keyboard | Frontend | Added onKeyDown handler, aria-labels on all icon-only buttons + Add/RequestAll buttons | PR #5479, #5480 |
+| A11y: InquiryDetailModal close | Frontend | Added aria-label="Close inquiry details" to close button | PR #5479 |
+| A11y: MyTrades trade card headers | Frontend | Added role, tabIndex, aria-expanded, onKeyDown to trade card headers | PR #5479 |
+| Cascade error logging detail | Backend | _create_trade_document failure now logs stage, trade_session_id for faster incident diagnosis | PR #5480 |
 
 ## Features Added (Phase 60–67b)
 
@@ -80,3 +88,12 @@
 | SupplierBidPanel date/location | Frontend | Respond-by, fulfillment date, ship-to location columns with inline editing | PR #5472 |
 | Stepper actionable items | Frontend | Required actions now clickable with arrow indicators and onActionClick callback | PR #5472 |
 | Trade session context on inquiry | Backend + Frontend | Inquiry detail now shows real trade session status/step, extended action banner for 10+ trade stages | PR #5473 |
+| Searchable supplier dropdown | Frontend | Replaced free-text Input with searchable Select querying suppliersApi.list() in SupplierBidPanel | PR #5475 |
+| accept_bid cascade advance | Backend | After accepting a bid, checks all products have accepted bids, then calls advance_orchestrator() | PR #5475 |
+| Stepper entity navigation | Frontend | InquiryDetailModal + MyTrades stepper deep-links to PO/SO/CarrierPO records via onActionClick | PR #5475, #5476 |
+| Action banner CTA buttons | Frontend | "Go to PO", "Go to SO", "Go to Carrier PO" buttons in WorkflowActionBanner with entity navigation | PR #5476 |
+| customerId prop for ship-to | Frontend | Pass customerId to SupplierBidPanel so ship-to dropdown loads correct customer locations | PR #5477 |
+| Rejected inquiry banner | Frontend | Show "Inquiry Rejected" banner with reason when inquiry.status === 'rejected' | PR #5477 |
+| Stepper deep-linking: fulfillment/invoice | Frontend | Fixed entity linkage for fulfillment/invoice steps (uses custom_data IDs, not PO FK) | PR #5479 |
+| Trade list entity IDs | Backend | Trade sessions list now returns linked entity IDs for stepper deep-linking | PR #5479 |
+| Orchestrator None fallback | Backend | Unknown/blank route now returns None instead of defaulting to DRAFT_SALES_ORDER | PR #5479 |
