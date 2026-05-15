@@ -1,7 +1,7 @@
 /**
  * Main App Component
  *
- * ProjectMeats3 React Application
+ * Meats Central React Application
  * Full Business Management System with AI Assistant
  */
 import React, { Suspense, useEffect } from 'react';

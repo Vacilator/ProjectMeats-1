@@ -1,0 +1,24 @@
+{
+  "name": "Meats Central — AI-Powered Meat Market Operations",
+  "short_name": "Meats Central",
+  "description": "Streamline your meat trading operations with AI-powered workflow automation, real-time collaboration, and intelligent document processing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#DC2626",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}

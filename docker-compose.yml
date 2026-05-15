@@ -45,6 +45,12 @@ services:
       - ./backend:/app
       - backend_media:/app/media
       - backend_static:/app/staticfiles
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/api/v1/health/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # React frontend
   frontend:
@@ -56,11 +62,18 @@ services:
     ports:
       - "127.0.0.1:8080:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       - REACT_APP_API_BASE_URL=http://localhost:8000
       - BACKEND_HOST=${BACKEND_HOST:-backend}
       - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
 volumes:
   pgdata:
