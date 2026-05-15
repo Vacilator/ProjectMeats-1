@@ -108,7 +108,7 @@ const getNodeColor = (status: string) => {
     case 'completed':
       return 'rgba(var(--color-success), 0.14)';
     case 'active':
-      return 'rgb(var(--color-surface))3cd';
+      return 'rgba(var(--color-warning), 0.14)';
     case 'exception':
       return 'rgba(var(--color-error), 0.14)';
     default:

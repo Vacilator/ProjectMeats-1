@@ -39,7 +39,11 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
 
     def perform_document_status_transition(self, request, document, next_status):
         """Override to track inquiry-specific timestamps and ensure trade session."""
-        from tenant_apps.inquiries.services.trade_session import get_or_create_trade_session
+        from tenant_apps.inquiries.services.trade_session import (
+            get_or_create_trade_session,
+            update_trade_session_status,
+        )
+        from tenant_apps.inquiries.models import TradeSession, TradeSessionStatus
 
         now = timezone.now()
         if next_status == "quoted":
@@ -53,7 +57,15 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
         tenant = getattr(request, "tenant", None)
         if tenant and next_status not in ("cancelled",):
             try:
-                get_or_create_trade_session(tenant=tenant, inquiry=document)
+                ts, _ = get_or_create_trade_session(tenant=tenant, inquiry=document)
+                # Advance trade session status to match inquiry progression
+                status_map = {
+                    "quoted": TradeSessionStatus.QUOTED,
+                    "accepted": TradeSessionStatus.ORDERED,
+                }
+                target = status_map.get(next_status)
+                if target and ts.status != target:
+                    update_trade_session_status(trade_session=ts, new_status=target)
             except Exception:
                 pass  # best-effort — don't block the transition
 
@@ -295,27 +307,39 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="update-status")
     def update_status(self, request, pk=None):
-        """Update inquiry status with timestamp tracking."""
+        """Update inquiry status — delegates to transition-status for cascade support.
+
+        DEPRECATED: This endpoint is kept for backward compatibility.
+        New code should use POST /{id}/transition-status/ directly.
+        """
+        from apps.core.services.workflow_cascade import attempt_cascade
+
         inquiry = self.get_object()
         new_status = request.data.get("status")
 
         if not new_status:
             return Response({"error": "status is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        now = timezone.now()
-        inquiry.status = new_status
+        # Use the golden transition path so timestamps + cascade fire properly
+        self.perform_document_status_transition(request, inquiry, new_status)
 
-        # Update related timestamps
-        if new_status == "quoted":
-            inquiry.quoted_date = now
-        elif new_status in ("accepted", "rejected"):
-            inquiry.decision_date = now
-            if new_status == "rejected":
-                inquiry.win_loss_reason = request.data.get("reason", "")
+        # Attempt downstream cascade (best-effort, same as transition-status)
+        cascade = attempt_cascade(
+            tenant=getattr(request, "tenant", None),
+            document=inquiry,
+            new_status=new_status,
+        )
 
-        inquiry.save()
-
-        return Response(InquiryDetailSerializer(inquiry).data)
+        response_data = InquiryDetailSerializer(inquiry).data
+        if cascade.triggered:
+            response_data["_cascade"] = {
+                "created_entity_type": cascade.created_entity_type,
+                "created_entity_id": cascade.created_entity_id,
+                "created_entity_label": cascade.created_entity_label,
+                "already_existed": cascade.already_existed,
+                "error": cascade.error,
+            }
+        return Response(response_data)
 
     @action(detail=True, methods=["post"], url_path="create-supplier-po-draft")
     def create_supplier_po_draft(self, request, pk=None):
