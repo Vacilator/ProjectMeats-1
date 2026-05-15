@@ -466,6 +466,7 @@ export const PendingApprovalsTab: React.FC<PendingApprovalsTabProps> = ({
 
   // Approve gate item
   const approveMutation = useMutation({
+    retry: false,
     mutationFn: async (itemId: string) => {
       return businessApi.post(`/ai-assistant/approval-queue/${itemId}/approve/`, { notes: '' });
     },
@@ -477,6 +478,7 @@ export const PendingApprovalsTab: React.FC<PendingApprovalsTabProps> = ({
   });
 
   const rejectMutation = useMutation({
+    retry: false,
     mutationFn: async (itemId: string) => {
       return businessApi.post(`/ai-assistant/approval-queue/${itemId}/reject/`, { notes: '' });
     },

@@ -80,8 +80,12 @@ const BillingPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: withTenantQueryKey('tenants', 'current', 'billing-dashboard'),
     queryFn: async () => {
-      const res = await businessApi.get('/tenants/current/');
-      return res.data;
+      try {
+        const res = await businessApi.get('/tenants/current/');
+        return res.data;
+      } catch {
+        return null as unknown as TenantCurrent;
+      }
     },
     staleTime: 60 * 1000,
   });
@@ -91,14 +95,18 @@ const BillingPage: React.FC = () => {
   const billingConfigsQuery = useQuery<TenantConfiguration[]>({
     queryKey: withTenantQueryKey('tenant-configurations', 'billing'),
     queryFn: async () => {
-      const res = await businessApi.get('/configurations/', { params: { search: 'billing.' } });
-      const raw = res.data as unknown;
-      const data = Array.isArray(raw)
-        ? raw
-        : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
-          ? (raw as any).results
-          : [];
-      return data as TenantConfiguration[];
+      try {
+        const res = await businessApi.get('/configurations/', { params: { search: 'billing.' } });
+        const raw = res.data as unknown;
+        const data = Array.isArray(raw)
+          ? raw
+          : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
+            ? (raw as any).results
+            : [];
+        return data as TenantConfiguration[];
+      } catch {
+        return [];
+      }
     },
     staleTime: 60 * 1000,
   });
@@ -138,14 +146,18 @@ const BillingPage: React.FC = () => {
     queryKey: withTenantQueryKey('invoices', 'subscription', tenant?.id),
     enabled: Boolean(tenant?.id),
     queryFn: async () => {
-      const res = await businessApi.get('/invoices/', { params: { is_subscription: true } });
-      const raw = res.data as unknown;
-      const data = Array.isArray(raw)
-        ? raw
-        : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
-          ? (raw as any).results
-          : [];
-      return data as any[];
+      try {
+        const res = await businessApi.get('/invoices/', { params: { is_subscription: true } });
+        const raw = res.data as unknown;
+        const data = Array.isArray(raw)
+          ? raw
+          : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
+            ? (raw as any).results
+            : [];
+        return data as any[];
+      } catch {
+        return [];
+      }
     },
     staleTime: 60 * 1000,
   });

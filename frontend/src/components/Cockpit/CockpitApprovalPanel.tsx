@@ -309,6 +309,7 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
 
   // Reject mutation
   const rejectMutation = useMutation({
+    retry: false,
     mutationFn: async ({ gateId, comment }: { gateId: string; comment: string }) => {
       return businessApi.post(`/workflows/approvals/${gateId}/reject/`, { comment });
     },

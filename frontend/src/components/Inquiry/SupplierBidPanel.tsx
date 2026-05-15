@@ -131,6 +131,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   // ── Mutations ──
 
   const requestBidMutation = useMutation({
+    retry: false,
     mutationFn: (bidId: string) => inquiryService.requestBid(bidId),
     onSuccess: () => {
       message.success('Bid request sent');
@@ -140,6 +141,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   });
 
   const requestAllMutation = useMutation({
+    retry: false,
     mutationFn: () => inquiryService.requestAllBids(product.id),
     onSuccess: (data) => {
       message.success(data.message);
@@ -149,6 +151,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   });
 
   const acceptBidMutation = useMutation({
+    retry: false,
     mutationFn: (bidId: string) => inquiryService.acceptBid(bidId),
     onSuccess: () => {
       message.success('Bid accepted — pricing updated');
@@ -158,6 +161,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   });
 
   const deleteBidMutation = useMutation({
+    retry: false,
     mutationFn: (bidId: string) => inquiryService.deleteBid(bidId),
     onSuccess: () => {
       message.success('Bid removed');
@@ -167,6 +171,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   });
 
   const createBidMutation = useMutation({
+    retry: false,
     mutationFn: (supplierId: string) =>
       inquiryService.createBid({
         inquiry_product: product.id,
@@ -182,6 +187,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   });
 
   const updateProductFieldMutation = useMutation({
+    retry: false,
     mutationFn: (patch: Record<string, unknown>) =>
       inquiryService.updateInquiryProduct(product.id, patch as Partial<InquiryProduct>),
     onSuccess: () => invalidateInquiry(),

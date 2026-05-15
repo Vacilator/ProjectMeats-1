@@ -331,8 +331,12 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
   const customersQuery = useQuery({
     queryKey: withTenantQueryKey('smart-trade-customers'),
     queryFn: async () => {
-      const resp = await businessApi.get('/customers/?page_size=20&ordering=-updated_at');
-      return resp.data?.results || [];
+      try {
+        const resp = await businessApi.get('/customers/?page_size=20&ordering=-updated_at');
+        return resp.data?.results || [];
+      } catch {
+        return [];
+      }
     },
     staleTime: 60 * 1000,
   });
@@ -340,8 +344,12 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
   const suppliersQuery = useQuery({
     queryKey: withTenantQueryKey('smart-trade-suppliers'),
     queryFn: async () => {
-      const resp = await businessApi.get('/suppliers/?page_size=20&ordering=-updated_at');
-      return resp.data?.results || [];
+      try {
+        const resp = await businessApi.get('/suppliers/?page_size=20&ordering=-updated_at');
+        return resp.data?.results || [];
+      } catch {
+        return [];
+      }
     },
     staleTime: 60 * 1000,
   });
@@ -358,6 +366,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
 
   // Initiate trade mutation
   const initiateMutation = useMutation({
+    retry: false,
     mutationFn: (data: TradeInitiateRequest) => traderService.initiateTrade(data),
     onSuccess: (result) => {
       setDepCheck(result.dependencies);
@@ -372,6 +381,7 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
 
   // Advance trade mutation
   const advanceMutation = useMutation({
+    retry: false,
     mutationFn: (sessionId: string) => traderService.advanceTrade(sessionId),
     onSuccess: () => {
       if (tradeSessionId) {

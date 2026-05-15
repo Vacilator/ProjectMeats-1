@@ -320,6 +320,7 @@ export const ProcessQuickActions: React.FC<ProcessQuickActionsProps> = ({
 
   // Action execution mutation
   const executeMutation = useMutation({
+    retry: false,
     mutationFn: async ({ action }: { action: ProcessAction }) => {
       const resolvedId = entityType === 'inquiry' ? entityId : (inquiryId ?? entityId);
       const url = action.endpoint.replace('{id}', resolvedId);

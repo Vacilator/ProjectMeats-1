@@ -241,12 +241,17 @@ export function TemplateLibraryPage(): React.ReactElement {
   const { data: templates, isLoading } = useQuery<WorkformTemplate[]>({
     queryKey: withTenantQueryKey('template-library'),
     queryFn: async () => {
-      const res = await businessApi.get('/workflows/templates/library/');
-      return res.data ?? [];
+      try {
+        const res = await businessApi.get('/workflows/templates/library/');
+        return res.data ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 
   const cloneMutation = useMutation({
+    retry: false,
     mutationFn: async (params: { sourceId: string; name: string }) => {
       const res = await businessApi.post('/workflows/templates/clone/', params);
       return res.data;
@@ -263,6 +268,7 @@ export function TemplateLibraryPage(): React.ReactElement {
   });
 
   const publishMutation = useMutation({
+    retry: false,
     mutationFn: async (templateId: string) => {
       const res = await businessApi.post(`/workflows/templates/${templateId}/publish/`);
       return res.data;

@@ -241,12 +241,16 @@ const RelatedTabContent: React.FC<RelatedTabContentProps> = React.memo(
     const { data, isLoading } = useQuery({
       queryKey,
       queryFn: async () => {
-        const params = tab.filterParam
-          ? { [tab.filterParam]: entityId }
-          : {};
-        const response = await businessApi.get(tab.apiPath, { params });
-        const raw = response.data;
-        return (raw?.results ?? raw) as Record<string, unknown>[];
+        try {
+          const params = tab.filterParam
+            ? { [tab.filterParam]: entityId }
+            : {};
+          const response = await businessApi.get(tab.apiPath, { params });
+          const raw = response.data;
+          return (raw?.results ?? raw) as Record<string, unknown>[];
+        } catch {
+          return [];
+        }
       },
       staleTime: 30_000,
     });
@@ -310,8 +314,12 @@ export const EntityDetailPage: React.FC<EntityDetailPageProps> = ({
   } = useQuery({
     queryKey: recordQueryKey,
     queryFn: async () => {
-      const response = await businessApi.get(endpoint);
-      return response.data as Record<string, unknown>;
+      try {
+        const response = await businessApi.get(endpoint);
+        return response.data as Record<string, unknown>;
+      } catch {
+        return null as unknown as Record<string, unknown>;
+      }
     },
     staleTime: 60_000,
   });
