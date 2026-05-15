@@ -276,7 +276,7 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
     queryKey: withTenantQueryKey('cockpit-pending-approvals'),
     queryFn: async () => {
       try {
-        const res = await businessApi.get('/workflows/approvals/pending/');
+        const res = await businessApi.get('/ai-assistant/approval-queue/', { params: { status: 'pending' } });
         return (res.data?.results ?? res.data ?? []) as ApprovalItem[];
       } catch {
         // API may not exist yet — return empty gracefully
@@ -296,7 +296,7 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
   // Approve mutation
   const approveMutation = useMutation({
     mutationFn: async ({ gateId, comment }: { gateId: string; comment: string }) => {
-      return businessApi.post(`/workflows/approvals/${gateId}/approve/`, { comment });
+      return businessApi.post(`/ai-assistant/approval-queue/${gateId}/approve/`, { comment });
     },
     onSuccess: () => {
       message.success('Approval submitted');
@@ -311,7 +311,7 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
   const rejectMutation = useMutation({
     retry: false,
     mutationFn: async ({ gateId, comment }: { gateId: string; comment: string }) => {
-      return businessApi.post(`/workflows/approvals/${gateId}/reject/`, { comment });
+      return businessApi.post(`/ai-assistant/approval-queue/${gateId}/reject/`, { comment });
     },
     onSuccess: () => {
       message.success('Rejection submitted');

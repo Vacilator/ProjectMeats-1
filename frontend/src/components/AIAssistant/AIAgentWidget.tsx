@@ -1640,7 +1640,6 @@ export const AIAgentWidget: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // Mount-only: uses aiEnabledRef to avoid reconnect cycles from health poll toggles
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1930,7 +1929,7 @@ export const AIAgentWidget: React.FC = () => {
     }
   };
 
-  const ensureSession = async (): Promise<string> => {
+  const ensureSession = useCallback(async (): Promise<string> => {
     if (sessionId) return sessionId;
 
     const res = await chatSessionsApi.create({
@@ -1949,17 +1948,17 @@ export const AIAgentWidget: React.FC = () => {
     }
 
     return nextId;
-  };
+  }, [sessionId]);
 
-  const reloadSessions = async () => {
+  const reloadSessions = useCallback(async () => {
     try {
       setSessions(normalizeSessions(await chatSessionsApi.list()));
     } catch {
       // ignore
     }
-  };
+  }, []);
 
-  const loadSessionMessages = async (id: string) => {
+  const loadSessionMessages = useCallback(async (id: string) => {
     const serverMsgs = normalizeServerMessages(await chatSessionsApi.getMessages(id));
     const ui = await hydrateDocumentMessageMetadata(toUiMessages(serverMsgs));
     setMessages(
@@ -1978,7 +1977,7 @@ export const AIAgentWidget: React.FC = () => {
     if (ui.length) {
       setState(hasHumanReviewMessage(ui) ? 'action_required' : 'idle');
     }
-  };
+  }, []);
 
   const handleNewChat = async () => {
     setState('thinking');
