@@ -417,34 +417,67 @@ def schedule_email_sync(request):
         from apps.integrations.tasks import sync_single_tenant
 
         task = sync_single_tenant.apply_async(args=[tenant_id])
-    except Exception as sync_err:
-        logger.error(
-            "Failed to queue email auto-sync for tenant %s: %s",
+    except Exception as celery_err:
+        # Celery broker unavailable — run sync synchronously as fallback
+        logger.warning(
+            "Celery unavailable for email sync (tenant %s), falling back to synchronous: %s",
             tenant_id,
-            str(sync_err),
-            exc_info=True,
+            celery_err,
         )
-        failure = build_email_failure(
-            "EMAIL_SYNC_SCHEDULE_FAILED",
-            stage="sync_queue",
-            detail_type=sync_err.__class__.__name__,
-        )
-        return Response(
-            {
-                "ok": False,
-                "accepted": False,
-                "message": failure["message"],
-                "code": "sync_schedule_failed",
-                "tenant_id": tenant_id,
-                "source": source,
-                "action": build_sync_action(failure, tenant_id=tenant_id),
-                "failure": failure,
-                "details": {
-                    "type": sync_err.__class__.__name__,
+        try:
+            from apps.tenants.rls import tenant_rls
+            from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
+
+            with tenant_rls(tenant_id):
+                service = EmailIngestionService()
+                stats = service.poll_tenant_by_id(tenant_id)
+
+            emails_saved = stats.get("emails_saved", 0) if isinstance(stats, dict) else 0
+            return Response(
+                {
+                    "ok": True,
+                    "accepted": True,
+                    "message": f"Email sync completed. {emails_saved} new emails processed.",
+                    "tenant_id": tenant_id,
+                    "source": source,
+                    "provider_email": provider.connected_email,
+                    "task_id": "sync-fallback",
+                    "progress": {
+                        "phase": "completed",
+                        "percent": 100,
+                        "summary": f"Sync complete — {emails_saved} emails.",
+                    },
                 },
-            },
-            status=status.HTTP_200_OK,
-        )
+                status=status.HTTP_200_OK,
+            )
+        except Exception as sync_err:
+            logger.error(
+                "Synchronous email sync also failed for tenant %s: %s",
+                tenant_id,
+                sync_err,
+                exc_info=True,
+            )
+            failure = build_email_failure(
+                "EMAIL_SYNC_SCHEDULE_FAILED",
+                stage="sync_queue",
+                detail_type=sync_err.__class__.__name__,
+            )
+            return Response(
+                {
+                    "ok": False,
+                    "accepted": False,
+                    "message": failure["message"],
+                    "code": "sync_schedule_failed",
+                    "tenant_id": tenant_id,
+                    "source": source,
+                    "action": build_sync_action(failure, tenant_id=tenant_id),
+                    "failure": failure,
+                    "details": {
+                        "type": sync_err.__class__.__name__,
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
 
     cache.set(_auto_sync_task_cache_key(task.id), tenant_id, timeout=AUTO_SYNC_TASK_CACHE_TTL_SECONDS)
 
