@@ -407,12 +407,21 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
         logger.warn('AI inbox auto-sync request failed', SYNC_LOG_CTX);
       }
       const errResp = (rawError as { response?: { data?: Record<string, unknown> } })?.response?.data;
+      const httpStatus = (rawError as { response?: { status?: number } })?.response?.status;
       const backendMsg = typeof errResp?.message === 'string' ? errResp.message : null;
       const isNotConnected = errResp?.code === 'not_connected' ||
         String(backendMsg || '').toLowerCase().includes('not connected');
+      const isServerDown = httpStatus != null && httpStatus >= 502;
+      const tooManyFailures = consecutiveFailures.current >= 3;
       const fallbackMsg = isNotConnected
         ? 'Email integration is not configured. Connect your email in Settings → Email Integrations.'
-        : 'Email sync service is temporarily unavailable. Please try again later.';
+        : isServerDown
+          ? 'The server is temporarily unavailable. Email sync will resume automatically when it recovers.'
+          : 'Email sync service is temporarily unavailable. Please try again later.';
+      // Don't offer retry when server is down or after too many failures —
+      // the widget just shows the message without an action button, and
+      // auto-sync will retry on next page load / login.
+      const showRetry = !isNotConnected && !isServerDown && !tooManyFailures;
       return publishSyncState({
         ...initialSyncState,
         status: 'failed',
@@ -421,10 +430,12 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
         finishedAt: Date.now(),
         message: backendMsg || fallbackMsg,
         summary: backendMsg || fallbackMsg,
-        retryable: !isNotConnected,
+        retryable: showRetry,
         action: isNotConnected
           ? { type: 'reconnect_outlook', label: 'Connect Email', url: '/settings/integrations' }
-          : { type: 'retry_sync', label: 'Retry Sync' },
+          : showRetry
+            ? { type: 'retry_sync', label: 'Retry Sync' }
+            : undefined,
       });
     } finally {
       syncInFlightRef.current = false;
