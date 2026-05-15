@@ -90,7 +90,7 @@ class TenantMiddleware:
                 cursor.execute("RESET app.current_tenant_id")
                 cursor.execute("RESET app.current_tenant")
         except Exception:
-            pass
+            logger.debug("RLS session var RESET failed (best-effort)", exc_info=True)
 
     def _forbidden(self, request: HttpRequest, message: str):
         """Return a clear forbidden response (JSON for API routes)."""
@@ -324,10 +324,21 @@ class TenantMiddleware:
                 f"path={request.path}"
             )
         elif request.user.is_authenticated and not request.path.startswith("/admin"):
-            # Log when authenticated user has no tenant (but not for admin/static paths)
-            logger.debug(
-                f"No tenant resolved for authenticated user: " f"user={request.user.username}, path={request.path}"
-            )
+            # Warn when authenticated user hits a tenant-scoped API path without tenant context.
+            # This is a signal that the request will see empty querysets or get 404s.
+            if request.path.startswith("/api/v1/"):
+                logger.warning(
+                    "Authenticated user hit tenant-scoped API without tenant context: "
+                    "user=%s, path=%s. ViewSets will return empty results.",
+                    request.user.username,
+                    request.path,
+                )
+            else:
+                logger.debug(
+                    "No tenant resolved for authenticated user: user=%s, path=%s",
+                    request.user.username,
+                    request.path,
+                )
 
         # Set tenant in request
         request.tenant = tenant
@@ -345,7 +356,6 @@ class TenantMiddleware:
             from apps.tenants.rls import set_current_tenant
 
             result = set_current_tenant(str(tenant.id))
-            result.ok
 
             if result.ok:
                 logger.debug(f"RLS: Set current_tenant_id/current_tenant={tenant.id} for tenant={tenant.slug}")
