@@ -13,6 +13,7 @@ import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { message } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { formatDateLocal } from '@/utils/formatters';
 import {
   Inquiry,
@@ -542,8 +543,8 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 compact
                 onTransitioned={() => {
                   // Refresh lineage flow + trades after status change
-                  void queryClient.invalidateQueries({ queryKey: ['trade-lineage'] });
-                  void queryClient.invalidateQueries({ queryKey: ['trades'] });
+                  void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trade-lineage') });
+                  void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('trades') });
                   onUpdate?.(inquiry);
                 }}
               />

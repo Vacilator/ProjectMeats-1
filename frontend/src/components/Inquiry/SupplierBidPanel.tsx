@@ -11,6 +11,7 @@ import { Plus, Send, Check, X, ChevronDown, ChevronRight, Clock } from 'lucide-r
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { InquiryProduct, InquiryProductSupplierBid, SupplierBidStatus } from '../../types';
 import { inquiryService } from '../../services/inquiryService';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ── Status visual config ──
 
@@ -50,8 +51,8 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   const hasDraftBids = bids.some(b => b.bid_status === 'draft');
 
   const invalidateInquiry = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['inquiry'] });
-    queryClient.invalidateQueries({ queryKey: ['inquiries'] });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('inquiry') });
+    queryClient.invalidateQueries({ queryKey: withTenantQueryKey('inquiries') });
   }, [queryClient]);
 
   // ── Mutations ──
