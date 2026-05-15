@@ -30,6 +30,8 @@ import {
 import { TradeLineageFlow } from '../Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../Cockpit/ProcessFlowHeader';
 import { logger } from '@/utils/logger';
+import { SupplierBidPanel } from './SupplierBidPanel';
+import { TradeWorkflowStepper } from '../Workflow/TradeWorkflowStepper';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { WorkflowStatusBar } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
@@ -174,21 +176,38 @@ const ProductsHeader = styled.div`
   letter-spacing: 0.025em;
 `;
 
+const ProductRowWrapper = styled.div`
+  border-bottom: 1px solid rgb(var(--color-border));
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
 const ProductRow = styled.div`
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
   gap: 0.5rem;
   padding: 0.75rem;
-  border-bottom: 1px solid rgb(var(--color-border));
   align-items: center;
-
-  &:last-child {
-    border-bottom: none;
-  }
 
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
+`;
+
+const ProductMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0 0.75rem 0.5rem;
+`;
+
+const MetaTag = styled.span`
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-secondary));
+  background: rgba(var(--color-surface-hover), 0.5);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
 `;
 
 const ProductInfo = styled.div`
@@ -501,6 +520,20 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
             {/* Contextual Action Banner — shows what the user needs to do at the current step */}
             <WorkflowActionBanner inquiry={inquiry} />
 
+            {/* Trade Workflow Progress — shows where in the E2E process this inquiry is */}
+            {inquiry.status !== 'rejected' && (
+              <TradeWorkflowStepper
+                tradeStatus={
+                  inquiry.status === 'fulfilled' ? 'completed'
+                    : inquiry.status === 'accepted' ? 'ordered'
+                    : inquiry.status === 'quoted' ? 'quoted'
+                    : 'initiated'
+                }
+                inquiryStatus={inquiry.status}
+                compact
+              />
+            )}
+
             {/* Status & Actions — golden workflow component */}
             <Section>
               <WorkflowStatusBar
@@ -584,27 +617,49 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                   </ProductsHeader>
 
                   {inquiry.products.map((product: InquiryProduct) => (
-                    <ProductRow key={product.id}>
-                      <ProductInfo>
-                        <div className="code">{product.product_code}</div>
-                        <div className="description">{product.product_description}</div>
-                      </ProductInfo>
-                      <div>{formatIntegerValue(product.quantity)}</div>
-                      <PriceCell variant="desired">
-                        {formatCurrencyValue(product.desired_price_per_unit)}
-                      </PriceCell>
-                      <PriceCell variant="actual">
-                        {formatCurrencyValue(product.actual_price_per_unit)}
-                      </PriceCell>
-                      <div>{formatCurrencyValue(product.actual_total ?? product.desired_total)}</div>
-                      <MarginCell $positive={(product.margin || 0) >= 0}>
-                        {product.margin !== undefined
-                          ? `${product.margin >= 0 ? '+' : ''}${formatCurrencyValue(product.margin)}`
-                          : '-'}
-                        {product.margin_percent !== undefined &&
-                          ` (${formatFixedWithFallback(product.margin_percent, 1)}%)`}
-                      </MarginCell>
-                    </ProductRow>
+                    <ProductRowWrapper key={product.id}>
+                      <ProductRow>
+                        <ProductInfo>
+                          <div className="code">{product.product_code}</div>
+                          <div className="description">{product.product_description}</div>
+                        </ProductInfo>
+                        <div>{formatIntegerValue(product.quantity)}</div>
+                        <PriceCell variant="desired">
+                          {formatCurrencyValue(product.desired_price_per_unit)}
+                        </PriceCell>
+                        <PriceCell variant="actual">
+                          {formatCurrencyValue(product.actual_price_per_unit)}
+                        </PriceCell>
+                        <div>{formatCurrencyValue(product.actual_total ?? product.desired_total)}</div>
+                        <MarginCell $positive={(product.margin || 0) >= 0}>
+                          {product.margin !== undefined
+                            ? `${product.margin >= 0 ? '+' : ''}${formatCurrencyValue(product.margin)}`
+                            : '-'}
+                          {product.margin_percent !== undefined &&
+                            ` (${formatFixedWithFallback(product.margin_percent, 1)}%)`}
+                        </MarginCell>
+                      </ProductRow>
+                      {/* Fulfillment dates & ship-to */}
+                      {(product.fulfillment_date_time || product.respond_by_date_time || product.ship_to_location_name) && (
+                        <ProductMeta>
+                          {product.fulfillment_date_time && (
+                            <MetaTag>📦 Fulfill by: {formatDateLocal(product.fulfillment_date_time)}</MetaTag>
+                          )}
+                          {product.respond_by_date_time && (
+                            <MetaTag>⏰ Bids due: {formatDateLocal(product.respond_by_date_time)}</MetaTag>
+                          )}
+                          {product.ship_to_location_name && (
+                            <MetaTag>📍 Ship to: {product.ship_to_location_name}</MetaTag>
+                          )}
+                        </ProductMeta>
+                      )}
+                      {/* Supplier bids child panel */}
+                      <SupplierBidPanel
+                        product={product}
+                        inquiryStatus={inquiry.status}
+                        readOnly={inquiry.status === 'accepted' || inquiry.status === 'fulfilled'}
+                      />
+                    </ProductRowWrapper>
                   ))}
 
                   <TotalsRow>
