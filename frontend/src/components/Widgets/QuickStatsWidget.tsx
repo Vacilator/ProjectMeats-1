@@ -1,16 +1,16 @@
 /**
  * Quick Stats Widget
- * 
+ *
  * Displays key performance metrics in a compact grid.
  * Shows business stats: orders, revenue, customers, suppliers.
- * 
+ *
  * Features:
  * - Real-time stat updates from backend API
  * - Auto-refresh every 5 minutes
  * - Loading and error states
- * 
+ *
  * Updated: 2026-02-04 - Phase 1.3 - Connected to real API
- * 
+ *
  * Theme Compliance:
  * - Uses CSS custom properties
  */
@@ -107,6 +107,14 @@ const StatValue = styled.span`
   margin-bottom: 4px;
 `;
 
+const EmptyState = styled.div`
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 24px 16px;
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -165,6 +173,9 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       onRefresh={refetch}
     >
       <StatsGrid>
+        {statItems.length === 0 && !isLoading && !error && (
+          <EmptyState>No stats available yet</EmptyState>
+        )}
         {statItems.map(stat => (
           <StatButton
             key={stat.id}

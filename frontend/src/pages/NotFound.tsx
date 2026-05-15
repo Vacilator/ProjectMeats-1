@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const Container = styled.div`
   display: flex;
@@ -49,6 +50,7 @@ const BackButton = styled.button`
 `;
 
 const NotFoundPage: React.FC = () => {
+  useDocumentTitle('Page Not Found');
   const navigate = useNavigate();
   return (
     <Container>

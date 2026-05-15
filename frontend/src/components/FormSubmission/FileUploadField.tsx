@@ -1,6 +1,6 @@
 /**
  * FileUploadField Component
- * 
+ *
  * Handles file and image uploads in form submissions with:
  * - Drag and drop support
  * - File preview (images show thumbnails, others show icon)
@@ -50,7 +50,7 @@ const DropZone = styled.div<{ $isDragActive: boolean; $hasError?: boolean }>`
   cursor: pointer;
   transition: all 0.2s;
   background: ${props => props.$isDragActive ? 'rgba(var(--color-primary), 0.10)' : props.$hasError ? 'rgba(var(--color-error), 0.14)' : 'rgb(var(--color-surface))'};
-  
+
   &:hover {
     border-color: rgb(var(--color-primary));
     background: rgb(var(--color-surface));
@@ -73,7 +73,7 @@ const DropText = styled.p`
   margin: 0;
   font-size: 14px;
   color: rgb(var(--color-text-secondary));
-  
+
   strong {
     color: rgb(var(--color-primary));
   }
@@ -104,7 +104,7 @@ const FileItem = styled.div<{ $isUploading?: boolean }>`
   background: rgb(var(--color-bg-primary));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
-  
+
   ${props => props.$isUploading && css`
     animation: ${pulse} 1.5s ease-in-out infinite;
     border-color: rgb(var(--color-primary));
@@ -121,7 +121,7 @@ const FileThumbnail = styled.div`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  
+
   img {
     width: 100%;
     height: 100%;
@@ -180,7 +180,7 @@ const RemoveButton = styled.button`
   cursor: pointer;
   font-size: 16px;
   transition: all 0.15s;
-  
+
   &:hover {
     background: rgba(var(--color-error), 0.20);
   }
@@ -229,33 +229,33 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const files = Array.isArray(value) ? value : value ? [value] : [];
-  
+
   const validateFile = (file: File): string | null => {
     const maxBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxBytes) {
       return `File too large. Maximum size is ${maxSizeMB}MB`;
     }
-    
+
     if (isImage && !file.type.startsWith('image/')) {
       return 'Please select an image file';
     }
-    
+
     if (accept) {
       const acceptedTypes = accept.split(',').map(t => t.trim().toLowerCase());
       const fileType = file.type.toLowerCase();
       const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-      
+
       const isAccepted = acceptedTypes.some(type => {
         if (type.startsWith('.')) return type === fileExt;
         if (type.endsWith('/*')) return fileType.startsWith(type.replace('/*', '/'));
         return type === fileType;
       });
-      
+
       if (!isAccepted) {
         return `Invalid file type. Accepted: ${accept}`;
       }
     }
-    
+
     return null;
   };
 
@@ -280,10 +280,10 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
       }, 200);
 
       const result = await formSubmissionService.uploadFile(submissionId, fieldKey, file);
-      
+
       clearInterval(progressInterval);
       setUploadProgress(prev => ({ ...prev, [tempId]: 100 }));
-      
+
       // Clean up progress after animation
       setTimeout(() => {
         setUploadProgress(prev => {
@@ -316,12 +316,12 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
 
   const handleFiles = useCallback(async (fileList: FileList) => {
     const filesToUpload = Array.from(fileList);
-    
+
     if (!multiple && filesToUpload.length > 1) {
       setError('Only one file allowed');
       return;
     }
-    
+
     if (multiple) {
       const uploaded: FileValue[] = [];
       for (const file of filesToUpload) {
@@ -360,7 +360,7 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFiles(e.dataTransfer.files);
     }
@@ -449,7 +449,7 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
             <FileItem key={file.id}>
               <FileThumbnail>
                 {file.type.startsWith('image/') ? (
-                  <img src={file.url} alt={file.name} />
+                  <img src={file.url} alt={file.name} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 ) : (
                   <FileIcon>{getFileIcon(file.type)}</FileIcon>
                 )}
