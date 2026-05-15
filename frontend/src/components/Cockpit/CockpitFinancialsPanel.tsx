@@ -17,6 +17,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // -------------------------------------------------------------------
 // Types
@@ -82,7 +83,7 @@ function formatCurrency(value: number): string {
 
 export function CockpitFinancialsPanel(): React.ReactElement {
   const { data: trades, isLoading: tradesLoading } = useQuery<TradeFinancials[]>({
-    queryKey: ['cockpit', 'financials', 'trades'],
+    queryKey: withTenantQueryKey('cockpit', 'financials', 'trades'),
     queryFn: async () => {
       const res = await businessApi.get('/workflows/financials/trades/');
       return res.data ?? [];

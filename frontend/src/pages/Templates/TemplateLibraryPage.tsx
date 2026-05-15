@@ -39,6 +39,7 @@ import {
   BranchesOutlined,
 } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // -------------------------------------------------------------------
@@ -238,7 +239,7 @@ export function TemplateLibraryPage(): React.ReactElement {
   const [variantName, setVariantName] = useState('');
 
   const { data: templates, isLoading } = useQuery<WorkformTemplate[]>({
-    queryKey: ['template-library'],
+    queryKey: withTenantQueryKey('template-library'),
     queryFn: async () => {
       const res = await businessApi.get('/workflows/templates/library/');
       return res.data ?? [];
@@ -254,7 +255,7 @@ export function TemplateLibraryPage(): React.ReactElement {
       message.success('Variant created successfully');
       setCloneModalOpen(false);
       setVariantName('');
-      queryClient.invalidateQueries({ queryKey: ['template-library'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('template-library') });
     },
     onError: () => {
       message.error('Failed to create variant');
@@ -268,7 +269,7 @@ export function TemplateLibraryPage(): React.ReactElement {
     },
     onSuccess: () => {
       message.success('Template published successfully');
-      queryClient.invalidateQueries({ queryKey: ['template-library'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('template-library') });
     },
     onError: () => {
       message.error('Failed to publish template');

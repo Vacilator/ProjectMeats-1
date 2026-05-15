@@ -14,6 +14,7 @@ import { Skeleton, Button } from 'antd';
 import { ExclamationCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 import { authService } from '@/services/authService';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/contexts/NotificationsContext';
@@ -81,7 +82,7 @@ const Home: React.FC = () => {
   const queryClient = useQueryClient();
 
   const recentActivityQuery = useQuery<ActivityEntry[]>({
-    queryKey: ['home', 'recent-activity'],
+    queryKey: withTenantQueryKey('home', 'recent-activity'),
     queryFn: async () => {
       const res = await businessApi.get('/activity/recent/');
       return Array.isArray(res?.data) ? res.data : [];
@@ -91,7 +92,7 @@ const Home: React.FC = () => {
   });
 
   const quickStatsQuery = useQuery<QuickStat[]>({
-    queryKey: ['home', 'quick-stats'],
+    queryKey: withTenantQueryKey('home', 'quick-stats'),
     queryFn: async (): Promise<QuickStat[]> => {
       const res = await businessApi.get('/dashboard/stats/');
       if (res?.data && typeof res.data === 'object') {
@@ -138,11 +139,11 @@ const Home: React.FC = () => {
   /* ---- retry handlers (stable refs via queryClient) ---- */
 
   const retryStats = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['home', 'quick-stats'] });
+    void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('home', 'quick-stats') });
   }, [queryClient]);
 
   const retryActivity = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['home', 'recent-activity'] });
+    void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('home', 'recent-activity') });
   }, [queryClient]);
 
   /* ---- placeholders when endpoints don't exist yet ---- */

@@ -34,6 +34,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // -------------------------------------------------------------------
 // Types
@@ -107,7 +108,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
   const queryClient = useQueryClient();
 
   const { data: trades, isLoading } = useQuery<InterventionTrade[]>({
-    queryKey: ['intervention', 'trades'],
+    queryKey: withTenantQueryKey('intervention', 'trades'),
     queryFn: async () => {
       const res = await businessApi.get('/workflows/intervention/trades/');
       return res.data ?? [];
@@ -124,7 +125,7 @@ export function TradesInterventionDashboard(): React.ReactElement {
     },
     onSuccess: (_, vars) => {
       message.success(`${vars.action} action completed`);
-      queryClient.invalidateQueries({ queryKey: ['intervention', 'trades'] });
+      queryClient.invalidateQueries({ queryKey: withTenantQueryKey('intervention', 'trades') });
     },
     onError: (_, vars) => {
       message.error(`Failed to ${vars.action} trade`);
