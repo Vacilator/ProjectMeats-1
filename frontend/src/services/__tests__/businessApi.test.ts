@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // Test that businessApi exports the expected interface
 describe('businessApi', () => {

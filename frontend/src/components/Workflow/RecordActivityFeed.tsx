@@ -256,9 +256,7 @@ export const RecordActivityFeed: React.FC<RecordActivityFeedProps> = ({
   const { data: events, isLoading } = useQuery({
     queryKey: stableQueryKey,
     queryFn: fetchActivityEvents,
-    // Disabled: no backend ViewSet currently exposes an audit-trail action.
-    // Re-enable when a proper /audit-trail/ endpoint is added.
-    enabled: false,
+    enabled: Boolean(endpoint && entityId),
     staleTime: 30_000,
     retry: false,
   });

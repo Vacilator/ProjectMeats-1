@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import NavigationMenu from './NavigationMenu';
 import { NavigationItem } from '../../config/navigation';
@@ -429,7 +429,7 @@ describe('NavigationMenu', () => {
         const expandBtn = within(settingsHeader as HTMLElement).queryByRole('button', { name: /expand/i });
         
         if (expandBtn) {
-          const mockEvent = {
+          const _mockEvent = {
             preventDefault: vi.fn(),
             stopPropagation: vi.fn(),
           };

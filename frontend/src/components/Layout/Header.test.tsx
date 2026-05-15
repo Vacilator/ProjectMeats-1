@@ -119,7 +119,7 @@ vi.mock('./TenantSelector', () => ({
 
 // Mock QuickActionsEditor
 vi.mock('../QuickActions/QuickActionsEditor', () => ({
-  default: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+  default: ({ isOpen, onClose: _onClose }: { isOpen: boolean; onClose: () => void }) =>
     isOpen ? <div data-testid="quick-actions-editor">Editor</div> : null,
 }));
 

@@ -703,7 +703,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       key: 'related',
                       label: 'Related',
                       children: supplierCustomerRelatedSections.length ? (
-                        <>{supplierCustomerRelatedSections}</>
+                        supplierCustomerRelatedSections
                       ) : (
                         <TransactionalEmptyState
                           icon={<ClipboardList size={36} />}
@@ -827,7 +827,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       key: 'related',
                       label: 'Related',
                       children: genericRelatedSections.length ? (
-                        <>{genericRelatedSections}</>
+                        genericRelatedSections
                       ) : (
                         <TransactionalEmptyState
                           icon={<ClipboardList size={36} />}

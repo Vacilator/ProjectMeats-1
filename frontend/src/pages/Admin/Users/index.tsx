@@ -541,13 +541,11 @@ const UsersPage: React.FC = () => {
       description="Invite users, manage roles, and control access for your tenant."
       icon="👥"
       actions={
-        <>
-          {permissions.can_invite_users && (
-            <Button variant="primary" size="sm" onClick={() => setShowInviteModal(true)}>
-              ✉️ Invite User
-            </Button>
-          )}
-        </>
+        permissions.can_invite_users ? (
+          <Button variant="primary" size="sm" onClick={() => setShowInviteModal(true)}>
+            ✉️ Invite User
+          </Button>
+        ) : undefined
       }
       headerExtras={
         canAccess ? (

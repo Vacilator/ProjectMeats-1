@@ -672,7 +672,7 @@ describe('QuickActionsContext', () => {
       expect(alertArgs.type).toBe('error');
       expect(alertArgs.title).toBe('Error');
 
-      const renderedAlert = render(<>{alertArgs.content}</>);
+      const renderedAlert = render(alertArgs.content as JSX.Element);
       expect(within(renderedAlert.container).getByText('Form not found')).toBeInTheDocument();
       
       consoleSpy.mockRestore();

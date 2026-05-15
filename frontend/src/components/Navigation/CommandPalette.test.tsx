@@ -2,7 +2,7 @@
  * Tests for CommandPalette Component (Wave 2: Cockpit Command Center)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import React from 'react';

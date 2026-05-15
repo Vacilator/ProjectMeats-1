@@ -22,7 +22,7 @@ const mockUsers: User[] = [
   { id: '4', name: 'Alice Brown', email: 'alice@example.com', role: 'Designer', department: 'Design' },
 ];
 
-const mockCurrentAssignee: User = {
+const _mockCurrentAssignee: User = {
   id: '5',
   name: 'Current User',
   email: 'current@example.com',

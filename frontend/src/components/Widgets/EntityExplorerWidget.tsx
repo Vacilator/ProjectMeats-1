@@ -258,7 +258,7 @@ const ViewAllLink = styled.button`
 // ============================================================================
 
 export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
-  tenantId,
+  tenantId: _tenantId,
 }) => {
   const navigate = useNavigate();
   const cockpitNavigation = useCockpitNavigation();

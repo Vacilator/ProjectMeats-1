@@ -4,7 +4,7 @@
  * Tests theme modes, configuration generation, and canvas theme application.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   ThemeMode,
   getThemeConfig,

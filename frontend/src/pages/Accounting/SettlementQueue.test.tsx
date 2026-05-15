@@ -12,7 +12,7 @@ const messageMock = vi.hoisted(() => ({
 }));
 
 vi.mock('@/components/Admin', () => ({
-  AdminGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AdminGuard: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock('@/services/settlementEventsService', () => ({

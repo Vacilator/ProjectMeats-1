@@ -32,7 +32,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({
   const { permissions, isLoading } = useAdminPermissions();
 
   if (isLoading) {
-    return <>{loadingFallback ?? <LoadingSkeleton type="card" rows={2} />}</>;
+    return (loadingFallback ?? <LoadingSkeleton type="card" rows={2} />) as React.ReactElement;
   }
 
   if (!allow(permissions)) {
@@ -45,5 +45,5 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({
     );
   }
 
-  return <>{children}</>;
+  return children as React.ReactElement;
 };

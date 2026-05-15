@@ -12,7 +12,7 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return <>{children}</>;
+  return children as React.ReactElement;
 };
 
 export default RequireAuth;
