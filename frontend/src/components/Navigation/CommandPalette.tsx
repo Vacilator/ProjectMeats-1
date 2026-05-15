@@ -610,6 +610,30 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   );
   const flatResults = useMemo(() => flattenGrouped(groupedResults), [groupedResults]);
 
+  const handleSelect = useCallback(async (item: SearchResult) => {
+    // Track item access
+    try {
+      await trackRecentItem({ type: item.type, id: item.id, title: item.title });
+    } catch {
+      // Ignore tracking errors
+    }
+
+    if (item.route) {
+      onClose();
+      const sep = item.route.includes('?') ? '&' : '?';
+      navigate(`${item.route}${sep}ref=search`);
+      return;
+    }
+
+    // Preserve existing behavior for other entity types.
+    setSelectedEntity({ type: item.type, id: item.id });
+  }, [onClose, navigate]);
+
+  const handleQuickAction = useCallback((action: QuickAction) => {
+    onClose();
+    navigate(action.route);
+  }, [onClose, navigate]);
+
   // Keyboard navigation — supports quick actions
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     const searchItems = query.length >= 2 ? flatResults : recentItems;
@@ -646,31 +670,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         onClose();
         break;
     }
-  }, [query, flatResults, recentItems, selectedIndex, onClose]);
-
-  const handleSelect = async (item: SearchResult) => {
-    // Track item access
-    try {
-      await trackRecentItem({ type: item.type, id: item.id, title: item.title });
-    } catch {
-      // Ignore tracking errors
-    }
-
-    if (item.route) {
-      onClose();
-      const sep = item.route.includes('?') ? '&' : '?';
-      navigate(`${item.route}${sep}ref=search`);
-      return;
-    }
-
-    // Preserve existing behavior for other entity types.
-    setSelectedEntity({ type: item.type, id: item.id });
-  };
-
-  const handleQuickAction = useCallback((action: QuickAction) => {
-    onClose();
-    navigate(action.route);
-  }, [onClose, navigate]);
+  }, [query, flatResults, recentItems, selectedIndex, onClose, handleSelect, handleQuickAction]);
 
   return (
     <Overlay $isOpen={isOpen} onClick={onClose}>

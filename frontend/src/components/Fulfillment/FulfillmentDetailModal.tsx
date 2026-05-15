@@ -8,7 +8,7 @@
  * - Tracking numbers management
  * - Status workflow actions (Ship/Deliver/Complete)
  */
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import styled from 'styled-components';
 import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
@@ -379,13 +379,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
   const [newTracking, setNewTracking] = useState('');
 
   // Load fulfillment data when modal opens
-  React.useEffect(() => {
-    if (isOpen && fulfillmentId) {
-      loadFulfillment();
-    }
-  }, [isOpen, fulfillmentId]);
-
-  const loadFulfillment = async () => {
+  const loadFulfillment = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await businessApi.get(`/fulfillments/${fulfillmentId}/`);
@@ -395,7 +389,14 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fulfillmentId]);
+
+    React.useEffect(() => {
+    if (isOpen && fulfillmentId) {
+      loadFulfillment();
+    }
+  }, [isOpen, fulfillmentId, loadFulfillment]);
+
 
   const handleAction = async (action: 'ship' | 'deliver' | 'complete') => {
     if (!fulfillment) return;
