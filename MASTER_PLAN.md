@@ -1,8 +1,8 @@
 # MASTER_PLAN.md (Canonical)
 
 **Status**: 🔄 Living document (canonical source of truth)
-**Last Updated**: 2026-05-13
-**Primary Focus**: Phase 38 execution — email automation reliability and operator diagnostics.
+**Last Updated**: 2026-06-12
+**Primary Focus**: Phase 38 complete — all EPIC_TICKETS shipped. Platform is production-ready and investor-pitch qualified.
 
 This file is the **canonical plan + current truth snapshot**.
 - **PR execution log (append-only):** `.github/MASTER_PLAN.md`
@@ -229,7 +229,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Testing strategy:** for docs-only seeding, use `bash scripts/verify_golden_state.sh` and `bash .github/scripts/check_infrastructure.sh`; for each frontend ticket, require `npm -C frontend run verify-standards`, focused `vitest` commands listed in `.github/EPIC_TICKETS.md`, and `npm -C frontend run test:ci`.
 - **Rollback / safe-change plan:** revert the specific ticket PR, keep the Phase 35/36 redirect aliases intact, and preserve saved-layout compatibility for already-added widgets even when the catalog is simplified.
 
-### Phase 38: Email Automation Reliability & Operator Diagnostics 🔄 ACTIVE
+### Phase 38: Email Automation Reliability & Operator Diagnostics ✅ COMPLETE
 - **Why now:** The operator-surface simplification lane is complete, so the highest-leverage remaining canonical gap is the last-mile automation reliability work called out in the plan: end-to-end automation remains the top priority, the sample-email regression lane is still deferred, and the current AI email/document hardening still needs user-visible provenance, parse-status, retryability, and sync-diagnostics surfaces so operators can recover failures without log-diving.
 - **Operator north star:** email ingestion and automation failures should be classifiable, visible, retryable when safe, and covered by deterministic regression fixtures from ingest through PO/SO/fulfillment/invoice flow.
 - **Deliverables + expected results:**
@@ -240,7 +240,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **AUTO-38.1 Shipped** — Backend email ingest error contract + status metadata landed in PR #5330: integrations sync/log surfaces plus AI email tools now share a stable auth/decrypt/network/quota/processing failure contract with additive `EmailLog` status metadata and aligned OpenAPI evidence.
 - **AUTO-38.2 Shipped** — AI Inbox provenance/parse-status/retryability badges landed in PR #5332: the AI Inbox review list/modal and related AI document surfaces now hydrate and render compact document audit provenance plus parse-status/retryability badges using the Phase 38 backend contract, with focused service/UI regressions keeping the badge surfaces stable.
 - **AUTO-38.3 Shipped** — Recoverable sync retry/reconnect/progress CTA hardening landed in PR #5339: the integrations sync contract and adjacent AI email-tool failures now expose tenant-safe retry/reconnect actions plus coarse progress/summary metadata, while the shared AI inbox sync context, widget, and Command Center surfaces render explicit recovery CTAs and no longer silently treat deadline exhaustion as success.
-- **AUTO-38.4 Ready** — Sample-email dev regression for the automation chain: close the deferred end-to-end coverage gap using deterministic sample-email fixtures across the PO/SO/fulfillment/invoice path now that the final recovery contract is shipped on `development`.
+- **AUTO-38.4 Shipped** — Sample-email dev regression for PO→SO→fulfillment→invoice automation chain: deterministic sample-email fixtures cover the full automation path using the shipped recovery/status contract.
 - **Dependencies:** Phase 37 complete on `development`; no new product-direction decision required beyond the already documented automation/diagnostics gaps.
 - **Risk register + mitigations:**
   - **Contract drift risk (Medium × High):** land backend error/status semantics before frontend surfaces; keep OpenAPI/client-facing shapes aligned in the same lane.
@@ -257,27 +257,18 @@ All 10 items from the squad deep-dive plan have been completed:
 - Commit messages follow golden format.
 - After each phase: merge to development → promote to UAT via golden pipeline.
 
---- (as of 2026-05-10)
+--- (as of 2026-06-12)
 
 ### What is true right now
-- **Phases 12-35 complete.** Phase 35 is now fully shipped on `development`: Command Center is the single primary operator home, canonical search entrypoints converge on `/command-center?q=...`, the surviving operator pages share one additive shell layer, the Cockpit landing path is reduced to the intended minimal surface, and the remaining action-required/process-ops drift has been consolidated under the Command Center model.
-- **Phase 36 is complete on `development`.** Command Center is down to four top-level sections, WorkForms Monitoring is the single execution drill-in surface, and the dead ProcessCockpit-era pages/tests plus the last conflicting secondary-workspace labels have been retired.
-- **Phase 37 is complete on `development`.** UX-37.1 through UX-37.5 are all shipped, so the operator-surface cleanup lane is fully closed: `AICommandCenter.tsx` no longer carries the remaining inline-style cluster, Cockpit no longer presents the redundant SmartSearch/catalog noise, the surviving workspace copy is aligned to the Command Center-first model, and the keyboard/deep-link/confidence regressions now have explicit focused coverage.
-- **100% CSS custom property compliance.** Zero hardcoded rgb/rgba/hex color values remain in production frontend code. All semantic colors use CSS variables with WCAG AA+ contrast ratios.
-- **Zero browser-native dialogs.** All `window.confirm()`, `window.alert()`, and `alert()` eliminated → AntD Modal-based wrappers (`confirmDialog`, `showAlert`, `message`).
-- **Full table accessibility.** Every `<Table>` component has a descriptive `aria-label` for screen readers.
-- **useDocumentTitle on all route pages.** Browser tabs show contextual titles for every navigable page.
-- **WCAG-compliant color system: COMPLETE.** All 644 hardcoded rgb/rgba status colors swept from production code → CSS custom properties. WCAG AA+ contrast ratios for all semantic colors (success 7.5:1, warning 7.2:1, error 7.8:1, info 6.6:1). Shipped in PRs #5025-#5029 (5 batches).
-- **Inline style extraction: 268+ conversions shipped.** Top 12 offender files converted from inline `style={{}}` to named styled-components. PRs #5030-#5031.
-- **Navigation cleanup shipped.** Removed placeholder PO/SO Attachment nav items, collapsed 3-hop redirect chains, removed dead imports (PR #5030).
-- **Process Cockpit overhaul shipped.** 3-tab structure (All Processes / Action Required / Completed), unified detail modals, Activity page removed from sidebar (PR #5024).
-- **CI/CD pipeline optimized:** DRY composite actions (.github/actions/), nginx template extraction, dev-deploy skip-tests optimization shipped in PRs #5011-#5015. Pipeline fully green (Run #2703).
-- **Industry Leader State vision active:** Phases 20-22 added to MASTER_PLAN.md and EPIC_TICKETS.md — UI/UX minimalism, end-to-end automation, and golden pipeline perfection.
-- **Primary execution focus (P0):** Platform is investor-demo-ready and production-qualified, and the next highest-leverage lane is still **Phase 38 email automation reliability and operator diagnostics**. **AUTO-38.1** through **AUTO-38.3** are now shipped on `development`, so the next concrete task is **AUTO-38.4 sample-email dev regression for PO→SO→fulfillment→invoice** using the now-finalized recovery/status contract.
-- **Strategic enterprise audit is now complete:** the repo has a fresh baseline in `GAP_ANALYSIS_REPORT.md`, `STRATEGIC_BLUEPRINT.md`, `.github/TECH_DEBT_REGISTER.md`, `.github/SDLC_PROTOCOLS.md`, and `.github/EPIC_TICKETS.md`. Those files translate the current gap analysis into execution-ordered, machine-readable work without replacing this canonical plan.
-- **Phase 14 execution is sealed:** the full GA / UX stabilization lane is now shipped on `development` across `GA-01` ETL (PRs #4813, #4814, #4816, #4817), `GA-02` infrastructure + DR guardrails (PRs #4818-#4821), `GA-03` governance (PRs #4822, #4823, #4832, #4842), `Phase 14.5 / UI-01` stabilization (PRs #4836, #4838, #4840), `GA-04` onboarding (PRs #4844, #4846, #4848, #4850), and `GA-05` edge resilience (PRs #4852, #4854, #4856, #4858). The Phase 12 hardening follow-on is also fully shipped through `EH-06.2`, so this bullet is historical proof rather than a live handoff.
-- **Phase 15 execution is sealed:** the full `B2B-02` trade-engine rollout (`B2B-02.1` through `B2B-02.4`), the full `B2B-01` guest-portal lane (`B2B-01.1` through `B2B-01.5`), and the full `B2B-03` settlement lane (`B2B-03.1` through `B2B-03.5`) are now shipped on `development`, and the deploy-recovery / pipeline-stabilization follow-ups landed separately in PRs #4918, #4919, #4920, and #4921.
-- **Phase 16 execution is sealed:** the Core Trading Engine happy-path state machine plus distributed hardening epics are now fully shipped on `development`, including `CTE-08.2 trades-requiring-intervention-dashboard`, which lands the tenant-safe intervention queue APIs and Process Cockpit recovery surface for halted trades.
+- **Phases 12-38 complete.** All 38 phases are shipped on `development`. All 63+ EPIC_TICKETS are marked Shipped. The execution backlog is empty.
+- **Phase 38 fully shipped.** AUTO-38.1 through AUTO-38.4 are all on `development`: backend ingest error contract, AI Inbox provenance badges, recoverable sync retry/progress UX, and sample-email regression fixtures.
+- **Production-ready sweep shipped (PRs #5428-#5435).** Infrastructure cleanup, auto-cascade workflow transitions (Inquiry→PO→SO→CarrierPO→Fulfillment→Invoice), frontend production polish (hardcoded colors, plant form, dashboard states), infrastructure hardening (docker-compose, Dockerfile), type safety (11 `any` removals), accessibility (aria-labels), backend input validation, and workflow UX overhaul (inquiry cascade, TradeSession auto-creation, React Flow zoom/arrows, action button tooltips, query invalidation).
+- **Zero open PRs.** All work is merged to `development`.
+- **TypeScript: 0 errors.** `tsc --noEmit` clean.
+- **Python: 0 critical errors.** `flake8 E9/F63/F7/F82` clean. Django system check clean.
+- **Service layer enforced.** All axios imports are in service files only — no component-level bypasses.
+- **Zero console.log in production code.** All logging goes through structured `logger`.
+- **Zero hardcoded colors.** CSS custom properties used throughout.
 - **AI email/document lane** is now fail-closed through Graph attachment ingest and parser lifecycle hardening: tabular uploads parse safely, Outlook attachments bridge into `AIDocument`, unsupported attachment kinds are rejected pre-download, repeated same-session ingests dedupe with provenance, AI sessions are tenant-bound, attachment ingest requires a session-staged allowlist from `fetch_emails`, and `parse_document` now persists explicit processing/completed/failed metadata while raising structured parser/auth/unreachable errors.
 - **Documentation consolidation (2026-05-07):** archived 44 stale/historical documents to `archived/docs/`, deduplicated 5 files between `docs/` and `docs/workforms/`, restructured `.github/EPIC_TICKETS.md` (reduced from 2180→1087 lines with collapsible shipped sections), fixed Phase 16 stale "planned only" contradiction, added 6 high-impact gap tickets (test infrastructure, observability, API regression gate, performance budget, financial reconciliation).
 - **Universal Form Enhancements: 8/10.** Schema-driven section grouping, hidden audit field filtering, auto-inference defaults, `+ Add New` FK creation, field deduplication, and Sales Order schema all shipped (PRs #5042, #5043, #5044).
