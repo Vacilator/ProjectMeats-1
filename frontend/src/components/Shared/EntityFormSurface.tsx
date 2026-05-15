@@ -524,20 +524,24 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   const effectiveLoadError = formLoadError || (loadTimedOut && formLoading ? { timeout: true } : null);
 
   // ── Modal animation guard ──
-  // Gate form mounting behind the Modal's enter-animation completion.
-  // antd's CSSMotion (rc-motion) drives open/close animations via a
-  // `useStatus` layout-effect that calls `setAsyncVisible` each cycle.
-  // If UEF + DFE mount *during* that animation they schedule dozens of
-  // synchronous state updates (form init, useWatch, FK options, async
-  // dropdown loading) which re-render the Modal subtree faster than
-  // CSSMotion can settle — triggering React error #185 (max update depth).
+  // NUCLEAR FIX: Disable CSS animations entirely (transitionName="") to
+  // prevent CSSMotion useStatus ↔ react-hook-form useWatch infinite loop
+  // (React error #185).  AntD's CSSMotion runs a layout-effect state
+  // machine during open/close.  When DynamicFormEngine mounts during
+  // that animation, useWatch/useForm state updates re-render the Modal
+  // subtree faster than CSSMotion can settle.  Removing the animation
+  // eliminates the race entirely.  Multiple timing-based fixes have
+  // failed; this is the definitive structural fix.
   //
-  // Fix: For modal-variant forms, keep `modalAnimReady` false until the
-  // modal's `afterOpenChange(true)` fires (animation done). Inline
-  // variant forms bypass this gate entirely.
+  // With animations disabled, set modalAnimReady on the next animation
+  // frame so React can flush the Modal's initial render first.
   const [modalAnimReady, setModalAnimReady] = useState(false);
   useEffect(() => {
-    if (!isOpen) setModalAnimReady(false);
+    if (isOpen) {
+      const raf = requestAnimationFrame(() => setModalAnimReady(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setModalAnimReady(false);
   }, [isOpen]);
   const handleAfterOpenChange = useCallback((open: boolean) => {
     if (open) setModalAnimReady(true);
@@ -678,6 +682,8 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
       destroyOnHidden
       afterOpenChange={handleAfterOpenChange}
       title={modalTitle}
+      transitionName=""
+      maskTransitionName=""
     >
       <ModalFormErrorBoundary entityType={entityType} onRetry={handleRetry}>
         {shouldMountForm ? (

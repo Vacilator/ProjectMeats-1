@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- This IS the logging layer; raw console access is intentional. */
 /**
  * Centralized Logging Utility
  * 
