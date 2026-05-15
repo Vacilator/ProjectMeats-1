@@ -4368,7 +4368,14 @@ class ActionItemsAPIView(APIView):
                 active_sessions = (
                     TradeSession.objects.filter(tenant=tenant)
                     .exclude(status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED])
-                    .select_related("inquiry", "inquiry__supplier_purchase_order", "inquiry__sales_order", "inquiry__carrier_purchase_order")
+                    .select_related(
+                        "inquiry",
+                        "inquiry__supplier_purchase_order",
+                        "inquiry__sales_order",
+                        "inquiry__carrier_purchase_order",
+                        "inquiry__customer",
+                    )
+                    .prefetch_related("inquiry__fulfillments")
                     .order_by("-initiated_at")[:20]
                 )
 
@@ -4483,6 +4490,149 @@ class ActionItemsAPIView(APIView):
                             "related_po_value": None,
                             "related_po_currency": None,
                         })
+
+                    # Check for Carrier POs pending approval / draft
+                    cpo = inquiry.carrier_purchase_order
+                    if cpo and cpo.status in ("draft", "pending_approval"):
+                        cpo_label = "Approve" if cpo.status == "pending_approval" else "Review Draft"
+                        cpo_num = getattr(cpo, "po_number", None) or getattr(cpo, "order_number", None) or str(cpo.id)[:8]
+                        action_items.append({
+                            "id": f"trade-{session.id}-cpo-{cpo.status}",
+                            "type": "trade_action",
+                            "title": f"{cpo_label} Carrier PO #{cpo_num}",
+                            "description": f"Carrier purchase order is {cpo.get_status_display() if hasattr(cpo, 'get_status_display') else cpo.status}",
+                            "priority": "high",
+                            "status": "action_needed",
+                            "due_date": None,
+                            "is_overdue": False,
+                            "assigned_at": cpo.created_on if hasattr(cpo, "created_on") else now,
+                            "entity_type": "carrier_po",
+                            "entity_id": str(cpo.id),
+                            "related_po_value": float(cpo.total_value) if hasattr(cpo, "total_value") and cpo.total_value else None,
+                            "related_po_currency": "USD",
+                        })
+
+                    # Check for Fulfillments needing action
+                    try:
+                        fulfillments = list(inquiry.fulfillments.exclude(
+                            status__in=["completed", "cancelled"]
+                        ).order_by("-created_at")[:5])
+                        for ful in fulfillments:
+                            ful_num = getattr(ful, "fulfillment_number", None) or str(ful.id)[:8]
+                            if ful.status in ("pending", "in_progress"):
+                                ful_label = "Process Fulfillment" if ful.status == "pending" else "Complete Fulfillment"
+                                action_items.append({
+                                    "id": f"trade-{session.id}-ful-{ful.id}",
+                                    "type": "trade_action",
+                                    "title": f"{ful_label} #{ful_num}",
+                                    "description": f"Fulfillment is {ful.get_status_display() if hasattr(ful, 'get_status_display') else ful.status}",
+                                    "priority": "normal" if ful.status == "pending" else "high",
+                                    "status": "action_needed",
+                                    "due_date": None,
+                                    "is_overdue": False,
+                                    "assigned_at": ful.created_at if hasattr(ful, "created_at") else now,
+                                    "entity_type": "fulfillment",
+                                    "entity_id": str(ful.id),
+                                    "related_po_value": None,
+                                    "related_po_currency": None,
+                                })
+                            elif ful.status == "shipped":
+                                action_items.append({
+                                    "id": f"trade-{session.id}-ful-{ful.id}-delivery",
+                                    "type": "trade_action",
+                                    "title": f"Confirm Delivery #{ful_num}",
+                                    "description": "Shipment is in transit — confirm delivery when received",
+                                    "priority": "normal",
+                                    "status": "action_needed",
+                                    "due_date": None,
+                                    "is_overdue": False,
+                                    "assigned_at": ful.created_at if hasattr(ful, "created_at") else now,
+                                    "entity_type": "fulfillment",
+                                    "entity_id": str(ful.id),
+                                    "related_po_value": None,
+                                    "related_po_currency": None,
+                                })
+                    except Exception:
+                        pass  # fulfillments relation may not exist yet
+
+                    # Check for Invoices needing action (via sales_order)
+                    if so:
+                        try:
+                            from tenant_apps.invoices.models import Invoice
+                            pending_invoices = Invoice.objects.filter(
+                                tenant=tenant,
+                                sales_order=so,
+                            ).exclude(
+                                status__in=["sent", "paid", "cancelled"]
+                            ).order_by("-created_at")[:3]
+                            for inv in pending_invoices:
+                                inv_num = getattr(inv, "invoice_number", None) or str(inv.id)[:8]
+                                if inv.status == "draft":
+                                    action_items.append({
+                                        "id": f"trade-{session.id}-inv-{inv.id}-review",
+                                        "type": "trade_action",
+                                        "title": f"Review Invoice #{inv_num}",
+                                        "description": "Invoice draft needs review before sending to customer",
+                                        "priority": "normal",
+                                        "status": "action_needed",
+                                        "due_date": None,
+                                        "is_overdue": False,
+                                        "assigned_at": inv.created_at if hasattr(inv, "created_at") else now,
+                                        "entity_type": "invoice",
+                                        "entity_id": str(inv.id),
+                                        "related_po_value": float(inv.total_amount) if hasattr(inv, "total_amount") and inv.total_amount else None,
+                                        "related_po_currency": "USD",
+                                    })
+                                elif inv.status == "pending_approval":
+                                    action_items.append({
+                                        "id": f"trade-{session.id}-inv-{inv.id}-approve",
+                                        "type": "trade_action",
+                                        "title": f"Approve Invoice #{inv_num}",
+                                        "description": "Invoice is pending approval before sending",
+                                        "priority": "high",
+                                        "status": "action_needed",
+                                        "due_date": None,
+                                        "is_overdue": False,
+                                        "assigned_at": inv.created_at if hasattr(inv, "created_at") else now,
+                                        "entity_type": "invoice",
+                                        "entity_id": str(inv.id),
+                                        "related_po_value": float(inv.total_amount) if hasattr(inv, "total_amount") and inv.total_amount else None,
+                                        "related_po_currency": "USD",
+                                    })
+                                elif inv.status == "approved":
+                                    action_items.append({
+                                        "id": f"trade-{session.id}-inv-{inv.id}-send",
+                                        "type": "trade_action",
+                                        "title": f"Send Invoice #{inv_num}",
+                                        "description": "Invoice is approved and ready to send to customer",
+                                        "priority": "high",
+                                        "status": "action_needed",
+                                        "due_date": None,
+                                        "is_overdue": False,
+                                        "assigned_at": inv.created_at if hasattr(inv, "created_at") else now,
+                                        "entity_type": "invoice",
+                                        "entity_id": str(inv.id),
+                                        "related_po_value": float(inv.total_amount) if hasattr(inv, "total_amount") and inv.total_amount else None,
+                                        "related_po_currency": "USD",
+                                    })
+                                elif inv.status == "overdue":
+                                    action_items.append({
+                                        "id": f"trade-{session.id}-inv-{inv.id}-overdue",
+                                        "type": "trade_action",
+                                        "title": f"⚠️ Overdue Invoice #{inv_num}",
+                                        "description": "Invoice payment is overdue — follow up with customer",
+                                        "priority": "urgent",
+                                        "status": "action_needed",
+                                        "due_date": None,
+                                        "is_overdue": True,
+                                        "assigned_at": inv.created_at if hasattr(inv, "created_at") else now,
+                                        "entity_type": "invoice",
+                                        "entity_id": str(inv.id),
+                                        "related_po_value": float(inv.total_amount) if hasattr(inv, "total_amount") and inv.total_amount else None,
+                                        "related_po_currency": "USD",
+                                    })
+                        except Exception:
+                            pass  # invoice models may not exist
 
                 # Re-sort with trade items included
                 action_items.sort(
