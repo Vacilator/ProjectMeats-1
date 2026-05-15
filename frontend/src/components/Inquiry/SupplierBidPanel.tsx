@@ -3,15 +3,18 @@
  *
  * Shows supplier bids as expandable child rows under each InquiryProduct.
  * Provides "+ Add Supplier/Bid" button, request bid actions, and accept/reject.
+ * Includes fulfillment date, respond-by date, and ship-to location columns.
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import { message, Tooltip, Tag, Popconfirm, Input, Select } from 'antd';
-import { Plus, Send, Check, X, ChevronDown, ChevronRight, Clock } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { message, Tooltip, Tag, Popconfirm, Input, Select, DatePicker } from 'antd';
+import { Plus, Send, Check, X, ChevronDown, ChevronRight, Clock, MapPin, Calendar } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { InquiryProduct, InquiryProductSupplierBid, SupplierBidStatus } from '../../types';
 import { inquiryService } from '../../services/inquiryService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { businessApi } from '@/services/businessApi';
+import dayjs from 'dayjs';
 
 // ── Status visual config ──
 
@@ -31,6 +34,17 @@ interface SupplierBidPanelProps {
   product: InquiryProduct;
   inquiryStatus: string;
   readOnly?: boolean;
+  customerId?: string;
+}
+
+// ── Customer location type ──
+interface CustomerLocation {
+  id: string;
+  display_name: string;
+  address_line_1?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
 }
 
 // ── Component ──
@@ -39,6 +53,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   product,
   inquiryStatus,
   readOnly = false,
+  customerId,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [addingBid, setAddingBid] = useState(false);
@@ -49,6 +64,38 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   const hasBids = bids.length > 0;
   const canManageBids = !readOnly && ['draft', 'pending', 'quoted'].includes(inquiryStatus);
   const hasDraftBids = bids.some(b => b.bid_status === 'draft');
+
+  // Fetch customer locations for ship-to dropdown
+  const { data: customerLocations } = useQuery({
+    queryKey: withTenantQueryKey('customer-locations', customerId ?? ''),
+    queryFn: async () => {
+      if (!customerId) return [];
+      try {
+        const res = await businessApi.get(`/customers/${customerId}/locations/`);
+        return (res.data?.results ?? res.data ?? []) as CustomerLocation[];
+      } catch {
+        return [];
+      }
+    },
+    enabled: Boolean(customerId) && canManageBids,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const locationOptions = useMemo(() => {
+    if (!customerLocations?.length) return [];
+    return customerLocations.map((loc) => ({
+      value: loc.id,
+      label: (
+        <div style={{ lineHeight: 1.3 }}>
+          <div style={{ fontWeight: 500 }}>{loc.display_name}</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+            {[loc.address_line_1, loc.city, loc.state, loc.zip_code].filter(Boolean).join(', ')}
+          </div>
+        </div>
+      ),
+    }));
+  }, [customerLocations]);
 
   const invalidateInquiry = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: withTenantQueryKey('inquiry') });
@@ -108,6 +155,13 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     onError: () => message.error('Failed to add supplier bid'),
   });
 
+  const updateProductFieldMutation = useMutation({
+    mutationFn: (patch: Record<string, unknown>) =>
+      inquiryService.updateInquiryProduct(product.id, patch as Partial<InquiryProduct>),
+    onSuccess: () => invalidateInquiry(),
+    onError: () => message.error('Failed to update product field'),
+  });
+
   const handleAddBid = useCallback(() => {
     if (!newSupplierId.trim()) {
       message.warning('Enter a supplier ID');
@@ -116,11 +170,43 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     createBidMutation.mutate(newSupplierId.trim());
   }, [newSupplierId, createBidMutation]);
 
+  // ── Date/location handlers ──
+  const handleRespondByChange = useCallback(
+    (date: dayjs.Dayjs | null) => {
+      updateProductFieldMutation.mutate({
+        respond_by_date_time: date ? date.toISOString() : null,
+      });
+    },
+    [updateProductFieldMutation],
+  );
+
+  const handleFulfillmentDateChange = useCallback(
+    (date: dayjs.Dayjs | null) => {
+      updateProductFieldMutation.mutate({
+        fulfillment_date_time: date ? date.toISOString() : null,
+      });
+    },
+    [updateProductFieldMutation],
+  );
+
+  const handleShipToChange = useCallback(
+    (locationId: string) => {
+      updateProductFieldMutation.mutate({ ship_to_location: locationId });
+    },
+    [updateProductFieldMutation],
+  );
+
   // ── Render ──
 
   return (
     <BidPanelContainer>
-      <BidPanelHeader onClick={() => setExpanded(!expanded)}>
+      <BidPanelHeader
+        onClick={() => setExpanded(!expanded)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={`Supplier bids for product (${bids.length} bids)`}
+      >
         <ExpandToggle>
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </ExpandToggle>
@@ -133,9 +219,9 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                   acc[b.bid_status] = (acc[b.bid_status] || 0) + 1;
                   return acc;
                 }, {} as Record<string, number>)
-              ).map(([status, count]) => (
-                <Tag key={status} color={BID_STATUS_META[status as SupplierBidStatus]?.color || 'default'} style={{ fontSize: '0.75rem' }}>
-                  {count} {BID_STATUS_META[status as SupplierBidStatus]?.label || status}
+              ).map(([st, count]) => (
+                <Tag key={st} color={BID_STATUS_META[st as SupplierBidStatus]?.color || 'default'} style={{ fontSize: '0.75rem' }}>
+                  {count} {BID_STATUS_META[st as SupplierBidStatus]?.label || st}
                 </Tag>
               ))}
             </BidStatusSummary>
@@ -150,13 +236,75 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
             disabled={requestAllMutation.isPending}
             title="Request bids from all draft suppliers"
           >
-            <Send size={12} /> Request All
+            <Send size={12} /> Request All Bids
           </BulkRequestBtn>
         )}
       </BidPanelHeader>
 
       {expanded && (
         <BidList>
+          {/* ── Product-level dates & ship-to ── */}
+          <ProductMetaRow>
+            <MetaField>
+              <MetaLabel><Calendar size={11} /> Respond By</MetaLabel>
+              {canManageBids ? (
+                <DatePicker
+                  size="small"
+                  showTime
+                  value={product.respond_by_date_time ? dayjs(product.respond_by_date_time) : null}
+                  onChange={handleRespondByChange}
+                  placeholder="Bid deadline"
+                  style={{ width: '100%' }}
+                />
+              ) : (
+                <MetaValue>
+                  {product.respond_by_date_time
+                    ? new Date(product.respond_by_date_time).toLocaleString()
+                    : '—'}
+                </MetaValue>
+              )}
+            </MetaField>
+            <MetaField>
+              <MetaLabel><Calendar size={11} /> Fulfillment Date</MetaLabel>
+              {canManageBids ? (
+                <DatePicker
+                  size="small"
+                  showTime
+                  value={product.fulfillment_date_time ? dayjs(product.fulfillment_date_time) : null}
+                  onChange={handleFulfillmentDateChange}
+                  placeholder="Needed by"
+                  style={{ width: '100%' }}
+                />
+              ) : (
+                <MetaValue>
+                  {product.fulfillment_date_time
+                    ? new Date(product.fulfillment_date_time).toLocaleString()
+                    : '—'}
+                </MetaValue>
+              )}
+            </MetaField>
+            <MetaField>
+              <MetaLabel><MapPin size={11} /> Ship To</MetaLabel>
+              {canManageBids && locationOptions.length > 0 ? (
+                <Select
+                  size="small"
+                  value={product.ship_to_location || undefined}
+                  onChange={handleShipToChange}
+                  placeholder="Select location"
+                  options={locationOptions}
+                  style={{ width: '100%' }}
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                />
+              ) : (
+                <MetaValue>
+                  {product.ship_to_location_name || product.ship_to_location || '—'}
+                </MetaValue>
+              )}
+            </MetaField>
+          </ProductMetaRow>
+
           {bids.length === 0 && !addingBid && (
             <EmptyBids>No supplier bids yet. Add a supplier to start the bidding process.</EmptyBids>
           )}
@@ -180,13 +328,26 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                 )}
               </BidPricing>
 
+              <BidDates>
+                {bid.requested_at && (
+                  <Tooltip title={`Requested: ${new Date(bid.requested_at).toLocaleString()}`}>
+                    <DateChip><Send size={10} /> {dayjs(bid.requested_at).format('MM/DD HH:mm')}</DateChip>
+                  </Tooltip>
+                )}
+                {bid.responded_at && (
+                  <Tooltip title={`Responded: ${new Date(bid.responded_at).toLocaleString()}`}>
+                    <DateChip $received><Clock size={10} /> {dayjs(bid.responded_at).format('MM/DD HH:mm')}</DateChip>
+                  </Tooltip>
+                )}
+              </BidDates>
+
               <Tag color={BID_STATUS_META[bid.bid_status]?.color || 'default'}>
                 {BID_STATUS_META[bid.bid_status]?.icon} {BID_STATUS_META[bid.bid_status]?.label || bid.bid_status}
               </Tag>
 
-              {bid.requested_at && (
-                <Tooltip title={`Requested: ${new Date(bid.requested_at).toLocaleString()}`}>
-                  <Clock size={12} style={{ opacity: 0.5 }} />
+              {bid.supplier_notes && (
+                <Tooltip title={bid.supplier_notes}>
+                  <NotesIndicator>📋</NotesIndicator>
                 </Tooltip>
               )}
 
@@ -451,6 +612,57 @@ const AddBidButton = styled.button`
     color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.04);
   }
+`;
+
+const ProductMetaRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(var(--color-border), 0.2);
+  margin-bottom: 0.25rem;
+`;
+
+const MetaField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const MetaLabel = styled.span`
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-tertiary));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+`;
+
+const MetaValue = styled.span`
+  font-size: 0.8125rem;
+  color: rgb(var(--color-text-primary));
+`;
+
+const BidDates = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 80px;
+`;
+
+const DateChip = styled.span<{ $received?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.6875rem;
+  color: ${({ $received }) => $received ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-tertiary))'};
+`;
+
+const NotesIndicator = styled.span`
+  font-size: 0.75rem;
+  cursor: help;
 `;
 
 export default SupplierBidPanel;
