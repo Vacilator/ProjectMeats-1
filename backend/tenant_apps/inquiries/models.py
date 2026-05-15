@@ -64,6 +64,17 @@ class InquirySupplierRFQStatusChoices(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class SupplierBidStatusChoices(models.TextChoices):
+    """Status for per-product supplier bids."""
+    DRAFT = "draft", "Draft"
+    REQUESTED = "requested", "Bid Requested"
+    RECEIVED = "received", "Bid Received"
+    ACCEPTED = "accepted", "Accepted"
+    REJECTED = "rejected", "Rejected"
+    EXPIRED = "expired", "Expired"
+    WITHDRAWN = "withdrawn", "Withdrawn"
+
+
 class UOMChoices(models.TextChoices):
     """Unit of measure choices aligned with existing WeightUnitChoices."""
     LBS = "LBS", "Pounds"
@@ -631,6 +642,27 @@ class InquiryProduct(TenantAwareModel):
         default='',
         help_text="Line item notes"
     )
+
+    # Fulfillment & bid management fields
+    fulfillment_date_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this product needs to be fulfilled/received by",
+    )
+    respond_by_date_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Deadline for suppliers to respond with bids",
+    )
+    ship_to_location = models.ForeignKey(
+        'locations.Location',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inquiry_products_ship_to',
+        help_text="Customer delivery/ship-to location",
+    )
+
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
 
@@ -669,6 +701,152 @@ class InquiryProduct(TenantAwareModel):
         if self.margin and self.desired_total and self.desired_total != 0:
             return (self.margin / self.desired_total) * 100
         return None
+
+
+class InquiryProductSupplierBid(TenantAwareModel):
+    """
+    Per-product supplier bid tracking.
+
+    Each InquiryProduct can have multiple supplier bids (one per supplier/plant combo).
+    Traders add suppliers, request bids, and receive/parse responses.
+    """
+
+    inquiry_product = models.ForeignKey(
+        InquiryProduct,
+        on_delete=models.CASCADE,
+        related_name='supplier_bids',
+    )
+    supplier = models.ForeignKey(
+        'suppliers.Supplier',
+        on_delete=models.CASCADE,
+        related_name='inquiry_product_bids',
+    )
+    plant = models.ForeignKey(
+        'plants.Plant',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inquiry_product_bids',
+        help_text="Optional: specific plant for this bid",
+    )
+    contact = models.ForeignKey(
+        'contacts.Contact',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supplier_bid_contacts',
+        help_text="Sales dept contact at the supplier",
+    )
+
+    # Bid pricing
+    bid_price_per_unit = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Supplier's quoted price per unit",
+    )
+    bid_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Supplier's total bid amount",
+    )
+    bid_uom = models.CharField(
+        max_length=10,
+        choices=UOMChoices.choices,
+        blank=True,
+        default='',
+        help_text="Unit of measure for bid",
+    )
+    bid_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Quantity the supplier can fulfill",
+    )
+
+    # Status tracking
+    bid_status = models.CharField(
+        max_length=16,
+        choices=SupplierBidStatusChoices.choices,
+        default=SupplierBidStatusChoices.DRAFT,
+        db_index=True,
+    )
+    requested_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the bid request was sent",
+    )
+    responded_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the supplier responded",
+    )
+
+    # Notes
+    bid_notes = models.TextField(
+        blank=True,
+        default='',
+        help_text="Internal notes about this bid (trader-facing)",
+    )
+    supplier_notes = models.TextField(
+        blank=True,
+        default='',
+        help_text="Notes from the supplier (parsed from response)",
+    )
+
+    # Response data (for AI-parsed email responses)
+    bid_response_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Parsed bid response data (from email/API)",
+    )
+
+    # RFQ linkage (if bid was requested via the existing RFQ system)
+    rfq = models.ForeignKey(
+        InquirySupplierRFQ,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='product_bids',
+        help_text="Link to outbound RFQ audit row",
+    )
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Inquiry Product Supplier Bid"
+        verbose_name_plural = "Inquiry Product Supplier Bids"
+        ordering = ['-created_on']
+        indexes = [
+            models.Index(
+                fields=['tenant', 'inquiry_product', 'bid_status'],
+                name='inqbid_tenant_prod_status_idx',
+            ),
+            models.Index(
+                fields=['tenant', 'supplier', 'bid_status'],
+                name='inqbid_tenant_supp_status_idx',
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'inquiry_product', 'supplier', 'plant'],
+                name='unique_bid_per_product_supplier_plant',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        supplier_name = getattr(self.supplier, 'name', str(self.supplier_id)[:8]) if self.supplier_id else '?'
+        return f"Bid {self.inquiry_product_id}→{supplier_name} ({self.bid_status})"
+
+    def save(self, *args, **kwargs):
+        if getattr(self, 'tenant_id', None) is None and self.inquiry_product_id is not None:
+            self.tenant = self.inquiry_product.inquiry.tenant
+        super().save(*args, **kwargs)
 
 
 class InquiryTemplate(TenantAwareModel):

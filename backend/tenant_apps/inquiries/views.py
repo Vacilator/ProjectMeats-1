@@ -15,7 +15,15 @@ from tenant_apps.purchase_orders.serializers import PurchaseOrderSerializer
 
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 
-from .models import Inquiry, InquiryProduct, InquiryRouteDecisionChoices, InquiryTemplate, InquiryTemplateProduct
+from .models import (
+    Inquiry,
+    InquiryProduct,
+    InquiryProductSupplierBid,
+    InquiryRouteDecisionChoices,
+    InquiryTemplate,
+    InquiryTemplateProduct,
+    SupplierBidStatusChoices,
+)
 from .serializers import (
     AddProductsSerializer,
     CloneInquirySerializer,
@@ -24,6 +32,7 @@ from .serializers import (
     InquiryDetailSerializer,
     InquiryListSerializer,
     InquiryProductSerializer,
+    InquiryProductSupplierBidSerializer,
     InquiryTemplateCreateSerializer,
     InquiryTemplateDetailSerializer,
     InquiryTemplateListSerializer,
@@ -889,8 +898,118 @@ class InquiryProductViewSet(viewsets.ModelViewSet):
     serializer_class = InquiryProductSerializer
 
     def get_queryset(self):
-        """Filter by tenant via inquiry."""
-        return InquiryProduct.objects.filter(inquiry__tenant=self.request.tenant).select_related("product", "inquiry")
+        """Filter by tenant via inquiry, prefetch supplier bids."""
+        return (
+            InquiryProduct.objects.filter(inquiry__tenant=self.request.tenant)
+            .select_related("product", "inquiry", "ship_to_location")
+            .prefetch_related("supplier_bids", "supplier_bids__supplier", "supplier_bids__plant", "supplier_bids__contact")
+        )
+
+
+class InquiryProductSupplierBidViewSet(viewsets.ModelViewSet):
+    """ViewSet for per-product supplier bid CRUD operations."""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = InquiryProductSupplierBidSerializer
+
+    def get_queryset(self):
+        """Filter by tenant — bids belong to inquiry products scoped by tenant."""
+        return (
+            InquiryProductSupplierBid.objects.filter(tenant=self.request.tenant)
+            .select_related("supplier", "plant", "contact", "inquiry_product", "inquiry_product__product")
+        )
+
+    def perform_create(self, serializer):
+        """Set tenant from the inquiry product's inquiry."""
+        inquiry_product_id = serializer.validated_data.get('inquiry_product')
+        if hasattr(inquiry_product_id, 'pk'):
+            inquiry_product_id = inquiry_product_id.pk if hasattr(inquiry_product_id, 'pk') else inquiry_product_id
+        serializer.save(tenant=self.request.tenant)
+
+    @action(detail=True, methods=['post'], url_path='request-bid')
+    def request_bid(self, request, pk=None):
+        """Mark a single bid as 'requested' and trigger outbound email."""
+        bid = self.get_object()
+        if bid.bid_status not in (SupplierBidStatusChoices.DRAFT, SupplierBidStatusChoices.EXPIRED):
+            return Response(
+                {"error": f"Cannot request bid in status '{bid.bid_status}'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        bid.bid_status = SupplierBidStatusChoices.REQUESTED
+        bid.requested_at = timezone.now()
+        bid.save(update_fields=['bid_status', 'requested_at', 'modified_on'])
+
+        # TODO: trigger outbound RFQ email via InquirySupplierRFQ system
+        return Response(
+            InquiryProductSupplierBidSerializer(bid).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['post'], url_path='request-all-bids')
+    def request_all_bids(self, request):
+        """Bulk-request bids for all draft bids on a given inquiry product."""
+        inquiry_product_id = request.data.get('inquiry_product_id')
+        if not inquiry_product_id:
+            return Response(
+                {"error": "inquiry_product_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        draft_bids = self.get_queryset().filter(
+            inquiry_product_id=inquiry_product_id,
+            bid_status__in=[SupplierBidStatusChoices.DRAFT, SupplierBidStatusChoices.EXPIRED],
+        )
+
+        now = timezone.now()
+        updated = draft_bids.update(
+            bid_status=SupplierBidStatusChoices.REQUESTED,
+            requested_at=now,
+        )
+
+        # TODO: trigger outbound RFQ emails in bulk
+        return Response(
+            {"updated": updated, "message": f"Requested bids for {updated} supplier(s)"},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['post'], url_path='accept')
+    def accept_bid(self, request, pk=None):
+        """Accept a received bid — sets it as accepted and updates parent product pricing."""
+        bid = self.get_object()
+        if bid.bid_status != SupplierBidStatusChoices.RECEIVED:
+            return Response(
+                {"error": f"Can only accept bids in 'received' status, got '{bid.bid_status}'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        bid.bid_status = SupplierBidStatusChoices.ACCEPTED
+        bid.save(update_fields=['bid_status', 'modified_on'])
+
+        # Update the parent inquiry product with accepted bid pricing
+        product = bid.inquiry_product
+        product.supplier = bid.supplier
+        product.plant = bid.plant
+        product.actual_price_per_unit = bid.bid_price_per_unit
+        product.actual_total = bid.bid_total
+        if bid.bid_uom:
+            product.actual_uom = bid.bid_uom
+        product.save(update_fields=[
+            'supplier', 'plant', 'actual_price_per_unit', 'actual_total',
+            'actual_uom', 'modified_on',
+        ])
+
+        # Reject other received bids for this product
+        InquiryProductSupplierBid.objects.filter(
+            inquiry_product=product,
+            bid_status=SupplierBidStatusChoices.RECEIVED,
+            tenant=self.request.tenant,
+        ).exclude(pk=bid.pk).update(bid_status=SupplierBidStatusChoices.REJECTED)
+
+        return Response(
+            InquiryProductSupplierBidSerializer(bid).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class InquiryTemplateViewSet(viewsets.ModelViewSet):

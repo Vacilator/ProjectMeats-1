@@ -6,10 +6,12 @@ from apps.core.services.inventory_availability import evaluate_inquiry_route
 from .models import (
     Inquiry,
     InquiryProduct,
+    InquiryProductSupplierBid,
     InquiryRouteDecisionChoices,
     InquirySourceChoices,
     InquiryTemplate,
     InquiryTemplateProduct,
+    SupplierBidStatusChoices,
 )
 
 
@@ -120,6 +122,38 @@ class InquiryContractValidationMixin:
         return super().update(instance, self._apply_contract_defaults(validated_data))
 
 
+class InquiryProductSupplierBidSerializer(serializers.ModelSerializer):
+    """Serializer for per-product supplier bids."""
+
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    plant_name = serializers.CharField(source='plant.name', read_only=True, allow_null=True)
+    contact_name = serializers.SerializerMethodField()
+    contact_email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InquiryProductSupplierBid
+        fields = [
+            'id', 'inquiry_product', 'supplier', 'supplier_name',
+            'plant', 'plant_name', 'contact', 'contact_name', 'contact_email',
+            'bid_price_per_unit', 'bid_total', 'bid_uom', 'bid_quantity',
+            'bid_status', 'requested_at', 'responded_at',
+            'bid_notes', 'supplier_notes', 'bid_response_data',
+            'rfq', 'created_on', 'modified_on',
+        ]
+        read_only_fields = ['id', 'created_on', 'modified_on', 'requested_at', 'responded_at']
+
+    def get_contact_name(self, obj) -> str:
+        if obj.contact_id:
+            c = obj.contact
+            return f"{getattr(c, 'first_name', '')} {getattr(c, 'last_name', '')}".strip() or str(c)
+        return ''
+
+    def get_contact_email(self, obj) -> str:
+        if obj.contact_id:
+            return getattr(obj.contact, 'email', '') or ''
+        return ''
+
+
 class InquiryProductSerializer(serializers.ModelSerializer):
     """Serializer for InquiryProduct model."""
     
@@ -130,6 +164,10 @@ class InquiryProductSerializer(serializers.ModelSerializer):
     )
     margin_percent = serializers.DecimalField(
         max_digits=8, decimal_places=2, read_only=True
+    )
+    supplier_bids = InquiryProductSupplierBidSerializer(many=True, read_only=True)
+    ship_to_location_name = serializers.CharField(
+        source='ship_to_location.name', read_only=True, allow_null=True,
     )
     
     class Meta:
@@ -147,6 +185,11 @@ class InquiryProductSerializer(serializers.ModelSerializer):
             'actual_shipping_date', 'actual_delivery_date',
             # Calculated
             'margin', 'margin_percent',
+            # Fulfillment & bid management
+            'fulfillment_date_time', 'respond_by_date_time',
+            'ship_to_location', 'ship_to_location_name',
+            # Nested bids
+            'supplier_bids',
             # Meta
             'notes', 'created_on', 'modified_on'
         ]
