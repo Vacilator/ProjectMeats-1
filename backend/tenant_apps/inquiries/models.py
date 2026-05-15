@@ -1098,3 +1098,106 @@ class TradeSession(TenantAwareModel):
 
     def __str__(self):
         return self.trade_id
+
+
+# ---------------------------------------------------------------------------
+# Trade Document — tracks all documents across the E2E pipeline
+# ---------------------------------------------------------------------------
+
+
+class TradeDocumentDirection(models.TextChoices):
+    SENT = "sent", "Sent"
+    RECEIVED = "received", "Received"
+
+
+class TradeDocumentType(models.TextChoices):
+    PDF = "pdf", "PDF"
+    EMAIL = "email", "Email"
+    ATTACHMENT = "attachment", "Attachment"
+    CONTRACT = "contract", "Contract"
+    QUOTE = "quote", "Quote"
+    BID_REQUEST = "bid_request", "Bid Request"
+    BID_RESPONSE = "bid_response", "Bid Response"
+    CONFIRMATION = "confirmation", "Confirmation"
+    INVOICE_DOC = "invoice_doc", "Invoice Document"
+    BOL = "bol", "Bill of Lading"
+    POD = "pod", "Proof of Delivery"
+    OTHER = "other", "Other"
+
+
+class TradeDocumentGeneratedBy(models.TextChoices):
+    SYSTEM = "system", "System"
+    USER = "user", "User"
+    EMAIL_INGEST = "email_ingest", "Email Ingestion"
+
+
+TRADE_STAGE_CHOICES = [
+    ("inquiry", "Inquiry"),
+    ("purchase_order", "Purchase Order"),
+    ("sales_order", "Sales Order"),
+    ("carrier_po", "Carrier PO"),
+    ("fulfillment", "Fulfillment"),
+    ("invoice", "Invoice"),
+]
+
+
+class TradeDocument(TenantAwareModel):
+    """Document associated with a trade session stage.
+
+    Tracks all documents (generated PDFs, received emails, attachments, etc.)
+    across the E2E trade pipeline with sent/received direction and stage ordering.
+    """
+
+    trade_session = models.ForeignKey(
+        "inquiries.TradeSession",
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+
+    # Which entity and stage this document belongs to
+    entity_type = models.CharField(max_length=30, help_text="Type of entity (inquiry, purchase_order, etc)")
+    entity_id = models.IntegerField(help_text="ID of the related entity")
+    stage = models.CharField(max_length=20, choices=TRADE_STAGE_CHOICES)
+
+    # Document metadata
+    direction = models.CharField(max_length=10, choices=TradeDocumentDirection.choices)
+    document_type = models.CharField(
+        max_length=20, choices=TradeDocumentType.choices, default=TradeDocumentType.OTHER
+    )
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True, default="")
+
+    # File storage (nullable — email docs may not have a local file)
+    file = models.FileField(upload_to="trade_documents/%Y/%m/", blank=True, null=True)
+    file_size = models.IntegerField(null=True, blank=True, help_text="File size in bytes")
+    mime_type = models.CharField(max_length=100, blank=True, default="")
+
+    # Email linkage (nullable — only for email-sourced docs)
+    email_log = models.ForeignKey(
+        "integrations.EmailLog",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trade_documents",
+    )
+
+    generated_by = models.CharField(
+        max_length=20,
+        choices=TradeDocumentGeneratedBy.choices,
+        default=TradeDocumentGeneratedBy.USER,
+    )
+
+    # Ordering within a stage (for execution sequence display)
+    stage_order = models.IntegerField(default=0, help_text="Execution order within stage")
+
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["stage_order", "created_on"]
+        indexes = [
+            models.Index(fields=["tenant", "trade_session"]),
+            models.Index(fields=["tenant", "entity_type", "entity_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({self.get_direction_display()}) - {self.get_stage_display()}"

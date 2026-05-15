@@ -1,7 +1,7 @@
 """URL configuration for Inquiries app."""
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import InquiryViewSet, InquiryProductViewSet, InquiryProductSupplierBidViewSet, InquiryTemplateViewSet
+from .views import InquiryViewSet, InquiryProductViewSet, InquiryProductSupplierBidViewSet, InquiryTemplateViewSet, TradeDocumentViewSet
 from .views_trades import TradePipelineViewSet
 
 router = DefaultRouter()
@@ -10,6 +10,7 @@ router.register(r'inquiry-products', InquiryProductViewSet, basename='inquiry-pr
 router.register(r'inquiry-product-bids', InquiryProductSupplierBidViewSet, basename='inquiry-product-bid')
 router.register(r'inquiry-templates', InquiryTemplateViewSet, basename='inquiry-template')
 router.register(r'trades', TradePipelineViewSet, basename='trade')
+router.register(r'trade-documents', TradeDocumentViewSet, basename='trade-document')
 
 urlpatterns = [
     path('', include(router.urls)),

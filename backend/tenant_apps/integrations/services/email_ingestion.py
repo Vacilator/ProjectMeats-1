@@ -610,6 +610,42 @@ class EmailIngestionService:
         except Exception as act_err:
             logger.warning("Activity log entry skipped for email %s: %s", email_log.id, act_err)
 
+        # Link email to trade session documents (if thread matches an active trade)
+        try:
+            from tenant_apps.inquiries.models import TradeDocument, TradeSession
+
+            thread_id = email_data.get("conversationId") or ""
+            if thread_id:
+                ts = TradeSession.objects.filter(
+                    tenant=tenant, source_email_thread_id=thread_id
+                ).first()
+                if ts:
+                    TradeDocument.objects.create(
+                        tenant=tenant,
+                        trade_session=ts,
+                        entity_type="email",
+                        entity_id=email_log.id,
+                        stage="inquiry",
+                        direction="received",
+                        document_type="email",
+                        title=email_log.subject or "(No Subject)",
+                        description=f"Email from {sender_email}",
+                        email_log=email_log,
+                        generated_by="email_ingest",
+                        stage_order=0,
+                    )
+                    logger.info(
+                        "Linked email %s to trade session %s as TradeDocument",
+                        email_log.id,
+                        ts.trade_id,
+                    )
+        except Exception:
+            logger.warning(
+                "Trade document linking skipped for email %s",
+                email_log.id,
+                exc_info=True,
+            )
+
     def poll_provider_by_id(self, provider_id: int, *, tenant_id: str | None = None) -> Dict[str, int]:
         """Poll inbox for a specific ExternalAuthProvider.
 

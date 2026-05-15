@@ -25,6 +25,40 @@ from apps.tenants.rls import tenant_rls
 logger = logging.getLogger(__name__)
 
 
+def _create_trade_document(
+    tenant,
+    trade_session,
+    entity_type: str,
+    entity_id: int,
+    stage: str,
+    direction: str,
+    document_type: str,
+    title: str,
+    description: str = "",
+    generated_by: str = "system",
+    stage_order: int = 0,
+):
+    """Create a TradeDocument record for a cascade transition."""
+    from tenant_apps.inquiries.models import TradeDocument
+
+    try:
+        TradeDocument.objects.create(
+            tenant=tenant,
+            trade_session=trade_session,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            stage=stage,
+            direction=direction,
+            document_type=document_type,
+            title=title,
+            description=description,
+            generated_by=generated_by,
+            stage_order=stage_order,
+        )
+    except Exception:
+        logger.warning("Failed to create trade document for %s %s", entity_type, entity_id, exc_info=True)
+
+
 @dataclass
 class CascadeResult:
     """Return value describing any downstream entities created."""
@@ -91,7 +125,7 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
     inquiry: Inquiry = document
 
     # Always ensure a TradeSession exists for this inquiry
-    get_or_create_trade_session(tenant=tenant, inquiry=inquiry)
+    trade_session, _ts_created = get_or_create_trade_session(tenant=tenant, inquiry=inquiry)
 
     with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
         # Idempotency: check if a PO already exists for this inquiry
@@ -170,6 +204,32 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
             po.id,
         )
 
+        # Auto-create trade documents for inquiry acceptance + PO draft
+        _create_trade_document(
+            tenant=tenant,
+            trade_session=trade_session,
+            entity_type="inquiry",
+            entity_id=inquiry.id,
+            stage="inquiry",
+            direction="received",
+            document_type="confirmation",
+            title=f"Inquiry {inquiry.inquiry_number or inquiry.id} Accepted",
+            description="Inquiry accepted, purchase order being created.",
+            stage_order=1,
+        )
+        _create_trade_document(
+            tenant=tenant,
+            trade_session=trade_session,
+            entity_type="purchase_order",
+            entity_id=po.id,
+            stage="purchase_order",
+            direction="sent",
+            document_type="confirmation",
+            title=f"PO {po.po_number or po.id} Draft Created",
+            description="Draft purchase order auto-created from accepted inquiry.",
+            stage_order=0,
+        )
+
         return CascadeResult(
             triggered=True,
             created_entity_type="purchase_order",
@@ -203,6 +263,22 @@ def _cascade_po_approved_to_so(*, tenant: Any, document: Any) -> CascadeResult:
 
     # Link SO to the trade session so MyTrades picks it up
     _link_trade_session(tenant, document, sales_order=so)
+
+    # Auto-create trade document for SO draft
+    ts = _resolve_trade_session(tenant, document)
+    if ts:
+        _create_trade_document(
+            tenant=tenant,
+            trade_session=ts,
+            entity_type="sales_order",
+            entity_id=so.id,
+            stage="sales_order",
+            direction="sent",
+            document_type="confirmation",
+            title=f"SO {so.our_sales_order_num or so.id} Draft Created",
+            description=f"Draft sales order auto-created from approved PO {getattr(document, 'po_number', document.id)}.",
+            stage_order=0,
+        )
 
     return CascadeResult(
         triggered=True,
@@ -274,6 +350,22 @@ def _cascade_so_confirmed_to_carrier_po(*, tenant: Any, document: Any) -> Cascad
 
         # Link Carrier PO to the trade session so MyTrades picks it up
         _link_trade_session(tenant, so, carrier_purchase_order=carrier_po)
+
+        # Auto-create trade document for carrier PO draft
+        ts = _resolve_trade_session(tenant, so)
+        if ts:
+            _create_trade_document(
+                tenant=tenant,
+                trade_session=ts,
+                entity_type="carrier_purchase_order",
+                entity_id=carrier_po.id,
+                stage="carrier_po",
+                direction="sent",
+                document_type="confirmation",
+                title=f"Carrier PO {carrier_po.order_number or carrier_po.id} Draft Created",
+                description=f"Draft carrier PO auto-created from confirmed SO {so.our_sales_order_num or so.id}.",
+                stage_order=0,
+            )
 
         return CascadeResult(
             triggered=True,
@@ -350,6 +442,22 @@ def _cascade_carrier_po_delivered_to_fulfillment(*, tenant: Any, document: Any) 
 
         # Advance trade session status to logistics
         _update_trade_session_status_from_doc(tenant, carrier_po, "logistics")
+
+        # Auto-create trade document for fulfillment draft
+        ts = _resolve_trade_session(tenant, carrier_po)
+        if ts:
+            _create_trade_document(
+                tenant=tenant,
+                trade_session=ts,
+                entity_type="fulfillment",
+                entity_id=fulfillment.id,
+                stage="fulfillment",
+                direction="received",
+                document_type="confirmation",
+                title=f"Fulfillment {fulfillment.fulfillment_number or fulfillment.id} Created",
+                description=f"Fulfillment auto-created from delivered Carrier PO {carrier_po.order_number or carrier_po.id}.",
+                stage_order=0,
+            )
 
         return CascadeResult(
             triggered=True,
@@ -433,6 +541,22 @@ def _cascade_fulfillment_completed_to_invoice(*, tenant: Any, document: Any) -> 
         # Advance trade session to completed
         _update_trade_session_status_from_doc(tenant, fulfillment, "completed")
 
+        # Auto-create trade document for invoice draft
+        ts = _resolve_trade_session(tenant, fulfillment)
+        if ts:
+            _create_trade_document(
+                tenant=tenant,
+                trade_session=ts,
+                entity_type="invoice",
+                entity_id=invoice.id,
+                stage="invoice",
+                direction="sent",
+                document_type="invoice_doc",
+                title=f"Invoice {invoice.invoice_number or invoice.id} Draft Created",
+                description=f"Draft invoice auto-created from completed Fulfillment {fulfillment.fulfillment_number or fulfillment.id}.",
+                stage_order=0,
+            )
+
         return CascadeResult(
             triggered=True,
             created_entity_type="invoice",
@@ -448,6 +572,19 @@ def _cascade_fulfillment_completed_to_invoice(*, tenant: Any, document: Any) -> 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _resolve_trade_session(tenant: Any, parent_doc: Any):
+    """Best-effort resolution of the TradeSession for a document."""
+    from tenant_apps.inquiries.models import TradeSession
+
+    try:
+        inquiry = _resolve_source_inquiry(tenant, parent_doc)
+        if inquiry:
+            return TradeSession.objects.filter(tenant=tenant, inquiry=inquiry).first()
+    except Exception:
+        logger.debug("Could not resolve trade session for %s", parent_doc, exc_info=True)
+    return None
 
 
 def _link_trade_session(
