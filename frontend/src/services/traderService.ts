@@ -140,7 +140,7 @@ export interface TradeProposal {
 // ============================================================================
 
 export const traderService = {
-  /** List active trade sessions */
+  /** List trade sessions — returns ALL statuses for client-side filtering */
   async listActiveTrades(): Promise<TradeListResponse> {
     const response = await businessApi.get('/trades/');
     return response.data as TradeListResponse;

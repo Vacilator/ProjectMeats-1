@@ -51,22 +51,34 @@ class TradePipelineViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def list(self, request):
-        """GET /api/v1/trades/ — List active trade sessions.
+        """GET /api/v1/trades/ — List trade sessions.
 
-        Returns active trade sessions with their current orchestrator state,
+        Returns trade sessions with their current orchestrator state,
         dependency status, and key metadata.
+
+        Supports optional query params:
+        - status: filter by session status (e.g., ?status=active or ?status=completed)
+        - If no status param, returns ALL trade sessions for client-side filtering.
         """
         tenant = request.tenant
-        sessions = (
-            TradeSession.objects.filter(
-                tenant=tenant,
-            )
-            .exclude(
+        qs = (
+            TradeSession.objects.filter(tenant=tenant)
+            .select_related("inquiry")
+            .order_by("-initiated_at")
+        )
+
+        # Optional server-side status filtering
+        status_filter = request.query_params.get("status")
+        if status_filter == "active":
+            qs = qs.exclude(
                 status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED],
             )
-            .select_related("inquiry")
-            .order_by("-initiated_at")[:50]
-        )
+        elif status_filter == "completed":
+            qs = qs.filter(status=TradeSessionStatus.COMPLETED)
+        elif status_filter and status_filter in TradeSessionStatus.values:
+            qs = qs.filter(status=status_filter)
+
+        sessions = qs[:100]
 
         trades = []
         for session in sessions:

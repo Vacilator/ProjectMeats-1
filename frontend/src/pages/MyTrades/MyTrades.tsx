@@ -31,14 +31,37 @@ import { traderService, type TradeSession } from '@/services/traderService';
 import { TradeLineageFlow } from '@/components/Cockpit/TradeLineageFlow';
 import { logger } from '@/utils/logger';
 
+/** Human-readable label for orchestrator step values */
+const formatStepLabel = (step: string): string => {
+  const labels: Record<string, string> = {
+    supplier_rfq: 'Supplier RFQ',
+    supplier_reply_parse: 'Awaiting Supplier Reply',
+    draft_supplier_po: 'Draft Supplier PO',
+    approve_supplier_po: 'Approve Supplier PO',
+    draft_sales_order: 'Draft Sales Order',
+    approve_sales_order: 'Approve Sales Order',
+    carrier_fan_out: 'Carrier Selection',
+    carrier_reply_parse: 'Awaiting Carrier Reply',
+    draft_carrier_po: 'Draft Carrier PO',
+    completed: 'Completed',
+  };
+  return labels[step] || step?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
+};
+
 type TradeTab = 'active' | 'completed' | 'all';
 type RouteFilter = 'all' | 'FULFILL' | 'BROKER';
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
+  initiated: { color: 'blue', label: 'Initiated' },
+  sourcing: { color: 'processing', label: 'Sourcing' },
+  quoted: { color: 'cyan', label: 'Quoted' },
+  ordered: { color: 'geekblue', label: 'Ordered' },
+  logistics: { color: 'orange', label: 'Logistics' },
   active: { color: 'blue', label: 'Active' },
   in_progress: { color: 'processing', label: 'In Progress' },
   pending: { color: 'warning', label: 'Pending' },
   completed: { color: 'success', label: 'Completed' },
+  halted: { color: 'error', label: 'Halted' },
   failed: { color: 'error', label: 'Failed' },
   cancelled: { color: 'default', label: 'Cancelled' },
 };
@@ -47,7 +70,7 @@ const getStatusMeta = (status: string) =>
   STATUS_META[status?.toLowerCase()] ?? { color: 'default', label: status || 'Unknown' };
 
 const isActiveStatus = (status: string) =>
-  ['active', 'in_progress', 'pending'].includes(status?.toLowerCase());
+  ['active', 'in_progress', 'pending', 'initiated', 'sourcing', 'quoted', 'ordered', 'logistics'].includes(status?.toLowerCase());
 
 const formatRelativeTime = (iso: string | null | undefined): string => {
   if (!iso) return '—';
@@ -295,7 +318,7 @@ const MyTrades: React.FC = () => {
                           {trade.route === 'FULFILL' ? '📦 Fulfill' : trade.route === 'BROKER' ? '🔄 Broker' : trade.route || '—'}
                         </Tooltip>
                       </MetaItem>
-                      <MetaItem>Step: {trade.current_step || '—'}</MetaItem>
+                      <MetaItem>Step: {formatStepLabel(trade.current_step)}</MetaItem>
                     </TradeMeta>
                   </TradeInfo>
 

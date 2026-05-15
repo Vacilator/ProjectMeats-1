@@ -327,24 +327,112 @@ const EmptyNotes = styled.div`
   font-style: italic;
 `;
 
-const ReviewBanner = styled.div`
+// ReviewBanner removed — replaced by contextual WorkflowActionBanner
+
+// ============================================================================
+// Contextual Action Banner — shows what the trader needs to do next
+// ============================================================================
+
+interface ActionBannerConfig {
+  icon: string;
+  title: string;
+  description: string;
+  intent: 'info' | 'warning' | 'success';
+}
+
+const INQUIRY_ACTION_MAP: Record<string, ActionBannerConfig> = {
+  draft: {
+    icon: '📝',
+    title: 'Complete Inquiry Details',
+    description: 'Add products, set pricing, and review customer details. When ready, send the quote to the customer.',
+    intent: 'info',
+  },
+  pending: {
+    icon: '📝',
+    title: 'Complete Inquiry Details',
+    description: 'Add products, set pricing, and review customer details. When ready, send the quote to the customer.',
+    intent: 'info',
+  },
+  quoted: {
+    icon: '⏳',
+    title: 'Awaiting Customer Response',
+    description: 'Quote has been sent. When the customer accepts, click "Accept Deal" to auto-create a Purchase Order and advance the trade.',
+    intent: 'warning',
+  },
+  accepted: {
+    icon: '✅',
+    title: 'Deal Accepted — Purchase Order Created',
+    description: 'This inquiry has been accepted. A Purchase Order has been auto-created. Navigate to the PO to continue the trade workflow.',
+    intent: 'success',
+  },
+  fulfilled: {
+    icon: '🏆',
+    title: 'Inquiry Fulfilled',
+    description: 'This inquiry has been fully fulfilled. All deliveries are complete.',
+    intent: 'success',
+  },
+};
+
+const WorkflowActionBanner: React.FC<{ inquiry: Inquiry }> = ({ inquiry }) => {
+  const config = INQUIRY_ACTION_MAP[inquiry.status];
+  if (!config) return null;
+
+  const borderColor = config.intent === 'success'
+    ? 'var(--color-success)'
+    : config.intent === 'warning'
+    ? 'var(--color-warning)'
+    : 'var(--color-info)';
+  const bgColor = config.intent === 'success'
+    ? 'var(--color-success)'
+    : config.intent === 'warning'
+    ? 'var(--color-warning)'
+    : 'var(--color-info)';
+
+  return (
+    <ActionBannerContainer $borderColor={borderColor} $bgColor={bgColor}>
+      <ActionBannerIcon>{config.icon}</ActionBannerIcon>
+      <ActionBannerContent>
+        <ActionBannerTitle>{config.title}</ActionBannerTitle>
+        <ActionBannerDesc>{config.description}</ActionBannerDesc>
+      </ActionBannerContent>
+    </ActionBannerContainer>
+  );
+};
+
+const ActionBannerContainer = styled.div<{ $borderColor: string; $bgColor: string }>`
   margin-bottom: 1.5rem;
   padding: 1rem 1.25rem;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(var(--color-warning), 0.4);
-  background: rgba(var(--color-warning), 0.12);
+  border: 1px solid rgba(${(p) => p.$borderColor}, 0.4);
+  background: rgba(${(p) => p.$bgColor}, 0.08);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+`;
+
+const ActionBannerIcon = styled.span`
+  font-size: 1.25rem;
+  line-height: 1.4;
+  flex-shrink: 0;
+`;
+
+const ActionBannerContent = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const ActionBannerTitle = styled.strong`
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.9375rem;
   color: rgb(var(--color-text-primary));
+`;
 
-  strong {
-    display: block;
-    margin-bottom: 0.25rem;
-  }
-
-  span {
-    display: block;
-    font-size: 0.875rem;
-    color: rgb(var(--color-text-secondary));
-  }
+const ActionBannerDesc = styled.span`
+  display: block;
+  font-size: 0.8125rem;
+  color: rgb(var(--color-text-secondary));
+  line-height: 1.5;
 `;
 
 // ============================================================================
@@ -410,12 +498,8 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
           </ModalHeader>
 
           <ModalBody>
-            {reviewMode && (
-              <ReviewBanner>
-                <strong>Action Required</strong>
-                <span>Review the route decision and source provenance before changing inquiry status.</span>
-              </ReviewBanner>
-            )}
+            {/* Contextual Action Banner — shows what the user needs to do at the current step */}
+            <WorkflowActionBanner inquiry={inquiry} />
 
             {/* Status & Actions — golden workflow component */}
             <Section>
