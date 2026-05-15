@@ -433,13 +433,21 @@ export const documentsApi = {
     return unwrap(res);
   },
 
+  // Session-level cache of document IDs known to 404 — prevents redundant
+  // network requests that spam the browser console.
+  _missing404Cache: new Set<string>(),
+
   get: async (documentId: string): Promise<DocumentUploadResponse | null> => {
+    if (documentsApi._missing404Cache.has(documentId)) return null;
     try {
       const res = await businessApi.get<DocumentUploadResponse>(`/ai-assistant/ai-documents/${documentId}/`);
       return unwrap(res);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 404) return null;
+      if (status === 404) {
+        documentsApi._missing404Cache.add(documentId);
+        return null;
+      }
       throw err;
     }
   },

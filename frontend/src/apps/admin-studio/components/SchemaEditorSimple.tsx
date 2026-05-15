@@ -319,11 +319,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const handleClosePreview = useCallback(() => setShowPreview(false), []);
 
   // Fetch schema on mount
-  useEffect(() => {
-    fetchSchema();
-  }, [blueprintId]);
-
-  const fetchSchema = async () => {
+  const fetchSchema = useCallback(async () => {
     try {
       setLoading(true);
       const response = await adminClient.get(
@@ -341,7 +337,11 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
       setMessage({ text: 'Failed to load schema configuration', type: 'error' });
       setLoading(false);
     }
-  };
+  }, [blueprintId, csrfToken]);
+
+  useEffect(() => {
+    fetchSchema();
+  }, [fetchSchema]);
 
   const handleSave = async () => {
     try {
