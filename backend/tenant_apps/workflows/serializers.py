@@ -1184,9 +1184,9 @@ class UserNotificationPreferencesSerializer(serializers.ModelSerializer):
 
 class ActionItemSerializer(serializers.Serializer):
     """Serializer for action items (tasks assigned to user)."""
-    
-    id = serializers.UUIDField()
-    type = serializers.ChoiceField(choices=['form_step', 'workflow_task'])
+
+    id = serializers.CharField()
+    type = serializers.ChoiceField(choices=['form_step', 'workflow_task', 'trade_action'])
     title = serializers.CharField()
     description = serializers.CharField(allow_blank=True)
     form_name = serializers.CharField(required=False)
@@ -1198,7 +1198,7 @@ class ActionItemSerializer(serializers.Serializer):
     is_overdue = serializers.BooleanField()
     assigned_at = serializers.DateTimeField()
     entity_type = serializers.CharField(required=False)
-    entity_id = serializers.UUIDField(required=False)
+    entity_id = serializers.CharField(required=False)
     # Optional PO value fields used by the frontend urgency × value sort matrix
     related_po_value = serializers.FloatField(required=False, allow_null=True)
     related_po_currency = serializers.CharField(required=False, allow_null=True)

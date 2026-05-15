@@ -85,7 +85,7 @@ CARRIER_PO_WORKFLOW = DocumentWorkflow(
 INQUIRY_WORKFLOW = DocumentWorkflow(
     initial_statuses=("draft", "pending"),
     transitions={
-        "draft": ("pending", "quoted", "cancelled"),
+        "draft": ("quoted", "cancelled"),
         "pending": ("quoted", "cancelled"),
         "quoted": ("accepted", "rejected", "cancelled"),
         "accepted": ("fulfilled", "cancelled"),

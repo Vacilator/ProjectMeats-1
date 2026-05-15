@@ -33,7 +33,6 @@ import {
   Receipt,
   AlertCircle,
   Loader2,
-  UserX,
 } from 'lucide-react';
 
 // ============================================================================
@@ -305,16 +304,6 @@ const MoreRolesText = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-const UnassignedBadge = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 6px;
-  font-size: 10px;
-  color: rgb(var(--color-warning));
-  font-style: italic;
-`;
-
 const AISuggestionHint = styled.div`
   margin-top: 4px;
   font-size: 10px;
@@ -481,16 +470,23 @@ function buildGraph(
 
   const edges: Edge[] = [];
   for (let i = 0; i < entities.length - 1; i++) {
+    const isNextEmpty = entities[i + 1].data === null;
+    const strokeColor = isNextEmpty ? 'rgb(var(--color-border))' : 'rgb(var(--color-text-secondary))';
     edges.push({
       id: `${entities[i].key}-${entities[i + 1].key}`,
       source: entities[i].key,
       target: entities[i + 1].key,
       type: 'smoothstep',
-      animated: entities[i + 1].data === null,
-      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+      animated: isNextEmpty,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 18,
+        height: 18,
+        color: strokeColor,
+      },
       style: {
-        stroke: entities[i + 1].data ? 'rgb(var(--color-text-secondary))' : 'rgb(var(--color-border))',
-        strokeWidth: 2.5,
+        stroke: strokeColor,
+        strokeWidth: 2,
       },
     });
   }
@@ -516,8 +512,8 @@ export const TradeLineageFlow: React.FC<TradeLineageFlowProps> = ({
       return res.data as LineageChain;
     },
     enabled: !!inquiryId,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: 5_000,
+    refetchInterval: 30_000,
   });
 
   const { nodes, edges } = useMemo(() => {

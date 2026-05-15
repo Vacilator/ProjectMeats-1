@@ -283,10 +283,10 @@ const SummaryRow = styled.div`
 
 function getStatusVariant(status: string): 'success' | 'warning' | 'error' | 'info' | 'default' {
   const s = status?.toLowerCase() ?? '';
-  if (['completed', 'approved', 'ordered'].includes(s)) return 'success';
-  if (['failed', 'cancelled', 'halted', 'error'].includes(s)) return 'error';
-  if (['pending', 'initiated', 'waiting'].includes(s)) return 'warning';
-  if (['in_progress', 'sourcing', 'logistics', 'running'].includes(s)) return 'info';
+  if (['completed', 'approved', 'ordered', 'accepted', 'fulfilled'].includes(s)) return 'success';
+  if (['failed', 'cancelled', 'halted', 'error', 'rejected'].includes(s)) return 'error';
+  if (['in_progress', 'sourcing', 'logistics', 'running', 'quoted'].includes(s)) return 'info';
+  if (['draft', 'pending', 'initiated', 'waiting'].includes(s)) return 'default';
   return 'default';
 }
 
@@ -430,7 +430,7 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
       return headerInfo;
     },
     enabled: !!inquiryId,
-    staleTime: 30_000,
+    staleTime: 5_000,
     refetchInterval: 30_000,
   });
 
@@ -512,9 +512,22 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
 // Helpers
 // ============================================================================
 
+const STEP_LABELS: Record<string, string> = {
+  draft_sales_order: 'Sales Order',
+  approve_sales_order: 'Approve Sales Order',
+  supplier_rfq: 'Supplier RFQ',
+  supplier_reply_parse: 'Awaiting Supplier Reply',
+  draft_supplier_po: 'Supplier Purchase Order',
+  approve_supplier_po: 'Approve Supplier PO',
+  carrier_fan_out: 'Carrier Logistics',
+  carrier_reply_parse: 'Awaiting Carrier Reply',
+  draft_carrier_po: 'Carrier Purchase Order',
+  completed: 'Completed',
+};
+
 function formatStepLabel(step: string): string {
-  if (!step) return 'Unknown';
-  return step
+  if (!step) return 'Getting Started';
+  return STEP_LABELS[step] ?? step
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }

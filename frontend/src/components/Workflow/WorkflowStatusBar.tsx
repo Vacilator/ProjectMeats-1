@@ -177,7 +177,10 @@ export const WorkflowStatusBar: React.FC<WorkflowStatusBarProps> = ({
       void queryClient.invalidateQueries({ queryKey: workflowQueryKey });
       void queryClient.invalidateQueries({ queryKey: ['trade-lineage'] });
       void queryClient.invalidateQueries({ queryKey: ['trades'] });
+      void queryClient.invalidateQueries({ queryKey: ['my-trades'] });
+      void queryClient.invalidateQueries({ queryKey: ['process-header'] });
       void queryClient.invalidateQueries({ queryKey: ['document-status-workflow'] });
+      void queryClient.invalidateQueries({ queryKey: ['action-items'] });
       onTransitioned?.();
     },
     onError: (err: unknown) => {
