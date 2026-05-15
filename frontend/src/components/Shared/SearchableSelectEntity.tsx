@@ -256,12 +256,31 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
     }
   }, [forceSearch, initialOptions.length, totalCount, threshold]);
 
+  const loadOptions = useCallback(async (query: string = '') => {
+    setIsLoading(true);
+    try {
+      // Stable cancel key so in-flight requests are cancelled when the user types.
+      const cancelKey = `entity-options:${instanceId}:${entityType}`;
+      const response = await entityOptionsService.searchOptions(entityType, query, cancelKey, filterParams);
+      setOptions(response.options);
+      setTotalCount(response.total_count);
+
+      if (forceSearch || response.total_count >= threshold) {
+        setIsSearchMode(true);
+      }
+    } catch (err) {
+      logger.error('Failed to load options:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [instanceId, entityType, filterParams, forceSearch, threshold]);
+
   // Load initial options if not provided
   useEffect(() => {
     if (initialOptions.length === 0 && entityType) {
       loadOptions();
     }
-  }, [entityType, filterParams, initialOptions.length]);
+  }, [entityType, filterParams, initialOptions.length, loadOptions]);
 
   // Handle outside clicks
   useEffect(() => {
@@ -285,24 +304,6 @@ export const SearchableSelectEntity: React.FC<SearchableSelectEntityProps> = ({
     }
   }, [isOpen, isSearchMode]);
 
-  const loadOptions = async (query: string = '') => {
-    setIsLoading(true);
-    try {
-      // Stable cancel key so in-flight requests are cancelled when the user types.
-      const cancelKey = `entity-options:${instanceId}:${entityType}`;
-      const response = await entityOptionsService.searchOptions(entityType, query, cancelKey, filterParams);
-      setOptions(response.options);
-      setTotalCount(response.total_count);
-
-      if (forceSearch || response.total_count >= threshold) {
-        setIsSearchMode(true);
-      }
-    } catch (err) {
-      logger.error('Failed to load options:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleQuickCreated = useCallback((entity: { value: string; label: string }) => {
     setIsQuickCreateOpen(false);

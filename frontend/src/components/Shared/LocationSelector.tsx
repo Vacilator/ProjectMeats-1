@@ -11,7 +11,7 @@
  * Phase 4: Frontend Integration & UX Alignment
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -48,11 +48,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchLocations();
-  }, [type]);
-
-  const fetchLocations = async () => {
+  const fetchLocations = useCallback(async () => {
     try {
       setLoading(true);
       setFetchError(null);
@@ -101,7 +97,11 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [type]);
+
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedValue = e.target.value;

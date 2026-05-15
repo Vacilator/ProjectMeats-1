@@ -396,6 +396,7 @@ export const FieldConfigModal: React.FC = () => {
     );
 
     setSuggestions(newSuggestions);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Only regenerate suggestions when label/type change, not on every fieldData keystroke
   }, [fieldData.label, fieldData.type, activeStepId]);
 
   const handleSave = () => {
