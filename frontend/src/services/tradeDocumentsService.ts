@@ -29,6 +29,8 @@ export interface TradeDocument {
   metadata: Record<string, unknown>;
   download_url: string | null;
   email_subject: string | null;
+  email_sender: string | null;
+  email_date: string | null;
   created_on: string;
   modified_on: string;
 }

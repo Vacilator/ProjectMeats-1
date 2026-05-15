@@ -645,6 +645,8 @@ class TradeDocumentSerializer(serializers.ModelSerializer):
 
     download_url = serializers.SerializerMethodField()
     email_subject = serializers.SerializerMethodField()
+    email_sender = serializers.SerializerMethodField()
+    email_date = serializers.SerializerMethodField()
 
     class Meta:
         model = TradeDocument
@@ -667,10 +669,12 @@ class TradeDocumentSerializer(serializers.ModelSerializer):
             "metadata",
             "download_url",
             "email_subject",
+            "email_sender",
+            "email_date",
             "created_on",
             "modified_on",
         ]
-        read_only_fields = ["id", "created_on", "modified_on", "download_url", "email_subject"]
+        read_only_fields = ["id", "created_on", "modified_on", "download_url", "email_subject", "email_sender", "email_date"]
 
     def get_download_url(self, obj):
         if obj.file:
@@ -682,6 +686,17 @@ class TradeDocumentSerializer(serializers.ModelSerializer):
     def get_email_subject(self, obj):
         if obj.email_log_id:
             return obj.email_log.subject if obj.email_log else None
+        return None
+
+    def get_email_sender(self, obj):
+        if obj.email_log_id and obj.email_log:
+            return obj.email_log.sender_email or obj.email_log.sender_name or None
+        return None
+
+    def get_email_date(self, obj):
+        if obj.email_log_id and obj.email_log:
+            received = getattr(obj.email_log, 'received_at', None) or getattr(obj.email_log, 'created_on', None)
+            return received.isoformat() if received else None
         return None
 
 
