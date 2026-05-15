@@ -150,12 +150,6 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
 
   const sanitizedValue = useMemo(() => SecurityUtils.sanitizeHTML(value), [value]);
 
-  const execCommand = useCallback((command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    updateActiveFormats();
-  }, []);
-
   const updateActiveFormats = useCallback(() => {
     const formats = new Set<string>();
     if (document.queryCommandState('bold')) formats.add('bold');
@@ -165,6 +159,12 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
     if (document.queryCommandState('insertOrderedList')) formats.add('ol');
     setActiveFormats(formats);
   }, []);
+
+  const execCommand = useCallback((command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+    updateActiveFormats();
+  }, [updateActiveFormats]);
 
   const handleInput = useCallback(() => {
     if (editorRef.current) {

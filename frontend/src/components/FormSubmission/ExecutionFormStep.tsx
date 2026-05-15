@@ -98,7 +98,7 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
   onComplete,
   readOnly = false,
 }) => {
-  const nodeData = node.data || {};
+  const nodeData = useMemo(() => node.data || {}, [node.data]);
 
   const stepTitle = nodeData.label || nodeData.name || 'Form Step';
   const entityType = nodeData.entity_type || nodeData.entityType;
@@ -127,7 +127,7 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
         autoPopulateSource,
       };
     });
-  }, [(nodeData as any).formFields, nodeData.fields]);
+  }, [nodeData]);
 
   const [values, setValues] = useState<Record<string, any>>({});
 
@@ -167,6 +167,7 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
 
       return next;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- granular deps intentional; full context object would cause infinite re-renders
   }, [context.data, context.resolve, fields, node.id]);
 
   const handleFieldChange = useCallback(
