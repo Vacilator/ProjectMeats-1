@@ -200,6 +200,10 @@ def _cascade_po_approved_to_so(*, tenant: Any, document: Any) -> CascadeResult:
     so = result.sales_order
     # Link the SO back to the source inquiry so lineage updates
     _link_inquiry_fk_from_document(tenant, document, "sales_order", so)
+
+    # Link SO to the trade session so MyTrades picks it up
+    _link_trade_session(tenant, document, sales_order=so)
+
     return CascadeResult(
         triggered=True,
         created_entity_type="sales_order",
@@ -267,6 +271,9 @@ def _cascade_so_confirmed_to_carrier_po(*, tenant: Any, document: Any) -> Cascad
 
         # Link the Carrier PO back to the source inquiry
         _link_inquiry_fk_from_document(tenant, so, "carrier_purchase_order", carrier_po)
+
+        # Link Carrier PO to the trade session so MyTrades picks it up
+        _link_trade_session(tenant, so, carrier_purchase_order=carrier_po)
 
         return CascadeResult(
             triggered=True,
@@ -340,6 +347,9 @@ def _cascade_carrier_po_delivered_to_fulfillment(*, tenant: Any, document: Any) 
 
         # Store fulfillment reference on the source inquiry's custom_data
         _link_inquiry_custom_data(tenant, carrier_po, "fulfillment_id", str(fulfillment.id))
+
+        # Advance trade session status to logistics
+        _update_trade_session_status_from_doc(tenant, carrier_po, "logistics")
 
         return CascadeResult(
             triggered=True,
@@ -420,6 +430,9 @@ def _cascade_fulfillment_completed_to_invoice(*, tenant: Any, document: Any) -> 
         # Store invoice reference on the source inquiry's custom_data
         _link_inquiry_custom_data_from_fulfillment(tenant, fulfillment, "invoice_id", str(invoice.id))
 
+        # Advance trade session to completed
+        _update_trade_session_status_from_doc(tenant, fulfillment, "completed")
+
         return CascadeResult(
             triggered=True,
             created_entity_type="invoice",
@@ -435,6 +448,87 @@ def _cascade_fulfillment_completed_to_invoice(*, tenant: Any, document: Any) -> 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _link_trade_session(
+    tenant: Any,
+    parent_doc: Any,
+    *,
+    purchase_order: Any = None,
+    sales_order: Any = None,
+    carrier_purchase_order: Any = None,
+) -> None:
+    """Resolve the trade session from a parent document and link downstream entities.
+
+    Walks up the lineage to find the source inquiry's TradeSession, then uses
+    cascade_trade_session() to link the new downstream entities.
+    Also advances the trade session status to reflect pipeline progress.
+    Best-effort: logs and swallows errors so the parent cascade still succeeds.
+    """
+    from tenant_apps.inquiries.models import TradeSession, TradeSessionStatus
+    from tenant_apps.inquiries.services.trade_session import (
+        cascade_trade_session,
+        update_trade_session_status,
+    )
+
+    try:
+        inquiry = _resolve_source_inquiry(tenant, parent_doc)
+        if not inquiry:
+            return
+        ts = TradeSession.objects.filter(tenant=tenant, inquiry=inquiry).first()
+        if not ts:
+            return
+        cascade_trade_session(
+            trade_session=ts,
+            purchase_order=purchase_order,
+            sales_order=sales_order,
+            carrier_purchase_order=carrier_purchase_order,
+        )
+
+        # Advance trade session status based on which entity was created
+        next_status = None
+        if sales_order:
+            next_status = TradeSessionStatus.ORDERED
+        elif carrier_purchase_order:
+            next_status = TradeSessionStatus.LOGISTICS
+        if next_status and ts.status != next_status:
+            update_trade_session_status(trade_session=ts, new_status=next_status)
+    except Exception:
+        logger.warning(
+            "Failed to link trade session from %s(%s)",
+            parent_doc.__class__.__name__,
+            getattr(parent_doc, "id", "?"),
+            exc_info=True,
+        )
+
+
+def _update_trade_session_status_from_doc(tenant: Any, parent_doc: Any, target_status: str) -> None:
+    """Walk up the lineage to find the trade session and update its status.
+
+    Used by cascade handlers for entities (Fulfillment, Invoice) that don't
+    have a trade_session FK but still advance the trade lifecycle.
+    """
+    from tenant_apps.inquiries.models import TradeSession, TradeSessionStatus
+    from tenant_apps.inquiries.services.trade_session import update_trade_session_status
+
+    try:
+        inquiry = _resolve_source_inquiry(tenant, parent_doc)
+        if not inquiry:
+            return
+        ts = TradeSession.objects.filter(tenant=tenant, inquiry=inquiry).first()
+        if not ts:
+            return
+        status_map = {s.value: s for s in TradeSessionStatus}
+        new_status = status_map.get(target_status)
+        if new_status and ts.status != new_status:
+            update_trade_session_status(trade_session=ts, new_status=new_status)
+    except Exception:
+        logger.warning(
+            "Failed to update trade session status from %s(%s)",
+            parent_doc.__class__.__name__,
+            getattr(parent_doc, "id", "?"),
+            exc_info=True,
+        )
 
 
 def _resolve_linked_po(tenant: Any, sales_order: Any):
