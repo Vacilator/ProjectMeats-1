@@ -609,6 +609,10 @@ export interface Inquiry {
   created_by_name?: string;
   created_on: string;
   modified_on: string;
+  // Trade session context
+  trade_session_id?: string;
+  trade_session_status?: string;
+  trade_session_current_step?: string;
 }
 
 /**

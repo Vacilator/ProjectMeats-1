@@ -311,6 +311,11 @@ const MyTrades: React.FC = () => {
                       <Tag color={getStatusMeta(trade.status).color}>
                         {getStatusMeta(trade.status).label}
                       </Tag>
+                      {trade.current_step && trade.current_step !== trade.status && (
+                        <Tag color="blue" style={{ fontSize: '0.7rem' }}>
+                          {formatStepLabel(trade.current_step)}
+                        </Tag>
+                      )}
                       {trade.customer_name && (
                         <MetaItem>{trade.customer_name}</MetaItem>
                       )}
@@ -319,7 +324,6 @@ const MyTrades: React.FC = () => {
                           {trade.route === 'FULFILL' ? '📦 Fulfill' : trade.route === 'BROKER' ? '🔄 Broker' : trade.route || '—'}
                         </Tooltip>
                       </MetaItem>
-                      <MetaItem>Step: {formatStepLabel(trade.current_step)}</MetaItem>
                     </TradeMeta>
                   </TradeInfo>
 
