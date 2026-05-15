@@ -8,11 +8,11 @@
 |---|---|---|---|---|---|---|---|---|
 | TD-FE-001 | Frontend | Tenant-aware server-state keys are inconsistent and rely on global cache clearing | High | M | `frontend/src/App.tsx`, `frontend/src/pages/Customers.tsx`, `frontend/src/pages/Suppliers.tsx`, `frontend/src/hooks/useFavorites.ts` | Add tenant-aware query key factory, migrate tenant-scoped queries, remove app-level cache clear hack | EH-04 | ✅ Resolved (PR #5459) |
 | TD-FE-002 | Frontend | Legacy `useEffect` fetching and manual cache logic still dominate | High | L | `frontend/src/pages/SalesOrders/SalesOrders.tsx`, `frontend/src/pages/PurchaseOrders.tsx`, `frontend/src/contexts/ThemeContext.tsx`, `frontend/src/hooks/useCachedQuery.ts` | Replace with TanStack Query hooks and retire `useCachedQuery` | EH-04 | ✅ Resolved (PR #5460) |
-| TD-FE-003 | Frontend | Service layer is bypassed from pages/components and `businessApi` is only an alias | High | M | `frontend/src/services/businessApi.ts`, `frontend/src/components/Cockpit/SmartSearch.tsx`, `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/contexts/ThemeContext.tsx` | Enforce domain services/hooks and ban direct raw client imports outside service modules | EH-03 | Open |
+| TD-FE-003 | Frontend | Service layer is bypassed from pages/components and `businessApi` is only an alias | High | M | `frontend/src/services/businessApi.ts`, `frontend/src/components/Cockpit/SmartSearch.tsx`, `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/contexts/ThemeContext.tsx` | Enforce domain services/hooks and ban direct raw client imports outside service modules | EH-03 | ✅ Partially Resolved — API import boundary lint added (PR #5466); no active violations; full service layer rewrite deferred |
 | TD-FE-004 | Frontend | No OpenAPI-generated TS types; handwritten `any` payloads drift | High | L | `manifests/openapi/openapi-schema.baseline.json`, `frontend/src/services/workformsApi.ts`, `frontend/src/services/schemaService.ts`, `frontend/src/components/Cockpit/SmartSearch.tsx` | Generate frontend/mobile contract artifacts from OpenAPI and replace handwritten DTO hotspots | EH-03 | Open |
 | TD-FE-005 | Frontend | Search UX is fragmented across multiple endpoints and result contracts | High | L | `frontend/src/components/Navigation/CommandPalette.tsx`, `frontend/src/components/Cockpit/SmartSearch.tsx`, `frontend/src/components/Search/ContinuousSearch.tsx` | Create one search SDK/result taxonomy and phase all surfaces onto it | EH-04 | Open |
 | TD-FE-006 | Frontend | FlowEditor is monolithic and coexists with dual graph libraries | High | XL | `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`, `frontend/src/components/Workflow/PurchaseOrderWorkflow.tsx`, `frontend/src/components/EntityGraph/EntityGraph.tsx` | Split editor into store/modules and standardize on `@xyflow/react` | EH-04 | Open |
-| TD-FE-007 | Frontend | Theme-token, logging, a11y, and page test compliance is incomplete | Medium-High | L | `frontend/src/pages/PurchaseOrders.tsx`, `frontend/src/apps/admin-studio/components/SchemaEditor.tsx`, `frontend/src/components/Admin/AdminErrorBoundary.tsx`, `frontend/src/pages/SalesOrders/SalesOrders.tsx` | Expand token/logger enforcement, consolidate boundaries, add a11y + interaction coverage | EH-04 | Open |
+| TD-FE-007 | Frontend | Theme-token, logging, a11y, and page test compliance is incomplete | Medium-High | L | `frontend/src/pages/PurchaseOrders.tsx`, `frontend/src/apps/admin-studio/components/SchemaEditor.tsx`, `frontend/src/components/Admin/AdminErrorBoundary.tsx`, `frontend/src/pages/SalesOrders/SalesOrders.tsx` | Expand token/logger enforcement, consolidate boundaries, add a11y + interaction coverage | EH-04 | ✅ Partially Resolved — SchemaEditor ARIA labels added for all icon controls, dialog roles added (PR #5466); remaining: broader a11y audit |
 | TD-BE-001 | Backend | Tenant/RLS setup still contains fail-open paths in middleware and tasks | Critical | M | `backend/apps/tenants/middleware.py`, `backend/apps/tenants/rls.py`, `backend/apps/core/tasks.py`, `backend/apps/tenants/tasks.py` | Fail closed when tenant/RLS session state cannot be asserted and remove `strict=False` from protected paths | EH-02 | Open |
 | TD-BE-002 | Backend | First-batch tenant idempotency shipped, but remaining mutating APIs still lack explicit idempotency coverage or exemption guidance | High | M | `backend/apps/core/services/idempotency.py`, `backend/tenant_apps/ai_assistant/views.py`, `backend/apps/system/workform_views.py` | Keep the shipped core idempotency layer for workform execute + AI document upload, then extend or explicitly exempt remaining mutating APIs such as chat and feedback paths | EH-02 | Open |
 | TD-BE-003 | Backend | AI chat persistence is not tenant-native and lacks RLS | High | L | `backend/tenant_apps/ai_assistant/models.py`, `backend/tenant_apps/ai_assistant/views.py`, `manifests/RLS_POLICIES.md` | Add `tenant` FK, backfill, add RLS policies, and stop querying by JSON-stamped tenant context | EH-02 | Open |
@@ -31,7 +31,7 @@
 
 ---
 
-## Guardrails Added (Phase 59)
+## Guardrails Added (Phase 59–61)
 
 | Guardrail | Type | Script/Config | Added In |
 |-----------|------|---------------|----------|
@@ -39,3 +39,12 @@
 | Console error monitor (dev) | Dev tool | `frontend/src/components/DevTools/ConsoleErrorMonitor.tsx` | PR #5458 |
 | Python coverage threshold | CI gate | `pyproject.toml` `fail_under = 50` | PR #5461 |
 | Vitest coverage threshold | CI gate | `frontend/vite.config.ts` coverage.thresholds | PR #5461 |
+| API import boundary lint | CI lint | `frontend/.eslint/scripts/check-api-import-boundaries.cjs` / `npm run lint:api-boundaries` | PR #5466 |
+
+## Features Added (Phase 60)
+
+| Feature | Domain | Description | PRs |
+|---------|--------|-------------|-----|
+| TradeDocument model + API | Backend | Document tracking per trade session/stage with sent/received direction, auto-gen hooks, email integration | PR #5463 |
+| TradeDocumentsPanel | Frontend | Stage-grouped document viewer with upload, direction badges, collapsible sections | PR #5464 |
+| Stepper document links | Frontend | Click workflow steps to see stage actions + related documents in popover | PR #5465 |

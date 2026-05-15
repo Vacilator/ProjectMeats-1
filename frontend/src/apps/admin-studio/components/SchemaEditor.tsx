@@ -663,7 +663,7 @@ const SortableRow: React.FC<{
         />
       </TableCell>
       <TableCell>
-        <DragHandle {...attributes} {...listeners}>
+        <DragHandle {...attributes} {...listeners} role="button" aria-label="Drag to reorder field" tabIndex={0}>
           ⋮⋮
         </DragHandle>
       </TableCell>
@@ -929,6 +929,7 @@ const SortableRow: React.FC<{
                   onClick={() => onMoveUp(row.original.id)}
                   disabled={isFirst}
                   title="Move Up"
+                  aria-label={`Move field "${row.original.label}" up`}
                 >
                   ↑
                 </ActionButton>
@@ -936,6 +937,7 @@ const SortableRow: React.FC<{
                   onClick={() => onMoveDown(row.original.id)}
                   disabled={isLast}
                   title="Move Down"
+                  aria-label={`Move field "${row.original.label}" down`}
                 >
                   ↓
                 </ActionButton>
@@ -956,6 +958,7 @@ const SortableRow: React.FC<{
                     })();
                   }}
                   title="Delete"
+                  aria-label={`Delete field "${row.original.label}"`}
                 >
                   Delete
                 </ActionButton>
@@ -1659,7 +1662,7 @@ const SchemaEditor: React.FC = () => {
       </Card>
 
       {/* Field Templates Panel */}
-      <TemplatesPanel isOpen={isTemplatesOpen}>
+      <TemplatesPanel isOpen={isTemplatesOpen} role="dialog" aria-label="Field Templates">
         <TemplatesPanelHeader>
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.25rem' }}>Field Templates</h2>
@@ -1670,6 +1673,7 @@ const SchemaEditor: React.FC = () => {
           <button
             onClick={() => setIsTemplatesOpen(false)}
             style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}
+            aria-label="Close field templates panel"
           >
             ×
           </button>
@@ -1688,7 +1692,7 @@ const SchemaEditor: React.FC = () => {
       </TemplatesPanel>
 
       {/* Form Preview Modal */}
-      <PreviewModal isOpen={isPreviewOpen} onClick={() => setIsPreviewOpen(false)}>
+      <PreviewModal isOpen={isPreviewOpen} onClick={() => setIsPreviewOpen(false)} role="dialog" aria-label="Form Preview">
         <PreviewContent onClick={(e) => e.stopPropagation()}>
           <PreviewHeader>
             <div>
@@ -1700,6 +1704,7 @@ const SchemaEditor: React.FC = () => {
             <button
               onClick={() => setIsPreviewOpen(false)}
               style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'rgb(var(--color-text-secondary))' }}
+              aria-label="Close form preview"
             >
               ×
             </button>
