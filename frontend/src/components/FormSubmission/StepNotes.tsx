@@ -228,21 +228,6 @@ export const StepNotes: React.FC<StepNotesProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loadedFor, setLoadedFor] = useState<string>(''); // Track which step notes were loaded for
 
-  // Load notes when expanded or step changes
-  useEffect(() => {
-    const currentKey = `${submissionId}_${stepId}`;
-    if (isExpanded && loadedFor !== currentKey && !isLoading) {
-      loadNotes();
-    }
-  }, [isExpanded, submissionId, stepId, loadedFor, isLoading]);
-
-  // Reset notes when step changes
-  useEffect(() => {
-    setLoadedFor('');
-    setNotes([]);
-    setError(null);
-  }, [submissionId, stepId]);
-
   const loadNotes = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -268,6 +253,22 @@ export const StepNotes: React.FC<StepNotesProps> = ({
       setIsLoading(false);
     }
   }, [submissionId, stepId]);
+
+    // Load notes when expanded or step changes
+  useEffect(() => {
+    const currentKey = `${submissionId}_${stepId}`;
+    if (isExpanded && loadedFor !== currentKey && !isLoading) {
+      loadNotes();
+    }
+  }, [isExpanded, submissionId, stepId, loadedFor, isLoading, loadNotes]);
+
+  // Reset notes when step changes
+  useEffect(() => {
+    setLoadedFor('');
+    setNotes([]);
+    setError(null);
+  }, [submissionId, stepId]);
+
 
   const handleAddNote = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

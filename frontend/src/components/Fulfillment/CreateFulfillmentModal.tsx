@@ -408,36 +408,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   }, [form]);
 
   // Initialize line items from inquiry products
-  useEffect(() => {
-    if (isOpen && resolvedInquiry?.products) {
-      // When the inquiry changes, reset fulfillment-specific fields.
-      resetFulfillmentFields({ shippingType: resolvedInquiry.shipping_type || 'tenant' });
-
-      const items: FulfillmentLineItem[] = resolvedInquiry.products.map((p: InquiryProduct) => ({
-        inquiryProductId: p.id,
-        productId: p.product,
-        productCode: p.product_code,
-        productDescription: p.product_description,
-        quantityOrdered: p.quantity,
-        quantityToFulfill: p.quantity, // Default to full quantity
-        unitPrice: p.actual_price_per_unit || p.desired_price_per_unit,
-        selected: true, // Select all by default
-      }));
-      setLineItems(items);
-
-      const productIds = resolvedInquiry.products.map((p: InquiryProduct) => p.product);
-      fetchSuppliers(productIds);
-    }
-  }, [isOpen, resetFulfillmentFields, resolvedInquiry]);
-
-  // Load carriers
-  useEffect(() => {
-    if (isOpen) {
-      fetchCarriers();
-    }
-  }, [isOpen]);
-
-  const fetchSuppliers = async (productIds: string[]) => {
+  const fetchSuppliers = useCallback(async (productIds: string[]) => {
     setLoadingSuppliers(true);
     try {
       // Fetch suppliers that have any of the selected products
@@ -464,7 +435,37 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     } finally {
       setLoadingSuppliers(false);
     }
-  };
+  }, [form]);
+
+    useEffect(() => {
+    if (isOpen && resolvedInquiry?.products) {
+      // When the inquiry changes, reset fulfillment-specific fields.
+      resetFulfillmentFields({ shippingType: resolvedInquiry.shipping_type || 'tenant' });
+
+      const items: FulfillmentLineItem[] = resolvedInquiry.products.map((p: InquiryProduct) => ({
+        inquiryProductId: p.id,
+        productId: p.product,
+        productCode: p.product_code,
+        productDescription: p.product_description,
+        quantityOrdered: p.quantity,
+        quantityToFulfill: p.quantity, // Default to full quantity
+        unitPrice: p.actual_price_per_unit || p.desired_price_per_unit,
+        selected: true, // Select all by default
+      }));
+      setLineItems(items);
+
+      const productIds = resolvedInquiry.products.map((p: InquiryProduct) => p.product);
+      fetchSuppliers(productIds);
+    }
+  }, [isOpen, resetFulfillmentFields, resolvedInquiry, fetchSuppliers]);
+
+  // Load carriers
+  useEffect(() => {
+    if (isOpen) {
+      fetchCarriers();
+    }
+  }, [isOpen]);
+
 
   const fetchCarriers = async () => {
     setLoadingCarriers(true);
