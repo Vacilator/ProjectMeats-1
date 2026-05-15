@@ -28,6 +28,7 @@ import {
 } from '@/components/Shared';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import type { EntityFormMode } from '@/components/Shared/EntityFormSurface';
+import { TradeDocumentsPanel } from '@/components/Trader/TradeDocumentsPanel';
 import { TradeJourneyTimeline } from '@/components/Trader/TradeJourneyTimeline';
 import { TradeLineageActions } from '@/components/Trader/TradeLineageActions';
 import { PartyRoleBadges, RecordActivityFeed, WorkflowStatusBar } from '@/components/Workflow';
@@ -678,9 +679,10 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       key: 'documents',
                       label: 'Documents',
                       children: (
-                        <Card size="small" title="Documents">
-                          <TertiaryHint>Document management is coming soon.</TertiaryHint>
-                        </Card>
+                        <TradeDocumentsPanel
+                          entityType={normalizedEntityType}
+                          entityId={entityId!}
+                        />
                       ),
                     },
                     {
@@ -844,6 +846,16 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                         <EntityWorkflowStatusPanel
                           entityType={normalizedEntityType}
                           entityId={String(entityId)}
+                        />
+                      ),
+                    },
+                    {
+                      key: 'documents',
+                      label: 'Documents',
+                      children: (
+                        <TradeDocumentsPanel
+                          entityType={normalizedEntityType}
+                          entityId={entityId!}
                         />
                       ),
                     },
