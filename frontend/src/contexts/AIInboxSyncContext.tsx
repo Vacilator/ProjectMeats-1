@@ -396,21 +396,27 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
         },
         progress: lastProgress,
       });
-    } catch (_error) {
+    } catch (rawError) {
       logger.warn('AI inbox auto-sync request failed', SYNC_LOG_CTX);
+      const errResp = (rawError as { response?: { data?: Record<string, unknown> } })?.response?.data;
+      const backendMsg = typeof errResp?.message === 'string' ? errResp.message : null;
+      const isNotConnected = errResp?.code === 'not_connected' ||
+        String(backendMsg || '').toLowerCase().includes('not connected');
+      const fallbackMsg = isNotConnected
+        ? 'Email integration is not configured. Connect your email in Settings → Email Integrations.'
+        : 'Email sync service is temporarily unavailable. Please try again later.';
       return publishSyncState({
         ...initialSyncState,
         status: 'failed',
         source,
         startedAt: now,
         finishedAt: Date.now(),
-        message: 'Email integration is not configured. Connect your email in Settings to enable sync.',
-        summary: 'Email integration is not configured. Connect your email in Settings to enable sync.',
-        retryable: true,
-        action: {
-          type: 'retry_sync',
-          label: 'Retry Sync',
-        },
+        message: backendMsg || fallbackMsg,
+        summary: backendMsg || fallbackMsg,
+        retryable: !isNotConnected,
+        action: isNotConnected
+          ? { type: 'reconnect_outlook', label: 'Connect Email', url: '/settings/integrations' }
+          : { type: 'retry_sync', label: 'Retry Sync' },
       });
     } finally {
       syncInFlightRef.current = false;

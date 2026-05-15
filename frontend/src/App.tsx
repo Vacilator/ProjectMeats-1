@@ -25,6 +25,7 @@ import { OnboardingProvider } from './components/Onboarding';
 import './i18n/config'; // Initialize i18n
 // canonicalSearch utilities kept available for Header; App.tsx no longer uses them directly
 import LegacyCommandCenterTabRedirect from './routes/LegacyCommandCenterTabRedirect';
+import ConsoleErrorMonitor from './components/DevTools/ConsoleErrorMonitor';
 
 // MyTasksRedirect removed — /my-tasks renders directly, no workforms dependency
 
@@ -528,6 +529,8 @@ const App: React.FC = () => {
         </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>
+    {/* Dev-only floating error monitor — zero-cost in production builds */}
+    <ConsoleErrorMonitor />
     </ProductionErrorBoundary>
   );
 };

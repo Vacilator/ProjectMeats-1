@@ -1135,7 +1135,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       if (!hasSameValues) {
         setValue(field.key as never, nextValue as never, {
           shouldDirty: true,
-          shouldValidate: true,
+          shouldValidate: false,
         });
       }
     }, [currentValue, field.key, field.ui?.widget, resolvedOptions, setValue]);

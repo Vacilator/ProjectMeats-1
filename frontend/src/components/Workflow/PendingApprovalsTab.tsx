@@ -386,38 +386,35 @@ export const PendingApprovalsTab: React.FC<PendingApprovalsTabProps> = ({
     refetchInterval: 30_000,
   });
 
-  // Fetch rule-based approval gate items
+  // Fetch rule-based approval gate items from the AI assistant approval queue.
   const { data: gateItems = [], isLoading: gateLoading } = useQuery({
     queryKey: withTenantQueryKey('pending-approvals-gates'),
     queryFn: async () => {
       try {
-        const res = await businessApi.get('/workflows/approvals/pending/');
+        const res = await businessApi.get('/ai-assistant/approval-queue/', { params: { status: 'pending' } });
         const items = (res.data?.results ?? res.data ?? []) as Array<{
           id: string;
-          gate_id: string;
-          entity_type: string;
-          entity_id: string;
-          entity_label: string;
+          request_type: string;
+          source_entity_type: string;
+          source_entity_id: string;
+          subject: string;
           status: string;
-          rules_summary: string[];
-          target_department: string;
-          created_at: string;
-          context?: Record<string, string>;
+          priority: string;
+          recipient_name: string;
+          created_on: string;
+          content_preview?: string;
         }>;
         return items
           .filter((i) => i.status === 'pending')
           .map((i): PendingEntity => ({
             id: i.id,
-            entityType: i.entity_type,
-            entityLabel: i.entity_label,
-            identifier: i.entity_label,
-            partyName: i.target_department || '—',
+            entityType: i.source_entity_type || i.request_type || 'approval',
+            entityLabel: i.subject || 'Pending Approval',
+            identifier: i.subject || i.id,
+            partyName: i.recipient_name || '—',
             status: 'pending_approval',
-            createdAt: i.created_at,
+            createdAt: i.created_on,
             source: 'gate',
-            gateId: i.gate_id,
-            rulesSummary: i.rules_summary,
-            context: i.context,
           }));
       } catch {
         return [] as PendingEntity[];
@@ -469,8 +466,8 @@ export const PendingApprovalsTab: React.FC<PendingApprovalsTabProps> = ({
 
   // Approve gate item
   const approveMutation = useMutation({
-    mutationFn: async (gateId: string) => {
-      return businessApi.post(`/workflows/approvals/${gateId}/approve/`, { comment: '' });
+    mutationFn: async (itemId: string) => {
+      return businessApi.post(`/ai-assistant/approval-queue/${itemId}/approve/`, { notes: '' });
     },
     onSuccess: () => {
       message.success('Approved');
@@ -480,8 +477,8 @@ export const PendingApprovalsTab: React.FC<PendingApprovalsTabProps> = ({
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async (gateId: string) => {
-      return businessApi.post(`/workflows/approvals/${gateId}/reject/`, { comment: '' });
+    mutationFn: async (itemId: string) => {
+      return businessApi.post(`/ai-assistant/approval-queue/${itemId}/reject/`, { notes: '' });
     },
     onSuccess: () => {
       message.success('Rejected');
@@ -603,18 +600,18 @@ export const PendingApprovalsTab: React.FC<PendingApprovalsTabProps> = ({
             <TimeAgo>{formatTimeAgo(item.createdAt)}</TimeAgo>
 
             <RowActions onClick={(e) => e.stopPropagation()}>
-              {item.source === 'gate' && item.gateId && (
+              {item.source === 'gate' && (
                 <>
                   <ActionBtn
                     $variant="approve"
-                    onClick={() => approveMutation.mutate(item.gateId!)}
+                    onClick={() => approveMutation.mutate(String(item.id))}
                     disabled={approveMutation.isPending}
                   >
                     <CheckCircle2 size={12} /> Approve
                   </ActionBtn>
                   <ActionBtn
                     $variant="reject"
-                    onClick={() => rejectMutation.mutate(item.gateId!)}
+                    onClick={() => rejectMutation.mutate(String(item.id))}
                     disabled={rejectMutation.isPending}
                   >
                     <XCircle size={12} /> Reject
