@@ -131,6 +131,8 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
         # Idempotency: check if a PO already exists for this inquiry
         existing_po = PurchaseOrder.objects.for_tenant(tenant).filter(inquiry=inquiry).first()
         if existing_po:
+            # Still advance trade session even for existing PO
+            _update_trade_session_status_from_doc(tenant, inquiry, "ordered")
             return CascadeResult(
                 triggered=True,
                 created_entity_type="purchase_order",
@@ -156,6 +158,34 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
                 po = result.purchase_order
                 # Link back on Inquiry so lineage picks it up
                 _link_inquiry_fk(inquiry, "supplier_purchase_order", po)
+
+                # Create trade documents + advance session for RFQ path
+                _create_trade_document(
+                    tenant=tenant,
+                    trade_session=trade_session,
+                    entity_type="inquiry",
+                    entity_id=inquiry.id,
+                    stage="inquiry",
+                    direction="received",
+                    document_type="confirmation",
+                    title=f"Inquiry {inquiry.inquiry_number or inquiry.id} Accepted (RFQ)",
+                    description="Inquiry accepted via supplier quote.",
+                    stage_order=1,
+                )
+                _create_trade_document(
+                    tenant=tenant,
+                    trade_session=trade_session,
+                    entity_type="purchase_order",
+                    entity_id=po.id,
+                    stage="purchase_order",
+                    direction="sent",
+                    document_type="confirmation",
+                    title=f"PO {po.po_number or po.id} Created from RFQ",
+                    description="Purchase order created from supplier quote.",
+                    stage_order=0,
+                )
+                _update_trade_session_status_from_doc(tenant, inquiry, "ordered")
+
                 return CascadeResult(
                     triggered=True,
                     created_entity_type="purchase_order",

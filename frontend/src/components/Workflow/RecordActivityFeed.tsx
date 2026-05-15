@@ -258,6 +258,7 @@ export const RecordActivityFeed: React.FC<RecordActivityFeedProps> = ({
     queryFn: fetchActivityEvents,
     enabled: Boolean(endpoint) && Boolean(entityId),
     staleTime: 30_000,
+    retry: false,
   });
 
   const toggleExpanded = useCallback(() => {

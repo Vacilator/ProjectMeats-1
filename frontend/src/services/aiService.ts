@@ -231,6 +231,7 @@ export const hydratePendingReviewItemsWithDocumentMetadata = async (
     documentIds.map(async (documentId) => {
       try {
         const document = await documentsApi.get(documentId);
+        if (!document) return null;
         return [documentId, document] as const;
       } catch {
         return null;
@@ -432,9 +433,15 @@ export const documentsApi = {
     return unwrap(res);
   },
 
-  get: async (documentId: string): Promise<DocumentUploadResponse> => {
-    const res = await businessApi.get<DocumentUploadResponse>(`/ai-assistant/ai-documents/${documentId}/`);
-    return unwrap(res);
+  get: async (documentId: string): Promise<DocumentUploadResponse | null> => {
+    try {
+      const res = await businessApi.get<DocumentUploadResponse>(`/ai-assistant/ai-documents/${documentId}/`);
+      return unwrap(res);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) return null;
+      throw err;
+    }
   },
 };
 
@@ -615,6 +622,7 @@ export const hydrateDocumentMessageMetadata = async <
     documentIds.map(async (documentId) => {
       try {
         const document = await documentsApi.get(documentId);
+        if (!document) return null;
         return [documentId, document] as const;
       } catch {
         return null;

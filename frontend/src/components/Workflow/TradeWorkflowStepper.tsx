@@ -163,8 +163,8 @@ const StageDocumentsContent: React.FC<{
         <PopoverSection>
           <PopoverSectionTitle>Action Required</PopoverSectionTitle>
           <ActionList>
-            {step.requiredActions.map((action, i) => (
-              <ActionItem key={i}>{action}</ActionItem>
+            {step.requiredActions.map((action) => (
+              <ActionItem key={action}>{action}</ActionItem>
             ))}
           </ActionList>
         </PopoverSection>
