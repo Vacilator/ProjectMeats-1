@@ -98,12 +98,16 @@ export function useActionItemCounts(
         
         // Silent errors for 404 (no action items), 502 (backend issue), 503 (service unavailable)
         // These are expected during initial setup or backend maintenance
-        if (status === 404 || status === 502 || status === 503) {
-          // Don't spam console or show user errors for these
+        const code = (errObj.code as string) || '';
+        const isTimeout = code === 'ECONNABORTED' || code === 'ERR_NETWORK' || message.includes('timeout');
+        if (status === 404 || status === 502 || status === 503 || isTimeout) {
+          // Don't spam console or show user errors for transient/expected failures
           setError(null);
         } else {
-          // Only log unexpected errors
-          logger.warn('Action item counts fetch error', { component: 'useActionItemCounts', metadata: { message, status } });
+          // Only log unexpected errors on first occurrence per burst
+          if (errorCountRef.current <= 1) {
+            logger.warn('Action item counts fetch error', { component: 'useActionItemCounts', metadata: { message, status } });
+          }
           setError(message);
         }
         

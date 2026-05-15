@@ -186,9 +186,13 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
   const { user, loading } = useAuth();
   const syncInFlightRef = useRef(false);
   const lastLoginSyncRef = useRef<string | null>(null);
+  const consecutiveFailures = useRef(0);
   const [syncState, setSyncState] = useState<AIInboxSyncSnapshot>(initialSyncState);
 
   const publishSyncState = useCallback((nextState: AIInboxSyncSnapshot): AIInboxSyncSnapshot => {
+    if (nextState.status === 'succeeded') {
+      consecutiveFailures.current = 0;
+    }
     setSyncState(nextState);
     emitSyncStatus(nextState);
     return nextState;
@@ -397,7 +401,11 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
         progress: lastProgress,
       });
     } catch (rawError) {
-      logger.warn('AI inbox auto-sync request failed', SYNC_LOG_CTX);
+      consecutiveFailures.current += 1;
+      // Only log on first failure or manual retries to avoid console noise
+      if (consecutiveFailures.current === 1 || source === 'manual') {
+        logger.warn('AI inbox auto-sync request failed', SYNC_LOG_CTX);
+      }
       const errResp = (rawError as { response?: { data?: Record<string, unknown> } })?.response?.data;
       const backendMsg = typeof errResp?.message === 'string' ? errResp.message : null;
       const isNotConnected = errResp?.code === 'not_connected' ||
