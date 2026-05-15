@@ -38,7 +38,7 @@ function useDeepStable<T>(value: T): T {
 function useStableFn<T extends ((...args: any[]) => any) | undefined>(fn: T): T {
   const ref = useRef(fn);
   ref.current = fn;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const stable = useCallback((...args: any[]) => (ref.current as any)?.(...args), []);
   return (fn ? stable : undefined) as T;
 }

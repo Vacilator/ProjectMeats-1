@@ -75,9 +75,9 @@ const compareForSort = (aValue: unknown, bValue: unknown) => {
   const aComparable = typeof aValue === 'string' ? aValue.toLowerCase() : aValue;
   const bComparable = typeof bValue === 'string' ? bValue.toLowerCase() : bValue;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const aAny = aComparable as any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const bAny = bComparable as any;
 
   if (aAny < bAny) return -1;

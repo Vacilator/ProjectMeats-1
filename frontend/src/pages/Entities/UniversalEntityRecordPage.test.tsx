@@ -92,6 +92,15 @@ vi.mock('@/components/Operations/documentOperations', () => ({
   supportsOperationalActions: vi.fn(() => false),
 }));
 
+vi.mock('@/hooks/useTradeSession', () => ({
+  useTradeSession: () => ({
+    tradeSession: null,
+    isLoading: false,
+    relatedEntities: {},
+    isRelLoading: false,
+  }),
+}));
+
 vi.mock('@/components/Shared', () => ({
   ActivityFeed: () => <div data-testid="activity-feed" />,
   CommentsPanel: () => <div data-testid="comments-panel" />,
@@ -161,7 +170,7 @@ describe('UniversalEntityRecordPage child create defaults', () => {
     expect(latestProps).toMatchObject({
       entityType: 'plant',
       mode: 'create',
-      variant: 'modal',
+      variant: 'inline',
       initialValues: {
         supplier: '7186',
         plant_type: 'processing',
