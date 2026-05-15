@@ -120,6 +120,8 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
 
                 result = create_supplier_quote_purchase_order_draft(tenant=tenant, inquiry=inquiry, rfq_id=rfq.id)
                 po = result.purchase_order
+                # Link back on Inquiry so lineage picks it up
+                _link_inquiry_fk(inquiry, "supplier_purchase_order", po)
                 return CascadeResult(
                     triggered=True,
                     created_entity_type="purchase_order",
@@ -159,6 +161,9 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
             },
         )
 
+        # Link the PO back on the Inquiry so lineage/orchestrator picks it up
+        _link_inquiry_fk(inquiry, "supplier_purchase_order", po)
+
         logger.info(
             "Cascade: Inquiry %s (accepted) → PO %s created",
             inquiry.id,
@@ -193,6 +198,8 @@ def _cascade_po_approved_to_so(*, tenant: Any, document: Any) -> CascadeResult:
         return CascadeResult(triggered=True, error=str(exc))
 
     so = result.sales_order
+    # Link the SO back to the source inquiry so lineage updates
+    _link_inquiry_fk_from_document(tenant, document, "sales_order", so)
     return CascadeResult(
         triggered=True,
         created_entity_type="sales_order",
@@ -257,6 +264,9 @@ def _cascade_so_confirmed_to_carrier_po(*, tenant: Any, document: Any) -> Cascad
             so.id,
             carrier_po.id,
         )
+
+        # Link the Carrier PO back to the source inquiry
+        _link_inquiry_fk_from_document(tenant, so, "carrier_purchase_order", carrier_po)
 
         return CascadeResult(
             triggered=True,
@@ -327,6 +337,9 @@ def _cascade_carrier_po_delivered_to_fulfillment(*, tenant: Any, document: Any) 
             carrier_po.id,
             fulfillment.id,
         )
+
+        # Store fulfillment reference on the source inquiry's custom_data
+        _link_inquiry_custom_data(tenant, carrier_po, "fulfillment_id", str(fulfillment.id))
 
         return CascadeResult(
             triggered=True,
@@ -404,6 +417,9 @@ def _cascade_fulfillment_completed_to_invoice(*, tenant: Any, document: Any) -> 
             invoice.id,
         )
 
+        # Store invoice reference on the source inquiry's custom_data
+        _link_inquiry_custom_data_from_fulfillment(tenant, fulfillment, "invoice_id", str(invoice.id))
+
         return CascadeResult(
             triggered=True,
             created_entity_type="invoice",
@@ -428,6 +444,112 @@ def _resolve_linked_po(tenant: Any, sales_order: Any):
     source_po_id = (sales_order.custom_data or {}).get("source_purchase_order_id")
     if source_po_id:
         return PurchaseOrder.objects.filter(id=source_po_id, tenant=tenant).first()
+    return None
+
+
+def _link_inquiry_fk(inquiry: Any, fk_field: str, entity: Any) -> None:
+    """Set an FK on the Inquiry model so the lineage chain picks it up."""
+    from tenant_apps.inquiries.models import Inquiry
+
+    try:
+        Inquiry.objects.filter(id=inquiry.id).update(**{fk_field: entity})
+        # Update in-memory object too for same-request reads
+        setattr(inquiry, fk_field, entity)
+        setattr(inquiry, f"{fk_field}_id", entity.pk)
+    except Exception:
+        logger.warning("Failed to link %s back to Inquiry %s", fk_field, inquiry.id, exc_info=True)
+
+
+def _link_inquiry_fk_from_document(tenant: Any, parent_doc: Any, fk_field: str, entity: Any) -> None:
+    """Walk up the cascade lineage from a document to find its source Inquiry and set an FK."""
+    from tenant_apps.inquiries.models import Inquiry
+
+    inquiry = _resolve_source_inquiry(tenant, parent_doc)
+    if inquiry:
+        _link_inquiry_fk(inquiry, fk_field, entity)
+
+
+def _link_inquiry_custom_data(tenant: Any, parent_doc: Any, key: str, value: str) -> None:
+    """Store a reference in the source inquiry's custom_data for entities without FK columns."""
+    from tenant_apps.inquiries.models import Inquiry
+
+    inquiry = _resolve_source_inquiry(tenant, parent_doc)
+    if not inquiry:
+        return
+    try:
+        custom_data = dict(inquiry.custom_data or {})
+        custom_data[key] = value
+        Inquiry.objects.filter(id=inquiry.id).update(custom_data=custom_data)
+    except Exception:
+        logger.warning("Failed to store %s in Inquiry %s custom_data", key, inquiry.id, exc_info=True)
+
+
+def _link_inquiry_custom_data_from_fulfillment(tenant: Any, fulfillment: Any, key: str, value: str) -> None:
+    """Store a reference in the source inquiry's custom_data from a Fulfillment."""
+    from tenant_apps.inquiries.models import Inquiry
+
+    source_inquiry_id = None
+    if fulfillment.inquiry_id:
+        source_inquiry_id = fulfillment.inquiry_id
+    elif hasattr(fulfillment, "custom_data") and fulfillment.custom_data:
+        # Walk: fulfillment → carrier PO → SO → PO → inquiry
+        source_so_id = fulfillment.custom_data.get("source_sales_order_id")
+        if source_so_id:
+            from tenant_apps.sales_orders.models import SalesOrder
+
+            so = SalesOrder.objects.filter(id=source_so_id, tenant=tenant).first()
+            if so:
+                inq = Inquiry.objects.filter(sales_order=so, tenant=tenant).first()
+                if inq:
+                    source_inquiry_id = inq.id
+
+    if not source_inquiry_id:
+        return
+    try:
+        inquiry = Inquiry.objects.get(id=source_inquiry_id, tenant=tenant)
+        custom_data = dict(inquiry.custom_data or {})
+        custom_data[key] = value
+        Inquiry.objects.filter(id=inquiry.id).update(custom_data=custom_data)
+    except Exception:
+        logger.warning("Failed to store %s from Fulfillment in Inquiry custom_data", key, exc_info=True)
+
+
+def _resolve_source_inquiry(tenant: Any, document: Any):
+    """Walk up the lineage to find the originating Inquiry for any document."""
+    from tenant_apps.inquiries.models import Inquiry
+
+    # Direct inquiry FK (PO has inquiry, Fulfillment has inquiry)
+    inquiry_fk = getattr(document, "inquiry", None)
+    if inquiry_fk and isinstance(inquiry_fk, Inquiry):
+        return inquiry_fk
+    inquiry_id = getattr(document, "inquiry_id", None)
+    if inquiry_id:
+        return Inquiry.objects.filter(id=inquiry_id, tenant=tenant).first()
+
+    # Walk via custom_data source chain
+    custom_data = getattr(document, "custom_data", None) or {}
+
+    # SO → PO → Inquiry
+    source_po_id = custom_data.get("source_purchase_order_id")
+    if source_po_id:
+        from tenant_apps.purchase_orders.models import PurchaseOrder
+
+        po = PurchaseOrder.objects.filter(id=source_po_id, tenant=tenant).select_related("inquiry").first()
+        if po and po.inquiry:
+            return po.inquiry
+
+    # CarrierPO → SO → Inquiry
+    source_so_id = custom_data.get("source_sales_order_id")
+    if source_so_id:
+        inq = Inquiry.objects.filter(sales_order_id=source_so_id, tenant=tenant).first()
+        if inq:
+            return inq
+
+    # Try Inquiry FK lookup via reverse relation
+    source_inquiry_id = custom_data.get("source_inquiry_id")
+    if source_inquiry_id:
+        return Inquiry.objects.filter(id=source_inquiry_id, tenant=tenant).first()
+
     return None
 
 

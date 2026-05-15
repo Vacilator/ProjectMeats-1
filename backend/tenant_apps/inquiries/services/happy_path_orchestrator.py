@@ -289,6 +289,8 @@ def get_lineage_chain(*, tenant: Any, inquiry: Inquiry) -> dict[str, Any]:
         "supplier_purchase_order": None,
         "sales_order": None,
         "carrier_purchase_order": None,
+        "fulfillment": None,
+        "invoice": None,
         "current_step": get_orchestrator_state(tenant=tenant, inquiry=inquiry).value,
     }
 
@@ -329,6 +331,15 @@ def get_lineage_chain(*, tenant: Any, inquiry: Inquiry) -> dict[str, Any]:
             "status": cpo.status,
         }
 
+    # Fulfillment and Invoice are stored in custom_data (no FK columns on Inquiry)
+    inquiry_custom = inquiry.custom_data or {}
+    fulfillment_id = inquiry_custom.get("fulfillment_id")
+    if fulfillment_id:
+        chain["fulfillment"] = _resolve_fulfillment_node(tenant, fulfillment_id)
+    invoice_id = inquiry_custom.get("invoice_id")
+    if invoice_id:
+        chain["invoice"] = _resolve_invoice_node(tenant, invoice_id)
+
     return chain
 
 
@@ -345,6 +356,40 @@ def _collect_contact_ids(bucket: set[int], payload: Any) -> None:
     elif isinstance(payload, list):
         for value in payload:
             _collect_contact_ids(bucket, value)
+
+
+def _resolve_fulfillment_node(tenant: Any, fulfillment_id: str) -> dict[str, Any] | None:
+    """Resolve a Fulfillment entity into a lineage node dict."""
+    from tenant_apps.fulfillments.models import Fulfillment
+
+    try:
+        f = Fulfillment.objects.filter(id=fulfillment_id, tenant=tenant).first()
+        if f:
+            return {
+                "id": str(f.id),
+                "number": getattr(f, "fulfillment_number", "") or str(f.id)[:8],
+                "status": f.status,
+            }
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_invoice_node(tenant: Any, invoice_id: str) -> dict[str, Any] | None:
+    """Resolve an Invoice entity into a lineage node dict."""
+    from tenant_apps.invoices.models import Invoice
+
+    try:
+        inv = Invoice.objects.filter(id=invoice_id, tenant=tenant).first()
+        if inv:
+            return {
+                "id": str(inv.id),
+                "number": getattr(inv, "invoice_number", "") or str(inv.id)[:8],
+                "status": inv.status,
+            }
+    except Exception:
+        pass
+    return None
 
 
 def _build_inquiry_contact_roles(
