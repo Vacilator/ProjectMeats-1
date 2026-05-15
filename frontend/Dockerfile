@@ -31,7 +31,7 @@ WORKDIR /project
 
 # 1) Install deps
 COPY frontend/package*.json ./frontend/
-RUN cd frontend && npm install --legacy-peer-deps
+RUN cd frontend && npm ci --legacy-peer-deps
 
 # 2) Copy sources
 COPY frontend ./frontend
@@ -47,10 +47,11 @@ RUN npm run build \
 # Runtime with nginx and npm installed
 FROM nginx:alpine
 
-# Pull in Alpine security fixes for base packages (e.g., libpng/zlib) before installing runtime deps.
+# Pull in Alpine security fixes, then install only runtime-essential tools.
+# nodejs/npm removed — nginx serves static files; envsubst comes from gettext.
 RUN apk update \
     && apk upgrade --no-cache \
-    && apk add --no-cache nodejs npm bash gettext \
+    && apk add --no-cache bash gettext \
     && rm -rf /var/cache/apk/* /tmp/*
 
 # Copy configs to 'templates' directory (NOT conf.d) to prevent auto-loading
