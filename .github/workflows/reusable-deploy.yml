@@ -2098,6 +2098,15 @@ jobs:
 
           echo "✓ Selected lanes are ready for smoke validation"
 
+          echo "### 🚀 Deployment Status" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Lane | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Backend | ${{ needs.deploy-frontend.result || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Frontend | ${{ needs.bootstrap-backend.result || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Reminder:** Check application health ~10 minutes after deploy completes." >> "$GITHUB_STEP_SUMMARY"
+
   # ==========================================
   # Post-deploy smoke gates (Golden-compliant)
   # ==========================================
