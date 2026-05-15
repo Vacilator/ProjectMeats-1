@@ -1747,6 +1747,7 @@ jobs:
           IMG="${{ env.FRONTEND_IMAGE }}"
           DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
           DEPLOY_BY_DIGEST="${{ inputs.deploy_by_digest }}"
+          RUN_BACKEND_LANE="${{ inputs.run_backend_lane }}"
           FRONTEND_TAG_REF="${{ needs.build-frontend.outputs.image_tag_ref }}"
           FRONTEND_DIGEST_REF="${{ needs.build-frontend.outputs.image_digest_ref }}"
 
@@ -2026,9 +2027,17 @@ jobs:
             exit 1
           fi
 
+          # API routing check: hard-gate when backend was deployed in this run,
+          # advisory-only when frontend-only (backend may legitimately be down).
           API_MAX_ATTEMPTS=5
           API_ATTEMPT=1
           API_CODE="000"
+
+          # Reduce retries for frontend-only deploys — backend state is unknown
+          if [ "$RUN_BACKEND_LANE" != "true" ]; then
+            API_MAX_ATTEMPTS=2
+            echo "⚠ Backend lane was not run — API routing check is advisory only"
+          fi
 
           while [ $API_ATTEMPT -le $API_MAX_ATTEMPTS ]; do
             API_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -m 10 --resolve "${DOMAIN_NAME}:443:127.0.0.1" "https://${DOMAIN_NAME}/api/v1/health/" || echo "000")
@@ -2043,8 +2052,12 @@ jobs:
           done
 
           if [ "$API_CODE" != "200" ] && [ "$API_CODE" != "503" ]; then
-            echo "✗ Host nginx /api/v1/health/ unexpected HTTP ${API_CODE} (expected 200/503)"
-            exit 1
+            if [ "$RUN_BACKEND_LANE" = "true" ]; then
+              echo "✗ Host nginx /api/v1/health/ unexpected HTTP ${API_CODE} (expected 200/503)"
+              exit 1
+            else
+              echo "⚠ Host nginx /api/v1/health/ returned HTTP ${API_CODE} (advisory — backend lane was not deployed)"
+            fi
           fi
 
           echo "✓ Host nginx config synced and verified (api_http=${API_CODE})"
