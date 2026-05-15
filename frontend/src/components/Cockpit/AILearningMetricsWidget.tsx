@@ -40,14 +40,18 @@ export const AILearningMetricsWidget: React.FC<AILearningMetricsWidgetProps> = (
   const { data, isLoading } = useQuery({
     queryKey: withTenantQueryKey('ai-learning-metrics'),
     queryFn: async () => {
-      const res = await businessApi.get<NonNullable<AILearningMetricsWidgetProps['metrics']>>(
-        '/ai-assistant/metrics/',
-      );
-      return res.data;
+      try {
+        const res = await businessApi.get<NonNullable<AILearningMetricsWidgetProps['metrics']>>(
+          '/ai-assistant/metrics/',
+        );
+        return res.data;
+      } catch {
+        return null;
+      }
     },
     enabled: !metrics,
     staleTime: 60_000,
-    retry: 1,
+    retry: false,
   });
 
   const m =

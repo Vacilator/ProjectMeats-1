@@ -190,7 +190,7 @@ def oauth_callback(request, provider_type):
 
     try:
         state_payload = signing.loads(state or "", salt="integrations.oauth.state", max_age=15 * 60)
-    except (signing.BadSignature, signing.SignatureExpired, Exception) as e:
+    except (signing.BadSignature, signing.SignatureExpired) as e:
         logger.warning("OAuth state validation failed: %s", type(e).__name__)
         state_payload = None
 
