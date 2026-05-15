@@ -12,7 +12,6 @@ import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
-import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type RouteParams = { customerId?: string; locationId?: string };
 
@@ -49,8 +48,8 @@ export const LocationDetail: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
-  const [customer, setCustomer] = useState<CustomerRow | null>(null);
-  const [location, setLocation] = useState<LocationRow | null>(null);
+  const [_customer, setCustomer] = useState<CustomerRow | null>(null);
+  const [_location, setLocation] = useState<LocationRow | null>(null);
   const [authError, setAuthError] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 

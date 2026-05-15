@@ -402,7 +402,7 @@ export const NotificationPreferences: React.FC = () => {
       await updatePreferences(localPrefs);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err) {
+    } catch (_err) {
       setSaveError('Failed to save preferences. Please try again.');
     } finally {
       setSaving(false);

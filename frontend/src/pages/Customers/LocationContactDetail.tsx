@@ -25,9 +25,9 @@ export const LocationContactDetail: React.FC = () => {
   useDocumentTitle('Contact Detail');
 
   const [loading, setLoading] = useState(true);
-  const [customer, setCustomer] = useState<CustomerRow | null>(null);
-  const [location, setLocation] = useState<LocationRow | null>(null);
-  const [contact, setContact] = useState<ContactRow | null>(null);
+  const [_customer, setCustomer] = useState<CustomerRow | null>(null);
+  const [_location, setLocation] = useState<LocationRow | null>(null);
+  const [_contact, setContact] = useState<ContactRow | null>(null);
 
   useEffect(() => {
     if (!cid || !lid || !coid) return;

@@ -12,13 +12,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Table, Input, Button, message, Tag, Space } from 'antd';
+import { Table, Button, message, Tag, Space } from 'antd';
 import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import type { ColumnsType } from 'antd/es/table';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -80,12 +80,6 @@ const ContextBanner = styled.div`
   span {
     font-weight: 500;
   }
-`;
-
-const TableControls = styled.div`
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
 `;
 
 const StyledTable = styled(Table)`

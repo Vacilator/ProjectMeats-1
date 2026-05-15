@@ -320,7 +320,7 @@ export const CarrierPOForm: React.FC<CarrierPOFormProps> = ({
   // Auto-filled tracking
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   // Carrier search
-  const [carrierSearch, setCarrierSearch] = useState('');
+  const [carrierSearch, _setCarrierSearch] = useState('');
   // Inline carrier creation
   const [showInlineCarrier, setShowInlineCarrier] = useState(false);
   const [inlineCarrierName, setInlineCarrierName] = useState('');

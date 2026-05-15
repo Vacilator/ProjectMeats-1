@@ -1714,24 +1714,3 @@ const ToggleRow = styled.div`
 const CollapsibleSection = styled.div<{ $visible: boolean }>`
   display: ${p => p.$visible ? 'block' : 'none'};
 `;
-
-const SectionHeaderContainer = styled.div`
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.375rem;
-  border-bottom: 1px solid rgb(var(--color-border-secondary, 229 231 235));
-`;
-
-const SectionTitle = styled.h3`
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary, 17 24 39));
-  margin: 0;
-  letter-spacing: 0.01em;
-`;
-
-const SectionDescription = styled.p`
-  font-size: 0.75rem;
-  color: rgb(var(--color-text-tertiary, 107 114 128));
-  margin: 0.25rem 0 0 0;
-`;

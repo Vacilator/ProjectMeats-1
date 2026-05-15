@@ -695,7 +695,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             chunks.push(fuzzyChunk);
           });
         }
-      } catch (fuzzyError) {
+      } catch (_fuzzyError) {
         // Fuzzy discovery is optional - don't fail if it errors
         }
 
@@ -706,7 +706,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       }
 
       setRelationalChunks(chunks);
-    } catch (error) {
+    } catch (_error) {
       // Non-fatal: keep UI responsive even if relationships endpoint is temporarily unhealthy.
       setRelationalChunks([]);
     } finally {
@@ -1050,7 +1050,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         ...prev,
         [tabKey]: { items: mapped, count },
       }));
-    } catch (error) {
+    } catch (_error) {
       // Non-fatal: avoid noisy console errors for intermittent 5xxs.
       setRelationTabData(prev => ({
         ...prev,

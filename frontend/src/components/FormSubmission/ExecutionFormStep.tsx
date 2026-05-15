@@ -14,23 +14,6 @@ import FormField, { FieldConfig } from './FormField';
 import type { WorkflowContext } from './hooks/useWorkflowContext';
 import { getResolvedFormFields } from '../FlowEditor/utils/formFieldsDualModel';
 
-type SelectedFieldLike = {
-  key: string;
-  label?: string;
-  type?: string;
-  required?: boolean;
-  placeholder?: string;
-  helpText?: string;
-  options?: Array<{ value: string; label: string }>;
-  min?: number;
-  max?: number;
-  step?: number;
-  rows?: number;
-  related_entity_type?: string;
-  related_model?: { app: string; model: string; label: string };
-  cascadeFrom?: string;
-};
-
 type FormStepNodeData = {
   label?: string;
   name?: string;

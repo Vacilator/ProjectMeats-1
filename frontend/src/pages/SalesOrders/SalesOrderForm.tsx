@@ -13,7 +13,6 @@ import {
   Info,
   Zap,
   ChevronDown,
-  Building2,
 } from 'lucide-react';
 import { businessApi } from '@/services/businessApi';
 import { LocationSelector } from '@/components/Shared';

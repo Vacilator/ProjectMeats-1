@@ -247,7 +247,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     setChildCreateOpen(false);
     void loadChildRows();
   }, [loadChildRows]);
-  const handleNavigateToBasePath = useCallback(() => {
+  const _handleNavigateToBasePath = useCallback(() => {
     navigate(basePath);
   }, [basePath, navigate]);
 
@@ -331,7 +331,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     return cleaned ? cleaned.replace(/\b\w/g, (c) => c.toUpperCase()) : 'Record';
   }, [normalizedEntityType]);
 
-  const sectionLabel = useMemo(() => {
+  const _sectionLabel = useMemo(() => {
     const p = String(basePath || '').toLowerCase();
     if (p.startsWith('/suppliers')) return 'Suppliers';
     if (p.startsWith('/customers')) return 'Customers';

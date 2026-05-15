@@ -80,7 +80,7 @@ const Settings: React.FC = () => {
       localStorage.setItem('userSettings', JSON.stringify(settings));
 
       setMessage({ type: 'success', text: 'Settings saved successfully!' });
-    } catch (error) {
+    } catch (_error) {
       setMessage({
         type: 'error',
         text: 'Failed to save settings. Please try again.',

@@ -16,7 +16,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { businessApi } from '@/services/businessApi';
-import type { Supplier, PurchaseOrder } from '@/services/apiService';
+import type { Supplier } from '@/services/apiService';
 import { LocationSelector } from '@/components/Shared';
 import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutocomplete';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';

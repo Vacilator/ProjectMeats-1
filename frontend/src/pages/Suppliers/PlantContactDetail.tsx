@@ -25,9 +25,9 @@ export const PlantContactDetail: React.FC = () => {
   useDocumentTitle('Plant Contact Detail');
 
   const [loading, setLoading] = useState(true);
-  const [supplier, setSupplier] = useState<SupplierRow | null>(null);
-  const [plant, setPlant] = useState<PlantRow | null>(null);
-  const [contact, setContact] = useState<ContactRow | null>(null);
+  const [_supplier, setSupplier] = useState<SupplierRow | null>(null);
+  const [_plant, setPlant] = useState<PlantRow | null>(null);
+  const [_contact, setContact] = useState<ContactRow | null>(null);
 
   useEffect(() => {
     if (!sid || !pid || !cid) return;

@@ -7,7 +7,6 @@ import { useMemo, useCallback } from 'react';
 import type { 
   RoutingRule, 
   RoutingCondition, 
-  ConditionOperator 
 } from './StepRoutingLogic';
 
 // ============================================================================

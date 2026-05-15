@@ -65,7 +65,7 @@ function getRuntimeConfig(key: string, defaultValue: string = ''): string {
       if (key === 'ENVIRONMENT' && tenantContext.environment) {
         return tenantContext.environment;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fall through to other config sources if tenant context fails
       // This ensures backward compatibility
     }
@@ -140,7 +140,7 @@ export function getCurrentTenant(): string | null {
   try {
     const tenantContext = getTenantContext();
     return tenantContext.tenant;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

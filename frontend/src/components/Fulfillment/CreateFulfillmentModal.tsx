@@ -312,7 +312,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       }
 
       setCustomerOptions(customers);
-    } catch (err) {
+    } catch (_err) {
       setCustomerOptions([]);
     } finally {
       setLoadingCustomers(false);
@@ -345,7 +345,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
           return { id, label: `${num || `Inquiry #${id}`}${when ? ` — ${when}` : ''}` };
         }).filter((r) => r.id)
       );
-    } catch (err) {
+    } catch (_err) {
       setInquiryOptions([]);
     } finally {
       setLoadingInquiries(false);
@@ -361,7 +361,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     try {
       const resp = await businessApi.get(`inquiries/${inquiryId}/`);
       setResolvedInquiry(resp.data as Inquiry);
-    } catch (err) {
+    } catch (_err) {
       setResolvedInquiry(null);
     }
   }, []);

@@ -13,13 +13,12 @@
  *
  * Theme Compliance: CSS custom properties only.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card,
   Col,
-  Divider,
   Empty,
   Input,
   Row,
@@ -33,7 +32,6 @@ import {
 import {
   BellOutlined,
   BulbOutlined,
-  DeleteOutlined,
   LineChartOutlined,
   MessageOutlined,
   RobotOutlined,
@@ -377,7 +375,7 @@ const EmptyIcon = styled.div`
 
 const ChatSessionsTab: React.FC = () => {
   const [search, setSearch] = useState('');
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
 
   const { data: sessions = [], isLoading } = useQuery<ChatSession[]>({
     queryKey: withTenantQueryKey('ai-chat-sessions'),

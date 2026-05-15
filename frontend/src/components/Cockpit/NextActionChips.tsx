@@ -13,7 +13,6 @@ import { Tag, Space } from 'antd';
 import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  FileTextOutlined,
   MailOutlined,
   RobotOutlined,
   ShoppingCartOutlined,

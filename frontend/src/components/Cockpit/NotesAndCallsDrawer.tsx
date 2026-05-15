@@ -132,7 +132,7 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
       });
 
       setItems(timeline);
-    } catch (err) {
+    } catch (_err) {
       // Non-fatal: suppress console noise on intermittent 5xx/502s.
       setItems([]);
     } finally {
@@ -204,7 +204,7 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
           await businessApi.delete(`/workspace/activity-logs/${noteId}/`);
           message.success('Note deleted');
           void fetchTimeline();
-        } catch (err) {
+        } catch (_err) {
           message.error('Failed to delete note');
         } finally {
           setDeletingNoteId(null);
