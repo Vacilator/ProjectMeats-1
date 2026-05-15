@@ -120,7 +120,6 @@ const AdminProfilePage = React.lazy(() => import('./pages/Admin/Profile'));
 const BillingPage = React.lazy(() => import('./pages/Admin/Billing'));
 const ActivityPage = React.lazy(() => import('./pages/Admin/Activity'));
 const AdminWorkspaceHome = React.lazy(() => import('./pages/Admin/Home'));
-const NotificationPreferences = React.lazy(() => import('./pages/Settings/index').then(m => ({ default: m.NotificationPreferences })));
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 const WorkFormsLayout = React.lazy(() => import('./pages/WorkForms'));
 const WorkFormsCatalog = React.lazy(() => import('./pages/WorkForms/Catalog'));
@@ -382,8 +381,8 @@ const App: React.FC = () => {
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/ai" element={<Navigate to="/workspace/my-ai?tab=preferences" replace />} />
                 <Route path="ai-chat" element={<Navigate to="/workspace/my-ai?tab=sessions" replace />} />
-                <Route path="settings/email-integrations" element={<Settings />} />
-                <Route path="settings/notifications" element={<NotificationPreferences />} />
+                <Route path="settings/email-integrations" element={<Navigate to="/settings?tab=integrations" replace />} />
+                <Route path="settings/notifications" element={<Navigate to="/settings?tab=notifications" replace />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
 
                 {/* Inquiries & Fulfillments */}
