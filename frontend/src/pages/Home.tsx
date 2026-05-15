@@ -85,7 +85,7 @@ const Home: React.FC = () => {
     queryKey: withTenantQueryKey('home', 'recent-activity'),
     queryFn: async () => {
       try {
-        const res = await businessApi.get('/activity/recent/');
+        const res = await businessApi.get('/workspace/activity/recent/');
         return Array.isArray(res?.data) ? res.data : [];
       } catch {
         return [];
@@ -99,7 +99,7 @@ const Home: React.FC = () => {
     queryKey: withTenantQueryKey('home', 'quick-stats'),
     queryFn: async (): Promise<QuickStat[]> => {
       try {
-        const res = await businessApi.get('/dashboard/stats/');
+        const res = await businessApi.get('/workspace/stats/quick/');
         if (res?.data && typeof res.data === 'object') {
           const d = res.data as Record<string, unknown>;
           return [
