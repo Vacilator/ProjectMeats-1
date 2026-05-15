@@ -399,7 +399,7 @@ interface ActionBannerConfig {
   description: string;
   intent: 'info' | 'warning' | 'success';
   /** If set, the banner shows a "Go to…" CTA pointing to this entity type */
-  navigateTo?: 'purchase_order' | 'sales_order' | 'carrier_po';
+  navigateTo?: 'purchase_order' | 'sales_order' | 'carrier_po' | 'fulfillment' | 'invoice';
 }
 
 /** Extended action guidance based on trade session orchestrator step */
@@ -449,12 +449,14 @@ const TRADE_STEP_ACTION_MAP: Record<string, ActionBannerConfig> = {
     title: 'Arrange Carrier Logistics',
     description: 'Select a carrier, confirm pickup/delivery schedule, and create the Carrier PO.',
     intent: 'info',
+    navigateTo: 'carrier_po',
   },
   carrier_reply_parse: {
     icon: '📥',
     title: 'Awaiting Carrier Confirmation',
     description: 'Carrier inquiry has been sent. Awaiting confirmation of pickup/delivery schedule.',
     intent: 'warning',
+    navigateTo: 'carrier_po',
   },
   draft_carrier_po: {
     icon: '🚛',
@@ -466,8 +468,9 @@ const TRADE_STEP_ACTION_MAP: Record<string, ActionBannerConfig> = {
   completed: {
     icon: '🏆',
     title: 'Trade Completed',
-    description: 'All stages of this trade have been completed successfully.',
+    description: 'All stages of this trade have been completed successfully. View the fulfillment and invoice records below.',
     intent: 'success',
+    navigateTo: 'fulfillment',
   },
 };
 
@@ -475,6 +478,8 @@ const NAVIGATE_TO_LABELS: Record<string, { label: string; field: string; prefix:
   purchase_order: { label: 'Go to Purchase Order', field: 'supplier_purchase_order', prefix: '/records/purchase_order' },
   sales_order: { label: 'Go to Sales Order', field: 'sales_order', prefix: '/records/sales_order' },
   carrier_po: { label: 'Go to Carrier PO', field: 'carrier_purchase_order', prefix: '/records/carrier' },
+  fulfillment: { label: 'Go to Fulfillment', field: 'fulfillment_id', prefix: '/records/fulfillment' },
+  invoice: { label: 'Go to Invoice', field: 'invoice_id', prefix: '/records/invoice' },
 };
 
 const WorkflowActionBanner: React.FC<{

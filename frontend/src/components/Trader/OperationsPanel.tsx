@@ -68,6 +68,7 @@ export const OperationsPanel: React.FC = () => {
       }
     },
     staleTime: 60_000,
+    retry: false,
   });
 
   const freightQuery = useQuery({
