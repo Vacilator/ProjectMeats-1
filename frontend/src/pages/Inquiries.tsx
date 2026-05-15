@@ -451,7 +451,7 @@ const Inquiries: React.FC = () => {
     [entityTypeFilter, page, pageSize, queryClient, search, statusFilter]
   );
 
-  const inquiries = inquiriesQuery.data?.items ?? [];
+  const inquiries = useMemo(() => inquiriesQuery.data?.items ?? [], [inquiriesQuery.data?.items]);
   const totalCount = inquiriesQuery.data?.count ?? 0;
   const loading = inquiriesQuery.isLoading;
   const error = inquiriesQuery.isError ? 'Failed to load inquiries. Please try again.' : null;

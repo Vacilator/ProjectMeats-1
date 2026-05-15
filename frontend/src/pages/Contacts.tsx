@@ -232,7 +232,7 @@ const Contacts: React.FC = () => {
     },
   });
 
-  const contacts = (contactsQuery.data ?? []) as ContactRow[];
+  const contacts = useMemo(() => (contactsQuery.data ?? []) as ContactRow[], [contactsQuery.data]);
   const loading = contactsQuery.isLoading;
 
   const [searchText, setSearchText] = useState('');

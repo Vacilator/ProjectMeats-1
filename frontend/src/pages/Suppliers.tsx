@@ -46,7 +46,7 @@ const Suppliers: React.FC = () => {
     },
   });
 
-  const suppliers = (suppliersQuery.data ?? []) as SupplierListRow[];
+  const suppliers = useMemo(() => (suppliersQuery.data ?? []) as SupplierListRow[], [suppliersQuery.data]);
 
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('all');

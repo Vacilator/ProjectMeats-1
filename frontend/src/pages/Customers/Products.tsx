@@ -155,10 +155,12 @@ const CustomerProducts: React.FC = () => {
     } else if (id) {
       fetchCustomer();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchCustomer is unstable; id already triggers re-fetch
   }, [id, location.state]);
 
   useEffect(() => {
     if (id) fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProducts is unstable; id already triggers re-fetch
   }, [id]);
 
   const fetchCustomer = async () => {
@@ -217,6 +219,7 @@ const CustomerProducts: React.FC = () => {
     if (addModalVisible) {
       void fetchSystemProducts(productSearchText);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- productSearchText intentionally omitted; only fetch on modal open, not on every keystroke
   }, [addModalVisible, fetchSystemProducts]);
 
   const handleAddProducts = async () => {

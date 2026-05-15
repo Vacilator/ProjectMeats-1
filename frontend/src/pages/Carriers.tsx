@@ -94,7 +94,7 @@ const Carriers: React.FC = () => {
     staleTime: 30 * 1000,
   });
 
-  const carriers = carriersQuery.data || [];
+  const carriers = useMemo(() => carriersQuery.data || [], [carriersQuery.data]);
   const refreshCarriers = useCallback(
     () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('carriers') }),
     [queryClient]
