@@ -370,12 +370,7 @@ const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => 
                 <MoreRolesText>+{remainingRoleCount} more contact role(s)</MoreRolesText>
               ) : null}
             </ContactRoleList>
-          ) : (
-            <UnassignedBadge>
-              <UserX size={11} />
-              No contact assigned
-            </UnassignedBadge>
-          )}
+          ) : null}
         </>
       )}
       {data.isEmpty && (
@@ -476,10 +471,10 @@ function buildGraph(
       target: entities[i + 1].key,
       type: 'smoothstep',
       animated: entities[i + 1].data === null,
-      markerEnd: { type: MarkerType.ArrowClosed },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
       style: {
         stroke: entities[i + 1].data ? 'rgb(var(--color-text-secondary))' : 'rgb(var(--color-border))',
-        strokeWidth: 2,
+        strokeWidth: 2.5,
       },
     });
   }
@@ -573,7 +568,7 @@ export const TradeLineageFlow: React.FC<TradeLineageFlowProps> = ({
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
         fitView
-        fitViewOptions={{ padding: 0.08, maxZoom: 1.5 }}
+        fitViewOptions={{ padding: 0.15, maxZoom: 1.2, minZoom: 0.8 }}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={!compact}

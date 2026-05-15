@@ -38,7 +38,9 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def perform_document_status_transition(self, request, document, next_status):
-        """Override to track inquiry-specific timestamps on status change."""
+        """Override to track inquiry-specific timestamps and ensure trade session."""
+        from tenant_apps.inquiries.services.trade_session import get_or_create_trade_session
+
         now = timezone.now()
         if next_status == "quoted":
             document.quoted_date = now
@@ -46,6 +48,15 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
             document.decision_date = now
             if next_status == "rejected":
                 document.win_loss_reason = request.data.get("reason", "")
+
+        # Ensure a TradeSession exists so My Trades picks up this inquiry
+        tenant = getattr(request, "tenant", None)
+        if tenant and next_status not in ("cancelled",):
+            try:
+                get_or_create_trade_session(tenant=tenant, inquiry=document)
+            except Exception:
+                pass  # best-effort — don't block the transition
+
         return super().perform_document_status_transition(request, document, next_status)
 
     def get_queryset(self):
