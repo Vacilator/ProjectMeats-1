@@ -75,9 +75,13 @@ def log_fulfillment_activity(sender, instance, created, **kwargs):
                     content += f". Tracking: {', '.join(instance.tracking_numbers[:3])}"
                     if len(instance.tracking_numbers) > 3:
                         content += f" (+{len(instance.tracking_numbers) - 3} more)"
+                # Dispatch shipment notification email (best-effort, non-blocking)
+                _dispatch_fulfillment_email(instance, notification_type="shipped")
             elif instance.status == FulfillmentStatusChoices.DELIVERED:
                 if instance.actual_delivery:
                     content += f". Delivered on {instance.actual_delivery}"
+                # Dispatch delivery confirmation email (best-effort, non-blocking)
+                _dispatch_fulfillment_email(instance, notification_type="delivered")
             
             if entity_id:
                 ActivityLog.objects.create(
@@ -88,3 +92,29 @@ def log_fulfillment_activity(sender, instance, created, **kwargs):
                     content=content,
                     created_by=instance.shipped_by if instance.status == FulfillmentStatusChoices.SHIPPED else None
                 )
+
+
+def _dispatch_fulfillment_email(fulfillment, *, notification_type: str) -> None:
+    """Best-effort email dispatch — logs failures but never blocks the save."""
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        from tenant_apps.fulfillments.services.fulfillment_email import send_fulfillment_notification
+        result = send_fulfillment_notification(
+            tenant=fulfillment.tenant,
+            fulfillment=fulfillment,
+            notification_type=notification_type,
+        )
+        if not result.success:
+            logger.warning(
+                "fulfillment_signal.email_dispatch_failed fulfillment=%s type=%s reason=%s",
+                fulfillment.fulfillment_number,
+                notification_type,
+                result.error_message,
+            )
+    except Exception:
+        logger.exception(
+            "fulfillment_signal.email_dispatch_error fulfillment=%s type=%s",
+            fulfillment.fulfillment_number,
+            notification_type,
+        )

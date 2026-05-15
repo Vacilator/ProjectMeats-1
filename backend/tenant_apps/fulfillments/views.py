@@ -78,6 +78,39 @@ class FulfillmentViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet)
     def perform_destroy(self, instance):
         instance.soft_delete()
 
+    @action(detail=True, methods=['post'], url_path='send-notification')
+    def send_notification(self, request, pk=None):
+        """Manually send a fulfillment notification email (shipped/delivered)."""
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        fulfillment = self.get_object()
+        notification_type = request.data.get('type', 'shipped')
+        if notification_type not in ('shipped', 'delivered'):
+            return Response(
+                {'error': 'type must be "shipped" or "delivered"'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from tenant_apps.fulfillments.services.fulfillment_email import send_fulfillment_notification
+        result = send_fulfillment_notification(
+            tenant=tenant,
+            fulfillment=fulfillment,
+            notification_type=notification_type,
+        )
+
+        if result.success:
+            return Response({
+                'status': 'sent',
+                'recipient': result.recipient_email,
+                'message_id': result.provider_message_id,
+            })
+        return Response(
+            {'error': result.error_message},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
         if not (getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False)):

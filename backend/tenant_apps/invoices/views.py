@@ -70,6 +70,28 @@ class InvoiceViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         instance.soft_delete()
 
+    @action(detail=True, methods=['post'], url_path='email-invoice')
+    def email_invoice(self, request, pk=None):
+        """Send invoice email with PDF attachment to customer billing contact."""
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        invoice = self.get_object()
+        from tenant_apps.invoices.services.invoice_email import send_invoice_email
+        result = send_invoice_email(tenant=tenant, invoice=invoice)
+
+        if result.success:
+            return Response({
+                'status': 'sent',
+                'recipient': result.recipient_email,
+                'message_id': result.provider_message_id,
+            })
+        return Response(
+            {'error': result.error_message},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
         if not (getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False)):
