@@ -12,14 +12,13 @@
  */
 import React, { useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import { Button, Dropdown, message, Space, Tooltip } from 'antd';
+import { Button, Dropdown, message, notification, Space, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import { Loader2, MoreHorizontal } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
-import { getStatusColors } from '@/utils/statusColors';
 import { getDocumentEntityConfig } from '@/components/Operations/documentOperations';
 import { StatusBadge } from '@/components/Shared/StatusBadge';
 import {
@@ -172,10 +171,38 @@ export const WorkflowStatusBar: React.FC<WorkflowStatusBarProps> = ({
       if (cascade?.triggered && cascade?.created_entity_type && !cascade?.error) {
         const verb = cascade.already_existed ? 'already exists' : 'auto-created';
         const entityLabel = cascade.created_entity_label || 'Downstream record';
-        message.info(
-          `✅ ${entityLabel} ${verb} — workflow advanced automatically`,
-          5,
-        );
+        const cascadeEntityId = cascade.created_entity_id;
+
+        // Build navigation path for the cascade-created entity
+        const cascadeRouteMap: Record<string, string> = {
+          purchase_order: '/purchase-orders',
+          sales_order: '/sales-orders',
+          carrier_purchase_order: '/purchase-orders?tab=carrier',
+          fulfillment: '/fulfillments',
+          invoice: '/invoices',
+        };
+        const basePath = cascadeRouteMap[cascade.created_entity_type];
+
+        notification.success({
+          message: `✅ ${entityLabel} ${verb}`,
+          description: `The workflow has advanced automatically. ${basePath && cascadeEntityId
+            ? 'Click "View" to open it.'
+            : ''}`,
+          btn: basePath && cascadeEntityId ? (
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => {
+                const sep = basePath.includes('?') ? '&' : '?';
+                window.location.href = `${basePath}${sep}highlight=${cascadeEntityId}`;
+              }}
+            >
+              View {cascade.created_entity_type?.replace(/_/g, ' ')}
+            </Button>
+          ) : undefined,
+          duration: 8,
+          placement: 'topRight',
+        });
       }
 
       // Invalidate all relevant queries so lineage, trades, and entity lists refresh
@@ -186,6 +213,11 @@ export const WorkflowStatusBar: React.FC<WorkflowStatusBarProps> = ({
       void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('process-header') });
       void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('document-status-workflow') });
       void queryClient.invalidateQueries({ queryKey: withTenantQueryKey('action-items') });
+      // Invalidate the source entity list + cascade-target entity list
+      void queryClient.invalidateQueries({ queryKey: withTenantQueryKey(normalizedEntityType) });
+      if (cascade?.created_entity_type) {
+        void queryClient.invalidateQueries({ queryKey: withTenantQueryKey(cascade.created_entity_type) });
+      }
       onTransitioned?.();
     },
     onError: (err: unknown) => {
