@@ -303,6 +303,11 @@ class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelS
     created_by_name = serializers.CharField(
         source='created_by.get_full_name', read_only=True
     )
+
+    # Trade session context (for stepper/action banner)
+    trade_session_id = serializers.SerializerMethodField()
+    trade_session_status = serializers.SerializerMethodField()
+    trade_session_current_step = serializers.SerializerMethodField()
     
     class Meta:
         model = Inquiry
@@ -370,6 +375,10 @@ class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelS
             'created_by_name',
             'created_on',
             'modified_on',
+            # Trade session
+            'trade_session_id',
+            'trade_session_status',
+            'trade_session_current_step',
         ]
         read_only_fields = [
             'id', 'inquiry_number', 'created_on', 'modified_on',
@@ -384,6 +393,34 @@ class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelS
         elif obj.customer:
             return obj.customer.name
         return None
+
+    def _get_trade_session(self, obj):
+        """Cached access to the related trade session."""
+        if not hasattr(obj, '_cached_trade_session'):
+            try:
+                obj._cached_trade_session = obj.trade_session
+            except Exception:
+                obj._cached_trade_session = None
+        return obj._cached_trade_session
+
+    def get_trade_session_id(self, obj):
+        ts = self._get_trade_session(obj)
+        return str(ts.id) if ts else None
+
+    def get_trade_session_status(self, obj):
+        ts = self._get_trade_session(obj)
+        return ts.status if ts else None
+
+    def get_trade_session_current_step(self, obj):
+        ts = self._get_trade_session(obj)
+        if not ts:
+            return None
+        try:
+            from tenant_apps.inquiries.services.happy_path_orchestrator import get_orchestrator_state
+            state = get_orchestrator_state(tenant=obj.tenant, inquiry=obj)
+            return state.value if state else None
+        except Exception:
+            return None
 
 
 class InquiryCreateSerializer(InquiryContractValidationMixin, serializers.ModelSerializer):

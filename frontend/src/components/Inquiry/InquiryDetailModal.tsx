@@ -393,8 +393,75 @@ const INQUIRY_ACTION_MAP: Record<string, ActionBannerConfig> = {
   },
 };
 
+/** Extended action guidance based on trade session orchestrator step */
+const TRADE_STEP_ACTION_MAP: Record<string, ActionBannerConfig> = {
+  supplier_rfq: {
+    icon: '📤',
+    title: 'Request Supplier Bids',
+    description: 'Add suppliers to products, set respond-by dates, and send bid requests. Await supplier responses.',
+    intent: 'info',
+  },
+  supplier_reply_parse: {
+    icon: '📥',
+    title: 'Awaiting Supplier Replies',
+    description: 'Bid requests have been sent. Supplier responses will be auto-parsed when received via email.',
+    intent: 'warning',
+  },
+  draft_supplier_po: {
+    icon: '🛒',
+    title: 'Purchase Order Pending Approval',
+    description: 'Review the auto-generated Purchase Order and approve it to advance to the next stage.',
+    intent: 'info',
+  },
+  approve_supplier_po: {
+    icon: '✍️',
+    title: 'Approve Purchase Order',
+    description: 'The PO is ready for approval. Once approved, a Sales Order will be auto-created for the customer.',
+    intent: 'warning',
+  },
+  draft_sales_order: {
+    icon: '📋',
+    title: 'Sales Order Created',
+    description: 'Review the Sales Order details and get customer confirmation before approving.',
+    intent: 'info',
+  },
+  approve_sales_order: {
+    icon: '✍️',
+    title: 'Approve Sales Order',
+    description: 'The SO is ready for approval. Once approved, carrier logistics will be arranged.',
+    intent: 'warning',
+  },
+  carrier_fan_out: {
+    icon: '🚛',
+    title: 'Arrange Carrier Logistics',
+    description: 'Select a carrier, confirm pickup/delivery schedule, and create the Carrier PO.',
+    intent: 'info',
+  },
+  carrier_reply_parse: {
+    icon: '📥',
+    title: 'Awaiting Carrier Confirmation',
+    description: 'Carrier inquiry has been sent. Awaiting confirmation of pickup/delivery schedule.',
+    intent: 'warning',
+  },
+  draft_carrier_po: {
+    icon: '🚛',
+    title: 'Carrier PO Pending Approval',
+    description: 'Review and approve the Carrier PO to begin fulfillment.',
+    intent: 'info',
+  },
+  completed: {
+    icon: '🏆',
+    title: 'Trade Completed',
+    description: 'All stages of this trade have been completed successfully.',
+    intent: 'success',
+  },
+};
+
 const WorkflowActionBanner: React.FC<{ inquiry: Inquiry }> = ({ inquiry }) => {
-  const config = INQUIRY_ACTION_MAP[inquiry.status];
+  // Prefer trade-step-level guidance when the inquiry has been accepted and trade session is active
+  const tradeStep = inquiry.trade_session_current_step;
+  const config = (tradeStep && TRADE_STEP_ACTION_MAP[tradeStep])
+    || INQUIRY_ACTION_MAP[inquiry.status];
   if (!config) return null;
 
   const borderColor = config.intent === 'success'
@@ -524,13 +591,15 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
             {/* Trade Workflow Progress — shows where in the E2E process this inquiry is */}
             {inquiry.status !== 'rejected' && (
               <TradeWorkflowStepper
-                tradeStatus={
+                tradeStatus={inquiry.trade_session_status || (
                   inquiry.status === 'fulfilled' ? 'completed'
                     : inquiry.status === 'accepted' ? 'ordered'
                     : inquiry.status === 'quoted' ? 'quoted'
                     : 'initiated'
-                }
+                )}
+                currentStep={inquiry.trade_session_current_step}
                 inquiryStatus={inquiry.status}
+                tradeSessionId={inquiry.trade_session_id}
                 compact
               />
             )}
