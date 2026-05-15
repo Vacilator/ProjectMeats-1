@@ -4359,6 +4359,143 @@ class ActionItemsAPIView(APIView):
                 )
             )
 
+            # --- Trade workflow action items ---
+            # Surface pending trade items: entities waiting for status advancement
+            try:
+                from tenant_apps.inquiries.models import TradeSession, TradeSessionStatus
+                from tenant_apps.inquiries.services.happy_path_orchestrator import get_orchestrator_state
+
+                active_sessions = (
+                    TradeSession.objects.filter(tenant=tenant)
+                    .exclude(status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED])
+                    .select_related("inquiry", "inquiry__supplier_purchase_order", "inquiry__sales_order", "inquiry__carrier_purchase_order")
+                    .order_by("-initiated_at")[:20]
+                )
+
+                trade_action_labels = {
+                    "draft_sales_order": ("Create Sales Order", "Sales order needs to be created for this trade"),
+                    "approve_sales_order": ("Approve Sales Order", "Sales order is pending approval"),
+                    "supplier_rfq": ("Send Supplier RFQ", "RFQ needs to be sent to supplier"),
+                    "supplier_reply_parse": ("Awaiting Supplier Reply", "Waiting for supplier to respond to RFQ"),
+                    "draft_supplier_po": ("Create Supplier PO", "Supplier PO needs to be created from RFQ"),
+                    "approve_supplier_po": ("Approve Supplier PO", "Supplier PO is pending approval"),
+                    "carrier_fan_out": ("Arrange Carrier", "Carrier logistics need to be arranged"),
+                    "carrier_reply_parse": ("Awaiting Carrier Reply", "Waiting for carrier quote reply"),
+                    "draft_carrier_po": ("Create Carrier PO", "Carrier PO needs to be created"),
+                }
+
+                for session in active_sessions:
+                    inquiry = session.inquiry
+                    if not inquiry:
+                        continue
+                    step = get_orchestrator_state(tenant=tenant, inquiry=inquiry)
+                    step_val = step.value if hasattr(step, "value") else str(step)
+
+                    if step_val in ("completed",):
+                        continue
+
+                    # Check if inquiry needs a status transition first
+                    inq_status = inquiry.status
+                    if inq_status in ("draft", "pending"):
+                        action_items.append({
+                            "id": f"trade-{session.id}-quote",
+                            "type": "trade_action",
+                            "title": f"Send Quote — {inquiry.inquiry_number or str(inquiry.id)[:8]}",
+                            "description": f"Inquiry from {getattr(inquiry.customer, 'name', 'customer') if inquiry.customer_id else 'unknown customer'} needs a price quote",
+                            "priority": "high",
+                            "status": "action_needed",
+                            "due_date": None,
+                            "is_overdue": False,
+                            "assigned_at": session.initiated_at or now,
+                            "entity_type": "inquiry",
+                            "entity_id": str(inquiry.id),
+                            "related_po_value": None,
+                            "related_po_currency": None,
+                        })
+                    elif inq_status == "quoted":
+                        action_items.append({
+                            "id": f"trade-{session.id}-accept",
+                            "type": "trade_action",
+                            "title": f"Accept or Reject — {inquiry.inquiry_number or str(inquiry.id)[:8]}",
+                            "description": f"Quote sent to {getattr(inquiry.customer, 'name', 'customer') if inquiry.customer_id else 'unknown customer'} — awaiting decision",
+                            "priority": "high",
+                            "status": "action_needed",
+                            "due_date": None,
+                            "is_overdue": False,
+                            "assigned_at": session.initiated_at or now,
+                            "entity_type": "inquiry",
+                            "entity_id": str(inquiry.id),
+                            "related_po_value": None,
+                            "related_po_currency": None,
+                        })
+                    elif inq_status == "accepted" and step_val in trade_action_labels:
+                        label, desc = trade_action_labels[step_val]
+                        action_items.append({
+                            "id": f"trade-{session.id}-{step_val}",
+                            "type": "trade_action",
+                            "title": f"{label} — {inquiry.inquiry_number or str(inquiry.id)[:8]}",
+                            "description": desc,
+                            "priority": "normal",
+                            "status": "action_needed",
+                            "due_date": None,
+                            "is_overdue": False,
+                            "assigned_at": session.initiated_at or now,
+                            "entity_type": "inquiry",
+                            "entity_id": str(inquiry.id),
+                            "related_po_value": None,
+                            "related_po_currency": None,
+                        })
+
+                    # Check for POs pending approval
+                    po = inquiry.supplier_purchase_order
+                    if po and po.status == "pending_approval":
+                        action_items.append({
+                            "id": f"trade-{session.id}-po-approve",
+                            "type": "trade_action",
+                            "title": f"Approve PO #{po.po_number or po.order_number or str(po.id)[:8]}",
+                            "description": "Purchase order is pending approval",
+                            "priority": "high",
+                            "status": "action_needed",
+                            "due_date": None,
+                            "is_overdue": False,
+                            "assigned_at": po.created_on if hasattr(po, "created_on") else now,
+                            "entity_type": "purchase_order",
+                            "entity_id": str(po.id),
+                            "related_po_value": float(po.total_value) if hasattr(po, "total_value") and po.total_value else None,
+                            "related_po_currency": "USD",
+                        })
+
+                    # Check for SOs pending approval
+                    so = inquiry.sales_order
+                    if so and so.status == "pending_approval":
+                        action_items.append({
+                            "id": f"trade-{session.id}-so-approve",
+                            "type": "trade_action",
+                            "title": f"Approve SO #{so.our_sales_order_num or str(so.id)[:8]}",
+                            "description": "Sales order is pending approval",
+                            "priority": "high",
+                            "status": "action_needed",
+                            "due_date": None,
+                            "is_overdue": False,
+                            "assigned_at": so.created_on if hasattr(so, "created_on") else now,
+                            "entity_type": "sales_order",
+                            "entity_id": str(so.id),
+                            "related_po_value": None,
+                            "related_po_currency": None,
+                        })
+
+                # Re-sort with trade items included
+                action_items.sort(
+                    key=lambda x: (
+                        {"urgent": 0, "high": 1, "normal": 2, "low": 3}.get(x["priority"], 2),
+                        x["due_date"] or now + timedelta(days=365),
+                        x["assigned_at"],
+                    )
+                )
+
+            except Exception as trade_exc:
+                logger.warning("[ActionItems] Failed to fetch trade action items: %s", trade_exc, exc_info=True)
+
             serializer = ActionItemSerializer(action_items, many=True)
             return Response(serializer.data)
 
@@ -4499,6 +4636,26 @@ class ActionItemCountsAPIView(APIView):
                 {"form_name": name, "count": count} for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
             ]
             counts["by_priority"] = dict(counts["by_priority"])
+
+            # --- Trade workflow counts ---
+            try:
+                from tenant_apps.inquiries.models import TradeSession, TradeSessionStatus
+
+                trade_count = TradeSession.objects.filter(
+                    tenant=tenant,
+                ).exclude(
+                    status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED],
+                ).count()
+                if trade_count > 0:
+                    counts["total"] += trade_count
+                    counts["by_priority"]["high"] = counts["by_priority"].get("high", 0) + trade_count
+                    form_counts["Trade Pipeline"] = trade_count
+                    counts["by_form"] = [
+                        {"form_name": name, "count": count}
+                        for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
+                    ]
+            except Exception:
+                pass
 
             serializer = ActionItemCountsSerializer(counts)
             return Response(serializer.data)
