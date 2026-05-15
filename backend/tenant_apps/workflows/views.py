@@ -4790,16 +4790,65 @@ class ActionItemCountsAPIView(APIView):
             # --- Trade workflow counts ---
             try:
                 from tenant_apps.inquiries.models import TradeSession, TradeSessionStatus
+                from tenant_apps.inquiries.services.happy_path_orchestrator import get_orchestrator_state
 
-                trade_count = TradeSession.objects.filter(
-                    tenant=tenant,
-                ).exclude(
-                    status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED],
-                ).count()
-                if trade_count > 0:
-                    counts["total"] += trade_count
-                    counts["by_priority"]["high"] = counts["by_priority"].get("high", 0) + trade_count
-                    form_counts["Trade Pipeline"] = trade_count
+                active_sessions = (
+                    TradeSession.objects.filter(tenant=tenant)
+                    .exclude(status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED])
+                    .select_related(
+                        "inquiry",
+                        "inquiry__supplier_purchase_order",
+                        "inquiry__sales_order",
+                        "inquiry__carrier_purchase_order",
+                    )
+                    .order_by("-initiated_at")[:20]
+                )
+
+                trade_item_count = 0
+                trade_urgent = 0
+                trade_high = 0
+
+                for session in active_sessions:
+                    inquiry = getattr(session, "inquiry", None)
+                    if not inquiry:
+                        continue
+
+                    step = get_orchestrator_state(tenant=tenant, inquiry=inquiry)
+                    step_val = step.value if hasattr(step, "value") else str(step)
+                    if step_val == "completed" and session.status == TradeSessionStatus.COMPLETED:
+                        continue
+
+                    # Count orchestrator-level action
+                    trade_item_count += 1
+                    inq_status = inquiry.status
+                    if inq_status in ("draft", "pending", "quoted"):
+                        trade_high += 1
+                    else:
+                        trade_high += 1
+
+                    # Count PO pending approval
+                    po = getattr(inquiry, "supplier_purchase_order", None)
+                    if po and po.status == "pending_approval":
+                        trade_item_count += 1
+                        trade_high += 1
+
+                    # Count SO pending approval
+                    so = getattr(inquiry, "sales_order", None)
+                    if so and so.status == "pending_approval":
+                        trade_item_count += 1
+                        trade_high += 1
+
+                    # Count Carrier PO needing action
+                    cpo = getattr(inquiry, "carrier_purchase_order", None)
+                    if cpo and cpo.status in ("draft", "pending_approval"):
+                        trade_item_count += 1
+                        trade_high += 1
+
+                if trade_item_count > 0:
+                    counts["total"] += trade_item_count
+                    counts["by_priority"]["urgent"] = counts["by_priority"].get("urgent", 0) + trade_urgent
+                    counts["by_priority"]["high"] = counts["by_priority"].get("high", 0) + trade_high
+                    form_counts["Trade Pipeline"] = trade_item_count
                     counts["by_form"] = [
                         {"form_name": name, "count": count}
                         for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
