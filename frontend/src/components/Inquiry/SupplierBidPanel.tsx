@@ -228,6 +228,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     <BidPanelContainer>
       <BidPanelHeader
         onClick={() => setExpanded(!expanded)}
+        onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded); } }}
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
@@ -384,6 +385,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                       onClick={() => requestBidMutation.mutate(bid.id)}
                       disabled={requestBidMutation.isPending}
                       title="Send bid request"
+                      aria-label="Send bid request"
                     >
                       <Send size={12} />
                     </ActionBtn>
@@ -394,6 +396,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                       onClick={() => acceptBidMutation.mutate(bid.id)}
                       disabled={acceptBidMutation.isPending}
                       title="Accept this bid"
+                      aria-label="Accept this bid"
                     >
                       <Check size={12} />
                     </ActionBtn>
@@ -405,7 +408,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                       okText="Remove"
                       cancelText="Cancel"
                     >
-                      <ActionBtn $variant="danger" title="Remove bid">
+                      <ActionBtn $variant="danger" title="Remove bid" aria-label="Remove bid">
                         <X size={12} />
                       </ActionBtn>
                     </Popconfirm>
@@ -435,12 +438,14 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                 $variant="success"
                 onClick={handleAddBid}
                 disabled={createBidMutation.isPending || !newSupplierId}
+                aria-label="Confirm add supplier bid"
               >
                 <Check size={12} />
               </ActionBtn>
               <ActionBtn
                 $variant="danger"
                 onClick={() => { setAddingBid(false); setNewSupplierId(''); }}
+                aria-label="Cancel add supplier bid"
               >
                 <X size={12} />
               </ActionBtn>

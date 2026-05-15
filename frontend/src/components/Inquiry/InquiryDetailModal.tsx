@@ -567,7 +567,7 @@ const ActionBannerCTA = styled.button`
   border: 1px solid rgb(var(--color-primary));
   border-radius: var(--radius-sm);
   background: rgb(var(--color-primary));
-  color: #fff;
+  color: rgb(var(--color-primary-foreground, 255 255 255));
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -605,8 +605,8 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
         purchase_order: { field: 'supplier_purchase_order', prefix: '/records/purchase_order' },
         sales_order: { field: 'sales_order', prefix: '/records/sales_order' },
         carrier_po: { field: 'carrier_purchase_order', prefix: '/records/carrier' },
-        fulfillment: { field: 'supplier_purchase_order', prefix: '/records/fulfillment' },
-        invoice: { field: 'supplier_purchase_order', prefix: '/records/invoice' },
+        fulfillment: { field: 'fulfillment_id', prefix: '/records/fulfillment' },
+        invoice: { field: 'invoice_id', prefix: '/records/invoice' },
       };
 
       const mapping = STEP_ENTITY_MAP[step.key];
@@ -669,7 +669,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                 {inquiry.created_by_name && <span>by {inquiry.created_by_name}</span>}
               </HeaderMeta>
             </HeaderLeft>
-            <CloseButton type="button" onClick={onClose}>×</CloseButton>
+            <CloseButton type="button" onClick={onClose} aria-label="Close inquiry details">×</CloseButton>
           </ModalHeader>
 
           <ModalBody>

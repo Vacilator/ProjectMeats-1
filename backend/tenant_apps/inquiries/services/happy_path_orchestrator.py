@@ -139,7 +139,9 @@ def get_orchestrator_state(*, tenant: Any, inquiry: Inquiry) -> OrchestratorStep
     elif route == InquiryRouteDecisionChoices.BROKER:
         return _derive_broker_state(inquiry)
     else:
-        return OrchestratorStep.DRAFT_SALES_ORDER
+        # Unknown or blank route — return None so callers can distinguish
+        # "not started" from a specific step.
+        return None
 
 
 def advance_orchestrator(

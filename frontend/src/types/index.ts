@@ -617,6 +617,9 @@ export interface Inquiry {
   supplier_purchase_order?: string;
   sales_order?: string;
   carrier_purchase_order?: string;
+  // Linked entities from custom_data (set by cascade)
+  fulfillment_id?: string;
+  invoice_id?: string;
 }
 
 /**

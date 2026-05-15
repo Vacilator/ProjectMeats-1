@@ -543,8 +543,8 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
                 notes=tp.notes,
             )
 
-        # Increment template use count
-        InquiryTemplate.objects.filter(id=template_id).update(use_count=F("use_count") + 1)
+        # Increment template use count (tenant-scoped for safety)
+        InquiryTemplate.objects.filter(id=template_id, tenant=request.tenant).update(use_count=F("use_count") + 1)
 
         return Response(InquiryDetailSerializer(inquiry).data, status=status.HTTP_201_CREATED)
 

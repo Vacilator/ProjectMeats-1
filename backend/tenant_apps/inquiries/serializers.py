@@ -308,6 +308,8 @@ class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelS
     trade_session_id = serializers.SerializerMethodField()
     trade_session_status = serializers.SerializerMethodField()
     trade_session_current_step = serializers.SerializerMethodField()
+    fulfillment_id = serializers.SerializerMethodField()
+    invoice_id = serializers.SerializerMethodField()
     
     class Meta:
         model = Inquiry
@@ -379,6 +381,8 @@ class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelS
             'trade_session_id',
             'trade_session_status',
             'trade_session_current_step',
+            'fulfillment_id',
+            'invoice_id',
         ]
         read_only_fields = [
             'id', 'inquiry_number', 'created_on', 'modified_on',
@@ -421,6 +425,14 @@ class InquiryDetailSerializer(InquiryContractValidationMixin, serializers.ModelS
             return state.value if state else None
         except Exception:
             return None
+
+    def get_fulfillment_id(self, obj):
+        """Get fulfillment ID from custom_data (set by cascade chain)."""
+        return (obj.custom_data or {}).get('fulfillment_id')
+
+    def get_invoice_id(self, obj):
+        """Get invoice ID from custom_data (set by cascade chain)."""
+        return (obj.custom_data or {}).get('invoice_id')
 
 
 class InquiryCreateSerializer(InquiryContractValidationMixin, serializers.ModelSerializer):

@@ -91,7 +91,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
                     "trade_id": session.trade_id,
                     "status": session.status,
                     "route": session.route_decision or inquiry.route_decision or "",
-                    "current_step": current_step.value,
+                    "current_step": current_step.value if current_step else "",
                     "inquiry_id": str(inquiry.id),
                     "customer_name": (
                         getattr(inquiry.customer, "name", None)
@@ -105,6 +105,12 @@ class TradePipelineViewSet(viewsets.ViewSet):
                         if hasattr(session, "updated_at") and session.updated_at
                         else None
                     ),
+                    # Linked entity IDs for deep-linking from stepper
+                    "supplier_purchase_order_id": str(inquiry.supplier_purchase_order_id) if inquiry.supplier_purchase_order_id else None,
+                    "sales_order_id": str(inquiry.sales_order_id) if inquiry.sales_order_id else None,
+                    "carrier_purchase_order_id": str(inquiry.carrier_purchase_order_id) if inquiry.carrier_purchase_order_id else None,
+                    "fulfillment_id": (inquiry.custom_data or {}).get("fulfillment_id"),
+                    "invoice_id": (inquiry.custom_data or {}).get("invoice_id"),
                 }
             )
 
