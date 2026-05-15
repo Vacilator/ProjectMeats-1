@@ -58,6 +58,7 @@ const Layout: React.FC = () => {
   return (
     <ConnectivityProvider>
       <LayoutContainer $theme={theme}>
+        <SkipNavLink href="#main-content">Skip to main content</SkipNavLink>
         <Sidebar
           isOpen={sidebarOpen}
           onToggle={toggleSidebar}
@@ -66,7 +67,7 @@ const Layout: React.FC = () => {
         <MainArea $sidebarOpen={sidebarOpen} $sidebarHovered={sidebarHovered}>
           <Header />
           <ConnectivityBanner />
-          <Content $theme={theme}>
+          <Content $theme={theme} id="main-content">
             <CenteredContainer>
               <Breadcrumb />
               <Outlet />
@@ -98,6 +99,25 @@ const LayoutContainer = styled.div<{ $theme: Theme }>`
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+`;
+
+const SkipNavLink = styled.a`
+  position: absolute;
+  top: -100%;
+  left: 0;
+  z-index: 10000;
+  padding: 0.75rem 1.5rem;
+  background: #1677ff;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+
+  &:focus {
+    top: 0;
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
 `;
 
 const MainArea = styled.div<{ $sidebarOpen: boolean; $sidebarHovered: boolean }>`
