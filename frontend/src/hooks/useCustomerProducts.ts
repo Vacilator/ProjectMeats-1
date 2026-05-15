@@ -141,7 +141,7 @@ export function useCustomerProducts(
       const response = await businessApi.get<{ results?: Product[] } | Product[]>('system/products/', {
         params: {
           is_active: true,
-          protein: normalizedProteins,
+          protein: normalizedProteins.join(','),
           page_size: 500,
         },
       });
@@ -163,7 +163,7 @@ export function useCustomerProducts(
       const response = await businessApi.get<{ results?: Product[] } | Product[]>('system/products/', {
         params: {
           is_active: true,
-          protein: normalizedProteins,
+          protein: normalizedProteins.join(','),
           page_size: 500,
         },
       });

@@ -786,9 +786,22 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                 <GoldenLabel>Product</GoldenLabel>
                 <SmartProductAutocomplete
                   value={formValues.product}
-                  onChange={(val: string) =>
-                    setFormValues((prev) => ({ ...prev, product: val }))
+                  onChange={(val: string, product) =>
+                    setFormValues((prev) => ({
+                      ...prev,
+                      product: val,
+                      description_of_product_item:
+                        prev.description_of_product_item
+                        || product?.name
+                        || product?.description
+                        || product?.description_of_product_item
+                        || '',
+                      fresh_or_frozen: prev.fresh_or_frozen || product?.fresh_or_frozen || '',
+                      package_type: prev.package_type || product?.package_type || '',
+                    }))
                   }
+                  proteinTypeFilter={formValues.type_of_protein || undefined}
+                  placeholder="Search products…"
                 />
               </GoldenFormGroup>
 
