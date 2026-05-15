@@ -263,6 +263,7 @@ All 10 items from the squad deep-dive plan have been completed:
 - **Phases 12-38 complete.** All 38 phases are shipped on `development`. All 63+ EPIC_TICKETS are marked Shipped. The execution backlog is empty.
 - **Phase 38 fully shipped.** AUTO-38.1 through AUTO-38.4 are all on `development`: backend ingest error contract, AI Inbox provenance badges, recoverable sync retry/progress UX, and sample-email regression fixtures.
 - **Production-ready sweep shipped (PRs #5428-#5435).** Infrastructure cleanup, auto-cascade workflow transitions (Inquiry→PO→SO→CarrierPO→Fulfillment→Invoice), frontend production polish (hardcoded colors, plant form, dashboard states), infrastructure hardening (docker-compose, Dockerfile), type safety (11 `any` removals), accessibility (aria-labels), backend input validation, and workflow UX overhaul (inquiry cascade, TradeSession auto-creation, React Flow zoom/arrows, action button tooltips, query invalidation).
+- **Cascade auto-advance shipped (PR #5437).** All 5 cascade handlers now set FK back on source Inquiry after creating downstream entities. Lineage chain expanded from 4 to 6 nodes (added Fulfillment + Invoice). Transition descriptions added to PO/SO/CarrierPO/Fulfillment configs. Cascade toast improved with query invalidation.
 - **Zero open PRs.** All work is merged to `development`.
 - **TypeScript: 0 errors.** `tsc --noEmit` clean.
 - **Python: 0 critical errors.** `flake8 E9/F63/F7/F82` clean. Django system check clean.
@@ -4440,3 +4441,40 @@ Major UI/UX consolidation pass driven by user feedback. Eliminated persistent Re
 - lint:colors: 0 violations
 - Backend regression tests: 21 passed, 0 failed
 - All EPIC_TICKETS backlog: Shipped
+
+## Phase 46: Cascade Auto-Advance & Lineage Expansion
+
+**Status**: ✅ Complete
+**PRs**: #5435, #5436, #5437
+
+### Summary
+Fixed the core gap where workflow cascade creates downstream entities but the React Flow lineage diagram never advances — because the FK on the source Inquiry was never set back after cascade creation.
+
+### Delivered
+
+#### A. FK Link-Back (PR #5437)
+1. **All 5 cascade handlers** now set the FK back on the source Inquiry after creating downstream entities
+2. New helpers: `_link_inquiry_fk()`, `_link_inquiry_fk_from_document()`, `_link_inquiry_custom_data()`, `_resolve_source_inquiry()`
+3. Walk-up pattern: CarrierPO→SO→PO→Inquiry to find root Inquiry from any downstream entity
+4. Fulfillment/Invoice stored in `inquiry.custom_data` (no FK columns on Inquiry model)
+
+#### B. 6-Node Lineage Flow (PR #5437)
+5. **TradeLineageFlow** expanded from 4 to 6 nodes: Inquiry → PO → SO → Carrier PO → Fulfillment → Invoice
+6. Adjusted node spacing (220→190px) and min-width (210→170px) for 6-node layout
+7. AI suggestions for empty Fulfillment and Invoice nodes
+
+#### C. Transition Descriptions (PR #5437)
+8. Added descriptions to PO, SO, CarrierPO, Fulfillment transition configs
+9. Users now see what happens at each step (e.g., "Approve this PO — a Sales Order will be auto-created")
+10. Cascade toast improved with ✅ icon and document-status-workflow query invalidation
+
+#### D. Phase 38 Closure & Documentation (PR #5436)
+11. MASTER_PLAN truth snapshot updated with Phases 12-38 complete
+12. PR execution log appended with PRs #5428-#5435
+
+### Verification
+- TypeScript: 0 errors
+- Python: syntax verified via `ast.parse()`
+- AI PR Gatekeeper: pass
+- Frontend Type Check: pass
+- Frontend Prod Smoke (3/3): pass
