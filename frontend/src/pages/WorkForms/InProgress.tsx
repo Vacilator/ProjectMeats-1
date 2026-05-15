@@ -441,12 +441,14 @@ const FormsFlowsInProgress: React.FC = () => {
     }
   };
   
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSubmissions reads filterMode at call-time; including it would duplicate the trigger
   // Initial fetch
   useEffect(() => {
     if (activeTab !== 'submissions') return;
     fetchSubmissions();
   }, [activeTab, filterMode]);
   
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSubmissions reads filterMode at call-time; including it would duplicate the trigger
   // Real-time polling (10 seconds)
   useEffect(() => {
     if (activeTab !== 'submissions') return;

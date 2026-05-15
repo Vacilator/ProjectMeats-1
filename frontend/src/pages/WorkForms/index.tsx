@@ -162,12 +162,12 @@ const WorkFormsLayout: React.FC = () => {
   const { counts } = useActionItems();
   const { isAdmin } = useAuth();
 
-  const badgeCounts: Record<string, number> = {
+  const badgeCounts = React.useMemo<Record<string, number>>(() => ({
     actionRequired: counts.total,
     overdue: counts.overdue,
     dueToday: counts.due_today,
     dueThisWeek: counts.due_this_week,
-  };
+  }), [counts.total, counts.overdue, counts.due_today, counts.due_this_week]);
 
   const visibleTabs = React.useMemo(() => TABS.filter((tab) => !tab.adminOnly || isAdmin), [isAdmin]);
 

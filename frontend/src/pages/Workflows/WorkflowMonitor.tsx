@@ -359,6 +359,7 @@ export const WorkflowMonitor: React.FC = () => {
   const [filter, setFilter] = useState<string>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchWorkflows defined below reads `filter` at call-time; including it would cause extra re-subscriptions
   useEffect(() => {
     fetchWorkflows();
     

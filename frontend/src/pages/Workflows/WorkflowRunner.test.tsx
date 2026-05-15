@@ -34,6 +34,7 @@ vi.mock('../../features/system/DynamicFormEngine', () => ({
   }) => {
     React.useEffect(() => {
       formMountSpy(initialValues?.name ?? null);
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only effect to capture initial prop snapshot
     }, []);
 
     return (

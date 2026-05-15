@@ -490,6 +490,7 @@ const FormsFlowsHistory: React.FC = () => {
     }, 300);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSubmissions/fetchWorkflowExecutions read current state at call-time; adding them would defeat debounce
   }, [activeTab, page, searchQuery]);
   
   // Fetch workflow executions
@@ -530,6 +531,7 @@ const FormsFlowsHistory: React.FC = () => {
     } else {
       fetchWorkflowExecutions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSubmissions/fetchWorkflowExecutions read current state at call-time; including them would cause extra re-fetches
   }, [activeTab, page, startDate, endDate]);
   
   
