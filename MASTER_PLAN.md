@@ -4547,3 +4547,36 @@ Fixed protein type filtering for product dropdowns — selecting a protein type 
 - Frontend Type Check: pass
 - Frontend Prod Smoke (3/3): pass
 - 5 files changed, 48 insertions, 10 deletions
+
+## Phase 49: Production Hardening — Error Logging & Silent Catch Blocks
+
+**Status**: ✅ Complete
+**PRs**: #5443
+
+### Summary
+Production audit identified silent error swallowing and inconsistent logging. Fixed 3 bare `except Exception: pass` blocks in AI chat views, upgraded email ingestion activity log level, and replaced `console.error` with structured `logger.error` in FormErrorBoundary.
+
+### Delivered
+
+#### A. AI Chat Error Visibility (#5443)
+1. **set_current_tenant** (views.py ~563): Silent `pass` → `logger.warning` with tenant/user context
+2. **Chat history loading** (views.py ~660): Silent `pass` → `logger.warning` with `exc_info=True`
+3. **tools_used extraction** (views.py ~778): Silent `pass` → `logger.debug` (non-critical parsing)
+
+#### B. Email Ingestion Logging (#5443)
+4. **Activity log entry** (email_ingestion.py ~610): `logger.debug` → `logger.warning` with email ID context
+
+#### C. Frontend Error Boundary (#5443)
+5. **FormErrorBoundary**: Replaced `console.error` with `logger.error` using proper `LogContext` signature
+
+### Audit Findings (No Fix Needed)
+- **SettlementEventIngestAPIView**: Uses `AllowAny` + `authentication_classes = []` but has proper `_authenticate_source()` with Stripe signature + API key bearer token verification — correct webhook pattern
+- **Frontend**: 0 direct axios imports, 0 console.log in production code, error boundaries present
+- **CI/CD**: Infrastructure Drift Gate pre-existing failure (not blocking)
+
+### Verification
+- TypeScript: 0 errors
+- Frontend Type Check: pass
+- Frontend Prod Smoke (3/3): pass
+- Validate Migrations: pass
+- 3 files changed, 13 insertions, 8 deletions
