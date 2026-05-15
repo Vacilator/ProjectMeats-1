@@ -93,8 +93,9 @@ const STATUS_META: Record<string, { color: string; label: string }> = {
 const getStatusMeta = (status: string) =>
   STATUS_META[status?.toLowerCase()] ?? { color: 'default', label: status || 'Unknown' };
 
+const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'halted', 'failed']);
 const isActiveStatus = (status: string) =>
-  ['active', 'in_progress', 'pending', 'initiated', 'sourcing', 'quoted', 'ordered', 'logistics'].includes(status?.toLowerCase());
+  !TERMINAL_STATUSES.has(status?.toLowerCase());
 
 const formatRelativeTime = (iso: string | null | undefined): string => {
   if (!iso) return '—';
