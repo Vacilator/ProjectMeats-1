@@ -294,7 +294,12 @@ export const RecordActivityFeed: React.FC<RecordActivityFeedProps> = ({
       <FeedHeader>
         <FeedTitle>Recent Activity</FeedTitle>
         {hasMore && (
-          <ExpandButton onClick={toggleExpanded} type="button">
+          <ExpandButton
+            onClick={toggleExpanded}
+            type="button"
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Show fewer activity items' : `Show all ${events?.length ?? 0} activity items`}
+          >
             {expanded ? 'Show less' : `Show all (${events?.length ?? 0})`}
           </ExpandButton>
         )}
