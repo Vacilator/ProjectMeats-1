@@ -385,6 +385,12 @@ const INQUIRY_ACTION_MAP: Record<string, ActionBannerConfig> = {
     description: 'This inquiry has been fully fulfilled. All deliveries are complete.',
     intent: 'success',
   },
+  rejected: {
+    icon: '❌',
+    title: 'Inquiry Rejected',
+    description: 'This inquiry was rejected. You can clone it to start a new version if needed.',
+    intent: 'warning',
+  },
 };
 
 interface ActionBannerConfig {
@@ -814,6 +820,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                         product={product}
                         inquiryStatus={inquiry.status}
                         readOnly={inquiry.status === 'accepted' || inquiry.status === 'fulfilled'}
+                        customerId={inquiry.customer}
                       />
                     </ProductRowWrapper>
                   ))}
