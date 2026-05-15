@@ -336,6 +336,7 @@ def _cascade_so_confirmed_to_carrier_po(*, tenant: Any, document: Any) -> Cascad
         # Idempotency: check if carrier PO already exists for this SO
         existing = CarrierPurchaseOrder.objects.for_tenant(tenant).filter(sales_order=so).first()
         if existing:
+            _update_trade_session_status_from_doc(tenant, so, "logistics")
             return CascadeResult(
                 triggered=True,
                 created_entity_type="carrier_purchase_order",
@@ -436,6 +437,7 @@ def _cascade_carrier_po_delivered_to_fulfillment(*, tenant: Any, document: Any) 
             Fulfillment.objects.for_tenant(tenant).filter(custom_data__source_carrier_po_id=str(carrier_po.id)).first()
         )
         if existing:
+            _update_trade_session_status_from_doc(tenant, carrier_po, "logistics")
             return CascadeResult(
                 triggered=True,
                 created_entity_type="fulfillment",
@@ -520,6 +522,7 @@ def _cascade_fulfillment_completed_to_invoice(*, tenant: Any, document: Any) -> 
             Invoice.objects.for_tenant(tenant).filter(custom_data__source_fulfillment_id=str(fulfillment.id)).first()
         )
         if existing:
+            _update_trade_session_status_from_doc(tenant, fulfillment, "completed")
             return CascadeResult(
                 triggered=True,
                 created_entity_type="invoice",

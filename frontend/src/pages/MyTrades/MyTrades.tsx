@@ -183,7 +183,7 @@ const MyTrades: React.FC = () => {
         <TitleRow>
           <Title>My Trades</Title>
           <HeaderActions>
-            <RefreshButton onClick={handleRefresh} disabled={isFetching} title="Refresh trades">
+            <RefreshButton onClick={handleRefresh} disabled={isFetching} title="Refresh trades" aria-label="Refresh trades list">
               <RefreshCw size={16} className={isFetching ? 'spin' : ''} />
             </RefreshButton>
             <InitiateButton onClick={handleInitiateTrade}>

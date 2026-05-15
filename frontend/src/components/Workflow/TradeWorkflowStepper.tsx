@@ -152,6 +152,7 @@ const StageDocumentsContent: React.FC<{
     },
     enabled: Boolean(tradeSessionId),
     staleTime: 30_000,
+    retry: false,
   });
 
   return (
@@ -269,7 +270,16 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
         const isClickable = (isActive || isDone) && !compact;
 
         const stepNode = (
-          <StepNode $active={isActive} $done={isDone} $future={isFuture} $compact={compact} $clickable={isClickable}>
+          <StepNode
+            $active={isActive}
+            $done={isDone}
+            $future={isFuture}
+            $compact={compact}
+            $clickable={isClickable}
+            role={isClickable ? 'button' : undefined}
+            tabIndex={isClickable ? 0 : undefined}
+            aria-label={isClickable ? `${step.label} – ${isDone ? 'completed' : 'in progress'}` : undefined}
+          >
             <StepIcon $active={isActive} $done={isDone}>
               {isDone ? <Check size={compact ? 14 : 16} /> : step.icon}
             </StepIcon>
