@@ -489,6 +489,8 @@ export interface InquiryProduct {
   product_code?: string;
   product_description?: string;
   quantity: number;
+  supplier?: string;
+  plant?: string;
   // Desired values (customer request)
   desired_total?: number;
   desired_price_per_unit?: number;
@@ -513,6 +515,45 @@ export interface InquiryProduct {
   margin?: number;
   margin_percent?: number;
   notes?: string;
+  // Fulfillment & bid management
+  fulfillment_date_time?: string;
+  respond_by_date_time?: string;
+  ship_to_location?: string;
+  ship_to_location_name?: string;
+  supplier_bids?: InquiryProductSupplierBid[];
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Supplier bid status choices
+ */
+export type SupplierBidStatus = 'draft' | 'requested' | 'received' | 'accepted' | 'rejected' | 'expired' | 'withdrawn';
+
+/**
+ * InquiryProductSupplierBid — per-product supplier bid tracking
+ */
+export interface InquiryProductSupplierBid {
+  id: string;
+  inquiry_product: string;
+  supplier: string;
+  supplier_name?: string;
+  plant?: string;
+  plant_name?: string;
+  contact?: string;
+  contact_name?: string;
+  contact_email?: string;
+  bid_price_per_unit?: number;
+  bid_total?: number;
+  bid_uom?: string;
+  bid_quantity?: number;
+  bid_status: SupplierBidStatus;
+  requested_at?: string;
+  responded_at?: string;
+  bid_notes?: string;
+  supplier_notes?: string;
+  bid_response_data?: Record<string, unknown>;
+  rfq?: string;
   created_on: string;
   modified_on: string;
 }

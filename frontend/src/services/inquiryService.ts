@@ -1,5 +1,5 @@
 import { apiClient } from './apiService';
-import type { Inquiry, InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
+import type { Inquiry, InquiryListItem, InquiryProduct, InquiryProductSupplierBid, InquiryStatus, InquiryTemplateListItem } from '../types';
 
 interface InquiryListResponse {
   items: InquiryListItem[];
@@ -33,5 +33,50 @@ export const inquiryService = {
   async updateInquiryStatus(inquiryId: string, status: InquiryStatus): Promise<Inquiry> {
     const response = await apiClient.post(`inquiries/${inquiryId}/update-status/`, { status });
     return response.data as Inquiry;
+  },
+
+  // ── Supplier Bid Management ──
+
+  async listProductBids(inquiryProductId: string): Promise<InquiryProductSupplierBid[]> {
+    const response = await apiClient.get('inquiry-product-bids/', {
+      params: { inquiry_product: inquiryProductId },
+    });
+    return (response.data.results || response.data) as InquiryProductSupplierBid[];
+  },
+
+  async createBid(data: Partial<InquiryProductSupplierBid>): Promise<InquiryProductSupplierBid> {
+    const response = await apiClient.post('inquiry-product-bids/', data);
+    return response.data as InquiryProductSupplierBid;
+  },
+
+  async updateBid(bidId: string, data: Partial<InquiryProductSupplierBid>): Promise<InquiryProductSupplierBid> {
+    const response = await apiClient.patch(`inquiry-product-bids/${bidId}/`, data);
+    return response.data as InquiryProductSupplierBid;
+  },
+
+  async deleteBid(bidId: string): Promise<void> {
+    await apiClient.delete(`inquiry-product-bids/${bidId}/`);
+  },
+
+  async requestBid(bidId: string): Promise<InquiryProductSupplierBid> {
+    const response = await apiClient.post(`inquiry-product-bids/${bidId}/request-bid/`);
+    return response.data as InquiryProductSupplierBid;
+  },
+
+  async requestAllBids(inquiryProductId: string): Promise<{ updated: number; message: string }> {
+    const response = await apiClient.post('inquiry-product-bids/request-all-bids/', {
+      inquiry_product_id: inquiryProductId,
+    });
+    return response.data as { updated: number; message: string };
+  },
+
+  async acceptBid(bidId: string): Promise<InquiryProductSupplierBid> {
+    const response = await apiClient.post(`inquiry-product-bids/${bidId}/accept/`);
+    return response.data as InquiryProductSupplierBid;
+  },
+
+  async updateInquiryProduct(productId: string, data: Partial<InquiryProduct>): Promise<InquiryProduct> {
+    const response = await apiClient.patch(`inquiry-products/${productId}/`, data);
+    return response.data as InquiryProduct;
   },
 };

@@ -29,6 +29,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { traderService, type TradeSession } from '@/services/traderService';
 import { TradeLineageFlow } from '@/components/Cockpit/TradeLineageFlow';
+import { TradeWorkflowStepper } from '@/components/Workflow/TradeWorkflowStepper';
 import { logger } from '@/utils/logger';
 
 /** Human-readable label for orchestrator step values */
@@ -352,6 +353,14 @@ const MyTrades: React.FC = () => {
 
                 {expandedId === trade.id && (
                   <TradeCardBody>
+                    {/* Workflow Progress Stepper */}
+                    <FlowSection>
+                      <FlowLabel>Workflow Progress</FlowLabel>
+                      <TradeWorkflowStepper
+                        tradeStatus={trade.status}
+                        currentStep={trade.current_step}
+                      />
+                    </FlowSection>
                     <FlowSection>
                       <FlowLabel>Trade Lineage</FlowLabel>
                       <TradeLineageFlow inquiryId={trade.inquiry_id} compact />
