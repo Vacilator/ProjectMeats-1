@@ -32,6 +32,7 @@ from tenant_apps.purchase_orders.services.approval_dispatch import approve_purch
 
 from apps.core.exporting import CsvExportMixin
 from apps.core.serializers_documents import DocumentStatusTransitionSerializer
+from apps.core.services.idempotency_enforcement import idempotent_create
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin, _request_audit_context
 
 logger = logging.getLogger(__name__)
@@ -195,8 +196,8 @@ class PurchaseOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, view
 
         return Response(response_data)
 
+    @idempotent_create(source="api")
     def create(self, request, *args, **kwargs):
-        """Create a new purchase order with enhanced error handling."""
         try:
             return super().create(request, *args, **kwargs)
         except DRFValidationError as e:

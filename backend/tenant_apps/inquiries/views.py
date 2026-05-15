@@ -14,6 +14,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.services.idempotency_enforcement import idempotent_create
+
 from tenant_apps.purchase_orders.serializers import PurchaseOrderSerializer
 
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin
@@ -176,6 +178,10 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
             raise ValidationError({"error": "Tenant context is required"})
 
         serializer.save(tenant=tenant, created_by=self.request.user)
+
+    @idempotent_create(source="api")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"])
     def add_products(self, request, pk=None):

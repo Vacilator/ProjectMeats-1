@@ -20,6 +20,7 @@ from tenant_apps.sales_orders.serializers import SalesOrderSerializer
 from tenant_apps.sales_orders.services.approval_dispatch import approve_sales_order_and_send_to_customer
 
 from apps.core.exporting import CsvExportMixin
+from apps.core.services.idempotency_enforcement import idempotent_create
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 
 logger = logging.getLogger(__name__)
@@ -202,8 +203,8 @@ class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewset
 
             serializer.save(tenant=tenant)
 
+    @idempotent_create(source="api")
     def create(self, request, *args, **kwargs):
-        """Create a new sales order with enhanced error handling."""
         try:
             return super().create(request, *args, **kwargs)
         except DRFValidationError as e:

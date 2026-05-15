@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 
+from apps.core.services.idempotency_enforcement import idempotent_create
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 from .models import Fulfillment, FulfillmentProduct, FulfillmentStatusChoices
 from .serializers import (
@@ -131,6 +132,10 @@ class FulfillmentViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet)
             return FulfillmentCreateSerializer
         return FulfillmentDetailSerializer
     
+    @idempotent_create(source="api")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """Set tenant from inquiry and created_by on create."""
         inquiry = serializer.validated_data.get('inquiry')

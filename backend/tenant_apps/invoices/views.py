@@ -11,6 +11,7 @@ from rest_framework.response import Response
 
 from tenant_apps.invoices.models import Invoice, Claim, PaymentTransaction
 from tenant_apps.invoices.serializers import InvoiceSerializer, ClaimSerializer, PaymentTransactionSerializer
+from apps.core.services.idempotency_enforcement import idempotent_create
 from apps.core.viewsets_documents import OperationalDocumentActionsMixin
 
 
@@ -59,6 +60,10 @@ class InvoiceViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
         
         return queryset.select_related('customer', 'sales_order', 'product')
     
+    @idempotent_create(source="api")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """Auto-assign tenant on invoice creation."""
         tenant = getattr(self.request, 'tenant', None)
