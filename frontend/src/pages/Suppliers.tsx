@@ -37,8 +37,12 @@ const Suppliers: React.FC = () => {
   const suppliersQuery = useQuery({
     queryKey: withTenantQueryKey('suppliers'),
     queryFn: async () => {
-      const resp = await businessApi.get('suppliers/');
-      return (resp.data.results || resp.data) as Supplier[];
+      try {
+        const resp = await businessApi.get('suppliers/');
+        return (resp.data.results || resp.data) as Supplier[];
+      } catch {
+        return [] as Supplier[];
+      }
     },
   });
 

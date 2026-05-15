@@ -27,7 +27,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { withTenantQueryKey } from '@/utils/queryKeys';
-import { traderService, type TradeSession } from '@/services/traderService';
+import { traderService, type TradeSession, type TradeListResponse } from '@/services/traderService';
 import { TradeLineageFlow } from '@/components/Cockpit/TradeLineageFlow';
 import { TradeWorkflowStepper } from '@/components/Workflow/TradeWorkflowStepper';
 import { TradeDocumentsPanel } from '@/components/Trader/TradeDocumentsPanel';
@@ -48,6 +48,28 @@ const formatStepLabel = (step: string): string => {
     completed: 'Completed',
   };
   return labels[step] || step?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
+};
+
+/** Map trade session status to pipeline step index (0-5) for progress display */
+const STATUS_TO_STAGE_INDEX: Record<string, number> = {
+  initiated: 0,
+  sourcing: 0,
+  quoted: 0,
+  ordered: 1,
+  logistics: 3,
+  completed: 5,
+  cancelled: -1,
+  halted: -1,
+};
+
+const PIPELINE_STAGES = ['Inquiry', 'Purchase Order', 'Sales Order', 'Carrier PO', 'Fulfillment', 'Invoice'];
+
+/** Get a human-readable progress summary like "Stage 2 of 6 • Purchase Order" */
+const getPipelineProgress = (trade: TradeSession): string => {
+  const idx = STATUS_TO_STAGE_INDEX[trade.status?.toLowerCase()] ?? 0;
+  if (idx < 0) return trade.status === 'cancelled' ? 'Cancelled' : 'Halted';
+  if (trade.status === 'completed') return '✓ All 6 stages complete';
+  return `Stage ${idx + 1} of 6 • ${PIPELINE_STAGES[idx]}`;
 };
 
 type TradeTab = 'active' | 'completed' | 'all';
@@ -110,7 +132,13 @@ const MyTrades: React.FC = () => {
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: withTenantQueryKey('my-trades'),
-    queryFn: () => traderService.listActiveTrades(),
+    queryFn: async () => {
+      try {
+        return await traderService.listActiveTrades();
+      } catch {
+        return { count: 0, results: [] } as TradeListResponse;
+      }
+    },
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
@@ -355,6 +383,9 @@ const MyTrades: React.FC = () => {
                           {formatStepLabel(trade.current_step)}
                         </Tag>
                       )}
+                      <PipelineProgress>
+                        {getPipelineProgress(trade)}
+                      </PipelineProgress>
                       {trade.customer_name && (
                         <MetaItem>{trade.customer_name}</MetaItem>
                       )}
@@ -769,6 +800,16 @@ const TradeMeta = styled.div`
 const MetaItem = styled.span`
   font-size: 12px;
   color: rgb(var(--color-text-tertiary));
+`;
+
+const PipelineProgress = styled.span`
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary));
+  font-weight: 500;
+  padding: 2px 8px;
+  background: rgba(var(--color-primary), 0.06);
+  border-radius: var(--radius-sm, 4px);
+  white-space: nowrap;
 `;
 
 const TradeTimestamp = styled.div`

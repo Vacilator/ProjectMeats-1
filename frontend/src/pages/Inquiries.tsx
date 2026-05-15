@@ -424,16 +424,20 @@ const Inquiries: React.FC = () => {
     () => ({
       queryKey: withTenantQueryKey('inquiries', page, pageSize, search, statusFilter, entityTypeFilter),
       queryFn: async () => {
-        const params: Record<string, unknown> = {
-          page,
-          page_size: pageSize,
-        };
+        try {
+          const params: Record<string, unknown> = {
+            page,
+            page_size: pageSize,
+          };
 
-        if (search) params.search = search;
-        if (statusFilter) params.status = statusFilter;
-        if (entityTypeFilter) params.entity_type = entityTypeFilter;
+          if (search) params.search = search;
+          if (statusFilter) params.status = statusFilter;
+          if (entityTypeFilter) params.entity_type = entityTypeFilter;
 
-        return inquiryService.listInquiries(params);
+          return await inquiryService.listInquiries(params);
+        } catch {
+          return { items: [], count: 0 };
+        }
       },
     }),
     [entityTypeFilter, page, pageSize, search, statusFilter]
