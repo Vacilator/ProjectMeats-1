@@ -61,7 +61,6 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   const queryClient = useQueryClient();
 
   const bids = useMemo(() => product.supplier_bids ?? [], [product.supplier_bids]);
-  const hasBids = bids.length > 0;
   const canManageBids = !readOnly && ['draft', 'pending', 'quoted'].includes(inquiryStatus);
   const hasDraftBids = bids.some(b => b.bid_status === 'draft');
 

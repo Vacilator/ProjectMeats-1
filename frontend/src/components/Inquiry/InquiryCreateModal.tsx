@@ -575,6 +575,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
         }
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- supplierChoicesByProduct is a cache; including it would cause infinite re-fetch
   }, [isOpen, lines, showSupplierPlantSelection]);
 
   useEffect(() => {
@@ -610,6 +611,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
         }
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- plantChoicesBySupplierProduct is a cache; including it would cause infinite re-fetch
   }, [isOpen, lines, showSupplierPlantSelection]);
 
   useEffect(() => {

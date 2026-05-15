@@ -275,6 +275,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
   const [saving, setSaving] = useState(false);
 
   // Load products list
+  const proteinFilterKey = proteinFilter.join('|');
   useEffect(() => {
     if (!isOpen) return;
 
@@ -293,7 +294,8 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
         setAvailableProducts(data);
       })
       .catch((err) => logger.error('Failed to load products', { component: 'InquiryTemplateModal' }, err));
-  }, [isOpen, proteinFilter.join('|')]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- proteinFilterKey is a stable string derived from proteinFilter
+  }, [isOpen, proteinFilterKey]);
 
   // Initialize form when template changes
   useEffect(() => {

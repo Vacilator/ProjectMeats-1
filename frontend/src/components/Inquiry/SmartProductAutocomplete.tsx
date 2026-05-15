@@ -324,6 +324,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
     if (value && !selectedProduct) {
       fetchProductById(value);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fetch when value changes; selectedProduct is set by this effect
   }, [value]);
   
   const fetchProductById = async (productId: string) => {
@@ -337,6 +338,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
   };
   
   // Debounced search
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce wraps closure; deps are proteinTypeFilter and suggestedProducts
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
       if (!query.trim()) {

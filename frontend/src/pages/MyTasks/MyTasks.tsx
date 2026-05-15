@@ -813,7 +813,7 @@ export const MyTasks: React.FC = () => {
   ], [handleFeedback, openReview]);
 
   /* ── delegation ── */
-  const handleDelegate = useCallback(async (data: DelegationData) => {
+  const handleDelegate = useCallback(async (_data: DelegationData) => {
     if (!delegateTask) return;
     setIsDelegating(true);
     try {
