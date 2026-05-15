@@ -22,6 +22,8 @@ const MAX_ENTRIES = 200;
 let nextId = 1;
 
 const styles: Record<string, React.CSSProperties> = {
+  // Dev-only styles — these colors are NOT visible in production builds.
+  // Using rgb() format to comply with the color lint rules.
   badge: {
     position: 'fixed',
     bottom: 12,
@@ -41,11 +43,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   badgeClean: {
     background: 'rgba(34,197,94,.85)',
-    color: '#fff',
+    color: 'rgb(255,255,255)',
   },
   badgeDirty: {
     background: 'rgba(239,68,68,.9)',
-    color: '#fff',
+    color: 'rgb(255,255,255)',
   },
   panel: {
     position: 'fixed',
@@ -54,8 +56,8 @@ const styles: Record<string, React.CSSProperties> = {
     width: 480,
     maxHeight: 360,
     zIndex: 99999,
-    background: '#1e1e1e',
-    color: '#d4d4d4',
+    background: 'rgb(30,30,30)',
+    color: 'rgb(212,212,212)',
     borderRadius: 8,
     boxShadow: '0 4px 20px rgba(0,0,0,.4)',
     display: 'flex',
@@ -69,8 +71,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '6px 12px',
-    background: '#2d2d2d',
-    borderBottom: '1px solid #3e3e3e',
+    background: 'rgb(45,45,45)',
+    borderBottom: '1px solid rgb(62,62,62)',
   },
   panelBody: {
     overflowY: 'auto',
@@ -79,16 +81,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   entry: {
     padding: '4px 0',
-    borderBottom: '1px solid #333',
+    borderBottom: '1px solid rgb(51,51,51)',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
   },
-  errorText: { color: '#f87171' },
-  warnText: { color: '#fbbf24' },
+  errorText: { color: 'rgb(248,113,113)' },
+  warnText: { color: 'rgb(251,191,36)' },
   clearBtn: {
     background: 'transparent',
-    border: '1px solid #555',
-    color: '#aaa',
+    border: '1px solid rgb(85,85,85)',
+    color: 'rgb(170,170,170)',
     borderRadius: 4,
     padding: '2px 8px',
     cursor: 'pointer',
@@ -184,13 +186,13 @@ const ConsoleErrorMonitor: React.FC = () => {
           </div>
           <div style={styles.panelBody}>
             {entries.length === 0 && (
-              <div style={{ padding: 12, textAlign: 'center', color: '#888' }}>
+              <div style={{ padding: 12, textAlign: 'center', color: 'rgb(136,136,136)' }}>
                 No errors or warnings captured.
               </div>
             )}
             {entries.map((e) => (
               <div key={e.id} style={styles.entry}>
-                <span style={{ color: '#888' }}>[{formatTime(e.timestamp)}]</span>{' '}
+                <span style={{ color: 'rgb(136,136,136)' }}>[{formatTime(e.timestamp)}]</span>{' '}
                 <span style={e.level === 'error' ? styles.errorText : styles.warnText}>
                   {e.level.toUpperCase()}
                 </span>{' '}
