@@ -1,9 +1,9 @@
 /**
  * Schema Service - Entity and field introspection
- * 
+ *
  * Phase 3: Intelligent Schema Bridge
  * Provides entity types and field metadata from Django backend.
- * 
+ *
  * Created: 2026-02-12
  */
 import { useQuery } from '@tanstack/react-query';
@@ -35,7 +35,7 @@ export interface EntityField {
   decimal_places?: number;
   related_entity?: string;
   related_label?: string;
-  choices?: Array<{ value: any; label: string }>;
+  choices?: Array<{ value: string | number; label: string }>;
 }
 
 export interface EntityFieldsResponse {
@@ -63,34 +63,34 @@ export const getEntityTypes = async (): Promise<EntityType[]> => {
 
 /**
  * Get field definitions for a specific entity.
- * 
+ *
  * @param entityId - Entity identifier (e.g., 'tenant_apps.suppliers.supplier')
  */
 export const getEntityFields = async (entityId: string): Promise<EntityField[]> => {
   logger.debug('[SchemaService] Fetching fields for entity:', entityId);
-  
+
   try {
     // CRITICAL FIX: Encode entity ID for URL (handles tenant_apps.* dots correctly)
     const encodedEntityId = encodeURIComponent(entityId);
     const url = `system/entities/${encodedEntityId}/fields/`;
-    
+
     logger.debug('[SchemaService] Fetch URL:', url);
-    
+
     const response = await businessApi.get<EntityFieldsResponse>(url);
-    
+
     // Normalize field data (backend uses field_type/is_required, frontend uses type/required)
     const normalizedFields = (response.data.fields || []).map(field => ({
       ...field,
       type: field.field_type || field.type,
       required: field.is_required ?? field.required ?? false,
     }));
-    
+
     logger.debug('[SchemaService] Fields received:', {
       entityId,
       fieldCount: normalizedFields.length,
       fields: normalizedFields.map(f => ({ name: f.name, type: f.type, required: f.required })),
     });
-    
+
     return normalizedFields;
   } catch (error) {
     logger.error(
@@ -105,7 +105,7 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
 
 /**
  * Get display fields for entity lookups.
- * 
+ *
  * @param entityId - Entity identifier
  */
 export const getEntityDisplayFields = async (entityId: string): Promise<string[]> => {
@@ -119,7 +119,7 @@ export const getEntityDisplayFields = async (entityId: string): Promise<string[]
 /**
  * Hardcoded entity types for quick reference (until API loads).
  * This list should match the backend tenant_apps.
- * 
+ *
  * NOTE: Entity IDs use tenant_apps.* namespace (hotfix #3033)
  */
 export const COMMON_ENTITY_TYPES: EntityType[] = [
@@ -154,7 +154,7 @@ export const getFieldTypeIcon = (fieldType: string): string => {
     file: '📎',
     image: '🖼️',
   };
-  
+
   return icons[fieldType] || '📝';
 };
 
@@ -164,7 +164,7 @@ export const getFieldTypeIcon = (fieldType: string): string => {
 
 /**
  * Hook to fetch entity list with React Query caching.
- * 
+ *
  * Phase A Enhancement: Added error handling and fallback to hardcoded entities.
  * Phase E Fix (2026-02-19): Improved fallback handling for empty dropdowns
  * Phase E Fix 2 (2026-02-19): Always use fallback if API returns empty (401 auth issues)
@@ -202,7 +202,7 @@ export const useEntityList = () => {
 
 /**
  * Hook to fetch fields for a specific entity.
- * 
+ *
  * Phase A Enhancement: Added error handling and retry logic.
  */
 export const useEntityFields = (

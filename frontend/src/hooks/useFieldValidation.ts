@@ -1,6 +1,6 @@
 /**
  * Field Validation Hook (Phase 2.5: Enhanced Inheritance)
- * 
+ *
  * Provides type-safe validation with inheritance from entity models.
  */
 import { useState, useCallback } from 'react';
@@ -19,36 +19,38 @@ export interface ValidationRules {
   pattern?: string;
   min?: number;
   max?: number;
+  min_items?: number;
+  max_items?: number;
   options?: Array<{ value: string; label: string }>;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
  * Hook for field validation with inheritance support.
- * 
+ *
  * @param fieldId - UUID of the field
- * 
+ *
  * @returns Object with validation operations:
  *   - validateValue: Validate a value against field rules
  *   - syncValidation: Sync computed validation from entity model
  *   - getEffectiveRules: Get merged validation rules
  *   - loading: Whether operation is in progress
  *   - error: Error message if operation failed
- * 
+ *
  * @example
  * ```tsx
  * const EmailField = ({ fieldId }) => {
  *   const { validateValue, loading } = useFieldValidation(fieldId);
  *   const [email, setEmail] = useState('');
  *   const [errors, setErrors] = useState<string[]>([]);
- *   
+ *
  *   const handleChange = async (value: string) => {
  *     setEmail(value);
- *     
+ *
  *     const result = await validateValue(value);
  *     setErrors(result.errors);
  *   };
- *   
+ *
  *   return (
  *     <>
  *       <Input
@@ -68,7 +70,7 @@ export const useFieldValidation = (fieldId: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const validateValue = useCallback(async (value: any): Promise<ValidationResult> => {
+  const validateValue = useCallback(async (value: unknown): Promise<ValidationResult> => {
     if (!fieldId) {
       throw new Error('Field ID is required');
     }
@@ -81,7 +83,7 @@ export const useFieldValidation = (fieldId: string) => {
         `/form-fields/${fieldId}/validate-value/`,
         { value }
       );
-      
+
       return response.data;
     } catch (err: unknown) {
       const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
@@ -89,7 +91,7 @@ export const useFieldValidation = (fieldId: string) => {
       const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
       const errorMsg = (typeof data.error === 'string' ? data.error : '') || 'Validation failed';
       setError(errorMsg);
-      
+
       // Return error state
       return {
         valid: false,
@@ -112,7 +114,7 @@ export const useFieldValidation = (fieldId: string) => {
       const response = await businessApi.post(
         `/form-fields/${fieldId}/sync-validation/`
       );
-      
+
       return response.data.computed_validation;
     } catch (err: unknown) {
       const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
@@ -138,7 +140,7 @@ export const useFieldValidation = (fieldId: string) => {
       const response = await businessApi.get(
         `/form-fields/${fieldId}/effective-validation/`
       );
-      
+
       return response.data;
     } catch (err: unknown) {
       const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
@@ -163,12 +165,12 @@ export const useFieldValidation = (fieldId: string) => {
 
 /**
  * Client-side validation function (no API call).
- * 
+ *
  * @param value - Value to validate
  * @param rules - Validation rules
  * @returns Validation result
  */
-export const validateLocally = (value: any, rules: ValidationRules): ValidationResult => {
+export const validateLocally = (value: unknown, rules: ValidationRules): ValidationResult => {
   const errors: string[] = [];
 
   // Required check
@@ -217,7 +219,7 @@ export const validateLocally = (value: any, rules: ValidationRules): ValidationR
 
 /**
  * Helper to generate validation rules for common field types.
- * 
+ *
  * @param fieldType - Field type (email, number, etc.)
  * @returns Default validation rules
  */
