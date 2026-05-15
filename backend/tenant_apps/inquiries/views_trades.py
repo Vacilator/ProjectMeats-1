@@ -50,6 +50,20 @@ class TradePipelineViewSet(viewsets.ViewSet):
 
     permission_classes = [IsAuthenticated]
 
+    def _get_tenant(self, request):
+        """Safe tenant accessor — returns None if tenant missing."""
+        return getattr(request, 'tenant', None)
+
+    def _require_tenant(self, request):
+        """Safe tenant accessor — returns (tenant, error_response) tuple."""
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return None, Response(
+                {"detail": "Tenant context not available."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return tenant, None
+
     def list(self, request):
         """GET /api/v1/trades/ — List trade sessions.
 
@@ -60,7 +74,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
         - status: filter by session status (e.g., ?status=active or ?status=completed)
         - If no status param, returns ALL trade sessions for client-side filtering.
         """
-        tenant = request.tenant
+        tenant, err = self._require_tenant(request)
+        if err:
+            return err
         qs = (
             TradeSession.objects.filter(tenant=tenant)
             .select_related("inquiry")
@@ -136,7 +152,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 "type_of_protein": "string" (optional),
             }
         """
-        tenant = request.tenant
+        tenant, err = self._require_tenant(request)
+        if err:
+            return err
         user = request.user
         data = request.data
 
@@ -212,7 +230,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 {"field": "...", "value": "...", "confidence": 0.9, "reason": "..."}
             ]
         """
-        tenant = request.tenant
+        tenant, err = self._require_tenant(request)
+        if err:
+            return err
         user = request.user
         data = request.data
 
@@ -322,7 +342,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
         Body (optional):
             {"advance_through": "draft_sales_order"}
         """
-        tenant = request.tenant
+        tenant, err = self._require_tenant(request)
+        if err:
+            return err
         user = request.user
 
         try:
@@ -396,7 +418,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
 
         Returns current step, dependency check, and full lineage chain.
         """
-        tenant = request.tenant
+        tenant, err = self._require_tenant(request)
+        if err:
+            return err
 
         try:
             trade_session = TradeSession.objects.select_related("inquiry").get(
@@ -440,7 +464,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
         Returns proactive trade suggestions based on recent emails, tenant
         history, customer patterns, and market signals.
         """
-        tenant = request.tenant
+        tenant, err = self._require_tenant(request)
+        if err:
+            return err
         proposals = []
 
         # Generate proposals from recent draft inquiries without active trade sessions
@@ -513,7 +539,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
         Takes a draft inquiry and converts it into a full trade with session
         and dependency check, identical to smart-initiate but from existing inquiry.
         """
-        tenant = request.tenant
+        tenant, err = self._require_tenant(request)
+        if err:
+            return err
         request.user
 
         try:
@@ -560,7 +588,9 @@ class TradePipelineViewSet(viewsets.ViewSet):
 
         Records user feedback for confidence engine training.
         """
-        tenant = request.tenant
+        tenant, err = self._require_tenant(request)
+        if err:
+            return err
         signal = request.data.get("signal", "")
         comment = request.data.get("comment", "")
 
