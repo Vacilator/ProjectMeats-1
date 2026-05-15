@@ -19,7 +19,7 @@ export { LocalSearchableSelect } from './LocalSearchableSelect';
 export { CockpitPanel } from './CockpitPanel';
 export { StatCardGrid } from './StatCardGrid';
 export { InlineLoader, QueryFallback, EmptyInline, focusRing, cardHover, fadeIn, srOnly } from './PolishUtils';
-export { ErrorBoundary } from './ErrorBoundary';
+export { ErrorBoundary } from '../common/ErrorBoundary';
 export { ConfidenceBadge, getConfidenceLevel, getConfidenceLabel, CONFIDENCE_THRESHOLDS } from './ConfidenceBadge';
 export { EntityPageHeader } from './EntityPageHeader';
 export type { ConfidenceBadgeProps, ConfidenceLevel } from './ConfidenceBadge';
