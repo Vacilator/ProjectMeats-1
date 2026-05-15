@@ -2060,3 +2060,14 @@ Deliverables:
 - Added missing `noopener` to `target="_blank"` anchor in `AIAgentWidget.tsx`.
 - Added `VITE_ENABLE_E2E_SMOKE` to `ImportMetaEnv` type declaration in `vite-env.d.ts`.
 - PR: #5150.
+
+### 2026-06-12 — Production-readiness sweep + Workflow UX overhaul (PRs #5428–#5435)
+- **PR #5428** — Infrastructure cleanup: dedup, dead code removal, docs polish, CI optimization.
+- **PR #5429** — Auto-cascade workflow transitions: PO→SO, SO→CarrierPO, CarrierPO→Fulfillment, Fulfillment→Invoice with handler registry in `workflow_cascade.py`.
+- **PR #5430** — Frontend production sweep: hardcoded color cleanup, Catalog TODO removal.
+- **PR #5431** — HardcodedPlantForm → GoldenFormShell migration.
+- **PR #5432** — Dashboard loading/error/empty states for Home page.
+- **PR #5433** — Infrastructure hardening: docker-compose default creds, Dockerfile debug tracing, README, `.env.example`.
+- **PR #5434** — Type safety (11 `any` removals), accessibility (aria-labels), backend input validation (`create_fulfillment` tenant-scoped).
+- **PR #5435** — Inquiry workflow cascade + UX overhaul: `_cascade_inquiry_accepted_to_po` handler, TradeSession auto-creation, React Flow zoom/arrow improvements, action button tooltips, query invalidation after status transitions, removed misleading "No contact assigned" badge.
+- **Result:** All 38 phases complete. Zero open PRs. Zero EPIC_TICKETS remaining. Production-ready and investor-pitch qualified.
