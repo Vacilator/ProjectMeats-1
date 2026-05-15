@@ -139,18 +139,20 @@ const PlantProducts: React.FC = () => {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [addingProducts, setAddingProducts] = useState<boolean>(false);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchPlant defined below uses only `id`
+   
   useEffect(() => {
     if (location.state?.plant) {
       setPlant(location.state.plant);
     } else if (id) {
       fetchPlant();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, location.state]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: fetchProducts defined below uses only `id`
+   
   useEffect(() => {
     if (id) fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchPlant = async () => {

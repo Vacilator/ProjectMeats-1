@@ -107,11 +107,12 @@ describe('queryClient.invalidateQueries stability', () => {
       }, [tick]);
 
       // Simulate the broken pattern: fresh object in deps each render
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: test verifies unstable object identity causes handler churn
       const queryResult = { data: tick, refetch: () => {} };
 
       const handler = useCallback(() => {
         queryResult.refetch();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
       }, [queryResult]);
 
       handlerRefs.push(handler);

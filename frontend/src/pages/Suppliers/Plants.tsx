@@ -182,14 +182,16 @@ const Plants: React.FC = () => {
     setContextSupplierId(nextContext);
   }, [location.search, location.state, supplierId]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: loadSuppliers is a stable useCallback([]) defined below
+   
   useEffect(() => {
     loadSuppliers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPlants is a stable useCallback([]) defined below; contextSupplierId is the real trigger
+   
   useEffect(() => {
     loadPlants(contextSupplierId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextSupplierId]);
 
   // Derived filtered list — pure computation, no state needed

@@ -223,9 +223,9 @@ const OptionListsPage: React.FC = () => {
     },
   });
 
-  const lists = systemChoiceListsQuery.data ?? [];
-  const customLists = customListsQuery.data ?? [];
-  const products = masterProductsQuery.data ?? [];
+  const lists = useMemo(() => systemChoiceListsQuery.data ?? [], [systemChoiceListsQuery.data]);
+  const customLists = useMemo(() => customListsQuery.data ?? [], [customListsQuery.data]);
+  const products = useMemo(() => masterProductsQuery.data ?? [], [masterProductsQuery.data]);
   const productPreferences = productPreferencesQuery.data ?? {};
 
   const loading = systemChoiceListsQuery.isLoading || systemChoiceListsQuery.isFetching;
