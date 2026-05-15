@@ -88,7 +88,7 @@ const Login: React.FC = () => {
         )}
 
         {error && (
-          <ErrorMessage>
+          <ErrorMessage role="alert" aria-live="assertive">
             <ErrorIcon>⚠️</ErrorIcon>
             {error}
           </ErrorMessage>
@@ -96,8 +96,9 @@ const Login: React.FC = () => {
 
         <LoginForm onSubmit={handleSubmit}>
           <FormGroup>
-            <Label>Username</Label>
+            <Label htmlFor="login-username">Username</Label>
             <Input
+              id="login-username"
               type="text"
               name="username"
               value={credentials.username}
@@ -106,13 +107,15 @@ const Login: React.FC = () => {
               autoComplete="username"
               disabled={loading}
               required
+              aria-describedby="login-username-hint"
             />
-            <HintText>Note: Username is case-sensitive</HintText>
+            <HintText id="login-username-hint">Note: Username is case-sensitive</HintText>
           </FormGroup>
 
           <FormGroup>
-            <Label>Password</Label>
+            <Label htmlFor="login-password">Password</Label>
             <Input
+              id="login-password"
               type="password"
               name="password"
               value={credentials.password}

@@ -211,8 +211,15 @@ const StageDocumentsContent: React.FC<{
                 $clickable
                 $selected={selectedAction?.label === action.label}
                 onClick={() => handleActionClick(action)}
+                onKeyDown={(e: React.KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleActionClick(action);
+                  }
+                }}
                 role="button"
                 tabIndex={0}
+                aria-pressed={selectedAction?.label === action.label}
               >
                 {action.label}
                 {action.documentTypes && action.documentTypes.length > 0 && (
@@ -323,7 +330,7 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
   }, []);
 
   return (
-    <StepperContainer $compact={compact}>
+    <StepperContainer $compact={compact} role="list" aria-label="Trade workflow stages">
       {TRADE_STEPS.map((step, index) => {
         const isActive = index === activeStepIndex && !isCancelled && !isCompleted;
         const isDone = index < activeStepIndex || isCompleted;
@@ -337,9 +344,16 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
             $future={isFuture}
             $compact={compact}
             $clickable={isClickable}
-            role={isClickable ? 'button' : undefined}
+            role="listitem"
             tabIndex={isClickable ? 0 : undefined}
-            aria-label={isClickable ? `${step.label} – ${isDone ? 'completed' : 'in progress'}` : undefined}
+            aria-label={`${step.label} – ${isDone ? 'completed' : isActive ? 'in progress' : 'upcoming'}`}
+            aria-current={isActive ? 'step' : undefined}
+            onKeyDown={isClickable ? (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleOpenChange(step.key, openStep !== step.key);
+              }
+            } : undefined}
           >
             <StepIcon $active={isActive} $done={isDone}>
               {isDone ? <Check size={compact ? 14 : 16} /> : step.icon}
