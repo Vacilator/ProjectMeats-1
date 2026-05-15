@@ -65,8 +65,12 @@ class FulfillmentViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet)
 
         qs = Fulfillment.all_objects if (include_deleted and is_admin) else Fulfillment.objects
 
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return qs.none()
+
         return qs.filter(
-            tenant=self.request.tenant
+            tenant=tenant
         ).select_related(
             'inquiry', 'supplier', 'customer', 'carrier', 'created_by', 'shipped_by'
         ).prefetch_related('products')
@@ -79,7 +83,7 @@ class FulfillmentViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet)
         if not (getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False)):
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
 
-        fulfillment = Fulfillment.all_objects.filter(tenant=request.tenant, pk=pk).first()
+        fulfillment = Fulfillment.all_objects.filter(tenant=getattr(request, 'tenant', None), pk=pk).first()
         if not fulfillment:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -191,6 +195,9 @@ class FulfillmentProductViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant via fulfillment."""
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return FulfillmentProduct.objects.none()
         return FulfillmentProduct.objects.filter(
-            fulfillment__tenant=self.request.tenant
+            fulfillment__tenant=tenant
         ).select_related('fulfillment', 'inquiry_product', 'inquiry_product__product')

@@ -66,6 +66,7 @@
     "lint:colors:fix": "node .eslint/scripts/check-colors.cjs --fix",
     "lint:render-stability": "node .eslint/scripts/check-render-stability.cjs",
     "lint:query-keys": "node .eslint/scripts/check-query-key-scoping.cjs",
+    "lint:query-error-handling": "node .eslint/scripts/check-query-error-handling.cjs",
     "lint:api-boundaries": "node .eslint/scripts/check-api-import-boundaries.cjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
@@ -74,7 +75,7 @@
     "serve": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "verify-standards": "npm run type-check && npm run lint && npm run lint:colors && npm run lint:render-stability && npm run lint:query-keys && npm run lint:api-boundaries && echo '✅ Frontend standards verification passed'"
+    "verify-standards": "npm run type-check && npm run lint && npm run lint:colors && npm run lint:render-stability && npm run lint:query-keys && npm run lint:query-error-handling && npm run lint:api-boundaries && echo '✅ Frontend standards verification passed'"
   },
   "browserslist": {
     "production": [
