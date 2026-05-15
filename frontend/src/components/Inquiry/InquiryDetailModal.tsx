@@ -37,6 +37,7 @@ import { TradeWorkflowStepper } from '../Workflow/TradeWorkflowStepper';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { WorkflowStatusBar } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
+import { TradeDocumentsPanel } from '../Trader/TradeDocumentsPanel';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -879,6 +880,20 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               <ProcessFlowHeader inquiryId={String(inquiry.id)} />
               <TradeLineageFlow inquiryId={String(inquiry.id)} compact />
             </Section>
+
+            {/* Trade Documents — grouped by stage, Sent/Received */}
+            {inquiry.trade_session_id && (
+              <Section id="trade-documents">
+                <SectionHeader>
+                  <SectionTitle>Trade Documents</SectionTitle>
+                </SectionHeader>
+                <TradeDocumentsPanel
+                  entityType="inquiry"
+                  entityId={String(inquiry.id)}
+                  tradeSessionId={inquiry.trade_session_id}
+                />
+              </Section>
+            )}
 
             {/* AI Insights & Workflow */}
             <Section>

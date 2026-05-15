@@ -34,6 +34,8 @@ interface StepAction {
   label: string;
   /** Section of the record to scroll to or highlight */
   section?: string;
+  /** Document type(s) related to this action — shown inline when action is active */
+  documentTypes?: string[];
 }
 
 interface TradeStep {
@@ -57,7 +59,7 @@ export const TRADE_STEPS: TradeStep[] = [
       { label: 'Add products and pricing', section: 'products' },
       { label: 'Add supplier bids', section: 'supplier-bids' },
       { label: 'Set respond-by & fulfillment dates', section: 'supplier-bids' },
-      { label: 'Send quote to customer', section: 'actions' },
+      { label: 'Send quote to customer', section: 'actions', documentTypes: ['quote', 'email'] },
       { label: 'Accept or reject deal', section: 'status' },
     ],
   },
@@ -68,9 +70,9 @@ export const TRADE_STEPS: TradeStep[] = [
     description: 'Supplier PO created and approved',
     entityType: 'purchase_order',
     requiredActions: [
-      { label: 'Review PO details', section: 'details' },
+      { label: 'Review PO details', section: 'details', documentTypes: ['purchase_order', 'pdf'] },
       { label: 'Approve purchase order', section: 'status' },
-      { label: 'Send to supplier', section: 'actions' },
+      { label: 'Send to supplier', section: 'actions', documentTypes: ['email'] },
     ],
   },
   {
@@ -80,8 +82,8 @@ export const TRADE_STEPS: TradeStep[] = [
     description: 'Customer sales order confirmed',
     entityType: 'sales_order',
     requiredActions: [
-      { label: 'Review SO details', section: 'details' },
-      { label: 'Get customer confirmation', section: 'actions' },
+      { label: 'Review SO details', section: 'details', documentTypes: ['sales_order', 'pdf'] },
+      { label: 'Get customer confirmation', section: 'actions', documentTypes: ['email', 'confirmation'] },
       { label: 'Approve sales order', section: 'status' },
     ],
   },
@@ -93,8 +95,8 @@ export const TRADE_STEPS: TradeStep[] = [
     entityType: 'carrier_po',
     requiredActions: [
       { label: 'Select carrier', section: 'carrier' },
-      { label: 'Confirm pickup/delivery schedule', section: 'schedule' },
-      { label: 'Approve carrier PO', section: 'status' },
+      { label: 'Confirm pickup/delivery schedule', section: 'schedule', documentTypes: ['bill_of_lading', 'pdf'] },
+      { label: 'Approve carrier PO', section: 'status', documentTypes: ['carrier_po', 'email'] },
     ],
   },
   {
@@ -104,9 +106,9 @@ export const TRADE_STEPS: TradeStep[] = [
     description: 'Product shipped and delivered',
     entityType: 'fulfillment',
     requiredActions: [
-      { label: 'Confirm shipment dispatched', section: 'dispatch' },
-      { label: 'Track delivery', section: 'tracking' },
-      { label: 'Confirm receipt', section: 'status' },
+      { label: 'Confirm shipment dispatched', section: 'dispatch', documentTypes: ['bill_of_lading', 'shipping_manifest'] },
+      { label: 'Track delivery', section: 'tracking', documentTypes: ['tracking', 'email'] },
+      { label: 'Confirm receipt', section: 'status', documentTypes: ['proof_of_delivery', 'pdf'] },
     ],
   },
   {
@@ -116,9 +118,9 @@ export const TRADE_STEPS: TradeStep[] = [
     description: 'Invoice sent and payment received',
     entityType: 'invoice',
     requiredActions: [
-      { label: 'Generate invoice', section: 'generate' },
-      { label: 'Send to customer', section: 'actions' },
-      { label: 'Track payment', section: 'payment' },
+      { label: 'Generate invoice', section: 'generate', documentTypes: ['invoice', 'pdf'] },
+      { label: 'Send to customer', section: 'actions', documentTypes: ['email'] },
+      { label: 'Track payment', section: 'payment', documentTypes: ['payment_receipt', 'remittance'] },
     ],
   },
 ];
@@ -154,6 +156,8 @@ const StageDocumentsContent: React.FC<{
   isDone: boolean;
   onActionClick?: (action: StepAction, step: TradeStep) => void;
 }> = ({ stageKey, tradeSessionId, step, isActive, isDone, onActionClick }) => {
+  const [selectedAction, setSelectedAction] = useState<StepAction | null>(null);
+
   const queryKey = useMemo(
     () => withTenantQueryKey('trade-docs-stage', stageKey, String(tradeSessionId ?? '')),
     [stageKey, tradeSessionId],
@@ -171,6 +175,27 @@ const StageDocumentsContent: React.FC<{
     retry: false,
   });
 
+  // Filter docs relevant to the selected action (by document_type match)
+  const filteredDocs = useMemo(() => {
+    if (!docs) return [];
+    if (!selectedAction?.documentTypes?.length) return docs;
+    return docs.filter((d) => selectedAction.documentTypes!.includes(d.document_type));
+  }, [docs, selectedAction]);
+
+  const handleActionClick = useCallback(
+    (action: StepAction) => {
+      // Toggle: if same action is clicked again, deselect
+      setSelectedAction((prev) => (prev?.label === action.label ? null : action));
+      onActionClick?.(action, step);
+    },
+    [onActionClick, step],
+  );
+
+  const displayDocs = selectedAction ? filteredDocs : (docs ?? []);
+  const docsLabel = selectedAction
+    ? `Related Documents (${filteredDocs.length})`
+    : `Documents ${docs && docs.length > 0 ? `(${docs.length})` : ''}`;
+
   return (
     <PopoverContent>
       <PopoverTitle>{step.label}</PopoverTitle>
@@ -183,13 +208,19 @@ const StageDocumentsContent: React.FC<{
             {step.requiredActions.map((action) => (
               <ActionItem
                 key={action.label}
-                $clickable={Boolean(onActionClick)}
-                onClick={() => onActionClick?.(action, step)}
-                role={onActionClick ? 'button' : undefined}
-                tabIndex={onActionClick ? 0 : undefined}
+                $clickable
+                $selected={selectedAction?.label === action.label}
+                onClick={() => handleActionClick(action)}
+                role="button"
+                tabIndex={0}
               >
                 {action.label}
-                {onActionClick && <ArrowUpRight size={10} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
+                {action.documentTypes && action.documentTypes.length > 0 && (
+                  <Paperclip size={10} style={{ marginLeft: 'auto', opacity: 0.4 }} />
+                )}
+                {!action.documentTypes && onActionClick && (
+                  <ArrowUpRight size={10} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+                )}
               </ActionItem>
             ))}
           </ActionList>
@@ -205,16 +236,18 @@ const StageDocumentsContent: React.FC<{
       )}
 
       <PopoverSection>
-        <PopoverSectionTitle>
-          Documents {docs && docs.length > 0 ? `(${docs.length})` : ''}
-        </PopoverSectionTitle>
+        <PopoverSectionTitle>{docsLabel}</PopoverSectionTitle>
         {isLoading ? (
           <Spin size="small" />
-        ) : !docs || docs.length === 0 ? (
-          <NoDocs>No documents in this stage yet.</NoDocs>
+        ) : displayDocs.length === 0 ? (
+          <NoDocs>
+            {selectedAction
+              ? 'No documents linked to this action yet.'
+              : 'No documents in this stage yet.'}
+          </NoDocs>
         ) : (
           <DocList>
-            {docs.map((doc: TradeDocument) => (
+            {displayDocs.map((doc: TradeDocument) => (
               <DocItem key={doc.id}>
                 <DocDirection>
                   {doc.direction === 'sent' ? (
@@ -484,9 +517,9 @@ const ActionList = styled.ul`
   list-style: none;
 `;
 
-const ActionItem = styled.li<{ $clickable?: boolean }>`
+const ActionItem = styled.li<{ $clickable?: boolean; $selected?: boolean }>`
   font-size: 12px;
-  color: rgb(var(--color-text-secondary));
+  color: ${({ $selected }) => $selected ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   margin-bottom: 2px;
   padding: 4px 8px;
   border-radius: var(--radius-sm, 4px);
@@ -494,6 +527,7 @@ const ActionItem = styled.li<{ $clickable?: boolean }>`
   align-items: center;
   gap: 4px;
   cursor: ${({ $clickable }) => $clickable ? 'pointer' : 'default'};
+  background: ${({ $selected }) => $selected ? 'rgba(var(--color-primary), 0.12)' : 'transparent'};
 
   &::before {
     content: '→';

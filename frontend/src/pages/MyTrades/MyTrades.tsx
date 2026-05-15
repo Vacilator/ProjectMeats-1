@@ -30,6 +30,7 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 import { traderService, type TradeSession } from '@/services/traderService';
 import { TradeLineageFlow } from '@/components/Cockpit/TradeLineageFlow';
 import { TradeWorkflowStepper } from '@/components/Workflow/TradeWorkflowStepper';
+import { TradeDocumentsPanel } from '@/components/Trader/TradeDocumentsPanel';
 import { logger } from '@/utils/logger';
 
 /** Human-readable label for orchestrator step values */
@@ -408,6 +409,14 @@ const MyTrades: React.FC = () => {
                     <FlowSection>
                       <FlowLabel>Trade Lineage</FlowLabel>
                       <TradeLineageFlow inquiryId={trade.inquiry_id} compact />
+                    </FlowSection>
+                    <FlowSection>
+                      <FlowLabel>Documents</FlowLabel>
+                      <TradeDocumentsPanel
+                        entityType="inquiry"
+                        entityId={String(trade.inquiry_id)}
+                        tradeSessionId={trade.id}
+                      />
                     </FlowSection>
                   </TradeCardBody>
                 )}
