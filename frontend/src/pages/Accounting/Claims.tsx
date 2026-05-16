@@ -472,7 +472,7 @@ export const Claims: React.FC = () => {
 
   const handleStatusUpdate = async (claimId: number, newStatus: ClaimStatus, notes?: string) => {
     try {
-      const updateData: any = { status: newStatus };
+      const updateData: Record<string, unknown> = { status: newStatus };
       if (notes) {
         updateData.resolution_notes = notes;
       }

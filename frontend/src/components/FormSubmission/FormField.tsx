@@ -27,8 +27,8 @@ export interface FieldConfig {
 
 interface FormFieldProps {
   field: FieldConfig;
-  value: any;
-  onChange: (value: any) => void;
+  value: unknown;
+  onChange: (value: unknown) => void;
   onBlur: () => void;
   disabled?: boolean;
   error?: string;
@@ -288,7 +288,7 @@ const FormField: React.FC<FormFieldProps> = ({
     };
   }, []);
 
-  const handleChange = useCallback((newValue: any) => {
+  const handleChange = useCallback((newValue: unknown) => {
     setLocalValue(newValue);
     
     // Debounce onChange for text inputs
@@ -332,6 +332,7 @@ const FormField: React.FC<FormFieldProps> = ({
   }, [localValue, onChange, onBlur]);
 
   const renderField = () => {
+    const stringValue = typeof localValue === 'string' || typeof localValue === 'number' ? localValue : String(localValue ?? '');
     const commonProps = {
       id: field.key,
       disabled,
@@ -346,7 +347,7 @@ const FormField: React.FC<FormFieldProps> = ({
           <Input
             {...commonProps}
             type={field.type}
-            value={localValue || ''}
+            value={stringValue}
             placeholder={field.placeholder}
             onChange={(e) => handleChange(e.target.value)}
             onBlur={handleBlur}
@@ -385,7 +386,7 @@ const FormField: React.FC<FormFieldProps> = ({
           <Input
             {...commonProps}
             type="number"
-            value={localValue ?? ''}
+            value={stringValue}
             placeholder={field.placeholder}
             min={field.min}
             max={field.max}
@@ -400,7 +401,7 @@ const FormField: React.FC<FormFieldProps> = ({
           <Input
             {...commonProps}
             type="date"
-            value={localValue || ''}
+            value={stringValue}
             onChange={(e) => handleChange(e.target.value)}
             onBlur={handleBlur}
           />
@@ -411,7 +412,7 @@ const FormField: React.FC<FormFieldProps> = ({
           <Input
             {...commonProps}
             type="datetime-local"
-            value={localValue || ''}
+            value={stringValue}
             onChange={(e) => handleChange(e.target.value)}
             onBlur={handleBlur}
           />
@@ -422,7 +423,7 @@ const FormField: React.FC<FormFieldProps> = ({
           <Input
             {...commonProps}
             type="time"
-            value={localValue || ''}
+            value={stringValue}
             onChange={(e) => handleChange(e.target.value)}
             onBlur={handleBlur}
           />
@@ -455,7 +456,7 @@ const FormField: React.FC<FormFieldProps> = ({
         return (
           <Select
             {...commonProps}
-            value={localValue || ''}
+            value={stringValue}
             onChange={(e) => {
               handleChange(e.target.value);
               onBlur();
@@ -494,7 +495,7 @@ const FormField: React.FC<FormFieldProps> = ({
         return (
           <Textarea
             {...commonProps}
-            value={localValue || ''}
+            value={stringValue}
             placeholder={field.placeholder}
             rows={field.rows || 4}
             onChange={(e) => handleChange(e.target.value)}
@@ -523,7 +524,7 @@ const FormField: React.FC<FormFieldProps> = ({
           <Input
             {...commonProps}
             type="text"
-            value={localValue || ''}
+            value={stringValue}
             placeholder={field.placeholder}
             onChange={(e) => handleChange(e.target.value)}
             onBlur={handleBlur}

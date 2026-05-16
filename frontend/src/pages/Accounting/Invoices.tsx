@@ -432,7 +432,7 @@ const Invoices: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const params: any = {};
+      const params: Record<string, unknown> = {};
       if (statusFilter !== 'all') {
         params.status = statusFilter;
       }

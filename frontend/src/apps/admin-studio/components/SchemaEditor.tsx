@@ -623,7 +623,7 @@ const GhostRow = styled.tr`
 // Sortable row component
 const SortableRow: React.FC<{
   row: any;
-  onUpdate: (id: string, field: string, value: any) => void;
+  onUpdate: (id: string, field: string, value: unknown) => void;
   onDelete: (id: string) => void;
   onMoveUp: (id: string) => void;
   onMoveDown: (id: string) => void;
@@ -1114,7 +1114,7 @@ const SchemaEditor: React.FC = () => {
         try {
           const data = JSON.parse(event.target?.result as string);
           if (data.fields && Array.isArray(data.fields)) {
-            const importedFields: FieldDefinition[] = data.fields.map((f: any, i: number) => ({
+            const importedFields: FieldDefinition[] = data.fields.map((f: Record<string, unknown>, i: number) => ({
               ...f,
               id: `imported_${Date.now()}_${i}`,
             }));
@@ -1238,7 +1238,7 @@ const SchemaEditor: React.FC = () => {
     }
   };
 
-  const handleUpdate = (id: string, field: string, value: any) => {
+  const handleUpdate = (id: string, field: string, value: unknown) => {
     setFields((prev) =>
       prev.map((f) => (f.id === id ? { ...f, [field]: value } : f))
     );

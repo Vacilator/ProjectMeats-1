@@ -201,12 +201,15 @@ const AdminProfilePage: React.FC = () => {
       setLogoFile(null);
       window.dispatchEvent(new Event('tenant-branding-updated'));
     },
-    onError: (error: any) => {
-      const data = error?.response?.data;
+    onError: (error: unknown) => {
+      const errObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+      const resp = errObj.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : {};
+      const data = resp.data && typeof resp.data === 'object' ? (resp.data as Record<string, unknown>) : {};
+      const logoErrors = Array.isArray(data.logo) ? data.logo : [];
       const message =
-        data?.logo?.[0] ||
-        data?.detail ||
-        data?.message ||
+        (typeof logoErrors[0] === 'string' ? logoErrors[0] : undefined) ||
+        (typeof data.detail === 'string' ? data.detail : undefined) ||
+        (typeof data.message === 'string' ? data.message : undefined) ||
         'Failed to update profile';
       toast.error(message);
     },

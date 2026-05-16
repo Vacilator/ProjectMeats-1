@@ -75,7 +75,7 @@ interface CatalogItem {
   is_system_template?: boolean;
   created_at: string;
   updated_at: string;
-  flow_data?: any;
+  flow_data?: Record<string, unknown>;
 
   // TenantWorkForm list fields
   node_count?: number;
@@ -577,7 +577,7 @@ const FormsFlowsCatalog: React.FC = () => {
       await refreshQuickActions();
       showAlert({ type: 'success', title: 'Deleted', content: 'WorkForm deleted successfully.' });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       const ui = getWorkformsErrorUi(error, 'catalog.delete');
       showAlert({
         type: 'error',
@@ -646,25 +646,26 @@ const FormsFlowsCatalog: React.FC = () => {
         };
       });
 
-      const mappedTargets: CatalogItem[] = (Array.isArray(targets) ? targets : []).map((t: any) => {
-        const updated = String(t.updated_at ?? nowIso);
-        const created = String(t.created_at ?? updated);
+      const mappedTargets: CatalogItem[] = (Array.isArray(targets) ? targets : []).map((t) => {
+        const tRec = t as unknown as Record<string, unknown>;
+        const updated = String(tRec.updated_at ?? nowIso);
+        const created = String(tRec.created_at ?? updated);
         const isWorkform = t.type === 'workflow';
 
         return {
           id: String(t.id),
-          kind: isWorkform ? 'workform' : 'form',
+          kind: (isWorkform ? 'workform' : 'form') as CatalogItem['kind'],
           name: String(t.name ?? (isWorkform ? 'Untitled WorkForm' : 'Untitled Form')),
           description: String(t.description ?? ''),
-          status: (t.status as CatalogItem['status']) ?? 'draft',
-          icon: t.icon || (isWorkform ? '🧩' : '📋'),
-          entity_count: typeof t.entity_count === 'number' ? t.entity_count : 1,
-          is_multi_entity: Boolean(t.is_multi_entity),
-          is_system_template: Boolean(t.is_system_template),
+          status: ((t.status as CatalogItem['status']) ?? 'draft') as CatalogItem['status'],
+          icon: String(t.icon || (isWorkform ? '🧩' : '📋')),
+          entity_count: typeof tRec.entity_count === 'number' ? tRec.entity_count : 1,
+          is_multi_entity: Boolean(tRec.is_multi_entity),
+          is_system_template: Boolean(tRec.is_system_template),
           node_count: typeof t.node_count === 'number' ? t.node_count : undefined,
           created_at: created,
           updated_at: updated,
-          flow_data: t.flow_data,
+          flow_data: tRec.flow_data as Record<string, unknown> | undefined,
         };
       });
 
@@ -702,15 +703,19 @@ const FormsFlowsCatalog: React.FC = () => {
 
     if (form.flow_data?.nodes && Array.isArray(form.flow_data.nodes)) {
       const hasAdvancedNodes = form.flow_data.nodes.some(
-        (n: any) =>
-          n.type === 'formProcessGroup' ||
-          n.type === 'formProcess' ||
-          n.type === 'formMultiStepContainer' ||
-          n.type === 'conditionIf' ||
-          n.type === 'conditionSwitch' ||
-          (n.type && n.type.startsWith('action')) ||
-          (n.type && n.type.startsWith('trigger') && n.type !== 'triggerManual') ||
-          (n.type && n.type.startsWith('document'))
+        (n: Record<string, unknown>) => {
+          const nType = typeof n.type === 'string' ? n.type : '';
+          return (
+            nType === 'formProcessGroup' ||
+            nType === 'formProcess' ||
+            nType === 'formMultiStepContainer' ||
+            nType === 'conditionIf' ||
+            nType === 'conditionSwitch' ||
+            nType.startsWith('action') ||
+            (nType.startsWith('trigger') && nType !== 'triggerManual') ||
+            nType.startsWith('document')
+          );
+        }
       );
       if (hasAdvancedNodes) return true;
     }

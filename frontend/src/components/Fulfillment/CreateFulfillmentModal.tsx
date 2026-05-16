@@ -417,7 +417,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       });
       const data = response.data.results || response.data;
 
-      const options: SupplierOption[] = data.map((s: any) => ({
+      const options: SupplierOption[] = data.map((s: Record<string, unknown>) => ({
         id: s.id,
         name: s.name,
         productIds: s.products || [],
@@ -473,7 +473,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       const response = await businessApi.get('carriers/', { params: { is_active: true, page_size: 100 } });
       const data = response.data.results || response.data;
 
-      setCarrierOptions(data.map((c: any) => ({
+      setCarrierOptions(data.map((c: Record<string, unknown>) => ({
         id: c.id,
         name: c.name,
         code: c.code,

@@ -22,7 +22,7 @@ interface FormStepProps {
   stepSubmission: StepSubmission;
   submissionId: string;
   values: Record<string, unknown>;
-  onFieldChange: (fieldKey: string, value: any) => void;
+  onFieldChange: (fieldKey: string, value: unknown) => void;
   onFieldBlur: (fieldKey: string) => void;
   onCompleteStep: () => void;
   savingFields: Set<string>;

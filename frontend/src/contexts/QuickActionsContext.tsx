@@ -103,8 +103,10 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       return;
     }
 
-    const isAuthError = (err: any) => {
-      const status = err?.response?.status;
+    const isAuthError = (err: unknown) => {
+      const errObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : {};
+      const resp = errObj.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : {};
+      const status = resp.status;
       return status === 401 || status === 403;
     };
 

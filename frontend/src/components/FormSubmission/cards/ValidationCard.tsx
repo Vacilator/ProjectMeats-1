@@ -200,7 +200,8 @@ export const ValidationCard: React.FC<InteractionCardProps> = ({
   onComplete,
   readOnly = false,
 }) => {
-  const rawRules: string[] = node?.data?.validationRules || [];
+  const nodeData = (node?.data || {}) as Record<string, unknown>;
+  const rawRules: string[] = (Array.isArray(nodeData.validationRules) ? nodeData.validationRules : []) as string[];
   const rules = rawRules.map((r: string) => resolveTemplateString(r, context));
 
   const [checklist, setChecklist] = useState<ValidationItem[]>(
@@ -239,8 +240,8 @@ export const ValidationCard: React.FC<InteractionCardProps> = ({
         <div>
           <Title>Data Validation Required</Title>
           <Subtitle>
-            {node?.data?.description
-              ? resolveTemplateString(String(node.data.description), context)
+            {nodeData.description
+              ? resolveTemplateString(String(nodeData.description), context)
               : 'Review the data below and approve or reject'}
           </Subtitle>
         </div>

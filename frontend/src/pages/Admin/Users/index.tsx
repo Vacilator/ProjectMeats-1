@@ -27,6 +27,16 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { Modal as AntModal } from 'antd';
 
+/** Safely extract error detail from an unknown error (axios-like shape). */
+function extractErrorDetail(error: unknown, fallback: string): string {
+  const errObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+  const resp = errObj.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : {};
+  const data = resp.data && typeof resp.data === 'object' ? (resp.data as Record<string, unknown>) : {};
+  return (typeof data.error === 'string' ? data.error : undefined)
+    || (typeof data.detail === 'string' ? data.detail : undefined)
+    || fallback;
+}
+
 interface TenantUser {
   id: number;
   // Backend may return a user ID (numeric) plus flat identity fields.
@@ -201,7 +211,7 @@ const UsersPage: React.FC = () => {
       setShowInviteModal(false);
       setInviteEmail('');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error) || 'Failed to send invitation');
     },
   });
@@ -215,8 +225,8 @@ const UsersPage: React.FC = () => {
       toast.success('User role updated');
       setShowEditModal(false);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to update role');
+    onError: (error: unknown) => {
+      toast.error(extractErrorDetail(error, 'Failed to update role'));
     },
   });
 
@@ -228,8 +238,8 @@ const UsersPage: React.FC = () => {
       toast.success('User deactivated');
       setShowDeactivateConfirm(false);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to deactivate');
+    onError: (error: unknown) => {
+      toast.error(extractErrorDetail(error, 'Failed to deactivate'));
     },
   });
 
@@ -240,8 +250,8 @@ const UsersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-users') });
       toast.success('User reactivated');
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to reactivate');
+    onError: (error: unknown) => {
+      toast.error(extractErrorDetail(error, 'Failed to reactivate'));
     },
   });
 
@@ -254,8 +264,8 @@ const UsersPage: React.FC = () => {
       setShowRemoveConfirm(false);
       setSelectedUser(null);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.error || error.response?.data?.detail || 'Failed to remove user');
+    onError: (error: unknown) => {
+      toast.error(extractErrorDetail(error, 'Failed to remove user'));
     },
   });
 
@@ -266,8 +276,8 @@ const UsersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       toast.success('Invitation revoked');
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to revoke invitation');
+    onError: (error: unknown) => {
+      toast.error(extractErrorDetail(error, 'Failed to revoke invitation'));
     },
   });
 
@@ -278,7 +288,7 @@ const UsersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: withTenantQueryKey('tenant-invitations') });
       toast.success('Invitation resent');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error) || 'Failed to resend invitation');
     },
   });
@@ -379,7 +389,7 @@ const UsersPage: React.FC = () => {
           const email = getEmail(row);
           return email ? `${name} <${email}>` : name;
         },
-        render: (_: any, row: TenantUser) => (
+        render: (_: unknown, row: TenantUser) => (
           <div>
             <div style={{ fontWeight: 600 }}>{getDisplayName(row)}</div>
             <div style={{ fontSize: '12px', color: 'rgb(var(--color-text-secondary))' }}>{getEmail(row)}</div>

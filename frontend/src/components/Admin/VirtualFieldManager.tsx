@@ -40,7 +40,7 @@ interface FieldDefinition {
   field_label: string;
   field_type: FieldType;
   help_text?: string;
-  default_value?: any;
+  default_value?: unknown;
   validation_rules?: ValidationRules;
   is_required: boolean;
   display_order: number;

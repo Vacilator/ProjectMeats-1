@@ -372,7 +372,7 @@ export const WorkflowMonitor: React.FC = () => {
 
   const fetchWorkflows = async () => {
     try {
-      const params: any = { limit: 50 };
+      const params: Record<string, unknown> = { limit: 50 };
       if (filter !== 'all') {
         params.status = filter;
       }
