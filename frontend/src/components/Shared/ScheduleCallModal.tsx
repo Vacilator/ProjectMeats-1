@@ -533,7 +533,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   };
 
   const onInvalidSubmit = (formErrors: Record<string, unknown>) => {
-    const first = Object.values(formErrors)[0] as any;
+    const first = Object.values(formErrors)[0] as Record<string, unknown> | undefined;
     const msg = first && typeof first.message === 'string' ? String(first.message) : 'Please fix the highlighted fields.';
     setError(msg);
   };

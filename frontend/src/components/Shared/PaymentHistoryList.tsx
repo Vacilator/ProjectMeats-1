@@ -150,7 +150,7 @@ export const PaymentHistoryList: React.FC<PaymentHistoryListProps> = ({
 
       const raw: unknown = response.data;
       const responseData: PaymentTransaction[] =
-        Array.isArray(raw) ? (raw as PaymentTransaction[]) : Array.isArray((raw as any)?.results) ? ((raw as any).results as PaymentTransaction[]) : [];
+        Array.isArray(raw) ? (raw as PaymentTransaction[]) : Array.isArray((raw as Record<string, unknown>)?.results) ? ((raw as Record<string, unknown>).results as PaymentTransaction[]) : [];
 
       // Sort by payment date (newest first)
       const sortedPayments = responseData

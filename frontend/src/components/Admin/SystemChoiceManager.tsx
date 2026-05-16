@@ -102,9 +102,9 @@ export const SystemChoiceManager: React.FC<SystemChoiceManagerProps> = ({
     setIsLoading(true);
     try {
       const response = await businessApi.get(`/system/choice-lists/${listId}/items/?limit=1000`);
-      const raw = response.data as any;
-      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      setItems(data);
+      const raw = response.data as Record<string, unknown>;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? (raw.results as unknown[]) : [];
+      setItems(data as SystemChoiceItem[]);
     } catch (error) {
       logger.error('Failed to load items', { component: 'SystemChoiceManager' }, error);
       setItems([]);

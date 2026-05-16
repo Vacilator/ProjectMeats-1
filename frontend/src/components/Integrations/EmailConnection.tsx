@@ -49,7 +49,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const config = providerConfig[provider];
-  const isComingSoon = 'comingSoon' in config && Boolean((config as any).comingSoon);
+  const isComingSoon = 'comingSoon' in config && Boolean((config as Record<string, unknown>).comingSoon);
 
   const handleConnect = async () => {
     if (isComingSoon) {

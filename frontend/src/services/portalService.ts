@@ -15,19 +15,20 @@ const portalApiClient = axios.create({
 });
 
 portalApiClient.interceptors.request.use((requestConfig) => {
-  const headersAny = requestConfig.headers as any;
+  const headers = requestConfig.headers as Record<string, unknown>;
 
-  if (headersAny) {
-    if (typeof headersAny.delete === 'function') {
-      headersAny.delete('Authorization');
-      headersAny.delete('authorization');
-      headersAny.delete('X-Tenant-ID');
-      headersAny.delete('x-tenant-id');
+  if (headers) {
+    if (typeof (headers as { delete?: unknown }).delete === 'function') {
+      const h = headers as unknown as { delete: (key: string) => void };
+      h.delete('Authorization');
+      h.delete('authorization');
+      h.delete('X-Tenant-ID');
+      h.delete('x-tenant-id');
     } else {
-      delete headersAny.Authorization;
-      delete headersAny.authorization;
-      delete headersAny['X-Tenant-ID'];
-      delete headersAny['x-tenant-id'];
+      delete headers.Authorization;
+      delete headers.authorization;
+      delete headers['X-Tenant-ID'];
+      delete headers['x-tenant-id'];
     }
   }
 

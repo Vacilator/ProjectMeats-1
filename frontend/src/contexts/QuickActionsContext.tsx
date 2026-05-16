@@ -179,12 +179,12 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       const workformsEnrichment = (Array.isArray(workformsResponse) ? workformsResponse : [])
         .filter((wf) => wf.status === 'active' || wf.status === 'draft')
         .map((wf) => {
-          const anyWf = wf as any;
+          const wfRec = wf as unknown as Record<string, unknown>;
           const nodeCount =
-            typeof anyWf.node_count === 'number'
-              ? anyWf.node_count
-              : typeof anyWf.step_count === 'number'
-                ? anyWf.step_count
+            typeof wfRec.node_count === 'number'
+              ? wfRec.node_count
+              : typeof wfRec.step_count === 'number'
+                ? wfRec.step_count
                 : null;
 
           return {
@@ -196,7 +196,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
             status: wf.status,
             is_default: false,
             is_quick_action_enabled: true,
-            step_count: typeof anyWf.step_count === 'number' ? anyWf.step_count : 0,
+            step_count: typeof wfRec.step_count === 'number' ? (wfRec.step_count as number) : 0,
             node_count: nodeCount,
           } as AvailableForm;
         });

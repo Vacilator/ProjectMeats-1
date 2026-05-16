@@ -434,11 +434,11 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
       try {
         const endpoint = entityType === 'supplier' ? '/suppliers/' : '/customers/';
         const resp = await businessApi.get(endpoint, { params: { page_size: 500 } });
-        const rows = (resp.data?.results ?? resp.data) as any[];
+        const rows = (resp.data?.results ?? resp.data) as Record<string, unknown>[];
         setEntityOptions(
-          (Array.isArray(rows) ? rows : []).map((r: any) => ({
-            id: r.id,
-            name: r.name || r.company_name || r.title || `${entityType} #${r.id}`,
+          (Array.isArray(rows) ? rows : []).map((r: Record<string, unknown>) => ({
+            id: Number(r.id) || 0,
+            name: String(r.name || r.company_name || r.title || `${entityType} #${r.id}`),
           }))
         );
       } catch {
