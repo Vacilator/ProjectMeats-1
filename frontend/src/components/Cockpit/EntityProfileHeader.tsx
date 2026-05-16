@@ -216,13 +216,13 @@ const formatScalar = (value: unknown): string => {
         if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
         if (v instanceof Date) return v.toISOString();
         if (typeof v === 'object') {
-          const anyV = v as any;
+          const obj = v as Record<string, unknown>;
           return String(
-            anyV.name ??
-              anyV.title ??
-              anyV.label ??
-              anyV.product_code ??
-              anyV.id ??
+            obj.name ??
+              obj.title ??
+              obj.label ??
+              obj.product_code ??
+              obj.id ??
               ''
           );
         }
@@ -240,7 +240,7 @@ const formatScalar = (value: unknown): string => {
 
 const isEntityReference = (value: unknown): value is EntityReference => {
   if (!value || typeof value !== 'object') return false;
-  const v = value as any;
+  const v = value as Record<string, unknown>;
   return 'id' in v && (typeof v.id === 'string' || typeof v.id === 'number');
 };
 
@@ -295,11 +295,11 @@ const ProductListSection: React.FC<{
           },
         });
 
-        const raw = resp.data as any;
-        const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-        const next = rows.map((p: any) => ({
+        const raw = resp.data as Record<string, unknown>;
+        const rows: Record<string, unknown>[] = Array.isArray(raw) ? raw : Array.isArray((raw as Record<string, unknown>)?.results) ? (raw as Record<string, unknown>).results as Record<string, unknown>[] : [];
+        const next = rows.map((p) => ({
           value: String(p.id),
-          label: `${p.product_code ? `${p.product_code} - ` : ''}${p.name || p.effective_name || ''}`.trim() || String(p.id),
+          label: `${p.product_code ? `${p.product_code} - ` : ''}${(p.name || p.effective_name || '') as string}`.trim() || String(p.id),
         }));
 
         // Replace options for the current search (so the dropdown actually narrows),
@@ -454,8 +454,8 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
         if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
         if (v instanceof Date) return v.toISOString();
         if (typeof v === 'object') {
-          const anyV = v as any;
-          return String(anyV.name ?? anyV.title ?? anyV.label ?? anyV.id ?? '');
+          const obj = v as Record<string, unknown>;
+          return String(obj.name ?? obj.title ?? obj.label ?? obj.id ?? '');
         }
         return String(v);
       })
@@ -507,23 +507,24 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
   }, [debouncedPatch]);
 
   const preferredProducts = useMemo(() => {
-    const fieldsAny = (data?.fields ?? {}) as any;
-    const metaAny = (data?.metadata ?? {}) as any;
-    const raw = fieldsAny?.preferred_products ?? metaAny?.preferred_products;
+    const fields = (data?.fields ?? {}) as Record<string, unknown>;
+    const meta = (data?.metadata ?? {}) as Record<string, unknown>;
+    const raw = fields?.preferred_products ?? meta?.preferred_products;
 
     if (!Array.isArray(raw)) return [] as ProductListEntry[];
 
     return raw
-      .map((item: any) => {
+      .map((item: unknown) => {
         if (!item) return null;
         if (typeof item === 'string') return { id: item, name: item };
         if (typeof item === 'object') {
-          const id = String(item.id ?? '').trim();
+          const obj = item as Record<string, unknown>;
+          const id = String(obj.id ?? '').trim();
           if (!id) return null;
           return {
             id,
-            product_code: item.product_code ? String(item.product_code) : undefined,
-            name: item.name ? String(item.name) : undefined,
+            product_code: obj.product_code ? String(obj.product_code) : undefined,
+            name: obj.name ? String(obj.name) : undefined,
           };
         }
         return null;
@@ -532,23 +533,24 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
   }, [data?.fields, data?.metadata]);
 
   const activeProducts = useMemo(() => {
-    const fieldsAny = (data?.fields ?? {}) as any;
-    const metaAny = (data?.metadata ?? {}) as any;
-    const raw = fieldsAny?.active_products ?? metaAny?.active_products;
+    const fields = (data?.fields ?? {}) as Record<string, unknown>;
+    const meta = (data?.metadata ?? {}) as Record<string, unknown>;
+    const raw = fields?.active_products ?? meta?.active_products;
 
     if (!Array.isArray(raw)) return [] as ProductListEntry[];
 
     return raw
-      .map((item: any) => {
+      .map((item: unknown) => {
         if (!item) return null;
         if (typeof item === 'string') return { id: item, name: item };
         if (typeof item === 'object') {
-          const id = String(item.id ?? '').trim();
+          const obj = item as Record<string, unknown>;
+          const id = String(obj.id ?? '').trim();
           if (!id) return null;
           return {
             id,
-            product_code: item.product_code ? String(item.product_code) : undefined,
-            name: item.name ? String(item.name) : undefined,
+            product_code: obj.product_code ? String(obj.product_code) : undefined,
+            name: obj.name ? String(obj.name) : undefined,
           };
         }
         return null;
@@ -904,9 +906,9 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
             const isSupplier = type === 'supplier';
             const isCustomer = type === 'customer';
 
-            const proteinTypesRaw = ((data?.fields ?? {}) as any)?.preferred_protein_types;
+            const proteinTypesRaw = ((data?.fields ?? {}) as Record<string, unknown>)?.preferred_protein_types;
             const proteinFilter = Array.isArray(proteinTypesRaw)
-              ? proteinTypesRaw.map((v: any) => String(v).toLowerCase()).filter(Boolean)
+              ? proteinTypesRaw.map((v: unknown) => String(v).toLowerCase()).filter(Boolean)
               : [];
 
             const preferredIds = new Set(preferredProducts.map((p) => p.id));

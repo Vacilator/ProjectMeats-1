@@ -7,7 +7,7 @@ import React from 'react';
 import styled from 'styled-components';
 
 interface RoleBadgeProps {
-  role: 'owner' | 'admin' | 'manager' | 'user' | 'readonly';
+  role: string;
 }
 
 export const RoleBadge: React.FC<RoleBadgeProps> = ({ role }) => {
