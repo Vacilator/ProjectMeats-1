@@ -1492,3 +1492,98 @@ class TradeExceptionQueue(TenantAwareModel):
 
     def __str__(self):
         return f"[{self.status}] {self.failed_step} - {self.error_message[:50]}"
+
+
+class RuntimeErrorLog(TimestampModel):
+    """Persists frontend/backend runtime errors for diagnostics.
+
+    NOT tenant-aware — errors can occur before tenant context is established.
+    Optional tenant_id stored as metadata for filtering.
+    Old entries are auto-pruned by management command or DB job.
+    """
+
+    LEVEL_CHOICES = [
+        ("error", "Error"),
+        ("warn", "Warning"),
+        ("fatal", "Fatal"),
+    ]
+
+    SOURCE_CHOICES = [
+        ("frontend", "Frontend"),
+        ("backend", "Backend"),
+        ("api", "API"),
+    ]
+
+    level = models.CharField(
+        max_length=10,
+        choices=LEVEL_CHOICES,
+        default="error",
+        db_index=True,
+    )
+    source = models.CharField(
+        max_length=10,
+        choices=SOURCE_CHOICES,
+        default="frontend",
+        db_index=True,
+    )
+    message = models.TextField(help_text="Error message (truncated to 2000 chars).")
+    stack_trace = models.TextField(
+        blank=True, default="", help_text="Stack trace if available."
+    )
+    component = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Component/module where error occurred.",
+    )
+    url = models.URLField(
+        max_length=2048,
+        blank=True,
+        default="",
+        help_text="Page URL when error occurred.",
+    )
+    user_agent = models.CharField(
+        max_length=512,
+        blank=True,
+        default="",
+        help_text="Browser user agent string.",
+    )
+    tenant_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Tenant context (if available when error occurred).",
+    )
+    user_id = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="User ID (if authenticated when error occurred).",
+    )
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional context (API status, request method, etc.).",
+    )
+    fingerprint = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="SHA-256 hash for deduplication.",
+    )
+    occurrence_count = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of times this exact error has been seen.",
+    )
+
+    class Meta:
+        ordering = ["-created_on"]
+        indexes = [
+            models.Index(fields=["-created_on"]),
+            models.Index(fields=["source", "level", "-created_on"]),
+            models.Index(fields=["fingerprint"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.level}/{self.source}] {self.message[:80]}"

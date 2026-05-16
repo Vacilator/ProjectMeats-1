@@ -1534,3 +1534,178 @@ def sentry_issue_created_webhook(request):
     except Exception as e:
         logger.warning('[SentryWebhook] failed to process payload: %s', str(e), exc_info=True)
         return Response({'ok': False}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Runtime Error Log — Frontend Error Reporting
+# ---------------------------------------------------------------------------
+
+import hashlib
+
+from rest_framework.throttling import AnonRateThrottle
+
+
+class ErrorReportThrottle(AnonRateThrottle):
+    """Limit error report submissions to prevent abuse."""
+    rate = '30/minute'
+
+
+@extend_schema(
+    tags=["Diagnostics"],
+    request=None,
+    responses={201: OpenApiTypes.OBJECT},
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@throttle_classes([ErrorReportThrottle])
+def report_error(request):
+    """Accept a frontend error report and persist it for diagnostics."""
+    from apps.core.serializers import RuntimeErrorLogCreateSerializer
+    from apps.core.models import RuntimeErrorLog
+
+    serializer = RuntimeErrorLogCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    # Build fingerprint for deduplication
+    fp_source = f"{data['source']}:{data['message'][:200]}:{data.get('component', '')}"
+    fingerprint = hashlib.sha256(fp_source.encode()).hexdigest()[:64]
+
+    # Deduplicate: increment count if same fingerprint in last hour
+    one_hour_ago = timezone.now() - timedelta(hours=1)
+    existing = RuntimeErrorLog.objects.filter(
+        fingerprint=fingerprint, created_on__gte=one_hour_ago
+    ).order_by('-created_on').first()
+
+    if existing:
+        existing.occurrence_count += 1
+        existing.save(update_fields=['occurrence_count', 'modified_on'])
+        return Response(
+            {"status": "deduplicated", "id": existing.id},
+            status=status.HTTP_200_OK,
+        )
+
+    # Extract user/tenant context if authenticated
+    user_id = None
+    tenant_id = None
+    if request.user and request.user.is_authenticated:
+        user_id = request.user.id
+    if hasattr(request, 'tenant') and request.tenant:
+        tenant_id = request.tenant.id
+
+    entry = RuntimeErrorLog.objects.create(
+        level=data['level'],
+        source=data['source'],
+        message=data['message'][:2000],
+        stack_trace=data.get('stack_trace', '')[:8000],
+        component=data.get('component', '')[:255],
+        url=data.get('url', '')[:2048],
+        user_agent=request.META.get('HTTP_USER_AGENT', '')[:512],
+        tenant_id=tenant_id,
+        user_id=user_id,
+        metadata=data.get('metadata', {}),
+        fingerprint=fingerprint,
+    )
+
+    return Response(
+        {"status": "created", "id": entry.id},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+class RuntimeErrorLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Admin-only read access to runtime error logs for diagnostics."""
+
+    from apps.core.serializers import RuntimeErrorLogSerializer
+    from apps.core.models import RuntimeErrorLog
+
+    serializer_class = RuntimeErrorLogSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        from apps.core.models import RuntimeErrorLog
+
+        if not (self.request.user.is_staff or self.request.user.is_superuser):
+            return RuntimeErrorLog.objects.none()
+
+        qs = RuntimeErrorLog.objects.all()
+
+        # Filters
+        level = self.request.query_params.get('level')
+        if level:
+            qs = qs.filter(level=level)
+
+        source = self.request.query_params.get('source')
+        if source:
+            qs = qs.filter(source=source)
+
+        component = self.request.query_params.get('component')
+        if component:
+            qs = qs.filter(component__icontains=component)
+
+        since = self.request.query_params.get('since')
+        if since:
+            qs = qs.filter(created_on__gte=since)
+
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(
+                Q(message__icontains=search) | Q(component__icontains=search)
+            )
+
+        return qs[:500]
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Return aggregated error stats for the dashboard."""
+        from apps.core.models import RuntimeErrorLog
+        from django.db.models import Count, Sum
+
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        last_24h = timezone.now() - timedelta(hours=24)
+        last_7d = timezone.now() - timedelta(days=7)
+
+        qs_24h = RuntimeErrorLog.objects.filter(created_on__gte=last_24h)
+        qs_7d = RuntimeErrorLog.objects.filter(created_on__gte=last_7d)
+
+        by_level_24h = dict(
+            qs_24h.values_list('level').annotate(
+                total=Sum('occurrence_count')
+            ).values_list('level', 'total')
+        )
+        by_source_24h = dict(
+            qs_24h.values_list('source').annotate(
+                total=Sum('occurrence_count')
+            ).values_list('source', 'total')
+        )
+        top_components = list(
+            qs_7d.values('component')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:10]
+        )
+
+        return Response({
+            "last_24h": {
+                "total": qs_24h.aggregate(total=Sum('occurrence_count'))['total'] or 0,
+                "by_level": by_level_24h,
+                "by_source": by_source_24h,
+            },
+            "last_7d": {
+                "total": qs_7d.aggregate(total=Sum('occurrence_count'))['total'] or 0,
+                "top_components": top_components,
+            },
+        })
+
+    @action(detail=False, methods=['delete'])
+    def prune(self, request):
+        """Delete error logs older than 30 days."""
+        from apps.core.models import RuntimeErrorLog
+
+        if not request.user.is_superuser:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        cutoff = timezone.now() - timedelta(days=30)
+        count, _ = RuntimeErrorLog.objects.filter(created_on__lt=cutoff).delete()
+        return Response({"pruned": count})

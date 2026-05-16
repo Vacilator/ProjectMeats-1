@@ -10,6 +10,7 @@
  * - Global 401 handling: clears local auth + hard-redirects to /login when refresh fails/missing
  */
 import axios, { AxiosError as AxiosErrorType, AxiosHeaders, InternalAxiosRequestConfig } from 'axios';
+import { reportApiError } from './errorReportingService';
 
 // Type-safe helpers for Axios internal types that lack proper generics
 type AxiosHeadersLike = AxiosHeaders | Record<string, string | undefined>;
@@ -356,6 +357,15 @@ apiClient.interceptors.response.use(
         // best-effort
       }
 
+      // Persist to backend error log
+      reportApiError(
+        originalRequest?.url || 'unknown',
+        originalRequest?.method || 'unknown',
+        status,
+        friendlyMessage,
+        error.response?.data,
+      );
+
       return Promise.reject(
         createCircuitBreakerError({
           friendlyMessage,
@@ -471,6 +481,14 @@ adminClient.interceptors.response.use(
           method: originalRequest?.method,
         });
       }
+
+      reportApiError(
+        originalRequest?.url || 'unknown',
+        originalRequest?.method || 'unknown',
+        status,
+        friendlyMessage,
+        error.response?.data,
+      );
 
       return Promise.reject(
         createCircuitBreakerError({

@@ -10,6 +10,7 @@
  */
 
 import { sanitizeTelemetryData, sanitizeTelemetryString } from './telemetrySanitizer';
+import { reportError as reportErrorToBackend, reportErrorObject } from '@/services/errorReportingService';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -222,6 +223,20 @@ class Logger {
           },
         });
       }
+    }
+
+    // Send to backend error reporting service for persistence
+    if (rawSentryData instanceof Error) {
+      reportErrorObject(rawSentryData, {
+        component: hasAnyContextKey ? (ctx?.component || '') : undefined,
+      });
+    } else {
+      reportErrorToBackend(message, {
+        component: hasAnyContextKey ? (ctx?.component || '') : undefined,
+        metadata: hasAnyContextKey && ctx?.metadata
+          ? (ctx.metadata as Record<string, unknown>)
+          : undefined,
+      });
     }
   }
 

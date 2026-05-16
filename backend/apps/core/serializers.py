@@ -746,3 +746,58 @@ class PortalGrantIssueResponseSerializer(serializers.Serializer):
 
 class PortalGrantHistoryResponseSerializer(serializers.Serializer):
     events = TenantAuditEventSerializer(many=True)
+
+
+# ---------------------------------------------------------------------------
+# Runtime Error Log
+# ---------------------------------------------------------------------------
+
+class RuntimeErrorLogCreateSerializer(serializers.Serializer):
+    """Accepts error reports from the frontend — no model binding for safety."""
+
+    level = serializers.ChoiceField(
+        choices=["error", "warn", "fatal"], default="error"
+    )
+    source = serializers.ChoiceField(
+        choices=["frontend", "backend", "api"], default="frontend"
+    )
+    message = serializers.CharField(max_length=2000)
+    stack_trace = serializers.CharField(
+        max_length=8000, required=False, default="", allow_blank=True
+    )
+    component = serializers.CharField(
+        max_length=255, required=False, default="", allow_blank=True
+    )
+    url = serializers.CharField(
+        max_length=2048, required=False, default="", allow_blank=True
+    )
+    user_agent = serializers.CharField(
+        max_length=512, required=False, default="", allow_blank=True
+    )
+    metadata = serializers.JSONField(required=False, default=dict)
+
+
+class RuntimeErrorLogSerializer(serializers.ModelSerializer):
+    """Read-only serializer for admin diagnostics."""
+
+    class Meta:
+        from apps.core.models import RuntimeErrorLog
+
+        model = RuntimeErrorLog
+        fields = [
+            "id",
+            "level",
+            "source",
+            "message",
+            "stack_trace",
+            "component",
+            "url",
+            "user_agent",
+            "tenant_id",
+            "user_id",
+            "metadata",
+            "fingerprint",
+            "occurrence_count",
+            "created_on",
+        ]
+        read_only_fields = fields

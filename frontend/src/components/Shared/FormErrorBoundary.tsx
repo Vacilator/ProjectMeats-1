@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { logger } from '@/utils/logger';
+import { captureSentryException } from '@/utils/sentry';
 
 interface FormErrorBoundaryProps {
   children: React.ReactNode;
@@ -97,6 +98,13 @@ export class FormErrorBoundary extends React.Component<FormErrorBoundaryProps, F
       { component: 'FormErrorBoundary' },
       { error, errorInfo },
     );
+    captureSentryException(error, {
+      component: 'FormErrorBoundary',
+      metadata: {
+        entityType: this.props.entityType ?? 'Form',
+        componentStack: errorInfo?.componentStack,
+      },
+    });
   }
 
   handleRetry = () => {
