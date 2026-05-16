@@ -9,7 +9,7 @@
  * - Clone inquiry
  * - Edit contact and notes
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { message } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
@@ -604,6 +604,52 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   const [_updatingStatus, setUpdatingStatus] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Focus management: trap focus inside modal and restore on close
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      // Focus the close button or first focusable element after mount
+      requestAnimationFrame(() => {
+        const closeBtn = modalRef.current?.querySelector<HTMLElement>('[aria-label="Close inquiry details"]');
+        closeBtn?.focus();
+      });
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus();
+      previousFocusRef.current = null;
+    }
+  }, [isOpen]);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      // Focus trap: Tab/Shift+Tab cycle within modal
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const handleFulfillmentClose = useCallback(() => setShowFulfillmentModal(false), []);
 
@@ -669,8 +715,8 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
 
   return (
     <>
-      <InquiryModalOverlay $open={isOpen} onClick={onClose}>
-        <InquiryModalContainer data-testid="inquiry-detail-modal" $maxWidth={900} onClick={(e) => e.stopPropagation()}>
+      <InquiryModalOverlay $open={isOpen} onClick={onClose} role="dialog" aria-modal="true" aria-label={`Inquiry ${inquiry.inquiry_number} details`}>
+        <InquiryModalContainer ref={modalRef} data-testid="inquiry-detail-modal" $maxWidth={900} onClick={(e) => e.stopPropagation()}>
           <ModalHeader>
             <HeaderLeft>
               <ModalTitle>

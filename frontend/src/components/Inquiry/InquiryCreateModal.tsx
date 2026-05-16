@@ -9,7 +9,7 @@
  * - Actually create an Inquiry on save
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 
 import { useZodForm } from '@/hooks/useZodForm';
@@ -475,6 +475,22 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
   const submitting = form.formState.isSubmitting;
   const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Focus management: save previous focus and restore on close
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      requestAnimationFrame(() => {
+        const firstInput = modalRef.current?.querySelector<HTMLElement>('input, select, textarea');
+        firstInput?.focus();
+      });
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus();
+      previousFocusRef.current = null;
+    }
+  }, [isOpen]);
 
   const entityType = form.watch('entityType');
   const entityId = form.watch('entityId');
@@ -741,8 +757,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   const entityIdField = form.register('entityId');
 
   return (
-    <Overlay $open={isOpen} onClick={close}>
-      <Modal onClick={(ev) => ev.stopPropagation()}>
+    <Overlay $open={isOpen} onClick={close} role="dialog" aria-modal="true" aria-label="Create new inquiry">
+      <Modal ref={modalRef} onClick={(ev) => ev.stopPropagation()}>
         <form onSubmit={handleSubmit}>
           <Header>
             <TitleBlock>
