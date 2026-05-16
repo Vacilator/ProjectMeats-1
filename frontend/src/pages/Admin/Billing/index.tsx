@@ -27,6 +27,16 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const { Text } = Typography;
 
+/** Extract array from API responses that may be `T[]` or `{ results: T[] }`. */
+function extractResults(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'object' && raw !== null && 'results' in raw) {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj.results)) return obj.results;
+  }
+  return [];
+}
+
 interface TenantCurrent {
   id: string;
   name: string;
@@ -98,11 +108,7 @@ const BillingPage: React.FC = () => {
       try {
         const res = await businessApi.get('/configurations/', { params: { search: 'billing.' } });
         const raw = res.data as unknown;
-        const data = Array.isArray(raw)
-          ? raw
-          : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
-            ? (raw as any).results
-            : [];
+        const data = extractResults(raw);
         return data as TenantConfiguration[];
       } catch {
         return [];
@@ -142,19 +148,13 @@ const BillingPage: React.FC = () => {
   const nextBillingDate = '2026-04-01';
   const activeUsers = tenant?.user_count ?? 0;
 
-  const subscriptionInvoicesQuery = useQuery<any[]>({
+  const subscriptionInvoicesQuery = useQuery<Record<string, unknown>[]>({
     queryKey: withTenantQueryKey('invoices', 'subscription', tenant?.id),
     enabled: Boolean(tenant?.id),
     queryFn: async () => {
       try {
         const res = await businessApi.get('/invoices/', { params: { is_subscription: true } });
-        const raw = res.data as unknown;
-        const data = Array.isArray(raw)
-          ? raw
-          : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
-            ? (raw as any).results
-            : [];
-        return data as any[];
+        return extractResults(res.data) as Record<string, unknown>[];
       } catch {
         return [];
       }
@@ -165,7 +165,7 @@ const BillingPage: React.FC = () => {
   const invoices: InvoiceRow[] = useMemo(() => {
     const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
-    const normalizeStatus = (row: any): InvoiceStatus => {
+    const normalizeStatus = (row: Record<string, unknown>): InvoiceStatus => {
       const payment = String(row?.payment_status || '').toLowerCase();
       const status = String(row?.status || '').toLowerCase();
 
@@ -174,7 +174,7 @@ const BillingPage: React.FC = () => {
       return 'Due';
     };
 
-    return (subscriptionInvoicesQuery.data || []).map((row: any) => {
+    return (subscriptionInvoicesQuery.data || []).map((row: Record<string, unknown>) => {
       const total = Number(row?.total_amount ?? 0);
       const amount = Number.isFinite(total) ? fmt.format(total) : String(row?.total_amount ?? '');
       const date = String(row?.date_time_stamp || row?.created_on || '');

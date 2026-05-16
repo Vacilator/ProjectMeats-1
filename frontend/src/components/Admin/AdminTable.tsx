@@ -75,14 +75,13 @@ const compareForSort = (aValue: unknown, bValue: unknown) => {
   const aComparable = typeof aValue === 'string' ? aValue.toLowerCase() : aValue;
   const bComparable = typeof bValue === 'string' ? bValue.toLowerCase() : bValue;
 
-   
-  const aAny = aComparable as any;
-   
-  const bAny = bComparable as any;
+  if (typeof aComparable === 'number' && typeof bComparable === 'number') {
+    return aComparable - bComparable;
+  }
 
-  if (aAny < bAny) return -1;
-  if (aAny > bAny) return 1;
-  return 0;
+  const aStr = String(aComparable);
+  const bStr = String(bComparable);
+  return aStr.localeCompare(bStr);
 };
 
 export function AdminTable<T extends Record<string, any>>({
@@ -119,7 +118,7 @@ export function AdminTable<T extends Record<string, any>>({
   const antdColumns: ColumnsType<T> = useMemo(() => {
     const baseCols: ColumnsType<T> = columns.map((c) => {
       const rawKey = String(c.key);
-      const dataIndex = rawKey.includes('.') ? rawKey.split('.') : (rawKey as any);
+      const dataIndex: string | string[] = rawKey.includes('.') ? rawKey.split('.') : rawKey;
 
       return {
         title: c.label,
@@ -238,11 +237,11 @@ export function AdminTable<T extends Record<string, any>>({
         pagination={false}
         rowKey={(row: T) => {
           const direct = row[idKey] as unknown as string | number | undefined | null;
-          if (direct !== undefined && direct !== null && String(direct) !== '') return direct;
+          if (direct !== undefined && direct !== null && String(direct) !== '') return String(direct);
 
-          const fallbackAny = row as any;
-          const legacy = fallbackAny.id ?? fallbackAny.key;
-          if (legacy !== undefined && legacy !== null && String(legacy) !== '') return legacy;
+          const fallback = row as Record<string, unknown>;
+          const legacy = fallback.id ?? fallback.key;
+          if (legacy !== undefined && legacy !== null && String(legacy) !== '') return String(legacy);
 
           try {
             return JSON.stringify(row);
