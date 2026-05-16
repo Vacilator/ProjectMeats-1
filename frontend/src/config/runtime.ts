@@ -30,6 +30,12 @@ declare global {
       ENABLE_DEBUG?: string;
       ENABLE_DEVTOOLS?: string;
       SENTRY_DSN?: string;
+      SENTRY_ENABLED?: string;
+      GIT_COMMIT_SHA?: string;
+    };
+    Sentry?: {
+      captureMessage: (message: string, context?: Record<string, unknown>) => void;
+      captureException: (error: unknown, context?: Record<string, unknown>) => void;
     };
   }
 }

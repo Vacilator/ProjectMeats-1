@@ -156,8 +156,8 @@ class Logger {
     this.logToConsole('warn', message, hasAnyContextKey ? ctx : undefined, hasAnyContextKey ? data : contextOrData);
 
     // Send to Sentry in production
-    if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureMessage(sanitizeTelemetryString(message), {
+    if (!this.isDevelopment && typeof window !== 'undefined' && window.Sentry) {
+      window.Sentry.captureMessage(sanitizeTelemetryString(message), {
         level: 'warning',
         tags: {
           component: hasAnyContextKey ? sanitizeTelemetryString(ctx?.component || '') : undefined,
@@ -193,9 +193,9 @@ class Logger {
     this.logToConsole('error', message, hasAnyContextKey ? ctx : undefined, hasAnyContextKey ? data : contextOrData);
 
     // Send to Sentry in production
-    if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
+    if (!this.isDevelopment && typeof window !== 'undefined' && window.Sentry) {
       if (rawSentryData instanceof Error) {
-        (window as any).Sentry.captureException(rawSentryData, {
+        window.Sentry.captureException(rawSentryData, {
           tags: {
             component: hasAnyContextKey ? sanitizeTelemetryString(ctx?.component || '') : undefined,
             tenant: hasAnyContextKey ? sanitizeTelemetryString(ctx?.tenant || '') : undefined,
@@ -208,7 +208,7 @@ class Logger {
           },
         });
       } else {
-        (window as any).Sentry.captureMessage(sanitizeTelemetryString(message), {
+        window.Sentry.captureMessage(sanitizeTelemetryString(message), {
           level: 'error',
           tags: {
             component: hasAnyContextKey ? sanitizeTelemetryString(ctx?.component || '') : undefined,

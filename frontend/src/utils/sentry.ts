@@ -37,23 +37,23 @@ export const initSentry = (config?: SentryConfig): void => {
   // Get configuration from environment or window.ENV
   const sentryDsn =
     config?.dsn ||
-    (window as any).ENV?.SENTRY_DSN ||
-    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_SENTRY_DSN : undefined);
+    window.ENV?.SENTRY_DSN ||
+    (typeof process !== 'undefined' ? process.env?.REACT_APP_SENTRY_DSN : undefined);
 
   const environment =
     config?.environment ||
-    (window as any).ENV?.ENVIRONMENT ||
-    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_ENVIRONMENT : undefined) ||
+    window.ENV?.ENVIRONMENT ||
+    (typeof process !== 'undefined' ? process.env?.REACT_APP_ENVIRONMENT : undefined) ||
     'development';
 
   const release =
     config?.release ||
-    (window as any).ENV?.GIT_COMMIT_SHA ||
-    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_GIT_COMMIT_SHA : undefined) ||
-    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_COMMIT_SHA : undefined) ||
+    window.ENV?.GIT_COMMIT_SHA ||
+    (typeof process !== 'undefined' ? process.env?.REACT_APP_GIT_COMMIT_SHA : undefined) ||
+    (typeof process !== 'undefined' ? process.env?.REACT_APP_COMMIT_SHA : undefined) ||
     'unknown';
 
-  const enabled = config?.enabled ?? (window as any).ENV?.SENTRY_ENABLED === 'true';
+  const enabled = config?.enabled ?? window.ENV?.SENTRY_ENABLED === 'true';
   
   // Don't initialize in development unless explicitly enabled
   if (environment === 'development' && !enabled) {
@@ -108,7 +108,9 @@ export const initSentry = (config?: SentryConfig): void => {
       
       // Filter network errors that are expected (e.g., offline)
       if (error && typeof error === 'object' && 'message' in error) {
-        const message = (error as any).message?.toLowerCase() || '';
+        const message = (typeof (error as { message?: string }).message === 'string'
+          ? (error as { message: string }).message
+          : '').toLowerCase();
         
         // Common transient errors to ignore
         const ignoredPatterns = [
@@ -136,10 +138,10 @@ export const initSentry = (config?: SentryConfig): void => {
         for (const ex of exceptions) {
           const frames = ex.stacktrace?.frames || [];
           for (const frame of frames) {
-            const filename = (frame as any).filename;
-            if (typeof filename === 'string') {
-              if (filename.includes('/backend/') || filename.includes('/tenant_apps/')) {
-                (frame as any).in_app = true;
+            const f = frame as { filename?: string; in_app?: boolean };
+            if (typeof f.filename === 'string') {
+              if (f.filename.includes('/backend/') || f.filename.includes('/tenant_apps/')) {
+                f.in_app = true;
               }
             }
           }
