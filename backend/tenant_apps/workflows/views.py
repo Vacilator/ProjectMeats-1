@@ -4367,7 +4367,11 @@ class ActionItemsAPIView(APIView):
 
                 active_sessions = (
                     TradeSession.objects.filter(tenant=tenant)
-                    .exclude(status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED])
+                    .exclude(status__in=[
+                        TradeSessionStatus.COMPLETED,
+                        TradeSessionStatus.CANCELLED,
+                        TradeSessionStatus.HALTED,
+                    ])
                     .select_related(
                         "inquiry",
                         "inquiry__supplier_purchase_order",
@@ -4794,7 +4798,11 @@ class ActionItemCountsAPIView(APIView):
 
                 active_sessions = (
                     TradeSession.objects.filter(tenant=tenant)
-                    .exclude(status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED])
+                    .exclude(status__in=[
+                        TradeSessionStatus.COMPLETED,
+                        TradeSessionStatus.CANCELLED,
+                        TradeSessionStatus.HALTED,
+                    ])
                     .select_related(
                         "inquiry",
                         "inquiry__supplier_purchase_order",

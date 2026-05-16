@@ -392,6 +392,12 @@ const INQUIRY_ACTION_MAP: Record<string, ActionBannerConfig> = {
     description: 'This inquiry was rejected. You can clone it to start a new version if needed.',
     intent: 'warning',
   },
+  cancelled: {
+    icon: '🚫',
+    title: 'Inquiry Cancelled',
+    description: 'This inquiry has been cancelled. No further action is needed.',
+    intent: 'warning',
+  },
 };
 
 interface ActionBannerConfig {

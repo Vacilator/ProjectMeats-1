@@ -139,9 +139,10 @@ def get_orchestrator_state(*, tenant: Any, inquiry: Inquiry) -> OrchestratorStep
     elif route == InquiryRouteDecisionChoices.BROKER:
         return _derive_broker_state(inquiry)
     else:
-        # Unknown or blank route — return None so callers can distinguish
-        # "not started" from a specific step.
-        return None
+        # Blank route — default to BROKER path (most common for manual inquiries).
+        # This ensures the orchestrator always returns a meaningful step rather
+        # than None, which would leave the stepper/action-items empty.
+        return _derive_broker_state(inquiry)
 
 
 def advance_orchestrator(
@@ -171,12 +172,13 @@ def advance_orchestrator(
         OrchestratorResult with step outcomes.
     """
     route = inquiry.route_decision
+    # Default to BROKER path when route_decision is blank (manual inquiries)
     steps = FULFILL_STEPS if route == InquiryRouteDecisionChoices.FULFILL else BROKER_STEPS
 
     current = get_orchestrator_state(tenant=tenant, inquiry=inquiry)
     result = OrchestratorResult(
         inquiry_id=str(inquiry.id),
-        route=route or "FULFILL",
+        route=route or "BROKER",
         current_step=current,
     )
 
