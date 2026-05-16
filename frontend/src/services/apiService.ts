@@ -512,12 +512,18 @@ adminClient.interceptors.response.use(
       if (isUsingJwt()) {
         originalRequest._retry = true;
         originalRequest._retryCount = retryCount;
-        const newToken = await refreshAccessToken();
+        try {
+          const newToken = await refreshAccessToken();
 
-        if (newToken) {
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          logger.debug('[Admin API] Retrying request with refreshed token');
-          return adminClient(originalRequest);
+          if (newToken) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            logger.debug('[Admin API] Retrying request with refreshed token');
+            return adminClient(originalRequest);
+          }
+        } catch (refreshError) {
+          logger.error('[Admin API] Token refresh failed, forcing logout', refreshError);
+          forceLogoutAndRedirect();
+          return Promise.reject(error);
         }
       }
 
