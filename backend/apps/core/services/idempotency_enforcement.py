@@ -146,7 +146,7 @@ def enforce_idempotency(
         try:
             record.delete()
         except Exception:
-            pass
+            logger.debug("Failed to cleanup idempotency record", exc_info=True)
         raise
 
 
@@ -239,7 +239,7 @@ def idempotent_create(
                     try:
                         store_idempotency_response(record=reservation.record, response=response)
                     except Exception:
-                        pass
+                        logger.debug("Failed to cache idempotency response", exc_info=True)
 
                 return response
 
@@ -249,7 +249,7 @@ def idempotent_create(
                     try:
                         release_idempotency_key(record=reservation.record)
                     except Exception:
-                        pass
+                        logger.debug("Failed to release idempotency key", exc_info=True)
                 raise
 
         return wrapper

@@ -99,12 +99,12 @@ def _get_request_tenant(request):
     try:
         setattr(request, 'tenant', tenant)
     except Exception:
-        pass
+        logger.debug("Failed to set tenant on request", exc_info=True)
     try:
         if django_request is not None:
             setattr(django_request, 'tenant', tenant)
     except Exception:
-        pass
+        logger.debug("Failed to set tenant on django_request", exc_info=True)
 
     return tenant
 
