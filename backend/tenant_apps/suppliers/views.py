@@ -267,9 +267,15 @@ class SupplierViewSet(viewsets.ModelViewSet):
         from apps.system.models import Product
 
         supplier = self.get_object()
-        product_id = request.data.get('product')
-        if not product_id:
-            return Response({'error': 'product is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from rest_framework import serializers as drf_serializers
+
+        class _AddProductSerializer(drf_serializers.Serializer):
+            product = drf_serializers.UUIDField()
+
+        ser = _AddProductSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        product_id = ser.validated_data['product']
 
         try:
             # system.Product is a shared, tenant-agnostic catalog visible to all tenants.

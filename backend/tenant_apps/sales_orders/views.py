@@ -126,8 +126,18 @@ class SalesOrderViewSet(OperationalDocumentActionsMixin, CsvExportMixin, viewset
     @action(detail=True, methods=["post"], url_path="send-carrier-freight-inquiries")
     def send_freight_inquiries(self, request, pk=None):
         """Send outbound freight inquiry RFQs to matched carriers for this SO."""
+        from rest_framework import serializers as drf_serializers
+
+        class _FreightInquirySerializer(drf_serializers.Serializer):
+            carrier_ids = drf_serializers.ListField(
+                child=drf_serializers.UUIDField(), required=False, allow_null=True, default=None,
+            )
+
+        ser = _FreightInquirySerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
         sales_order = self.get_object()
-        carrier_ids = request.data.get("carrier_ids", None)
+        carrier_ids = ser.validated_data.get("carrier_ids")
 
         result = send_carrier_freight_inquiries(
             tenant=request.tenant,

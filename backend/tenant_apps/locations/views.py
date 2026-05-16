@@ -87,15 +87,20 @@ class LocationViewSet(viewsets.ModelViewSet):
     @available_products.mapping.post
     def add_available_product(self, request, pk=None):
         """Add a system product to this location's associated products."""
+        from rest_framework import serializers as drf_serializers
+
+        class _AddProductSerializer(drf_serializers.Serializer):
+            product = drf_serializers.UUIDField()
+
+        ser = _AddProductSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
 
         tenant = getattr(request, "tenant", None)
         if not tenant:
             return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         location = self.get_object()
-        product_id = request.data.get("product")
-        if not product_id:
-            return Response({"error": "product is required"}, status=status.HTTP_400_BAD_REQUEST)
+        product_id = ser.validated_data["product"]
 
         try:
             product = Product.objects.get(id=product_id, is_active=True)
