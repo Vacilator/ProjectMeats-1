@@ -512,7 +512,7 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
 
       // 2) Prefill inquiry defaults from the call (backend builds contact snapshot fields)
       const prefillResp = await businessApi.get(`/inquiries/from-call/${createdCall.id}/`);
-      const prefill = (prefillResp.data ?? {}) as Record<string, any>;
+      const prefill = (prefillResp.data ?? {}) as Record<string, unknown>;
 
       // 3) Create inquiry with nested products
       const products = lines

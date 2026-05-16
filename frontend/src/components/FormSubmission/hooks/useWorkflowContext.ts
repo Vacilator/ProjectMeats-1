@@ -37,7 +37,7 @@ import { logger } from '@/utils/logger';
 // ============================================================================
 
 export interface WorkflowContextData {
-  [nodeId: string]: Record<string, any>;
+  [nodeId: string]: Record<string, unknown>;
 }
 
 export interface AvailableDataNode {
@@ -69,7 +69,7 @@ export interface WorkflowContext {
   setValue: (fieldKey: string, value: any) => void;
   
   /** Set multiple fields at once for current node */
-  setNodeData: (nodeId: string, data: Record<string, any>) => void;
+  setNodeData: (nodeId: string, data: Record<string, unknown>) => void;
   
   /** Clear all context data */
   clear: () => void;
@@ -252,7 +252,7 @@ export function useWorkflowContext(
   }, [currentNodeId]);
 
   // Set multiple fields at once for a node
-  const setNodeData = useCallback((nodeId: string, data: Record<string, any>) => {
+  const setNodeData = useCallback((nodeId: string, data: Record<string, unknown>) => {
     setContextData(prev => ({
       ...prev,
       [nodeId]: {

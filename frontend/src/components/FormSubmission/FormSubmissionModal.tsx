@@ -883,7 +883,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   onSubmissionUpdate: _onSubmissionUpdate,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [formData, setFormData] = useState<Record<string, Record<string, any>>>({});
+  const [formData, setFormData] = useState<Record<string, Record<string, unknown>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [entityOptions, setEntityOptions] = useState<Record<string, { value: string; label: string }[]>>({});
   const [saveStatus, setSaveStatus] = useState<Record<string, SaveStatus>>({});
@@ -1035,7 +1035,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Initialize form data with proper structure for all steps
   useEffect(() => {
     // Always initialize formData structure for all steps
-    const initialData: Record<string, Record<string, any>> = {};
+    const initialData: Record<string, Record<string, unknown>> = {};
 
     // Ensure all steps have entries in formData
     steps.forEach(step => {
@@ -1552,7 +1552,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     const targetStep = steps[targetStepIndex];
     if (!targetStep) return;
 
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
     let hasUpdates = false;
 
     targetStep.fields.forEach(field => {
@@ -1661,6 +1661,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Render field input based on type
   const renderFieldInput = (field: FieldData, stepId: string) => {
     const value = formData[stepId]?.[field.key] ?? '';
+    const stringValue = typeof value === 'string' ? value : String(value ?? '');
+    const displayValue: string | number | undefined = typeof value === 'string' || typeof value === 'number' ? value : stringValue;
     const opts = getFieldOptions(field);
     const hasError = !!fieldErrors[field.key];
 
@@ -1701,7 +1703,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           <TextArea
             {...ariaProps}
             $hasError={hasError}
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
@@ -1720,7 +1722,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
               <SelectWrapper>
                 <SearchableSelect
                   entityType={field.related_entity_type}
-                  value={value}
+                  value={stringValue}
                   onChange={(newValue) => handleChange(stepId, field.key, newValue)}
                   onBlur={() => handleBlur(stepId, field.key)}
                   placeholder={`Select ${field.label}...`}
@@ -1752,7 +1754,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           <SelectInput
             {...ariaProps}
             $hasError={hasError}
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
           >
@@ -1821,7 +1823,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="date"
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
           />
@@ -1833,7 +1835,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="datetime-local"
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
           />
@@ -1845,7 +1847,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="time"
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
           />
@@ -1858,7 +1860,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="number"
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || '0'}
@@ -1875,7 +1877,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="number"
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || '0.00'}
@@ -1893,7 +1895,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
               {...ariaProps}
               $hasError={hasError}
               type="number"
-              value={value}
+              value={displayValue}
               onChange={e => handleChange(stepId, field.key, e.target.value)}
               onBlur={() => handleBlur(stepId, field.key)}
               placeholder="0.00"
@@ -1911,7 +1913,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="email"
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || 'email@example.com'}
@@ -1941,7 +1943,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="url"
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || 'https://'}
@@ -1956,7 +1958,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             submissionId={submission.id}
             fieldKey={field.key}
             label={field.label}
-            value={value}
+            value={value as unknown as undefined}
             onChange={(newValue) => handleChange(stepId, field.key, newValue)}
             isImage={field.type === 'image'}
             hasError={hasError}
@@ -2000,7 +2002,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'signature':
         return (
           <SignatureField
-            value={value || ''}
+            value={stringValue}
             onChange={(newValue) => {
               handleChange(stepId, field.key, newValue);
               autoSaveField(stepId, field.key, newValue);
@@ -2015,7 +2017,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'wysiwyg':
         return (
           <RichTextField
-            value={value || ''}
+            value={stringValue}
             onChange={(newValue) => handleChange(stepId, field.key, newValue)}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
             maxLength={field.max_length}
@@ -2030,7 +2032,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             {...ariaProps}
             $hasError={hasError}
             type="text"
-            value={value}
+            value={displayValue}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}

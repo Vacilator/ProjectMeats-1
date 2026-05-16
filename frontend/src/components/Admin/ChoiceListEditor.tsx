@@ -52,7 +52,7 @@ interface ChoiceItem {
   is_active: boolean;
   is_default: boolean;
   is_system_defined: boolean;
-  extra_data?: Record<string, any>;
+  extra_data?: Record<string, unknown>;
 }
 
 interface ChoiceList {
@@ -138,7 +138,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
         <div className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
           Value: <code className="px-1 rounded" style={{ background: 'rgb(var(--color-bg-secondary))' }}>{item.value}</code>
         </div>
-        {item.extra_data?.description && (
+        {typeof item.extra_data?.description === 'string' && item.extra_data.description && (
           <div className="text-xs mt-1" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
             {item.extra_data.description}
           </div>

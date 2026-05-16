@@ -21,7 +21,7 @@ interface FormStepProps {
   step: StepConfig;
   stepSubmission: StepSubmission;
   submissionId: string;
-  values: Record<string, any>;
+  values: Record<string, unknown>;
   onFieldChange: (fieldKey: string, value: any) => void;
   onFieldBlur: (fieldKey: string) => void;
   onCompleteStep: () => void;

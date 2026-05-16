@@ -20,7 +20,7 @@ export interface FieldConfig {
   step?: number;
   rows?: number;
   autoPopulateSource?: string;
-  validationRules?: Record<string, any>;
+  validationRules?: Record<string, unknown>;
   related_entity_type?: string;  // For ForeignKey fields - used to fetch options dynamically
   related_model?: { app: string; model: string; label: string };
 }

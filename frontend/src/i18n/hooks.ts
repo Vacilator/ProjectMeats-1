@@ -34,7 +34,7 @@ export function useWorkflowTranslation() {
   const { t, ...rest } = useTranslation();
 
   const tw = useCallback(
-    (key: string, options?: Record<string, any>) => {
+    (key: string, options?: Record<string, unknown>) => {
       return t(`workflowEditor.${key}`, options);
     },
     [t]

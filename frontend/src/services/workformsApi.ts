@@ -58,7 +58,7 @@ export interface EntityField {
   reference_entity?: string;
   reference_model?: string;
   lookup_endpoint?: string;
-  validation?: Record<string, any>;
+  validation?: Record<string, unknown>;
 }
 
 export interface EntitySchema {

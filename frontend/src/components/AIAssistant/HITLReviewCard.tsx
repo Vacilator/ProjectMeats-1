@@ -64,7 +64,7 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
     }
   };
 
-  const handleSubmit = async (values: Record<string, any>) => {
+  const handleSubmit = async (values: Record<string, unknown>) => {
     setSubmitting(true);
     try {
       const corrected: Record<string, unknown> = {};
@@ -145,7 +145,7 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
         form={form}
         layout="vertical"
         initialValues={initialValues}
-        onFinish={(vals) => void handleSubmit(vals as Record<string, any>)}
+        onFinish={(vals) => void handleSubmit(vals as Record<string, unknown>)}
       >
         {fieldDefs.length ? (
           fieldDefs.map((f) => (

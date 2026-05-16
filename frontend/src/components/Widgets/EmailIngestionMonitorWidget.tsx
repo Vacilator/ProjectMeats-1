@@ -33,7 +33,7 @@ interface EmailLog {
   status: 'logged' | 'ai_parsing' | 'order_created' | 'failed' | 'action_required' | 'ignored';
   provider_type: string | null;
   has_attachments: boolean;
-  extracted_data: Record<string, any> | null;
+  extracted_data: Record<string, unknown> | null;
   related_order_id: string | null;
   error_message: string | null;
   created_at: string;
