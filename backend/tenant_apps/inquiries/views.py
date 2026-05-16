@@ -49,13 +49,146 @@ from .services import create_supplier_quote_purchase_order_draft
 from .services.supplier_quote_po_draft import SupplierQuotePODraftError
 
 
+# ---------------------------------------------------------------------------
+# Trade orchestration helpers (used by InquiryViewSet.perform_document_status_transition)
+# ---------------------------------------------------------------------------
+
+
+def _sync_trade_session_from_orchestrator(tenant, inquiry, trade_session):
+    """Update TradeSession.status to reflect orchestrator progression.
+
+    Maps the orchestrator's current step back to the appropriate
+    TradeSessionStatus so that My Trades displays the correct stage.
+    """
+    from tenant_apps.inquiries.services.happy_path_orchestrator import (
+        OrchestratorStep,
+        get_orchestrator_state,
+    )
+    from tenant_apps.inquiries.services.trade_session import update_trade_session_status
+    from tenant_apps.inquiries.models import TradeSessionStatus
+
+    step = get_orchestrator_state(tenant=tenant, inquiry=inquiry)
+    step_to_status = {
+        OrchestratorStep.SUPPLIER_RFQ: TradeSessionStatus.SOURCING,
+        OrchestratorStep.SUPPLIER_REPLY_PARSE: TradeSessionStatus.SOURCING,
+        OrchestratorStep.DRAFT_SUPPLIER_PO: TradeSessionStatus.SOURCING,
+        OrchestratorStep.APPROVE_SUPPLIER_PO: TradeSessionStatus.ORDERED,
+        OrchestratorStep.DRAFT_SALES_ORDER: TradeSessionStatus.ORDERED,
+        OrchestratorStep.APPROVE_SALES_ORDER: TradeSessionStatus.ORDERED,
+        OrchestratorStep.CARRIER_FAN_OUT: TradeSessionStatus.LOGISTICS,
+        OrchestratorStep.CARRIER_REPLY_PARSE: TradeSessionStatus.LOGISTICS,
+        OrchestratorStep.DRAFT_CARRIER_PO: TradeSessionStatus.LOGISTICS,
+        OrchestratorStep.COMPLETED: TradeSessionStatus.COMPLETED,
+    }
+    target = step_to_status.get(step)
+    if target and target != trade_session.status:
+        update_trade_session_status(trade_session=trade_session, new_status=target)
+        logger.info(
+            "Trade session %s status synced to %s (orchestrator step: %s)",
+            trade_session.trade_id,
+            target,
+            step.value,
+        )
+
+
+def _create_blocked_action_item(*, tenant, inquiry, step, reason):
+    """Create a user-facing action item when the orchestrator is blocked.
+
+    This ensures the blocked step appears in My Tasks → Action Required
+    so the trader knows what to do next.
+    """
+    from tenant_apps.workflows.models import (
+        NotificationPriority,
+        NotificationType,
+        UserNotification,
+    )
+    from tenant_apps.inquiries.services.happy_path_orchestrator import OrchestratorStep
+    from apps.tenants.models import TenantUser
+
+    step_labels = {
+        OrchestratorStep.SUPPLIER_RFQ: ("Send Supplier RFQ", "inquiry"),
+        OrchestratorStep.SUPPLIER_REPLY_PARSE: ("Awaiting Supplier Reply", "inquiry"),
+        OrchestratorStep.DRAFT_SUPPLIER_PO: ("Create Supplier PO", "inquiry"),
+        OrchestratorStep.APPROVE_SUPPLIER_PO: ("Approve Supplier PO", "purchase_order"),
+        OrchestratorStep.DRAFT_SALES_ORDER: ("Create Sales Order", "inquiry"),
+        OrchestratorStep.APPROVE_SALES_ORDER: ("Approve Sales Order", "sales_order"),
+        OrchestratorStep.CARRIER_FAN_OUT: ("Arrange Carrier", "inquiry"),
+        OrchestratorStep.CARRIER_REPLY_PARSE: ("Awaiting Carrier Reply", "inquiry"),
+        OrchestratorStep.DRAFT_CARRIER_PO: ("Create Carrier PO", "inquiry"),
+    }
+    label, entity_type = step_labels.get(step, (step.value, "inquiry"))
+    title = f"Action required: {inquiry.inquiry_number} — {label}"
+
+    # Determine entity_id for deep-linking
+    entity_id = str(inquiry.id)
+    action_url = f"/inquiries?review=inquiry&inquiry={inquiry.id}"
+    if entity_type == "purchase_order" and inquiry.supplier_purchase_order_id:
+        entity_id = str(inquiry.supplier_purchase_order_id)
+        action_url = f"/purchase-orders/{inquiry.supplier_purchase_order_id}"
+    elif entity_type == "sales_order" and inquiry.sales_order_id:
+        entity_id = str(inquiry.sales_order_id)
+        action_url = f"/sales-orders/{inquiry.sales_order_id}"
+
+    # Notify all managers/admins + the inquiry creator
+    recipients = set()
+    if inquiry.created_by:
+        recipients.add(inquiry.created_by)
+
+    memberships = (
+        TenantUser.objects.select_related("user")
+        .filter(tenant=tenant, is_active=True, role__in=("owner", "admin", "manager"))
+        .exclude(user__isnull=True)
+    )
+    for m in memberships:
+        if m.user:
+            recipients.add(m.user)
+
+    if not recipients:
+        return
+
+    notifications = [
+        UserNotification(
+            tenant=tenant,
+            user=user,
+            notification_type=NotificationType.SYSTEM,
+            priority=NotificationPriority.HIGH,
+            title=title,
+            message=reason or f"Trade pipeline blocked at: {label}",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action_url=action_url,
+            metadata={
+                "orchestrator_step": step.value,
+                "inquiry_id": str(inquiry.id),
+                "inquiry_number": inquiry.inquiry_number,
+                "trade_session_id": str(
+                    getattr(inquiry, "trade_session", None)
+                    and inquiry.trade_session.id
+                    or ""
+                ),
+            },
+        )
+        for user in recipients
+    ]
+    UserNotification.objects.bulk_create(notifications)
+
+
 class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
     """ViewSet for Inquiry CRUD operations."""
 
     permission_classes = [IsAuthenticated]
 
     def perform_document_status_transition(self, request, document, next_status):
-        """Override to track inquiry-specific timestamps and ensure trade session."""
+        """Override to track inquiry-specific timestamps, ensure trade session,
+        and auto-advance the orchestrator when an inquiry is accepted.
+
+        On acceptance the happy-path orchestrator is invoked so that all
+        achievable downstream steps (e.g. send supplier RFQ, draft PO) are
+        executed automatically — stopping only when the pipeline is blocked
+        on external input (e.g. waiting for a supplier reply).
+        """
+        from django.db import transaction as db_transaction
+
         from tenant_apps.inquiries.services.trade_session import (
             get_or_create_trade_session,
             update_trade_session_status,
@@ -72,17 +205,18 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
 
         # Ensure a TradeSession exists so My Trades picks up this inquiry
         tenant = getattr(request, "tenant", None)
+        trade_session = None
         if tenant and next_status not in ("cancelled",):
             try:
-                ts, _ = get_or_create_trade_session(tenant=tenant, inquiry=document)
+                trade_session, _ = get_or_create_trade_session(tenant=tenant, inquiry=document)
                 # Advance trade session status to match inquiry progression
                 status_map = {
                     "quoted": TradeSessionStatus.QUOTED,
                     "accepted": TradeSessionStatus.ORDERED,
                 }
                 target = status_map.get(next_status)
-                if target and ts.status != target:
-                    update_trade_session_status(trade_session=ts, new_status=target)
+                if target and trade_session.status != target:
+                    update_trade_session_status(trade_session=trade_session, new_status=target)
             except Exception:
                 logger.warning(
                     "Failed to create/update TradeSession for inquiry %s during %s transition",
@@ -91,7 +225,62 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
                     exc_info=True,
                 )
 
-        return super().perform_document_status_transition(request, document, next_status)
+        result = super().perform_document_status_transition(request, document, next_status)
+
+        # Auto-advance the orchestrator when inquiry is accepted
+        if tenant and next_status == "accepted" and trade_session:
+            inquiry_id = document.id
+            tenant_id = tenant.id
+            user_id = getattr(request.user, "id", None)
+
+            def _auto_advance():
+                try:
+                    from tenant_apps.inquiries.services.happy_path_orchestrator import (
+                        advance_orchestrator,
+                    )
+                    from tenant_apps.inquiries.models import Inquiry as InquiryModel
+                    from apps.tenants.models import Tenant
+
+                    t = Tenant.objects.get(id=tenant_id)
+                    inq = InquiryModel.objects.get(id=inquiry_id, tenant=t)
+                    user = None
+                    if user_id:
+                        from django.contrib.auth import get_user_model
+                        User = get_user_model()
+                        user = User.objects.filter(id=user_id).first()
+
+                    orch_result = advance_orchestrator(tenant=t, inquiry=inq, user=user)
+                    logger.info(
+                        "Auto-advance after inquiry acceptance: inquiry=%s route=%s "
+                        "current_step=%s blocked=%s steps_executed=%d",
+                        inquiry_id,
+                        orch_result.route,
+                        orch_result.current_step.value,
+                        orch_result.blocked,
+                        len(orch_result.steps_executed),
+                    )
+
+                    # Update trade session status based on orchestrator result
+                    _sync_trade_session_from_orchestrator(t, inq, trade_session)
+
+                    # Create action item if the orchestrator is blocked
+                    if orch_result.blocked:
+                        _create_blocked_action_item(
+                            tenant=t,
+                            inquiry=inq,
+                            step=orch_result.current_step,
+                            reason=orch_result.blocked_reason,
+                        )
+
+                except Exception:
+                    logger.exception(
+                        "Auto-advance failed for inquiry %s after acceptance",
+                        inquiry_id,
+                    )
+
+            db_transaction.on_commit(_auto_advance)
+
+        return result
 
     def get_queryset(self):
         """Filter by tenant and apply common list filters.
