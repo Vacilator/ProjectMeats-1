@@ -11,7 +11,6 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from tenant_apps.integrations.views import SettlementEventIngestAPIView
-from tenant_apps.workflows.views import SuggestNodesView
 from tenant_apps.workflows.views_triggers import TenantScopedWebhookReceiverAPIView
 
 from apps.core.admin_site import admin_site
@@ -80,22 +79,18 @@ urlpatterns = [
     path("api/v1/", include("tenant_apps.carriers.urls")),
     path("api/v1/", include("tenant_apps.products.urls")),
     # Invoices → Accounting rename (v2.0 Wave 1 Week 4)
-    path("api/v1/", include("tenant_apps.invoices.urls")),  # Legacy (deprecated)
-    path("api/v1/accounting/", include("tenant_apps.invoices.urls")),  # NEW canonical path
+    path("api/v1/", include("tenant_apps.invoices.urls")),  # Used by frontend (/invoices/)
+    path("api/v1/accounting/", include("tenant_apps.invoices.urls")),  # Canonical path
     path("api/v1/", include("tenant_apps.locations.urls")),
     path("api/v1/", include("apps.core.urls")),  # Core shared utilities
     # Bug Reports → Feedback rename (v2.0 Wave 1 Week 3)
-    path("api/v1/bug-reports/", include("tenant_apps.bug_reports.urls")),  # Legacy (deprecated)
     path("api/v1/feedback/", include("tenant_apps.bug_reports.urls")),  # Canonical path
     # Cockpit → Workspace rename (v2.0 Wave 1 Week 3)
-    path("api/v1/cockpit/", include("tenant_apps.cockpit.urls")),  # Legacy (deprecated)
-    path("api/v1/workspace/", include("tenant_apps.cockpit.urls")),  # NEW canonical path
+    path("api/v1/cockpit/", include("tenant_apps.cockpit.urls")),  # Used by frontend
+    path("api/v1/workspace/", include("tenant_apps.cockpit.urls")),  # Canonical path
     path("api/v1/", include("tenant_apps.inquiries.urls")),  # Inquiry management
     path("api/v1/", include("tenant_apps.fulfillments.urls")),  # Fulfillment tracking
     path("api/v1/workflows/", include("tenant_apps.workflows.urls")),  # Bundle Two: Tenant Workflows
-    # Legacy alias (older clients) — canonical path is /api/v1/workflows/suggest-nodes/
-    path("api/v1/suggest-nodes/", SuggestNodesView.as_view(), name="suggest-nodes-legacy"),
-    # NOTE: schema-builder API DELETED in v2.0 Wave 1 (superseded by workflows)
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

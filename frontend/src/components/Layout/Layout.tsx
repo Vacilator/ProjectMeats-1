@@ -107,15 +107,15 @@ const SkipNavLink = styled.a`
   left: 0;
   z-index: 10000;
   padding: 0.75rem 1.5rem;
-  background: #1677ff;
-  color: #fff;
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-text-inverse, 255 255 255));
   font-weight: 600;
   text-decoration: none;
   border-radius: 0 0 4px 0;
 
   &:focus {
     top: 0;
-    outline: 2px solid #fff;
+    outline: 2px solid rgb(var(--color-text-inverse, 255 255 255));
     outline-offset: 2px;
   }
 `;
