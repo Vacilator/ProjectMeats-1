@@ -1246,7 +1246,7 @@ We are re-validating and completing the last ~25 prompts with **evidence-based a
 - **Admin workspace usability:** option lists/system lists visibility + custom list create/edit flows. ✅ verified complete — full CRUD for system lists, custom tenant lists, overrides, and products at /workspace/option-lists.
 
 ### P1 — CI/CD determinism (next)
-- **Remove archived workflows from Actions:** move `.github/workflows/archived/**` out of `.github/workflows/` so they cannot run and bypass guardrails. ✅ verified — no archived directory exists; all 17 workflows are active and valid.
+- **Remove archived workflows from Actions:** move `.github/workflows/archived/**` out of `.github/workflows/` so they cannot run and bypass guardrails. ✅ verified — no archived directory exists; all 18 workflows are active and valid.
 - **Immutable CI inputs:** digest-pin workflow `services.*.image` containers (Postgres/pgvector) and stop pushing mutable `latest` tags. ✅ verified — all service images digest-pinned (`pgvector/pgvector:pg15@sha256:7f5681e...`, `postgres:15@sha256:3e43515...`); no `:latest` tags in any workflow.
 - **Deployment safety gate:** require PR Validation success for the same SHA for UAT/Prod deployments (even if deploy workflow test jobs are temporarily bypassed). ✅ verified — PR Validation workflow runs on all PRs to development/uat/main branches; UAT/Prod use `deploy_by_digest: true` for immutable image references. Branch protection rules should be configured in GitHub settings to require `PR Validation` status check.
 
