@@ -548,12 +548,17 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   }, []);
 
   const isModalVariant = variant === 'modal';
+  // Both variants defer mount by one animation frame (`modalAnimReady`).
+  // For inline, the parent may embed us inside its own <Modal>, whose
+  // CSSMotion useStatus loop causes React error #185 if the form mounts
+  // during the animation cycle. Deferring via rAF lets the parent Modal
+  // settle first.
   const shouldMountForm =
     isOpen &&
     formReady &&
     !formLoading &&
     !effectiveLoadError &&
-    (!isModalVariant || modalAnimReady);
+    modalAnimReady;
 
   // Start the cascade settle timer when the form actually mounts — NOT when
   // `isOpen` flips. The modal animation takes ~200ms; if we started at isOpen
@@ -641,7 +646,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
   }
 
   if (variant === 'inline') {
-    if (!formReady || formLoading || effectiveLoadError) {
+    if (!shouldMountForm) {
       return effectiveLoadError ? errorBody : loaderBody;
     }
 
