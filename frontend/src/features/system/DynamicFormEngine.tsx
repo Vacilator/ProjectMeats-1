@@ -89,9 +89,9 @@ interface SchemaDefinition {
 
 interface DynamicFormEngineProps {
   schema: SchemaDefinition;
-  initialValues?: Record<string, any>;
-  onSubmit: (data: Record<string, any>) => void;
-  onValuesChange?: (data: Record<string, any>) => void;
+  initialValues?: Record<string, unknown>;
+  onSubmit: (data: Record<string, unknown>) => void;
+  onValuesChange?: (data: Record<string, unknown>) => void;
   onCancel?: () => void;
   isSubmitting?: boolean;
 
@@ -524,7 +524,7 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
 
     if (field.type === 'inline_form_array') {
       const itemFields = field.item_fields || [];
-      const itemShape: Record<string, any> = {};
+      const itemShape: Record<string, unknown> = {};
       itemFields.forEach((f) => {
         itemShape[f.key] = buildItemFieldSchema(f);
       });
@@ -1002,7 +1002,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         setValueAtPath(next, f.key, uiAny.default_value);
       }
     }
-    return next as Record<string, any>;
+    return next as Record<string, unknown>;
   }, [stableInitialValues, stableFields]);
   const defaultValuesSignature = useMemo(() => getStableSignature(defaultValues), [defaultValues]);
 
@@ -1050,7 +1050,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
 
     lastValuesSignatureRef.current = nextSignature;
-    onValuesChangeRef.current(nextValues as Record<string, any>);
+    onValuesChangeRef.current(nextValues as Record<string, unknown>);
   }, [watchedValues]);
 
   const dependencyFieldKeys = useMemo(() => {
@@ -1492,7 +1492,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               render={({ field: controllerField }) => (
                 <Select
                   id={field.key}
-                  value={controllerField.value || ''}
+                  value={String(controllerField.value || '')}
                   onChange={(val) => {
                     if (val === '__CREATE_NEW__' && onCreateEntity && field.related_entity) {
                       onCreateEntity(field.key, field.related_entity);
@@ -1606,7 +1606,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     (typeof formConfig.submitButtonText === 'string' && formConfig.submitButtonText.trim()) ||
     'Save';
 
-  const onInvalid = (errs: Record<string, any>) => {
+  const onInvalid = (errs: Record<string, unknown>) => {
     if (!hasKeySplit) return;
     const errorKeys = collectErrorPaths(errs || {});
     const hasHiddenError = errorKeys.some((k) => !keySet.has(String(k).toLowerCase()));

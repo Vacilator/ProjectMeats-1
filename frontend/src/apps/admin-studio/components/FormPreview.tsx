@@ -23,9 +23,9 @@ interface FormPreviewProps {
 }
 
 const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
 
-  const handleChange = (key: string, value: any) => {
+  const handleChange = (key: string, value: unknown) => {
     setFormData({ ...formData, [key]: value });
   };
 
@@ -46,7 +46,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
         return (
           <input
             type={field.type}
-            value={formData[field.key] || ''}
+            value={String(formData[field.key] ?? '')}
             onChange={(e) => handleChange(field.key, e.target.value)}
             required={field.required}
             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" style={{ borderColor: 'rgb(var(--color-border-secondary))' }}
@@ -74,7 +74,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
         return (
           <input
             type="number"
-            value={formData[field.key] || ''}
+            value={String(formData[field.key] ?? '')}
             onChange={(e) => handleChange(field.key, e.target.value)}
             required={field.required}
             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" style={{ borderColor: 'rgb(var(--color-border-secondary))' }}
@@ -86,7 +86,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
         return (
           <input
             type="date"
-            value={formData[field.key] || ''}
+            value={String(formData[field.key] ?? '')}
             onChange={(e) => handleChange(field.key, e.target.value)}
             required={field.required}
             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" style={{ borderColor: 'rgb(var(--color-border-secondary))' }}
@@ -96,7 +96,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
       case 'select':
         return (
           <select
-            value={formData[field.key] || ''}
+            value={String(formData[field.key] ?? '')}
             onChange={(e) => handleChange(field.key, e.target.value)}
             required={field.required}
             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" style={{ borderColor: 'rgb(var(--color-border-secondary))' }}
@@ -113,7 +113,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
       case 'textarea':
         return (
           <textarea
-            value={formData[field.key] || ''}
+            value={String(formData[field.key] ?? '')}
             onChange={(e) => handleChange(field.key, e.target.value)}
             required={field.required}
             rows={4}
@@ -127,7 +127,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
           <div className="flex items-center">
             <input
               type="checkbox"
-              checked={formData[field.key] || false}
+              checked={!!formData[field.key]}
               onChange={(e) => handleChange(field.key, e.target.checked)}
               className="w-4 h-4 rounded focus:ring-blue-500" style={{ color: 'rgb(var(--color-primary))', borderColor: 'rgb(var(--color-border-secondary))' }}
             />
@@ -163,7 +163,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ fields, onClose }) => {
         return (
           <input
             type="text"
-            value={formData[field.key] || ''}
+            value={String(formData[field.key] ?? '')}
             onChange={(e) => handleChange(field.key, e.target.value)}
             required={field.required}
             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" style={{ borderColor: 'rgb(var(--color-border-secondary))' }}

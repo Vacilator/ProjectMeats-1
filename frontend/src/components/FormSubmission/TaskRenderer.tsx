@@ -43,7 +43,7 @@ export interface TaskRendererProps {
   context: WorkflowContext;
   
   /** Callback when task is completed */
-  onComplete: (data: Record<string, any>) => void;
+  onComplete: (data: Record<string, unknown>) => void;
   
   /** Callback for wait states */
   onWait?: () => void;

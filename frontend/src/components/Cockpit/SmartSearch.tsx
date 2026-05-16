@@ -946,7 +946,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
     if (!sourceType || !sourceId) return {};
 
-    const ctx: Record<string, any> = {
+    const ctx: Record<string, unknown> = {
       source: 'cockpit',
       source_entity_type: sourceType,
       source_entity_id: sourceId,

@@ -28,7 +28,7 @@ export interface WidgetConfig {
   id: string;
   type: string;
   title: string;
-  props?: Record<string, any>;
+  props?: Record<string, unknown>;
 }
 
 export type WidgetLayout = LayoutItem;

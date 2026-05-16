@@ -49,7 +49,7 @@ export interface WorkflowExecutionProps {
     id: string;
     status: 'running' | 'paused' | 'completed' | 'failed';
     current_node_id?: string;
-    data: Record<string, any>;
+    data: Record<string, unknown>;
   };
 
   /** Modal open state */
@@ -59,10 +59,10 @@ export interface WorkflowExecutionProps {
   onClose: () => void;
 
   /** Execution complete handler */
-  onComplete?: (data: Record<string, any>) => void;
+  onComplete?: (data: Record<string, unknown>) => void;
 
   /** Auto-save handler */
-  onAutoSave?: (data: Record<string, any>) => void;
+  onAutoSave?: (data: Record<string, unknown>) => void;
 }
 
 // ============================================================================
@@ -412,9 +412,9 @@ export const WorkflowExecutionModal: React.FC<WorkflowExecutionProps> = ({
     const data = execution?.data;
     if (!data || typeof data !== 'object') return;
 
-    Object.entries(data as Record<string, any>).forEach(([nodeId, nodeData]) => {
+    Object.entries(data as Record<string, unknown>).forEach(([nodeId, nodeData]) => {
       if (!nodeId || !nodeData || typeof nodeData !== 'object') return;
-      workflowContext.setNodeData(nodeId, nodeData as Record<string, any>);
+      workflowContext.setNodeData(nodeId, nodeData as Record<string, unknown>);
     });
   }, [execution?.id, execution?.data, workflowContext]);
 
@@ -442,7 +442,7 @@ export const WorkflowExecutionModal: React.FC<WorkflowExecutionProps> = ({
   }, [workflowContext.data, triggerAutoSave]);
 
   // Handle node completion
-  const handleNodeComplete = useCallback((nodeData: Record<string, any>) => {
+  const handleNodeComplete = useCallback((nodeData: Record<string, unknown>) => {
     // Store node data in workflow context
     workflowContext.setNodeData(currentNodeId, nodeData);
 

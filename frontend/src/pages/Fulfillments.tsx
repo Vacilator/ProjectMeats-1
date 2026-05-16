@@ -259,7 +259,7 @@ const Fulfillments: React.FC = () => {
     setError(null);
 
     try {
-      const params: Record<string, any> = {
+      const params: Record<string, unknown> = {
         page,
         page_size: pageSize,
       };

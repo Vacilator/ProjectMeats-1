@@ -29,7 +29,7 @@ export interface SearchableSelectEntityProps {
   disabled?: boolean;
   initialOptions?: Option[];
   threshold?: number; // Number of options before switching to search mode
-  filterParams?: Record<string, any>;
+  filterParams?: Record<string, unknown>;
 
   /** Enable “+ Add new …” option that opens QuickCreateModal. */
   allowCreate?: boolean;

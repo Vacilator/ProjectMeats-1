@@ -116,7 +116,7 @@ export interface StepSubmission {
   step_order: number;
   entity_type: string;
   status: 'not_started' | 'in_progress' | 'action_needed' | 'completed' | 'skipped';
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   completed_at: string | null;
   completed_by: number | null;
   completed_by_name: string | null;
@@ -468,7 +468,7 @@ export const entityOptionsService = {
     entityType: string,
     query: string,
     cancelKey?: string,
-    filterParams?: Record<string, any>
+    filterParams?: Record<string, unknown>
   ): Promise<EntityOptionsResponse & { total_count: number; has_more: boolean }> {
     const params = { q: query, ...(filterParams ?? {}) };
     const config = cancelKey
@@ -496,7 +496,7 @@ export const entityOptionsService = {
   /**
    * Quick-create an entity record
    */
-  async quickCreate(entityType: string, data: Record<string, any>): Promise<QuickCreateResponse> {
+  async quickCreate(entityType: string, data: Record<string, unknown>): Promise<QuickCreateResponse> {
     const response = await apiClient.post(`/workflows/quick-create/${entityType}/`, data);
     return response.data;
   },

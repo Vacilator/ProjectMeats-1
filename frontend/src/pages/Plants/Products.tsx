@@ -188,7 +188,7 @@ const PlantProducts: React.FC = () => {
   const fetchSystemProducts = useCallback(async (search?: string) => {
     setLoadingSystemProducts(true);
     try {
-      const params: Record<string, any> = { page_size: '500', is_active: true };
+      const params: Record<string, unknown> = { page_size: '500', is_active: true };
       if (search) params.search = search;
       if (proteinFilter.length) params.protein = proteinFilter.map((t) => String(t).toLowerCase());
       const response = await businessApi.get('/system/products/', { params });

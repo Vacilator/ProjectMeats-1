@@ -41,7 +41,7 @@ interface ActivityLog {
   entity_type?: string;
   entity_id?: string;
   ip_address?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   tenant: {
     id: number;

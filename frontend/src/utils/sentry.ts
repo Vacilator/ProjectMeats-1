@@ -226,7 +226,7 @@ export const addSentryBreadcrumb = (
   category: string,
   message: string,
   level: 'debug' | 'info' | 'warning' | 'error' = 'info',
-  data?: Record<string, any>
+  data?: Record<string, unknown>
 ): void => {
   Sentry.addBreadcrumb({
     category,
@@ -254,7 +254,7 @@ export const captureSentryException = (
   context?: {
     component?: string;
     tenant?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ): void => {
   Sentry.captureException(error, {
@@ -275,7 +275,7 @@ export const captureSentryMessage = (
   context?: {
     component?: string;
     tenant?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }
 ): void => {
   Sentry.captureMessage(sanitizeTelemetryString(message), {

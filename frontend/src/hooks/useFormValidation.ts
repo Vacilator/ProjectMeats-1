@@ -72,7 +72,7 @@ export interface UseFormValidationReturn {
 
 export function useFormValidation(
   fields: FieldConfig[],
-  formData: Record<string, any>,
+  formData: Record<string, unknown>,
   onValidationChange?: (errors: Record<string, string>) => void
 ): UseFormValidationReturn {
   const [errors, setErrors] = useState<Record<string, string>>({});

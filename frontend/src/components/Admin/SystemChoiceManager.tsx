@@ -51,7 +51,7 @@ interface SystemChoiceItem {
   value: string;
   label: string;
   display_order: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   is_active: boolean;
   parent_item?: string;
   created_at: string;

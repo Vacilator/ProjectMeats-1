@@ -19,14 +19,14 @@ type FormStepNodeData = {
   name?: string;
   entity_type?: string;
   entityType?: string;
-  fields?: Array<Record<string, any>>;
-  formFields?: Array<Record<string, any>>;
+  fields?: Array<Record<string, unknown>>;
+  formFields?: Array<Record<string, unknown>>;
 };
 
 export interface ExecutionFormStepProps {
   node: { id: string; type: string; data: FormStepNodeData };
   context: WorkflowContext;
-  onComplete: (data: Record<string, any>) => void;
+  onComplete: (data: Record<string, unknown>) => void;
   readOnly?: boolean;
 }
 
@@ -129,7 +129,7 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
     });
   }, [nodeData]);
 
-  const [values, setValues] = useState<Record<string, any>>({});
+  const [values, setValues] = useState<Record<string, unknown>>({});
 
   // Track which fields the user has manually edited to avoid clobbering input
   const touchedRef = useRef<Set<string>>(new Set());
@@ -139,7 +139,7 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
   // fill in missing/untouched values.
   useEffect(() => {
     setValues((prev) => {
-      const next: Record<string, any> = { ...prev };
+      const next: Record<string, unknown> = { ...prev };
 
       // 1) Resume existing values for this node (if present)
       const existing = context.data?.[node.id];

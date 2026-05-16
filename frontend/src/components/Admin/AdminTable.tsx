@@ -239,7 +239,7 @@ export function AdminTable<T extends Record<string, any>>({
           const direct = row[idKey] as unknown as string | number | undefined | null;
           if (direct !== undefined && direct !== null && String(direct) !== '') return String(direct);
 
-          const fallback = row as Record<string, unknown>;
+          const fallback = row as Record<string, any>;
           const legacy = fallback.id ?? fallback.key;
           if (legacy !== undefined && legacy !== null && String(legacy) !== '') return String(legacy);
 

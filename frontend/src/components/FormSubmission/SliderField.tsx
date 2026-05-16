@@ -98,10 +98,10 @@ interface SliderFieldProps {
   showLabels?: boolean;
   unit?: string;
   hasError?: boolean;
-  ariaProps?: Record<string, any>;
+  ariaProps?: Record<string, unknown>;
 }
 
-const EMPTY_ARIA_PROPS: Record<string, any> = {};
+const EMPTY_ARIA_PROPS: Record<string, unknown> = {};
 
 export const SliderField: React.FC<SliderFieldProps> = ({
   value,

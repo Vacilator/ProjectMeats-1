@@ -29,7 +29,7 @@ export interface InteractionCardProps {
   context: WorkflowContext;
   
   /** Callback when card is completed */
-  onComplete: (data: Record<string, any>) => void;
+  onComplete: (data: Record<string, unknown>) => void;
   
   /** Callback when card needs to wait (async) */
   onWait?: () => void;
@@ -194,7 +194,7 @@ export function getAllCardDefinitions(): InteractionCardDefinition[] {
  */
 export function isCardComplete(
   cardKey: string,
-  data: Record<string, any>
+  data: Record<string, unknown>
 ): boolean {
   const cardDef = INTERACTION_CARDS[cardKey];
   if (!cardDef) return false;

@@ -22,7 +22,7 @@ interface SystemChoiceItem {
   tenant: string | null;
   value: string;
   label: string;
-  extra_data: Record<string, any>;
+  extra_data: Record<string, unknown>;
   order: number;
   is_active: boolean;
   is_default: boolean;

@@ -21,7 +21,7 @@ interface WorkflowRunResponse {
   workflow_slug: string;
   status: string;
   current_step_index: number;
-  data_context: Record<string, any>;
+  data_context: Record<string, unknown>;
 }
 
 interface SubmitStepResponse {
@@ -111,7 +111,7 @@ export const WorkflowRunner: React.FC = () => {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
   const [currentSchema, setCurrentSchema] = useState<any>(null);
-  const [initialValues, setInitialValues] = useState<Record<string, any>>({});
+  const [initialValues, setInitialValues] = useState<Record<string, unknown>>({});
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,7 +129,7 @@ export const WorkflowRunner: React.FC = () => {
 
   // Submit step mutation
   const submitStepMutation = useMutation({
-    mutationFn: async (stepData: Record<string, any>) => {
+    mutationFn: async (stepData: Record<string, unknown>) => {
       const response = await adminClient.post<SubmitStepResponse>(
         `/admin/system-config/api/runs/${runId}/submit_step/`,
         { step_data: stepData }
@@ -174,7 +174,7 @@ export const WorkflowRunner: React.FC = () => {
     }
   }, [workflowRun, currentSchema]);
 
-  const handleSubmit = (data: Record<string, any>) => {
+  const handleSubmit = (data: Record<string, unknown>) => {
     submitStepMutation.mutate(data);
   };
 

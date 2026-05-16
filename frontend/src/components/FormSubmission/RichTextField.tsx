@@ -131,10 +131,10 @@ interface RichTextFieldProps {
   maxLength?: number;
   disabled?: boolean;
   hasError?: boolean;
-  ariaProps?: Record<string, any>;
+  ariaProps?: Record<string, unknown>;
 }
 
-const EMPTY_ARIA_PROPS: Record<string, any> = {};
+const EMPTY_ARIA_PROPS: Record<string, unknown> = {};
 
 export const RichTextField: React.FC<RichTextFieldProps> = ({
   value,
