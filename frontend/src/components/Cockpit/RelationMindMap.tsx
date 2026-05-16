@@ -71,7 +71,7 @@ interface MindMapNode {
 // Icon Mapping
 // ============================================================================
 
-const ENTITY_ICONS: Record<string, React.ComponentType<any>> = {
+const ENTITY_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   supplier: Building2,
   customer: Users,
   contact: User,

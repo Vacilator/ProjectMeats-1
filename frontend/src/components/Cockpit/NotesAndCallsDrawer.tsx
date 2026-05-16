@@ -58,10 +58,12 @@ export interface NotesAndCallsDrawerProps {
   entityLabel?: string;
 }
 
-const normalizeList = (data: any): any[] => {
+const normalizeList = (data: unknown): unknown[] => {
   if (!data) return [];
   if (Array.isArray(data)) return data;
-  if (Array.isArray(data.results)) return data.results;
+  if (typeof data === 'object' && data !== null && 'results' in data && Array.isArray((data as Record<string, unknown>).results)) {
+    return (data as Record<string, unknown>).results as unknown[];
+  }
   return [];
 };
 

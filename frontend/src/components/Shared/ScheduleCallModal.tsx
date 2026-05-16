@@ -456,9 +456,9 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
       const data = response.data.results || response.data;
 
       // Map to consistent format
-      const options = data.map((item: any) => ({
+      const options = data.map((item: Record<string, unknown>) => ({
         id: item.id,
-        name: item.name || item.company_name || item.title || `${type} #${item.id}`,
+        name: String(item.name || item.company_name || item.title || `${type} #${item.id}`),
       }));
 
       setEntityOptions(options);

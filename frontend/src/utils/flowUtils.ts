@@ -15,7 +15,7 @@ export interface UpstreamOutput {
   fieldName: string;
   fieldLabel: string;
   fieldType: string;
-  sampleValue?: any;
+  sampleValue?: unknown;
 }
 
 /**

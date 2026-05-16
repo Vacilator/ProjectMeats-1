@@ -858,23 +858,26 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           entityId={selectedEntity.id}
           onExpandEntity={(entity) => {
             // Keep modal open but load relational data for expanded view
+            const eType = String(entity?.type || '');
+            const eId = String(entity?.id || '');
+            const eMeta = (entity?.metadata ?? {}) as Record<string, unknown>;
             logger.debug('[CommandPalette] Expanding entity:', {
-              id: entity?.id,
-              type: entity?.type,
+              id: eId,
+              type: eType,
             });
             setSelectedEntity(null); // Close detail modal
             // Trigger search with entity context for mind-map view
               handleSelect({
-                id: entity.id,
-                type: entity.type,
-                title: entity.name || entity.title || '',
-                subtitle: entity.subtitle || '',
-                icon: entity.metadata?.icon || '',
-                colorVar: getSearchColorVar({ type: entity.type, metadata: entity.metadata }),
-                route: entity.metadata?.listRoute || `/${entity.type}s`,
+                id: eId,
+                type: eType,
+                title: String(entity.name || entity.title || ''),
+                subtitle: String(entity.subtitle || ''),
+                icon: String(eMeta?.icon || ''),
+                colorVar: getSearchColorVar({ type: eType, metadata: eMeta }),
+                route: String(eMeta?.listRoute || `/${eType}s`),
                 score: 1,
                 labels: [],
-                metadata: entity.metadata ?? {},
+                metadata: eMeta,
               });
             }}
           />

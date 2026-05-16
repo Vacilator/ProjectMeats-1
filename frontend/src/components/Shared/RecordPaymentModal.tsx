@@ -298,7 +298,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
       setLoading(true);
       setError(null);
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         amount: parseFloat(amount),
         payment_date: paymentDate,
         payment_method: paymentMethod,
