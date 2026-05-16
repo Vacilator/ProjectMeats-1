@@ -138,7 +138,8 @@ const ActivityPage: React.FC = () => {
 
       const params = buildParams(filters, pageNum);
       const response = await businessApi.get('/activity-logs/', { params });
-      const results = Array.isArray((response.data as any)?.results) ? (response.data as any).results : [];
+      const resData = response.data as Record<string, unknown>;
+      const results = Array.isArray(resData?.results) ? resData.results : [];
 
       if (appendMode) {
         setLogs((prev) => [...prev, ...results]);
@@ -146,7 +147,7 @@ const ActivityPage: React.FC = () => {
         setLogs(results);
       }
 
-      setHasMore(Boolean((response.data as any)?.next));
+      setHasMore(Boolean(resData?.next));
       setPage(pageNum);
     } catch (err: unknown) {
       const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
@@ -194,8 +195,8 @@ const ActivityPage: React.FC = () => {
         responseType: 'blob',
       });
 
-      const data = response.data as any;
-      const blob = data instanceof Blob ? data : new Blob([data]);
+      const data = response.data as unknown;
+      const blob = data instanceof Blob ? data : new Blob([String(data)]);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

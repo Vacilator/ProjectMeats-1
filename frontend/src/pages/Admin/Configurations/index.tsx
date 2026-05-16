@@ -104,9 +104,9 @@ const ConfigurationsPage: React.FC = () => {
       const response = await businessApi.get('/configurations/', {
         params: tenantId ? { tenant: tenantId } : undefined,
       });
-      const raw = response.data as any;
-      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      setConfigurations(data);
+      const raw = response.data as Record<string, unknown>;
+      const data: unknown[] = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? (raw.results as unknown[]) : [];
+      setConfigurations(data as Configuration[]);
     } catch (error) {
       logger.error('Failed to load configurations:', error);
       setLoadError('Failed to load configurations. Please refresh and try again.');
@@ -224,7 +224,8 @@ const ConfigurationsPage: React.FC = () => {
         configurations: configurationsToUpdate,
       });
 
-      const errors = Array.isArray((response.data as any)?.errors) ? (response.data as any).errors : [];
+      const resData = response.data as Record<string, unknown>;
+      const errors = Array.isArray(resData?.errors) ? resData.errors : [];
       if (errors.length > 0) {
         const first = errors[0];
         toast.error(
@@ -364,7 +365,7 @@ const ConfigurationsPage: React.FC = () => {
         category: activeCategory,
       });
 
-      const resetCount = (response.data as any)?.reset_count;
+      const resetCount = (response.data as Record<string, unknown>)?.reset_count;
       toast.success(
         typeof resetCount === 'number'
           ? `Reset ${resetCount} configuration(s) in ${activeCategory}`

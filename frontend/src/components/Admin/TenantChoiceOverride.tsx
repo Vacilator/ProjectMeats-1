@@ -79,9 +79,9 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
     setIsLoading(true);
     try {
       const response = await businessApi.get('/system/choice-lists/');
-      const raw = response.data as any;
-      const lists = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      setChoiceLists(lists);
+      const raw = response.data as Record<string, unknown>;
+      const lists: unknown[] = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? (raw.results as unknown[]) : [];
+      setChoiceLists(lists as SystemChoiceList[]);
     } catch (error) {
       logger.error('[TenantChoiceOverride] Failed to load choice lists:', error);
       toast.error('Failed to load choice lists');
@@ -109,8 +109,9 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({ tena
             params: { choice_list: list.id },
           });
 
-          const results = Array.isArray((overrideRes.data as any)?.results)
-            ? (overrideRes.data as any).results
+          const overrideData = overrideRes.data as Record<string, unknown>;
+          const results = Array.isArray(overrideData?.results)
+            ? overrideData.results
             : Array.isArray(overrideRes.data)
               ? overrideRes.data
               : [];
