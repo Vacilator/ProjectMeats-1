@@ -167,6 +167,26 @@ export default defineConfig({
             return 'vendor-antd';
           }
           if (
+            id.includes('/node_modules/@xyflow/') ||
+            id.includes('/node_modules/reactflow/') ||
+            id.includes('/node_modules/d3-')
+          ) {
+            return 'vendor-flow';
+          }
+          if (
+            id.includes('/node_modules/lucide-react/') ||
+            id.includes('/node_modules/@lucide/')
+          ) {
+            return 'vendor-icons';
+          }
+          if (
+            id.includes('/node_modules/zod/') ||
+            id.includes('/node_modules/react-hook-form/') ||
+            id.includes('/node_modules/@hookform/')
+          ) {
+            return 'vendor-forms';
+          }
+          if (
             id.includes('/node_modules/axios/') ||
             id.includes('/node_modules/styled-components/')
           ) {
@@ -192,6 +212,10 @@ export default defineConfig({
       '@ant-design/icons',
       'axios',
       'styled-components',
+      '@xyflow/react',
+      'zod',
+      'react-hook-form',
+      'lucide-react',
     ],
   },
 
