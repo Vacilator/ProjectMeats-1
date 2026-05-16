@@ -472,7 +472,7 @@ class ColdStorageEntrySerializer(serializers.ModelSerializer):
             "created_on",
             "modified_on",
         ]
-        read_only_fields = ["id", "date_time_stamp_created", "created_on", "modified_on"]
+        read_only_fields = ["id", "tenant", "date_time_stamp_created", "created_on", "modified_on"]
 
 
 class PurchaseOrderHistorySerializer(serializers.ModelSerializer):

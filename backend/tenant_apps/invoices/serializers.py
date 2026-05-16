@@ -128,7 +128,7 @@ class InvoiceSerializer(
             "created_on",
             "modified_on",
         ]
-        read_only_fields = ["id", "date_time_stamp", "created_on", "modified_on"]
+        read_only_fields = ["id", "tenant", "date_time_stamp", "created_on", "modified_on"]
 
     def _replace_items(self, instance: Invoice, items_data: list[dict]) -> None:
         instance.items.all().delete()
@@ -188,7 +188,7 @@ class ClaimSerializer(serializers.ModelSerializer):
             "created_on",
             "modified_on",
         ]
-        read_only_fields = ["id", "created_on", "modified_on", "assigned_to_name", "created_by_name"]
+        read_only_fields = ["id", "created_by", "created_on", "modified_on", "assigned_to_name", "created_by_name"]
 
     def get_created_by_name(self, obj):
         """Get the name of the user who created this claim."""
@@ -233,6 +233,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "tenant",
+            "created_by",
             "created_on",
             "modified_on",
             "created_by_name",

@@ -142,6 +142,7 @@ class SalesOrderSerializer(
         ]
         read_only_fields = [
             "id",
+            "tenant",
             "date_time_stamp",
             "created_on",
             "modified_on",
