@@ -84,7 +84,12 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
                 if target and ts.status != target:
                     update_trade_session_status(trade_session=ts, new_status=target)
             except Exception:
-                pass  # best-effort — don't block the transition
+                logger.warning(
+                    "Failed to create/update TradeSession for inquiry %s during %s transition",
+                    document.id,
+                    next_status,
+                    exc_info=True,
+                )
 
         return super().perform_document_status_transition(request, document, next_status)
 
