@@ -700,9 +700,9 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                     : inquiry.status === 'quoted' ? 'quoted'
                     : 'initiated'
                 )}
-                currentStep={inquiry.trade_session_current_step}
+                currentStep={inquiry.trade_session_current_step ?? undefined}
                 inquiryStatus={inquiry.status}
-                tradeSessionId={inquiry.trade_session_id}
+                tradeSessionId={inquiry.trade_session_id ?? undefined}
                 onActionClick={handleStepperActionClick}
                 compact
               />

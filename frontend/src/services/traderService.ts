@@ -40,7 +40,7 @@ export interface TradeSession {
   trade_id: string;
   status: string;
   route: string;
-  current_step: string;
+  current_step: string | null;
   inquiry_id: string;
   customer_name: string | null;
   source_email_subject: string;
@@ -87,7 +87,7 @@ export interface TradeAdvanceResponse {
   trade_id: string;
   inquiry_id: string;
   route: string;
-  current_step: string;
+  current_step: string | null;
   completed: boolean;
   blocked: boolean;
   blocked_reason: string;
@@ -99,7 +99,7 @@ export interface TradeStatusResponse {
   trade_session_id: string;
   status: string;
   route: string;
-  current_step: string;
+  current_step: string | null;
   initiated_at: string | null;
   inquiry_id: string;
   customer_name: string | null;

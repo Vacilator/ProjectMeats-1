@@ -212,7 +212,7 @@ const MyTrades: React.FC = () => {
       } else if (result.blocked) {
         void message.warning(`Blocked: ${result.blocked_reason || 'Missing dependencies'}`);
       } else {
-        void message.success(`Advanced to: ${result.current_step}`);
+        void message.success(`Advanced to: ${result.current_step || 'next step'}`);
       }
       void refetch();
     } catch (err) {
@@ -459,7 +459,7 @@ const MyTrades: React.FC = () => {
                       <FlowLabel>Workflow Progress</FlowLabel>
                       <TradeWorkflowStepper
                         tradeStatus={trade.status}
-                        currentStep={trade.current_step}
+                        currentStep={trade.current_step ?? undefined}
                         tradeSessionId={trade.id}
                         onActionClick={(action, step) => handleStepperActionClick(action, step, trade)}
                       />
