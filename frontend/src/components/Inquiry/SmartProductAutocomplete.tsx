@@ -370,13 +370,13 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
           },
         });
 
-        const raw = response.data as any;
+        const raw = response.data as Record<string, unknown>;
         const products = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
 
         // Mark suggested products
-        const enrichedResults = products.map((p: Product) => ({
+        const enrichedResults = (products as Product[]).map((p: Product) => ({
           ...p,
-          is_suggested: suggestedProducts.some(sp => String(sp.id) === String((p as any).id)),
+          is_suggested: suggestedProducts.some(sp => String(sp.id) === String(p.id)),
         }));
 
         setResults(enrichedResults);
@@ -412,7 +412,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
     setSelectedProduct(null);
     setResults([]);
     setIsOpen(false);
-    onChange('', null as any);
+    onChange('', null as never);
     inputRef.current?.focus();
   };
   

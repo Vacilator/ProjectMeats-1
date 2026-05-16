@@ -36,14 +36,14 @@ export const WorkFormExecutionDetails: React.FC = () => {
       // stop automatic refetching until the user explicitly retries.
       if (q.state.error) return false;
 
-      const status = (q.state.data as any)?.status as string | undefined;
+      const status = (q.state.data as Record<string, unknown> | undefined)?.status as string | undefined;
       return status === 'pending' || status === 'in_progress' ? 2000 : false;
     },
     refetchIntervalInBackground: true,
   });
 
   const execution = query.data;
-  const isLoadError = query.isError || (query as any).isRefetchError;
+  const isLoadError = query.isError || (query as unknown as Record<string, unknown>).isRefetchError;
 
   const submissionId = React.useMemo(() => {
     const initial = execution?.initial_data;

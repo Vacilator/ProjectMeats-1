@@ -167,7 +167,7 @@ const CustomerLocations: React.FC = () => {
 
   // Detect context from URL (preferred) or navigation state (fallback)
   useEffect(() => {
-    const state = location.state as any;
+    const state = location.state as Record<string, unknown> | null;
     const params = new URLSearchParams(location.search);
 
     const paramId = customerId ? Number(customerId) : NaN;
