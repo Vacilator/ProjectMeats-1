@@ -25,7 +25,7 @@ class ViewSetPermissionsTests(TestCase):
 
     def test_bug_reports_requires_auth(self):
         client = APIClient()
-        resp = client.get('/api/v1/bug-reports/', HTTP_X_TENANT_ID=str(self.tenant.id))
+        resp = client.get('/api/v1/error-reports/', HTTP_X_TENANT_ID=str(self.tenant.id))
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_ai_feedback_requires_auth(self):

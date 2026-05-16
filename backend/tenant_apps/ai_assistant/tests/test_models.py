@@ -793,7 +793,7 @@ class ChatSessionTenantBindingTests(TestCase):
         )
         self.assertEqual(message.tenant_id, self.tenant_a.id)
 
-    @patch("tenant_apps.ai_assistant.views.ai_not_configured_response")
+    @patch("tenant_apps.ai_assistant.views.chat.ai_not_configured_response")
     def test_chat_api_rejects_legacy_context_only_session_reuse(self, mock_not_configured):
         from tenant_apps.ai_assistant.views import ChatBotAPIViewSet
 
@@ -826,9 +826,9 @@ class ChatSessionTenantBindingTests(TestCase):
         self.assertIsNone(legacy_session.tenant_id)
 
     @override_settings(OPENAI_API_KEY='test-key', AI_SEMANTIC_CACHE_ENABLED=True)
-    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.lookup_cached_response")
-    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.build_context_signature", return_value="ctx-a")
-    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.store_cached_response")
+    @patch("tenant_apps.ai_assistant.views.chat.ai_semantic_cache.lookup_cached_response")
+    @patch("tenant_apps.ai_assistant.views.chat.ai_semantic_cache.build_context_signature", return_value="ctx-a")
+    @patch("tenant_apps.ai_assistant.views.chat.ai_semantic_cache.store_cached_response")
     @patch("tenant_apps.ai_assistant.swarm.router.SwarmOrchestrator.run_tool_loop")
     def test_chat_api_uses_semantic_cache_hits_without_running_tool_loop(
         self,
@@ -954,9 +954,9 @@ class ChatSessionTenantBindingTests(TestCase):
         AI_SEMANTIC_CACHE_ENABLED=False,
         AI_CHAT_COMPACTION_ENABLED=True,
     )
-    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.build_context_signature", return_value="ctx-compaction")
-    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.lookup_cached_response")
-    @patch("tenant_apps.ai_assistant.views.ai_semantic_cache.store_cached_response")
+    @patch("tenant_apps.ai_assistant.views.chat.ai_semantic_cache.build_context_signature", return_value="ctx-compaction")
+    @patch("tenant_apps.ai_assistant.views.chat.ai_semantic_cache.lookup_cached_response")
+    @patch("tenant_apps.ai_assistant.views.chat.ai_semantic_cache.store_cached_response")
     @patch("tenant_apps.ai_assistant.swarm.router.SwarmOrchestrator.run_tool_loop")
     def test_chat_api_only_replays_uncompacted_raw_tail_when_session_memory_exists(
         self,
