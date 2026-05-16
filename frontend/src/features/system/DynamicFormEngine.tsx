@@ -601,6 +601,352 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
   return next;
 };
 
+// ---------------------------------------------------------------------------
+// Stable sub-components — MUST be defined outside DynamicFormEngine to keep a
+// stable React component identity across renders.  Defining them inline would
+// create a new component reference on every render, which forces React to
+// unmount and remount the entire subtree. For components that use hooks like
+// useFieldArray or useWatch, this triggers form state updates on every mount,
+// creating an infinite setState → render → mount → setState loop (React error
+// #185 / "Maximum update depth exceeded").
+// ---------------------------------------------------------------------------
+
+type InlineFormArrayFieldProps = {
+  field: FieldDefinition;
+  showRequired: boolean;
+  control: ReturnType<typeof useForm>['control'];
+  errors: Record<string, unknown>;
+  watchedValues: Record<string, unknown>;
+  register: ReturnType<typeof useForm>['register'];
+  setValue: ReturnType<typeof useForm>['setValue'];
+  isSubmitting: boolean;
+  formConfig: DynamicFormConfig;
+  dropdownOptions: Record<string, PreloadedOption[]>;
+  getFieldOptions: (field: FieldDefinition) => PreloadedOption[];
+  filterOptionsByDependencies: (options: PreloadedOption[], deps: string[]) => PreloadedOption[];
+  isStateLikeKey: (normalizedKey: string) => boolean;
+};
+
+const StableInlineFormArrayField: React.FC<InlineFormArrayFieldProps> = ({
+  field,
+  showRequired,
+  control,
+  errors,
+  watchedValues,
+  register,
+  setValue,
+  isSubmitting,
+  formConfig,
+  dropdownOptions,
+  getFieldOptions,
+  filterOptionsByDependencies,
+  isStateLikeKey,
+}) => {
+  const itemFields = field.item_fields || [];
+  const { fields: items, append, remove } = useFieldArray({
+    control,
+    name: field.key as never,
+  });
+  const arrayError = getValueAtPath(errors, field.key);
+
+  const renderItemField = (itemField: FieldDefinition, namePath: string, idx: number) => {
+    const itemErr = getValueAtPath(errors, namePath);
+    const hasItemError = Boolean(itemErr);
+    const dependencyItems = (itemField.dependencies || []).flatMap((dependencyKey) => {
+      const dependencyValue = getValueAtPath(watchedValues, `${field.key}.${idx}.${dependencyKey}`);
+      if (Array.isArray(dependencyValue)) {
+        return dependencyValue.map((item) => String(item ?? '').trim()).filter(Boolean);
+      }
+      const single = String(dependencyValue ?? '').trim();
+      return single ? [single] : [];
+    });
+
+    const itemNormalizedKey = String(itemField.key).toLowerCase();
+    if (isStateLikeKey(itemNormalizedKey) || itemField.ui?.widget === 'state_select') {
+      return (
+        <ItemFieldGroup key={namePath}>
+          <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
+          <Controller
+            name={namePath as never}
+            control={control}
+            render={({ field: controllerField }) => (
+              <StateSelect
+                value={String(controllerField.value || '')}
+                onChange={controllerField.onChange}
+                placeholder={itemField.placeholder || 'Search state'}
+                disabled={isSubmitting}
+                aria-label={itemField.label}
+              />
+            )}
+          />
+          {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+        </ItemFieldGroup>
+      );
+    }
+
+    if (itemField.ui?.widget === 'tags') {
+      return (
+        <ItemFieldGroup key={namePath}>
+          <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
+          <Controller
+            name={namePath as never}
+            control={control}
+            render={({ field: controllerField }) => (
+              <StableAntSelect
+                mode="tags"
+                value={Array.isArray(controllerField.value) ? controllerField.value : []}
+                onChange={controllerField.onChange}
+                placeholder={itemField.placeholder || 'Add values'}
+                disabled={isSubmitting}
+                getPopupContainer={getAntdPopupContainer}
+                style={STABLE_FULL_WIDTH}
+              />
+            )}
+          />
+          {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+        </ItemFieldGroup>
+      );
+    }
+
+    if (itemField.ui?.data_source?.type === 'master_products') {
+      const resolvedProductOptions = filterOptionsByDependencies(
+        dropdownOptions[itemField.key] || EMPTY_OPTIONS,
+        dependencyItems
+      );
+      const disableProductSelect =
+        isSubmitting || ((itemField.dependencies || []).length > 0 && dependencyItems.length === 0);
+
+      return (
+        <ItemFieldGroup key={namePath}>
+          <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
+          <Controller
+            name={namePath as never}
+            control={control}
+            render={({ field: controllerField }) => (
+              <StableAntSelect
+                showSearch
+                value={controllerField.value || undefined}
+                onChange={controllerField.onChange}
+                options={resolvedProductOptions}
+                placeholder={itemField.placeholder || 'Search products'}
+                disabled={disableProductSelect}
+                allowClear
+                optionFilterProp="label"
+                getPopupContainer={getAntdPopupContainer}
+                style={STABLE_FULL_WIDTH}
+              />
+            )}
+          />
+          {hasItemError && <ErrorText>{String((itemErr as Record<string, unknown>)?.message || 'Invalid value')}</ErrorText>}
+        </ItemFieldGroup>
+      );
+    }
+
+    if (itemField.type === 'select') {
+      return (
+        <ItemFieldGroup key={namePath}>
+          <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
+          <Controller
+            name={namePath as never}
+            control={control}
+            render={({ field: controllerField }) => (
+              <Select
+                value={controllerField.value || ''}
+                onChange={controllerField.onChange}
+                options={getFieldOptions(itemField)}
+                placeholder={itemField.placeholder || 'Select an option'}
+                disabled={isSubmitting}
+              />
+            )}
+          />
+          {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+        </ItemFieldGroup>
+      );
+    }
+
+    const inputType =
+      itemField.type === 'datetime'
+        ? 'datetime-local'
+        : itemField.type === 'phone'
+          ? 'text'
+          : itemField.type;
+
+    return (
+      <ItemFieldGroup key={namePath}>
+        <Label htmlFor={namePath} required={formConfig.showRequiredIndicator && itemField.required}>
+          {itemField.label}
+        </Label>
+        <Input
+          type={inputType}
+          id={namePath}
+          {...register(namePath as never, {
+            onBlur: (e) => {
+              if (itemField.type !== 'phone') return;
+              const raw = (e?.target as HTMLInputElement | null)?.value ?? '';
+              const formatted = formatUsPhone(String(raw));
+              setValue(namePath as never, formatted as never, { shouldDirty: true, shouldValidate: true });
+            },
+          })}
+          placeholder={itemField.placeholder}
+          $hasError={hasItemError}
+          disabled={isSubmitting}
+        />
+        {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
+      </ItemFieldGroup>
+    );
+  };
+
+  return (
+    <FieldGroup key={field.key}>
+      <ArrayFieldHeader>
+        <Label required={showRequired}>{field.label}</Label>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => append({} as never)}
+          disabled={isSubmitting}
+        >
+          + {field.add_button_label || 'Add'}
+        </Button>
+      </ArrayFieldHeader>
+
+      {items.length === 0 ? (
+        <ArrayEmptyMessage>
+          No entries added yet.
+        </ArrayEmptyMessage>
+      ) : (
+        <ArrayItemsContainer>
+          {items.map((item, idx) => (
+            <ArrayItemCard key={item.id}>
+              <ArrayItemHeader>
+                <ArrayItemLabel>
+                  {field.item_label || 'Item'} #{idx + 1}
+                </ArrayItemLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => remove(idx)}
+                  disabled={isSubmitting}
+                >
+                  Remove
+                </Button>
+              </ArrayItemHeader>
+
+              <ArrayItemBody>
+                {itemFields.map((itemField) =>
+                  renderItemField(itemField, `${field.key}.${idx}.${itemField.key}`, idx)
+                )}
+              </ArrayItemBody>
+            </ArrayItemCard>
+          ))}
+        </ArrayItemsContainer>
+      )}
+
+      {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
+      {Boolean(arrayError) && typeof (arrayError as Record<string, unknown>)?.message === 'string' && (
+        <ErrorText>{String((arrayError as Record<string, unknown>).message)}</ErrorText>
+      )}
+    </FieldGroup>
+  );
+};
+
+type MultiSelectFieldProps = {
+  field: FieldDefinition;
+  showRequired: boolean;
+  errorMessage?: string;
+  options: PreloadedOption[];
+  cascading?: boolean;
+  dependencyValue?: unknown;
+  control: ReturnType<typeof useForm>['control'];
+  setValue: ReturnType<typeof useForm>['setValue'];
+  isSubmitting: boolean;
+  formConfig: DynamicFormConfig;
+  filterOptionsByDependencies: (options: PreloadedOption[], deps: string[]) => PreloadedOption[];
+};
+
+const StableMultiSelectField: React.FC<MultiSelectFieldProps> = ({
+  field,
+  showRequired,
+  errorMessage,
+  options,
+  cascading = false,
+  dependencyValue,
+  control,
+  setValue,
+  isSubmitting,
+  formConfig,
+  filterOptionsByDependencies,
+}) => {
+  const currentValue = useWatch({ control, name: field.key }) as string[] | undefined;
+
+  const dependencyItems = useMemo(() => {
+    if (Array.isArray(dependencyValue)) {
+      return dependencyValue.map((item) => String(item ?? '').trim()).filter(Boolean);
+    }
+
+    if (typeof dependencyValue === 'string') {
+      return [String(dependencyValue).trim()].filter(Boolean);
+    }
+
+    return [] as string[];
+  }, [dependencyValue]);
+
+  const hasDependencies = (field.dependencies || []).length > 0;
+  const resolvedOptions = useMemo(
+    () => (cascading ? filterOptionsByDependencies(options, dependencyItems) : options),
+    [cascading, dependencyItems, filterOptionsByDependencies, options]
+  );
+  const disabled = isSubmitting || (cascading && hasDependencies && dependencyItems.length === 0);
+
+  useEffect(() => {
+    if (field.ui?.widget === 'tags') return;
+    if (resolvedOptions.length === 0) return;
+    if (!Array.isArray(currentValue) || currentValue.length === 0) return;
+
+    const allowedValues = new Set(resolvedOptions.map((item) => String(item.value)));
+    const nextValue = currentValue.filter((item) => allowedValues.has(String(item)));
+    const hasSameValues =
+      nextValue.length === currentValue.length &&
+      nextValue.every((item, index) => String(item) === String(currentValue[index]));
+
+    if (!hasSameValues) {
+      setValue(field.key as never, nextValue as never, {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+    }
+  }, [currentValue, field.key, field.ui?.widget, resolvedOptions, setValue]);
+
+  return (
+    <FieldGroup key={field.key}>
+      <Label htmlFor={field.key} required={showRequired}>
+        {field.label}
+      </Label>
+      <Controller
+        name={field.key}
+        control={control}
+        render={({ field: controllerField }) => (
+          <StableAntSelect
+            id={field.key}
+            mode={field.ui?.widget === 'tags' ? 'tags' : 'multiple'}
+            value={Array.isArray(controllerField.value) ? controllerField.value : []}
+            onChange={controllerField.onChange}
+            options={resolvedOptions}
+            placeholder={field.placeholder || 'Select one or more options'}
+            disabled={disabled}
+            allowClear
+            optionFilterProp="label"
+            getPopupContainer={getAntdPopupContainer}
+            style={STABLE_FULL_WIDTH}
+          />
+        )}
+      />
+      {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
+      {errorMessage && <ErrorText>{errorMessage}</ErrorText>}
+    </FieldGroup>
+  );
+};
+
 export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   schema,
   initialValues = EMPTY_INITIAL_VALUES,
@@ -880,297 +1226,13 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     return false;
   };
 
-  const InlineFormArrayField: React.FC<{ field: FieldDefinition; showRequired: boolean }> = ({
-    field,
-    showRequired,
-  }) => {
-    const itemFields = field.item_fields || [];
-    const { fields: items, append, remove } = useFieldArray({
-      control,
-      name: field.key as never,
-    });
-    const arrayError = getValueAtPath(errors, field.key);
+  // InlineFormArrayField and MultiSelectField are defined as stable top-level
+  // components (see above DynamicFormEngine) to prevent React error #185.
+  // Defining them inline would create a new component identity on every render,
+  // causing unmount/remount → useFieldArray re-register → state update → loop.
 
-    const renderItemField = (itemField: FieldDefinition, namePath: string, idx: number) => {
-      const itemErr = getValueAtPath(errors, namePath);
-      const hasItemError = Boolean(itemErr);
-      const dependencyItems = (itemField.dependencies || []).flatMap((dependencyKey) => {
-        const dependencyValue = getValueAtPath(watchedValues, `${field.key}.${idx}.${dependencyKey}`);
-        if (Array.isArray(dependencyValue)) {
-          return dependencyValue.map((item) => String(item ?? '').trim()).filter(Boolean);
-        }
-        const single = String(dependencyValue ?? '').trim();
-        return single ? [single] : [];
-      });
-
-      const itemNormalizedKey = String(itemField.key).toLowerCase();
-      if (isStateLikeKey(itemNormalizedKey) || itemField.ui?.widget === 'state_select') {
-        return (
-          <ItemFieldGroup key={namePath}>
-            <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
-            <Controller
-              name={namePath as never}
-              control={control}
-              render={({ field: controllerField }) => (
-                <StateSelect
-                  value={String(controllerField.value || '')}
-                  onChange={controllerField.onChange}
-                  placeholder={itemField.placeholder || 'Search state'}
-                  disabled={isSubmitting}
-                  aria-label={itemField.label}
-                />
-              )}
-            />
-            {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
-          </ItemFieldGroup>
-        );
-      }
-
-      if (itemField.ui?.widget === 'tags') {
-        return (
-          <ItemFieldGroup key={namePath}>
-            <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
-            <Controller
-              name={namePath as never}
-              control={control}
-              render={({ field: controllerField }) => (
-                <StableAntSelect
-                  mode="tags"
-                  value={Array.isArray(controllerField.value) ? controllerField.value : []}
-                  onChange={controllerField.onChange}
-                  placeholder={itemField.placeholder || 'Add values'}
-                  disabled={isSubmitting}
-                  getPopupContainer={getAntdPopupContainer}
-                  style={STABLE_FULL_WIDTH}
-                />
-              )}
-            />
-            {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
-          </ItemFieldGroup>
-        );
-      }
-
-      if (itemField.ui?.data_source?.type === 'master_products') {
-        const resolvedProductOptions = filterOptionsByDependencies(
-          dropdownOptions[itemField.key] || EMPTY_OPTIONS,
-          dependencyItems
-        );
-        const disableProductSelect =
-          isSubmitting || ((itemField.dependencies || []).length > 0 && dependencyItems.length === 0);
-
-        return (
-          <ItemFieldGroup key={namePath}>
-            <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
-            <Controller
-              name={namePath as never}
-              control={control}
-              render={({ field: controllerField }) => (
-                <StableAntSelect
-                  showSearch
-                  value={controllerField.value || undefined}
-                  onChange={controllerField.onChange}
-                  options={resolvedProductOptions}
-                  placeholder={itemField.placeholder || 'Search products'}
-                  disabled={disableProductSelect}
-                  allowClear
-                  optionFilterProp="label"
-                  getPopupContainer={getAntdPopupContainer}
-                  style={STABLE_FULL_WIDTH}
-                />
-              )}
-            />
-            {hasItemError && <ErrorText>{String((itemErr as Record<string, unknown>)?.message || 'Invalid value')}</ErrorText>}
-          </ItemFieldGroup>
-        );
-      }
-
-      if (itemField.type === 'select') {
-        return (
-          <ItemFieldGroup key={namePath}>
-            <Label required={formConfig.showRequiredIndicator && itemField.required}>{itemField.label}</Label>
-            <Controller
-              name={namePath as never}
-              control={control}
-              render={({ field: controllerField }) => (
-                <Select
-                  value={controllerField.value || ''}
-                  onChange={controllerField.onChange}
-                  options={getFieldOptions(itemField)}
-                  placeholder={itemField.placeholder || 'Select an option'}
-                  disabled={isSubmitting}
-                />
-              )}
-            />
-            {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
-          </ItemFieldGroup>
-        );
-      }
-
-      const inputType =
-        itemField.type === 'datetime'
-          ? 'datetime-local'
-          : itemField.type === 'phone'
-            ? 'text'
-            : itemField.type;
-
-      return (
-        <ItemFieldGroup key={namePath}>
-          <Label htmlFor={namePath} required={formConfig.showRequiredIndicator && itemField.required}>
-            {itemField.label}
-          </Label>
-          <Input
-            type={inputType}
-            id={namePath}
-            {...register(namePath as never, {
-              onBlur: (e) => {
-                if (itemField.type !== 'phone') return;
-                const raw = (e?.target as HTMLInputElement | null)?.value ?? '';
-                const formatted = formatUsPhone(String(raw));
-                setValue(namePath as never, formatted as never, { shouldDirty: true, shouldValidate: true });
-              },
-            })}
-            placeholder={itemField.placeholder}
-            $hasError={hasItemError}
-            disabled={isSubmitting}
-          />
-          {hasItemError && <ErrorText>{String(itemErr?.message || 'Invalid value')}</ErrorText>}
-        </ItemFieldGroup>
-      );
-    };
-
-    return (
-      <FieldGroup key={field.key}>
-        <ArrayFieldHeader>
-          <Label required={showRequired}>{field.label}</Label>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => append({} as never)}
-            disabled={isSubmitting}
-          >
-            + {field.add_button_label || 'Add'}
-          </Button>
-        </ArrayFieldHeader>
-
-        {items.length === 0 ? (
-          <ArrayEmptyMessage>
-            No entries added yet.
-          </ArrayEmptyMessage>
-        ) : (
-          <ArrayItemsContainer>
-            {items.map((item, idx) => (
-              <ArrayItemCard
-                key={item.id}
-              >
-                <ArrayItemHeader>
-                  <ArrayItemLabel>
-                    {field.item_label || 'Item'} #{idx + 1}
-                  </ArrayItemLabel>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => remove(idx)}
-                    disabled={isSubmitting}
-                  >
-                    Remove
-                  </Button>
-                </ArrayItemHeader>
-
-                <ArrayItemBody>
-                  {itemFields.map((itemField) =>
-                    renderItemField(itemField, `${field.key}.${idx}.${itemField.key}`, idx)
-                  )}
-                </ArrayItemBody>
-              </ArrayItemCard>
-            ))}
-          </ArrayItemsContainer>
-        )}
-
-        {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
-        {Boolean(arrayError) && typeof (arrayError as Record<string, unknown>)?.message === 'string' && (
-          <ErrorText>{String((arrayError as Record<string, unknown>).message)}</ErrorText>
-        )}
-      </FieldGroup>
-    );
-  };
-
-  const MultiSelectField: React.FC<{
-    field: FieldDefinition;
-    showRequired: boolean;
-    errorMessage?: string;
-    options: PreloadedOption[];
-    cascading?: boolean;
-    dependencyValue?: unknown;
-  }> = ({ field, showRequired, errorMessage, options, cascading = false, dependencyValue }) => {
-    const currentValue = useWatch({ control, name: field.key }) as string[] | undefined;
-
-    const dependencyItems = useMemo(() => {
-      if (Array.isArray(dependencyValue)) {
-        return dependencyValue.map((item) => String(item ?? '').trim()).filter(Boolean);
-      }
-
-      if (typeof dependencyValue === 'string') {
-        return [String(dependencyValue).trim()].filter(Boolean);
-      }
-
-      return [] as string[];
-    }, [dependencyValue]);
-
-    const hasDependencies = (field.dependencies || []).length > 0;
-    const resolvedOptions = useMemo(
-      () => (cascading ? filterOptionsByDependencies(options, dependencyItems) : options),
-      [cascading, dependencyItems, options]
-    );
-    const disabled = isSubmitting || (cascading && hasDependencies && dependencyItems.length === 0);
-
-    useEffect(() => {
-      if (field.ui?.widget === 'tags') return;
-      if (resolvedOptions.length === 0) return;
-      if (!Array.isArray(currentValue) || currentValue.length === 0) return;
-
-      const allowedValues = new Set(resolvedOptions.map((item) => String(item.value)));
-      const nextValue = currentValue.filter((item) => allowedValues.has(String(item)));
-      const hasSameValues =
-        nextValue.length === currentValue.length &&
-        nextValue.every((item, index) => String(item) === String(currentValue[index]));
-
-      if (!hasSameValues) {
-        setValue(field.key as never, nextValue as never, {
-          shouldDirty: true,
-          shouldValidate: false,
-        });
-      }
-    }, [currentValue, field.key, field.ui?.widget, resolvedOptions]);
-
-    return (
-      <FieldGroup key={field.key}>
-        <Label htmlFor={field.key} required={showRequired}>
-          {field.label}
-        </Label>
-        <Controller
-          name={field.key}
-          control={control}
-          render={({ field: controllerField }) => (
-            <StableAntSelect
-              id={field.key}
-              mode={field.ui?.widget === 'tags' ? 'tags' : 'multiple'}
-              value={Array.isArray(controllerField.value) ? controllerField.value : []}
-              onChange={controllerField.onChange}
-              options={resolvedOptions}
-              placeholder={field.placeholder || 'Select one or more options'}
-              disabled={disabled}
-              allowClear
-              optionFilterProp="label"
-              getPopupContainer={getAntdPopupContainer}
-              style={STABLE_FULL_WIDTH}
-            />
-          )}
-        />
-        {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
-        {errorMessage && <ErrorText>{errorMessage}</ErrorText>}
-      </FieldGroup>
-    );
-  };
+  // MultiSelectField extracted to top-level (see StableMultiSelectField above)
+  // to prevent React error #185 — same pattern as InlineFormArrayField.
 
   const seenSections = new Set<string>();
 
@@ -1275,7 +1337,24 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     if (sectionTitle) seenSections.add(String(sectionTitle));
 
     if (field.type === 'inline_form_array') {
-      return <InlineFormArrayField key={field.key} field={field} showRequired={showRequired} />;
+      return (
+        <StableInlineFormArrayField
+          key={field.key}
+          field={field}
+          showRequired={showRequired}
+          control={control}
+          errors={errors}
+          watchedValues={watchedValues}
+          register={register}
+          setValue={setValue}
+          isSubmitting={isSubmitting}
+          formConfig={formConfig}
+          dropdownOptions={dropdownOptions}
+          getFieldOptions={getFieldOptions}
+          filterOptionsByDependencies={filterOptionsByDependencies}
+          isStateLikeKey={isStateLikeKey}
+        />
+      );
     }
 
     if (String(field.key).toLowerCase() === 'country') {
@@ -1386,13 +1465,18 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       case 'select':
         if (field.ui?.widget === 'multi_select' || field.ui?.widget === 'tags') {
           return (
-            <MultiSelectField
+            <StableMultiSelectField
               field={field}
               showRequired={showRequired}
               errorMessage={error?.message as string | undefined}
               options={resolvedOptions}
               cascading={field.ui?.data_source?.type === 'master_products'}
               dependencyValue={primaryDependencyValue}
+              control={control}
+              setValue={setValue}
+              isSubmitting={isSubmitting}
+              formConfig={formConfig}
+              filterOptionsByDependencies={filterOptionsByDependencies}
             />
           );
         }
