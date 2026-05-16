@@ -25,7 +25,7 @@ export interface LegacyStep {
   name: string;
   order: number;
   entity_type: string;
-  fields: any[];
+  fields: unknown[];
 }
 
 /**

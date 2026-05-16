@@ -288,7 +288,7 @@ export interface FormDefinition {
     submitButtonText?: string;
     theme?: 'light' | 'dark' | 'auto';
   };
-  visibilityRules?: any[];
+  visibilityRules?: Record<string, unknown>[];
   createdAt?: string;
   updatedAt?: string;
 }
