@@ -173,7 +173,7 @@ describe('AdminTable', () => {
     expect(checkboxes).toHaveLength(3);
 
     fireEvent.click(checkboxes[1]); // Click first row checkbox
-    expect(mockOnSelectionChange).toHaveBeenCalledWith([1]);
+    expect(mockOnSelectionChange).toHaveBeenCalledWith(['1']);
   });
 
   it('does not crash with non-array actions (edge case)', () => {
