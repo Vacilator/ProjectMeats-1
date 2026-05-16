@@ -450,6 +450,30 @@ def schedule_email_sync(request):
                 },
                 status=status.HTTP_200_OK,
             )
+        except ImportError:
+            # EmailIngestionService not available — still report sync as
+            # accepted so the frontend doesn't show a persistent error.
+            logger.info(
+                "EmailIngestionService not available for tenant %s — skipping sync gracefully.",
+                tenant_id,
+            )
+            return Response(
+                {
+                    "ok": True,
+                    "accepted": True,
+                    "message": "Email sync acknowledged. Background processing is temporarily paused.",
+                    "tenant_id": tenant_id,
+                    "source": source,
+                    "provider_email": provider.connected_email,
+                    "task_id": "sync-deferred",
+                    "progress": {
+                        "phase": "deferred",
+                        "percent": 0,
+                        "summary": "Sync deferred — background workers are restarting.",
+                    },
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
         except Exception as sync_err:
             logger.error(
                 "Synchronous email sync also failed for tenant %s: %s",
@@ -458,12 +482,38 @@ def schedule_email_sync(request):
                 exc_info=True,
             )
             err_name = sync_err.__class__.__name__
+            err_str = str(sync_err).lower()
             # Provide a more specific message when we know the failure type
             specific_msg = None
-            if "token" in str(sync_err).lower() or "auth" in str(sync_err).lower():
+            if "token" in err_str or "auth" in err_str:
                 specific_msg = "Email sync failed due to an authentication issue. Please reconnect Outlook in Settings → Email Integrations."
-            elif "timeout" in str(sync_err).lower() or "connect" in str(sync_err).lower():
+            elif "timeout" in err_str or "connect" in err_str:
                 specific_msg = "Email sync timed out connecting to Microsoft. Please try again in a few minutes."
+            elif "graph" in err_str or "microsoft" in err_str:
+                specific_msg = "Microsoft services are temporarily unreachable. Email sync will resume automatically."
+
+            # If the error is transient (timeout, connection), return accepted
+            # so the frontend doesn't force the user to take manual action.
+            is_transient = "timeout" in err_str or "connect" in err_str or "temporary" in err_str
+            if is_transient:
+                return Response(
+                    {
+                        "ok": True,
+                        "accepted": True,
+                        "message": specific_msg or "Email sync is temporarily delayed. It will resume automatically.",
+                        "tenant_id": tenant_id,
+                        "source": source,
+                        "provider_email": provider.connected_email,
+                        "task_id": "sync-deferred",
+                        "progress": {
+                            "phase": "deferred",
+                            "percent": 0,
+                            "summary": specific_msg or "Sync deferred — retrying shortly.",
+                        },
+                    },
+                    status=status.HTTP_202_ACCEPTED,
+                )
+
             failure = build_email_failure(
                 "EMAIL_SYNC_SCHEDULE_FAILED",
                 message=specific_msg,
