@@ -1,6 +1,6 @@
 """DRF-wrapped health endpoints for OpenAPI visibility.
 
-Build: Phase 81 — force redeploy to recover from Daphne crash (504).
+Build: Phase 89 — force backend redeploy to recover from Daphne crash (504).
 
 The canonical routes live under /api/v1/health/* and /api/v1/ready/.
 Historically these were implemented as plain Django views, which drf-spectacular

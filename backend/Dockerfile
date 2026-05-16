@@ -34,7 +34,7 @@ USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8000/api/v1/health/ || exit 1
 
 # Start Daphne so the container serves both HTTP and websocket traffic via ASGI.
@@ -45,5 +45,8 @@ CMD ["sh", "-c", "python manage.py check && \
     exec daphne \
       --bind 0.0.0.0 \
       --port 8000 \
+      --http-timeout 120 \
       --proxy-headers \
+      --access-log - \
+      --verbosity 1 \
       projectmeats.asgi:application"]

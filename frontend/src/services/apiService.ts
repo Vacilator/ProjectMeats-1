@@ -311,9 +311,11 @@ apiClient.interceptors.response.use(
     // Circuit breaker: do NOT trigger auth refresh flows for transient upstream/server errors.
     if (status && [500, 502, 503, 504].includes(status)) {
       const friendlyMessage =
-        status === 502
-          ? 'Server temporarily unreachable. Please try again shortly.'
-          : 'Server error. Please try again shortly.';
+        status === 504
+          ? 'Server is not responding — it may be restarting. Please try again shortly.'
+          : status === 502
+            ? 'Server temporarily unreachable. Please try again shortly.'
+            : 'Server error. Please try again shortly.';
 
       // Deduplicate repeated 5xx logs for the same endpoint within 10s
       if (shouldLogServerError(originalRequest?.url, status)) {
@@ -456,9 +458,11 @@ adminClient.interceptors.response.use(
     // Circuit breaker: do NOT trigger auth refresh flows for transient upstream/server errors.
     if (status && [500, 502, 503, 504].includes(status)) {
       const friendlyMessage =
-        status === 502
-          ? 'Server temporarily unreachable. Please try again shortly.'
-          : 'Server error. Please try again shortly.';
+        status === 504
+          ? 'Server is not responding — it may be restarting. Please try again shortly.'
+          : status === 502
+            ? 'Server temporarily unreachable. Please try again shortly.'
+            : 'Server error. Please try again shortly.';
 
       if (shouldLogServerError(originalRequest?.url, status)) {
         logger.error('[Admin API] Server error (circuit breaker)', {
