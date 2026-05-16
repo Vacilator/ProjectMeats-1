@@ -10,7 +10,7 @@ import React from 'react';
 import StableAntSelect from './StableAntSelect';
 
 import { getAntdPopupContainer, type AntdGetPopupContainer } from '../../utils/antdPopupContainer';
-import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from '../../utils/constants/countries';
+import { COUNTRY_OPTIONS, DEFAULT_COUNTRY, type CountryOption } from '../../utils/constants/countries';
 
 export interface CountrySelectProps {
   /**
@@ -52,15 +52,16 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
       allowClear={allowClear}
       showSearch
       optionFilterProp="label"
-      options={COUNTRY_OPTIONS as any}
+      options={COUNTRY_OPTIONS}
       aria-label={ariaLabel}
       getPopupContainer={getPopupContainer ?? getAntdPopupContainer}
       style={{ width: '100%' }}
       filterOption={(input, option) => {
         const q = String(input || '').toLowerCase();
-        const label = String((option as any)?.label || '').toLowerCase();
-        const valueStr = String((option as any)?.value || '').toLowerCase();
-        const code2 = String((option as any)?.code2 || '').toLowerCase();
+        const opt = option as CountryOption;
+        const label = (opt?.label || '').toLowerCase();
+        const valueStr = (opt?.value || '').toLowerCase();
+        const code2 = (opt?.code2 || '').toLowerCase();
         return label.includes(q) || valueStr.includes(q) || code2.includes(q);
       }}
     />
