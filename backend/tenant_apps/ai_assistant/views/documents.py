@@ -66,6 +66,22 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
             return qs.none()
         qs = qs.filter(tenant=tenant)
 
+        # Batch ID filter — allows fetching multiple documents in one request
+        # instead of N individual GETs (which produce N 404 console errors).
+        ids_param = str(self.request.query_params.get("ids") or "").strip()
+        if ids_param:
+            valid_ids = []
+            for raw_id in ids_param.split(","):
+                raw_id = raw_id.strip()
+                if not raw_id:
+                    continue
+                try:
+                    valid_ids.append(uuid.UUID(raw_id))
+                except ValueError:
+                    continue
+            if valid_ids:
+                qs = qs.filter(pk__in=valid_ids)
+
         source = str(self.request.query_params.get("source") or "").strip()
         if source:
             qs = qs.filter(custom_data__source=source)
