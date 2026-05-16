@@ -390,7 +390,7 @@ const UsersPage: React.FC = () => {
         key: 'role',
         label: 'Role',
         sortable: true,
-        render: (value: string) => <RoleBadge role={value as any} />,
+        render: (value: string) => <RoleBadge role={value} />,
       },
       {
         key: 'is_active',
@@ -420,7 +420,7 @@ const UsersPage: React.FC = () => {
         key: 'role',
         label: 'Role',
         sortable: true,
-        render: (value: string) => <RoleBadge role={value as any} />,
+        render: (value: string) => <RoleBadge role={value} />,
       },
       {
         key: 'expires_at',
