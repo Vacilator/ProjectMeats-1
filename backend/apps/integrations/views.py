@@ -457,10 +457,18 @@ def schedule_email_sync(request):
                 sync_err,
                 exc_info=True,
             )
+            err_name = sync_err.__class__.__name__
+            # Provide a more specific message when we know the failure type
+            specific_msg = None
+            if "token" in str(sync_err).lower() or "auth" in str(sync_err).lower():
+                specific_msg = "Email sync failed due to an authentication issue. Please reconnect Outlook in Settings → Email Integrations."
+            elif "timeout" in str(sync_err).lower() or "connect" in str(sync_err).lower():
+                specific_msg = "Email sync timed out connecting to Microsoft. Please try again in a few minutes."
             failure = build_email_failure(
                 "EMAIL_SYNC_SCHEDULE_FAILED",
+                message=specific_msg,
                 stage="sync_queue",
-                detail_type=sync_err.__class__.__name__,
+                detail_type=err_name,
             )
             return Response(
                 {

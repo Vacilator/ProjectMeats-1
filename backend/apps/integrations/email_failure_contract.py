@@ -173,10 +173,10 @@ EMAIL_FAILURE_SPECS: dict[str, EmailFailureSpec] = {
         category="processing",
         retryable=True,
         legacy_error_code="sync_schedule_failed",
-        default_message="Email sync could not be queued right now.",
-        default_hint="Retry the sync in a few moments.",
+        default_message="Email sync is temporarily unavailable.",
+        default_hint="The sync service could not process the request. If this persists, reconnect Outlook in Settings → Email Integrations.",
         sync_code="sync_schedule_failed",
-        sync_summary="Email sync could not be queued right now",
+        sync_summary="Email sync is temporarily unavailable",
     ),
     "EMAIL_SYNC_FAILED": EmailFailureSpec(
         code="EMAIL_SYNC_FAILED",

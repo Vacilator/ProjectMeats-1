@@ -281,6 +281,12 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
       const triggerProgress = normalizeProgress(triggerResult.progress) ?? runningState.progress ?? null;
 
       if (!triggerResult.accepted) {
+        consecutiveFailures.current += 1;
+        const tooManyRetries = consecutiveFailures.current >= 2;
+        const effectiveAction = tooManyRetries && triggerAction?.type === 'retry_sync'
+          ? { type: 'reconnect_outlook' as const, label: 'Check Email Settings', url: '/settings/integrations' }
+          : triggerAction;
+        const effectiveRetryable = tooManyRetries ? false : Boolean(triggerFailure?.retryable);
         return publishSyncState({
           ...initialSyncState,
           status: triggerFailure || triggerAction ? 'failed' : 'skipped',
@@ -288,9 +294,11 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
           startedAt: now,
           finishedAt: Date.now(),
           message: triggerResult.message || triggerFailure?.message || 'Email sync was not accepted.',
-          summary: triggerResult.message || triggerFailure?.message || 'Email sync was not accepted.',
-          retryable: Boolean(triggerFailure?.retryable),
-          action: triggerAction,
+          summary: tooManyRetries
+            ? (triggerFailure?.hint || triggerResult.message || 'Email sync is not working. Check your email settings.')
+            : (triggerResult.message || triggerFailure?.message || 'Email sync was not accepted.'),
+          retryable: effectiveRetryable,
+          action: effectiveAction,
           failure: triggerFailure,
           progress: triggerProgress,
         });
