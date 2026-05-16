@@ -122,7 +122,14 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
                 "carrier_purchase_order",
                 "created_by",
             )
-            .prefetch_related("products")
+            .prefetch_related(
+                "products",
+                "products__product",
+                "products__supplier_bids",
+                "products__supplier_bids__supplier",
+                "products__supplier_bids__plant",
+                "products__supplier_bids__contact",
+            )
         )
 
         params = getattr(self.request, "query_params", {})
