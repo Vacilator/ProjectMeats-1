@@ -9,7 +9,20 @@
  * - Automatic token refresh on 401 responses
  * - Global 401 handling: clears local auth + hard-redirects to /login when refresh fails/missing
  */
-import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError as AxiosErrorType, AxiosHeaders, InternalAxiosRequestConfig } from 'axios';
+
+// Type-safe helpers for Axios internal types that lack proper generics
+type AxiosHeadersLike = AxiosHeaders | Record<string, string | undefined>;
+interface AxiosRequestWithBaseURL extends InternalAxiosRequestConfig {
+  baseURL?: string;
+}
+interface ApiErrorResponseData {
+  message?: string;
+  error?: string;
+  detail?: string;
+  details?: string;
+  [key: string]: unknown;
+}
 import * as Sentry from '@sentry/react';
 import { config } from '../config/runtime';
 import { logger } from '../utils/logger';
@@ -47,6 +60,28 @@ function shouldLogServerError(url: string | undefined, status: number): boolean 
     }
   }
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Type-safe header manipulation helpers
+// Axios headers may be AxiosHeaders (class with .set/.delete) or plain objects.
+// ---------------------------------------------------------------------------
+function deleteHeader(headers: AxiosHeadersLike | undefined, ...names: string[]): void {
+  if (!headers) return;
+  if (headers instanceof AxiosHeaders) {
+    for (const n of names) headers.delete(n);
+  } else {
+    for (const n of names) delete (headers as Record<string, string | undefined>)[n];
+  }
+}
+
+function setHeader(headers: AxiosHeadersLike | undefined, name: string, value: string): void {
+  if (!headers) return;
+  if (headers instanceof AxiosHeaders) {
+    headers.set(name, value);
+  } else {
+    (headers as Record<string, string | undefined>)[name] = value;
+  }
 }
 
 // Extract base URL without /api/v1/ suffix for admin endpoints
@@ -133,15 +168,15 @@ const stripJsonContentTypeForFormData = (config: InternalAxiosRequestConfig) => 
 
   // Axios may represent headers as an AxiosHeaders instance (with .delete())
   // or a plain object. We need to handle both.
-  const headersAny = config.headers as any;
-  if (!headersAny) return;
+  const headers = config.headers as AxiosHeadersLike;
+  if (!headers) return;
 
-  if (typeof headersAny.delete === 'function') {
-    headersAny.delete('Content-Type');
-    headersAny.delete('content-type');
+  if (headers instanceof AxiosHeaders) {
+    headers.delete('Content-Type');
+    headers.delete('content-type');
   } else {
-    delete headersAny['Content-Type'];
-    delete headersAny['content-type'];
+    delete (headers as Record<string, string | undefined>)['Content-Type'];
+    delete (headers as Record<string, string | undefined>)['content-type'];
   }
 };
 
@@ -195,34 +230,18 @@ apiClient.interceptors.request.use(
       if (authHeader) {
         config.headers.Authorization = authHeader;
       } else {
-        const headersAny = config.headers as any;
-        if (headersAny) {
-          if (typeof headersAny.delete === 'function') {
-            headersAny.delete('Authorization');
-            headersAny.delete('authorization');
-          } else {
-            delete headersAny.Authorization;
-            delete headersAny.authorization;
-          }
-        }
+        deleteHeader(config.headers as AxiosHeadersLike, 'Authorization', 'authorization');
       }
       // Note: Missing auth header is expected during login/public endpoints
       
       // Add tenant ID header if available (and valid).
       // Backend expects a UUID; never send literal "undefined"/"null".
       const tenantId = getValidTenantId();
-      const headersAny = config.headers as any;
       if (tenantId) {
-        headersAny['X-Tenant-ID'] = tenantId;
-      } else if (headersAny) {
+        setHeader(config.headers as AxiosHeadersLike, 'X-Tenant-ID', tenantId);
+      } else {
         // Ensure we don't leak a stale/invalid header from previous config reuse.
-        if (typeof headersAny.delete === 'function') {
-          headersAny.delete('X-Tenant-ID');
-          headersAny.delete('x-tenant-id');
-        } else {
-          delete headersAny['X-Tenant-ID'];
-          delete headersAny['x-tenant-id'];
-        }
+        deleteHeader(config.headers as AxiosHeadersLike, 'X-Tenant-ID', 'x-tenant-id');
       }
       
       return config;
@@ -260,32 +279,16 @@ adminClient.interceptors.request.use(
       if (authHeader) {
         config.headers.Authorization = authHeader;
       } else {
-        const headersAny = config.headers as any;
-        if (headersAny) {
-          if (typeof headersAny.delete === 'function') {
-            headersAny.delete('Authorization');
-            headersAny.delete('authorization');
-          } else {
-            delete headersAny.Authorization;
-            delete headersAny.authorization;
-          }
-        }
+        deleteHeader(config.headers as AxiosHeadersLike, 'Authorization', 'authorization');
       }
       
       // Add tenant ID header if available (and valid).
       // Backend expects a UUID; never send literal "undefined"/"null".
       const tenantId = getValidTenantId();
-      const headersAny = config.headers as any;
       if (tenantId) {
-        headersAny['X-Tenant-ID'] = tenantId;
-      } else if (headersAny) {
-        if (typeof headersAny.delete === 'function') {
-          headersAny.delete('X-Tenant-ID');
-          headersAny.delete('x-tenant-id');
-        } else {
-          delete headersAny['X-Tenant-ID'];
-          delete headersAny['x-tenant-id'];
-        }
+        setHeader(config.headers as AxiosHeadersLike, 'X-Tenant-ID', tenantId);
+      } else {
+        deleteHeader(config.headers as AxiosHeadersLike, 'X-Tenant-ID', 'x-tenant-id');
       }
       
       return config;
@@ -336,14 +339,14 @@ apiClient.interceptors.response.use(
             status,
             method: originalRequest?.method,
             url: originalRequest?.url,
-            baseURL: (originalRequest as any)?.baseURL,
+            baseURL: originalRequest?.baseURL,
           });
           scope.setContext('auth', {
             isUsingJwt: isUsingJwt(),
             hasAuthHeader: Boolean(originalRequest?.headers?.Authorization),
           });
 
-          const data = (error.response as any)?.data;
+          const data = error.response?.data as ApiErrorResponseData | undefined;
           if (data !== undefined) {
             scope.setExtra('response.data', sanitizeTelemetryData(data));
           }
@@ -361,9 +364,9 @@ apiClient.interceptors.response.use(
           request: {
             method: originalRequest?.method,
             url: originalRequest?.url,
-            baseURL: (originalRequest as any)?.baseURL,
+            baseURL: originalRequest?.baseURL,
           },
-          responseData: (error.response as any)?.data,
+          responseData: error.response?.data as ApiErrorResponseData | undefined,
           originalError: error,
         })
       );
@@ -475,9 +478,9 @@ adminClient.interceptors.response.use(
           request: {
             method: originalRequest?.method,
             url: originalRequest?.url,
-            baseURL: (originalRequest as any)?.baseURL,
+            baseURL: originalRequest?.baseURL,
           },
-          responseData: (error.response as any)?.data,
+          responseData: error.response?.data as ApiErrorResponseData | undefined,
           originalError: error,
         })
       );
@@ -559,8 +562,8 @@ function getErrorMessage(error: unknown): string {
   if (error instanceof ApiServiceError) {
     const data = error.responseData;
     if (data && typeof data === 'object') {
-      const anyData = data as any;
-      const msg = anyData.message || anyData.error || anyData.detail || anyData.details;
+      const typedData = data as ApiErrorResponseData;
+      const msg = typedData.message || typedData.error || typedData.detail || typedData.details;
       if (msg && typeof msg === 'string') return msg;
     }
     return error.message;
