@@ -78,7 +78,7 @@ export type RootStackParamList = {
   Invite: { token?: string };
   Tenants: undefined;
   Home: undefined;
-  GuestHome: undefined;
+  GuestHome: undefined;  // Reserved for future guest dashboard
   WorkForms: undefined;
   WorkFormDetail: { id: string; isGuest?: boolean };
 };

@@ -23,7 +23,7 @@ services:
 
   # Django backend API
   backend:
-    image: registry.digitalocean.com/meatscentral/projectmeats-backend:${IMAGE_TAG:-latest}
+    image: registry.digitalocean.com/meatscentral/projectmeats-backend:${IMAGE_TAG:-dev-local}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -55,7 +55,7 @@ services:
 
   # React frontend
   frontend:
-    image: registry.digitalocean.com/meatscentral/projectmeats-frontend:${IMAGE_TAG:-latest}
+    image: registry.digitalocean.com/meatscentral/projectmeats-frontend:${IMAGE_TAG:-dev-local}
     build:
       context: .
       dockerfile: frontend/Dockerfile
