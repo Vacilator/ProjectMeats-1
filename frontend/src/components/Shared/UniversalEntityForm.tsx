@@ -2614,7 +2614,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         setResolvedInitialValuesIfChanged(initialSnapshot);
         setFkValues({});
 
-        const status = (err as any)?.response?.status;
+        const status = (err as Record<string, unknown>)?.response
+          ? ((err as Record<string, unknown>).response as Record<string, unknown>)?.status as number | undefined
+          : undefined;
         const errorMessage =
           typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
           'string'
@@ -3562,10 +3564,12 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         </FormLoadingWrapper>
       ) : resolvedLoadError ? (
         <FormStatusMessage>
-          {(resolvedLoadError as any)?.response?.status === 401 ||
-          (resolvedLoadError as any)?.response?.status === 403
-            ? 'Authentication required. Redirecting to login…'
-            : 'Unable to load form.'}
+          {(() => {
+            const errResp = (resolvedLoadError as Record<string, unknown>)?.response as Record<string, unknown> | undefined;
+            return errResp?.status === 401 || errResp?.status === 403
+              ? 'Authentication required. Redirecting to login…'
+              : 'Unable to load form.';
+          })()}
         </FormStatusMessage>
       ) : !resolvedSchema ? (
         <FormStatusMessage>
@@ -3731,7 +3735,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             </ViewFieldsColumn>
           ) : (
             <DynamicFormEngine
-              schema={stableDynamicSchema as any}
+              schema={stableDynamicSchema as never}
               initialValues={formInitialValues}
               onValuesChange={onValuesChange}
               isSubmitting={submitting}

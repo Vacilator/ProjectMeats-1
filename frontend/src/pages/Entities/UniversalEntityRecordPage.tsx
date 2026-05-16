@@ -462,10 +462,10 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
         >
           <UnifiedEntityTable
             entityType={tableEntityType}
-            data={rows as any}
+            data={rows as Record<string, unknown>[]}
             enableQuickEdit={!isMixed}
             enableBulkActions
-            recordPathForRow={(_t, row: any) => {
+            recordPathForRow={(_t, row: Record<string, unknown>) => {
               const rowId = String(row?.id ?? '').trim();
               const rowType = String(row?.type ?? tableEntityType).trim();
               if (!rowId) return null;
@@ -623,7 +623,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           ) : childRows.length ? (
                             <UnifiedEntityTable
                               entityType={childEntityType}
-                              data={childRows as any}
+                              data={childRows as Record<string, unknown>[]}
                               loading={childLoading}
                               onReload={loadChildRows}
                               recordPathForRow={childRecordPathForRow}
@@ -658,7 +658,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                           ) : deptContactsRows.length ? (
                             <UnifiedEntityTable
                               entityType="contact"
-                              data={deptContactsRows as any}
+                              data={deptContactsRows as Record<string, unknown>[]}
                             />
                           ) : (
                             <TransactionalEmptyState
@@ -725,7 +725,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       label: 'Recent Activity',
                       children: numericEntityId ? (
                         <ActivityFeed
-                          entityType={normalizedEntityType as any}
+                          entityType={normalizedEntityType as React.ComponentProps<typeof ActivityFeed>['entityType']}
                           entityId={numericEntityId}
                           showCreateForm
                         />
@@ -881,7 +881,7 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
                       label: 'Timeline',
                       children: numericEntityId ? (
                         <ActivityFeed
-                          entityType={normalizedEntityType as any}
+                          entityType={normalizedEntityType as React.ComponentProps<typeof ActivityFeed>['entityType']}
                           entityId={numericEntityId}
                           showCreateForm
                         />

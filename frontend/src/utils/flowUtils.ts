@@ -90,39 +90,39 @@ export function getUpstreamOutputs(
  */
 function extractNodeOutputs(node: Node): UpstreamOutput[] {
   const outputs: UpstreamOutput[] = [];
-  const data = (node.data ?? {}) as Record<string, any>;
+  const data = (node.data ?? {}) as Record<string, unknown>;
 
   // Handle form nodes (formStep, formStepSingle, formProcess)
   if (node.type?.includes('form') || node.type?.includes('Form')) {
-    const rawFields = Array.isArray((data as any).formFields)
-      ? (data as any).formFields
-      : Array.isArray((data as any).fields)
-        ? (data as any).fields
+    const rawFields = Array.isArray(data.formFields)
+      ? data.formFields
+      : Array.isArray(data.fields)
+        ? data.fields
         : [];
 
-    for (const field of rawFields as any[]) {
+    for (const field of rawFields as Record<string, unknown>[]) {
       outputs.push({
         nodeId: node.id,
-        nodeLabel: data.label || data.stepTitle || 'Unnamed Form',
-        nodeType: node.type,
-        fieldName: field.name || field.id || field.key,
-        fieldLabel: field.label,
-        fieldType: field.type,
-        sampleValue: field.defaultValue || getSampleValue(field.type),
+        nodeLabel: String(data.label || data.stepTitle || 'Unnamed Form'),
+        nodeType: node.type ?? 'unknown',
+        fieldName: String(field.name || field.id || field.key || ''),
+        fieldLabel: String(field.label ?? ''),
+        fieldType: String(field.type ?? 'text'),
+        sampleValue: field.defaultValue || getSampleValue(String(field.type ?? '')),
       });
     }
   }
   
   // Handle entity nodes (createRecord with entity)
   if (data.entityType && Array.isArray(data.outputFields)) {
-    for (const field of data.outputFields as any[]) {
+    for (const field of data.outputFields as Record<string, unknown>[]) {
       outputs.push({
         nodeId: node.id,
-        nodeLabel: data.label || 'Create Record',
+        nodeLabel: String(data.label || 'Create Record'),
         nodeType: node.type ?? 'unknown',
-        fieldName: field.name,
-        fieldLabel: field.label,
-        fieldType: field.type,
+        fieldName: String(field.name ?? ''),
+        fieldLabel: String(field.label ?? ''),
+        fieldType: String(field.type ?? ''),
         sampleValue: field.sampleValue,
       });
     }
@@ -130,10 +130,10 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
   
   // Handle lookup/query nodes (database query results)
   if (data.lookupResult && typeof data.lookupResult === 'object') {
-    for (const [key, value] of Object.entries(data.lookupResult)) {
+    for (const [key, value] of Object.entries(data.lookupResult as Record<string, unknown>)) {
       outputs.push({
         nodeId: node.id,
-        nodeLabel: data.label || 'Lookup',
+        nodeLabel: String(data.label || 'Lookup'),
         nodeType: node.type ?? 'unknown',
         fieldName: key,
         fieldLabel: humanize(key),
@@ -145,10 +145,10 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
   
   // Handle API/webhook response nodes
   if (data.responseData && typeof data.responseData === 'object') {
-    for (const [key, value] of Object.entries(data.responseData)) {
+    for (const [key, value] of Object.entries(data.responseData as Record<string, unknown>)) {
       outputs.push({
         nodeId: node.id,
-        nodeLabel: data.label || 'API Response',
+        nodeLabel: String(data.label || 'API Response'),
         nodeType: node.type ?? 'unknown',
         fieldName: key,
         fieldLabel: humanize(key),
@@ -160,14 +160,15 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
   
   // Handle variable nodes (explicit key-value storage)
   if (Array.isArray(data.variables)) {
-    for (const variable of data.variables as any[]) {
+    for (const variable of data.variables as Record<string, unknown>[]) {
+      const varKey = String(variable.key || variable.name || '');
       outputs.push({
         nodeId: node.id,
-        nodeLabel: data.label || 'Variables',
+        nodeLabel: String(data.label || 'Variables'),
         nodeType: node.type ?? 'unknown',
-        fieldName: variable.key || variable.name,
-        fieldLabel: variable.label || humanize(variable.key || variable.name),
-        fieldType: variable.type || 'text',
+        fieldName: varKey,
+        fieldLabel: String(variable.label || humanize(varKey)),
+        fieldType: String(variable.type || 'text'),
         sampleValue: variable.value,
       });
     }

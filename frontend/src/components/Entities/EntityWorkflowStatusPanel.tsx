@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import type { Edge, Node } from '@xyflow/react';
 import { Alert, Button, Card, Collapse, message, Modal, Spin } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -394,8 +395,8 @@ export const EntityWorkflowStatusPanel: React.FC<EntityWorkflowStatusPanelProps>
               <Suspense fallback={<Spin />}>
                 <UnifiedFlowEditor
                   readOnly
-                  initialNodes={flowNodes as any}
-                  initialEdges={flowEdges as any}
+                  initialNodes={flowNodes as Node[]}
+                  initialEdges={flowEdges as Edge[]}
                   onNodeClick={handleFlowNodeClick}
                 />
               </Suspense>

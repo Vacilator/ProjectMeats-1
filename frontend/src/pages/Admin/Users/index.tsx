@@ -578,9 +578,9 @@ const UsersPage: React.FC = () => {
 
           <AdminSection title={`Active Users (${activeUsers.length})`}>
             <AdminTable
-              columns={columns as any}
+              columns={columns as never}
               data={activeUsers}
-              actions={actions as any}
+              actions={actions as never}
               loading={usersLoading}
               csvExport={{ fileName: 'active-users.csv' }}
               emptyState={{
@@ -604,9 +604,9 @@ const UsersPage: React.FC = () => {
           {inactiveUsers.length > 0 && (
             <AdminSection title={`Inactive Users (${inactiveUsers.length})`}>
               <AdminTable
-                columns={columns as any}
+                columns={columns as never}
                 data={inactiveUsers}
-                actions={actions as any}
+                actions={actions as never}
                 loading={usersLoading}
                 csvExport={{ fileName: 'inactive-users.csv' }}
                 emptyState={{
@@ -684,9 +684,9 @@ const UsersPage: React.FC = () => {
             ) : (
               <AdminTable
                 key={invitationTableKey}
-                columns={invitationColumns as any}
+                columns={invitationColumns as never}
                 data={pendingInvitations}
-                actions={invitationActions as any}
+                actions={invitationActions as never}
                 loading={invitationsLoading}
                 selectable
                 csvExport={{ fileName: 'pending-invitations.csv' }}
