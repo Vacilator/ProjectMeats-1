@@ -138,6 +138,17 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
 
     inquiry: Inquiry = document
 
+    # Guard: inquiry must have at least a customer or supplier to create a PO
+    if not inquiry.customer_id and not inquiry.supplier_id:
+        logger.warning(
+            "Cascade skipped: Inquiry %s has no customer or supplier — cannot create PO",
+            inquiry.id,
+        )
+        return CascadeResult(
+            triggered=True,
+            error="Cannot create PO: inquiry has no customer or supplier assigned.",
+        )
+
     # Always ensure a TradeSession exists for this inquiry
     trade_session, _ts_created = get_or_create_trade_session(tenant=tenant, inquiry=inquiry)
 
@@ -225,8 +236,10 @@ def _cascade_inquiry_accepted_to_po(*, tenant: Any, document: Any) -> CascadeRes
                 )
             except Exception:
                 logger.warning(
-                    "RFQ-based PO creation failed for inquiry %s, " "falling back to bare PO draft",
+                    "RFQ-based PO creation failed for inquiry %s (rfq=%s), "
+                    "falling back to bare PO draft",
                     inquiry.id,
+                    rfq.id,
                     exc_info=True,
                 )
 
