@@ -4,9 +4,23 @@
  * Sends structured runtime error reports to the backend for persistence
  * and diagnostics. Non-blocking, fire-and-forget with deduplication,
  * debouncing, and circuit breaker to avoid flooding.
+ *
+ * IMPORTANT: This module uses a standalone axios instance to avoid a
+ * circular dependency: apiService → logger → errorReportingService → businessApi → apiService.
+ * Do NOT import from businessApi, apiService, or logger here.
  */
 
-import { businessApi } from './businessApi';
+import axios from 'axios';
+
+// Standalone axios instance — no interceptors, no auth required.
+// The error-reports/report/ endpoint uses AllowAny permission.
+function getReportingClient() {
+  const baseURL =
+    (typeof window !== 'undefined' && window.ENV?.API_BASE_URL) ||
+    import.meta.env.VITE_API_BASE_URL ||
+    '/api/v1';
+  return axios.create({ baseURL, timeout: 5000 });
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -110,7 +124,7 @@ async function flush(): Promise<void> {
 
   for (const report of batch) {
     try {
-      await businessApi.post('/error-reports/report/', report);
+      await getReportingClient().post('/error-reports/report/', report);
       consecutiveFailures = 0;
     } catch {
       consecutiveFailures++;
