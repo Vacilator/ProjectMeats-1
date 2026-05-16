@@ -1,0 +1,97 @@
+name: Reusable Auto-Promote
+
+on:
+  workflow_call:
+    inputs:
+      source_branch:
+        description: "Source branch (e.g. development, uat)"
+        required: true
+        type: string
+      target_branch:
+        description: "Target branch (e.g. uat, main)"
+        required: true
+        type: string
+      source_sha:
+        description: "Head SHA from the triggering workflow_run"
+        required: true
+        type: string
+      source_ref:
+        description: "Ref string for the source branch"
+        required: true
+        type: string
+      commit_message:
+        description: "Head commit message from the triggering workflow_run"
+        required: false
+        type: string
+        default: ""
+    secrets:
+      PAT:
+        required: false
+
+jobs:
+  release-preview:
+    name: Preview next semantic release
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    with:
+      preview_only: true
+      source_sha: ${{ inputs.source_sha }}
+      source_ref: ${{ inputs.source_ref }}
+
+  create-pr:
+    name: "Create PR ${{ inputs.source_branch }} → ${{ inputs.target_branch }}"
+    needs: [release-preview]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create promotion PR (if missing)
+        env:
+          GH_TOKEN: ${{ secrets.PAT || github.token }}
+          REPO: ${{ github.repository }}
+          SOURCE: ${{ inputs.source_branch }}
+          TARGET: ${{ inputs.target_branch }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh pr list --repo "$REPO" --base "$TARGET" --head "$SOURCE" --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "✅ Promotion PR already exists: #$existing"
+            exit 0
+          fi
+
+          sha="${{ inputs.source_sha }}"
+          msg="${{ inputs.commit_message }}"
+          release_tag="${{ needs.release-preview.outputs.release_tag }}"
+          release_summary=$(cat <<-'EOF'
+          ${{ needs.release-preview.outputs.release_summary }}
+          EOF
+          )
+
+          title="🚀 Promote ${SOURCE} → ${TARGET} (${sha:0:7})"
+          if [ -n "${msg}" ]; then
+            title="🚀 Promote ${SOURCE} → ${TARGET} - ${msg}"
+          fi
+
+          body=$(cat <<-EOF
+          Automated promotion PR created after successful ${SOURCE} deployment.
+
+          - Source: ${SOURCE}
+          - Target: ${TARGET}
+          - Commit: ${sha}
+          - Release preview: ${release_tag}
+
+          Preview changelog:
+          ${release_summary}
+
+          This PR does not bypass any gates; please review + merge when ready.
+          EOF
+          )
+
+          gh pr create \
+            --repo "$REPO" \
+            --base "$TARGET" \
+            --head "$SOURCE" \
+            --title "$title" \
+            --body "$body"

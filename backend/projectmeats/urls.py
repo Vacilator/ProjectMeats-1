@@ -38,8 +38,6 @@ urlpatterns = [
     # NOTE: System Configuration Studio ARCHIVED 2026-02-14 (superseded by apps.system)
     # Admin interface (using custom three-tier admin site)
     path("admin/", admin_site.urls, name="admin"),  # Custom three-tier admin (primary)
-    # Legacy admin (redirect to custom admin)
-    path("admin-legacy/", admin.site.urls, name="admin-legacy"),  # Django default admin (legacy)
     # API v1 endpoints
     path("api/v1/system/", include("apps.system.urls")),  # NEW: Centralized config system (v2.0 Wave 1)
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
