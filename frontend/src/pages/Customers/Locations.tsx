@@ -427,8 +427,8 @@ const CustomerLocations: React.FC = () => {
       />
 
       <StyledTable
-        columns={columns as any}
-        dataSource={filteredLocations as any}
+        columns={columns as never}
+        dataSource={filteredLocations}
         rowKey="id"
         loading={loading}
         onRow={(record) => {

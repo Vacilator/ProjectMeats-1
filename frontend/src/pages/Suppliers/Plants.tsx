@@ -458,8 +458,8 @@ const Plants: React.FC = () => {
       />
 
       <StyledTable
-        columns={columns as any}
-        dataSource={filteredPlants as any}
+        columns={columns as never}
+        dataSource={filteredPlants}
         rowKey="id"
         loading={loading}
         onRow={(record) => {
