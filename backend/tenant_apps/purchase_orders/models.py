@@ -6,8 +6,11 @@ Defines purchase order entities and related business logic.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 Uses OrderMethodsMixin for shared order behavior (payment calculations, status checks).
 """
+import logging
 import uuid
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -412,7 +415,7 @@ class PurchaseOrder(
             try:
                 Tenant.objects.select_for_update().filter(id=tenant.id).first()
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
             existing = (
                 cls.objects.filter(tenant=tenant, order_number__startswith=prefix)

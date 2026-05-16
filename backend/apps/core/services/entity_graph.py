@@ -587,7 +587,7 @@ class EntityGraphService:
                     try:
                         related_qs = self._order_queryset_recent_first(related_qs)
                     except Exception:
-                        pass
+                        logger.debug("Non-critical exception suppressed", exc_info=True)
 
                     count = related_qs.count() if include_counts else None
 
@@ -688,7 +688,7 @@ class EntityGraphService:
             try:
                 related_qs = self._order_queryset_recent_first(related_qs)
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
             total = related_qs.count()
             items: List[Dict[str, Any]] = []

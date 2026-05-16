@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize(value: Any) -> Any:
@@ -22,7 +25,7 @@ def _normalize(value: Any) -> Any:
         if pk is not None:
             return str(pk)
     except Exception:
-        pass
+        logger.debug("Non-critical exception suppressed", exc_info=True)
     if isinstance(value, (list, tuple, set)):
         return [_normalize(v) for v in value]
     if isinstance(value, dict):

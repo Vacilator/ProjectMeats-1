@@ -9,9 +9,12 @@ settings/environment defaults when unavailable.
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_active_openai_model_id(*, fallback: str = 'gpt-4o-mini') -> str:
@@ -38,7 +41,7 @@ def get_active_openai_model_id(*, fallback: str = 'gpt-4o-mini') -> str:
         if cfg and getattr(cfg, 'active_openai_model_id', None):
             return str(cfg.active_openai_model_id)
     except Exception:
-        pass
+        logger.debug("Non-critical exception suppressed", exc_info=True)
 
     return fallback
 

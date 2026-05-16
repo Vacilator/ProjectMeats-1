@@ -375,7 +375,7 @@ def _resolve_fulfillment_node(tenant: Any, fulfillment_id: str) -> dict[str, Any
                 "status": f.status,
             }
     except Exception:
-        pass
+        logger.debug("Non-critical exception suppressed", exc_info=True)
     return None
 
 
@@ -392,7 +392,7 @@ def _resolve_invoice_node(tenant: Any, invoice_id: str) -> dict[str, Any] | None
                 "status": inv.status,
             }
     except Exception:
-        pass
+        logger.debug("Non-critical exception suppressed", exc_info=True)
     return None
 
 

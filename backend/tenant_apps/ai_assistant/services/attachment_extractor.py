@@ -227,7 +227,7 @@ def _extract_csv(content: bytes) -> str:
         result = parse_tabular_document(io.BytesIO(content), filename="data.csv")
         return result.text
     except Exception:
-        pass
+        logger.debug("Non-critical exception suppressed", exc_info=True)
 
     # Fallback: basic CSV → markdown
     try:
