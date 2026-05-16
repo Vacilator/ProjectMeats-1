@@ -869,7 +869,7 @@ class FormSubmissionDetailSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'tenant', 'form_name', 'form_description', 'form_icon',
             'form_snapshot', 'step_submissions', 'progress',
-            'created_by_name', 'created_at', 'updated_at', 'completed_at'
+            'created_by', 'created_by_name', 'created_at', 'updated_at', 'completed_at'
         ]
     
     def get_created_by_name(self, obj):

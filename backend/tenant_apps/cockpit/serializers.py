@@ -153,7 +153,7 @@ class ScheduledCallSerializer(serializers.ModelSerializer):
             "created_on",
             "modified_on",
         ]
-        read_only_fields = ["id", "created_on", "modified_on", "assigned_to_name", "created_by_name"]
+        read_only_fields = ["id", "created_by", "created_on", "modified_on", "assigned_to_name", "created_by_name"]
     
     def validate_description(self, value):
         """Convert null to empty string for database compatibility."""
