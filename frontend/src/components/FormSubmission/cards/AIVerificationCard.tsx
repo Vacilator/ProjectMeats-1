@@ -294,9 +294,9 @@ export const AIVerificationCard: React.FC<InteractionCardProps> = ({
   const [showOverride, setShowOverride] = useState(false);
 
   // Get config from node
-  const config = node.data || {};
-  const title = config.title || 'AI Verification';
-  const confidenceThreshold = config.confidenceThreshold || 80;
+  const config = (node.data || {}) as Record<string, unknown>;
+  const title = String(config.title || 'AI Verification');
+  const confidenceThreshold = Number(config.confidenceThreshold) || 80;
 
   // Simulate AI verification polling
   useEffect(() => {

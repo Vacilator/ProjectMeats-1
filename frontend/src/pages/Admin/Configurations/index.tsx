@@ -26,7 +26,7 @@ interface Configuration {
   display_name: string;
   description: string;
   value: string;
-  typed_value: any;
+  typed_value: unknown;
   data_type: 'string' | 'integer' | 'float' | 'boolean' | 'json';
   default_value: string;
   is_system: boolean;

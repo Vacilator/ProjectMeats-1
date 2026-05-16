@@ -254,7 +254,7 @@ export class SecureStorage {
    * @param key - Storage key
    * @param value - Value to store
    */
-  async setItem(key: string, value: any): Promise<void> {
+  async setItem(key: string, value: unknown): Promise<void> {
     const serialized = JSON.stringify(value);
     
     if (this.encryptionKey) {

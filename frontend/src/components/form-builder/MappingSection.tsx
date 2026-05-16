@@ -13,6 +13,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { X, Zap, Check, TrendingUp, Settings } from 'lucide-react';
 import { useFormBuilderStore } from './store';
+import { FormField } from './types';
 import { autoMapFields } from '../FlowEditor/utils/autoPopulateEngine';
 import { Variable } from '../FlowEditor/components/VariablePicker';
 import {
@@ -219,7 +220,7 @@ export const MappingSection: React.FC = () => {
   const { isMappingModalOpen, activeStepId, steps, closeMappingModal, saveMapping } = useFormBuilderStore();
   const [mappingSuggestions, setMappingSuggestions] = useState<Array<{
     sourceVariable: Variable;
-    targetField: any;
+    targetField: FormField;
     score: number;
     confidence: 'high' | 'medium' | 'low';
   }>>([]);
@@ -292,7 +293,7 @@ export const MappingSection: React.FC = () => {
     setIsProcessing(false);
   };
 
-  const handleApplyMapping = (mapping: any) => {
+  const handleApplyMapping = (mapping: { sourceVariable: Variable; targetField: FormField; score: number; confidence: string }) => {
     if (!activeStepId) return;
 
     saveMapping(activeStepId, {

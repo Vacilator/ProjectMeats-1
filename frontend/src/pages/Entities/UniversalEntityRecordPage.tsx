@@ -432,7 +432,10 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
       if (!Array.isArray(rows) || rows.length === 0) return null;
 
       const types = new Set(
-        rows.map((r: any) => String(r?.type ?? '').toLowerCase()).filter(Boolean)
+        rows.map((r: unknown) => {
+          const row = r && typeof r === 'object' ? (r as Record<string, unknown>) : {};
+          return String(row.type ?? '').toLowerCase();
+        }).filter(Boolean)
       );
       const isMixed = types.size > 1;
       const tableEntityType = !isMixed

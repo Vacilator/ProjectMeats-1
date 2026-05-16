@@ -314,9 +314,9 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Get config from node
-  const config = node.data || {};
-  const title = config.title || 'Approval Required';
-  const summaryTemplate = config.summary || 'Please review and approve or reject this request.';
+  const config = (node.data || {}) as Record<string, unknown>;
+  const title = String(config.title || 'Approval Required');
+  const summaryTemplate = String(config.summary || 'Please review and approve or reject this request.');
 
   // Resolve summary template with context data
   const summary = context ? resolveTemplateString(summaryTemplate, context) : summaryTemplate;

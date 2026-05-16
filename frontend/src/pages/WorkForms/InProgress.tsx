@@ -422,7 +422,7 @@ const FormsFlowsInProgress: React.FC = () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const params: any = { status: 'in_progress,draft' };
+      const params: Record<string, unknown> = { status: 'in_progress,draft' };
       
       // Apply filter mode
       if (filterMode === 'my') {

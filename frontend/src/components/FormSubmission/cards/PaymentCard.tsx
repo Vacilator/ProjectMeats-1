@@ -201,8 +201,9 @@ export const PaymentCard: React.FC<InteractionCardProps> = ({
   const [transactionId, setTransactionId] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
 
-  const amount = node?.data?.amount
-    ? resolveTemplateString(String(node.data.amount), context)
+  const nodeData = (node?.data || {}) as Record<string, unknown>;
+  const amount = nodeData.amount
+    ? resolveTemplateString(String(nodeData.amount), context)
     : '';
 
   const handleSubmit = () => {
@@ -224,8 +225,8 @@ export const PaymentCard: React.FC<InteractionCardProps> = ({
         <div>
           <Title>Payment Required</Title>
           <Subtitle>
-            {node?.data?.description
-              ? resolveTemplateString(String(node.data.description), context)
+            {nodeData.description
+              ? resolveTemplateString(String(nodeData.description), context)
               : 'Enter payment transaction details to continue'}
           </Subtitle>
         </div>

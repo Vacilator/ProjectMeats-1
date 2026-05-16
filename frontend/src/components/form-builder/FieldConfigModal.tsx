@@ -409,7 +409,7 @@ export const FieldConfigModal: React.FC = () => {
     saveField(activeStepId, fieldData);
   };
 
-  const handleChange = (key: keyof FormField, value: any) => {
+  const handleChange = (key: keyof FormField, value: unknown) => {
     setFieldData(prev => ({ ...prev, [key]: value }));
   };
 

@@ -23,7 +23,7 @@ import { WorkflowContext } from './hooks/useWorkflowContext';
 
 export interface InteractionCardProps {
   /** Current workflow node */
-  node: any;
+  node: Record<string, unknown>;
   
   /** Workflow context for data access */
   context: WorkflowContext;
@@ -55,7 +55,7 @@ export interface InteractionCardDefinition {
   requiredFields: string[];
   
   /** Function to check if card is complete */
-  completionCondition: (data: any) => boolean;
+  completionCondition: (data: unknown) => boolean;
   
   /** Optional: Auto-advance after completion */
   autoAdvance?: boolean;
@@ -99,7 +99,10 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     icon: FileUp,
     renderer: DocumentUploadCard,
     requiredFields: ['file_uuid', 'file_name', 'file_size'],
-    completionCondition: (data) => !!data.file_uuid && !!data.file_name,
+    completionCondition: (data) => {
+      const d = data as Record<string, unknown>;
+      return !!d.file_uuid && !!d.file_name;
+    },
     autoAdvance: true,
     skippable: false,
   },
@@ -111,7 +114,10 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     icon: CheckSquare,
     renderer: ApprovalDecisionCard,
     requiredFields: ['decision', 'comment', 'approver_id'],
-    completionCondition: (data) => data.decision !== undefined && !!data.comment,
+    completionCondition: (data) => {
+      const d = data as Record<string, unknown>;
+      return d.decision !== undefined && !!d.comment;
+    },
     autoAdvance: true,
     skippable: false,
   },
@@ -123,9 +129,11 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     icon: Cpu,
     renderer: AIVerificationCard,
     requiredFields: ['confidence_score', 'verification_result'],
-    completionCondition: (data) => 
-      data.confidence_score !== undefined && 
-      data.verification_result !== undefined,
+    completionCondition: (data) => {
+      const d = data as Record<string, unknown>;
+      return d.confidence_score !== undefined && 
+        d.verification_result !== undefined;
+    },
     autoAdvance: true,
     requiresPolling: true,
     skippable: false,
@@ -138,7 +146,7 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     icon: DollarSign,
     renderer: PaymentCard,
     requiredFields: ['transaction_id', 'payment_status'],
-    completionCondition: (data) => data.payment_status === 'completed',
+    completionCondition: (data) => (data as Record<string, unknown>).payment_status === 'completed',
     autoAdvance: true,
     requiresPolling: true,
     skippable: false,
@@ -151,7 +159,7 @@ export const INTERACTION_CARDS: Record<string, InteractionCardDefinition> = {
     icon: AlertCircle,
     renderer: ValidationCard,
     requiredFields: ['validation_status'],
-    completionCondition: (data) => data.validation_status === 'approved',
+    completionCondition: (data) => (data as Record<string, unknown>).validation_status === 'approved',
     autoAdvance: false,
     skippable: true,
   },
@@ -214,14 +222,12 @@ export function isCardComplete(
 /**
  * Get card by node data (detects interaction type from node config)
  */
-export function detectCardType(nodeData: any): InteractionCardDefinition | undefined {
-  // Check for explicit interaction type
-  if (nodeData.interactionType) {
+export function detectCardType(nodeData: Record<string, unknown>): InteractionCardDefinition | undefined {
+  if (nodeData.interactionType && typeof nodeData.interactionType === 'string') {
     return INTERACTION_CARDS[nodeData.interactionType];
   }
   
-  // Fallback: match by node type
-  if (nodeData.type) {
+  if (nodeData.type && typeof nodeData.type === 'string') {
     return getCardDefinition(nodeData.type);
   }
   

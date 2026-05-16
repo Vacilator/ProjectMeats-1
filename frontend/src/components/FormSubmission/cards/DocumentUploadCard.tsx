@@ -286,11 +286,11 @@ export const DocumentUploadCard: React.FC<InteractionCardProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get upload config from node
-  const config = node.data || {};
-  const title = config.title || 'Upload Document';
-  const description = config.description || 'Please upload the required document to continue.';
-  const allowedTypes = config.allowedTypes || DEFAULT_ALLOWED_TYPES;
-  const maxSizeBytes = config.maxSizeBytes || 10 * 1024 * 1024; // 10MB default
+  const config = (node.data || {}) as Record<string, unknown>;
+  const title = String(config.title || 'Upload Document');
+  const description = String(config.description || 'Please upload the required document to continue.');
+  const allowedTypes = (Array.isArray(config.allowedTypes) ? config.allowedTypes : DEFAULT_ALLOWED_TYPES) as string[];
+  const maxSizeBytes = Number(config.maxSizeBytes) || 10 * 1024 * 1024;
 
   // Handle file selection
   const handleFileSelect = useCallback((file: File) => {

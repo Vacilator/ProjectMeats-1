@@ -505,8 +505,10 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const [defaultCallPurpose, setDefaultCallPurpose] = useState<string | undefined>(undefined);
   const [showInquiryCallModal, setShowInquiryCallModal] = useState(false);
 
-  const queryRetry = useCallback((failureCount: number, err: any) => {
-    const status = err?.response?.status;
+  const queryRetry = useCallback((failureCount: number, err: unknown) => {
+    const errObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : {};
+    const resp = errObj.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : {};
+    const status = typeof resp.status === 'number' ? resp.status : undefined;
     if (status === 401 || status === 403) return false;
     if (typeof status === 'number' && status >= 500) return false;
     return failureCount < 1;

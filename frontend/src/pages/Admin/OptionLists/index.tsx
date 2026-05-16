@@ -784,7 +784,7 @@ const OptionListsPage: React.FC = () => {
     });
   }, [editingProduct, productForm, productModalOpen]);
 
-  const handleSaveProduct = async (values: any) => {
+  const handleSaveProduct = async (values: Record<string, unknown>) => {
     if (!canEditProducts) {
       message.info('Only superusers can modify master products.');
       return;

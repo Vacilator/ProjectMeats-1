@@ -281,13 +281,14 @@ export const useFormBuilderStore = create<FormBuilderState>((set, get) => ({
   },
   
   // Persistence
-  loadForm: (formData: any) => {
+  loadForm: (formData: unknown) => {
+    const fd = formData as Record<string, unknown>;
     set({
-      formId: formData.id,
-      formName: formData.name || 'Untitled Form',
-      formDescription: formData.description || '',
-      steps: formData.steps || [createDefaultStep(0)],
-      activeStepId: formData.steps?.[0]?.id || null,
+      formId: String(fd.id ?? ''),
+      formName: String(fd.name || 'Untitled Form'),
+      formDescription: String(fd.description || ''),
+      steps: (Array.isArray(fd.steps) ? fd.steps : null) || [createDefaultStep(0)],
+      activeStepId: (Array.isArray(fd.steps) && fd.steps[0]?.id) || null,
       isDirty: false
     });
   },

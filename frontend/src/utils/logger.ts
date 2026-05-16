@@ -258,7 +258,7 @@ class Logger {
   /**
    * Table logging for arrays/objects
    */
-  table(data: any, columns?: string[]): void {
+  table(data: unknown, columns?: string[]): void {
     if (!this.shouldLog('debug')) return;
     console.table(sanitizeTelemetryData(data), columns);
   }

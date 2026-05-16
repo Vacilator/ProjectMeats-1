@@ -25,8 +25,8 @@ import { PreviewModal } from './PreviewModal';
 interface FormBuilderProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (formData: any) => void;
-  initialData?: any;
+  onSave: (formData: unknown) => void;
+  initialData?: unknown;
   nodeId?: string;
 }
 

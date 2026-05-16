@@ -394,7 +394,7 @@ function getFieldTypeIcon(type: string) {
   }
 }
 
-function formatFieldValue(value: any): string {
+function formatFieldValue(value: unknown): string {
   if (value == null) return 'null';
   if (typeof value === 'string') return `"${value.substring(0, 30)}${value.length > 30 ? '...' : ''}"`;
   if (typeof value === 'boolean') return value ? 'true' : 'false';

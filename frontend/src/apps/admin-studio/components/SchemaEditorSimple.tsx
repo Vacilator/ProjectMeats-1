@@ -428,13 +428,13 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
     setFields([...fields, newField]);
   };
 
-  const handleUpdateField = (index: number, key: keyof FieldDefinition, value: any) => {
+  const handleUpdateField = (index: number, key: keyof FieldDefinition, value: unknown) => {
     const updated = [...fields];
     updated[index] = { ...updated[index], [key]: value };
 
     // Auto-generate key from label if key is being set from a new field
     if (key === 'label' && updated[index].label === 'New Field') {
-      const sanitizedKey = value
+      const sanitizedKey = String(value ?? '')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');

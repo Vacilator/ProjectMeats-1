@@ -158,8 +158,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                     + {comparisonData.differences.schema.added_fields.length} fields added
                   </div>
                   <ul className="ml-4 mt-1" style={{ color: 'rgb(var(--color-success))' }}>
-                    {comparisonData.differences.schema.added_fields.map((field: any) => (
-                      <li key={field.key}>• {field.label} ({field.type})</li>
+                    {comparisonData.differences.schema.added_fields.map((field: Record<string, unknown>) => (
+                      <li key={String(field.key ?? '')}>• {String(field.label ?? '')} ({String(field.type ?? '')})</li>
                     ))}
                   </ul>
                 </div>
@@ -170,8 +170,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                     - {comparisonData.differences.schema.removed_fields.length} fields removed
                   </div>
                   <ul className="ml-4 mt-1" style={{ color: 'rgb(var(--color-error))' }}>
-                    {comparisonData.differences.schema.removed_fields.map((field: any) => (
-                      <li key={field.key}>• {field.label} ({field.type})</li>
+                    {comparisonData.differences.schema.removed_fields.map((field: Record<string, unknown>) => (
+                      <li key={String(field.key ?? '')}>• {String(field.label ?? '')} ({String(field.type ?? '')})</li>
                     ))}
                   </ul>
                 </div>

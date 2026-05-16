@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styled from 'styled-components';
 
 import FormField, { FieldConfig } from './FormField';
+import type { FormField as FormFieldType } from '@/components/form-builder/types';
 import type { WorkflowContext } from './hooks/useWorkflowContext';
 import { getResolvedFormFields } from '../FlowEditor/utils/formFieldsDualModel';
 
@@ -88,7 +89,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   }
 `;
 
-function isEmptyValue(value: any): boolean {
+function isEmptyValue(value: unknown): boolean {
   return value === undefined || value === null || value === '';
 }
 
@@ -106,26 +107,27 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
   const fields: FieldConfig[] = useMemo(() => {
     const selected = getResolvedFormFields(nodeData);
 
-    return selected.map((f: any) => {
-      const autoPopulateSource = f.cascadeFrom;
-      const key = String(f.key ?? f.name ?? f.id ?? '');
+    return selected.map((f) => {
+      const fAny = f as FormFieldType & Record<string, unknown>;
+      const autoPopulateSource = fAny.cascadeFrom;
+      const key = String(fAny.key ?? fAny.name ?? fAny.id ?? '');
 
       return {
         key,
-        label: f.label || key,
-        type: f.type || 'text',
-        required: Boolean(f.required),
-        placeholder: f.placeholder,
-        helpText: f.helpText,
-        options: f.options,
-        min: f.min,
-        max: f.max,
-        step: f.step,
-        rows: f.rows,
-        related_entity_type: f.related_entity_type,
-        related_model: f.related_model,
+        label: fAny.label || key,
+        type: fAny.type || 'text',
+        required: Boolean(fAny.required),
+        placeholder: fAny.placeholder,
+        helpText: fAny.helpText,
+        options: fAny.options,
+        min: fAny.min,
+        max: fAny.max,
+        step: fAny.step,
+        rows: fAny.rows,
+        related_entity_type: fAny.related_entity_type,
+        related_model: fAny.related_model,
         autoPopulateSource,
-      };
+      } as FieldConfig;
     });
   }, [nodeData]);
 
@@ -171,7 +173,7 @@ export const ExecutionFormStep: React.FC<ExecutionFormStepProps> = ({
   }, [context.data, context.resolve, fields, node.id]);
 
   const handleFieldChange = useCallback(
-    (fieldKey: string, value: any) => {
+    (fieldKey: string, value: unknown) => {
       touchedRef.current.add(fieldKey);
       setValues((prev) => ({ ...prev, [fieldKey]: value }));
 

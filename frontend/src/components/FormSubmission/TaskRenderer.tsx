@@ -37,7 +37,7 @@ import { logger } from '@/utils/logger';
 
 export interface TaskRendererProps {
   /** Current workflow node to render */
-  node: any;
+  node: { id: string; type?: string; data: Record<string, unknown>; [key: string]: unknown };
   
   /** Workflow context */
   context: WorkflowContext;
@@ -198,11 +198,12 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({
 }) => {
   // Case 1: Form Step
   if (node.type === 'formStep') {
+    const formStepNode = node as { id: string; type: string; data: Record<string, unknown> };
     return (
       <RendererContainer>
         <TaskErrorBoundary>
           <ExecutionFormStep
-            node={node}
+            node={formStepNode}
             context={context}
             onComplete={onComplete}
             readOnly={readOnly}
@@ -268,7 +269,7 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({
         </UnsupportedMessage>
         <UnsupportedDetails>
           Type: {node.type || 'unknown'}
-          {node.data?.interactionType && ` | Interaction: ${node.data.interactionType}`}
+          {typeof node.data?.interactionType === 'string' && ` | Interaction: ${node.data.interactionType}`}
         </UnsupportedDetails>
       </UnsupportedNodeCard>
     </RendererContainer>

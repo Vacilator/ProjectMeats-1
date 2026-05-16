@@ -125,7 +125,7 @@ export const ExecuteWorkForm: React.FC = () => {
 
       navigate(`/workforms/executions/${data.id}`, { replace: true });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       setExecutionError(err);
     },
   });
