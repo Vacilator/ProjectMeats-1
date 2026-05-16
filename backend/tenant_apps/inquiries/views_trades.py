@@ -87,10 +87,20 @@ class TradePipelineViewSet(viewsets.ViewSet):
         status_filter = request.query_params.get("status")
         if status_filter == "active":
             qs = qs.exclude(
-                status__in=[TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED],
+                status__in=[
+                    TradeSessionStatus.COMPLETED,
+                    TradeSessionStatus.CANCELLED,
+                    TradeSessionStatus.HALTED,
+                ],
             )
         elif status_filter == "completed":
-            qs = qs.filter(status=TradeSessionStatus.COMPLETED)
+            qs = qs.filter(
+                status__in=[
+                    TradeSessionStatus.COMPLETED,
+                    TradeSessionStatus.CANCELLED,
+                    TradeSessionStatus.HALTED,
+                ],
+            )
         elif status_filter and status_filter in TradeSessionStatus.values:
             qs = qs.filter(status=status_filter)
 

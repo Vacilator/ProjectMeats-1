@@ -77,19 +77,72 @@ def cascade_trade_session(
     """Cascade the trade_session FK to downstream documents.
 
     Called by the orchestrator after creating downstream documents.
-    Idempotent — skips if already linked.
+    Idempotent — skips if already linked. Also advances trade session
+    status based on which documents are now linked.
     """
+    changed = False
+
     if purchase_order and not purchase_order.trade_session_id:
         purchase_order.trade_session = trade_session
         purchase_order.save(update_fields=["trade_session", "modified_on"])
+        changed = True
 
     if sales_order and not sales_order.trade_session_id:
         sales_order.trade_session = trade_session
         sales_order.save(update_fields=["trade_session", "modified_on"])
+        changed = True
 
     if carrier_purchase_order and not carrier_purchase_order.trade_session_id:
         carrier_purchase_order.trade_session = trade_session
         carrier_purchase_order.save(update_fields=["trade_session", "modified_on"])
+        changed = True
+
+    if not changed:
+        return
+
+    # Advance trade session status based on linked documents
+    new_status = _infer_status_from_documents(
+        trade_session=trade_session,
+        has_po=purchase_order is not None,
+        has_so=sales_order is not None,
+        has_carrier=carrier_purchase_order is not None,
+    )
+    if new_status and new_status != trade_session.status:
+        update_trade_session_status(trade_session=trade_session, new_status=new_status)
+        logger.info(
+            "Trade session %s status advanced to %s",
+            trade_session.trade_id,
+            new_status,
+        )
+
+
+def _infer_status_from_documents(
+    *,
+    trade_session: TradeSession,
+    has_po: bool,
+    has_so: bool,
+    has_carrier: bool,
+) -> str | None:
+    """Infer the appropriate trade status from linked documents.
+
+    Returns the new status or None if no change needed.
+    Status progression: initiated → sourcing → ordered → logistics
+    """
+    current = trade_session.status
+
+    # Don't regress terminal statuses
+    if current in (TradeSessionStatus.COMPLETED, TradeSessionStatus.CANCELLED, TradeSessionStatus.HALTED):
+        return None
+
+    if has_carrier:
+        return TradeSessionStatus.LOGISTICS
+    if has_so:
+        return TradeSessionStatus.ORDERED
+    if has_po:
+        # Only advance if we're still in early stages
+        if current in (TradeSessionStatus.INITIATED, TradeSessionStatus.SOURCING, TradeSessionStatus.QUOTED):
+            return TradeSessionStatus.ORDERED
+    return None
 
 
 def update_trade_session_status(

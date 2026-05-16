@@ -255,12 +255,14 @@ class E2EProcessExecutors:
 
             # Query bids (graceful if model doesn't exist yet)
             try:
-                Bid = apps.get_model("inquiries", "SupplierBid")
+                Bid = apps.get_model("inquiries", "InquiryProductSupplierBid")
                 bids_qs = Bid.objects.filter(
                     tenant=self.tenant,
-                    inquiry_id=inquiry_id,
+                    inquiry_product__inquiry_id=inquiry_id,
                 ).exclude(id__in=existing_bid_ids)
-                new_bids = list(bids_qs.values("id", "supplier__company_name", "unit_price", "created_on")[:50])
+                new_bids = list(bids_qs.values(
+                    "id", "supplier__name", "bid_price_per_unit", "created_at",
+                )[:50])
             except LookupError:
                 new_bids = []
 
