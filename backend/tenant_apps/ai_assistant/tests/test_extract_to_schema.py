@@ -188,7 +188,7 @@ class ExtractToSchemaApiTests(APITestCase):
         )
         self.client.force_login(self.user)
 
-    @patch('tenant_apps.ai_assistant.views.extract_document_to_schema')
+    @patch('tenant_apps.ai_assistant.views.documents.extract_document_to_schema')
     def test_extract_to_schema_endpoint_returns_validated_payload(self, mock_extract):
         mock_extract.return_value = ExtractedSchemaDraft(
             document=self.document,

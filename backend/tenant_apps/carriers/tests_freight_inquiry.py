@@ -307,15 +307,20 @@ class CarrierFreightInquiryAPITests(TestCase):
         client = APIClient()
         client.force_authenticate(user=self.user)
 
+        test_uuid_1 = "00000000-0000-0000-0000-000000000123"
+        test_uuid_2 = "00000000-0000-0000-0000-000000000456"
         response = client.post(
             f"/api/v1/sales-orders/{self.sales_order.pk}/send-carrier-freight-inquiries/",
-            {"carrier_ids": [123, 456]},
+            {"carrier_ids": [test_uuid_1, test_uuid_2]},
             format="json",
             HTTP_X_TENANT_ID=str(self.tenant.id),
         )
         self.assertEqual(response.status_code, 200)
         call_kwargs = mock_service.call_args[1]
-        self.assertEqual(call_kwargs["carrier_ids"], [123, 456])
+        self.assertEqual(
+            call_kwargs["carrier_ids"],
+            [uuid.UUID(test_uuid_1), uuid.UUID(test_uuid_2)],
+        )
 
     @patch("tenant_apps.sales_orders.views.send_carrier_freight_inquiries")
     def test_endpoint_failure_returns_error(self, mock_service):
