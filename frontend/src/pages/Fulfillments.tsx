@@ -392,7 +392,7 @@ const Fulfillments: React.FC = () => {
                     <span style={{ color: 'rgb(var(--color-text-secondary))' }}>No tracking</span>
                   )}
                 </TrackingInfo>
-                <DateCell>{formatDateLocal((fulfillment as any).expected_delivery ?? (fulfillment as any).estimated_delivery)}</DateCell>
+                <DateCell>{formatDateLocal(fulfillment.estimated_delivery)}</DateCell>
               </TableRow>
             ))}
 

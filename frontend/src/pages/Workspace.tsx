@@ -532,7 +532,7 @@ export const WorkspacePage: React.FC = () => {
       await businessApi.delete('cockpit/workspace-layout/');
     } catch (err) {
       // 404 is fine - no saved layout to delete
-      if ((err as any).response?.status !== 404) {
+      if ((err as Record<string, unknown>)?.response && (((err as Record<string, unknown>).response as Record<string, unknown>)?.status !== 404)) {
         logger.error('Failed to reset workspace layout in API:', err);
       }
     }

@@ -338,16 +338,19 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
       const childNodes: MindMapNode[] = Object.entries(relationships)
         .filter(([, items]) => Array.isArray(items) && items.length > 0)
         .flatMap(([relType, items]) =>
-          (items as any[]).slice(0, 5).map((item: any) => ({
-            id: `${String(item.type)}-${String(item.id)}-from-${node.id}`,
-            entityType: String(item.type ?? 'unknown'),
-            entityId: String(item.id ?? ''),
-            name: String(item.title || item.name || `${item.type} #${item.id}`),
-            relationName: relType,
-            depth: node.depth + 1,
-            expanded: false,
-            count: undefined,
-          }))
+          (items as unknown[]).slice(0, 5).map((item: unknown) => {
+            const rec = item as Record<string, unknown>;
+            return {
+              id: `${String(rec.type)}-${String(rec.id)}-from-${node.id}`,
+              entityType: String(rec.type ?? 'unknown'),
+              entityId: String(rec.id ?? ''),
+              name: String(rec.title || rec.name || `${rec.type} #${rec.id}`),
+              relationName: relType,
+              depth: node.depth + 1,
+              expanded: false,
+              count: undefined,
+            };
+          })
         );
 
       // Mark node as expanded and add children

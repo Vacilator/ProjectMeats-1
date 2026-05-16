@@ -14,8 +14,9 @@ export const useZodForm = <TFieldValues extends FieldValues>(
   schema: z.ZodTypeAny,
   formProps?: Omit<UseFormProps<TFieldValues>, 'resolver'>
 ): UseFormReturn<TFieldValues> => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- zodResolver generics don't align with react-hook-form's
   return useForm<TFieldValues>({
-    resolver: zodResolver(schema as any) as any,
+    resolver: zodResolver(schema as never) as never,
     ...(formProps || {}),
   });
 };

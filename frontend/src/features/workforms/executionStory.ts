@@ -59,7 +59,7 @@ function toMeta(row: WorkFormExecutionAuditEvent): Record<string, unknown> | und
 
   const meta: Record<string, unknown> = {};
   for (const k of keys) {
-    const v = (rest as any)[k];
+    const v = (rest as Record<string, unknown>)[k];
     // Avoid huge blobs in the story details.
     if (k === 'context' || k === 'inputs' || k === 'raw') continue;
     meta[k] = v;

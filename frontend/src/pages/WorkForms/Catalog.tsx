@@ -622,7 +622,7 @@ const FormsFlowsCatalog: React.FC = () => {
       }
 
       const mappedWorkforms: CatalogItem[] = (workforms || []).map((wf) => {
-        const anyWf = wf as any;
+        const anyWf = wf as unknown as Record<string, unknown>;
         const updated = String(anyWf.updated_at ?? nowIso);
         const created = String(anyWf.created_at ?? updated);
 

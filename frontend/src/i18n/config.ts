@@ -22,7 +22,8 @@ export const languageNames: Record<SupportedLanguage, string> = {
 };
 
 // Defensive: ensure support notice stays disabled even if i18next defaults drift.
-(i18n as any).options = { ...(i18n as any).options, showSupportNotice: false };
+const i18nWithOptions = i18n as unknown as { options: Record<string, unknown> };
+i18nWithOptions.options = { ...i18nWithOptions.options, showSupportNotice: false };
 
 i18n
   .use(LanguageDetector)

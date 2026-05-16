@@ -258,7 +258,7 @@ const RelatedTabContent: React.FC<RelatedTabContentProps> = React.memo(
     return (
       <StyledTable
         columns={tab.columns}
-        dataSource={(data ?? []) as any}
+        dataSource={(data ?? []) as Record<string, unknown>[]}
         rowKey="id"
         loading={isLoading}
         pagination={{ pageSize: 10, showSizeChanger: false }}

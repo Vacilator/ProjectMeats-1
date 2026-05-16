@@ -603,7 +603,7 @@ const FormsFlowsInProgress: React.FC = () => {
             />
             <FilterSelect
               value={filterMode}
-              onChange={(e) => setFilterMode(e.target.value as any)}
+              onChange={(e) => setFilterMode(e.target.value as 'all' | 'my' | 'team')}
               aria-label="Filter WorkForms"
             >
               <option value="all">All WorkForms</option>

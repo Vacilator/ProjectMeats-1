@@ -400,7 +400,7 @@ export const WorkflowExecutionModal: React.FC<WorkflowExecutionProps> = ({
   const currentNode = workflow.nodes.find(n => n.id === currentNodeId);
 
   // Workflow context (Phase 5)
-  const workflowContext = useWorkflowContext(workflow.nodes as any, currentNodeId);
+  const workflowContext = useWorkflowContext(workflow.nodes as Node[], currentNodeId);
 
   // Hydrate context from persisted execution data (resume)
   const didHydrateRef = useRef<string | null>(null);

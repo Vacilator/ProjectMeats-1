@@ -30,10 +30,10 @@ type ContactRow = {
   department?: string | null;
 };
 
-const asRows = (payload: unknown): any[] => {
+const asRows = (payload: unknown): Record<string, unknown>[] => {
   const obj = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
   const results = Array.isArray(obj?.results) ? (obj?.results as unknown[]) : null;
-  return Array.isArray(results) ? (results as any[]) : Array.isArray(payload) ? (payload as any[]) : [];
+  return (Array.isArray(results) ? results : Array.isArray(payload) ? payload : []) as Record<string, unknown>[];
 };
 
 export const LocationDetail: React.FC = () => {

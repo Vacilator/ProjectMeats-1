@@ -489,7 +489,7 @@ const Inquiries: React.FC = () => {
   useEffect(() => {
     if (didInitFromStateRef.current) return;
 
-    const state = (location.state ?? {}) as any;
+    const state = (location.state ?? {}) as Record<string, unknown>;
     if (state?.openCreateModal) {
       didInitFromStateRef.current = true;
       setPrefillEntityType(state.entityType === 'supplier' ? 'supplier' : state.entityType === 'customer' ? 'customer' : undefined);
