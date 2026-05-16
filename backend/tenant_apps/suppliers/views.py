@@ -114,7 +114,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
             return Supplier.objects.for_tenant(tenant).annotate(
                 products_available=Coalesce(products_available, empty_id_array),
-            )
+            ).prefetch_related('supplier_plants', 'supplier_plants__contacts')
         
         # No tenant = no data (security)
         logger.warning(
