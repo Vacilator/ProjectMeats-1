@@ -1472,7 +1472,7 @@ class AIDocumentAuditSurfaceTests(TestCase):
         self.assertEqual(payload["processing_metadata"]["semantic_indexing"]["status"], "indexed")
         self.assertEqual(payload["processing_metadata"]["semantic_indexing"]["chunk_count"], 3)
 
-    @patch("tenant_apps.ai_assistant.views.AIDocument.objects.all")
+    @patch("tenant_apps.ai_assistant.views.documents.AIDocument.objects.all")
     def test_viewset_filters_documents_by_source_and_session(self, mock_all):
         from tenant_apps.ai_assistant.views import AIDocumentViewSet
 
