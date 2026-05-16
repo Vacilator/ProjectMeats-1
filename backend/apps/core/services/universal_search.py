@@ -375,7 +375,7 @@ class UniversalSearchService:
                 # Exponential decay: full boost within 7 days, halves every 30 days
                 recency_score = 0.15 * (0.5 ** (age_days / 30))
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
         return round(min(text_score + recency_score, 1.0), 4)
     

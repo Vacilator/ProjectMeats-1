@@ -276,7 +276,7 @@ class UnsupervisedPolicy:
             else:
                 cache.incr(self._rate_key, 1)
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
 
 
 class _AuditContext:
@@ -311,7 +311,7 @@ class _AuditContext:
         try:
             cache.set(audit_key, self._record.to_dict(), 86400)  # 24h retention
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
 
         # Don't suppress exceptions
         return False

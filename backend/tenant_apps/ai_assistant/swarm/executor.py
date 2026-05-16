@@ -1002,7 +1002,7 @@ class ToolExecutor:
         try:
             provider_row.refresh_if_needed()
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
 
         if provider_row.is_token_expired():
             raise ValueError("Outlook connection expired. Reconnect in Settings → Email Integrations.")
@@ -1763,7 +1763,7 @@ class ToolExecutor:
                             try:
                                 total_weight = float(item0.get("total_weight"))
                             except Exception:
-                                pass
+                                logger.debug("Non-critical exception suppressed", exc_info=True)
                         if item0.get("weight_unit"):
                             weight_unit = str(item0.get("weight_unit")).upper().strip() or weight_unit
             except Exception as exc:
@@ -1863,13 +1863,13 @@ class ToolExecutor:
             try:
                 payload["quantity"] = int(arguments.get("quantity"))
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
         if arguments.get("total_weight") is not None:
             try:
                 payload["total_weight"] = float(arguments.get("total_weight"))
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
         payload["weight_unit"] = str(arguments.get("weight_unit") or "LBS").strip().upper() or "LBS"
 
@@ -2019,7 +2019,7 @@ class ToolExecutor:
                 if detail and detail.get("route"):
                     action_url = str(detail.get("route") or "")
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
         entity_uuid = None
         if entity_id:
@@ -2161,7 +2161,7 @@ class ToolExecutor:
                 if detail and detail.get("route"):
                     action_url = str(detail.get("route") or "")
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
         entity_uuid = None
         if entity_id:

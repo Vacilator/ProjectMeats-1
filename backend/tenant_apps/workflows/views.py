@@ -112,12 +112,12 @@ def _get_request_tenant(request):
     try:
         setattr(request, "tenant", tenant)
     except Exception:
-        pass
+        logger.debug("Non-critical exception suppressed", exc_info=True)
     try:
         if django_request is not None:
             setattr(django_request, "tenant", tenant)
     except Exception:
-        pass
+        logger.debug("Non-critical exception suppressed", exc_info=True)
 
     return tenant
 
@@ -4865,7 +4865,7 @@ class ActionItemCountsAPIView(APIView):
                         for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
                     ]
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
             serializer = ActionItemCountsSerializer(counts)
             return Response(serializer.data)

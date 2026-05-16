@@ -14,10 +14,13 @@ Total Score: 0-100 points
 Created: 2026-02-23 - Cockpit Phase 2A Smart Rankings
 """
 
+import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 from django.utils import timezone
 from django.db.models import Sum
+
+logger = logging.getLogger(__name__)
 
 
 class EntityRanking:
@@ -330,7 +333,7 @@ class EntityLabels:
             elif total_value > 50000:
                 labels.append({'text': 'Medium-value', 'color': 'info'})
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
         
         # Activity label
         try:
@@ -338,7 +341,7 @@ class EntityLabels:
             if open_inquiries > 0:
                 labels.append({'text': f'{open_inquiries} open', 'color': 'warning'})
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
         
         return labels
     
@@ -355,7 +358,7 @@ class EntityLabels:
             if active_pos > 0:
                 labels.append({'text': f'{active_pos} active POs', 'color': 'info'})
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
         
         return labels
     
@@ -372,6 +375,6 @@ class EntityLabels:
                 elif product.stock_level < 10:
                     labels.append({'text': 'Low stock', 'color': 'warning'})
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
         
         return labels

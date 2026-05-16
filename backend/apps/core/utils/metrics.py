@@ -154,7 +154,7 @@ class MetricsCollector:
                 cache.delete(sum_key)
             cache.delete(_REGISTRY_KEY)
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
 
     @staticmethod
     def _make_key(metric_type: str, name: str, tags: dict[str, str] | None) -> str:
@@ -172,7 +172,7 @@ class MetricsCollector:
                 registry[key] = {'type': metric_type, 'name': name, 'tags': tags}
                 cache.set(_REGISTRY_KEY, registry, _METRICS_TTL * 2)
         except Exception:
-            pass
+            logger.debug("Non-critical exception suppressed", exc_info=True)
 
 
 class _TimingContext:

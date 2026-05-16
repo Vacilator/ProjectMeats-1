@@ -48,14 +48,14 @@ def _capture_exception(exc, context, response_status: int | None = None) -> None
                     scope.set_tag("tenant.id", str(request.tenant.id))
                     scope.set_tag("tenant.slug", getattr(request.tenant, "slug", "unknown"))
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
             try:
                 user = getattr(request, "user", None)
                 if user and getattr(user, "is_authenticated", False):
                     scope.set_user({"id": str(user.id)})
             except Exception:
-                pass
+                logger.debug("Non-critical exception suppressed", exc_info=True)
 
         if view is not None:
             scope.set_tag("drf.view", view.__class__.__name__)
