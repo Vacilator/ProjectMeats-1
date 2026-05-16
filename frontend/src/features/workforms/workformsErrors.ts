@@ -31,7 +31,7 @@ function getHttpStatus(error: unknown): number | undefined {
 
 function getBackendMessage(error: unknown): string | undefined {
   if (error instanceof ApiServiceError) {
-    const data = error.responseData as any;
+    const data = error.responseData as Record<string, unknown> | undefined;
     const candidates = [
       typeof data?.detail === 'string' ? data.detail : undefined,
       typeof data?.error === 'string' ? data.error : undefined,
@@ -46,11 +46,12 @@ function getBackendMessage(error: unknown): string | undefined {
   const e = error as ErrorWithResponse | null;
   const data = e?.response?.data;
 
+  const errObj = error as Record<string, unknown> | null;
   const candidates = [
     typeof data?.detail === 'string' ? data.detail : undefined,
     typeof data?.error === 'string' ? data.error : undefined,
     typeof data?.message === 'string' ? data.message : undefined,
-    typeof (error as any)?.message === 'string' ? (error as any).message : undefined,
+    typeof errObj?.message === 'string' ? errObj.message : undefined,
   ].filter(Boolean) as string[];
 
   return candidates[0];
@@ -58,7 +59,7 @@ function getBackendMessage(error: unknown): string | undefined {
 
 function getBackendCode(error: unknown): string | undefined {
   if (error instanceof ApiServiceError) {
-    const data = error.responseData as any;
+    const data = error.responseData as Record<string, unknown> | undefined;
     const candidates = [
       typeof data?.code === 'string' ? data.code : undefined,
       typeof data?.error_code === 'string' ? data.error_code : undefined,

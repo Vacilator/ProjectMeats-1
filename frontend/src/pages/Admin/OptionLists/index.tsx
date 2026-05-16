@@ -136,7 +136,7 @@ const OptionListsPage: React.FC = () => {
     queryFn: async () => {
       try {
         const response = await businessApi.get('/system/choice-lists/');
-        const raw = response.data as any;
+        const raw = response.data as Record<string, unknown>;
         return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       } catch (error) {
         logger.error('Failed to load choice lists:', error);
@@ -155,7 +155,7 @@ const OptionListsPage: React.FC = () => {
     queryFn: async () => {
       try {
         const response = await businessApi.get('/workflows/lists/');
-        const raw = response.data as any;
+        const raw = response.data as Record<string, unknown>;
         return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       } catch (error) {
         logger.error('Failed to load custom tenant lists:', error);
@@ -179,7 +179,7 @@ const OptionListsPage: React.FC = () => {
             page_size: 500,
           },
         });
-        const raw = response.data as any;
+        const raw = response.data as Record<string, unknown>;
         return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       } catch (error) {
         logger.error('Failed to load master products:', error);
@@ -202,7 +202,7 @@ const OptionListsPage: React.FC = () => {
         const response = await businessApi.get('/system/product-preferences/', {
           params: { page_size: 2000 },
         });
-        const raw = response.data as any;
+        const raw = response.data as Record<string, unknown>;
         const data: TenantProductPreference[] = Array.isArray(raw)
           ? raw
           : Array.isArray(raw?.results)

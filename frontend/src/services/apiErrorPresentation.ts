@@ -27,16 +27,16 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function extractBackendMessage(data: unknown): string | undefined {
   if (!isObject(data)) return undefined;
 
-  const anyData = data as any;
-  const msg = anyData.message ?? anyData.error ?? anyData.detail ?? anyData.details;
+  const rec = data as Record<string, unknown>;
+  const msg = rec.message ?? rec.error ?? rec.detail ?? rec.details;
   return typeof msg === 'string' ? msg : undefined;
 }
 
 function extractBackendCode(data: unknown): string | undefined {
   if (!isObject(data)) return undefined;
 
-  const anyData = data as any;
-  const code = anyData.code ?? anyData.error_code;
+  const rec = data as Record<string, unknown>;
+  const code = rec.code ?? rec.error_code;
   return typeof code === 'string' ? code : undefined;
 }
 
