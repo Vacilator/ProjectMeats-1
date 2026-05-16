@@ -266,14 +266,6 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
     fetchEntity();
   }, [isOpen, entityId, entityType, config]);
 
-  if (!config) {
-    return null;
-  }
-
-  const Icon = config.icon;
-  const entityName = entity?.name || entity?.title || entity?.order_number || 'Unknown';
-  const listRoute = ENTITY_ROUTES[entityType];
-
   const handleExploreRelations = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -376,6 +368,15 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       return newSet;
     });
   }, []);
+
+  // Guard: config must exist (moved after all hooks to comply with rules-of-hooks)
+  if (!config) {
+    return null;
+  }
+
+  const Icon = config.icon;
+  const entityName = entity?.name || entity?.title || entity?.order_number || 'Unknown';
+  const listRoute = ENTITY_ROUTES[entityType];
 
   const modalFooter = (
     <FooterContainer>
