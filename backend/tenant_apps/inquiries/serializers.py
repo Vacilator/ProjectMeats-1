@@ -11,7 +11,6 @@ from .models import (
     InquirySourceChoices,
     InquiryTemplate,
     InquiryTemplateProduct,
-    SupplierBidStatusChoices,
     TradeDocument,
 )
 
