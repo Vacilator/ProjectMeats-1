@@ -1025,7 +1025,7 @@ export const MyTasks: React.FC = () => {
                         onClick={() => openTask(item)}
                         role="listitem"
                         tabIndex={0}
-                        onKeyDown={e => e.key === 'Enter' && openTask(item)}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTask(item); } }}
                       >
                         <TaskCheckbox
                           onClick={e => { e.stopPropagation(); toggleTaskSelection(item.id); }}
@@ -1039,7 +1039,7 @@ export const MyTasks: React.FC = () => {
                         </Tooltip>
 
                         {item.entity_type && item.entity_id && item.status && (
-                          <div onClick={e => e.stopPropagation()}>
+                          <div role="presentation" onClick={e => e.stopPropagation()}>
                             <StatusActionCell
                               entityType={item.entity_type}
                               entityId={item.entity_id}

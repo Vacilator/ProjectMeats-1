@@ -4556,8 +4556,8 @@ class ActionItemsAPIView(APIView):
                                     "related_po_value": None,
                                     "related_po_currency": None,
                                 })
-                    except Exception:
-                        pass  # fulfillments relation may not exist yet
+                    except Exception as ful_exc:
+                        logger.debug("[ActionItems] Fulfillment query failed for session %s: %s", session.id, ful_exc)
 
                     # Check for Invoices needing action (via sales_order)
                     if so:
@@ -4635,8 +4635,8 @@ class ActionItemsAPIView(APIView):
                                         "related_po_value": float(inv.total_amount) if hasattr(inv, "total_amount") and inv.total_amount else None,
                                         "related_po_currency": "USD",
                                     })
-                        except Exception:
-                            pass  # invoice models may not exist
+                        except Exception as inv_exc:
+                            logger.debug("[ActionItems] Invoice query failed for session %s: %s", session.id, inv_exc)
 
                 # Re-sort with trade items included
                 action_items.sort(
@@ -4649,6 +4649,9 @@ class ActionItemsAPIView(APIView):
 
             except Exception as trade_exc:
                 logger.warning("[ActionItems] Failed to fetch trade action items: %s", trade_exc, exc_info=True)
+
+            # Cap total action items to prevent unbounded responses
+            action_items = action_items[:200]
 
             serializer = ActionItemSerializer(action_items, many=True)
             return Response(serializer.data)
