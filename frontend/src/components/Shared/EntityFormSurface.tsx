@@ -571,10 +571,12 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
     return () => window.clearTimeout(timer);
   }, [shouldMountForm]);
 
+  const errObj = effectiveLoadError as Record<string, unknown> | null;
+  const errResponse = errObj?.response as Record<string, unknown> | undefined;
   const isAuthError =
-    (effectiveLoadError as any)?.response?.status === 401 ||
-    (effectiveLoadError as any)?.response?.status === 403;
-  const isTimeoutError = (effectiveLoadError as any)?.timeout === true;
+    errResponse?.status === 401 ||
+    errResponse?.status === 403;
+  const isTimeoutError = errObj?.timeout === true;
 
   const loaderBody = (
     <div style={{ padding: 16 }}>

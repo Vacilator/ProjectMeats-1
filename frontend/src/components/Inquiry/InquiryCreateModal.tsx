@@ -551,7 +551,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       try {
         const endpoint = entityType === 'supplier' ? '/suppliers/' : '/customers/';
         const resp = await businessApi.get(endpoint, { params: { page_size: 500 } });
-        const rows = (resp.data?.results ?? resp.data) as any[];
+        const rows = (resp.data?.results ?? resp.data) as Record<string, unknown>[];
         setEntityOptions(
           (Array.isArray(rows) ? rows : []).map((r: any) => ({
             id: r.id,
@@ -577,7 +577,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
         if (supplierChoicesByProduct[productId]) continue;
         try {
           const resp = await businessApi.get('/suppliers/for-product/', { params: { product: productId } });
-          const rows = (resp.data?.results ?? resp.data) as any[];
+          const rows = (resp.data?.results ?? resp.data) as Record<string, unknown>[];
           setSupplierChoicesByProduct((prev) => ({
             ...prev,
             [productId]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
@@ -613,7 +613,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
           const resp = await businessApi.get('/plants/for-supplier-product/', {
             params: { supplier: supplierId, product: productId },
           });
-          const rows = (resp.data?.results ?? resp.data) as any[];
+          const rows = (resp.data?.results ?? resp.data) as Record<string, unknown>[];
           setPlantChoicesBySupplierProduct((prev) => ({
             ...prev,
             [key]: (Array.isArray(rows) ? rows : []).map((r: any) => ({

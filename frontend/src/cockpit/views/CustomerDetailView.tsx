@@ -587,7 +587,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     queryFn: async () => {
       try {
         const res = await businessApi.get('/master-products/', { params: { page_size: 5000 } });
-        const raw = res.data as any;
+        const raw = res.data as Record<string, unknown>;
         const items = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
         return items as Array<{ id: number | string; display_name?: string; item_name?: string; type?: string }>;
       } catch {
@@ -629,7 +629,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   const aggregatedPreferenceIds = useMemo(() => {
     if (canonicalType !== 'customer') return [] as number[];
-    const raw = (entity as any)?.aggregated_preferred_products;
+    const raw = (entity as Record<string, unknown>)?.aggregated_preferred_products;
     if (!Array.isArray(raw)) return [] as number[];
     return raw.map((v: unknown) => Number(v)).filter((v: number) => Number.isFinite(v));
   }, [canonicalType, entity]);

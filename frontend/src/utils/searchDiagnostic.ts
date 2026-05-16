@@ -61,5 +61,5 @@ export const searchDiagnostic = async (query: string = 'test') => {
 
 // Make available globally in browser console
 if (typeof window !== 'undefined') {
-  (window as any).searchDiagnostic = searchDiagnostic;
+  (window as unknown as Record<string, unknown>).searchDiagnostic = searchDiagnostic;
 }

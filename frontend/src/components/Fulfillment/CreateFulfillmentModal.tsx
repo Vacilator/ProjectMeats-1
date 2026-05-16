@@ -299,7 +299,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         },
       });
 
-      const rows = (resp.data?.results ?? resp.data ?? []) as any[];
+      const rows = (resp.data?.results ?? resp.data ?? []) as Record<string, unknown>[];
       const seen = new Set<string>();
       const customers: Array<{ id: string; name: string }> = [];
 
@@ -336,12 +336,12 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         },
       });
 
-      const rows = (resp.data?.results ?? resp.data ?? []) as any[];
+      const rows = (resp.data?.results ?? resp.data ?? []) as Record<string, unknown>[];
       setInquiryOptions(
         rows.map((r) => {
           const id = String(r.id ?? '').trim();
           const num = String(r.inquiry_number ?? '').trim();
-          const when = r.inquiry_date ? new Date(r.inquiry_date).toLocaleString() : '';
+          const when = r.inquiry_date ? new Date(String(r.inquiry_date)).toLocaleString() : '';
           return { id, label: `${num || `Inquiry #${id}`}${when ? ` — ${when}` : ''}` };
         }).filter((r) => r.id)
       );

@@ -475,9 +475,9 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
 
   // Expose restart function to parent
   useEffect(() => {
-    (window as any).restartCockpitTour = restartTour;
+    (window as unknown as Record<string, unknown>).restartCockpitTour = restartTour;
     return () => {
-      delete (window as any).restartCockpitTour;
+      delete (window as unknown as Record<string, unknown>).restartCockpitTour;
     };
   }, [restartTour]);
 
