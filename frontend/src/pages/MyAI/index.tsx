@@ -15,7 +15,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Card,
   Col,
@@ -375,7 +375,6 @@ const EmptyIcon = styled.div`
 
 const ChatSessionsTab: React.FC = () => {
   const [search, setSearch] = useState('');
-  const _navigate = useNavigate();
 
   const { data: sessions = [], isLoading } = useQuery<ChatSession[]>({
     queryKey: withTenantQueryKey('ai-chat-sessions'),

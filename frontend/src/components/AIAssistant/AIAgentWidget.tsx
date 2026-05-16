@@ -161,11 +161,6 @@ const renderAttachmentIcon = (
   );
 };
 
-// Idle state: no animation — static shadow for zero visual noise
-const _calmPulse = keyframes`
-  0%, 100% { box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10); }
-`;
-
 const urgentGlow = keyframes`
   0%, 100% {
     box-shadow:
