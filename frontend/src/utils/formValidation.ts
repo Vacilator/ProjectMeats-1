@@ -19,7 +19,7 @@ export interface ValidationRule {
   phone?: boolean;
   required?: boolean;
   options?: string[];  // For select fields - valid options
-  custom?: (value: any) => string | null;  // Custom validator function
+  custom?: (value: unknown) => string | null;  // Custom validator function
 }
 
 export interface ValidationResult {
@@ -38,7 +38,7 @@ const PATTERNS = {
  * Validate a single field value against its validation rules
  */
 export function validateField(
-  value: any,
+  value: unknown,
   rules: ValidationRule | undefined,
   fieldLabel: string = 'Field'
 ): ValidationResult {
@@ -161,7 +161,7 @@ export function validateFields(
   fields: Array<{
     key: string;
     label: string;
-    value: any;
+    value: unknown;
     validation_rules?: ValidationRule;
     required?: boolean;
   }>

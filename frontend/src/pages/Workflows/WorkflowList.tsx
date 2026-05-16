@@ -28,7 +28,7 @@ interface Blueprint {
 
 interface StartWorkflowResponse {
   run_id: string;
-  step_schema: any;
+  step_schema: Record<string, unknown>;
   message: string;
 }
 
@@ -140,12 +140,14 @@ export const WorkflowList: React.FC = () => {
       message.success('Workflow started successfully');
       navigate(`/workflows/run/${data.run_id}`);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       logger.error('Failed to start workflow:', error);
+      const errObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+      const respData = (errObj.response as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined;
       showAlert({
         type: 'error',
         title: 'Error',
-        content: error.response?.data?.error || 'Failed to start workflow. Please try again.',
+        content: (typeof respData?.error === 'string' ? respData.error : '') || 'Failed to start workflow. Please try again.',
       });
       setStartingWorkflow(null);
     },

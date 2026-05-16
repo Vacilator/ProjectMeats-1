@@ -181,8 +181,8 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
  * Get sample/default value for a field type.
  * Used when no actual value is available for preview.
  */
-function getSampleValue(fieldType: string): any {
-  const samples: Record<string, any> = {
+function getSampleValue(fieldType: string): string | number | boolean | string[] | null {
+  const samples: Record<string, string | number | boolean | string[]> = {
     text: 'Sample Text',
     textarea: 'Sample longer text...',
     email: 'example@company.com',
@@ -214,7 +214,7 @@ function humanize(str: string): string {
 /**
  * Infer field type from JavaScript value
  */
-function inferType(value: any): string {
+function inferType(value: unknown): string {
   if (typeof value === 'number') return 'number';
   if (typeof value === 'boolean') return 'checkbox';
   if (Array.isArray(value)) return 'multi-select';
@@ -261,7 +261,7 @@ export function parseInheritanceSyntax(value: string): { nodeId: string; fieldNa
 /**
  * Check if a value uses Handlebars inheritance syntax.
  */
-export function isInheritanceSyntax(value: any): boolean {
+export function isInheritanceSyntax(value: unknown): boolean {
   return typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}');
 }
 

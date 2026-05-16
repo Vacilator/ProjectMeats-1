@@ -65,11 +65,14 @@ export const CockpitNavigationProvider: React.FC<{ children: React.ReactNode }> 
         const parsed = JSON.parse(stored);
         // Backward-compatible: older sessions may have numeric IDs.
         const normalized: NavigationStep[][] = Array.isArray(parsed)
-          ? parsed.map((p: any[]) =>
-              (Array.isArray(p) ? p : []).map((s: any) => ({
-                ...s,
-                id: String(s?.id ?? ''),
-              }))
+          ? parsed.map((p: unknown[]) =>
+              (Array.isArray(p) ? p : []).map((s: unknown) => {
+                const step = s && typeof s === 'object' ? (s as Record<string, unknown>) : {};
+                return {
+                  ...step,
+                  id: String(step.id ?? ''),
+                } as NavigationStep;
+              })
             )
           : [];
         setRecentPaths(normalized);

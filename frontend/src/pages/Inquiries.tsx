@@ -21,7 +21,7 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 import { showAlert } from '@/utils/uiDialogs';
 import { buildCsv, downloadCsv } from '@/utils/csv';
 import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
-import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
+import { InquiryListItem, InquiryStatus, InquiryTemplateListItem, Inquiry } from '../types';
 import { InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
 import { UnifiedForm } from '../components/UnifiedForm';
 import { inquiryService } from '../services/inquiryService';
@@ -464,7 +464,7 @@ const Inquiries: React.FC = () => {
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
+  const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [detailReviewMode, setDetailReviewMode] = useState(false);
@@ -565,19 +565,19 @@ const Inquiries: React.FC = () => {
     setShowCloneModal(false);
   }, []);
 
-  const handleUpdateInquiry = useCallback((updatedInquiry: any) => {
+  const handleUpdateInquiry = useCallback((updatedInquiry: Inquiry) => {
     setSelectedInquiry(updatedInquiry);
     void refreshInquiries();
   }, [refreshInquiries]);
 
-  const handleClone = useCallback((inquiry: any) => {
+  const handleClone = useCallback((inquiry: Inquiry) => {
     setDetailReviewMode(false);
     setSelectedInquiry(inquiry);
     setShowDetailModal(false);
     setShowCloneModal(true);
   }, []);
 
-  const handleCloned = useCallback((newInquiry: any) => {
+  const handleCloned = useCallback((newInquiry: Inquiry) => {
     setShowCloneModal(false);
     void refreshInquiries();
     setSelectedInquiry(newInquiry);
