@@ -26,8 +26,8 @@ interface WorkflowRunResponse {
 
 interface SubmitStepResponse {
   complete: boolean;
-  next_step_schema?: any;
-  initial_data?: Record<string, any>;
+  next_step_schema?: Record<string, unknown>;
+  initial_data?: Record<string, unknown>;
   current_step_index?: number;
   message?: string;
 }
@@ -148,9 +148,11 @@ export const WorkflowRunner: React.FC = () => {
         refetch();
       }
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.error || 'An error occurred while submitting the form';
-      setError(message);
+    onError: (error: unknown) => {
+      const errObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+      const respData = (errObj.response as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined;
+      const msg = (typeof respData?.error === 'string' ? respData.error : '') || 'An error occurred while submitting the form';
+      setError(msg);
     },
   });
 

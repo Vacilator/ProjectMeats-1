@@ -15,19 +15,40 @@ interface StepDetail {
   status: 'completed' | 'current' | 'pending';
 }
 
+interface ErrorLogEntry {
+  type?: string;
+  message?: string;
+  timestamp?: string;
+}
+
+interface WorkflowRunData {
+  id: string;
+  workflow_name: string;
+  workflow_slug: string;
+  status: string;
+  current_step_index: number;
+  total_steps: number;
+  progress_percentage: number;
+  step_details: StepDetail[];
+  data_context: { steps?: Array<Record<string, unknown>> } & Record<string, unknown>;
+  error_log: ErrorLogEntry[];
+  created_on: string;
+  modified_on: string;
+}
+
 interface ExecutionLogEntry {
   timestamp: string;
   event: string;
   step_index: number;
   step_name?: string;
   message?: string;
-  data_summary?: any;
+  data_summary?: Record<string, unknown>;
 }
 
 export const WorkflowExecutionDetails: React.FC = () => {
   useDocumentTitle('Workflow Execution');
   const { runId } = useParams<{ runId: string }>();
-  const [runData, setRunData] = useState<any>(null);
+  const [runData, setRunData] = useState<WorkflowRunData | null>(null);
   const [executionLog, setExecutionLog] = useState<ExecutionLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDataContext, setShowDataContext] = useState(false);
@@ -199,7 +220,7 @@ export const WorkflowExecutionDetails: React.FC = () => {
                             <pre className="whitespace-pre-wrap">
                               {JSON.stringify(
                                 runData.data_context.steps?.find(
-                                  (s: any) => s.step_index === step.index
+                                  (s) => s.step_index === step.index
                                 ),
                                 null,
                                 2
@@ -280,13 +301,13 @@ export const WorkflowExecutionDetails: React.FC = () => {
               <div className="rounded-lg p-6" style={{ background: 'rgba(var(--color-error), 0.05)', border: '1px solid rgba(var(--color-error), 0.2)' }}>
                 <h2 className="text-lg font-bold mb-4" style={{ color: 'rgb(var(--color-error))' }}>Errors</h2>
                 <div className="space-y-2">
-                  {runData.error_log.map((error: any, idx: number) => (
+                  {runData.error_log.map((err, idx: number) => (
                     <div key={idx} className="text-sm">
-                      <div className="font-medium" style={{ color: 'rgb(var(--color-error))' }}>{error.type}</div>
-                      <div className="mt-1" style={{ color: 'rgba(var(--color-error), 0.8)' }}>{error.message}</div>
-                      {error.timestamp && (
+                      <div className="font-medium" style={{ color: 'rgb(var(--color-error))' }}>{err.type ?? ''}</div>
+                      <div className="mt-1" style={{ color: 'rgba(var(--color-error), 0.8)' }}>{err.message ?? ''}</div>
+                      {err.timestamp && (
                         <div className="text-xs mt-1" style={{ color: 'rgba(var(--color-error), 0.6)' }}>
-                          {formatTimestamp(error.timestamp)}
+                          {formatTimestamp(err.timestamp)}
                         </div>
                       )}
                     </div>
