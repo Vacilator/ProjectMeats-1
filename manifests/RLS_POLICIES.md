@@ -308,10 +308,10 @@ END $$;
 
 **Audit Signature**: Automated CI/CD Pipeline  
 **Verification**:
-- `python manage.py audit_rls_compliance` = ✅ (38/38)
+- `python manage.py audit_rls_compliance` — run on target database for live count
 - `pg_policies.policyname LIKE '%_tenant_isolation'` present on tenant-aware tables
 
-**Status**: ✅ ALL SYSTEMS COMPLIANT
+**Status**: 🔄 PARTIAL — see Compliance Summary above for current audit numbers
 
 ---
 
