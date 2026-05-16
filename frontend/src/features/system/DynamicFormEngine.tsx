@@ -552,8 +552,9 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
 
   if (hasZip && hasCountry) {
     next = next.superRefine((data, ctx) => {
-      const country = String((data as any)?.country ?? '').trim().toUpperCase();
-      const zip = String((data as any)?.zip_code ?? '').trim();
+      const rec = data as Record<string, unknown>;
+      const country = String(rec?.country ?? '').trim().toUpperCase();
+      const zip = String(rec?.zip_code ?? '').trim();
 
       if (!zip) return;
       const isUs = country === 'USA' || country === 'UNITED STATES' || country === 'UNITED STATES OF AMERICA';
@@ -575,11 +576,12 @@ const buildValidationSchema = (fields: FieldDefinition[]) => {
 
   if (hasProteinsOffered && hasProteinsTested) {
     next = next.superRefine((data, ctx) => {
-      const offered = Array.isArray((data as any)?.proteins_offered)
-        ? ((data as any).proteins_offered as unknown[]).map((v) => String(v || '').trim()).filter(Boolean)
+      const rec = data as Record<string, unknown>;
+      const offered = Array.isArray(rec?.proteins_offered)
+        ? (rec.proteins_offered as unknown[]).map((v) => String(v || '').trim()).filter(Boolean)
         : [];
-      const tested = Array.isArray((data as any)?.proteins_tested)
-        ? ((data as any).proteins_tested as unknown[]).map((v) => String(v || '').trim()).filter(Boolean)
+      const tested = Array.isArray(rec?.proteins_tested)
+        ? (rec.proteins_tested as unknown[]).map((v) => String(v || '').trim()).filter(Boolean)
         : [];
 
       if (offered.length === 0 || tested.length === 0) return;
@@ -977,7 +979,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                 />
               )}
             />
-            {hasItemError && <ErrorText>{String((itemErr as any)?.message || 'Invalid value')}</ErrorText>}
+            {hasItemError && <ErrorText>{String((itemErr as Record<string, unknown>)?.message || 'Invalid value')}</ErrorText>}
           </ItemFieldGroup>
         );
       }
@@ -1024,7 +1026,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                 if (itemField.type !== 'phone') return;
                 const raw = (e?.target as HTMLInputElement | null)?.value ?? '';
                 const formatted = formatUsPhone(String(raw));
-                setValue(namePath as any, formatted as any, { shouldDirty: true, shouldValidate: true });
+                setValue(namePath as never, formatted as never, { shouldDirty: true, shouldValidate: true });
               },
             })}
             placeholder={itemField.placeholder}
@@ -1043,7 +1045,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           <Button
             type="button"
             variant="outline"
-            onClick={() => append({} as any)}
+            onClick={() => append({} as never)}
             disabled={isSubmitting}
           >
             + {field.add_button_label || 'Add'}
@@ -1085,8 +1087,8 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         )}
 
         {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
-        {Boolean(arrayError) && typeof (arrayError as any)?.message === 'string' && (
-          <ErrorText>{String((arrayError as any).message)}</ErrorText>
+        {Boolean(arrayError) && typeof (arrayError as Record<string, unknown>)?.message === 'string' && (
+          <ErrorText>{String((arrayError as Record<string, unknown>).message)}</ErrorText>
         )}
       </FieldGroup>
     );
