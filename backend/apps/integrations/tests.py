@@ -98,9 +98,11 @@ class EmailSyncTests(APITestCase):
         self.assertEqual(resp.data.get("action", {}).get("type"), "reconnect_outlook")
         self.assertIn("/api/v1/integrations/oauth/authorize/", resp.data.get("action", {}).get("url", ""))
 
+    @patch("tenant_apps.integrations.services.email_ingestion.EmailIngestionService")
     @patch("apps.integrations.tasks.sync_single_tenant.apply_async")
-    def test_auto_sync_schedule_failure_returns_retry_action(self, apply_async):
+    def test_auto_sync_schedule_failure_returns_retry_action(self, apply_async, mock_ingestion_cls):
         apply_async.side_effect = RuntimeError("queue unavailable")
+        mock_ingestion_cls.return_value.poll_tenant_by_id.side_effect = RuntimeError("sync also failed")
 
         resp = self.client.post(
             "/api/v1/integrations/email/auto-sync/",
