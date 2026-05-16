@@ -70,6 +70,7 @@
     "lint:any-regression": "node .eslint/scripts/check-any-regression.cjs",
     "lint:console-usage": "node .eslint/scripts/check-console-usage.cjs",
     "lint:circular-deps": "node .eslint/scripts/check-circular-deps.cjs",
+    "lint:pre-deploy": "node .eslint/scripts/pre-deploy-audit.cjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",

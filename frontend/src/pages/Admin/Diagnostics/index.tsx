@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAuth } from '@/contexts/AuthContext';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -307,27 +308,37 @@ export default function DiagnosticsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const summaryQuery = useQuery<ErrorSummary>({
-    queryKey: ['error-reports-summary'],
+    queryKey: withTenantQueryKey('error-reports-summary'),
     queryFn: async () => {
-      const resp = await businessApi.get('/error-reports/summary/');
-      return resp.data;
+      try {
+        const resp = await businessApi.get('/error-reports/summary/');
+        return resp.data;
+      } catch {
+        return { total: 0, by_level: {}, by_source: {} };
+      }
     },
     refetchInterval: 60_000,
     staleTime: 30_000,
+    retry: false,
   });
 
   const logsQuery = useQuery<ErrorLogEntry[]>({
-    queryKey: ['error-reports', levelFilter, sourceFilter, searchQuery],
+    queryKey: withTenantQueryKey('error-reports', levelFilter, sourceFilter, searchQuery),
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (levelFilter) params.set('level', levelFilter);
-      if (sourceFilter) params.set('source', sourceFilter);
-      if (searchQuery) params.set('search', searchQuery);
-      const resp = await businessApi.get(`/error-reports/?${params.toString()}`);
-      return Array.isArray(resp.data?.results) ? resp.data.results : (Array.isArray(resp.data) ? resp.data : []);
+      try {
+        const params = new URLSearchParams();
+        if (levelFilter) params.set('level', levelFilter);
+        if (sourceFilter) params.set('source', sourceFilter);
+        if (searchQuery) params.set('search', searchQuery);
+        const resp = await businessApi.get(`/error-reports/?${params.toString()}`);
+        return Array.isArray(resp.data?.results) ? resp.data.results : (Array.isArray(resp.data) ? resp.data : []);
+      } catch {
+        return [];
+      }
     },
     refetchInterval: 30_000,
     staleTime: 15_000,
+    retry: false,
   });
 
   const handlePrune = async () => {

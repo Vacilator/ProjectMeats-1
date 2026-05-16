@@ -227,21 +227,8 @@ export const hydratePendingReviewItemsWithDocumentMetadata = async (
     return reviews;
   }
 
-  const documents = await Promise.all(
-    documentIds.map(async (documentId) => {
-      try {
-        const document = await documentsApi.get(documentId);
-        if (!document) return null;
-        return [documentId, document] as const;
-      } catch {
-        return null;
-      }
-    }),
-  );
-
-  const documentsById = new Map(
-    documents.filter((entry): entry is readonly [string, DocumentUploadResponse] => Boolean(entry)),
-  );
+  // Single batch request instead of N individual GETs (eliminates 404 console spam)
+  const documentsById = await documentsApi.getBatch(documentIds);
 
   return reviews.map((review) => {
     const documentId =
@@ -436,6 +423,33 @@ export const documentsApi = {
   // Session-level cache of document IDs known to 404 — prevents redundant
   // network requests that spam the browser console.
   _missing404Cache: new Set<string>(),
+
+  /** Batch-fetch documents by IDs in a single request (no per-ID 404 console noise). */
+  getBatch: async (documentIds: string[]): Promise<Map<string, DocumentUploadResponse>> => {
+    const uncached = documentIds.filter((id) => !documentsApi._missing404Cache.has(id));
+    if (!uncached.length) return new Map();
+    try {
+      const res = await businessApi.get<{ results?: DocumentUploadResponse[] } | DocumentUploadResponse[]>(
+        `/ai-assistant/ai-documents/?ids=${uncached.join(',')}`,
+      );
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray((res.data as { results?: unknown }).results)
+          ? ((res.data as { results: DocumentUploadResponse[] }).results)
+          : [];
+      const map = new Map<string, DocumentUploadResponse>();
+      for (const doc of list) {
+        if (doc && typeof doc.id === 'string') map.set(doc.id, doc);
+      }
+      // Any requested IDs not in the response are missing — cache them.
+      for (const id of uncached) {
+        if (!map.has(id)) documentsApi._missing404Cache.add(id);
+      }
+      return map;
+    } catch {
+      return new Map();
+    }
+  },
 
   get: async (documentId: string): Promise<DocumentUploadResponse | null> => {
     if (documentsApi._missing404Cache.has(documentId)) return null;
