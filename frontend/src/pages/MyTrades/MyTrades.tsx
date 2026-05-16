@@ -229,7 +229,7 @@ const MyTrades: React.FC = () => {
 
   /** Navigate to linked entity record when a stepper action is clicked */
   const handleStepperActionClick = useCallback(
-    (action: { label: string; section?: string }, step: { key: string; entityType?: string }, trade?: TradeSession) => {
+    (_action: { label: string; section?: string }, step: { key: string; entityType?: string }, trade?: TradeSession) => {
       if (!trade) return;
       // Map step keys to entity record paths using linked IDs on the trade
       const STEP_ENTITY_MAP: Record<string, { field: keyof TradeSession; prefix: string }> = {

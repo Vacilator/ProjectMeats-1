@@ -95,8 +95,6 @@ const DealDesk = React.lazy(() => import('./pages/Deals/DealDesk'));
 const Reports = React.lazy(() => import('./pages/Reports'));
 const Profile = React.lazy(() => import('./pages/Profile'));
 const Settings = React.lazy(() => import('./pages/Settings'));
-const _AISettingsPage = React.lazy(() => import('./pages/AISettings'));
-const _AIChatPage = React.lazy(() => import('./pages/AIChatPage'));
 const MyAIPage = React.lazy(() => import('./pages/MyAI'));
 const GuestInvoiceView = React.lazy(() => import('./pages/Portal/GuestInvoiceView'));
 const ApiTestComponent = React.lazy(() => import('./components/ApiTestComponent'));

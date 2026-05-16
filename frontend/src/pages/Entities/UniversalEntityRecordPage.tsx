@@ -247,9 +247,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     setChildCreateOpen(false);
     void loadChildRows();
   }, [loadChildRows]);
-  const _handleNavigateToBasePath = useCallback(() => {
-    navigate(basePath);
-  }, [basePath, navigate]);
 
   const handleFormClose = useCallback(() => {
     navigate(basePath);
@@ -330,21 +327,6 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
     const cleaned = t.replace(/[_-]+/g, ' ').trim();
     return cleaned ? cleaned.replace(/\b\w/g, (c) => c.toUpperCase()) : 'Record';
   }, [normalizedEntityType]);
-
-  const _sectionLabel = useMemo(() => {
-    const p = String(basePath || '').toLowerCase();
-    if (p.startsWith('/suppliers')) return 'Suppliers';
-    if (p.startsWith('/customers')) return 'Customers';
-    if (p.startsWith('/contacts')) return 'Contacts';
-    if (p.includes('/plants')) return 'Plants';
-    if (p.includes('/locations')) return 'Locations';
-    if (p.includes('/purchase-orders')) return "P.O.'s";
-    if (p.includes('/sales-orders')) return "S.O.'s";
-    if (p.includes('/inquiries')) return 'Inquiries';
-    if (p.includes('/invoices')) return 'Invoices';
-
-    return `${entityLabel}s`;
-  }, [basePath, entityLabel]);
 
   const title = useMemo(() => {
     if (mode === 'create') return `New ${entityLabel}`;

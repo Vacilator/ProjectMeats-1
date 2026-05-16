@@ -13,9 +13,6 @@ import axios, { AxiosError as AxiosErrorType, AxiosHeaders, InternalAxiosRequest
 
 // Type-safe helpers for Axios internal types that lack proper generics
 type AxiosHeadersLike = AxiosHeaders | Record<string, string | undefined>;
-interface AxiosRequestWithBaseURL extends InternalAxiosRequestConfig {
-  baseURL?: string;
-}
 interface ApiErrorResponseData {
   message?: string;
   error?: string;
