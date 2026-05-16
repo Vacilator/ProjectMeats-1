@@ -85,6 +85,7 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
                 owner=self.request.user,
             )
             .filter(tenant_id=tenant_id)
+            .select_related("owner", "tenant")
             .annotate(message_count=Count("messages"))
         )
 
@@ -128,7 +129,7 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
             return self.queryset.none()
         return self.queryset.filter(
             session__owner=self.request.user,
-        ).filter(tenant_id=tenant_id)
+        ).filter(tenant_id=tenant_id).select_related("session", "owner", "tenant")
 
     def perform_create(self, serializer):
         if not get_request_tenant_id(self.request):
