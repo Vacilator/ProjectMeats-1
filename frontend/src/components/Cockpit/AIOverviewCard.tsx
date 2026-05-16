@@ -133,7 +133,7 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
 
     try {
       const resp = await businessApi.get(endpoint);
-      const payload = resp.data as any;
+      const payload = resp.data as Record<string, unknown>;
       const apiStatus = String(payload?.status ?? '');
       const text = normalizeSummaryText(payload?.summary ?? payload?.text);
 

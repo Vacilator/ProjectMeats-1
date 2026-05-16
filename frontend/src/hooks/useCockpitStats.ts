@@ -102,8 +102,9 @@ export const useCockpitStats = (): UseCockpitStatsReturn => {
     },
     refetchOnWindowFocus: false,
     refetchInterval: (query) => {
-      const status = (query.state.error as any)?.response?.status;
-      if (typeof status === 'number' && status >= 500) return false;
+      const status = (query.state.error as Record<string, unknown> | null)?.response;
+      const statusCode = (status as Record<string, unknown> | undefined)?.status;
+      if (typeof statusCode === 'number' && statusCode >= 500) return false;
       return REFETCH_INTERVAL;
     },
   });

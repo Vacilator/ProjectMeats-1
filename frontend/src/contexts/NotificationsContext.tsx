@@ -138,12 +138,14 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 
 const getApiErrorMessage = (error: unknown, fallbackMessage: string): string => {
   if (error && typeof error === 'object') {
-    const err: any = error as any;
+    const err = error as Record<string, unknown>;
+    const resp = err.response as Record<string, unknown> | undefined;
+    const data = resp?.data as Record<string, unknown> | undefined;
     return (
-      err.response?.data?.error ||
-      err.response?.data?.detail ||
-      err.response?.data?.message ||
-      err.message ||
+      (typeof data?.error === 'string' ? data.error : undefined) ||
+      (typeof data?.detail === 'string' ? data.detail : undefined) ||
+      (typeof data?.message === 'string' ? data.message : undefined) ||
+      (typeof err.message === 'string' ? err.message : undefined) ||
       fallbackMessage
     );
   }

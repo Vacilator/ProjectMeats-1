@@ -90,7 +90,7 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
       try {
         await businessApi.post('/ai-assistant/feedback/', {
           document_id: documentId,
-          document_type: String((extractedData as any)?.document_type || 'unknown'),
+          document_type: String((extractedData as Record<string, unknown>)?.document_type || 'unknown'),
           original_extracted_data: extractedData,
           user_corrected_data: corrected,
         });
