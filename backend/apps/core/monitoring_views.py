@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 
 from django.conf import settings
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -103,6 +103,8 @@ class SystemMetricsAPIView(APIView):
 
 class PipelineHealthAPIView(APIView):
     """Tenant-scoped pipeline health endpoint (for Trader Command Center)."""
+
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=["Internal"],

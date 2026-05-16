@@ -8,6 +8,8 @@ Provides DRF ViewSets for:
 - TenantConfig (tenant admins can manage their configs)
 - ConfigAuditLog (read-only audit trail)
 """
+import logging
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from rest_framework import permissions, status, viewsets
@@ -48,6 +50,8 @@ from apps.system.services.entity_introspection import (
     get_entity_fields,
     get_entity_display_fields,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _get_client_ip(request):
@@ -283,7 +287,7 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                     },
                 )
             except Exception:
-                pass
+                logger.debug("Audit/activity log failed", exc_info=True)
 
             try:
                 ActivityLog.log_activity(
@@ -297,7 +301,7 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                     ip_address=_get_client_ip(request),
                 )
             except Exception:
-                pass
+                logger.debug("Audit/activity log failed", exc_info=True)
 
             return Response(
                 SystemChoiceItemSerializer(item).data,
@@ -351,7 +355,7 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                 new_value={'count': len(serializer.validated_data['items'])},
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
         try:
             if tenant:
@@ -366,7 +370,7 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                     ip_address=_get_client_ip(request),
                 )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
         return Response({'status': 'ok'})
 
@@ -441,7 +445,7 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
                 snapshot_before=snapshot_before,
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
         try:
             if tenant:
@@ -456,7 +460,7 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
                     ip_address=_get_client_ip(self.request),
                 )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
     def perform_update(self, serializer):
         """Only allow updating tenant-owned items (or if admin)."""
@@ -496,7 +500,7 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
                 },
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
         try:
             if tenant:
@@ -511,7 +515,7 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
                     ip_address=_get_client_ip(self.request),
                 )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
 
 class SystemFieldSchemaViewSet(viewsets.ModelViewSet):
@@ -585,7 +589,7 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
                 },
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
         try:
             ActivityLog.log_activity(
@@ -599,7 +603,7 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
                 ip_address=_get_client_ip(self.request),
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
     def perform_update(self, serializer):
         instance = serializer.instance
@@ -635,7 +639,7 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
                 },
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
         try:
             if tenant:
@@ -650,7 +654,7 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
                     ip_address=_get_client_ip(self.request),
                 )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
 
 class TenantConfigViewSet(viewsets.ModelViewSet):
@@ -692,7 +696,7 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
                 snapshot_after={'id': str(instance.id), 'key': instance.key, 'value': instance.value},
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
         try:
             ActivityLog.log_activity(
@@ -706,7 +710,7 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
                 ip_address=_get_client_ip(self.request),
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
     def perform_update(self, serializer):
         instance = serializer.instance
@@ -726,7 +730,7 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
                 snapshot_after={'id': str(updated.id), 'key': updated.key, 'value': updated.value},
             )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
 
         try:
             if tenant:
@@ -741,7 +745,7 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
                     ip_address=_get_client_ip(self.request),
                 )
         except Exception:
-            pass
+            logger.debug("Audit/activity log failed", exc_info=True)
     
     @action(detail=False, methods=['get'])
     def by_category(self, request):

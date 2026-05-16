@@ -152,7 +152,7 @@ def invalidate_tenant_cache(tenant_id: str, *prefixes: str) -> int:
                     conn.delete(*keys)
                     count = len(keys)
             except (ImportError, Exception):
-                pass
+                logger.debug('Redis pattern-based cache invalidation failed for tenant %s', tenant_id, exc_info=True)
     except Exception:
         logger.debug('Cache invalidation failed for tenant %s', tenant_id, exc_info=True)
     return count
@@ -208,7 +208,7 @@ class TenantCacheMixin:
             try:
                 cache.set(key, response.data, self.cache_timeout)
             except Exception:
-                pass
+                logger.debug('Cache write failed for key %s', key, exc_info=True)
         return response
 
     def perform_create(self, serializer):
