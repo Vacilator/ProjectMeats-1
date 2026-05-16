@@ -32,7 +32,7 @@ class BugReportViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None)
         if not tenant:
             return BugReport.objects.none()
-        return BugReport.objects.filter(tenant=tenant)
+        return BugReport.objects.filter(tenant=tenant).select_related('reporter')
 
     def perform_create(self, serializer):
         tenant = getattr(self.request, 'tenant', None)

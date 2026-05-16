@@ -124,7 +124,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
             return Customer.objects.for_tenant(tenant).annotate(
                 preferred_products_from_locations=Coalesce(preferred_from_locations, empty_id_array),
                 preferred_products_from_contacts=Coalesce(preferred_from_contacts, empty_id_array),
-            )
+            ).prefetch_related('customer_locations', 'customer_locations__contacts')
         
         # No tenant = no data (security)
         logger.warning(
