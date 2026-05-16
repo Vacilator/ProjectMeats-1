@@ -39,7 +39,7 @@ function useStableFn<T extends ((...args: any[]) => any) | undefined>(fn: T): T 
   const ref = useRef(fn);
   ref.current = fn;
    
-  const stable = useCallback((...args: any[]) => (ref.current as any)?.(...args), []);
+  const stable = useCallback((...args: unknown[]) => (ref.current as ((...a: unknown[]) => unknown) | undefined)?.(...args), []);
   return (fn ? stable : undefined) as T;
 }
 

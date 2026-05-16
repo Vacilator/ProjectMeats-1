@@ -39,7 +39,7 @@ type Viewport = { x: number; y: number; zoom: number };
 
 const isViewport = (value: unknown): value is Viewport => {
   if (!value || typeof value !== 'object') return false;
-  const v = value as any;
+  const v = value as Record<string, unknown>;
   return typeof v.x === 'number' && typeof v.y === 'number' && typeof v.zoom === 'number';
 };
 

@@ -754,7 +754,7 @@ export const Claims: React.FC = () => {
           isOpen={isModalOpen}
           onClose={handleModalClose}
           onSuccess={handleCreateSuccess}
-          initialValues={claimCreateInitialValues as any}
+          initialValues={claimCreateInitialValues as Record<string, unknown>}
         />
       </FormErrorBoundary>
     </PageContainer>

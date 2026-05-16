@@ -289,7 +289,7 @@ export const EntityListPage: React.FC<EntityListPageProps> = ({
 
       <StyledTable
         columns={columns}
-        dataSource={dataSource as any}
+        dataSource={dataSource as Record<string, unknown>[]}
         rowKey="id"
         loading={isLoading}
         onRow={(record) => ({

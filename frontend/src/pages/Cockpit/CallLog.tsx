@@ -748,7 +748,7 @@ export const CallLog: React.FC = () => {
     setSelectedCall(call);
     setSelectedCallDetails(call); // Store details for notes display
     setEntityFilter({
-      entityType: call.entity_type as any,
+      entityType: call.entity_type as EntityFilter['entityType'],
       entityId: call.entity_id,
       entityName: call.title,
     });

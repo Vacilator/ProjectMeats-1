@@ -357,7 +357,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
     setLoading(true);
     try {
       const response = await businessApi.get(`/system/choice-lists/${listSlug}/items/?limit=1000`);
-      const raw = response.data as any;
+      const raw = response.data as Record<string, unknown>;
       const itemsData = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setItems(itemsData);
       setHasChanges(false);

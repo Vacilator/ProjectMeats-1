@@ -507,7 +507,7 @@ const FormsFlowsHistory: React.FC = () => {
       if (endDate) params.end_date = endDate;
       if (searchQuery) params.search = searchQuery;
 
-      const response = await workformExecutionService.getExecutions(params as any);
+      const response = await workformExecutionService.getExecutions(params);
       setWorkflowExecutions(response.results);
       setTotalCount(response.count);
     } catch (error) {

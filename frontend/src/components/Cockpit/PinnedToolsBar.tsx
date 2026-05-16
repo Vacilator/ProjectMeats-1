@@ -317,7 +317,7 @@ export const PinnedToolsBar: React.FC = () => {
         extra={
           openPinned ? (
             <Button
-              icon={<PinOff size={14} /> as any}
+              icon={<PinOff size={14} /> as React.ReactNode}
               onClick={() => {
                 unpin(openPinned.id);
                 setOpenPinnedId(null);

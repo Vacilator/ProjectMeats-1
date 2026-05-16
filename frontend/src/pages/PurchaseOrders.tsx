@@ -269,7 +269,7 @@ const PurchaseOrders: React.FC = () => {
         responseType: 'blob',
       });
 
-      const data = response.data as any;
+      const data = response.data as Blob | string;
       const blob = data instanceof Blob ? data : new Blob([data]);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
