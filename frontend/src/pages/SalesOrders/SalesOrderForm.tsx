@@ -62,6 +62,27 @@ interface ShippingContact {
   email: string;
 }
 
+/** Lightweight entity record from list API responses */
+interface EntityOption {
+  id: string;
+  name?: string;
+  company_name?: string;
+  address?: string;
+  billing_address?: string;
+  city?: string;
+  billing_city?: string;
+  state?: string;
+  state_zip?: string;
+  zip_code?: string;
+  contact_person?: string;
+  contact_name?: string;
+  phone?: string;
+  phone_mobile?: string;
+  phone_office?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
 interface SalesOrderFormValues {
   logistics_scenario: LogisticsScenario;
   our_sales_order_num: string;
@@ -416,13 +437,13 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
     { id: Date.now().toString(), name: '', phone: '', email: '' },
   ]);
    
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<EntityOption[]>([]);
    
-  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<EntityOption[]>([]);
    
-  const [carriers, setCarriers] = useState<any[]>([]);
+  const [carriers, setCarriers] = useState<EntityOption[]>([]);
    
-  const [contacts, setContacts] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<EntityOption[]>([]);
   const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
   const [supplierAutoFilled, setSupplierAutoFilled] = useState(false);
   const approvalGate = useApprovalGate();
@@ -598,7 +619,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
         setFormValues((prev) => ({
           ...prev,
           supplier: supplierId,
-          shipping_address_street: supplier.address || supplier.corporate_address || '',
+          shipping_address_street: String(supplier.address || supplier.corporate_address || ''),
           shipping_address_city: supplier.city || '',
           shipping_address_state_zip: supplier.state_zip || `${supplier.state || ''} ${supplier.zip_code || ''}`.trim(),
         }));
@@ -864,7 +885,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
                 >
                   <option value="">Select a contact…</option>
                   {contacts.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name || c.full_name || `Contact ${c.id}`}</option>
+                    <option key={c.id} value={c.id}>{c.name || String(c.full_name ?? '') || `Contact ${c.id}`}</option>
                   ))}
                 </GoldenSelect>
               </GoldenFormGroup>
