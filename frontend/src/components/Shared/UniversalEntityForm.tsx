@@ -179,7 +179,7 @@ const splitPath = (path: string): string[] =>
     .map((segment) => segment.trim())
     .filter(Boolean);
 
-const getValueAtPath = (obj: unknown, path: string): any => {
+const getValueAtPath = (obj: unknown, path: string): unknown => {
   const segments = splitPath(path);
   let current = obj;
   for (const segment of segments) {
@@ -3249,8 +3249,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       const inlineArrayPhoneKeys = new Map<string, string[]>();
       (scalarFields || [])
         .filter((f) => String(f.type || '').toLowerCase() === 'inline_form_array')
-        .forEach((f: any) => {
-          const itemFields: any[] = Array.isArray(f.item_fields) ? f.item_fields : [];
+        .forEach((f: Record<string, unknown>) => {
+          const itemFields: Record<string, unknown>[] = Array.isArray(f.item_fields) ? f.item_fields : [];
           const keys = itemFields
             .filter((it) => isPhoneNumberFieldKey(String(it?.key || '')))
             .map((it) => String(it.key));

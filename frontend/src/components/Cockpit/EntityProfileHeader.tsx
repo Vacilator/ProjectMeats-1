@@ -409,8 +409,9 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
         setData(nextData);
         onTitleResolved?.(resolveEntityDisplay(nextData, { entityType, fallbackStyle: 'id' }));
       } else {
-        const err: any = detailRes.reason;
-        const status = err?.response?.status;
+        const err = detailRes.reason as Record<string, unknown>;
+        const resp = err?.response as Record<string, unknown> | undefined;
+        const status = resp?.status as number | undefined;
         logger.error('Failed to load entity profile header details', { component: 'EntityProfileHeader' }, err);
 
         // During backend outages, avoid toast-spam; render a stable placeholder instead.

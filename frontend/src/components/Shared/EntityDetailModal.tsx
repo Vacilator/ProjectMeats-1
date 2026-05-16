@@ -45,7 +45,7 @@ interface EntityDetailModalProps {
   entityType: string;
   entityId: number | string;
   /** Optional callback to expand entity and show related records */
-  onExpandEntity?: (entity: any) => void;
+  onExpandEntity?: (entity: Record<string, unknown>) => void;
 }
 
 interface EntityData {
@@ -53,14 +53,14 @@ interface EntityData {
   name?: string;
   title?: string;
   order_number?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface RelatedEntity {
   id: number;
   name: string;
   type: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface Relationship {
@@ -92,7 +92,7 @@ const ENTITY_CONFIG: Record<string, {
   color: string;
   apiPath: string;
   displayName: string;
-  fields: Array<{ key: string; label: string; icon?: typeof Phone; format?: (value: any) => string }>;
+  fields: Array<{ key: string; label: string; icon?: typeof Phone; format?: (value: unknown) => string }>;
 }> = {
   supplier: {
     icon: Building2,
@@ -106,7 +106,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'address', label: 'Address', icon: MapPin },
       { key: 'city', label: 'City' },
       { key: 'state', label: 'State' },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
     ],
   },
   customer: {
@@ -121,7 +121,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'address', label: 'Address', icon: MapPin },
       { key: 'city', label: 'City' },
       { key: 'state', label: 'State' },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
     ],
   },
   purchase_order: {
@@ -133,9 +133,9 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'order_number', label: 'Order Number', icon: FileText },
       { key: 'supplier_name', label: 'Supplier', icon: Building2 },
       { key: 'status', label: 'Status' },
-      { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
-      { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? new Date(val).toLocaleDateString() : 'TBD' },
-      { key: 'total_amount', label: 'Total Amount', format: (val) => formatCurrency(val, 'N/A') },
+      { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? new Date(String(val)).toLocaleDateString() : 'TBD' },
+      { key: 'total_amount', label: 'Total Amount', format: (val) => formatCurrency(String(val), 'N/A') },
     ],
   },
   sales_order: {
@@ -147,9 +147,9 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'order_number', label: 'Order Number', icon: FileText },
       { key: 'customer_name', label: 'Customer', icon: Users },
       { key: 'status', label: 'Status' },
-      { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
-      { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? new Date(val).toLocaleDateString() : 'TBD' },
-      { key: 'total_amount', label: 'Total Amount', format: (val) => formatCurrency(val, 'N/A') },
+      { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? new Date(String(val)).toLocaleDateString() : 'TBD' },
+      { key: 'total_amount', label: 'Total Amount', format: (val) => formatCurrency(String(val), 'N/A') },
     ],
   },
   product: {
@@ -162,8 +162,8 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'description', label: 'Description' },
       { key: 'category', label: 'Category' },
       { key: 'unit', label: 'Unit' },
-      { key: 'price', label: 'Price', format: (val) => formatCurrency(val, 'N/A') },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+      { key: 'price', label: 'Price', format: (val) => formatCurrency(String(val), 'N/A') },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
     ],
   },
   carrier: {
@@ -176,7 +176,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'email', label: 'Email', icon: Mail },
       { key: 'phone', label: 'Phone', icon: Phone },
       { key: 'address', label: 'Address', icon: MapPin },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
     ],
   },
   contact: {
@@ -189,7 +189,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'phone', label: 'Phone', icon: Phone },
       { key: 'title', label: 'Title' },
       { key: 'company', label: 'Company', icon: Building2 },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
     ],
   },
   plant: {
@@ -201,7 +201,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'plant_est_num', label: 'Est. Number', icon: FileText },
       { key: 'city', label: 'City', icon: MapPin },
       { key: 'state', label: 'State' },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
     ],
   },
   invoice: {
@@ -212,9 +212,9 @@ const ENTITY_CONFIG: Record<string, {
     fields: [
       { key: 'invoice_number', label: 'Invoice Number', icon: FileText },
       { key: 'customer_name', label: 'Customer', icon: Users },
-      { key: 'amount', label: 'Amount', format: (val) => formatCurrency(val, 'N/A') },
+      { key: 'amount', label: 'Amount', format: (val) => formatCurrency(String(val), 'N/A') },
       { key: 'status', label: 'Status' },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
     ],
   },
 };
@@ -295,32 +295,32 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
 
       // Fetch top 5 recent items for each relationship
       const relationshipsWithItems = await Promise.all(
-        relationshipsData.map(async (rel: any) => {
-          if (rel.count > 0) {
+        relationshipsData.map(async (rel: Record<string, unknown>) => {
+          if (Number(rel.count) > 0) {
             try {
               const itemsResponse = await businessApi.get(
-                `/entities/${entityType}/${entityId}/relationships/${rel.name}/?limit=5`
+                `/entities/${entityType}/${entityId}/relationships/${String(rel.name)}/?limit=5`
               );
               return {
-                name: rel.name,
-                display_name: rel.display_name || rel.name,
-                count: rel.count,
+                name: String(rel.name),
+                display_name: String(rel.display_name || rel.name),
+                count: Number(rel.count),
                 recent_items: itemsResponse.data.items || [],
               };
             } catch (err) {
-              logger.error(`Failed to fetch ${rel.name}:`, err);
+              logger.error(`Failed to fetch ${String(rel.name)}:`, err);
               return {
-                name: rel.name,
-                display_name: rel.display_name || rel.name,
-                count: rel.count,
+                name: String(rel.name),
+                display_name: String(rel.display_name || rel.name),
+                count: Number(rel.count),
                 recent_items: [],
               };
             }
           }
           return {
-            name: rel.name,
-            display_name: rel.display_name || rel.name,
-            count: rel.count,
+            name: String(rel.name),
+            display_name: String(rel.display_name || rel.name),
+            count: Number(rel.count),
             recent_items: [],
           };
         })
@@ -449,7 +449,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
               const value = entity[field.key];
               if (!value && value !== 0) return null;
 
-              const displayValue = field.format ? field.format(value) : value;
+              const displayValue = field.format ? field.format(value) : String(value);
               const FieldIcon = field.icon;
 
               return (
@@ -464,10 +464,10 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
             })}
           </FieldsList>
 
-          {entity.notes && (
+          {typeof entity.notes === 'string' && entity.notes && (
             <NotesSection>
               <NotesLabel>Notes</NotesLabel>
-              <NotesText>{entity.notes}</NotesText>
+              <NotesText>{String(entity.notes)}</NotesText>
             </NotesSection>
           )}
 
@@ -539,11 +539,11 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
                               }}
                             >
                               <RelationItemName>{item.name}</RelationItemName>
-                              {item.metadata?.created_at && (
+                              {item.metadata?.created_at ? (
                                 <RelationItemMeta>
-                                  {new Date(item.metadata.created_at).toLocaleDateString()}
+                                  {new Date(String(item.metadata.created_at)).toLocaleDateString()}
                                 </RelationItemMeta>
-                              )}
+                              ) : null}
                             </RelationItemCard>
                           ))}
                           {rel.count > 5 && (

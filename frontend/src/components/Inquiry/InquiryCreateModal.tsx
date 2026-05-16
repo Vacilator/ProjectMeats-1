@@ -553,9 +553,9 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
         const resp = await businessApi.get(endpoint, { params: { page_size: 500 } });
         const rows = (resp.data?.results ?? resp.data) as Record<string, unknown>[];
         setEntityOptions(
-          (Array.isArray(rows) ? rows : []).map((r: any) => ({
-            id: r.id,
-            name: r.name || r.company_name || r.title || `${entityType} #${r.id}`,
+          (Array.isArray(rows) ? rows : []).map((r: Record<string, unknown>) => ({
+            id: Number(r.id),
+            name: String(r.name || r.company_name || r.title || `${entityType} #${r.id}`),
           }))
         );
       } catch {
@@ -580,7 +580,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
           const rows = (resp.data?.results ?? resp.data) as Record<string, unknown>[];
           setSupplierChoicesByProduct((prev) => ({
             ...prev,
-            [productId]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
+            [productId]: (Array.isArray(rows) ? rows : []).map((r: Record<string, unknown>) => ({
               id: Number(r.id),
               name: String(r.name ?? '').trim() || `Supplier #${r.id}`,
               has_product: Boolean(r.has_product),
@@ -616,7 +616,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
           const rows = (resp.data?.results ?? resp.data) as Record<string, unknown>[];
           setPlantChoicesBySupplierProduct((prev) => ({
             ...prev,
-            [key]: (Array.isArray(rows) ? rows : []).map((r: any) => ({
+            [key]: (Array.isArray(rows) ? rows : []).map((r: Record<string, unknown>) => ({
               id: Number(r.id),
               name: String(r.name ?? '').trim() || `Plant #${r.id}`,
               has_product: Boolean(r.has_product),

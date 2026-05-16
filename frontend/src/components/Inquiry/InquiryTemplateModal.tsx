@@ -342,7 +342,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
     setProducts(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleProductChange = useCallback((index: number, field: keyof TemplateProductLine, value: any) => {
+  const handleProductChange = useCallback((index: number, field: keyof TemplateProductLine, value: TemplateProductLine[keyof TemplateProductLine]) => {
     setProducts(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
