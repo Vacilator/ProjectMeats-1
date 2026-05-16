@@ -118,6 +118,7 @@ const UsersPage = React.lazy(() => import('./pages/Admin/Users'));
 const AdminProfilePage = React.lazy(() => import('./pages/Admin/Profile'));
 const BillingPage = React.lazy(() => import('./pages/Admin/Billing'));
 const ActivityPage = React.lazy(() => import('./pages/Admin/Activity'));
+const DiagnosticsPage = React.lazy(() => import('./pages/Admin/Diagnostics'));
 const AdminWorkspaceHome = React.lazy(() => import('./pages/Admin/Home'));
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 const WorkFormsLayout = React.lazy(() => import('./pages/WorkForms'));
@@ -482,6 +483,11 @@ const App: React.FC = () => {
                 <Route path="workspace/my-ai" element={
                   <AdminErrorBoundary fallbackTitle="My AI Error">
                     <MyAIPage />
+                  </AdminErrorBoundary>
+                } />
+                <Route path="workspace/diagnostics" element={
+                  <AdminErrorBoundary fallbackTitle="Diagnostics Error">
+                    <DiagnosticsPage />
                   </AdminErrorBoundary>
                 } />
 

@@ -213,6 +213,11 @@ export const adminWorkspaceNavigation: NavigationItem[] = [
         icon: '🕒',
         path: '/workspace/activity',
       },
+      {
+        label: 'Diagnostics',
+        icon: '🔍',
+        path: '/workspace/diagnostics',
+      },
     ],
   },
 ];

@@ -17,6 +17,7 @@ router.register(r'preferences', views.UserPreferencesViewSet, basename='user-pre
 router.register(r'favorites', views.FavoritesViewSet, basename='favorites')
 router.register(r'audit-events', TenantAuditEventViewSet, basename='audit-events')
 router.register(r'comments', CommentViewSet, basename='comments')
+router.register(r'error-reports', views.RuntimeErrorLogViewSet, basename='error-reports')
 
 # WorkForms router (Phase 1.4-1.6)
 workforms_router = DefaultRouter()
@@ -24,6 +25,9 @@ workforms_router.register(r'tenant-forms', workform_views.TenantFormViewSet, bas
 workforms_router.register(r'tenant-workforms', workform_views.TenantWorkFormViewSet, basename='tenant-workform')
 
 urlpatterns = [
+    # Error reporting (AllowAny — errors can happen before auth)
+    path("error-reports/report/", views.report_error, name="report-error"),
+
     # Legacy auth endpoints (for backward compatibility)
     path("auth/login/", views.login, name="login"),
     # Demo guest mode only. Future B2B portal access must use signed tenant-scoped grants instead.
