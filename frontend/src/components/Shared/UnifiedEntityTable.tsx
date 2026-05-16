@@ -80,9 +80,9 @@ const formatScalar = (value: unknown): string => {
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map((v) => formatScalar(v)).filter(Boolean).join(', ');
   if (typeof value === 'object') {
-    const anyVal = value as any;
-    if (typeof anyVal?.name === 'string') return anyVal.name;
-    if (typeof anyVal?.title === 'string') return anyVal.title;
+    const obj = value as Record<string, unknown>;
+    if (typeof obj?.name === 'string') return obj.name;
+    if (typeof obj?.title === 'string') return obj.title;
   }
   return String(value);
 };
@@ -109,7 +109,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
   const resolvedRowKey = useCallback(
     (row: Row) => {
       if (rowKey) return rowKey(row);
-      return String((row as any)?.id ?? '');
+      return String(row?.id ?? '');
     },
     [rowKey]
   );
@@ -153,7 +153,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
 
   const handleQuickEdit = useCallback(
     (row: Row) => {
-      const id = String((row as any)?.id ?? '').trim();
+      const id = String(row?.id ?? '').trim();
       if (!id) return;
 
       if (normalizedEntityType === 'plant') {
@@ -191,10 +191,10 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
             fallbackStyle: 'id',
           });
           const item: EntityListItem = {
-            id: String((row as any)?.id ?? ''),
+            id: String(row?.id ?? ''),
             type: entityType,
             name: resolvedTitle.text,
-            subtitle: getRowSubtitle(row as any),
+            subtitle: getRowSubtitle(row as Record<string, unknown>),
             tooltip: resolvedTitle.tooltip,
           };
 
@@ -206,7 +206,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
     schemaColumns.forEach((f) => {
       cols.push({
         title: f.label || f.key,
-        dataIndex: f.key as any,
+        dataIndex: f.key as string & keyof Row,
         key: f.key,
         render: (v: unknown) => {
           const s = formatScalar(v);
@@ -216,11 +216,11 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
     });
 
     // Ensure Department is consistently visible for Contact lists even if schema omits it from table surface.
-    const hasDeptColumn = cols.some((c) => (c as any)?.key === 'department');
+    const hasDeptColumn = cols.some((c) => c?.key === 'department');
     if (normalizedEntityType === 'contact' && !hasDeptColumn) {
       cols.push({
         title: 'Department',
-        dataIndex: 'department' as any,
+        dataIndex: 'department' as string & keyof Row,
         key: 'department',
         render: (v: unknown) => {
           const s = formatScalar(v);
@@ -235,7 +235,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
         key: 'actions',
         width: 120,
         render: (_: unknown, row: Row) => {
-          const id = String((row as any)?.id ?? '').trim();
+          const id = String(row?.id ?? '').trim();
           if (!id) return null;
 
           return (
@@ -263,7 +263,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
 
     try {
       const selectedData = data.filter((row) =>
-        selectedRowKeys.includes(String((row as any)?.id ?? '')),
+        selectedRowKeys.includes(String(row?.id ?? '')),
       );
       if (selectedData.length === 0) {
         message.warning('No rows selected for export.');
@@ -350,7 +350,7 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
         rowSelection={rowSelection}
         onRow={(row) => ({
           onClick: () => {
-            const id = String((row as any)?.id ?? '').trim();
+            const id = String(row?.id ?? '').trim();
             if (!id) return;
 
             const overridden = recordPathForRow?.(entityType, row);
