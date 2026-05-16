@@ -60,7 +60,7 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
             get_or_create_trade_session,
             update_trade_session_status,
         )
-        from tenant_apps.inquiries.models import TradeSession, TradeSessionStatus
+        from tenant_apps.inquiries.models import TradeSessionStatus
 
         now = timezone.now()
         if next_status == "quoted":
