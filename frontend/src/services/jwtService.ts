@@ -92,26 +92,19 @@ export function storeTokens(accessToken: string, refreshToken: string): void {
 }
 
 /**
- * Get access token (may trigger refresh if expired)
+ * Get access token (may be expired — callers should use getAuthHeader() for requests)
+ *
+ * Returns the stored access token regardless of expiry.  Callers that need
+ * to verify freshness should call needsRefresh() separately.
  */
 export function getAccessToken(): string | null {
-  // Check for JWT token first
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
   if (accessToken) {
-    // Check if token is valid
-    if (isTokenExpired(accessToken)) {
-      logger.debug('[JWT] Access token is expired');
-      // Don't return expired token - let refresh handle it
-      return null;
-    }
     return accessToken;
   }
   
   // Fall back to legacy token for backward compatibility
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
-  if (legacyToken) {
-    logger.debug('[JWT] Using legacy token');
-  }
   return legacyToken;
 }
 
@@ -222,22 +215,24 @@ export function clearTokens(): void {
 /**
  * Get Authorization header value
  * Returns 'Bearer <token>' for JWT or 'Token <token>' for legacy
+ *
+ * IMPORTANT: We ALWAYS attach the token even if it's expired.  Sending an
+ * expired token lets the backend respond with 401, which triggers the
+ * response interceptor's refresh-and-retry flow.  If we return null here
+ * the request goes out as anonymous → backend resolves no tenant →
+ * ViewSets return empty results (200 + []) → React Query caches the
+ * empty data → every page shows "No data" — a silent, catastrophic
+ * failure mode that cannot self-heal.
  */
 export function getAuthHeader(): string | null {
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
   if (accessToken) {
-    // Only return if token is not expired
-    if (!isTokenExpired(accessToken)) {
-      return `Bearer ${accessToken}`;
-    }
-    logger.debug('[JWT] Access token expired, needs refresh');
-    return null;
+    return `Bearer ${accessToken}`;
   }
   
   // Fall back to legacy token
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
   if (legacyToken) {
-    logger.debug('[JWT] Using legacy Token auth');
     return `Token ${legacyToken}`;
   }
   
