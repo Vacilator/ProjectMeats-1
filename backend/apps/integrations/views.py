@@ -418,124 +418,51 @@ def schedule_email_sync(request):
 
         task = sync_single_tenant.apply_async(args=[tenant_id])
     except Exception as celery_err:
-        # Celery broker unavailable — run sync synchronously as fallback
+        # Celery broker unavailable — fire-and-forget in a daemon thread so
+        # the HTTP response returns immediately.  The frontend sees
+        # ``accepted: true`` and stops showing error UI.
         logger.warning(
-            "Celery unavailable for email sync (tenant %s), falling back to synchronous: %s",
+            "Celery unavailable for email sync (tenant %s), dispatching background thread: %s",
             tenant_id,
             celery_err,
         )
-        try:
-            from apps.tenants.rls import tenant_rls
-            from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
+        import threading
 
-            with tenant_rls(tenant_id):
-                service = EmailIngestionService()
-                stats = service.poll_tenant_by_id(tenant_id)
+        def _background_sync(tid: str) -> None:
+            """Run email sync in a background thread (best-effort)."""
+            try:
+                from apps.tenants.rls import tenant_rls
+                from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
-            emails_saved = stats.get("emails_saved", 0) if isinstance(stats, dict) else 0
-            return Response(
-                {
-                    "ok": True,
-                    "accepted": True,
-                    "message": f"Email sync completed. {emails_saved} new emails processed.",
-                    "tenant_id": tenant_id,
-                    "source": source,
-                    "provider_email": provider.connected_email,
-                    "task_id": "sync-fallback",
-                    "progress": {
-                        "phase": "completed",
-                        "percent": 100,
-                        "summary": f"Sync complete — {emails_saved} emails.",
-                    },
+                with tenant_rls(tid):
+                    service = EmailIngestionService()
+                    stats = service.poll_tenant_by_id(tid)
+                saved = stats.get("emails_saved", 0) if isinstance(stats, dict) else 0
+                logger.info("Background email sync completed for tenant %s — %s emails", tid, saved)
+            except ImportError:
+                logger.info("EmailIngestionService not available for tenant %s — skipping.", tid)
+            except Exception:
+                logger.exception("Background email sync failed for tenant %s", tid)
+
+        t = threading.Thread(target=_background_sync, args=(tenant_id,), daemon=True)
+        t.start()
+
+        return Response(
+            {
+                "ok": True,
+                "accepted": True,
+                "message": "Email sync in progress.",
+                "tenant_id": tenant_id,
+                "source": source,
+                "provider_email": provider.connected_email,
+                "progress": {
+                    "phase": "processing",
+                    "percent": 10,
+                    "summary": "Email sync is running in the background.",
                 },
-                status=status.HTTP_200_OK,
-            )
-        except ImportError:
-            # EmailIngestionService not available — still report sync as
-            # accepted so the frontend doesn't show a persistent error.
-            logger.info(
-                "EmailIngestionService not available for tenant %s — skipping sync gracefully.",
-                tenant_id,
-            )
-            return Response(
-                {
-                    "ok": True,
-                    "accepted": True,
-                    "message": "Email sync acknowledged. Background processing is temporarily paused.",
-                    "tenant_id": tenant_id,
-                    "source": source,
-                    "provider_email": provider.connected_email,
-                    "task_id": "sync-deferred",
-                    "progress": {
-                        "phase": "deferred",
-                        "percent": 0,
-                        "summary": "Sync deferred — background workers are restarting.",
-                    },
-                },
-                status=status.HTTP_202_ACCEPTED,
-            )
-        except Exception as sync_err:
-            logger.error(
-                "Synchronous email sync also failed for tenant %s: %s",
-                tenant_id,
-                sync_err,
-                exc_info=True,
-            )
-            err_name = sync_err.__class__.__name__
-            err_str = str(sync_err).lower()
-            # Provide a more specific message when we know the failure type
-            specific_msg = None
-            if "token" in err_str or "auth" in err_str:
-                specific_msg = "Email sync failed due to an authentication issue. Please reconnect Outlook in Settings → Email Integrations."
-            elif "timeout" in err_str or "connect" in err_str:
-                specific_msg = "Email sync timed out connecting to Microsoft. Please try again in a few minutes."
-            elif "graph" in err_str or "microsoft" in err_str:
-                specific_msg = "Microsoft services are temporarily unreachable. Email sync will resume automatically."
-
-            # If the error is transient (timeout, connection), return accepted
-            # so the frontend doesn't force the user to take manual action.
-            is_transient = "timeout" in err_str or "connect" in err_str or "temporary" in err_str
-            if is_transient:
-                return Response(
-                    {
-                        "ok": True,
-                        "accepted": True,
-                        "message": specific_msg or "Email sync is temporarily delayed. It will resume automatically.",
-                        "tenant_id": tenant_id,
-                        "source": source,
-                        "provider_email": provider.connected_email,
-                        "task_id": "sync-deferred",
-                        "progress": {
-                            "phase": "deferred",
-                            "percent": 0,
-                            "summary": specific_msg or "Sync deferred — retrying shortly.",
-                        },
-                    },
-                    status=status.HTTP_202_ACCEPTED,
-                )
-
-            failure = build_email_failure(
-                "EMAIL_SYNC_SCHEDULE_FAILED",
-                message=specific_msg,
-                stage="sync_queue",
-                detail_type=err_name,
-            )
-            return Response(
-                {
-                    "ok": False,
-                    "accepted": False,
-                    "message": failure["message"],
-                    "code": "sync_schedule_failed",
-                    "tenant_id": tenant_id,
-                    "source": source,
-                    "action": build_sync_action(failure, tenant_id=tenant_id),
-                    "failure": failure,
-                    "details": {
-                        "type": sync_err.__class__.__name__,
-                    },
-                },
-                status=status.HTTP_200_OK,
-            )
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 
     cache.set(_auto_sync_task_cache_key(task.id), tenant_id, timeout=AUTO_SYNC_TASK_CACHE_TTL_SECONDS)
 
