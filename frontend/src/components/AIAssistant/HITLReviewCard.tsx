@@ -4,6 +4,7 @@ import { ThunderboltOutlined } from '@ant-design/icons';
 
 import { aiStaffApi } from '@/services/aiService';
 import { businessApi } from '@/services/businessApi';
+import { logger } from '@/utils/logger';
 
 type Primitive = string | number | boolean | null;
 
@@ -59,7 +60,8 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
       const items = await aiStaffApi.listPendingReviews();
       const match = items.find((it) => String(it.document_id || '') === String(documentId));
       return match?.id ? String(match.id) : null;
-    } catch {
+    } catch (err) {
+      logger.error('[HITLReviewCard] Failed to resolve feedback ID from pending reviews:', err);
       return null;
     }
   };
@@ -78,7 +80,8 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
         if (typeof raw === 'string') {
           try {
             corrected[def.key] = JSON.parse(raw);
-          } catch {
+          } catch (err) {
+            logger.debug('[HITLReviewCard] Non-primitive field JSON parse (expected for free-text):', err);
             corrected[def.key] = raw;
           }
         } else {
