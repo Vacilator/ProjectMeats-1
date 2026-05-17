@@ -32,7 +32,6 @@ import { traderService } from '@/services/traderService';
 import { coerceFiniteNumber, formatCurrency } from '../../shared/utils';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../../utils/trade';
 import { formatTradeDate, formatTradeWeight } from '../../utils/trade';
-import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { buildCsv, downloadCsv } from '@/utils/csv';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
@@ -413,9 +412,6 @@ const Invoices: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -423,51 +419,43 @@ const Invoices: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPortalAccess, setShowPortalAccess] = useState(false);
 
-  const handlePaymentModalClose = useCallback(() => setShowPaymentModal(false), []);
-  const handleCreateModalClose = useCallback(() => setIsModalOpen(false), []);
+  const queryClient = useQueryClient();
 
-  // Fetch invoices
-  const fetchInvoices = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
+  const invoicesQuery = useQuery({
+    queryKey: withTenantQueryKey('invoices', statusFilter),
+    queryFn: async () => {
       const params: Record<string, unknown> = {};
       if (statusFilter !== 'all') {
         params.status = statusFilter;
       }
-
       const response = await businessApi.get('accounting/invoices/', { params });
       const invoicesData = response.data.results || response.data;
-
-      // Calculate outstanding amounts (mocked for now - backend enhancement needed)
-      const invoicesWithOutstanding = invoicesData.map((invoice: Invoice) => ({
+      return invoicesData.map((invoice: Invoice) => ({
         ...invoice,
         outstanding_amount: invoice.outstanding_amount ||
                           (invoice.status === 'paid' ? '0.00' : invoice.total_amount),
-      }));
+      })) as Invoice[];
+    },
+    staleTime: 30_000,
+  });
 
-      setInvoices(invoicesWithOutstanding);
-    } catch (err: unknown) {
-      logger.error('Failed to fetch invoices:', err);
-      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
-      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
-      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
-      setError((typeof data.message === 'string' ? data.message : '') || 'Failed to load invoices');
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter]);
+  const invoices = invoicesQuery.data ?? [];
+  const loading = invoicesQuery.isLoading;
+  const error = invoicesQuery.error ? 'Failed to load invoices' : null;
+
+  const refreshInvoices = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('invoices') }),
+    [queryClient]
+  );
+
+  const handlePaymentModalClose = useCallback(() => setShowPaymentModal(false), []);
+  const handleCreateModalClose = useCallback(() => setIsModalOpen(false), []);
 
   const handlePaymentSuccess = useCallback(() => {
-    fetchInvoices();
+    refreshInvoices();
     setShowPaymentModal(false);
-  }, [fetchInvoices]);
-  const handleCreateSuccess = useCallback(() => fetchInvoices(), [fetchInvoices]);
-
-  useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+  }, [refreshInvoices]);
+  const handleCreateSuccess = useCallback(() => refreshInvoices(), [refreshInvoices]);
 
   useEffect(() => {
     if (searchParams.get('action') !== 'create') {
@@ -669,7 +657,7 @@ const Invoices: React.FC = () => {
                             entityType="invoice"
                             entityId={invoice.id}
                             status={invoice.status}
-                            onTransitioned={() => fetchInvoices()}
+                            onTransitioned={() => refreshInvoices()}
                           />
                         </TableCell>
                       </TableRow>
