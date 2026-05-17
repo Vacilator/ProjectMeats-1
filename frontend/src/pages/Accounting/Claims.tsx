@@ -568,7 +568,7 @@ export const Claims: React.FC = () => {
               <div style={{ padding: 16 }}>
                 <Skeleton active paragraph={{ rows: 8 }} />
               </div>
-            ) : filteredClaims.length === 0 ? (
+            ) : error ? null : filteredClaims.length === 0 ? (
               <EmptyState>
                 <p>No {statusFilter !== 'all' ? statusFilter : ''} claims found.</p>
                 <p>Click "New Claim" to create one.</p>
