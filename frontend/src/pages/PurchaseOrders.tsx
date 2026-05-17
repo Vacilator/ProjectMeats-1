@@ -549,7 +549,7 @@ const PurchaseOrders: React.FC = () => {
             />
           ) : (
             <TableWrapper>
-              <Table>
+              <Table aria-label="Purchase orders list">
                 <TableHeader>
                   <TableRow>
                     <TableHeaderCell>Order Number</TableHeaderCell>
