@@ -414,22 +414,43 @@ export const AIInboxSyncProvider: React.FC<AIInboxSyncProviderProps> = ({ childr
       if (consecutiveFailures.current === 1 || source === 'manual') {
         logger.warn('AI inbox auto-sync request failed', SYNC_LOG_CTX);
       }
+
       const errResp = (rawError as { response?: { data?: Record<string, unknown> } })?.response?.data;
       const httpStatus = (rawError as { response?: { status?: number } })?.response?.status;
+      const errCode = (rawError as { code?: string })?.code;
       const backendMsg = typeof errResp?.message === 'string' ? errResp.message : null;
       const isNotConnected = errResp?.code === 'not_connected' ||
         String(backendMsg || '').toLowerCase().includes('not connected');
       const isServerDown = httpStatus != null && httpStatus >= 502;
+      const isNetworkError = !httpStatus && (
+        errCode === 'ECONNABORTED' ||
+        errCode === 'ERR_NETWORK' ||
+        errCode === 'ERR_CANCELED'
+      );
+
+      // For automatic syncs (login, interval) that fail due to network/server
+      // issues, silently skip instead of showing a persistent error banner.
+      // The next interval or page load will retry automatically.
+      if (source !== 'manual' && (isServerDown || isNetworkError)) {
+        return publishSyncState({
+          ...initialSyncState,
+          status: 'skipped',
+          source,
+          startedAt: now,
+          finishedAt: Date.now(),
+          message: 'Email sync deferred — will retry automatically.',
+          summary: 'Email sync deferred — will retry automatically.',
+        });
+      }
+
       const tooManyFailures = consecutiveFailures.current >= 3;
       const fallbackMsg = isNotConnected
         ? 'Email integration is not configured. Connect your email in Settings → Email Integrations.'
-        : isServerDown
+        : isServerDown || isNetworkError
           ? 'The server is temporarily unavailable. Email sync will resume automatically when it recovers.'
-          : 'Email sync service is temporarily unavailable. Please try again later.';
-      // Don't offer retry when server is down or after too many failures —
-      // the widget just shows the message without an action button, and
-      // auto-sync will retry on next page load / login.
-      const showRetry = !isNotConnected && !isServerDown && !tooManyFailures;
+          : 'Email sync could not be completed. It will retry automatically.';
+      // Don't offer retry when server is down, network error, or after too many failures.
+      const showRetry = !isNotConnected && !isServerDown && !isNetworkError && !tooManyFailures;
       return publishSyncState({
         ...initialSyncState,
         status: 'failed',
