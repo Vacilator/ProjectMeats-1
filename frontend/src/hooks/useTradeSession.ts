@@ -62,18 +62,13 @@ export function useTradeSession(
   const { data: relData, isLoading: relLoading } = useQuery({
     queryKey: relQueryKey,
     queryFn: async () => {
-      try {
-        const res = await businessApi.get(
-          `/system/entities/${normalizedType}/${encodeURIComponent(normalizedId)}/relationships/`,
-        );
-        return (res.data || {}) as RelationshipsPayload;
-      } catch {
-        return {} as RelationshipsPayload;
-      }
+      const res = await businessApi.get(
+        `/system/entities/${normalizedType}/${encodeURIComponent(normalizedId)}/relationships/`,
+      );
+      return (res.data || {}) as RelationshipsPayload;
     },
     enabled: isTradeEntity && !isInquiry && Boolean(normalizedId),
     staleTime: 60_000,
-    retry: false,
   });
 
   const resolvedInquiryId = useMemo(() => {
@@ -91,21 +86,16 @@ export function useTradeSession(
   const { data: inquiryData, isLoading: inquiryLoading } = useQuery({
     queryKey: inquiryQueryKey,
     queryFn: async () => {
-      try {
-        const res = await businessApi.get(`inquiries/${resolvedInquiryId}/`);
-        const d = res.data as Record<string, unknown>;
-        return {
-          trade_session_id: d.trade_session_id as string | number | null,
-          trade_session_status: String(d.trade_session_status ?? ''),
-          trade_session_current_step: String(d.trade_session_current_step ?? ''),
-        };
-      } catch {
-        return { trade_session_id: null, trade_session_status: '', trade_session_current_step: '' };
-      }
+      const res = await businessApi.get(`inquiries/${resolvedInquiryId}/`);
+      const d = res.data as Record<string, unknown>;
+      return {
+        trade_session_id: d.trade_session_id as string | number | null,
+        trade_session_status: String(d.trade_session_status ?? ''),
+        trade_session_current_step: String(d.trade_session_current_step ?? ''),
+      };
     },
     enabled: Boolean(resolvedInquiryId),
     staleTime: 30_000,
-    retry: false,
   });
 
   return {

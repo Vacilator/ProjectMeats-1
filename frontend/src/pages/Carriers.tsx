@@ -81,15 +81,11 @@ const Carriers: React.FC = () => {
   const carriersQuery = useQuery({
     queryKey: withTenantQueryKey('carriers'),
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/carriers/');
-        const payload = response.data;
-        if (Array.isArray(payload)) return payload as Carrier[];
-        const results = (payload as { results?: Carrier[] } | null)?.results;
-        return Array.isArray(results) ? results : [];
-      } catch {
-        return [] as Carrier[];
-      }
+      const response = await businessApi.get('/carriers/');
+      const payload = response.data;
+      if (Array.isArray(payload)) return payload as Carrier[];
+      const results = (payload as { results?: Carrier[] } | null)?.results;
+      return Array.isArray(results) ? results : [];
     },
     staleTime: 30 * 1000,
   });

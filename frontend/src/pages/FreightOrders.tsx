@@ -71,17 +71,13 @@ const FreightOrders: React.FC = () => {
   const freightOrdersQuery = useQuery({
     queryKey: withTenantQueryKey('freight-orders'),
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/carrier-pos/');
-        const payload = response.data;
-        if (Array.isArray(payload)) {
-          return payload as FreightOrder[];
-        }
-        const results = (payload as { results?: FreightOrder[] } | null)?.results;
-        return Array.isArray(results) ? results : [];
-      } catch {
-        return [] as FreightOrder[];
+      const response = await businessApi.get('/carrier-pos/');
+      const payload = response.data;
+      if (Array.isArray(payload)) {
+        return payload as FreightOrder[];
       }
+      const results = (payload as { results?: FreightOrder[] } | null)?.results;
+      return Array.isArray(results) ? results : [];
     },
     staleTime: 15 * 1000,
   });

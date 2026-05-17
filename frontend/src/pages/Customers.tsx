@@ -70,12 +70,8 @@ const Customers: React.FC = () => {
   const customersQuery = useQuery({
     queryKey: withTenantQueryKey('customers'),
     queryFn: async () => {
-      try {
-        const resp = await businessApi.get('customers/');
-        return (resp.data.results || resp.data) as Customer[];
-      } catch {
-        return [] as Customer[];
-      }
+      const resp = await businessApi.get('customers/');
+      return (resp.data.results || resp.data) as Customer[];
     },
   });
 
