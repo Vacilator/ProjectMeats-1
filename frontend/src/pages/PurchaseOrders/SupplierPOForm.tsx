@@ -426,19 +426,26 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
 
   // Load initial data
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       try {
         const resp = await businessApi.get('suppliers/');
-        setSuppliers((resp.data.results || resp.data) as Supplier[]);
+        if (!cancelled) {
+          setSuppliers((resp.data?.results || resp.data) as Supplier[]);
+        }
       } catch (err) {
-        logger.error('Failed to fetch suppliers list', { err });
+        if (!cancelled) {
+          logger.error('Failed to fetch suppliers list', { err });
+        }
       }
     };
-    loadData();
+    void loadData();
+    return () => { cancelled = true; };
   }, []);
 
   // Load choice options
   useEffect(() => {
+    let cancelled = false;
     const loadChoices = async () => {
       try {
         const [protein, ff, pkg, wu, nc, pt, appt] = await Promise.all([
@@ -450,18 +457,23 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
           getChoices('accounting_payment_terms'),
           getChoices('appointment_method'),
         ]);
-        setProteinOptions(protein);
-        setFreshFrozenOptions(ff);
-        setPackageTypeOptions(pkg);
-        setWeightUnitOptions(wu);
-        setNetCatchOptions(nc);
-        setPaymentTermsOptions(pt);
-        setAppointmentOptions(appt);
+        if (!cancelled) {
+          setProteinOptions(protein);
+          setFreshFrozenOptions(ff);
+          setPackageTypeOptions(pkg);
+          setWeightUnitOptions(wu);
+          setNetCatchOptions(nc);
+          setPaymentTermsOptions(pt);
+          setAppointmentOptions(appt);
+        }
       } catch (err) {
-        logger.warn('Failed to fetch payment terms and appointment options', { err });
+        if (!cancelled) {
+          logger.warn('Failed to fetch payment terms and appointment options', { err });
+        }
       }
     };
-    loadChoices();
+    void loadChoices();
+    return () => { cancelled = true; };
   }, []);
 
   // Effective option arrays (backend choices or fallback)
