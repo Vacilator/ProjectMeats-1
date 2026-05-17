@@ -159,15 +159,10 @@ const MyTrades: React.FC = () => {
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: withTenantQueryKey('my-trades'),
-    queryFn: async () => {
-      try {
-        return await traderService.listActiveTrades();
-      } catch {
-        return { count: 0, results: [] } as TradeListResponse;
-      }
-    },
+    queryFn: () => traderService.listActiveTrades(),
     staleTime: 30_000,
     refetchInterval: 60_000,
+    retry: 2,
   });
 
   const trades = useMemo(() => data?.results ?? [], [data]);
