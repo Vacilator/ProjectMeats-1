@@ -34,6 +34,7 @@ import {
   isUsingJwt,
 } from './jwtService';
 import { ApiServiceError, createCircuitBreakerError } from './apiErrors';
+import { emitCircuitBreakerEvent } from '@/hooks/useServerRecovery';
 import type { TradeTimelinePayload, TradeWeightPayload } from '../utils/trade';
 
 // API Configuration
@@ -366,6 +367,9 @@ apiClient.interceptors.response.use(
         error.response?.data,
       );
 
+      // Signal the recovery hook so it can auto-refetch when backend comes back
+      emitCircuitBreakerEvent();
+
       return Promise.reject(
         createCircuitBreakerError({
           friendlyMessage,
@@ -489,6 +493,8 @@ adminClient.interceptors.response.use(
         friendlyMessage,
         error.response?.data,
       );
+
+      emitCircuitBreakerEvent();
 
       return Promise.reject(
         createCircuitBreakerError({
