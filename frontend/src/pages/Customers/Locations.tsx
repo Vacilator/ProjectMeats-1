@@ -13,6 +13,7 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Button, message, Tag, Space } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
@@ -23,6 +24,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -139,10 +141,7 @@ const CustomerLocations: React.FC = () => {
   const { customerId } = useParams<{ customerId?: string }>();
 
   // State
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
-  const [, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [contextCustomerId, setContextCustomerId] = useState<number | null>(null);
@@ -183,45 +182,26 @@ const CustomerLocations: React.FC = () => {
     setContextCustomerId(nextContext);
   }, [location.search, location.state, customerId]);
 
-  useEffect(() => {
-    loadCustomers();
-  }, []);
-
-  useEffect(() => {
-    loadLocations(contextCustomerId);
-  }, [contextCustomerId]);
-
-  useEffect(() => {
-    filterLocations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- filterLocations is unstable; all values it reads are already listed
-  }, [locations, searchText, contextCustomerId, activeTab]);
-
-  const loadLocations = async (customerFilterId: number | null) => {
-    try {
-      setLoading(true);
-      const params = customerFilterId ? { customer: customerFilterId } : undefined;
-
+  // React Query: fetch locations with automatic retry & recovery
+  const locationsQuery = useQuery({
+    queryKey: withTenantQueryKey('locations', contextCustomerId),
+    queryFn: async () => {
+      const params = contextCustomerId ? { customer: contextCustomerId } : undefined;
       const response = await businessApi.get('locations/', { params });
-      setLocations(response.data.results || response.data);
-    } catch (error) {
-      logger.error('Error loading locations:', error);
-      message.warning('Locations API not yet implemented. Using empty dataset.');
-      setLocations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (response.data.results || response.data) as Location[];
+    },
+    staleTime: 30_000,
+  });
+  const locations = locationsQuery.data ?? [];
+  const loading = locationsQuery.isLoading;
 
-  const loadCustomers = async () => {
-    try {
-      const response = await businessApi.get('customers/');
-      setCustomers(response.data.results || response.data);
-    } catch (error) {
-      logger.error('Error loading customers:', error);
-    }
-  };
+  const refreshLocations = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('locations') }),
+    [queryClient]
+  );
 
-  const filterLocations = () => {
+  // Derived filtered list — pure computation, no state needed
+  const filteredLocations = useMemo(() => {
     let filtered = [...locations];
 
     if (contextCustomerId) {
@@ -247,8 +227,8 @@ const CustomerLocations: React.FC = () => {
       );
     }
 
-    setFilteredLocations(filtered);
-  };
+    return filtered;
+  }, [locations, searchText, contextCustomerId, activeTab]);
 
   const handleAdd = () => {
     setEditingLocation(null);
@@ -274,7 +254,7 @@ const CustomerLocations: React.FC = () => {
     try {
       await businessApi.delete(`locations/${loc.id}/`);
       message.success('Location deleted successfully');
-      loadLocations(contextCustomerId);
+      void refreshLocations();
     } catch (error: unknown) {
       logger.error('Error deleting location:', error);
       message.error('Failed to delete location');
@@ -291,8 +271,8 @@ const CustomerLocations: React.FC = () => {
   const handleFormSuccess = useCallback(() => {
     setShowModal(false);
     setEditingLocation(null);
-    void loadLocations(contextCustomerId);
-  }, [contextCustomerId]);
+    void refreshLocations();
+  }, [refreshLocations]);
 
   const handleCustomerClick = (customerId: number) => {
     navigate(`/customers/${customerId}`);

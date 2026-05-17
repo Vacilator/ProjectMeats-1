@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 
@@ -6,12 +6,8 @@ from django.views.decorators.http import require_http_methods
 def ai_inbox_websocket_probe(request):
     """HTTP probe for the AI inbox websocket path.
 
-    HTTP requests on the websocket URL let the frontend verify that `/ws/`
-    is reaching the backend instead of the SPA fallback, without creating a
-    doomed native WebSocket that would spam the browser console.
+    Returns 200 so the frontend pre-flight check can confirm the ASGI stack
+    is routing /ws/ correctly, without generating a red console error in
+    the browser (which non-2xx responses always produce).
     """
-
-    response = HttpResponse("WebSocket upgrade required.", status=426, content_type="text/plain")
-    response["Upgrade"] = "websocket"
-    response["Connection"] = "Upgrade"
-    return response
+    return JsonResponse({"status": "ws_ready"}, status=200)

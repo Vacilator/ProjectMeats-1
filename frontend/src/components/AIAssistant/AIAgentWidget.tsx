@@ -898,25 +898,18 @@ const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string |
   return url.toString();
 };
 
-const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([400, 401, 403, 405, 426]);
+const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([200, 400, 401, 403, 405]);
 
 /**
  * Pre-flight check: verify the WebSocket path is routed before attempting
- * a WebSocket connection. Probes the actual WS path with a plain HTTP
- * request. The backend exposes a matching HTTP probe route that responds
- * with 426 when the reverse proxy and ASGI stack are wired correctly.
- * A 200/30x response usually means the SPA fallback or another HTTP
- * endpoint answered, so fail closed and avoid creating a doomed native
- * WebSocket.
+ * a WebSocket connection. Probes the actual WS path with a plain HTTP GET.
+ * The backend probe returns 200 when the ASGI stack is wired correctly.
  */
 const checkWSEndpointReachable = async (): Promise<boolean> => {
   try {
-    // HEAD request: lighter than GET; still confirms the endpoint exists.
-    // The browser will log the non-2xx response in devtools — that's unavoidable
-    // and harmless (426 = "upgrade to WebSocket" = endpoint exists).
     // eslint-disable-next-line no-restricted-globals -- raw fetch intentional: lightweight pre-flight probe must bypass auth interceptors
     const response = await fetch(AI_INBOX_SOCKET_PATH, {
-      method: 'HEAD',
+      method: 'GET',
       cache: 'no-store',
       credentials: 'same-origin',
       redirect: 'manual',

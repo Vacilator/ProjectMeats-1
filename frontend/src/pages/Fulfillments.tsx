@@ -8,17 +8,18 @@
  * - Tracking information
  * - Ship/Deliver/Complete actions
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { businessApi } from '@/services/businessApi';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
 import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
 import StatusFilterBar from '@/components/Shared/StatusFilterBar';
 import { StatusActionCell } from '@/components/Workflow';
-import { logger } from '@/utils/logger';
 import { formatDateLocal } from '@/utils/formatters';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // Styled Components
@@ -225,9 +226,7 @@ const CreateButton = styled.button`
 
 const Fulfillments: React.FC = () => {
   useDocumentTitle('Fulfillments');
-  const [fulfillments, setFulfillments] = useState<FulfillmentListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Filters
   const [search, setSearch] = useState('');
@@ -245,7 +244,6 @@ const Fulfillments: React.FC = () => {
 
   // Pagination
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
 
   // Create modal
@@ -254,35 +252,36 @@ const Fulfillments: React.FC = () => {
   // Detail modal
   const [selectedFulfillmentId, setSelectedFulfillmentId] = useState<string | null>(null);
 
-  const fetchFulfillments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
+  // React Query: fetch fulfillments with automatic retry & recovery
+  const fulfillmentsQuery = useQuery({
+    queryKey: withTenantQueryKey('fulfillments', page, search, statusFilter),
+    queryFn: async () => {
       const params: Record<string, unknown> = {
         page,
         page_size: pageSize,
       };
-
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
 
       const response = await businessApi.get('fulfillments/', { params });
       const data = response.data;
+      return {
+        results: (data.results || data) as FulfillmentListItem[],
+        count: (data.count || data.length) as number,
+      };
+    },
+    staleTime: 30_000,
+  });
 
-      setFulfillments(data.results || data);
-      setTotalCount(data.count || data.length);
-    } catch (err) {
-      logger.error('Failed to fetch fulfillments:', err);
-      setError('Failed to load fulfillments. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, statusFilter]);
+  const fulfillments = fulfillmentsQuery.data?.results ?? [];
+  const totalCount = fulfillmentsQuery.data?.count ?? 0;
+  const loading = fulfillmentsQuery.isLoading;
+  const error = fulfillmentsQuery.error ? 'Failed to load fulfillments. Please try again.' : null;
 
-  useEffect(() => {
-    fetchFulfillments();
-  }, [fetchFulfillments]);
+  const refreshFulfillments = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('fulfillments') }),
+    [queryClient]
+  );
 
   const handleCreateClose = useCallback(() => {
     setShowCreateModal(false);
@@ -290,8 +289,8 @@ const Fulfillments: React.FC = () => {
 
   const handleCreateSuccess = useCallback(() => {
     setShowCreateModal(false);
-    void fetchFulfillments();
-  }, [fetchFulfillments]);
+    void refreshFulfillments();
+  }, [refreshFulfillments]);
 
   const handleDetailClose = useCallback(() => {
     setSelectedFulfillmentId(null);
@@ -377,7 +376,7 @@ const Fulfillments: React.FC = () => {
                     entityType="fulfillment"
                     entityId={fulfillment.id}
                     status={fulfillment.status}
-                    onTransitioned={fetchFulfillments}
+                    onTransitioned={refreshFulfillments}
                   />
                 </div>
                 <TrackingInfo>
@@ -436,7 +435,7 @@ const Fulfillments: React.FC = () => {
           isOpen={!!selectedFulfillmentId}
           onClose={handleDetailClose}
           fulfillmentId={selectedFulfillmentId}
-          onUpdate={fetchFulfillments}
+          onUpdate={refreshFulfillments}
         />
       )}
     </Container>
