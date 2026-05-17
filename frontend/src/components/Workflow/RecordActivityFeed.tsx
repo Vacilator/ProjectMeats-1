@@ -8,11 +8,13 @@
  * Theme Compliance: CSS custom properties only.
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 
 import { businessApi } from '@/services/businessApi';
+import { logger } from '@/utils/logger';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { getDocumentEntityConfig } from '@/components/Operations/documentOperations';
 import { getStatusColors } from '@/utils/statusColors';
@@ -71,7 +73,7 @@ const formatRelativeTime = (raw?: string | null): string => {
   if (diffMin < 60) return `${diffMin}m ago`;
   if (diffHour < 24) return `${diffHour}h ago`;
   if (diffDay < 7) return `${diffDay}d ago`;
-  return date.toLocaleDateString();
+  return dayjs(date).format('MMM D, YYYY');
 };
 
 const describeEvent = (event: ActivityEvent): string => {
@@ -248,7 +250,8 @@ export const RecordActivityFeed: React.FC<RecordActivityFeedProps> = ({
       if (Array.isArray(payload)) return payload as ActivityEvent[];
       const results = (payload as { results?: ActivityEvent[] } | null)?.results;
       return Array.isArray(results) ? results : [];
-    } catch {
+    } catch (err) {
+      logger.warn('Failed to fetch activity feed:', err);
       return [];
     }
   }, [endpoint, entityId]);

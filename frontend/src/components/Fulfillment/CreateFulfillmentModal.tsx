@@ -313,7 +313,8 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       }
 
       setCustomerOptions(customers);
-    } catch (_err) {
+    } catch (err) {
+      logger.warn('Failed to load customers:', err);
       setCustomerOptions([]);
     } finally {
       setLoadingCustomers(false);
@@ -346,7 +347,8 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
           return { id, label: `${num || `Inquiry #${id}`}${when ? ` — ${when}` : ''}` };
         }).filter((r) => r.id)
       );
-    } catch (_err) {
+    } catch (err) {
+      logger.warn('Failed to load inquiries:', err);
       setInquiryOptions([]);
     } finally {
       setLoadingInquiries(false);
@@ -362,7 +364,8 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     try {
       const resp = await businessApi.get(`inquiries/${inquiryId}/`);
       setResolvedInquiry(resp.data as Inquiry);
-    } catch (_err) {
+    } catch (err) {
+      logger.warn('Failed to load inquiry detail:', err);
       setResolvedInquiry(null);
     }
   }, []);
