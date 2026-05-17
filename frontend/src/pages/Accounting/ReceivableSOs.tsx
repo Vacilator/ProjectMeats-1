@@ -12,9 +12,10 @@
  * 
  * Pattern: Follows Invoices.tsx architecture with side panel integration
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ActivityFeed } from '../../components/Shared/ActivityFeed';
 import { RecordPaymentModal, PaymentHistoryList } from '../../components/Shared';
@@ -22,8 +23,8 @@ import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
 import { buildCsv, downloadCsv } from '@/utils/csv';
-import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -352,52 +353,43 @@ const EmptyMessage = styled.div`
 
 const ReceivableSOs: React.FC = () => {
   useDocumentTitle('Receivable SOs');
-  const [orders, setOrders] = useState<SalesOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'partial' | 'paid'>('all');
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Fetch sales orders with accounting focus
-  const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
+  const ordersQuery = useQuery({
+    queryKey: withTenantQueryKey('receivable-sos', statusFilter),
+    queryFn: async () => {
       const params: Record<string, string> = {};
       if (statusFilter !== 'all') {
         params.payment_status = statusFilter;
       }
-      
       const response = await businessApi.get('sales-orders/', { params });
-      
       const ordersWithPaymentStatus = response.data.results || response.data;
-      setOrders(ordersWithPaymentStatus.map((order: SalesOrder) => ({
+      return ordersWithPaymentStatus.map((order: SalesOrder) => ({
         ...order,
         payment_status: order.payment_status || 'unpaid',
         outstanding_amount: order.outstanding_amount || order.total_amount,
-      })));
-    } catch (err: unknown) {
-      logger.error('Failed to fetch sales orders:', err);
-      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
-      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
-      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
-      setError((typeof data.message === 'string' ? data.message : '') || 'Failed to load sales orders');
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter]);
+      })) as SalesOrder[];
+    },
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  const orders = ordersQuery.data ?? [];
+  const loading = ordersQuery.isLoading;
+  const error = ordersQuery.error ? 'Failed to load sales orders' : null;
+
+  const refreshOrders = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('receivable-sos') }),
+    [queryClient]
+  );
 
   const handlePaymentModalClose = useCallback(() => setShowPaymentModal(false), []);
   const handlePaymentSuccess = useCallback(() => {
-    fetchOrders();
+    refreshOrders();
     setShowPaymentModal(false);
-  }, [fetchOrders]);
+  }, [refreshOrders]);
 
   // Count orders by status
   const counts = {
