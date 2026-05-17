@@ -26,20 +26,39 @@ import './i18n/config'; // Initialize i18n
 // canonicalSearch utilities kept available for Header; App.tsx no longer uses them directly
 import LegacyCommandCenterTabRedirect from './routes/LegacyCommandCenterTabRedirect';
 import ConsoleErrorMonitor from './components/DevTools/ConsoleErrorMonitor';
+import { useServerRecovery } from './hooks/useServerRecovery';
+
+/** Invisible component that polls /health after 5xx and auto-refetches. */
+function ServerRecoveryGuard() {
+  useServerRecovery();
+  return null;
+}
 
 // MyTasksRedirect removed — /my-tasks renders directly, no workforms dependency
 
 // Cockpit routes removed — all cockpit paths redirect to Home
 
-// Create QueryClient for data fetching (React Query)
+// ---------------------------------------------------------------------------
+// Smart retry: 5xx (circuit breaker) gets more attempts with backoff so
+// transient deploy-window 504s don't leave every page stuck on "No data".
+// ---------------------------------------------------------------------------
+import { ApiServiceError } from './services/apiErrors';
+
+const isCircuitBreakerError = (err: unknown): boolean =>
+  err instanceof ApiServiceError && err.kind === 'circuit_breaker';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error) => {
+        // 5xx / circuit-breaker: retry up to 4 times (covers ~30s of downtime)
+        if (isCircuitBreakerError(error)) return failureCount < 4;
+        // Other errors: retry once
+        return failureCount < 1;
+      },
+      retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 30_000),
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      // IMPORTANT: Refetch on mount to ensure tenant context is correct
-      // This prevents stale cached data from previous tenant after hard refresh
+      staleTime: 5 * 60 * 1000,
       refetchOnMount: 'always',
     },
   },
@@ -234,6 +253,7 @@ const App: React.FC = () => {
     >
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
+          <ServerRecoveryGuard />
           <AuthProvider>
             <OnboardingProvider>
               <ThemeProvider>
