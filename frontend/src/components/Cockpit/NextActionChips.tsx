@@ -53,12 +53,8 @@ export const NextActionChips: React.FC = () => {
   const emailStatsQuery = useQuery({
     queryKey: withTenantQueryKey('next-action-email-stats'),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get<EmailStatsResponse>('/integrations/email/stats/');
-        return res.data;
-      } catch {
-        return null;
-      }
+      const res = await businessApi.get<EmailStatsResponse>('/integrations/email/stats/');
+      return res.data;
     },
     staleTime: 30_000,
     retry: false,
@@ -67,12 +63,8 @@ export const NextActionChips: React.FC = () => {
   const cockpitStatsQuery = useQuery({
     queryKey: withTenantQueryKey('next-action-cockpit-stats'),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get<CockpitStatsResponse>('cockpit/stats/');
-        return res.data;
-      } catch {
-        return null;
-      }
+      const res = await businessApi.get<CockpitStatsResponse>('cockpit/stats/');
+      return res.data;
     },
     staleTime: 30_000,
     retry: false,

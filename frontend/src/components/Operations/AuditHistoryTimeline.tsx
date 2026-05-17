@@ -54,23 +54,19 @@ export const AuditHistoryTimeline: React.FC<AuditHistoryTimelineProps> = ({
   const query = useQuery({
     queryKey: withTenantQueryKey('audit-history', config?.auditEntityType ?? entityType, String(entityId), maxItems),
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/audit-events/', {
-          params: {
-            entity_type: config?.auditEntityType,
-            object_id: entityId,
-            page_size: maxItems,
-          },
-        });
-        const payload = response.data;
-        if (Array.isArray(payload)) {
-          return payload as AuditEvent[];
-        }
-        const results = (payload as { results?: AuditEvent[] } | null)?.results;
-        return Array.isArray(results) ? results : [];
-      } catch {
-        return [];
+      const response = await businessApi.get('/audit-events/', {
+        params: {
+          entity_type: config?.auditEntityType,
+          object_id: entityId,
+          page_size: maxItems,
+        },
+      });
+      const payload = response.data;
+      if (Array.isArray(payload)) {
+        return payload as AuditEvent[];
       }
+      const results = (payload as { results?: AuditEvent[] } | null)?.results;
+      return Array.isArray(results) ? results : [];
     },
     enabled: Boolean(config?.auditEntityType) && Boolean(entityId),
     staleTime: 30 * 1000,

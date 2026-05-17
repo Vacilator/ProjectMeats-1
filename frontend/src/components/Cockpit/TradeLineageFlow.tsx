@@ -508,12 +508,8 @@ export const TradeLineageFlow: React.FC<TradeLineageFlowProps> = ({
   const { data, isLoading, error } = useQuery({
     queryKey: withTenantQueryKey('trade-lineage', inquiryId),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get(`/inquiries/${inquiryId}/lineage/`);
-        return res.data as LineageChain;
-      } catch {
-        return null;
-      }
+      const res = await businessApi.get(`/inquiries/${inquiryId}/lineage/`);
+      return res.data as LineageChain;
     },
     enabled: !!inquiryId,
     staleTime: 5_000,

@@ -241,14 +241,10 @@ export const TradeJourneyTimeline: React.FC<TradeJourneyTimelineProps> = ({
   const { data: relationshipsData } = useQuery({
     queryKey,
     queryFn: async () => {
-      try {
-        const res = await businessApi.get(
-          `/system/entities/${normalizedType}/${encodeURIComponent(normalizedId)}/relationships/`,
-        );
-        return (res.data || {}) as RelationshipsPayload;
-      } catch {
-        return {} as RelationshipsPayload;
-      }
+      const res = await businessApi.get(
+        `/system/entities/${normalizedType}/${encodeURIComponent(normalizedId)}/relationships/`,
+      );
+      return (res.data || {}) as RelationshipsPayload;
     },
     enabled: TRADE_ENTITY_TYPES.has(normalizedType) && Boolean(normalizedId),
     staleTime: 30_000,

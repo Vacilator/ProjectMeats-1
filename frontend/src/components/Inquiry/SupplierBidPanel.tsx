@@ -69,12 +69,8 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     queryKey: withTenantQueryKey('customer-locations', customerId ?? ''),
     queryFn: async () => {
       if (!customerId) return [];
-      try {
-        const res = await businessApi.get(`/customers/${customerId}/locations/`);
-        return (res.data?.results ?? res.data ?? []) as CustomerLocation[];
-      } catch {
-        return [];
-      }
+      const res = await businessApi.get(`/customers/${customerId}/locations/`);
+      return (res.data?.results ?? res.data ?? []) as CustomerLocation[];
     },
     enabled: Boolean(customerId) && canManageBids,
     staleTime: 60_000,
@@ -85,11 +81,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   const { data: suppliers } = useQuery({
     queryKey: withTenantQueryKey('suppliers-list'),
     queryFn: async () => {
-      try {
-        return await suppliersApi.list();
-      } catch {
-        return [];
-      }
+      return await suppliersApi.list();
     },
     enabled: canManageBids,
     staleTime: 60_000,

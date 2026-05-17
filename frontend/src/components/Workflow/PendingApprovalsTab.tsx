@@ -390,35 +390,31 @@ export const PendingApprovalsTab: React.FC<PendingApprovalsTabProps> = ({
   const { data: gateItems = [], isLoading: gateLoading } = useQuery({
     queryKey: withTenantQueryKey('pending-approvals-gates'),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get('/ai-assistant/approval-queue/', { params: { status: 'pending' } });
-        const items = (res.data?.results ?? res.data ?? []) as Array<{
-          id: string;
-          request_type: string;
-          source_entity_type: string;
-          source_entity_id: string;
-          subject: string;
-          status: string;
-          priority: string;
-          recipient_name: string;
-          created_on: string;
-          content_preview?: string;
-        }>;
-        return items
-          .filter((i) => i.status === 'pending')
-          .map((i): PendingEntity => ({
-            id: i.id,
-            entityType: i.source_entity_type || i.request_type || 'approval',
-            entityLabel: i.subject || 'Pending Approval',
-            identifier: i.subject || i.id,
-            partyName: i.recipient_name || '—',
-            status: 'pending_approval',
-            createdAt: i.created_on,
-            source: 'gate',
-          }));
-      } catch {
-        return [] as PendingEntity[];
-      }
+      const res = await businessApi.get('/ai-assistant/approval-queue/', { params: { status: 'pending' } });
+      const items = (res.data?.results ?? res.data ?? []) as Array<{
+        id: string;
+        request_type: string;
+        source_entity_type: string;
+        source_entity_id: string;
+        subject: string;
+        status: string;
+        priority: string;
+        recipient_name: string;
+        created_on: string;
+        content_preview?: string;
+      }>;
+      return items
+        .filter((i) => i.status === 'pending')
+        .map((i): PendingEntity => ({
+          id: i.id,
+          entityType: i.source_entity_type || i.request_type || 'approval',
+          entityLabel: i.subject || 'Pending Approval',
+          identifier: i.subject || i.id,
+          partyName: i.recipient_name || '—',
+          status: 'pending_approval',
+          createdAt: i.created_on,
+          source: 'gate',
+        }));
     },
     refetchInterval: 30_000,
   });
