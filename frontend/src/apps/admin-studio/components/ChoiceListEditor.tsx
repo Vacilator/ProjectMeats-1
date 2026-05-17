@@ -368,7 +368,8 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         setHasChanges(true);
         setSuccessMessage(`Imported ${newItems.length} items`);
         setTimeout(() => setSuccessMessage(null), 3000);
-      } catch {
+      } catch (err) {
+        logger.warn('Choice list JSON import failed', { err });
         setError('Failed to parse JSON file');
       }
     };

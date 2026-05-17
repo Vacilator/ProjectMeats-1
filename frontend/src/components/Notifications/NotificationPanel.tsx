@@ -467,8 +467,9 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
     if (!notification.is_read) {
       try {
         await markAsRead(notification.id);
-      } catch {
+      } catch (err) {
         // Preserve navigation even if the read call fails.
+        logger.debug('Failed to mark notification as read', { err, notificationId: notification.id });
       }
     }
 

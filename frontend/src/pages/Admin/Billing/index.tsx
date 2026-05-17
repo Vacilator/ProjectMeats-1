@@ -25,6 +25,7 @@ import { businessApi } from '@/services/businessApi';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { logger } from '@/utils/logger';
 
 const { Text } = Typography;
 
@@ -211,7 +212,8 @@ const BillingPage: React.FC = () => {
 
     try {
       window.open(url, '_blank', 'noopener,noreferrer');
-    } catch {
+    } catch (err) {
+      logger.warn('Failed to open billing portal', { err });
       message.error('Failed to open billing portal.');
     }
   };

@@ -157,7 +157,8 @@ export const SettlementQueue: React.FC = () => {
     }
     try {
       return JSON.stringify(JSON.parse(selectedEvent.raw_payload), null, 2);
-    } catch {
+    } catch (err) {
+      logger.debug('Failed to parse raw_payload as JSON', { err });
       return selectedEvent.raw_payload;
     }
   }, [selectedEvent]);

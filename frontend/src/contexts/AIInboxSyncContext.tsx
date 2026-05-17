@@ -172,7 +172,8 @@ const parseSyncClaim = (rawValue: string | null): SyncClaim | null => {
     if (typeof parsed?.requestedAt === 'number' && Number.isFinite(parsed.requestedAt)) {
       return parsed;
     }
-  } catch {
+  } catch (err) {
+    logger.debug('Failed to parse sync claim from localStorage', { err });
     return null;
   }
 

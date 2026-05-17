@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { logger } from '@/utils/logger';
 
 interface InlineEditFieldProps {
   value: string | number | null | undefined;
@@ -93,7 +94,8 @@ const InlineEditField: React.FC<InlineEditFieldProps> = ({
     setSaving(true);
     try {
       await onSave(fieldName, draft);
-    } catch {
+    } catch (err) {
+      logger.warn('Inline edit save failed', { err, fieldName });
       setDraft(String(value ?? ''));
     } finally {
       setSaving(false);

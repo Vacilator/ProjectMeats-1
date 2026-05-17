@@ -80,7 +80,8 @@ const upsertQueryParam = (url: string, key: string, value: string) => {
     const parsed = new URL(url, window.location.origin);
     parsed.searchParams.set(key, value);
     return parsed.toString();
-  } catch {
+  } catch (err) {
+    logger.debug('URL parse fallback in upsertQueryParam', { err });
     const sep = url.includes('?') ? '&' : '?';
     return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
   }

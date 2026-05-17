@@ -34,6 +34,7 @@ import {
   type TradeDocument,
   type TradeStageKey,
 } from '@/services/tradeDocumentsService';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Props
@@ -332,7 +333,8 @@ export const TradeDocumentsPanel: React.FC<TradeDocumentsPanelProps> = ({
         await tradeDocumentsService.upload(formData);
         message.success('Document uploaded');
         void queryClient.invalidateQueries({ queryKey: stableQueryKey });
-      } catch {
+      } catch (err) {
+        logger.error('Trade document upload failed', { err });
         message.error('Upload failed. Please try again.');
       } finally {
         setUploading(false);

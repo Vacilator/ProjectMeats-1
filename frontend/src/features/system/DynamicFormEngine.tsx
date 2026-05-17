@@ -21,6 +21,7 @@ import { CountrySelect } from '../../components/ui';
 import { DEFAULT_COUNTRY } from '../../utils/constants/countries';
 import { formatUsPhone } from '../../utils/phone';
 import { getAntdPopupContainer } from '../../utils/antdPopupContainer';
+import { logger } from '@/utils/logger';
 
 // Field definition types
 type SelectOption = string | { value: string; label: string };
@@ -165,7 +166,8 @@ function useDeepStableValue<T>(value: T): T {
 const getStableSignature = (value: unknown): string => {
   try {
     return JSON.stringify(value);
-  } catch {
+  } catch (err) {
+    logger.debug('JSON.stringify failed in getStableSignature', { err });
     return String(value);
   }
 };

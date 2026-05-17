@@ -496,8 +496,9 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
     () => debounce(async (field: string, value: unknown) => {
       try {
         await patchField(field, value);
-      } catch {
+      } catch (err) {
         // patchField handles toast + reload
+        logger.debug('EntityProfileHeader patchField error (handled upstream)', { err });
       }
     }, 300),
     [patchField]

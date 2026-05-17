@@ -10,6 +10,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef } from 'react';
 import { feedbackEventsApi, type FeedbackEventItem } from '../services/aiService';
+import { logger } from '@/utils/logger';
 
 const FLUSH_INTERVAL_MS = 30_000; // 30 seconds
 const MAX_BATCH_SIZE = 100;
@@ -53,8 +54,9 @@ export function useImplicitFeedback() {
     const batch = bufferRef.current.splice(0, MAX_BATCH_SIZE);
     try {
       await feedbackEventsApi.batchSubmit(batch);
-    } catch {
+    } catch (err) {
       // Fire-and-forget — silently drop on failure
+      logger.debug('Implicit feedback batch submit failed', { err });
       // Re-add to buffer for next flush attempt (max 1 retry)
       if (bufferRef.current.length < MAX_BATCH_SIZE * 2) {
         bufferRef.current.unshift(...batch);

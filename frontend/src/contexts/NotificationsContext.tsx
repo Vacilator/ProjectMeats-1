@@ -288,9 +288,9 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       ]);
       setActionItems(items);
       setActionItemCounts(counts);
-    } catch {
+    } catch (err) {
       // Silently fail - action items are optional feature
-      logger.warn('Action items not available', { component: 'NotificationsContext' });
+      logger.warn('Action items not available', { component: 'NotificationsContext', err });
     }
   }, [isAuthenticated]);
   

@@ -614,8 +614,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     // Track item access
     try {
       await trackRecentItem({ type: item.type, id: item.id, title: item.title });
-    } catch {
-      // Ignore tracking errors
+    } catch (err) {
+      logger.debug('Failed to track recent item', { err });
     }
 
     if (item.route) {

@@ -10,6 +10,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { IS_DEV_BUILD } from '@/utils/buildFlags';
+import { logger } from '@/utils/logger';
 
 interface ConsoleEntry {
   id: number;
@@ -109,7 +110,8 @@ function stringify(args: unknown[]): string {
       if (typeof a === 'string') return a;
       try {
         return JSON.stringify(a, null, 0);
-      } catch {
+      } catch (err) {
+        logger.debug('JSON.stringify failed in formatArgs', { err });
         return String(a);
       }
     })
