@@ -726,6 +726,9 @@ const Inquiries: React.FC = () => {
             <div className="icon">⚠️</div>
             <div className="title">Error Loading Inquiries</div>
             <div className="description">{error}</div>
+            <CreateButton onClick={() => void inquiriesQuery.refetch()}>
+              Retry
+            </CreateButton>
           </EmptyState>
         ) : inquiries.length === 0 ? (
           <EmptyState>
