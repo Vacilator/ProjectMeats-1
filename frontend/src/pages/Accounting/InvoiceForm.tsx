@@ -309,23 +309,30 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
   // Load customers and sales orders
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       try {
         const [custResp, soResp] = await Promise.all([
           businessApi.get('customers/'),
           businessApi.get('sales-orders/'),
         ]);
-        setCustomers((custResp.data.results || custResp.data) as CustomerRecord[]);
-        setSalesOrders((soResp.data.results || soResp.data) as SalesOrderRecord[]);
+        if (!cancelled) {
+          setCustomers((custResp.data?.results || custResp.data) as CustomerRecord[]);
+          setSalesOrders((soResp.data?.results || soResp.data) as SalesOrderRecord[]);
+        }
       } catch (err) {
-        logger.error('Failed to fetch customers and sales orders for invoice form', { err });
+        if (!cancelled) {
+          logger.error('Failed to fetch customers and sales orders for invoice form', { err });
+        }
       }
     };
-    loadData();
+    void loadData();
+    return () => { cancelled = true; };
   }, []);
 
   // Load choice options
   useEffect(() => {
+    let cancelled = false;
     const loadChoices = async () => {
       try {
         const [protein, ff, pkg, wu, nc, pt, appt] = await Promise.all([
@@ -337,18 +344,23 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           getChoices('accounting_payment_terms'),
           getChoices('appointment_method'),
         ]);
-        setProteinOptions(protein);
-        setFreshFrozenOptions(ff);
-        setPackageTypeOptions(pkg);
-        setWeightUnitOptions(wu);
-        setNetCatchOptions(nc);
-        setPaymentTermsOptions(pt);
-        setAppointmentOptions(appt);
+        if (!cancelled) {
+          setProteinOptions(protein);
+          setFreshFrozenOptions(ff);
+          setPackageTypeOptions(pkg);
+          setWeightUnitOptions(wu);
+          setNetCatchOptions(nc);
+          setPaymentTermsOptions(pt);
+          setAppointmentOptions(appt);
+        }
       } catch (err) {
-        logger.warn('Failed to fetch payment terms and appointment options', { err });
+        if (!cancelled) {
+          logger.warn('Failed to fetch payment terms and appointment options', { err });
+        }
       }
     };
-    loadChoices();
+    void loadChoices();
+    return () => { cancelled = true; };
   }, []);
 
   // Effective option arrays (backend choices or fallback)

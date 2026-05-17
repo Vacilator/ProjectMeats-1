@@ -461,6 +461,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
 
   // Load initial data
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       setLoadingData(true);
       try {
@@ -470,25 +471,33 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
           businessApi.get('carriers/'),
           businessApi.get('contacts/'),
         ]);
-        const custData = customersRes.data?.results || customersRes.data || [];
-        const suppData = suppliersRes.data?.results || suppliersRes.data || [];
-        const carrData = carriersRes.data?.results || carriersRes.data || [];
-        const contData = contactsRes.data?.results || contactsRes.data || [];
-        setCustomers(Array.isArray(custData) ? custData : []);
-        setSuppliers(Array.isArray(suppData) ? suppData : []);
-        setCarriers(Array.isArray(carrData) ? carrData : []);
-        setContacts(Array.isArray(contData) ? contData : []);
+        if (!cancelled) {
+          const custData = customersRes.data?.results || customersRes.data || [];
+          const suppData = suppliersRes.data?.results || suppliersRes.data || [];
+          const carrData = carriersRes.data?.results || carriersRes.data || [];
+          const contData = contactsRes.data?.results || contactsRes.data || [];
+          setCustomers(Array.isArray(custData) ? custData : []);
+          setSuppliers(Array.isArray(suppData) ? suppData : []);
+          setCarriers(Array.isArray(carrData) ? carrData : []);
+          setContacts(Array.isArray(contData) ? contData : []);
+        }
       } catch (err) {
-        logger.error('Failed to fetch reference data for sales order form', { err });
+        if (!cancelled) {
+          logger.error('Failed to fetch reference data for sales order form', { err });
+        }
       } finally {
-        setLoadingData(false);
+        if (!cancelled) {
+          setLoadingData(false);
+        }
       }
     };
-    loadData();
+    void loadData();
+    return () => { cancelled = true; };
   }, []);
 
   // Load choice options
   useEffect(() => {
+    let cancelled = false;
     const loadChoices = async () => {
       try {
         const [protein, ff, pkg, wu, nc, pt, appt] = await Promise.all([
@@ -500,18 +509,23 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
           getChoices('accounting_payment_terms'),
           getChoices('appointment_method'),
         ]);
-        setProteinOptions(protein);
-        setFreshFrozenOptions(ff);
-        setPackageTypeOptions(pkg);
-        setWeightUnitOptions(wu);
-        setNetCatchOptions(nc);
-        setPaymentTermsOptions(pt);
-        setAppointmentOptions(appt);
+        if (!cancelled) {
+          setProteinOptions(protein);
+          setFreshFrozenOptions(ff);
+          setPackageTypeOptions(pkg);
+          setWeightUnitOptions(wu);
+          setNetCatchOptions(nc);
+          setPaymentTermsOptions(pt);
+          setAppointmentOptions(appt);
+        }
       } catch (err) {
-        logger.warn('Failed to fetch payment terms and appointment options', { err });
+        if (!cancelled) {
+          logger.warn('Failed to fetch payment terms and appointment options', { err });
+        }
       }
     };
-    loadChoices();
+    void loadChoices();
+    return () => { cancelled = true; };
   }, []);
 
   // Effective option arrays (backend choices or fallback)

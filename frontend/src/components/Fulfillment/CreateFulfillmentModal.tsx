@@ -419,7 +419,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       const response = await businessApi.get('suppliers/', {
         params: { products__id__in: productIds.join(','), page_size: 100 }
       });
-      const data = response.data.results || response.data;
+      const data = response.data?.results || response.data;
 
       const options: SupplierOption[] = data.map((s: Record<string, unknown>) => ({
         id: s.id,
@@ -465,30 +465,35 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
 
   // Load carriers
   useEffect(() => {
-    if (isOpen) {
-      fetchCarriers();
-    }
+    if (!isOpen) return;
+    let cancelled = false;
+    const loadCarriers = async () => {
+      setLoadingCarriers(true);
+      try {
+        const response = await businessApi.get('carriers/', { params: { is_active: true, page_size: 100 } });
+        const data = response.data?.results || response.data;
+
+        if (!cancelled) {
+          setCarrierOptions(data.map((c: Record<string, unknown>) => ({
+            id: c.id,
+            name: c.name,
+            code: c.code,
+          })));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          logger.error('Failed to fetch carriers:', err);
+          setCarrierOptions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingCarriers(false);
+        }
+      }
+    };
+    void loadCarriers();
+    return () => { cancelled = true; };
   }, [isOpen]);
-
-
-  const fetchCarriers = async () => {
-    setLoadingCarriers(true);
-    try {
-      const response = await businessApi.get('carriers/', { params: { is_active: true, page_size: 100 } });
-      const data = response.data.results || response.data;
-
-      setCarrierOptions(data.map((c: Record<string, unknown>) => ({
-        id: c.id,
-        name: c.name,
-        code: c.code,
-      })));
-    } catch (err) {
-      logger.error('Failed to fetch carriers:', err);
-      setCarrierOptions([]);
-    } finally {
-      setLoadingCarriers(false);
-    }
-  };
 
   const toggleLineItem = useCallback((inquiryProductId: string) => {
     setLineItems(prev => prev.map(item =>
