@@ -373,12 +373,23 @@ class InquiryViewSet(OperationalDocumentActionsMixin, viewsets.ModelViewSet):
         return InquiryDetailSerializer
 
     def perform_create(self, serializer):
-        """Set tenant and created_by on create."""
+        """Set tenant and created_by on create, and auto-create a TradeSession."""
         tenant = getattr(self.request, "tenant", None)
         if not tenant:
             raise ValidationError({"error": "Tenant context is required"})
 
-        serializer.save(tenant=tenant, created_by=self.request.user)
+        inquiry = serializer.save(tenant=tenant, created_by=self.request.user)
+
+        # Auto-create a TradeSession so the inquiry immediately appears in My Trades
+        try:
+            from tenant_apps.inquiries.services.trade_session import get_or_create_trade_session
+            get_or_create_trade_session(tenant=tenant, inquiry=inquiry)
+        except Exception:
+            logger.warning(
+                "Failed to auto-create TradeSession for inquiry %s",
+                inquiry.id,
+                exc_info=True,
+            )
 
     @idempotent_create(source="api")
     def create(self, request, *args, **kwargs):

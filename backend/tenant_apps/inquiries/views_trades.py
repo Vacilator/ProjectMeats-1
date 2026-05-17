@@ -79,7 +79,12 @@ class TradePipelineViewSet(viewsets.ViewSet):
             return err
         qs = (
             TradeSession.objects.filter(tenant=tenant)
-            .select_related("inquiry")
+            .select_related(
+                "inquiry",
+                "inquiry__customer",
+                "inquiry__supplier_purchase_order",
+                "inquiry__sales_order",
+            )
             .order_by("-initiated_at")
         )
 
@@ -104,12 +109,21 @@ class TradePipelineViewSet(viewsets.ViewSet):
         elif status_filter and status_filter in TradeSessionStatus.values:
             qs = qs.filter(status=status_filter)
 
-        sessions = qs[:100]
+        sessions = list(qs[:100])
 
         trades = []
         for session in sessions:
             inquiry = session.inquiry
-            current_step = get_orchestrator_state(tenant=tenant, inquiry=inquiry)
+            try:
+                current_step = get_orchestrator_state(tenant=tenant, inquiry=inquiry)
+                step_value = current_step.value if current_step else ""
+            except Exception:
+                logger.warning(
+                    "Failed to derive orchestrator state for trade %s (inquiry %s)",
+                    session.trade_id,
+                    inquiry.id,
+                )
+                step_value = session.status or ""
 
             trades.append(
                 {
@@ -117,11 +131,11 @@ class TradePipelineViewSet(viewsets.ViewSet):
                     "trade_id": session.trade_id,
                     "status": session.status,
                     "route": session.route_decision or inquiry.route_decision or "",
-                    "current_step": current_step.value if current_step else "",
+                    "current_step": step_value,
                     "inquiry_id": str(inquiry.id),
                     "customer_name": (
                         getattr(inquiry.customer, "name", None)
-                        if hasattr(inquiry, "customer") and inquiry.customer_id
+                        if inquiry.customer_id and hasattr(inquiry, "customer")
                         else None
                     ),
                     "source_email_subject": session.source_email_subject or "",
@@ -131,7 +145,6 @@ class TradePipelineViewSet(viewsets.ViewSet):
                         if hasattr(session, "updated_at") and session.updated_at
                         else None
                     ),
-                    # Linked entity IDs for deep-linking from stepper
                     "supplier_purchase_order_id": str(inquiry.supplier_purchase_order_id) if inquiry.supplier_purchase_order_id else None,
                     "sales_order_id": str(inquiry.sales_order_id) if inquiry.sales_order_id else None,
                     "carrier_purchase_order_id": str(inquiry.carrier_purchase_order_id) if inquiry.carrier_purchase_order_id else None,
