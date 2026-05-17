@@ -211,8 +211,16 @@ const MyTrades: React.FC = () => {
       }
       void refetch();
     } catch (err) {
+      const axErr = err as { code?: string; message?: string; kind?: string };
+      const isTimeout = axErr.code === 'ECONNABORTED' || axErr.message?.includes('timeout');
       logger.error('Advance trade failed', err);
-      void message.error('Failed to advance trade');
+      if (isTimeout) {
+        void message.error('Server is taking too long to respond. Please try again in a moment.');
+      } else if (axErr.kind === 'circuit_breaker') {
+        void message.error('Server is temporarily unavailable. It will auto-recover shortly.');
+      } else {
+        void message.error('Failed to advance trade. Please try again.');
+      }
     } finally {
       setAdvancingId(null);
     }

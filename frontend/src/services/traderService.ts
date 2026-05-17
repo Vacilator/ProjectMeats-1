@@ -170,6 +170,8 @@ export const traderService = {
   async advanceTrade(tradeSessionId: string, advanceThrough?: string): Promise<TradeAdvanceResponse> {
     const response = await businessApi.post(`/trades/${tradeSessionId}/advance/`, {
       advance_through: advanceThrough,
+    }, {
+      timeout: 60_000, // Trade advance can be slow (creates POs, sends emails, etc.)
     });
     return response.data as TradeAdvanceResponse;
   },
