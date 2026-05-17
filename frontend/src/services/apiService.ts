@@ -317,9 +317,58 @@ adminClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosErrorType) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number; _timeoutRetry?: boolean };
 
     const status = error.response?.status;
+    const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+    const isNetworkError = error.code === 'ERR_NETWORK';
+
+    // ── Timeout / Network error handling ──
+    // Treat timeouts and network errors like transient 504s:
+    // 1. Auto-retry idempotent GET/HEAD requests once with a longer timeout
+    // 2. Trigger recovery polling so queries auto-refetch when backend comes back
+    if ((isTimeout || isNetworkError) && !status) {
+      const method = (originalRequest?.method || 'get').toLowerCase();
+      const isIdempotent = ['get', 'head', 'options'].includes(method);
+
+      // Auto-retry idempotent requests ONCE with a longer timeout
+      if (isIdempotent && originalRequest && !originalRequest._timeoutRetry) {
+        originalRequest._timeoutRetry = true;
+        originalRequest.timeout = 45_000; // bump to 45s for retry
+        logger.warn('[API] Timeout on GET — auto-retrying once with extended timeout', {
+          url: originalRequest.url,
+        });
+        return apiClient(originalRequest);
+      }
+
+      // After retry (or non-idempotent): emit recovery event
+      if (shouldLogServerError(originalRequest?.url, 0)) {
+        logger.error('[API] Request timeout/network error', {
+          url: originalRequest?.url,
+          method: originalRequest?.method,
+          code: error.code,
+          isRetry: !!originalRequest?._timeoutRetry,
+        });
+      }
+
+      emitCircuitBreakerEvent();
+
+      return Promise.reject(
+        createCircuitBreakerError({
+          friendlyMessage: isTimeout
+            ? 'Request timed out — the server may be under heavy load. It will auto-retry when the server recovers.'
+            : 'Unable to reach the server. It will auto-retry when connectivity is restored.',
+          status: 0,
+          request: {
+            method: originalRequest?.method,
+            url: originalRequest?.url,
+            baseURL: originalRequest?.baseURL,
+          },
+          responseData: undefined,
+          originalError: error,
+        })
+      );
+    }
 
     // Circuit breaker: do NOT trigger auth refresh flows for transient upstream/server errors.
     if (status && [500, 502, 503, 504].includes(status)) {
@@ -476,9 +525,38 @@ apiClient.interceptors.response.use(
 adminClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosErrorType) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number; _timeoutRetry?: boolean };
 
     const status = error.response?.status;
+    const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+    const isNetworkError = error.code === 'ERR_NETWORK';
+
+    // ── Timeout / Network error handling (same as apiClient) ──
+    if ((isTimeout || isNetworkError) && !status) {
+      const method = (originalRequest?.method || 'get').toLowerCase();
+      const isIdempotent = ['get', 'head', 'options'].includes(method);
+
+      if (isIdempotent && originalRequest && !originalRequest._timeoutRetry) {
+        originalRequest._timeoutRetry = true;
+        originalRequest.timeout = 45_000;
+        logger.warn('[Admin API] Timeout on GET — auto-retrying once', { url: originalRequest.url });
+        return adminClient(originalRequest);
+      }
+
+      emitCircuitBreakerEvent();
+
+      return Promise.reject(
+        createCircuitBreakerError({
+          friendlyMessage: isTimeout
+            ? 'Request timed out — the server may be under heavy load. It will auto-retry when the server recovers.'
+            : 'Unable to reach the server. It will auto-retry when connectivity is restored.',
+          status: 0,
+          request: { method: originalRequest?.method, url: originalRequest?.url, baseURL: originalRequest?.baseURL },
+          responseData: undefined,
+          originalError: error,
+        })
+      );
+    }
 
     // Circuit breaker: do NOT trigger auth refresh flows for transient upstream/server errors.
     if (status && [500, 502, 503, 504].includes(status)) {
