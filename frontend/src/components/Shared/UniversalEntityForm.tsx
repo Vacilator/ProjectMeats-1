@@ -168,7 +168,8 @@ function useDeepStableValue<T>(value: T): T {
 export const getStableSignature = (value: unknown): string => {
   try {
     return JSON.stringify(value);
-  } catch {
+  } catch (err) {
+    logger.debug('JSON.stringify failed for value, falling back to String()', { err });
     return String(value);
   }
 };
@@ -2053,7 +2054,8 @@ export const fetchUniversalEntitySchema = async (
       params: { entity_type: schemaEntityKey },
     });
     return (resp.data ?? null) as BackendSchema | null;
-  } catch {
+  } catch (err) {
+    logger.debug('Schema endpoint unavailable, falling back to OPTIONS', { err, entityType, endpoint });
     const resp = await businessApi.options(endpoint);
     const data = resp.data as unknown;
     const actions =
@@ -2501,14 +2503,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (!currentPath.startsWith('/login')) {
           try {
             localStorage.setItem('redirectAfterLogin', currentPath);
-          } catch {
-            // best-effort
+          } catch (err) {
+            logger.debug('Failed to save redirect path to localStorage', { err });
           }
 
           try {
             window.location.assign('/login');
-          } catch {
-            // JSDOM/tests may throw on navigation.
+          } catch (err) {
+            logger.debug('Navigation to /login blocked (JSDOM or restricted context)', { err });
           }
         }
       }
@@ -2635,8 +2637,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
             return { ...prev, [f.key]: options };
           });
-        } catch {
-          // ignore
+        } catch (err) {
+          logger.warn('Failed to load FK options', { err, fieldKey: f.key });
         }
       }
     };
@@ -3458,7 +3460,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       if (id != null) return String(id);
       try {
         return JSON.stringify(obj);
-      } catch {
+      } catch (err) {
+        logger.debug('JSON.stringify failed for object, returning placeholder', { err });
         return '[object]';
       }
     }

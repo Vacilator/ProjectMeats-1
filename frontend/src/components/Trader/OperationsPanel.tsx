@@ -17,6 +17,7 @@ import styled from 'styled-components';
 
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 const { Text } = Typography;
 
@@ -63,7 +64,8 @@ export const OperationsPanel: React.FC = () => {
             ? (data as { results: unknown[] }).results
             : [];
         return { count: lots.length };
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to fetch cold storage lots summary', { err });
         return { count: 0 };
       }
     },
@@ -86,7 +88,8 @@ export const OperationsPanel: React.FC = () => {
           (o: Record<string, unknown>) => o.status && o.status !== 'completed' && o.status !== 'cancelled'
         );
         return { total: orders.length, active: active.length };
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to fetch freight orders summary', { err });
         return { total: 0, active: 0 };
       }
     },
@@ -105,7 +108,8 @@ export const OperationsPanel: React.FC = () => {
             ? (data as { results: unknown[] }).results
             : [];
         return { count: carriers.length };
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to fetch carriers summary', { err });
         return { count: 0 };
       }
     },

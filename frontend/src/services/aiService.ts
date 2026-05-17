@@ -9,6 +9,7 @@
 
 import { businessApi } from './businessApi';
 import { withRetry } from '../utils/apiRetry';
+import { logger } from '../utils/logger';
 import type {
   ChatMessage,
   ChatSession,
@@ -446,7 +447,8 @@ export const documentsApi = {
         if (!map.has(id)) documentsApi._missing404Cache.add(id);
       }
       return map;
-    } catch {
+    } catch (err) {
+      logger.error('Failed to batch-fetch AI documents', { err });
       return new Map();
     }
   },
@@ -646,7 +648,8 @@ export const hydrateDocumentMessageMetadata = async <
         const document = await documentsApi.get(documentId);
         if (!document) return null;
         return [documentId, document] as const;
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to fetch document for message hydration', { err, documentId });
         return null;
       }
     })

@@ -45,6 +45,7 @@ import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutoc
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
 import { useApprovalGate } from '@/hooks/useApprovalGate';
 import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -321,8 +322,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         ]);
         setCustomers((custResp.data.results || custResp.data) as CustomerRecord[]);
         setSalesOrders((soResp.data.results || soResp.data) as SalesOrderRecord[]);
-      } catch {
-        // Silently handle — empty lists will show in UI
+      } catch (err) {
+        logger.error('Failed to fetch customers and sales orders for invoice form', { err });
       }
     };
     loadData();
@@ -348,8 +349,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         setNetCatchOptions(nc);
         setPaymentTermsOptions(pt);
         setAppointmentOptions(appt);
-      } catch {
-        // Fallback to hardcoded values handled in render
+      } catch (err) {
+        logger.warn('Failed to fetch payment terms and appointment options', { err });
       }
     };
     loadChoices();
@@ -445,7 +446,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           }));
           setCustomerAutoFilled(true);
         }
-      } catch {
+      } catch (err) {
+        logger.error('Failed to load customer details', { err });
         message.error('Failed to load customer details');
       } finally {
         setLoadingCustomer(false);
@@ -488,7 +490,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           }));
           setSoAutoFilled(true);
         }
-      } catch {
+      } catch (err) {
+        logger.error('Failed to load sales order details', { err });
         message.error('Failed to load sales order details');
       }
     },
@@ -509,7 +512,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         total_net_weight: resp.data?.total_net_weight?.toString() || prev.total_net_weight,
       }));
       message.success('Pulled weight from linked Sales Order');
-    } catch {
+    } catch (err) {
+      logger.error('Failed to pull weight from Sales Order', { err });
       message.error('Failed to pull from Sales Order');
     } finally {
       setPullingBOL(false);

@@ -20,6 +20,7 @@ import {
 } from '@/services/workformsApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { logger } from '@/utils/logger';
 
 type ExecuteResult =
   | { kind: 'workform'; execution: WorkFormExecuteResponse }
@@ -83,8 +84,8 @@ export const ExecuteWorkForm: React.FC = () => {
             };
           }
         }
-      } catch {
-        // Ignore malformed session payload
+      } catch (err) {
+        logger.debug('Failed to parse session payload for active record context', { err });
       }
 
       try {
@@ -136,8 +137,8 @@ export const ExecuteWorkForm: React.FC = () => {
     setExecutionError(null);
     try {
       await mutation.mutateAsync();
-    } catch {
-      // onError handles local state; keep the rejection contained to this surface.
+    } catch (err) {
+      logger.debug('WorkForm execution mutation rejected (handled by onError)', { err });
     }
   }, [id, mutation]);
 

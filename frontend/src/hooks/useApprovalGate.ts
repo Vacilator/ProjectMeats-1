@@ -8,6 +8,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { userAIPreferencesApi, approvalQueueApi } from '../services/aiService';
 import type { ExternalApprovalRequest } from '../services/aiService';
+import { logger } from '@/utils/logger';
 
 export interface ApprovalGateRequest {
   requestType: string;
@@ -53,7 +54,8 @@ export function useApprovalGate() {
       const prefs = await userAIPreferencesApi.get();
       prefsCache.current = { requireApproval: prefs.require_external_approval, loaded: true };
       return prefs.require_external_approval;
-    } catch {
+    } catch (err) {
+      logger.warn('Failed to load AI approval preferences, defaulting to require approval', { err });
       return true; // Default to requiring approval on error
     }
   }, []);
@@ -83,8 +85,8 @@ export function useApprovalGate() {
     if (createdApproval) {
       try {
         await approvalQueueApi.approve(createdApproval.id, notes);
-      } catch {
-        // Best-effort
+      } catch (err) {
+        logger.warn('Failed to submit approval (best-effort)', { err, approvalId: createdApproval.id });
       }
     }
     pendingRef.current?.resolve({
@@ -103,8 +105,8 @@ export function useApprovalGate() {
     if (createdApproval) {
       try {
         await approvalQueueApi.reject(createdApproval.id, notes);
-      } catch {
-        // Best-effort
+      } catch (err) {
+        logger.warn('Failed to submit rejection (best-effort)', { err, approvalId: createdApproval.id });
       }
     }
     pendingRef.current?.resolve({
@@ -123,8 +125,8 @@ export function useApprovalGate() {
     if (createdApproval) {
       try {
         await approvalQueueApi.editApprove(createdApproval.id, editedContent, notes);
-      } catch {
-        // Best-effort
+      } catch (err) {
+        logger.warn('Failed to submit edit-approval (best-effort)', { err, approvalId: createdApproval.id });
       }
     }
     pendingRef.current?.resolve({

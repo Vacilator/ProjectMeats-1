@@ -136,7 +136,8 @@ function getCacheBustTs(): number {
     const raw = localStorage.getItem(CONFIG_CACHE_BUST_KEY);
     const parsed = raw ? Number(raw) : 0;
     return Number.isFinite(parsed) ? parsed : 0;
-  } catch {
+  } catch (err) {
+    logger.debug('Failed to read config cache-bust timestamp from localStorage', { err });
     return 0;
   }
 }
@@ -146,8 +147,8 @@ function bumpCacheBustTs(): void {
     const ts = Date.now();
     localStorage.setItem(CONFIG_CACHE_BUST_KEY, String(ts));
     cacheBustTs = ts;
-  } catch {
-    // ignore
+  } catch (err) {
+    logger.debug('Failed to write config cache-bust timestamp to localStorage', { err });
   }
 }
 
@@ -183,8 +184,8 @@ function restoreCacheFromStorage(): void {
         logger.debug('Cache restored from localStorage', { component: 'ConfigService' });
       }
     }
-  } catch {
-    // localStorage might not be available or data corrupted
+  } catch (err) {
+    logger.debug('Failed to restore config cache from localStorage', { err });
   }
 }
 
@@ -204,8 +205,8 @@ function persistCacheToStorage(): void {
     };
     if (ts <= cacheBustTs) return;
     localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(toStore));
-  } catch {
-    // localStorage might be full or unavailable
+  } catch (err) {
+    logger.debug('Failed to persist config cache to localStorage', { err });
   }
 }
 
@@ -235,8 +236,8 @@ export function clearConfigCache(): void {
   bumpCacheBustTs();
   try {
     localStorage.removeItem(CONFIG_CACHE_KEY);
-  } catch {
-    // localStorage might not be available
+  } catch (err) {
+    logger.debug('Failed to remove config cache from localStorage', { err });
   }
 }
 
@@ -619,7 +620,8 @@ export async function getFeatureFlags(): Promise<Record<string, boolean>> {
   try {
     const response = await apiClient.get('/core/feature-flags/');
     return response.data.flags || response.data;
-  } catch {
+  } catch (err) {
+    logger.warn('Failed to fetch feature flags', { err });
     return {};
   }
 }
