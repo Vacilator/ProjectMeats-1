@@ -37,6 +37,8 @@ import { buildCsv, downloadCsv } from '@/utils/csv';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { StatusActionCell } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces

@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Table, Button, message, Tag, Space } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
 import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
@@ -23,6 +24,7 @@ import { businessApi } from '@/services/businessApi';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/utils/logger';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -140,9 +142,7 @@ const Plants: React.FC = () => {
   const { supplierId } = useParams<{ supplierId?: string }>();
 
   // State
-  const [plants, setPlants] = useState<Plant[]>([]);
-  const [, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [contextSupplierId, setContextSupplierId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -182,17 +182,24 @@ const Plants: React.FC = () => {
     setContextSupplierId(nextContext);
   }, [location.search, location.state, supplierId]);
 
-   
-  useEffect(() => {
-    loadSuppliers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // React Query: fetch plants with automatic retry & recovery
+  const plantsQuery = useQuery({
+    queryKey: withTenantQueryKey('plants', contextSupplierId),
+    queryFn: async () => {
+      const response = await businessApi.get('plants/', {
+        params: contextSupplierId ? { supplier: contextSupplierId } : undefined,
+      });
+      return (response.data.results || response.data) as Plant[];
+    },
+    staleTime: 30_000,
+  });
+  const plants = plantsQuery.data ?? [];
+  const loading = plantsQuery.isLoading;
 
-   
-  useEffect(() => {
-    loadPlants(contextSupplierId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextSupplierId]);
+  const refreshPlants = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('plants') }),
+    [queryClient]
+  );
 
   // Derived filtered list — pure computation, no state needed
   const filteredPlants = useMemo(() => {
@@ -220,30 +227,6 @@ const Plants: React.FC = () => {
     return filtered;
   }, [plants, searchText, contextSupplierId, activeTab]);
 
-  const loadPlants = useCallback(async (supplierFilterId: number | null) => {
-    try {
-      setLoading(true);
-      const response = await businessApi.get('plants/', {
-        params: supplierFilterId ? { supplier: supplierFilterId } : undefined,
-      });
-      setPlants(response.data.results || response.data);
-    } catch (error) {
-      logger.error('Error loading plants', { component: 'Plants', metadata: { error } });
-      message.error('Failed to load plants');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadSuppliers = useCallback(async () => {
-    try {
-      const response = await businessApi.get('suppliers/');
-      setSuppliers(response.data.results || response.data);
-    } catch (error) {
-      logger.error('Error loading suppliers', { component: 'Plants', metadata: { error } });
-    }
-  }, []);
-
   const handleAdd = useCallback(() => {
     setShowModal(true);
   }, []);
@@ -254,8 +237,8 @@ const Plants: React.FC = () => {
 
   const handleModalSuccess = useCallback(() => {
     setShowModal(false);
-    void loadPlants(contextSupplierId);
-  }, [contextSupplierId, loadPlants]);
+    void refreshPlants();
+  }, [refreshPlants]);
 
   const handleEdit = useCallback((plant: Plant) => {
     const nextSupplierId = contextSupplierId ?? plant.supplier ?? null;
@@ -283,12 +266,12 @@ const Plants: React.FC = () => {
     try {
       await businessApi.delete(`plants/${plant.id}/`);
       message.success('Plant deleted successfully');
-      loadPlants(contextSupplierId);
+      void refreshPlants();
     } catch (error: unknown) {
       logger.error('Error deleting plant', { component: 'Plants', metadata: { error } });
       message.error('Failed to delete plant');
     }
-  }, [contextSupplierId, loadPlants]);
+  }, [contextSupplierId, refreshPlants]);
 
 
 
