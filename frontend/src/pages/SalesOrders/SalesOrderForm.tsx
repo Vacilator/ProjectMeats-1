@@ -48,6 +48,7 @@ import {
   GoldenDateTimeStamp,
   GoldenConditionalSection,
 } from '@/components/Forms/GoldenFormShell';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -482,8 +483,8 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
         setSuppliers(Array.isArray(suppData) ? suppData : []);
         setCarriers(Array.isArray(carrData) ? carrData : []);
         setContacts(Array.isArray(contData) ? contData : []);
-      } catch {
-        // Silently handle — empty lists will show in UI
+      } catch (err) {
+        logger.error('Failed to fetch reference data for sales order form', { err });
       } finally {
         setLoadingData(false);
       }
@@ -511,8 +512,8 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
         setNetCatchOptions(nc);
         setPaymentTermsOptions(pt);
         setAppointmentOptions(appt);
-      } catch {
-        // Fallback to hardcoded values handled in render
+      } catch (err) {
+        logger.warn('Failed to fetch payment terms and appointment options', { err });
       }
     };
     loadChoices();

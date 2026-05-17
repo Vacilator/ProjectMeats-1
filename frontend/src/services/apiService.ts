@@ -132,29 +132,28 @@ const redirectToLogin = () => {
 
   try {
     localStorage.setItem('redirectAfterLogin', currentPath);
-  } catch {
-    // best-effort
+  } catch (err) {
+    logger.debug('Failed to save redirect path to localStorage', { err });
   }
 
   try {
     window.location.assign('/login');
-  } catch {
-    // JSDOM (tests) and some restricted browser contexts may throw on navigation.
-    // Auth state is already cleared, so swallow and let the app router handle it.
+  } catch (err) {
+    logger.debug('Navigation to /login blocked (JSDOM or restricted context)', { err });
   }
 };
 
 const forceLogoutAndRedirect = () => {
   try {
     clearTokens();
-  } catch {
-    // best-effort
+  } catch (err) {
+    logger.debug('Failed to clear auth tokens during forced logout', { err });
   }
 
   try {
     localStorage.removeItem('user');
-  } catch {
-    // best-effort
+  } catch (err) {
+    logger.debug('Failed to remove user from localStorage during forced logout', { err });
   }
 
   // KEEP tenant context for re-login - user should see same tenant after re-auth.
@@ -366,8 +365,8 @@ apiClient.interceptors.response.use(
 
           Sentry.captureException(error);
         });
-      } catch {
-        // best-effort
+      } catch (err) {
+        logger.debug('Sentry captureException failed in error interceptor', { err });
       }
 
       // Persist to backend error log
@@ -639,7 +638,8 @@ function getErrorMessage(error: unknown): string {
         try {
           // Use URL constructor for proper URL joining
           fullURL = new URL(url, baseURL).href;
-        } catch {
+        } catch (err) {
+          logger.debug('URL constructor failed, falling back to string concat', { err, url, baseURL });
           // Fallback to simple concatenation if URL constructor fails
           fullURL = baseURL.replace(/\/$/, '') + '/' + url.replace(/^\//, '');
         }

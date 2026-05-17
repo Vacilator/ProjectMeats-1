@@ -19,6 +19,7 @@ import { businessApi } from '@/services/businessApi';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
 import { formatCurrency } from '@/utils/formatters';
 import { SmartProductAutocomplete } from './SmartProductAutocomplete';
+import { logger } from '@/utils/logger';
 
 type EntityType = 'supplier' | 'customer';
 
@@ -537,7 +538,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       try {
         const opts = await getChoices('weight_unit');
         setUomOptions(opts);
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to fetch weight unit choices', { err });
         setUomOptions([]);
       }
     })();
@@ -558,7 +560,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
             name: String(r.name || r.company_name || r.title || `${entityType} #${r.id}`),
           }))
         );
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to fetch entity options', { err });
         setEntityOptions([]);
       } finally {
         setLoadingEntities(false);
@@ -586,7 +589,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
               has_product: Boolean(r.has_product),
             })),
           }));
-        } catch {
+        } catch (err) {
+          logger.warn('Failed to fetch supplier choices for product', { err, productId });
           setSupplierChoicesByProduct((prev) => ({ ...prev, [productId]: [] }));
         }
       }
@@ -622,7 +626,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
               has_product: Boolean(r.has_product),
             })),
           }));
-        } catch {
+        } catch (err) {
+          logger.warn('Failed to fetch plant choices for supplier-product', { err, key });
           setPlantChoicesBySupplierProduct((prev) => ({ ...prev, [key]: [] }));
         }
       }

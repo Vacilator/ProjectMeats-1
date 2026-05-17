@@ -48,7 +48,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
 
     try {
       return localStorage.getItem(PAGE_SESSION_STORAGE_KEY);
-    } catch {
+    } catch (err) {
+      logger.debug('Failed to read chat session from localStorage', { err });
       return null;
     }
   });
@@ -108,8 +109,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
       if (persisted) {
         setActiveSessionId(persisted);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      logger.debug('Failed to read persisted chat session from localStorage', { err });
     }
   }, [sessionId]);
 
@@ -150,8 +151,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
 
     try {
       localStorage.setItem(PAGE_SESSION_STORAGE_KEY, activeSessionId);
-    } catch {
-      // ignore
+    } catch (err) {
+      logger.debug('Failed to persist chat session to localStorage', { err });
     }
 
     void loadSession(activeSessionId);

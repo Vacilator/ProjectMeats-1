@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { businessApi } from '@/services/businessApi';
 import { getDocumentEntityConfig } from '@/components/Operations/documentOperations';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -121,7 +122,8 @@ export const TradeLineageActions: React.FC<TradeLineageActionsProps> = ({
       if (so?.id) {
         navigate(`/records/sales_order/${so.id}`);
       }
-    } catch {
+    } catch (err) {
+      logger.error('Failed to create Sales Order from Inquiry', { err, entityId });
       message.error('Failed to create Sales Order');
     } finally {
       setLoadingKey(null);
@@ -139,7 +141,8 @@ export const TradeLineageActions: React.FC<TradeLineageActionsProps> = ({
       if (id) {
         navigate(`/records/fulfillment/${id}`);
       }
-    } catch {
+    } catch (err) {
+      logger.error('Failed to create Fulfillment from Inquiry', { err, entityId });
       message.error('Failed to create Fulfillment');
     } finally {
       setLoadingKey(null);
@@ -157,7 +160,8 @@ export const TradeLineageActions: React.FC<TradeLineageActionsProps> = ({
       if (so?.id) {
         navigate(`/records/sales_order/${so.id}`);
       }
-    } catch {
+    } catch (err) {
+      logger.error('Failed to create Sales Order from PO', { err, entityId });
       message.error('Failed to create Sales Order');
     } finally {
       setLoadingKey(null);

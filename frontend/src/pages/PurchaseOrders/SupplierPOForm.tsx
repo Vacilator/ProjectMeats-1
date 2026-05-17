@@ -50,9 +50,7 @@ import {
   GoldenDateTimeStamp,
   GoldenConditionalSection,
 } from '@/components/Forms/GoldenFormShell';
-
-// ============================================================================
-// Types
+import { logger } from '@/utils/logger';
 // ============================================================================
 
 type LogisticsScenario = 'customer_pickup' | 'supplier_delivery' | 'we_pickup';
@@ -437,8 +435,8 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
       try {
         const resp = await businessApi.get('suppliers/');
         setSuppliers((resp.data.results || resp.data) as Supplier[]);
-      } catch {
-        // Silently handle — empty suppliers list will show in UI
+      } catch (err) {
+        logger.error('Failed to fetch suppliers list', { err });
       }
     };
     loadData();
@@ -464,8 +462,8 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
         setNetCatchOptions(nc);
         setPaymentTermsOptions(pt);
         setAppointmentOptions(appt);
-      } catch {
-        // Fallback to hardcoded values handled in render
+      } catch (err) {
+        logger.warn('Failed to fetch payment terms and appointment options', { err });
       }
     };
     loadChoices();
@@ -558,8 +556,8 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
           }));
           setSupplierAutoFilled(true);
         }
-      } catch {
-        // Silently handle — auto-populate skipped
+      } catch (err) {
+        logger.warn('Failed to auto-populate supplier details', { err });
       } finally {
         setLoadingSupplier(false);
       }
