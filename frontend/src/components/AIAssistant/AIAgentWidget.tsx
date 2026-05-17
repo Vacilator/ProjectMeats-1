@@ -51,6 +51,7 @@ import { groupChatSessionsByDate } from '@/components/ChatInterface/sessionHisto
 import { aiStaffApi, chatApi, chatSessionsApi, hydrateDocumentMessageMetadata, AI_INBOX_REFRESH_EVENT } from '@/services/aiService';
 import { useStickyAutoScroll } from '@/hooks/useStickyAutoScroll';
 import { useAIInboxSync } from '@/contexts/AIInboxSyncContext';
+import { logger } from '@/utils/logger';
 import type {
   DocumentLineageSummary,
   DocumentProcessingMetadata,
@@ -922,7 +923,8 @@ const checkWSEndpointReachable = async (): Promise<boolean> => {
     }
 
     return AI_INBOX_PREFLIGHT_ALLOWED_STATUSES.has(response.status);
-  } catch {
+  } catch (err) {
+    logger.warn('[AIAgentWidget] WS endpoint preflight check failed:', err);
     return false;
   }
 };
@@ -939,7 +941,8 @@ const resolveAIInboxTenantId = (): string | null => {
     const tenantId = localStorage.getItem('tenantId');
     if (tenantId && tenantId.trim()) return tenantId.trim();
     return null;
-  } catch {
+  } catch (err) {
+    logger.debug('[AIAgentWidget] localStorage read for tenantId failed:', err);
     return null;
   }
 };
@@ -1128,7 +1131,8 @@ export const AIAgentWidget: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(LOCAL_STORAGE_SESSION_KEY);
-    } catch {
+    } catch (err) {
+      logger.debug('[AIAgentWidget] localStorage read for session key failed:', err);
       return null;
     }
   });
@@ -1187,7 +1191,7 @@ export const AIAgentWidget: React.FC = () => {
         const parsed = JSON.parse(saved);
         if (typeof parsed.sound === 'boolean') setSoundNotifications(parsed.sound);
         if (typeof parsed.autoExpand === 'boolean') setAutoExpand(parsed.autoExpand);
-      } catch { /* ignore parse error */ }
+      } catch (err) { logger.debug('[AIAgentWidget] Failed to parse chat settings from localStorage:', err); }
     }
   }, []);
 
@@ -1211,7 +1215,7 @@ export const AIAgentWidget: React.FC = () => {
           gain.gain.value = 0.08;
           osc.start();
           osc.stop(ctx.currentTime + 0.12);
-        } catch { /* AudioContext may be restricted */ }
+        } catch (err) { logger.debug('[AIAgentWidget] AudioContext notification sound failed:', err); }
       }
       if (autoExpand && !expanded) {
         setExpanded(true);
@@ -1239,8 +1243,8 @@ export const AIAgentWidget: React.FC = () => {
       if (socket && socket.readyState === WebSocket.OPEN) {
         try {
           socket.send(JSON.stringify({ type: 'request_count' }));
-        } catch {
-          // Socket send failed; count will update on next WS message
+        } catch (err) {
+          logger.debug('[AIAgentWidget] WS send request_count failed:', err);
         }
       }
     };
@@ -1328,8 +1332,8 @@ export const AIAgentWidget: React.FC = () => {
       ) {
         try {
           socket.close(1000, 'widget_cleanup');
-        } catch {
-          // ignore
+        } catch (err) {
+          logger.debug('[AIAgentWidget] WS socket.close during cleanup failed:', err);
         }
       }
     };
@@ -1433,7 +1437,8 @@ export const AIAgentWidget: React.FC = () => {
         if (!accessToken && attemptRefresh) {
           try {
             accessToken = await refreshAccessToken();
-          } catch {
+          } catch (err) {
+            logger.warn('[AIAgentWidget] Token refresh for WS connection failed:', err);
             accessToken = null;
           }
         }
@@ -1476,7 +1481,8 @@ export const AIAgentWidget: React.FC = () => {
           let parsed: unknown;
           try {
             parsed = JSON.parse(String(event.data));
-          } catch {
+          } catch (err) {
+            logger.debug('[AIAgentWidget] Failed to parse WS message JSON:', err);
             return;
           }
 
@@ -1582,7 +1588,8 @@ export const AIAgentWidget: React.FC = () => {
 
           scheduleReconnect(false);
         };
-      } catch {
+      } catch (err) {
+        logger.error('[AIAgentWidget] WS connection setup failed:', err);
         if (wsEverConnectedRef.current) {
           setAiInboxRealtimeStatus('degraded');
         }
@@ -1652,7 +1659,8 @@ export const AIAgentWidget: React.FC = () => {
           connectedEmail: typeof outlook?.connected_email === 'string' ? outlook.connected_email : undefined,
           connectedName: typeof outlook?.connected_name === 'string' ? outlook.connected_name : undefined,
         });
-      } catch {
+      } catch (err) {
+        logger.warn('[AIAgentWidget] Failed to load Outlook integration status:', err);
         setOutlookStatus(null);
       }
     };
@@ -1660,7 +1668,8 @@ export const AIAgentWidget: React.FC = () => {
     const loadSessions = async () => {
       try {
         setSessions(normalizeSessions(await chatSessionsApi.list()));
-      } catch {
+      } catch (err) {
+        logger.error('[AIAgentWidget] Failed to load chat sessions:', err);
         setSessions([]);
       }
     };
@@ -1680,8 +1689,8 @@ export const AIAgentWidget: React.FC = () => {
           setMessages(ui);
           setState(hasHumanReviewMessage(ui) ? 'action_required' : 'idle');
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        logger.warn('[AIAgentWidget] Failed to load session history:', err);
       }
     };
 
@@ -1931,8 +1940,8 @@ export const AIAgentWidget: React.FC = () => {
     setSessionId(nextId);
     try {
       localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, nextId);
-    } catch {
-      // ignore
+    } catch (err) {
+      logger.debug('[AIAgentWidget] localStorage setItem for session key failed:', err);
     }
 
     return nextId;
@@ -1941,8 +1950,8 @@ export const AIAgentWidget: React.FC = () => {
   const reloadSessions = useCallback(async () => {
     try {
       setSessions(normalizeSessions(await chatSessionsApi.list()));
-    } catch {
-      // ignore
+    } catch (err) {
+      logger.warn('[AIAgentWidget] Failed to reload chat sessions list:', err);
     }
   }, []);
 
@@ -1985,8 +1994,8 @@ export const AIAgentWidget: React.FC = () => {
 
       try {
         localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, nextId);
-      } catch {
-        // ignore
+      } catch (err) {
+        logger.debug('[AIAgentWidget] localStorage setItem for new session key failed:', err);
       }
 
       await reloadSessions();
@@ -2016,8 +2025,8 @@ export const AIAgentWidget: React.FC = () => {
         next.set(messageId, rating);
         return next;
       });
-    } catch {
-      // Silently ignore feedback errors
+    } catch (err) {
+      logger.warn('[AIAgentWidget] Failed to submit chat feedback:', err);
     }
   }, []);
 
@@ -2041,12 +2050,13 @@ export const AIAgentWidget: React.FC = () => {
       setSessionId(id);
       try {
         localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, id);
-      } catch {
-        // ignore
+      } catch (err) {
+        logger.debug('[AIAgentWidget] localStorage setItem for selected session failed:', err);
       }
       await loadSessionMessages(id);
       setState('idle');
-    } catch {
+    } catch (err) {
+      logger.error('[AIAgentWidget] Failed to load selected session:', err);
       setState('action_required');
       toast.error('Failed to load session');
     }
@@ -2095,7 +2105,8 @@ export const AIAgentWidget: React.FC = () => {
         { id: newId(), role: 'assistant', content: `Available tools: ${preview}${suffix}`, createdAt: Date.now() },
       ]);
       setState('idle');
-    } catch {
+    } catch (err) {
+      logger.error('[AIAgentWidget] Failed to list available tools:', err);
       setMessages((m) => [
         ...m,
         {
@@ -2157,7 +2168,8 @@ export const AIAgentWidget: React.FC = () => {
         },
       ]);
       setState('idle');
-    } catch {
+    } catch (err) {
+      logger.error('[AIAgentWidget] Route preview request failed:', err);
       setMessages((m) => [
         ...m,
         {
@@ -2306,7 +2318,8 @@ export const AIAgentWidget: React.FC = () => {
 
         appendAssistant(`Pending review items:\n${lines.join('\n')}`);
         setState('idle');
-      } catch {
+      } catch (err) {
+        logger.error('[AIAgentWidget] Failed to list pending reviews:', err);
         appendAssistant('Pending review queue unavailable (requires staff permissions).');
         setState('idle');
       }
@@ -2342,7 +2355,8 @@ export const AIAgentWidget: React.FC = () => {
         if (jsonStr) {
           try {
             corrected = JSON.parse(jsonStr);
-          } catch {
+          } catch (err) {
+            logger.debug('[AIAgentWidget] Invalid JSON in /resolve command:', err);
             appendAssistant('Invalid JSON for /resolve. Example: /resolve abcd1234 {"key":"value"}');
             setState('idle');
             return;
@@ -2361,7 +2375,8 @@ export const AIAgentWidget: React.FC = () => {
 
         appendAssistant(`Resolved review item: ${feedbackId.slice(0, 8)}…`);
         setState('idle');
-      } catch {
+      } catch (err) {
+        logger.error('[AIAgentWidget] /resolve command failed:', err);
         appendAssistant('Resolve failed (requires staff permissions).');
         setState('idle');
       }
@@ -2382,7 +2397,8 @@ export const AIAgentWidget: React.FC = () => {
       await loadSessionMessages(sid);
       setAttachments([]);
       setState('idle');
-    } catch {
+    } catch (err) {
+      logger.error('[AIAgentWidget] Failed to refresh session after attachments:', err);
       setMessages((m) => [
         ...m,
         {

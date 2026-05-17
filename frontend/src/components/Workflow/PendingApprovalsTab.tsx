@@ -28,6 +28,7 @@ import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { getDocumentEntityConfig } from '@/components/Operations/documentOperations';
 import { StatusActionCell } from './StatusActionCell';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -377,8 +378,8 @@ export const PendingApprovalsTab: React.FC<PendingApprovalsTabProps> = ({
               source: 'document',
             });
           }
-        } catch {
-          // Entity endpoint may not support status filter — skip gracefully
+        } catch (err) {
+          logger.warn(`[PendingApprovalsTab] Failed to fetch pending ${entity.type} items:`, err);
         }
       });
       await Promise.all(fetches);

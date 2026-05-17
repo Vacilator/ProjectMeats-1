@@ -3,6 +3,7 @@ import { Button, Spin, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 
 import { ambientAiApi, type ContextualSuggestion } from '@/services/aiService';
+import { logger } from '@/utils/logger';
 
 const { Text } = Typography;
 
@@ -43,7 +44,8 @@ export const AmbientSuggestions: React.FC<AmbientSuggestionsProps> = ({
         if (mounted) {
           setSuggestions(next);
         }
-      } catch {
+      } catch (err) {
+        logger.error('[AmbientSuggestions] Failed to load contextual suggestions:', err);
         if (mounted) {
           setSuggestions([]);
           setError(true);
