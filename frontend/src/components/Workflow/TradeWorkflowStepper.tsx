@@ -345,7 +345,7 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
             $compact={compact}
             $clickable={isClickable}
             role="listitem"
-            tabIndex={isClickable ? 0 : undefined}
+            tabIndex={compact ? undefined : 0}
             aria-label={`${step.label} – ${isDone ? 'completed' : isActive ? 'in progress' : 'upcoming'}`}
             aria-current={isActive ? 'step' : undefined}
             onKeyDown={isClickable ? (e: React.KeyboardEvent) => {
