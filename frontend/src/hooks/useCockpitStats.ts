@@ -87,12 +87,8 @@ export const useCockpitStats = (): UseCockpitStatsReturn => {
   const query = useQuery({
     queryKey: withTenantQueryKey('cockpit', 'stats'),
     queryFn: async () => {
-      try {
-        const response = await businessApi.get<CockpitStats>('cockpit/stats/');
-        return response.data;
-      } catch {
-        return null as unknown as CockpitStats;
-      }
+      const response = await businessApi.get<CockpitStats>('cockpit/stats/');
+      return response.data;
     },
     // Circuit breaker: avoid retry-spam and focus refetch loops during backend outages.
     retry: (failureCount, err: { response?: { status?: number } }) => {

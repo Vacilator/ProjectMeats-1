@@ -154,31 +154,11 @@ const getApiErrorMessage = (error: unknown, fallbackMessage: string): string => 
 };
 
 async function fetchNotificationsAPI(): Promise<Notification[]> {
-  try {
-    return (await notificationsService.listNotifications()) as Notification[];
-  } catch (error) {
-    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
-    const isTransient = errObj.code === 'ECONNABORTED' || errObj.code === 'ERR_NETWORK' ||
-      String(errObj.message || '').includes('timeout');
-    if (!isTransient) {
-      logger.warn('Notifications API not available', { component: 'NotificationsContext' }, error);
-    }
-    return [];
-  }
+  return (await notificationsService.listNotifications()) as Notification[];
 }
 
 async function fetchUnreadCountAPI(): Promise<number> {
-  try {
-    return await notificationsService.getUnreadCount();
-  } catch (error) {
-    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
-    const isTransient = errObj.code === 'ECONNABORTED' || errObj.code === 'ERR_NETWORK' ||
-      String(errObj.message || '').includes('timeout');
-    if (!isTransient) {
-      logger.warn('Unread count API not available', { component: 'NotificationsContext' }, error);
-    }
-    return 0;
-  }
+  return await notificationsService.getUnreadCount();
 }
 
 async function markAsReadAPI(id: string): Promise<void> {
@@ -194,60 +174,15 @@ async function dismissNotificationAPI(id: string): Promise<void> {
 }
 
 async function fetchActionItemsAPI(): Promise<ActionItem[]> {
-  try {
-    return (await notificationsService.listActionItems()) as ActionItem[];
-  } catch (error) {
-    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
-    const isTransient = errObj.code === 'ECONNABORTED' || errObj.code === 'ERR_NETWORK' ||
-      String(errObj.message || '').includes('timeout');
-    if (!isTransient) {
-      logger.warn('Action items API not available', { component: 'NotificationsContext' }, error);
-    }
-    return [];
-  }
+  return (await notificationsService.listActionItems()) as ActionItem[];
 }
 
 async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
-  try {
-    return (await notificationsService.getActionItemCounts()) as ActionItemCounts;
-  } catch (error) {
-    const errObj = (error && typeof error === 'object' ? error : {}) as Record<string, unknown>;
-    const isTransient = errObj.code === 'ECONNABORTED' || errObj.code === 'ERR_NETWORK' ||
-      String(errObj.message || '').includes('timeout');
-    if (!isTransient) {
-      logger.warn('Action item counts API not available', { component: 'NotificationsContext' }, error);
-    }
-    return {
-      total: 0,
-      overdue: 0,
-      due_today: 0,
-      due_this_week: 0,
-      by_priority: {},
-      by_form: [],
-    };
-  }
+  return (await notificationsService.getActionItemCounts()) as ActionItemCounts;
 }
 
 async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
-  try {
-    return (await notificationsService.getPreferences()) as NotificationPreferences;
-  } catch (error) {
-    logger.warn('Preferences API not available', { component: 'NotificationsContext' }, error);
-    return {
-      id: '',
-      user: 0,
-      notifications_enabled: true,
-      email_enabled: true,
-      sms_enabled: false,
-      push_enabled: false,
-      type_preferences: {} as Record<NotificationType, Array<'email' | 'push' | 'in_app'>>,
-      quiet_hours_enabled: false,
-      quiet_hours_start: null,
-      quiet_hours_end: null,
-      daily_digest_enabled: false,
-      weekly_digest_enabled: false,
-    };
-  }
+  return (await notificationsService.getPreferences()) as NotificationPreferences;
 }
 
 async function updatePreferencesAPI(prefs: Partial<NotificationPreferences>): Promise<NotificationPreferences> {

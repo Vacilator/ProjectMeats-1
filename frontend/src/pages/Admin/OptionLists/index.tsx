@@ -134,15 +134,9 @@ const OptionListsPage: React.FC = () => {
     refetchOnReconnect: false,
     retry: false,
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/system/choice-lists/');
-        const raw = response.data as Record<string, unknown>;
-        return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      } catch (error) {
-        logger.error('Failed to load choice lists:', error);
-        message.error('Failed to load system option lists');
-        return [];
-      }
+      const response = await businessApi.get('/system/choice-lists/');
+      const raw = response.data as Record<string, unknown>;
+      return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
     },
   });
 
@@ -153,15 +147,9 @@ const OptionListsPage: React.FC = () => {
     refetchOnReconnect: false,
     retry: false,
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/workflows/lists/');
-        const raw = response.data as Record<string, unknown>;
-        return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      } catch (error) {
-        logger.error('Failed to load custom tenant lists:', error);
-        message.error('Failed to load custom tenant lists');
-        return [];
-      }
+      const response = await businessApi.get('/workflows/lists/');
+      const raw = response.data as Record<string, unknown>;
+      return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
     },
   });
 
@@ -172,20 +160,14 @@ const OptionListsPage: React.FC = () => {
     refetchOnReconnect: false,
     retry: false,
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/system/products/', {
-          params: {
-            include_inactive: true,
-            page_size: 500,
-          },
-        });
-        const raw = response.data as Record<string, unknown>;
-        return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      } catch (error) {
-        logger.error('Failed to load master products:', error);
-        message.error('Failed to load master products');
-        return [];
-      }
+      const response = await businessApi.get('/system/products/', {
+        params: {
+          include_inactive: true,
+          page_size: 500,
+        },
+      });
+      const raw = response.data as Record<string, unknown>;
+      return Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
     },
   });
 
@@ -198,28 +180,22 @@ const OptionListsPage: React.FC = () => {
     queryFn: async () => {
       if (!permissions.tenant_id) return {};
 
-      try {
-        const response = await businessApi.get('/system/product-preferences/', {
-          params: { page_size: 2000 },
-        });
-        const raw = response.data as Record<string, unknown>;
-        const data: TenantProductPreference[] = Array.isArray(raw)
-          ? raw
-          : Array.isArray(raw?.results)
-            ? raw.results
-            : [];
+      const response = await businessApi.get('/system/product-preferences/', {
+        params: { page_size: 2000 },
+      });
+      const raw = response.data as Record<string, unknown>;
+      const data: TenantProductPreference[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.results)
+          ? raw.results
+          : [];
 
-        const next: Record<string, TenantProductPreference> = {};
-        for (const row of data) {
-          if (!row?.product) continue;
-          next[String(row.product)] = row;
-        }
-        return next;
-      } catch (error) {
-        logger.error('Failed to load tenant product preferences:', error);
-        message.error('Failed to load tenant product overrides');
-        return {};
+      const next: Record<string, TenantProductPreference> = {};
+      for (const row of data) {
+        if (!row?.product) continue;
+        next[String(row.product)] = row;
       }
+      return next;
     },
   });
 
