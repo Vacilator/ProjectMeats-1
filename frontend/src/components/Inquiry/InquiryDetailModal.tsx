@@ -407,6 +407,9 @@ interface ActionBannerConfig {
   intent: 'info' | 'warning' | 'success';
   /** If set, the banner shows a "Go to…" CTA pointing to this entity type */
   navigateTo?: 'purchase_order' | 'sales_order' | 'carrier_po' | 'fulfillment' | 'invoice';
+  /** If set, the banner shows a CTA that scrolls to a section within the modal */
+  scrollToId?: string;
+  scrollToLabel?: string;
 }
 
 /** Extended action guidance based on trade session orchestrator step */
@@ -416,12 +419,16 @@ const TRADE_STEP_ACTION_MAP: Record<string, ActionBannerConfig> = {
     title: 'Request Supplier Bids',
     description: 'Add suppliers to products, set respond-by dates, and send bid requests. Await supplier responses.',
     intent: 'info',
+    scrollToId: 'supplier-bids-section',
+    scrollToLabel: 'Go to Supplier Bids ↓',
   },
   supplier_reply_parse: {
     icon: '📥',
     title: 'Awaiting Supplier Replies',
     description: 'Bid requests have been sent. Supplier responses will be auto-parsed when received via email.',
     intent: 'warning',
+    scrollToId: 'supplier-bids-section',
+    scrollToLabel: 'View Bid Status ↓',
   },
   draft_supplier_po: {
     icon: '🛒',
@@ -528,6 +535,16 @@ const WorkflowActionBanner: React.FC<{
             aria-label={navTarget.label}
           >
             {navTarget.label} →
+          </ActionBannerCTA>
+        )}
+        {config.scrollToId && (
+          <ActionBannerCTA
+            onClick={() => {
+              document.getElementById(config.scrollToId!)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            aria-label={config.scrollToLabel ?? 'Scroll to section'}
+          >
+            {config.scrollToLabel ?? 'Go to Section ↓'}
           </ActionBannerCTA>
         )}
       </ActionBannerContent>
@@ -821,7 +838,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
 
             {/* Products */}
             <Section id="products">
-              <SectionHeader>
+              <SectionHeader id="supplier-bids-section">
                 <SectionTitle>Products ({inquiry.products?.length || 0})</SectionTitle>
               </SectionHeader>
 
