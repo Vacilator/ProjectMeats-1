@@ -100,9 +100,9 @@ const StatCard = styled.div<{ variant?: 'error' | 'warn' | 'info' }>`
     font-weight: 700;
     color: ${({ variant }) =>
       variant === 'error'
-        ? 'rgb(239, 68, 68)'
+        ? 'rgb(var(--color-error, 239, 68, 68))'
         : variant === 'warn'
-          ? 'rgb(234, 179, 8)'
+          ? 'rgb(var(--color-warning, 234, 179, 8))'
           : 'rgb(var(--color-text-primary))'};
   }
   .label {
@@ -151,14 +151,14 @@ const LevelBadge = styled.span<{ level: string }>`
   text-transform: uppercase;
   background: ${({ level }) =>
     level === 'fatal'
-      ? 'rgba(239, 68, 68, 0.15)'
+      ? 'rgba(var(--color-error, 239, 68, 68), 0.15)'
       : level === 'error'
-        ? 'rgba(239, 68, 68, 0.1)'
-        : 'rgba(234, 179, 8, 0.1)'};
+        ? 'rgba(var(--color-error, 239, 68, 68), 0.1)'
+        : 'rgba(var(--color-warning, 234, 179, 8), 0.1)'};
   color: ${({ level }) =>
     level === 'fatal' || level === 'error'
-      ? 'rgb(239, 68, 68)'
-      : 'rgb(234, 179, 8)'};
+      ? 'rgb(var(--color-error, 239, 68, 68))'
+      : 'rgb(var(--color-warning, 234, 179, 8))'};
 `;
 
 const SourceBadge = styled.span<{ source: string }>`
@@ -169,10 +169,10 @@ const SourceBadge = styled.span<{ source: string }>`
   font-weight: 500;
   background: ${({ source }) =>
     source === 'api'
-      ? 'rgba(59, 130, 246, 0.1)'
-      : 'rgba(139, 92, 246, 0.1)'};
+      ? 'rgba(var(--color-info, 59, 130, 246), 0.1)'
+      : 'rgba(var(--color-accent, 139, 92, 246), 0.1)'};
   color: ${({ source }) =>
-    source === 'api' ? 'rgb(59, 130, 246)' : 'rgb(139, 92, 246)'};
+    source === 'api' ? 'rgb(var(--color-info, 59, 130, 246))' : 'rgb(var(--color-accent, 139, 92, 246))'};
 `;
 
 const MessageCell = styled.div`
@@ -230,8 +230,8 @@ const OccurrenceBadge = styled.span`
   padding: 0 6px;
   height: 20px;
   border-radius: 10px;
-  background: rgba(239, 68, 68, 0.1);
-  color: rgb(239, 68, 68);
+  background: rgba(var(--color-error, 239, 68, 68), 0.1);
+  color: rgb(var(--color-error, 239, 68, 68));
   font-size: 11px;
   font-weight: 600;
 `;

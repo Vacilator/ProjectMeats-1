@@ -35,7 +35,26 @@ export const IntegrationSettings: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchConnectionStatus();
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await integrationsService.getOAuthConnectionStatus();
+        if (!cancelled) setConnections(data.connections);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
+          const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
+          const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
+          setError((data.error as string) || 'Failed to fetch connection status');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
 
   const fetchConnectionStatus = async () => {

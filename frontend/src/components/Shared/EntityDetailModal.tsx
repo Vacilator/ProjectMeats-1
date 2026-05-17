@@ -522,7 +522,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
                       </RelationHeader>
                       {expandedRelations.has(rel.name) && (
                         <RelationItems>
-                          {rel.recent_items.slice(0, 5).map((item) => (
+                          {(Array.isArray(rel.recent_items) ? rel.recent_items : []).slice(0, 5).map((item) => (
                             <RelationItemCard
                               key={item.id}
                               onClick={() => {
