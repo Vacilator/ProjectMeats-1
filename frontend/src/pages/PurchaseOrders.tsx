@@ -222,6 +222,44 @@ const PurchaseOrders: React.FC = () => {
     return result;
   }, [purchaseOrders, poActiveTab, poSearchText]);
 
+  /** Data-driven pipeline stages computed from actual PO status distribution */
+  const pipelineStages = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    for (const po of purchaseOrders) {
+      const s = (po.status || 'draft').toLowerCase();
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    }
+    const total = purchaseOrders.length;
+
+    const stages: { id: string; label: string; status: 'completed' | 'active' | 'pending'; description: string }[] = [
+      { id: 'draft', label: 'Draft', statuses: ['draft'] },
+      { id: 'approval', label: 'Approval', statuses: ['pending', 'pending_approval'] },
+      { id: 'approved', label: 'Approved', statuses: ['approved', 'sent'] },
+      { id: 'logistics', label: 'In Transit', statuses: ['carrier_assigned', 'in_transit'] },
+      { id: 'delivered', label: 'Delivered', statuses: ['delivered', 'invoiced'] },
+    ].map(({ id, label, statuses }) => {
+      const count = statuses.reduce((sum, s) => sum + (statusCounts[s] || 0), 0);
+      let status: 'completed' | 'active' | 'pending' = 'pending';
+      if (count > 0) status = 'active';
+      if (total > 0 && count === 0 && id === 'draft') status = 'completed';
+      const description = total > 0 ? `${count} order${count !== 1 ? 's' : ''}` : 'No orders';
+      return { id, label, status, description };
+    });
+
+    // Mark stages before the first active stage as completed
+    let foundActive = false;
+    for (const stage of stages) {
+      if (stage.status === 'active') { foundActive = true; break; }
+      if (total > 0) stage.status = 'completed';
+    }
+    // If no active stages and we have orders, mark all as completed
+    if (!foundActive && total > 0) {
+      stages.forEach(s => { s.status = 'completed'; });
+    }
+
+    return stages;
+  }, [purchaseOrders]);
+
   useEffect(() => {
     const reviewType = searchParams.get('review');
     const purchaseOrderId = searchParams.get('purchase_order');
@@ -457,38 +495,7 @@ const PurchaseOrders: React.FC = () => {
           </StatsCards>
 
           <PurchaseOrderWorkflow
-            stages={[
-              {
-                id: 'draft',
-                label: 'Draft',
-                status: 'completed',
-                description: 'Order created',
-              },
-              {
-                id: 'approval',
-                label: 'Approval',
-                status: 'completed',
-                description: 'Management review',
-              },
-              {
-                id: 'processing',
-                label: 'Processing',
-                status: 'active',
-                description: 'Supplier processing',
-              },
-              {
-                id: 'shipping',
-                label: 'Shipping',
-                status: 'pending',
-                description: 'In transit',
-              },
-              {
-                id: 'delivered',
-                label: 'Delivered',
-                status: 'pending',
-                description: 'Order complete',
-              },
-            ]}
+            stages={pipelineStages}
           />
 
           <StatusFilterBar
