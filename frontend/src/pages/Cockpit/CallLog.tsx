@@ -1248,13 +1248,31 @@ export const CallLog: React.FC = () => {
             <CurrentDateLabel>{getCurrentDateLabel()}</CurrentDateLabel>
           )}
 
-          {error && <ErrorState>{error}</ErrorState>}
+          {error && (
+            <ErrorState>
+              Failed to load scheduled calls.{' '}
+              <button
+                onClick={() => void callsQuery.refetch()}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'inherit',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: 0,
+                  font: 'inherit',
+                }}
+              >
+                Retry
+              </button>
+            </ErrorState>
+          )}
 
           {loading ? (
             <LoadingState>
               <Skeleton active paragraph={{ rows: 8 }} />
             </LoadingState>
-          ) : (
+          ) : error ? null : (
             <CalendarContainer>
               {viewMode === 'month' && (
                 <Calendar
