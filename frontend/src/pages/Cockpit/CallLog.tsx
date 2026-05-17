@@ -23,6 +23,7 @@ import { Calendar, Badge, Segmented } from 'antd';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ActivityFeed } from '../../components/Shared/ActivityFeed';
 import { ScheduleCallModal } from '../../components/Shared/ScheduleCallModal';
 import { InquiryCallModal } from '../../components/Calls/InquiryCallModal';
@@ -30,6 +31,7 @@ import { businessApi } from '../../services/businessApi';
 import { formatToLocal } from '../../utils/formatters';
 import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -650,10 +652,34 @@ const WeekTimeSlot = styled.div`
 
 export const CallLog: React.FC = () => {
   useDocumentTitle('Call Log');
+  const queryClient = useQueryClient();
+
+  // React Query for scheduled calls — benefits from smart retry + auto-recovery
+  const callsQuery = useQuery({
+    queryKey: withTenantQueryKey('scheduled-calls'),
+    queryFn: async () => {
+      const response = await businessApi.get('/workspace/scheduled-calls/');
+      const callsData = (response.data.results || response.data) as ScheduledCall[];
+      callsData.sort((a, b) =>
+        new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()
+      );
+      return callsData;
+    },
+    staleTime: 30_000,
+  });
+
+  const calls = callsQuery.data ?? [];
+  const loading = callsQuery.isLoading;
+  const error = callsQuery.isError
+    ? 'Failed to load scheduled calls'
+    : null;
+
+  const refreshCalls = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('scheduled-calls') }),
+    [queryClient],
+  );
+
   // Existing state
-  const [calls, setCalls] = useState<ScheduledCall[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedCall, setSelectedCall] = useState<ScheduledCall | null>(null);
   const [entityFilter, setEntityFilter] = useState<EntityFilter | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -699,50 +725,21 @@ export const CallLog: React.FC = () => {
   // Phase 5: Drag & Drop state
   const [draggedCall, setDraggedCall] = useState<ScheduledCall | null>(null);
 
-  useEffect(() => {
-    fetchScheduledCalls();
-  }, []);
-
-  const fetchScheduledCalls = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await businessApi.get('/workspace/scheduled-calls/');
-      const callsData = response.data.results || response.data;
-
-      // Sort by scheduled_for (upcoming first)
-      callsData.sort((a: ScheduledCall, b: ScheduledCall) =>
-        new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()
-      );
-
-      setCalls(callsData);
-    } catch (err: unknown) {
-      logger.error('Failed to fetch scheduled calls:', err);
-      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
-      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
-      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
-      setError((typeof data.detail === 'string' ? data.detail : '') || 'Failed to load scheduled calls');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Stable callbacks for modal props
   const handleInquiryClose = useCallback(() => setShowInquiryCallModal(false), []);
   const handleInquirySuccess = useCallback(() => {
-    void fetchScheduledCalls();
+    void refreshCalls();
     setShowInquiryCallModal(false);
-  }, []);
+  }, [refreshCalls]);
   const handleScheduleClose = useCallback(() => {
     setShowScheduleModal(false);
     setDefaultCallPurpose(undefined);
   }, []);
   const handleEditClose = useCallback(() => setEditingCall(null), []);
   const handleEditSuccess = useCallback(() => {
-    fetchScheduledCalls();
+    void refreshCalls();
     setEditingCall(null);
-  }, []);
+  }, [refreshCalls]);
 
   const handleCallClick = (call: ScheduledCall) => {
     setSelectedCall(call);
@@ -761,10 +758,11 @@ export const CallLog: React.FC = () => {
         outcome: 'Completed from call log',
       });
 
-      // Update local state
-      setCalls(calls.map(c =>
-        c.id === callId ? { ...c, is_completed: true } : c
-      ));
+      // Optimistic update + refresh
+      queryClient.setQueryData<ScheduledCall[]>(
+        withTenantQueryKey('scheduled-calls'),
+        (old) => old?.map(c => c.id === callId ? { ...c, is_completed: true } : c),
+      );
     } catch (err: unknown) {
       logger.error('Failed to complete call:', err);
       showAlert({
@@ -814,7 +812,7 @@ export const CallLog: React.FC = () => {
 
     try {
       await businessApi.delete(`/workspace/scheduled-calls/${callId}/`);
-      await fetchScheduledCalls();
+      await refreshCalls();
     } catch (err: unknown) {
       logger.error('Failed to delete call:', err);
       showAlert({
@@ -933,12 +931,15 @@ export const CallLog: React.FC = () => {
         scheduled_for: newScheduledFor,
       });
 
-      // Update local state
-      setCalls(calls.map(c =>
-        c.id === draggedCall.id
-          ? { ...c, scheduled_for: newScheduledFor }
-          : c
-      ));
+      // Optimistic update
+      queryClient.setQueryData<ScheduledCall[]>(
+        withTenantQueryKey('scheduled-calls'),
+        (old) => old?.map(c =>
+          c.id === draggedCall.id
+            ? { ...c, scheduled_for: newScheduledFor }
+            : c
+        ),
+      );
 
       setDraggedCall(null);
     } catch (err: unknown) {
@@ -1199,7 +1200,7 @@ export const CallLog: React.FC = () => {
       <ScheduleCallModal
         isOpen={showScheduleModal}
         onClose={handleScheduleClose}
-        onSuccess={fetchScheduledCalls}
+        onSuccess={refreshCalls}
         defaultCallPurpose={defaultCallPurpose}
       />
 
