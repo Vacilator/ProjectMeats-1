@@ -16,6 +16,7 @@
  * - Export to CSV
  */
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -568,8 +569,8 @@ const FormsFlowsHistory: React.FC = () => {
       const csvRows = (rows as FormSubmission[]).map((s) => [
         `"${(s.form_name || '').replace(/"/g, '""')}"`,
         s.status,
-        s.created_at ? new Date(s.created_at).toLocaleString() : '',
-        s.completed_at ? new Date(s.completed_at).toLocaleString() : '',
+        s.created_at ? dayjs(s.created_at).format('MMM D, YYYY h:mm A') : '',
+        s.completed_at ? dayjs(s.completed_at).format('MMM D, YYYY h:mm A') : '',
         `"${(s.created_by_name || '').replace(/"/g, '""')}"`,
         String(s.total_steps || 0),
       ]);
@@ -579,8 +580,8 @@ const FormsFlowsHistory: React.FC = () => {
       const csvRows = (rows as WorkFormExecution[]).map((e) => [
         `"${(e.workform_name || '').replace(/"/g, '""')}"`,
         e.status || '',
-        e.started_at ? new Date(e.started_at).toLocaleString() : '',
-        e.completed_at ? new Date(e.completed_at).toLocaleString() : '',
+        e.started_at ? dayjs(e.started_at).format('MMM D, YYYY h:mm A') : '',
+        e.completed_at ? dayjs(e.completed_at).format('MMM D, YYYY h:mm A') : '',
         `"${(e.started_by_name || '').replace(/"/g, '""')}"`,
       ]);
       csvContent = [headers.join(','), ...csvRows.map((r) => r.join(','))].join('\n');

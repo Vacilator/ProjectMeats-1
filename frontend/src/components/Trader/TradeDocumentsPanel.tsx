@@ -7,6 +7,7 @@
  * Theme Compliance: CSS custom properties only — no hardcoded colours.
  */
 import React, { useMemo, useCallback, useState } from 'react';
+import dayjs from 'dayjs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Collapse, Tag, Spin, Tooltip, Upload, message } from 'antd';
 import {
@@ -440,7 +441,7 @@ export const TradeDocumentsPanel: React.FC<TradeDocumentsPanelProps> = ({
               )}
               <MetaText>{GENERATED_LABELS[doc.generated_by] ?? ''}</MetaText>
               <MetaText>{formatFileSize(doc.file_size)}</MetaText>
-              <Tooltip title={new Date(doc.created_on).toLocaleString()}>
+              <Tooltip title={dayjs(doc.created_on).format('MMM D, YYYY h:mm A')}>
                 <MetaText>{formatRelativeDate(doc.created_on)}</MetaText>
               </Tooltip>
             </DocRight>

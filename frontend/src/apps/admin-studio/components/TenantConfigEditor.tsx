@@ -502,7 +502,10 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
                       />
                     ) : (
                       <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setEditingValue(config.id || `new-${index}`)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditingValue(config.id || `new-${index}`); } }}
                         className="w-full px-3 py-2 border rounded-lg font-mono text-sm cursor-pointer hover:bg-[rgb(var(--color-bg-tertiary))] min-h-[40px]" style={{ background: 'rgb(var(--color-bg-secondary))' }}
                       >
                         <code style={{ color: 'rgb(var(--color-text-primary))' }}>

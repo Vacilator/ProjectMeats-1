@@ -5,6 +5,7 @@
  * Enhanced from PR #63 to integrate file upload into MessageInput and remove separate DocumentUpload component.
  */
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
 import { ChatSession, ChatMessage } from '../../types';
@@ -222,7 +223,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
       setError(null);
 
       const nextSession = await chatSessionsApi.create({
-        title: `Chat ${new Date().toLocaleString()}`,
+        title: `Chat ${dayjs().format('MMM D, YYYY h:mm A')}`,
         context_data: { ui_source: 'ChatWindow', ...pageContext },
       });
       setActiveSessionId(nextSession.id);
@@ -334,7 +335,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
                     <SessionButtonTitle>{item.title || `Session ${item.id.slice(0, 8)}…`}</SessionButtonTitle>
                     <SessionButtonMeta>
                       {typeof item.message_count === 'number' ? `${item.message_count} msgs` : '—'}
-                      {item.last_activity ? ` • ${new Date(item.last_activity).toLocaleString()}` : ''}
+                      {item.last_activity ? ` • ${dayjs(item.last_activity).format('MMM D, YYYY h:mm A')}` : ''}
                     </SessionButtonMeta>
                   </SessionButton>
                 ))}

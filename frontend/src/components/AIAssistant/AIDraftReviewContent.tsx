@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import dayjs from 'dayjs';
 import { Alert, Button, Collapse, Space, Tag, Typography, message } from 'antd';
 import isEqual from 'lodash/isEqual';
 import { useNavigate } from 'react-router-dom';
@@ -757,7 +758,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                      {stableItem.sender ? <Tag>{stableItem.sender}</Tag> : null}
                    </div>
                    <Text type="secondary">
-                     Received {stableItem.created_on ? new Date(stableItem.created_on).toLocaleString() : 'recently'}
+                     Received {stableItem.created_on ? dayjs(stableItem.created_on).format('MMM D, YYYY h:mm A') : 'recently'}
                    </Text>
                    {stableItem.source_document_name ? (
                      <Text type="secondary">Attachment: {stableItem.source_document_name}</Text>

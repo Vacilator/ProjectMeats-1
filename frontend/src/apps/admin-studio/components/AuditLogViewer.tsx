@@ -11,6 +11,7 @@
  * - Export functionality
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import {
   configService,
   ConfigAuditLogSummary,
@@ -474,7 +475,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                   <div>
                     <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>Timestamp:</span>
                     <span className="ml-2 font-medium">
-                      {new Date(selectedLog.created_at).toLocaleString()}
+                      {dayjs(selectedLog.created_at).format('MMM D, YYYY h:mm A')}
                     </span>
                   </div>
                   {selectedLog.ip_address && (
