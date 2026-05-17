@@ -92,7 +92,7 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set the owner when creating a new session."""
         tenant = getattr(self.request, "tenant", None)
-        if not get_request_tenant_id(self.request):
+        if not tenant or not get_request_tenant_id(self.request):
             raise ValidationError("Tenant context required")
         serializer.save(
             tenant=tenant,
@@ -135,6 +135,8 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
         if not get_request_tenant_id(self.request):
             raise ValidationError("Tenant context required")
         tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            raise ValidationError("Tenant context required")
         serializer.save(
             tenant=tenant,
             owner=self.request.user,
@@ -174,7 +176,7 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
         try:
             tenant = getattr(request, "tenant", None)
             tenant_id = get_request_tenant_id(request)
-            if not tenant_id:
+            if not tenant_id or not tenant:
                 return Response({"error": "Tenant context missing"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Get or create session

@@ -136,20 +136,15 @@ const ColdStorage: React.FC = () => {
   const facilitiesQuery = useQuery({
     queryKey: withTenantQueryKey('cold-storage-facilities'),
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/locations/', {
-          params: { location_type: 'warehouse' },
-        });
-        const payload = response.data;
-        if (Array.isArray(payload)) return payload as StorageLocation[];
-        const results = (payload as { results?: StorageLocation[] } | null)?.results;
-        return Array.isArray(results) ? results : [];
-      } catch {
-        return [] as StorageLocation[];
-      }
+      const response = await businessApi.get('/locations/', {
+        params: { location_type: 'warehouse' },
+      });
+      const payload = response.data;
+      if (Array.isArray(payload)) return payload as StorageLocation[];
+      const results = (payload as { results?: StorageLocation[] } | null)?.results;
+      return Array.isArray(results) ? results : [];
     },
     staleTime: 60 * 1000,
-    retry: false,
   });
 
   const facilities = useMemo(() => facilitiesQuery.data || [], [facilitiesQuery.data]);

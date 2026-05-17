@@ -447,7 +447,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
           <FieldsList>
             {config.fields.map((field) => {
               const value = entity[field.key];
-              if (!value && value !== 0) return null;
+              if (value === null || value === undefined) return null;
 
               const displayValue = field.format ? field.format(value) : String(value);
               const FieldIcon = field.icon;

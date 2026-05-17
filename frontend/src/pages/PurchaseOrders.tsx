@@ -179,12 +179,8 @@ const PurchaseOrders: React.FC = () => {
   } = useQuery({
     queryKey: withTenantQueryKey('purchase-orders'),
     queryFn: async () => {
-      try {
-        const resp = await businessApi.get('purchase-orders/');
-        return (resp.data.results || resp.data) as PurchaseOrder[];
-      } catch {
-        return [] as PurchaseOrder[];
-      }
+      const resp = await businessApi.get('purchase-orders/');
+      return (resp.data.results || resp.data) as PurchaseOrder[];
     },
     staleTime: 30_000,
   });
@@ -196,12 +192,8 @@ const PurchaseOrders: React.FC = () => {
   } = useQuery({
     queryKey: withTenantQueryKey('suppliers'),
     queryFn: async () => {
-      try {
-        const resp = await businessApi.get('suppliers/');
-        return (resp.data.results || resp.data) as Supplier[];
-      } catch {
-        return [] as Supplier[];
-      }
+      const resp = await businessApi.get('suppliers/');
+      return (resp.data.results || resp.data) as Supplier[];
     },
     staleTime: 60_000,
   });
