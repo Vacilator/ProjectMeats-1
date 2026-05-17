@@ -127,13 +127,9 @@ const UsersPage: React.FC = () => {
     queryKey: withTenantQueryKey('tenant-users'),
     enabled: canAccess,
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/tenant-users/');
-        const data = response.data.results || response.data;
-        return Array.isArray(data) ? data : [];
-      } catch {
-        return [];
-      }
+      const response = await businessApi.get('/tenant-users/');
+      const data = response.data.results || response.data;
+      return Array.isArray(data) ? data : [];
     },
   });
 
@@ -145,15 +141,11 @@ const UsersPage: React.FC = () => {
     queryKey: withTenantQueryKey('tenant-invitations'),
     enabled: canAccess,
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/invitations/', {
-          params: { status: 'pending' },
-        });
-        const data = response.data.results || response.data;
-        return Array.isArray(data) ? data : [];
-      } catch {
-        return [];
-      }
+      const response = await businessApi.get('/invitations/', {
+        params: { status: 'pending' },
+      });
+      const data = response.data.results || response.data;
+      return Array.isArray(data) ? data : [];
     },
   });
 

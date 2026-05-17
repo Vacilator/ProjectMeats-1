@@ -134,12 +134,8 @@ const AdminProfilePage: React.FC = () => {
     queryKey: withTenantQueryKey('tenant'),
     enabled: canManage,
     queryFn: async () => {
-      try {
-        const response = await businessApi.get('/tenants/current/');
-        return response.data;
-      } catch {
-        return null as unknown as Tenant;
-      }
+      const response = await businessApi.get('/tenants/current/');
+      return response.data;
     },
   });
 

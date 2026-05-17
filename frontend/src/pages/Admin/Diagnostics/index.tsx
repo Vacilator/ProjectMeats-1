@@ -325,16 +325,12 @@ export default function DiagnosticsPage() {
   const logsQuery = useQuery<ErrorLogEntry[]>({
     queryKey: withTenantQueryKey('error-reports', levelFilter, sourceFilter, searchQuery),
     queryFn: async () => {
-      try {
-        const params = new URLSearchParams();
-        if (levelFilter) params.set('level', levelFilter);
-        if (sourceFilter) params.set('source', sourceFilter);
-        if (searchQuery) params.set('search', searchQuery);
-        const resp = await businessApi.get(`/error-reports/?${params.toString()}`);
-        return Array.isArray(resp.data?.results) ? resp.data.results : (Array.isArray(resp.data) ? resp.data : []);
-      } catch {
-        return [];
-      }
+      const params = new URLSearchParams();
+      if (levelFilter) params.set('level', levelFilter);
+      if (sourceFilter) params.set('source', sourceFilter);
+      if (searchQuery) params.set('search', searchQuery);
+      const resp = await businessApi.get(`/error-reports/?${params.toString()}`);
+      return Array.isArray(resp.data?.results) ? resp.data.results : (Array.isArray(resp.data) ? resp.data : []);
     },
     refetchInterval: 30_000,
     staleTime: 15_000,

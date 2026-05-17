@@ -520,14 +520,10 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     queryKey: withTenantQueryKey('cockpit-entity', canonicalType, entityId),
     enabled: queryEnabled,
     queryFn: async () => {
-      try {
-        if (!canonicalType) throw new Error('Unknown entity type');
-        const path = getEntityApiPath(canonicalType);
-        const res = await businessApi.get(`/${path}/${entityId}/`);
-        return res.data as EntityRecord;
-      } catch {
-        return null as unknown as EntityRecord;
-      }
+      if (!canonicalType) throw new Error('Unknown entity type');
+      const path = getEntityApiPath(canonicalType);
+      const res = await businessApi.get(`/${path}/${entityId}/`);
+      return res.data as EntityRecord;
     },
     retry: queryRetry,
     refetchOnWindowFocus: false,
@@ -537,13 +533,9 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     queryKey: withTenantQueryKey('cockpit-entity-counts', canonicalType, entityId),
     enabled: queryEnabled,
     queryFn: async () => {
-      try {
-        if (!canonicalType) throw new Error('Unknown entity type');
-        const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/?counts=true`);
-        return res.data as RelationshipCountsResponse;
-      } catch {
-        return null as unknown as RelationshipCountsResponse;
-      }
+      if (!canonicalType) throw new Error('Unknown entity type');
+      const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/?counts=true`);
+      return res.data as RelationshipCountsResponse;
     },
     retry: queryRetry,
     refetchOnWindowFocus: false,
@@ -553,15 +545,11 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     queryKey: withTenantQueryKey('cockpit-entity-locations', canonicalType, entityId),
     enabled: queryEnabled,
     queryFn: async () => {
-      try {
-        if (!canonicalType) throw new Error('Unknown entity type');
-        const res = await businessApi.get(
-          `/entities/${canonicalType}/${entityId}/relationships/locations/?limit=25`
-        );
-        return (res.data as RelationshipItemsResponse).items ?? [];
-      } catch {
-        return [];
-      }
+      if (!canonicalType) throw new Error('Unknown entity type');
+      const res = await businessApi.get(
+        `/entities/${canonicalType}/${entityId}/relationships/locations/?limit=25`
+      );
+      return (res.data as RelationshipItemsResponse).items ?? [];
     },
     retry: queryRetry,
     refetchOnWindowFocus: false,
@@ -571,13 +559,9 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     queryKey: withTenantQueryKey('cockpit-entity-products', canonicalType, entityId),
     enabled: queryEnabled,
     queryFn: async () => {
-      try {
-        if (!canonicalType) throw new Error('Unknown entity type');
-        const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/products/?limit=25`);
-        return (res.data as RelationshipItemsResponse).items ?? [];
-      } catch {
-        return [];
-      }
+      if (!canonicalType) throw new Error('Unknown entity type');
+      const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/products/?limit=25`);
+      return (res.data as RelationshipItemsResponse).items ?? [];
     },
     retry: queryRetry,
     refetchOnWindowFocus: false,
@@ -587,14 +571,10 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     queryKey: withTenantQueryKey('cockpit-master-products'),
     enabled: Boolean(queryEnabled && canonicalType === 'customer' && activeTab === 'products' && productInsightsTab === 'aggregatedPreferences'),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get('/master-products/', { params: { page_size: 5000 } });
-        const raw = res.data as Record<string, unknown>;
-        const items = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-        return items as Array<{ id: number | string; display_name?: string; item_name?: string; type?: string }>;
-      } catch {
-        return [];
-      }
+      const res = await businessApi.get('/master-products/', { params: { page_size: 5000 } });
+      const raw = res.data as Record<string, unknown>;
+      const items = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      return items as Array<{ id: number | string; display_name?: string; item_name?: string; type?: string }>;
     },
     retry: queryRetry,
     refetchOnWindowFocus: false,
@@ -604,14 +584,10 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     queryKey: withTenantQueryKey('cockpit-entity-tab', canonicalType, entityId, activeTab),
     enabled: queryEnabled,
     queryFn: async () => {
-      try {
-        if (!canonicalType) throw new Error('Unknown entity type');
-        const rel = getTabRelationship(canonicalType, activeTab);
-        const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/${rel}/?limit=50`);
-        return (res.data as RelationshipItemsResponse).items ?? [];
-      } catch {
-        return [];
-      }
+      if (!canonicalType) throw new Error('Unknown entity type');
+      const rel = getTabRelationship(canonicalType, activeTab);
+      const res = await businessApi.get(`/entities/${canonicalType}/${entityId}/relationships/${rel}/?limit=50`);
+      return (res.data as RelationshipItemsResponse).items ?? [];
     },
     retry: queryRetry,
     refetchOnWindowFocus: false,

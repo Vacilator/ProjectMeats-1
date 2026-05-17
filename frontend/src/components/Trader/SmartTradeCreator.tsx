@@ -331,12 +331,8 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
   const customersQuery = useQuery({
     queryKey: withTenantQueryKey('smart-trade-customers'),
     queryFn: async () => {
-      try {
-        const resp = await businessApi.get('/customers/?page_size=20&ordering=-updated_at');
-        return resp.data?.results || [];
-      } catch {
-        return [];
-      }
+      const resp = await businessApi.get('/customers/?page_size=20&ordering=-updated_at');
+      return resp.data?.results || [];
     },
     staleTime: 60 * 1000,
   });
@@ -344,12 +340,8 @@ export const SmartTradeCreator: React.FC<SmartTradeCreatorProps> = ({
   const suppliersQuery = useQuery({
     queryKey: withTenantQueryKey('smart-trade-suppliers'),
     queryFn: async () => {
-      try {
-        const resp = await businessApi.get('/suppliers/?page_size=20&ordering=-updated_at');
-        return resp.data?.results || [];
-      } catch {
-        return [];
-      }
+      const resp = await businessApi.get('/suppliers/?page_size=20&ordering=-updated_at');
+      return resp.data?.results || [];
     },
     staleTime: 60 * 1000,
   });

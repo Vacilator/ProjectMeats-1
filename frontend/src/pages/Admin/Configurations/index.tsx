@@ -60,12 +60,8 @@ const ConfigurationsPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: withTenantQueryKey('tenants', 'current', 'configurations'),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get('/tenants/current/');
-        return res.data;
-      } catch {
-        return null as unknown as TenantCurrent;
-      }
+      const res = await businessApi.get('/tenants/current/');
+      return res.data;
     },
     staleTime: 60 * 1000,
   });
