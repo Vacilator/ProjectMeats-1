@@ -310,7 +310,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
   }, [year, month]);
 
   const days = getDaysInMonth(year, month);
-  const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthName = dayjs(currentDate).format('MMMM YYYY');
 
   const navigateMonth = (direction: number) => {
     setCurrentDate(new Date(year, month + direction, 1));
