@@ -13,6 +13,7 @@
  * Created: 2026-02-26 - Gap Analysis Phase 4.2
  */
 import React from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import {
   LineChart,
@@ -467,7 +468,7 @@ export const Metrics: React.FC = () => {
                 <TableRow key={index}>
                   <TableCell>{form.form_name}</TableCell>
                   <TableCell>{form.submission_count}</TableCell>
-                  <TableCell>{new Date(form.last_used).toLocaleDateString()}</TableCell>
+                  <TableCell>{dayjs(form.last_used).format('MMM D, YYYY')}</TableCell>
                 </TableRow>
               ))}
             </tbody>

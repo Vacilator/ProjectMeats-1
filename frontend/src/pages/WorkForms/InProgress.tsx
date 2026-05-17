@@ -16,6 +16,7 @@
  * - Cancel workflow with confirmation
  */
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -528,7 +529,7 @@ const FormsFlowsInProgress: React.FC = () => {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    return dayjs(date).format('MMM D, YYYY');
   };
   
   return (
@@ -612,7 +613,7 @@ const FormsFlowsInProgress: React.FC = () => {
             </FilterSelect>
           </ToolbarLeft>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <LastUpdated>Last updated: {lastUpdated.toLocaleTimeString()}</LastUpdated>
+            <LastUpdated>Last updated: {dayjs(lastUpdated).format('h:mm:ss A')}</LastUpdated>
             <RefreshButton
               onClick={() => (activeTab === 'executions' ? executionsQuery.refetch() : fetchSubmissions())}
               disabled={activeTab === 'executions' ? executionsQuery.isFetching : loading}

@@ -10,6 +10,7 @@
  */
 
 import React, { useMemo, useCallback, useState } from 'react';
+import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import {
   Card,
@@ -219,7 +220,7 @@ export function CockpitAnalyticsDashboard(): React.ReactElement {
         title: 'Last Active',
         dataIndex: 'last_activity',
         key: 'last_activity',
-        render: (val: string) => (val ? new Date(val).toLocaleDateString() : '—'),
+        render: (val: string) => (val ? dayjs(val).format('MMM D, YYYY') : '—'),
       },
     ],
     [],

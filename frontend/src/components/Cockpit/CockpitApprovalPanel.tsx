@@ -12,6 +12,7 @@
  * Service Layer: Uses businessApi for approval actions.
  */
 import React, { useState, useCallback, useMemo } from 'react';
+import dayjs from 'dayjs';
 import styled, { keyframes } from 'styled-components';
 import {
   ShieldCheck,
@@ -380,7 +381,7 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
                   <span>{item.target_department}</span>
                   <span>•</span>
                   <Clock size={11} />
-                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                  <span>{dayjs(item.created_at).format('MMM D, YYYY')}</span>
                 </CardMeta>
               </CardInfo>
               <ExpandIcon>

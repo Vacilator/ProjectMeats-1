@@ -20,6 +20,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import dayjs from 'dayjs';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { X, ChevronLeft, Save } from 'lucide-react';
@@ -536,7 +537,7 @@ export const WorkflowExecutionModal: React.FC<WorkflowExecutionProps> = ({
             {lastSaved && (
               <AutoSaveIndicator>
                 <Save size={14} />
-                Saved {lastSaved.toLocaleTimeString()}
+                Saved {dayjs(lastSaved).format('h:mm:ss A')}
               </AutoSaveIndicator>
             )}
           </NavLeft>

@@ -14,6 +14,7 @@
  * - Uses CSS custom properties
  */
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { 
   Calendar as CalendarIcon, 
@@ -236,11 +237,7 @@ const getEventColor = (type: string): string => {
 
 const formatTime = (dateString: string): string => {
   const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit',
-    hour12: true 
-  });
+  return dayjs(date).format('h:mm A');
 };
 
 const getDaysInMonth = (year: number, month: number): Date[] => {
@@ -400,7 +397,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
           </EventsList>
         ) : (
           <EmptyState>
-            No events for {selectedDate.toLocaleDateString()}
+            No events for {dayjs(selectedDate).format('MMM D, YYYY')}
           </EmptyState>
         )}
       </CalendarContainer>

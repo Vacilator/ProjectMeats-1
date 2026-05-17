@@ -4,6 +4,7 @@
  * Tenant admin management for users, invitations, and roles.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -404,7 +405,7 @@ const UsersPage: React.FC = () => {
         key: 'created_at',
         label: 'Joined',
         sortable: true,
-        render: (value: string) => new Date(value).toLocaleDateString(),
+        render: (value: string) => dayjs(value).format('MMM D, YYYY'),
       },
     ],
     []
@@ -428,13 +429,13 @@ const UsersPage: React.FC = () => {
         key: 'expires_at',
         label: 'Expires',
         sortable: true,
-        render: (value: string) => new Date(value).toLocaleDateString(),
+        render: (value: string) => dayjs(value).format('MMM D, YYYY'),
       },
       {
         key: 'created_at',
         label: 'Sent',
         sortable: true,
-        render: (value: string) => new Date(value).toLocaleDateString(),
+        render: (value: string) => dayjs(value).format('MMM D, YYYY'),
       },
     ],
     []

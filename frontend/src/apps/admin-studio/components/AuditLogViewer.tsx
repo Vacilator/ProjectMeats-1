@@ -154,11 +154,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-    });
+    return dayjs(date).format(date.getFullYear() !== now.getFullYear() ? 'MMM D, YYYY' : 'MMM D');
   };
   
   // Get entity icon

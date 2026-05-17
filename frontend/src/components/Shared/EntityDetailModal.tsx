@@ -21,6 +21,7 @@
  * ```
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import { logger } from '@/utils/logger';
 
 import styled from 'styled-components';
@@ -106,7 +107,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'address', label: 'Address', icon: MapPin },
       { key: 'city', label: 'City' },
       { key: 'state', label: 'State' },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
     ],
   },
   customer: {
@@ -121,7 +122,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'address', label: 'Address', icon: MapPin },
       { key: 'city', label: 'City' },
       { key: 'state', label: 'State' },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
     ],
   },
   purchase_order: {
@@ -133,8 +134,8 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'order_number', label: 'Order Number', icon: FileText },
       { key: 'supplier_name', label: 'Supplier', icon: Building2 },
       { key: 'status', label: 'Status' },
-      { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
-      { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? new Date(String(val)).toLocaleDateString() : 'TBD' },
+      { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
+      { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? dayjs(String(val)).format('MMM D, YYYY') : 'TBD' },
       { key: 'total_amount', label: 'Total Amount', format: (val) => formatCurrency(String(val), 'N/A') },
     ],
   },
@@ -147,8 +148,8 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'order_number', label: 'Order Number', icon: FileText },
       { key: 'customer_name', label: 'Customer', icon: Users },
       { key: 'status', label: 'Status' },
-      { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
-      { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? new Date(String(val)).toLocaleDateString() : 'TBD' },
+      { key: 'order_date', label: 'Order Date', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
+      { key: 'expected_delivery', label: 'Expected Delivery', icon: Calendar, format: (val) => val ? dayjs(String(val)).format('MMM D, YYYY') : 'TBD' },
       { key: 'total_amount', label: 'Total Amount', format: (val) => formatCurrency(String(val), 'N/A') },
     ],
   },
@@ -163,7 +164,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'category', label: 'Category' },
       { key: 'unit', label: 'Unit' },
       { key: 'price', label: 'Price', format: (val) => formatCurrency(String(val), 'N/A') },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
     ],
   },
   carrier: {
@@ -176,7 +177,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'email', label: 'Email', icon: Mail },
       { key: 'phone', label: 'Phone', icon: Phone },
       { key: 'address', label: 'Address', icon: MapPin },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
     ],
   },
   contact: {
@@ -189,7 +190,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'phone', label: 'Phone', icon: Phone },
       { key: 'title', label: 'Title' },
       { key: 'company', label: 'Company', icon: Building2 },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
     ],
   },
   plant: {
@@ -201,7 +202,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'plant_est_num', label: 'Est. Number', icon: FileText },
       { key: 'city', label: 'City', icon: MapPin },
       { key: 'state', label: 'State' },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
     ],
   },
   invoice: {
@@ -214,7 +215,7 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'customer_name', label: 'Customer', icon: Users },
       { key: 'amount', label: 'Amount', format: (val) => formatCurrency(String(val), 'N/A') },
       { key: 'status', label: 'Status' },
-      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(String(val)).toLocaleDateString() },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
     ],
   },
 };
@@ -541,7 +542,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
                               <RelationItemName>{item.name}</RelationItemName>
                               {item.metadata?.created_at ? (
                                 <RelationItemMeta>
-                                  {new Date(String(item.metadata.created_at)).toLocaleDateString()}
+                                  {dayjs(String(item.metadata.created_at)).format('MMM D, YYYY')}
                                 </RelationItemMeta>
                               ) : null}
                             </RelationItemCard>

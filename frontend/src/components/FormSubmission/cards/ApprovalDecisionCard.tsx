@@ -15,6 +15,7 @@
  */
 
 import React, { useState } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { CheckSquare, X, Check, AlertCircle, User, Calendar } from 'lucide-react';
 import { InteractionCardProps } from '../InteractionCardRegistry';
@@ -441,7 +442,7 @@ export const ApprovalDecisionCard: React.FC<InteractionCardProps> = ({
         </MetadataItem>
         <MetadataItem>
           <Calendar />
-          <span>{new Date().toLocaleDateString()}</span>
+          <span>{dayjs().format('MMM D, YYYY')}</span>
         </MetadataItem>
       </MetadataSection>
     </CardContainer>

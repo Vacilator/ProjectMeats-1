@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
 import { toast } from 'react-hot-toast';
@@ -603,7 +604,7 @@ const AccountsReceivables: React.FC = () => {
                 <TableCell>{receivable.invoice_number}</TableCell>
                 <TableCell>{receivable.customer_name || receivable.customer}</TableCell>
                 <TableCell>{formatCurrency(receivable.total)}</TableCell>
-                <TableCell>{receivable.due_date ? new Date(receivable.due_date).toLocaleDateString() : 'N/A'}</TableCell>
+                <TableCell>{receivable.due_date ? dayjs(receivable.due_date).format('MMM D, YYYY') : 'N/A'}</TableCell>
                 <TableCell>
                   <StatusBadge $color={getStatusColor(receivable.status)}>
                     {receivable.status.toUpperCase()}

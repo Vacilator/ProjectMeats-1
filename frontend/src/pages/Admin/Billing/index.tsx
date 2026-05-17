@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -327,7 +328,7 @@ const BillingPage: React.FC = () => {
       dataIndex: 'date',
       key: 'date',
       width: 120,
-      render: (iso: string) => <Text>{new Date(iso).toLocaleDateString()}</Text>,
+      render: (iso: string) => <Text>{dayjs(iso).format('MMM D, YYYY')}</Text>,
     },
     {
       title: 'Invoice #',
@@ -497,7 +498,7 @@ const BillingPage: React.FC = () => {
                     <Col span={12}>
                       <Statistic
                         title="Next Billing Date"
-                        value={new Date(nextBillingDate).toLocaleDateString()}
+                        value={dayjs(nextBillingDate).format('MMM D, YYYY')}
                       />
                     </Col>
                     <Col span={12}>
