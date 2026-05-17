@@ -13,18 +13,19 @@
  * 
  * Pattern: Follows Invoices.tsx architecture with side panel integration
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList } from '../../components/Shared';
 import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal } from '../../utils/formatters';
 import { buildCsv, downloadCsv } from '@/utils/csv';
-import { logger } from '@/utils/logger';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -354,52 +355,43 @@ const EmptyMessage = styled.div`
 const PayablePOs: React.FC = () => {
   useDocumentTitle('Payable POs');
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<PurchaseOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'partial' | 'paid'>('all');
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Fetch purchase orders with accounting focus
-  const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
+  const ordersQuery = useQuery({
+    queryKey: withTenantQueryKey('payable-pos', statusFilter),
+    queryFn: async () => {
       const params: Record<string, unknown> = {};
       if (statusFilter !== 'all') {
         params.payment_status = statusFilter;
       }
-      
       const response = await businessApi.get('purchase-orders/', { params });
-      
       const ordersWithPaymentStatus = response.data.results || response.data;
-      setOrders(ordersWithPaymentStatus.map((order: PurchaseOrder) => ({
+      return ordersWithPaymentStatus.map((order: PurchaseOrder) => ({
         ...order,
         payment_status: order.payment_status || 'unpaid',
         outstanding_amount: order.outstanding_amount || order.total_amount,
-      })));
-    } catch (err: unknown) {
-      logger.error('Failed to fetch purchase orders:', err);
-      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
-      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
-      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
-      setError((typeof data.message === 'string' ? data.message : '') || 'Failed to load purchase orders');
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter]);
+      })) as PurchaseOrder[];
+    },
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  const orders = ordersQuery.data ?? [];
+  const loading = ordersQuery.isLoading;
+  const error = ordersQuery.error ? 'Failed to load purchase orders' : null;
+
+  const refreshOrders = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('payable-pos') }),
+    [queryClient]
+  );
 
   const handlePaymentModalClose = useCallback(() => setShowPaymentModal(false), []);
   const handlePaymentSuccess = useCallback(() => {
-    fetchOrders();
+    refreshOrders();
     setShowPaymentModal(false);
-  }, [fetchOrders]);
+  }, [refreshOrders]);
 
   // Count orders by status
   const counts = {
