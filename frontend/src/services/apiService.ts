@@ -212,15 +212,22 @@ apiClient.interceptors.request.use(
 
       const isAuthEndpoint = isAuthEndpointRequest(config.url);
 
-      // Check if token needs refresh before making request
-      // IMPORTANT: do NOT block the request path on refresh.
-      // If refresh is slow/unreachable (common in dev), awaiting here can freeze app bootstraps (Quick Actions).
-      // The response interceptor will handle 401s and trigger a single refresh attempt with proper queuing.
+      // Check if token needs refresh before making request.
+      // We await the refresh (with a short timeout) to avoid sending expired
+      // tokens that would trigger a 401 → refresh → retry roundtrip.
+      // If refresh is slow/unreachable, the timeout expires and the request
+      // proceeds with the expired token — the response interceptor will
+      // handle the resulting 401 with proper queuing.
       if (!isAuthEndpoint && isUsingJwt() && needsRefresh() && !isRefreshing) {
-        logger.debug('[API] Token needs refresh, attempting refresh in background...');
-        refreshAccessToken().catch((error) => {
-          logger.error('[API] Token refresh failed in request interceptor:', error);
-        });
+        logger.debug('[API] Token needs refresh, awaiting refresh...');
+        try {
+          await Promise.race([
+            refreshAccessToken(),
+            new Promise((resolve) => setTimeout(resolve, 3000)),
+          ]);
+        } catch (refreshErr) {
+          logger.debug('[API] Token refresh attempt failed, proceeding with existing token:', refreshErr);
+        }
       }
 
       // Get auth header (supports both JWT Bearer and legacy Token)
@@ -265,13 +272,18 @@ adminClient.interceptors.request.use(
 
       const isAuthEndpoint = isAuthEndpointRequest(config.url);
 
-      // Check if token needs refresh before making request
-      // IMPORTANT: do NOT block the request path on refresh. (See apiClient interceptor note.)
+      // Check if token needs refresh before making request.
+      // Awaits refresh (with timeout) to avoid sending expired tokens.
       if (!isAuthEndpoint && isUsingJwt() && needsRefresh() && !isRefreshing) {
-        logger.debug('[Admin API] Token needs refresh, attempting refresh in background...');
-        refreshAccessToken().catch((error) => {
-          logger.error('[Admin API] Token refresh failed in request interceptor:', error);
-        });
+        logger.debug('[Admin API] Token needs refresh, awaiting refresh...');
+        try {
+          await Promise.race([
+            refreshAccessToken(),
+            new Promise((resolve) => setTimeout(resolve, 3000)),
+          ]);
+        } catch (refreshErr) {
+          logger.debug('[Admin API] Token refresh attempt failed, proceeding with existing token:', refreshErr);
+        }
       }
 
       const authHeader = !isAuthEndpoint ? getAuthHeader() : null;
