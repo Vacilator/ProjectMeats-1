@@ -531,12 +531,12 @@ export const InquiryAnalyticsDashboard: React.FC<InquiryAnalyticsDashboardProps>
                 {data.trend.map((week, idx) => (
                   <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'stretch' }}>
                     <TrendBar 
-                      $height={(week.accepted / maxTrendValue) * 100} 
+                      $height={maxTrendValue > 0 ? ((week.accepted || 0) / maxTrendValue) * 100 : 0} 
                       $variant="won"
                       title={`Won: ${week.accepted}`}
                     />
                     <TrendBar 
-                      $height={(week.rejected / maxTrendValue) * 100} 
+                      $height={maxTrendValue > 0 ? ((week.rejected || 0) / maxTrendValue) * 100 : 0} 
                       $variant="lost"
                       title={`Lost: ${week.rejected}`}
                     />

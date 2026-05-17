@@ -591,7 +591,7 @@ export const FulfillmentDetailModal: React.FC<FulfillmentDetailModalProps> = ({
                 {fulfillment.tracking_numbers.length > 0 ? (
                   <TrackingList>
                     {fulfillment.tracking_numbers.map((num, idx) => (
-                      <TrackingTag key={idx}>{num}</TrackingTag>
+                      <TrackingTag key={num || idx}>{num}</TrackingTag>
                     ))}
                   </TrackingList>
                 ) : (

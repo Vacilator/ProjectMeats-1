@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Skeleton } from 'antd';
+import { Skeleton, Result, Button } from 'antd';
 import { ClipboardList } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
@@ -159,6 +159,11 @@ const DeleteButton = styled.button`
   &:hover {
     background: rgb(var(--color-error));
   }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const PurchaseOrders: React.FC = () => {
@@ -171,11 +176,14 @@ const PurchaseOrders: React.FC = () => {
   const [editingPurchaseOrder, setEditingPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [poSearchText, setPoSearchText] = useState('');
   const [poActiveTab, setPoActiveTab] = useState('all');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // React Query: tenant-scoped purchase orders
   const {
     data: purchaseOrders = [],
     isLoading: posLoading,
+    isError: posError,
+    refetch: posRefetch,
   } = useQuery({
     queryKey: withTenantQueryKey('purchase-orders'),
     queryFn: async () => {
@@ -339,6 +347,7 @@ const PurchaseOrders: React.FC = () => {
 
     if (!confirmed) return;
 
+    setDeletingId(id);
     try {
       await businessApi.delete(`purchase-orders/${id}/`);
       showAlert({
@@ -359,6 +368,8 @@ const PurchaseOrders: React.FC = () => {
         title: 'Error',
         content: `Error: ${errorMessage}`,
       });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -403,6 +414,19 @@ const PurchaseOrders: React.FC = () => {
     return (
       <div style={{ padding: 16 }}>
         <Skeleton active paragraph={{ rows: 8 }} />
+      </div>
+    );
+  }
+
+  if (posError) {
+    return (
+      <div style={{ padding: 16 }}>
+        <Result
+          status="error"
+          title="Failed to load purchase orders"
+          subTitle="Something went wrong. Please try again."
+          extra={<Button type="primary" onClick={() => void posRefetch()}>Retry</Button>}
+        />
       </div>
     );
   }
@@ -626,12 +650,13 @@ const PurchaseOrders: React.FC = () => {
                             Edit
                           </ActionButton>
                           <DeleteButton
+                            disabled={deletingId !== null}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDelete(purchaseOrder.id);
                             }}
                           >
-                            Delete
+                            {deletingId === purchaseOrder.id ? 'Deleting…' : 'Delete'}
                           </DeleteButton>
                         </TableCell>
                       </TableRow>

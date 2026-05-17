@@ -451,7 +451,7 @@ const StepIcon = styled.div<{ $active: boolean; $done: boolean }>`
       ? 'rgb(var(--color-primary))'
       : 'rgba(var(--color-surface-hover), 0.8)'};
   color: ${({ $active, $done }) =>
-    $done || $active ? 'rgb(255, 255, 255)' : 'rgb(var(--color-text-secondary))'};
+    $done || $active ? 'rgb(var(--color-primary-foreground, 255, 255, 255))' : 'rgb(var(--color-text-secondary))'};
   border: 2px solid ${({ $active, $done }) =>
     $done
       ? 'rgb(var(--color-success))'

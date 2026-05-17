@@ -67,6 +67,7 @@ const Customers: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState<string | number | null>(null);
 
   const customersQuery = useQuery({
     queryKey: withTenantQueryKey('customers'),
@@ -156,12 +157,15 @@ const Customers: React.FC = () => {
       });
       if (!confirmed) return;
 
+      setDeletingId(customerId);
       try {
         await businessApi.delete(`customers/${customerId}/`);
         await refreshCustomers();
       } catch (err) {
         logger.error('Failed to delete customer', { component: 'Customers' }, err);
         message.error('Failed to delete customer. Please try again.');
+      } finally {
+        setDeletingId(null);
       }
     },
     [customers, refreshCustomers]
@@ -240,6 +244,8 @@ const Customers: React.FC = () => {
             <Button
               type="link"
               danger
+              loading={deletingId === record.id}
+              disabled={deletingId !== null}
               onClick={(e) => {
                 e.stopPropagation();
                 void handleDelete(record.id ?? '');

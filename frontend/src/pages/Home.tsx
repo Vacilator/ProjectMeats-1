@@ -53,9 +53,11 @@ const Home: React.FC = () => {
   const totalActionItems = actionItemCounts?.total ?? actionItems.length;
 
   useEffect(() => {
+    let cancelled = false;
     void Promise.resolve(authService.getCurrentUser())
-      .then(setUser)
-      .catch(() => setUser(null));
+      .then((u) => { if (!cancelled) setUser(u); })
+      .catch(() => { if (!cancelled) setUser(null); });
+    return () => { cancelled = true; };
   }, []);
 
   const greeting = useMemo(() => {
@@ -557,11 +559,11 @@ const NavTileBadge = styled.span<{ $variant?: 'primary' | 'danger' }>`
     p.$variant === 'danger'
       ? css`
           background: rgb(var(--color-error, 239, 68, 68));
-          color: rgb(255, 255, 255);
+          color: rgb(var(--color-primary-foreground, 255, 255, 255));
         `
       : css`
           background: rgb(var(--color-primary, 102, 126, 234));
-          color: rgb(255, 255, 255);
+          color: rgb(var(--color-primary-foreground, 255, 255, 255));
         `}
 `;
 

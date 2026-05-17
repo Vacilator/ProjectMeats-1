@@ -34,6 +34,7 @@ const Suppliers: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState<string | number | null>(null);
 
   const suppliersQuery = useQuery({
     queryKey: withTenantQueryKey('suppliers'),
@@ -123,12 +124,15 @@ const Suppliers: React.FC = () => {
       });
       if (!confirmed) return;
 
+      setDeletingId(supplierId);
       try {
         await businessApi.delete(`suppliers/${supplierId}/`);
         await refreshSuppliers();
       } catch (err) {
         logger.error('Failed to delete supplier', { component: 'Suppliers' }, err);
         message.error('Failed to delete supplier. Please try again.');
+      } finally {
+        setDeletingId(null);
       }
     },
     [refreshSuppliers, suppliers]
@@ -206,6 +210,8 @@ const Suppliers: React.FC = () => {
             <Button
               type="link"
               danger
+              loading={deletingId === record.id}
+              disabled={deletingId !== null}
               onClick={(e) => {
                 e.stopPropagation();
                 void handleDelete(record.id ?? '');

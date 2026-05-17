@@ -1761,7 +1761,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           >
             <option value="">Select {field.label}...</option>
             {opts.map((opt, i) => (
-              <option key={i} value={opt.value}>{opt.label}</option>
+              <option key={opt.value || i} value={opt.value}>{opt.label}</option>
             ))}
           </SelectInput>
         );
@@ -1794,7 +1794,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                   No options found
                 </div>
               ) : filteredOpts.map((opt, i) => (
-                <MultiSelectOption key={i} $selected={selectedValues.includes(opt.value)} role="option" aria-selected={selectedValues.includes(opt.value)}>
+                <MultiSelectOption key={opt.value || i} $selected={selectedValues.includes(opt.value)} role="option" aria-selected={selectedValues.includes(opt.value)}>
                   <input
                     type="checkbox"
                     id={`${fieldId}-opt-${i}`}
