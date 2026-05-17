@@ -18,10 +18,12 @@ import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { useSearchParams } from 'react-router-dom';
 import {
+  Button as AntButton,
   Card,
   Col,
   Empty,
   Input,
+  Result,
   Row,
   Select,
   Spin,
@@ -378,7 +380,7 @@ const EmptyIcon = styled.div`
 const ChatSessionsTab: React.FC = () => {
   const [search, setSearch] = useState('');
 
-  const { data: sessions = [], isLoading } = useQuery<ChatSession[]>({
+  const { data: sessions = [], isLoading, isError, refetch } = useQuery<ChatSession[]>({
     queryKey: withTenantQueryKey('ai-chat-sessions'),
     queryFn: () => chatSessionsApi.list(),
     staleTime: 30_000,
@@ -422,6 +424,15 @@ const ChatSessionsTab: React.FC = () => {
   };
 
   if (isLoading) return <Spin style={{ display: 'block', margin: '40px auto' }} />;
+
+  if (isError) return (
+    <Result
+      status="error"
+      title="Failed to load chat sessions"
+      subTitle="Something went wrong. Please try again."
+      extra={<AntButton type="primary" onClick={() => refetch()}>Retry</AntButton>}
+    />
+  );
 
   return (
     <>
@@ -626,7 +637,7 @@ const PreferencesTab: React.FC = () => {
 // ============================================================================
 
 const LearningTab: React.FC = () => {
-  const { data: snapshots = [], isLoading } = useQuery<AILearningSnapshot[]>({
+  const { data: snapshots = [], isLoading, isError: isSnapshotsError, refetch: refetchSnapshots } = useQuery<AILearningSnapshot[]>({
     queryKey: withTenantQueryKey('ai-learning-snapshots'),
     queryFn: () => learningSnapshotsApi.list(),
     staleTime: 60_000,
@@ -639,6 +650,15 @@ const LearningTab: React.FC = () => {
   });
 
   if (isLoading) return <Spin style={{ display: 'block', margin: '40px auto' }} />;
+
+  if (isSnapshotsError) return (
+    <Result
+      status="error"
+      title="Failed to load learning data"
+      subTitle="Something went wrong. Please try again."
+      extra={<AntButton type="primary" onClick={() => refetchSnapshots()}>Retry</AntButton>}
+    />
+  );
 
   const latestByType = new Map<string, AILearningSnapshot>();
   for (const snap of snapshots) {

@@ -8,6 +8,7 @@ import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, RefreshCw, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Result, Button as AntButton } from 'antd';
 import { businessApi } from '@/services/businessApi';
 import { AdminPage, AdminSection } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
@@ -461,7 +462,14 @@ export default function DiagnosticsPage() {
             )}
           </FiltersRow>
 
-          {logs.length === 0 ? (
+          {logsQuery.isError ? (
+            <Result
+              status="error"
+              title="Failed to load error logs"
+              subTitle="Something went wrong. Please try again."
+              extra={<AntButton type="primary" onClick={() => logsQuery.refetch()}>Retry</AntButton>}
+            />
+          ) : logs.length === 0 ? (
             <EmptyState>
               {logsQuery.isLoading ? 'Loading...' : '✅ No errors found — looking good!'}
             </EmptyState>

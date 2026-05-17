@@ -9,7 +9,7 @@
  * - Ship/Deliver/Complete actions
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { Skeleton } from 'antd';
+import { Skeleton, Result, Button as AntButton } from 'antd';
 import styled from 'styled-components';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { businessApi } from '@/services/businessApi';
@@ -338,11 +338,12 @@ const Fulfillments: React.FC = () => {
             <Skeleton active paragraph={{ rows: 6 }} />
           </LoadingState>
         ) : error ? (
-          <EmptyState>
-            <div className="icon">⚠️</div>
-            <div className="title">Error Loading Fulfillments</div>
-            <div className="description">{error}</div>
-          </EmptyState>
+          <Result
+            status="error"
+            title="Failed to load fulfillments"
+            subTitle="Something went wrong. Please try again."
+            extra={<AntButton type="primary" onClick={() => fulfillmentsQuery.refetch()}>Retry</AntButton>}
+          />
         ) : fulfillments.length === 0 ? (
           <EmptyState>
             <div className="icon">📦</div>

@@ -16,7 +16,7 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { Skeleton } from 'antd';
+import { Skeleton, Result, Button as AntButton } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ActivityFeed, RecordPaymentModal, PaymentHistoryList } from '../../components/Shared';
@@ -449,7 +449,12 @@ const PayablePOs: React.FC = () => {
                 <Skeleton active paragraph={{ rows: 8 }} />
               </div>
             ) : error ? (
-              <ErrorMessage>{error}</ErrorMessage>
+              <Result
+                status="error"
+                title="Failed to load purchase orders"
+                subTitle="Something went wrong. Please try again."
+                extra={<AntButton type="primary" onClick={() => ordersQuery.refetch()}>Retry</AntButton>}
+              />
             ) : orders.length === 0 ? (
               <EmptyMessage>No purchase orders found. Try adjusting your filters.</EmptyMessage>
             ) : (

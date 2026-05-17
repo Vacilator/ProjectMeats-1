@@ -18,7 +18,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { Skeleton } from 'antd';
+import { Skeleton, Result, Button as AntButton } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { showAlert } from '@/utils/uiDialogs';
@@ -560,7 +560,14 @@ export const Claims: React.FC = () => {
           </FilterBar>
 
           {/* Error State */}
-          {error && <ErrorState>{error}</ErrorState>}
+          {error && (
+            <Result
+              status="error"
+              title="Failed to load claims"
+              subTitle="Something went wrong. Please try again."
+              extra={<AntButton type="primary" onClick={() => claimsQuery.refetch()}>Retry</AntButton>}
+            />
+          )}
 
           {/* Table */}
           <TableContainer>

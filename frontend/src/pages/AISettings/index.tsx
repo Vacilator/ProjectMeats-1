@@ -10,7 +10,7 @@
  */
 
 import React, { useState } from 'react';
-import { Tabs, Card, Switch, Typography, Space, Select, Divider, Spin, Empty, Statistic, Row, Col } from 'antd';
+import { Tabs, Card, Switch, Typography, Space, Select, Divider, Spin, Empty, Statistic, Row, Col, Result, Button as AntButton } from 'antd';
 import {
   SafetyCertificateOutlined,
   SettingOutlined,
@@ -188,7 +188,7 @@ const SettingsTab: React.FC = () => {
 // --- Learning Dashboard Tab ---
 
 const LearningTab: React.FC = () => {
-  const { data: snapshots = [], isLoading } = useQuery<AILearningSnapshot[]>({
+  const { data: snapshots = [], isLoading, isError, refetch } = useQuery<AILearningSnapshot[]>({
     queryKey: withTenantQueryKey('ai-learning-snapshots'),
     queryFn: () => learningSnapshotsApi.list(),
     staleTime: 60_000,
@@ -201,6 +201,15 @@ const LearningTab: React.FC = () => {
   });
 
   if (isLoading) return <Spin style={{ display: 'block', margin: '40px auto' }} />;
+
+  if (isError) return (
+    <Result
+      status="error"
+      title="Failed to load learning data"
+      subTitle="Something went wrong. Please try again."
+      extra={<AntButton type="primary" onClick={() => refetch()}>Retry</AntButton>}
+    />
+  );
 
   // Aggregate snapshots — latest per entity type
   const latestByType = new Map<string, AILearningSnapshot>();

@@ -5,7 +5,7 @@
  * Manages workflow state and renders the DynamicFormEngine.
  */
 import React, { useState, useEffect } from 'react';
-import { Skeleton } from 'antd';
+import { Skeleton, Result, Button as AntButton } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
@@ -116,7 +116,7 @@ export const WorkflowRunner: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch workflow run details
-  const { data: workflowRun, isLoading, refetch } = useQuery({
+  const { data: workflowRun, isLoading, isError, refetch } = useQuery({
     queryKey: withTenantQueryKey('workflowRun', runId),
     queryFn: async () => {
       const response = await adminClient.get<WorkflowRunResponse>(
@@ -191,6 +191,21 @@ export const WorkflowRunner: React.FC = () => {
       <PageContainer title="Loading Workflow...">
         <Container>
           <Skeleton active paragraph={{ rows: 8 }} />
+        </Container>
+      </PageContainer>
+    );
+  }
+
+  if (isError) {
+    return (
+      <PageContainer title="Error">
+        <Container>
+          <Result
+            status="error"
+            title="Failed to load workflow"
+            subTitle="Something went wrong. Please try again."
+            extra={<AntButton type="primary" onClick={() => refetch()}>Retry</AntButton>}
+          />
         </Container>
       </PageContainer>
     );
