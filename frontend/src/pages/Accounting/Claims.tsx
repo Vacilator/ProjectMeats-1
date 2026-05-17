@@ -16,9 +16,10 @@
  * - Buttons: rgb(var(--color-primary)) background
  * - No hardcoded colors
  */
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Skeleton } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { showAlert } from '@/utils/uiDialogs';
 import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
@@ -31,6 +32,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { StatusActionCell } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
+import { withTenantQueryKey } from '@/utils/queryKeys';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -418,49 +420,40 @@ const ActionButton = styled.button<{ $variant?: 'approve' | 'deny' | 'settle' | 
 
 export const Claims: React.FC = () => {
   useDocumentTitle('Claims');
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<ClaimType>('payable');
-  const [claims, setClaims] = useState<Claim[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | 'all'>('all');
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleModalClose = useCallback(() => setIsModalOpen(false), []);
 
-  const fetchClaims = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
+  const claimsQuery = useQuery({
+    queryKey: withTenantQueryKey('claims', activeTab),
+    queryFn: async () => {
       const response = await businessApi.get('claims/', {
-        params: {
-          type: activeTab,
-        },
+        params: { type: activeTab },
       });
+      return (response.data.results || response.data) as Claim[];
+    },
+    staleTime: 30_000,
+  });
 
-      setClaims(response.data.results || response.data);
-    } catch (err: unknown) {
-      logger.error('Failed to fetch claims:', err);
-      const errObj = (err && typeof err === 'object' ? err : {}) as Record<string, unknown>;
-      const resp = (errObj.response && typeof errObj.response === 'object' ? errObj.response : {}) as Record<string, unknown>;
-      const data = (resp.data && typeof resp.data === 'object' ? resp.data : {}) as Record<string, unknown>;
-      setError((typeof data.detail === 'string' ? data.detail : '') || 'Failed to load claims');
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab]);
+  const claims = claimsQuery.data ?? [];
+  const loading = claimsQuery.isLoading;
+  const error = claimsQuery.error ? 'Failed to load claims' : null;
 
-  const handleCreateSuccess = useCallback(() => fetchClaims(), [fetchClaims]);
+  const refreshClaims = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('claims') }),
+    [queryClient]
+  );
+
+  const handleCreateSuccess = useCallback(() => refreshClaims(), [refreshClaims]);
 
   const claimCreateInitialValues = useMemo(
     () => ({ claim_type: activeTab } as const),
     [activeTab]
   );
-
-  useEffect(() => {
-    fetchClaims();
-  }, [fetchClaims]);
 
   const handleClaimClick = (claim: Claim) => {
     setSelectedClaim(claim);
@@ -479,8 +472,8 @@ export const Claims: React.FC = () => {
 
       const response = await businessApi.patch(`/api/v1/claims/${claimId}/`, updateData);
 
-      // Update local state
-      setClaims(claims.map(c => c.id === claimId ? response.data : c));
+      // Refresh the claims list and update selected claim
+      refreshClaims();
       setSelectedClaim(response.data);
     } catch (err: unknown) {
       logger.error('Failed to update claim status:', err);
@@ -615,7 +608,7 @@ export const Claims: React.FC = () => {
                           entityType="claim"
                           entityId={claim.id}
                           status={claim.status}
-                          onTransitioned={() => fetchClaims()}
+                          onTransitioned={() => refreshClaims()}
                         />
                       </TableCell>
                       <TableCell>{claim.created_by_name}</TableCell>
