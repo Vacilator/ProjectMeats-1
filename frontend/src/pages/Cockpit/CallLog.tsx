@@ -16,7 +16,7 @@
  *
  * Updated: 2026-02-03 - Renamed from "Call Log" to "Calls"
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Skeleton } from 'antd';
 import styled from 'styled-components';
 import { Calendar, Badge, Segmented } from 'antd';
@@ -658,7 +658,9 @@ export const CallLog: React.FC = () => {
   const callsQuery = useQuery({
     queryKey: withTenantQueryKey('scheduled-calls'),
     queryFn: async () => {
-      const response = await businessApi.get('/workspace/scheduled-calls/');
+      const response = await businessApi.get('/workspace/scheduled-calls/', {
+        params: { page_size: 200 },
+      });
       const callsData = (response.data.results || response.data) as ScheduledCall[];
       callsData.sort((a, b) =>
         new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()
@@ -859,10 +861,20 @@ export const CallLog: React.FC = () => {
   // Phase 4: Month View Cell Renderer
   // ============================================================================
 
+  /** Pre-group calls by YYYY-MM-DD to avoid O(n) filter per calendar cell */
+  const callsByDate = useMemo(() => {
+    const map = new Map<string, ScheduledCall[]>();
+    for (const call of calls) {
+      const key = dayjs(call.scheduled_for).format('YYYY-MM-DD');
+      const arr = map.get(key);
+      if (arr) arr.push(call);
+      else map.set(key, [call]);
+    }
+    return map;
+  }, [calls]);
+
   const dateCellRender = (date: Dayjs) => {
-    const callsForDate = calls.filter(call =>
-      dayjs(call.scheduled_for).format('YYYY-MM-DD') === date.format('YYYY-MM-DD')
-    );
+    const callsForDate = callsByDate.get(date.format('YYYY-MM-DD')) ?? [];
 
     return (
       <div style={{ overflow: 'hidden' }}>
@@ -959,15 +971,13 @@ export const CallLog: React.FC = () => {
 
   const renderDayView = () => {
     const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8 AM to 6 PM
+    const dayKey = currentDate.format('YYYY-MM-DD');
+    const dayCalls = callsByDate.get(dayKey) ?? [];
 
     return (
       <TimeSlotGrid>
         {hours.map(hour => {
-          const callsForHour = calls.filter(call => {
-            const callDate = dayjs(call.scheduled_for);
-            return callDate.format('YYYY-MM-DD') === currentDate.format('YYYY-MM-DD') &&
-                   callDate.hour() === hour;
-          });
+          const callsForHour = dayCalls.filter(call => dayjs(call.scheduled_for).hour() === hour);
 
           return (
             <React.Fragment key={hour}>
@@ -1029,11 +1039,9 @@ export const CallLog: React.FC = () => {
           <React.Fragment key={hour}>
             <TimeLabel>{dayjs().hour(hour).format('h A')}</TimeLabel>
             {days.map(day => {
-              const callsForSlot = calls.filter(call => {
-                const callDate = dayjs(call.scheduled_for);
-                return callDate.format('YYYY-MM-DD') === day.format('YYYY-MM-DD') &&
-                       callDate.hour() === hour;
-              });
+              const dayKey = day.format('YYYY-MM-DD');
+              const dayCalls = callsByDate.get(dayKey) ?? [];
+              const callsForSlot = dayCalls.filter(call => dayjs(call.scheduled_for).hour() === hour);
 
               return (
                 <WeekTimeSlot
