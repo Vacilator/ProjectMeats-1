@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import dayjs from 'dayjs';
 import { Link } from 'react-router-dom';
 import {
   configService,
@@ -557,7 +558,7 @@ const TenantConfigsTab: React.FC<TenantConfigsTabProps> = ({ configsByCategory }
                       </code>
                     </td>
                     <td className="px-4 py-3 text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
-                      {new Date(config.updated_at).toLocaleDateString()}
+                      {dayjs(config.updated_at).format('MMM D, YYYY')}
                     </td>
                   </tr>
                 ))}

@@ -5,6 +5,7 @@
  * to whom, when, and any notes associated with each delegation.
  */
 import React from 'react';
+import dayjs from 'dayjs';
 import styled, { css, keyframes } from 'styled-components';
 import { formatDateLocal } from '@/utils/formatters';
 
@@ -250,10 +251,7 @@ const getInitials = (name: string): string => {
 
 const formatShortDate = (dateStr: string): string => {
   const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
+  return dayjs(date).format('MMM D');
 };
 
 const getStatusLabel = (status: DelegationRecord['status']): string => {

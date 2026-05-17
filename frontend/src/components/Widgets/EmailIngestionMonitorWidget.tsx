@@ -8,6 +8,7 @@
  * Created: 2026-02-28 - Phase 5.6 Email Ingestion Monitoring
  */
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { message } from 'antd';
 import { Mail, RefreshCw, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-react';
@@ -477,7 +478,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
                   ) : null}
                   {email.has_attachments && <span>📎</span>}
                   <span>•</span>
-                  <span>{new Date(email.created_at).toLocaleDateString()}</span>
+                  <span>{dayjs(email.created_at).format('MMM D, YYYY')}</span>
                 </EmailMeta>
                 {email.status === 'failed' && email.error_message ? (
                   <EmailMeta style={{ color: 'rgb(var(--color-error))' }}>

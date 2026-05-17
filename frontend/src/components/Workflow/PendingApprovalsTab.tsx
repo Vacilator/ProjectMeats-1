@@ -11,6 +11,7 @@
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
+import dayjs from 'dayjs';
 import styled, { keyframes } from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, message } from 'antd';
@@ -339,7 +340,7 @@ const formatTimeAgo = (dateStr: string): string => {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(ms / 86_400_000);
   if (d < 7) return `${d}d ago`;
-  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return dayjs(dateStr).format('MMM D');
 };
 
 // ============================================================================

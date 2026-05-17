@@ -4,6 +4,7 @@
  * Displays a list of chat messages with proper formatting and styling.
  */
 import React from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import {
   ChatMessage,
@@ -47,7 +48,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours}h ago`;
 
-    return date.toLocaleDateString();
+    return dayjs(date).format('MMM D, YYYY');
   };
 
   const getMessageIcon = (type: string): string => {

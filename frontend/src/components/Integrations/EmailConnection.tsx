@@ -5,6 +5,7 @@
  * Supports Microsoft Outlook (primary) and Gmail (future).
  */
 import React, { useState } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { toast } from 'react-hot-toast';
 import { Mail, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
@@ -112,10 +113,10 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
             {connectedName && <InfoRow><strong>{connectedName}</strong></InfoRow>}
             <InfoRow>{connectedEmail || 'Mailbox connected (email unavailable)'}</InfoRow>
             {connectedAt && (
-              <MetaRow>Connected on {new Date(connectedAt).toLocaleDateString()}</MetaRow>
+              <MetaRow>Connected on {dayjs(connectedAt).format('MMM D, YYYY')}</MetaRow>
             )}
             {lastCheckedAt && (
-              <MetaRow>Last checked {new Date(lastCheckedAt).toLocaleTimeString()}</MetaRow>
+              <MetaRow>Last checked {dayjs(lastCheckedAt).format('h:mm:ss A')}</MetaRow>
             )}
           </ConnectionInfo>
 

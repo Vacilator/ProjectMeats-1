@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import dayjs from 'dayjs';
 import { Link } from 'react-router-dom';
 import { adminClient } from '@/services/apiService';
 import { showAlert } from '@/utils/uiDialogs';
@@ -97,7 +98,7 @@ export const Dashboard: React.FC = () => {
                     {bp.name}
                   </h3>
                   <p className="text-sm" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
-                    Created: {new Date(bp.created_at).toLocaleDateString()}
+                    Created: {dayjs(bp.created_at).format('MMM D, YYYY')}
                   </p>
                 </div>
               </Link>

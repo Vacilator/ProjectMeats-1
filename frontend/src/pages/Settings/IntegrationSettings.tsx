@@ -2,6 +2,7 @@
  * Integration Settings Page - Connect email providers (Microsoft, Gmail, etc.)
  */
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import { Skeleton } from 'antd';
 import { AlertCircle, CheckCircle, Mail, ExternalLink } from 'lucide-react';
 import { confirmDialog } from '@/utils/uiDialogs';
@@ -235,7 +236,7 @@ const EmailProviderCard: React.FC<EmailProviderCardProps> = ({
                   <strong>{connection.connected_name}</strong> ({connection.connected_email})
                 </p>
                 <p className="text-xs" style={{ color: 'rgb(var(--color-text-tertiary))' }}>
-                  Connected on {new Date(connection.connected_at).toLocaleDateString()}
+                  Connected on {dayjs(connection.connected_at).format('MMM D, YYYY')}
                 </p>
               </div>
             )}

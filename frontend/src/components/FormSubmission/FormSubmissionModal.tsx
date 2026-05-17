@@ -13,6 +13,7 @@
  * - New field types: rating, slider, signature, richtext
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import dayjs from 'dayjs';
 import { logger } from '@/utils/logger';
 import { formatUsPhone } from '@/utils/phone';
 
@@ -2056,7 +2057,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             <HeaderTitle>
               <h2>👁️ {submission?.form_name || 'Form'}</h2>
               {lastSaved && (
-                <p>Last saved: {lastSaved.toLocaleTimeString()}</p>
+                <p>Last saved: {dayjs(lastSaved).format('h:mm:ss A')}</p>
               )}
             </HeaderTitle>
           </HeaderLeft>

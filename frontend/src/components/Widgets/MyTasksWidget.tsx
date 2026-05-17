@@ -14,6 +14,7 @@
  * - Uses CSS custom properties
  */
 import React from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { CheckCircle, Clock, AlertTriangle, ChevronRight, ListTodo } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -182,7 +183,7 @@ function formatDueDate(dueDate: string | null): string {
   if (days === 0) return 'Due today';
   if (days === 1) return 'Due tomorrow';
   if (days <= 7) return `Due in ${days}d`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return dayjs(date).format('MMM D');
 }
 
 // ============================================================================

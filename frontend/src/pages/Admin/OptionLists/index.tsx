@@ -8,6 +8,7 @@
  * - System Choice Lists vs Custom Tenant Lists
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -673,7 +674,7 @@ const OptionListsPage: React.FC = () => {
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 140,
-      render: (iso: string) => <Text>{iso ? new Date(iso).toLocaleDateString() : '—'}</Text>,
+      render: (iso: string) => <Text>{iso ? dayjs(iso).format('MMM D, YYYY') : '—'}</Text>,
     },
     {
       title: 'Actions',

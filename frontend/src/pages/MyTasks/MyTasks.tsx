@@ -9,6 +9,7 @@
  * Minimal chrome. Every pixel earns its place.
  */
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import dayjs from 'dayjs';
 import styled, { css, keyframes } from 'styled-components';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Table, Tag, Select, message, Tooltip } from 'antd';
@@ -94,7 +95,7 @@ const formatRelativeDate = (dateStr: string | null): string => {
   if (days === 0) return 'Today';
   if (days === 1) return 'Tomorrow';
   if (days <= 7) return `${days}d`;
-  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return dayjs(dateStr).format('MMM D');
 };
 
 const formatTimeAgo = (dateStr: string): string => {
@@ -106,7 +107,7 @@ const formatTimeAgo = (dateStr: string): string => {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(ms / 86_400_000);
   if (d < 7) return `${d}d ago`;
-  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return dayjs(dateStr).format('MMM D');
 };
 
 /* ─── animations ─── */

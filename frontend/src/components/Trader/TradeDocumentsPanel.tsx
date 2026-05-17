@@ -104,7 +104,7 @@ function formatRelativeDate(iso: string): string {
     return `${diffHrs}h ago`;
   }
   if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return dayjs(date).format('MMM D');
 }
 
 function inferStageFromEntity(entityType: string): TradeStageKey {

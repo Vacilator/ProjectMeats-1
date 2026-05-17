@@ -5,6 +5,7 @@
  * Shows current step, completed steps, and remaining steps in a compact card format.
  */
 import React from 'react';
+import dayjs from 'dayjs';
 import styled, { css, keyframes } from 'styled-components';
 
 // ============================================================================
@@ -335,7 +336,7 @@ const formatTimeAgo = (dateStr: string): string => {
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
+  return dayjs(date).format('MMM D, YYYY');
 };
 
 const getStatusLabel = (status: WorkflowProgressCardProps['status']): string => {

@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import {
   Button,
   Card,
@@ -160,7 +161,7 @@ const TYPE_LABELS: Record<string, string> = {
 const formatDate = (dateStr: string | null) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return dayjs(d).format('MMM D, h:mm A');
 };
 
 // --- Component ---
