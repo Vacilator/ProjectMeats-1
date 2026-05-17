@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import {
   GoldenFormOverlay,
@@ -182,13 +183,7 @@ const generateNumber = (prefix: string): string => {
 };
 
 const formatDateTime = (date: Date): string => {
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return dayjs(date).format('MMM D, YYYY h:mm A');
 };
 
 const addDays = (date: Date, days: number): string => {

@@ -14,6 +14,7 @@
  * Theme Compliance: CSS custom properties only.
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -417,13 +418,7 @@ const ChatSessionsTab: React.FC = () => {
 
   const formatTime = (dateStr?: string) => {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return dayjs(dateStr).format('MMM D, h:mm A');
   };
 
   if (isLoading) return <Spin style={{ display: 'block', margin: '40px auto' }} />;
