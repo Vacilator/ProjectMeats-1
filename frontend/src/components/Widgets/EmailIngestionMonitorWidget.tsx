@@ -425,7 +425,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
             <RefreshCw size={12} className={syncing ? 'spinning' : ''} />
             {syncing ? 'Syncing...' : 'Sync'}
           </Button>
-          <Button onClick={fetchEmailLogs} disabled={loading}>
+          <Button onClick={fetchEmailLogs} disabled={loading} aria-label="Refresh email logs">
             <RefreshCw size={12} />
           </Button>
         </Actions>

@@ -288,6 +288,7 @@ const Customers: React.FC = () => {
           />
         ) : (
         <Table<CustomerListRow>
+          aria-label="Customers list"
           rowKey={(row) => String(row.id ?? '')}
           columns={columns}
           dataSource={filteredCustomers}

@@ -261,7 +261,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
             title="Request bids from all draft suppliers"
             aria-label="Request bids from all draft suppliers"
           >
-            <Send size={12} /> Request All Bids
+            <Send size={12} /> {requestAllMutation.isPending ? 'Sending…' : 'Request All Bids'}
           </BulkRequestBtn>
         )}
       </BidPanelHeader>
@@ -284,7 +284,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
               ) : (
                 <MetaValue>
                   {product.respond_by_date_time
-                    ? new Date(product.respond_by_date_time).toLocaleString()
+                    ? dayjs(product.respond_by_date_time).format('MMM D, YYYY h:mm A')
                     : '—'}
                 </MetaValue>
               )}
@@ -303,7 +303,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
               ) : (
                 <MetaValue>
                   {product.fulfillment_date_time
-                    ? new Date(product.fulfillment_date_time).toLocaleString()
+                    ? dayjs(product.fulfillment_date_time).format('MMM D, YYYY h:mm A')
                     : '—'}
                 </MetaValue>
               )}
@@ -355,12 +355,12 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
 
               <BidDates>
                 {bid.requested_at && (
-                  <Tooltip title={`Requested: ${new Date(bid.requested_at).toLocaleString()}`}>
+                  <Tooltip title={`Requested: ${dayjs(bid.requested_at).format('MMM D, YYYY h:mm A')}`}>
                     <DateChip><Send size={10} /> {dayjs(bid.requested_at).format('MM/DD HH:mm')}</DateChip>
                   </Tooltip>
                 )}
                 {bid.responded_at && (
-                  <Tooltip title={`Responded: ${new Date(bid.responded_at).toLocaleString()}`}>
+                  <Tooltip title={`Responded: ${dayjs(bid.responded_at).format('MMM D, YYYY h:mm A')}`}>
                     <DateChip $received><Clock size={10} /> {dayjs(bid.responded_at).format('MM/DD HH:mm')}</DateChip>
                   </Tooltip>
                 )}

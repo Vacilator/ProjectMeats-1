@@ -502,7 +502,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
             </FormRow>
 
             {products.length > 0 ? (
-              <ProductsTable>
+              <ProductsTable aria-label="Template products">
                 <thead>
                   <tr>
                     <TableHeader>Product</TableHeader>
