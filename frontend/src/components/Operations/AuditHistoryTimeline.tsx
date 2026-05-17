@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import dayjs from 'dayjs';
 import { Alert, Empty, Spin, Timeline, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 
@@ -29,7 +30,7 @@ interface AuditHistoryTimelineProps {
 const formatTimestamp = (raw?: string | null): string => {
   if (!raw) return '';
   const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? raw : parsed.toLocaleString();
+  return Number.isNaN(parsed.getTime()) ? raw : dayjs(parsed).format('MMM D, YYYY h:mm A');
 };
 
 const describeChange = (event: AuditEvent): string => {

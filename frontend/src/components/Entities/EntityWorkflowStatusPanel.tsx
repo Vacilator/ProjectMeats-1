@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import type { Edge, Node } from '@xyflow/react';
 import { Alert, Button, Card, Collapse, message, Modal, Spin } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -24,7 +25,7 @@ export interface EntityWorkflowStatusPanelProps {
 const formatTimestamp = (raw?: string | null) => {
   if (!raw) return '';
   const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? raw : d.toLocaleString();
+  return Number.isNaN(d.getTime()) ? raw : dayjs(d).format('MMM D, YYYY h:mm A');
 };
 
 const getErrorMessage = (error: unknown) => {

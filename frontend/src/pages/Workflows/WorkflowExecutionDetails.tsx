@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import { Skeleton } from 'antd';
 import { useParams } from 'react-router-dom';
 import { adminClient } from '../../services/apiService';
@@ -107,14 +108,7 @@ export const WorkflowExecutionDetails: React.FC = () => {
   };
 
   const formatTimestamp = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+    return dayjs(isoString).format('MMM D, h:mm:ss A');
   };
 
   if (loading) {
