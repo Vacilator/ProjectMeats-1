@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 type BreadcrumbResolver = {
   singularLabel: string;
@@ -84,7 +85,8 @@ export function useBreadcrumbNames(
               : fallbackEntityLabel(item.resolver.singularLabel, item.pathname);
 
             return [item.routeTo, displayName] as [string, string];
-          } catch {
+          } catch (err) {
+            logger.debug('Breadcrumb name resolution failed', { err, pathname: item.pathname });
             return [
               item.routeTo,
               fallbackEntityLabel(item.resolver.singularLabel, item.pathname),

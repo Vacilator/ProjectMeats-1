@@ -167,7 +167,7 @@ if (isDevelopment) {
       tenant: tenantContext.tenant || 'none',
       environment: tenantContext.environment,
     });
-  } catch {
-    // Ignore errors in development logging
+  } catch (err) {
+    logger.debug('Runtime config logging failed', { err });
   }
 }

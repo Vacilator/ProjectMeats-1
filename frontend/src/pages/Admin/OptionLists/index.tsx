@@ -710,7 +710,8 @@ const OptionListsPage: React.FC = () => {
       try {
         const opts = await getChoices('protein_type');
         setProteinChoices(opts);
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to fetch protein_type choices', { err });
         setProteinChoices([]);
       }
     })();

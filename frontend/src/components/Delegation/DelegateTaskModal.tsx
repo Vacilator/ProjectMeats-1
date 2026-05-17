@@ -434,8 +434,8 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
             role: String(u.role ?? ''),
           })),
         );
-      } catch {
-        logger.warn('Could not load tenant users for delegation');
+      } catch (err) {
+        logger.warn('Could not load tenant users for delegation', { err });
       }
     };
     load();

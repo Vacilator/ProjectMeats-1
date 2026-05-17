@@ -1132,7 +1132,8 @@ const SchemaEditor: React.FC = () => {
               triggerAutoSave();
             })();
           }
-        } catch {
+        } catch (err) {
+          logger.warn('Schema import failed: invalid JSON', { err });
           showAlert({
             title: 'Invalid JSON',
             content: 'Invalid JSON file. Please check the format.',

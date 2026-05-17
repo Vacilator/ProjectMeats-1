@@ -54,6 +54,7 @@ export interface UnifiedEntityTableProps<Row extends UnifiedEntityTableRow = Uni
 }
 
 import { normalizeSchemaEntityType, entityRecordPath } from '../../utils/entityTypeRegistry';
+import { logger } from '@/utils/logger';
 
 const defaultRecordPath = (entityType: string, id: string) =>
   entityRecordPath(entityType, id);
@@ -121,7 +122,8 @@ export const UnifiedEntityTable = <Row extends UnifiedEntityTableRow = UnifiedEn
     try {
       const resp = await businessApi.get('/system/forms/schema/', { params: { entity_type: schemaKey } });
       setSchema((resp.data as BackendSchema) || null);
-    } catch {
+    } catch (err) {
+      logger.warn('Failed to fetch entity schema', { err, entityType });
       setSchema(null);
     }
   }, [entityType]);

@@ -39,6 +39,7 @@ import { StatusActionCell } from '@/components/Workflow';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -699,7 +700,8 @@ const Invoices: React.FC = () => {
                           try {
                             await traderService.sendInvoiceEmail(String(selectedInvoice.id));
                             message.success('Invoice email sent successfully');
-                          } catch {
+                          } catch (err) {
+                            logger.error('Failed to send invoice email', { err });
                             message.error('Failed to send invoice email');
                           }
                         }}>

@@ -131,8 +131,8 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
     let parsedValue: unknown = rawValue;
     try {
       parsedValue = JSON.parse(rawValue);
-    } catch {
-      // Keep as string if not valid JSON
+    } catch (err) {
+      logger.debug('JSON.parse failed for config value, keeping as string', { err });
     }
     handleConfigChange(index, 'value', parsedValue);
   };

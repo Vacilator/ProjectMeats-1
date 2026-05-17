@@ -38,6 +38,7 @@ import { businessApi } from '@/services/businessApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useTradeSession } from '@/hooks/useTradeSession';
 import { type ResolvedEntityDisplay } from '@/utils/entityDisplay';
+import { logger } from '@/utils/logger';
 
 type RouteParams = {
   id?: string;
@@ -226,8 +227,9 @@ export const UniversalEntityRecordPage: React.FC<UniversalEntityRecordPageProps>
       const payload = (relRes.data || {}) as RelationshipsPayload;
       setRelationshipCounts(payload.counts || {});
       setRelationships(payload.relationships || {});
-    } catch {
+    } catch (err) {
       // Degrade gracefully; related panels can render empty states.
+      logger.warn('Failed to fetch relationship data', { err });
       setRelationshipCounts({});
       setRelationships({});
     } finally {

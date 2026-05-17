@@ -1,4 +1,5 @@
 import { getDocumentEntityConfig, supportsOptimisticOperationalStatus } from './documentOperations';
+import { logger } from '@/utils/logger';
 
 export interface OperationalStatusQueueItem {
   tenantId: string;
@@ -65,7 +66,8 @@ export const readOperationalStatusQueue = (tenantId: string): OperationalStatusQ
     }
 
     return parsed.filter(isOperationalStatusQueueItem);
-  } catch {
+  } catch (err) {
+    logger.debug('Failed to parse operational status queue from localStorage', { err });
     return [];
   }
 };

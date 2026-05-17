@@ -14,6 +14,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { buildCsv, downloadCsv } from '@/utils/csv';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { EmptyState } from './EmptyState';
+import { logger } from '@/utils/logger';
 
 interface Column<T> {
   key: keyof T | string;
@@ -245,7 +246,8 @@ export function AdminTable<T extends Record<string, any>>({
 
           try {
             return JSON.stringify(row);
-          } catch {
+          } catch (err) {
+            logger.debug('JSON.stringify failed for row key fallback', { err });
             return Object.prototype.toString.call(row);
           }
         }}

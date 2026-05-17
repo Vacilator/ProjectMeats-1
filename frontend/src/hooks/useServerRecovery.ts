@@ -50,8 +50,9 @@ export function useServerRecovery(): void {
             logger.info('[ServerRecovery] Backend recovered — refetching all queries');
             void queryClient.invalidateQueries();
           }
-        } catch {
+        } catch (err) {
           // still down — keep polling
+          logger.debug('[ServerRecovery] Backend still unreachable', { err });
         }
       }, POLL_INTERVAL_MS);
     };
