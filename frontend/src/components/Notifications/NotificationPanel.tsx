@@ -9,6 +9,7 @@
  * - Empty state
  */
 import React, { useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -413,18 +414,15 @@ function groupNotificationsByTime(notifications: Notification[]): Record<string,
     return groups;
   }
 
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const today = dayjs().startOf('day');
+  const yesterday = today.subtract(1, 'day');
 
   notifications.forEach(notification => {
-    const date = new Date(notification.created_at);
-    const notifDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const notifDate = dayjs(notification.created_at).startOf('day');
 
-    if (notifDate.getTime() === today.getTime()) {
+    if (notifDate.isSame(today, 'day')) {
       groups['Today'].push(notification);
-    } else if (notifDate.getTime() === yesterday.getTime()) {
+    } else if (notifDate.isSame(yesterday, 'day')) {
       groups['Yesterday'].push(notification);
     } else {
       groups['Earlier'].push(notification);

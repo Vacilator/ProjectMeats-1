@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 
-import { Modal as AntModal } from 'antd';
+import { Modal as AntModal, Result, Button as AntButton } from 'antd';
 import { businessApi } from '@/services/businessApi';
 import { AdminGuard, AdminPage, AdminSection, ConfirmDialog, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
@@ -496,7 +496,12 @@ const ConfigurationsPage: React.FC = () => {
             {loading ? (
               <LoadingSkeleton type="list" rows={6} />
             ) : loadError ? (
-              <InlineError role="alert">{loadError}</InlineError>
+              <Result
+                status="error"
+                title="Failed to load configurations"
+                subTitle={loadError}
+                extra={<AntButton type="primary" onClick={() => void loadConfigurations()}>Retry</AntButton>}
+              />
             ) : filteredConfigs.length === 0 ? (
               <EmptyState
                 icon="📋"

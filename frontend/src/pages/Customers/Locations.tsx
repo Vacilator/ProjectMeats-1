@@ -12,7 +12,7 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Table, Button, message, Tag, Space } from 'antd';
+import { Table, Button, message, Tag, Space, Result } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
@@ -406,6 +406,14 @@ const CustomerLocations: React.FC = () => {
         searchPlaceholder="Search locations by name, customer, or address…"
       />
 
+      {locationsQuery.isError ? (
+        <Result
+          status="error"
+          title="Failed to load locations"
+          subTitle="Something went wrong. Please try again."
+          extra={<Button type="primary" onClick={() => locationsQuery.refetch()}>Retry</Button>}
+        />
+      ) : (
       <StyledTable
         columns={columns as never}
         dataSource={filteredLocations}
@@ -432,6 +440,7 @@ const CustomerLocations: React.FC = () => {
         }}
         scroll={{ x: 'max-content' }}
       />
+      )}
 
       <FormErrorBoundary entityType="location" onClose={handleFormClose}>
         <EntityFormSurface

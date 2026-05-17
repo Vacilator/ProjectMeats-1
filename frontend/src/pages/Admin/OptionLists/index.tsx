@@ -19,6 +19,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Result,
   Select,
   Space,
   Switch,
@@ -990,6 +991,13 @@ const OptionListsPage: React.FC = () => {
       >
         {loading ? (
           <LoadingSkeleton type="card" rows={3} />
+        ) : systemChoiceListsQuery.isError ? (
+          <Result
+            status="error"
+            title="Failed to load option lists"
+            subTitle="Something went wrong. Please try again."
+            extra={<Button type="primary" onClick={() => systemChoiceListsQuery.refetch()}>Retry</Button>}
+          />
         ) : (
           <Card>
             <Tabs

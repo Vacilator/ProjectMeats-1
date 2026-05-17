@@ -15,7 +15,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { Skeleton, message } from 'antd';
+import { Skeleton, Result, Button as AntButton, message } from 'antd';
 import { FileText } from 'lucide-react';
 
 import {
@@ -582,7 +582,12 @@ const Invoices: React.FC = () => {
                 <Skeleton active paragraph={{ rows: 8 }} />
               </div>
             ) : error ? (
-              <ErrorMessage>{error}</ErrorMessage>
+              <Result
+                status="error"
+                title="Failed to load invoices"
+                subTitle="Something went wrong. Please try again."
+                extra={<AntButton type="primary" onClick={() => invoicesQuery.refetch()}>Retry</AntButton>}
+              />
             ) : filteredInvoices.length === 0 ? (
               searchQuery || statusFilter !== 'all' ? (
                 <EmptyMessage>No invoices match your current filters</EmptyMessage>

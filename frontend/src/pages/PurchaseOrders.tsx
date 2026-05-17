@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import { Skeleton, Result, Button } from 'antd';
 import { ClipboardList } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -312,7 +313,7 @@ const PurchaseOrders: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `purchase_orders_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `purchase_orders_${dayjs().format('YYYY-MM-DD')}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -380,7 +381,7 @@ const PurchaseOrders: React.FC = () => {
 
   const purchaseOrderCreateInitialValues = useMemo(() => {
     return {
-      order_date: new Date().toISOString().split('T')[0],
+      order_date: dayjs().format('YYYY-MM-DD'),
       status: 'pending',
       weight_unit: 'LBS',
       logistics_scenario: 'supplier_delivery',

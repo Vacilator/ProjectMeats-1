@@ -15,7 +15,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { Skeleton } from 'antd';
+import { Skeleton, Result, Button as AntButton } from 'antd';
 import { PackagePlus } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -481,6 +481,7 @@ export const SalesOrdersPage: React.FC = () => {
     data: orders = [],
     isLoading: loading,
     error: queryError,
+    refetch,
   } = useQuery({
     queryKey: withTenantQueryKey('sales-orders'),
     queryFn: async () => {
@@ -670,7 +671,14 @@ export const SalesOrdersPage: React.FC = () => {
           </FilterBar>
 
           {/* Error State */}
-          {error && <ErrorState>{error}</ErrorState>}
+          {error && (
+            <Result
+              status="error"
+              title="Failed to load sales orders"
+              subTitle="Something went wrong. Please try again."
+              extra={<AntButton type="primary" onClick={() => refetch()}>Retry</AntButton>}
+            />
+          )}
 
           {/* Table */}
           <TableContainer data-testid="sales-orders-table-container">

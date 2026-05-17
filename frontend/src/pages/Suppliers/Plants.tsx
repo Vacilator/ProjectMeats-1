@@ -12,7 +12,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Table, Button, message, Tag, Space } from 'antd';
+import { Table, Button, message, Tag, Space, Result } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EntityPageHeader } from '@/components/Shared/EntityPageHeader';
 import EntityFormSurface from '../../components/Shared/EntityFormSurface';
@@ -440,6 +440,14 @@ const Plants: React.FC = () => {
         searchPlaceholder="Search plants by name, est. #, supplier, or location…"
       />
 
+      {plantsQuery.isError ? (
+        <Result
+          status="error"
+          title="Failed to load plants"
+          subTitle="Something went wrong. Please try again."
+          extra={<Button type="primary" onClick={() => plantsQuery.refetch()}>Retry</Button>}
+        />
+      ) : (
       <StyledTable
         columns={columns as never}
         dataSource={filteredPlants}
@@ -466,6 +474,7 @@ const Plants: React.FC = () => {
         }}
         scroll={{ x: 'max-content' }}
       />
+      )}
 
       <FormErrorBoundary entityType="plant" onClose={handleModalClose}>
         <EntityFormSurface
