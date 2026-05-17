@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import { Drawer, Button, Input, List, Typography, Tag, Spin, Modal, message } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
@@ -287,7 +288,7 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
                           </Button>
                         </>
                       ) : null}
-                      <Text type="secondary">{new Date(item.createdAt).toLocaleString()}</Text>
+                      <Text type="secondary">{dayjs(item.createdAt).format('MMM D, YYYY h:mm A')}</Text>
                     </div>
                   </div>
                 }

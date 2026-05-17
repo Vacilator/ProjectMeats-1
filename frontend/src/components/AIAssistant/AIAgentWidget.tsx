@@ -10,6 +10,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dayjs from 'dayjs';
 import styled, { css, keyframes } from 'styled-components';
 import { useLocation } from 'react-router-dom';
 
@@ -1921,13 +1922,12 @@ export const AIAgentWidget: React.FC = () => {
     if (sessionId) return sessionId;
 
     const res = await chatSessionsApi.create({
-      title: `Chat ${new Date().toLocaleString()}`,
+      title: `Chat ${dayjs().format('MMM D, YYYY h:mm A')}`,
       context_data: { ui_source: 'AIAgentWidget' },
     });
 
     const nextId = res?.id;
     if (!nextId) throw new Error('Failed to create session');
-
     setSessionId(nextId);
     try {
       localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, nextId);
@@ -1971,7 +1971,7 @@ export const AIAgentWidget: React.FC = () => {
     setState('thinking');
     try {
       const res = await chatSessionsApi.create({
-        title: `Chat ${new Date().toLocaleString()}`,
+        title: `Chat ${dayjs().format('MMM D, YYYY h:mm A')}`,
         context_data: { ui_source: 'AIAgentWidget' },
       });
 
@@ -2477,7 +2477,7 @@ export const AIAgentWidget: React.FC = () => {
                           <SessionRowTitle>{s.title || `Session ${s.id.slice(0, 8)}…`}</SessionRowTitle>
                           <SessionRowMeta>
                             {typeof s.message_count === 'number' ? `${s.message_count} msgs` : '—'}
-                            {s.last_activity ? ` • ${new Date(s.last_activity).toLocaleString()}` : ''}
+                            {s.last_activity ? ` • ${dayjs(s.last_activity).format('MMM D, YYYY h:mm A')}` : ''}
                           </SessionRowMeta>
                         </SessionRow>
                       ))}

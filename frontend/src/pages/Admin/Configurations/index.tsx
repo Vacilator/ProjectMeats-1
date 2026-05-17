@@ -4,6 +4,7 @@
  * Tenant configuration management with category tabs.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 
@@ -595,7 +596,7 @@ const ConfigurationsPage: React.FC = () => {
 
                     {config.updated_by_name && (
                       <FieldMeta>
-                        Updated by {config.updated_by_name} • {new Date(config.updated_at).toLocaleString()}
+                        Updated by {config.updated_by_name} • {dayjs(config.updated_at).format('MMM D, YYYY h:mm A')}
                       </FieldMeta>
                     )}
                   </ConfigField>

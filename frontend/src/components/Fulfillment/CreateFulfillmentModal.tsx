@@ -12,6 +12,7 @@
  * - Estimated delivery date
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import dayjs from 'dayjs';
 import { z } from 'zod';
 
 import { useZodForm } from '@/hooks/useZodForm';
@@ -341,7 +342,7 @@ export const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         rows.map((r) => {
           const id = String(r.id ?? '').trim();
           const num = String(r.inquiry_number ?? '').trim();
-          const when = r.inquiry_date ? new Date(String(r.inquiry_date)).toLocaleString() : '';
+          const when = r.inquiry_date ? dayjs(String(r.inquiry_date)).format('MMM D, YYYY') : '';
           return { id, label: `${num || `Inquiry #${id}`}${when ? ` — ${when}` : ''}` };
         }).filter((r) => r.id)
       );

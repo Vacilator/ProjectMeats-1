@@ -289,7 +289,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
     setLoading(true);
     try {
       const response = await businessApi.get<EmailLogsResponse>('/integrations/email/logs/?limit=5');
-      setEmails(response.data.emails);
+      setEmails(response.data?.emails ?? []);
     } catch (error) {
       logger.error('Failed to fetch email logs:', error);
       setFetchError(true);
