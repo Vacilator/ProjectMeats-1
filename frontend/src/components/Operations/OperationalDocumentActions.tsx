@@ -113,14 +113,10 @@ export const OperationalDocumentActions: React.FC<OperationalDocumentActionsProp
   const workflowQuery = useQuery({
     queryKey: workflowQueryKey,
     queryFn: async () => {
-      try {
-        const response = await businessApi.get<WorkflowResponse>(
-          `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/status-workflow/`
-        );
-        return response.data;
-      } catch {
-        return null as unknown as WorkflowResponse;
-      }
+      const response = await businessApi.get<WorkflowResponse>(
+        `/${config?.endpoint}/${encodeURIComponent(normalizedEntityId)}/status-workflow/`
+      );
+      return response.data;
     },
     enabled: Boolean(config) && Boolean(entityId) && config?.entityType !== 'carrier',
     staleTime: 15 * 1000,

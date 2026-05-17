@@ -3,16 +3,17 @@
 /**
  * Query Error Handling Linter
  *
- * Ensures useQuery / useMutation calls that invoke API services
- * either (a) wrap the call in try/catch to prevent unhandled 404/500
- * console floods, or (b) set `retry: false` to prevent retry storms
- * for expected-missing endpoints.
+ * Detects the "error-swallowing" anti-pattern: queryFn/mutationFn that catch
+ * errors and return empty defaults ([], {}, null) instead of letting them
+ * propagate to React Query. This hides backend failures from users — pages
+ * show "No data" instead of error states.
  *
- * Scans .ts/.tsx files under src/ (excludes tests, __mocks__).
+ * Good: let errors propagate so React Query's retry + isError work.
+ * Bad:  catch { return []; }  — silently hides failures.
  *
  * Exit codes:
- *   0 - No violations
- *   1 - Violations found
+ *   0 - No violations (or advisory only)
+ *   1 - Blocking violations found
  */
 
 const fs = require('fs');
@@ -20,15 +21,6 @@ const path = require('path');
 const glob = require('glob');
 
 const SRC_DIR = path.resolve(__dirname, '../../src');
-const API_PATTERNS = [
-  'businessApi',
-  'workformsApi',
-  'traderService',
-  'tradeDocumentsService',
-  'inquiryService',
-  'tenantService',
-  'authService',
-];
 
 const EXCLUDED = [
   '**/__tests__/**',
@@ -38,85 +30,70 @@ const EXCLUDED = [
   '**/test-utils/**',
 ];
 
+// Patterns that indicate a catch block is returning a default value
+const SWALLOW_PATTERNS = [
+  /catch\s*(?:\([^)]*\))?\s*\{[^}]*return\s+\[\]/,     // return []
+  /catch\s*(?:\([^)]*\))?\s*\{[^}]*return\s+\{\}/,      // return {}
+  /catch\s*(?:\([^)]*\))?\s*\{[^}]*return\s+null/,      // return null
+  /catch\s*(?:\([^)]*\))?\s*\{[^}]*return\s+0[;\s]/,    // return 0
+  /catch\s*(?:\([^)]*\))?\s*\{[^}]*return\s+''|return\s+""/,  // return ''
+];
+
 const violations = [];
 
 function scanFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
-  const lines = content.split('\n');
 
-  // Find all useQuery/useMutation blocks with API calls
-  // Strategy: detect `queryFn:` or `mutationFn:` that references an API service
-  // then check if there's a `try` block wrapping the API call within the function body,
-  // OR if `retry: false` is set nearby.
+  // Only scan files that have queryFn or mutationFn
+  if (!content.includes('queryFn') && !content.includes('mutationFn')) return;
+
+  const lines = content.split('\n');
 
   let insideQueryBlock = false;
   let queryBlockStart = -1;
   let braceDepth = 0;
-  let hasTryCatch = false;
-  let hasRetryFalse = false;
-  let hasApiCall = false;
+  let blockLines = [];
   let queryFnLine = -1;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Detect start of queryFn or mutationFn
     if (/queryFn\s*[:=]|mutationFn\s*[:=]/.test(line) && !insideQueryBlock) {
       insideQueryBlock = true;
       queryBlockStart = i;
-      queryFnLine = i + 1; // 1-based
+      queryFnLine = i + 1;
       braceDepth = 0;
-      hasTryCatch = false;
-      hasRetryFalse = false;
-      hasApiCall = false;
-
-      // Check surrounding context (up to 20 lines before and after the queryFn)
-      // for `retry: false` or `retry: 0`
-      const contextStart = Math.max(0, i - 20);
-      const contextEnd = Math.min(lines.length, i + 40);
-      const contextBlock = lines.slice(contextStart, contextEnd).join('\n');
-      if (/retry\s*:\s*(false|0)/.test(contextBlock)) {
-        hasRetryFalse = true;
-      }
+      blockLines = [];
     }
 
     if (insideQueryBlock) {
-      // Count braces to find end of queryFn
+      blockLines.push(line);
       for (const ch of line) {
         if (ch === '{') braceDepth++;
         if (ch === '}') braceDepth--;
       }
 
-      // Check for API service calls
-      for (const pattern of API_PATTERNS) {
-        if (line.includes(pattern)) {
-          hasApiCall = true;
-          break;
-        }
-      }
-
-      // Check for try/catch
-      if (/\btry\s*\{/.test(line) || /\btry\s*$/.test(line.trim())) {
-        hasTryCatch = true;
-      }
-
-      // End of queryFn block
       if (braceDepth <= 0 && queryBlockStart !== i) {
-        if (hasApiCall && !hasTryCatch && !hasRetryFalse) {
-          const relPath = path.relative(SRC_DIR, filePath);
-          violations.push({
-            file: `src/${relPath}`,
-            line: queryFnLine,
-            message: `queryFn/mutationFn calls an API service without try/catch or retry:false`,
-          });
+        // Block complete — check for error-swallowing
+        const block = blockLines.join('\n');
+        for (const pattern of SWALLOW_PATTERNS) {
+          if (pattern.test(block)) {
+            const relPath = path.relative(SRC_DIR, filePath);
+            violations.push({
+              file: `src/${relPath}`,
+              line: queryFnLine,
+              message: `queryFn catches errors and returns a default value — errors should propagate to React Query`,
+            });
+            break;
+          }
         }
         insideQueryBlock = false;
+        blockLines = [];
       }
     }
   }
 }
 
-// Gather files
 const files = glob.sync('**/*.{ts,tsx}', {
   cwd: SRC_DIR,
   absolute: true,
@@ -128,20 +105,18 @@ for (const file of files) {
 }
 
 if (violations.length === 0) {
-  console.log('✅ All useQuery/useMutation API calls have error handling (try/catch or retry:false).');
+  console.log('✅ No error-swallowing queryFn patterns detected.');
   process.exit(0);
 } else {
-  // Warning mode: report but don't fail CI. Standard CRUD queries using React Query's
-  // built-in error boundary are acceptable. This lint helps developers identify places
-  // where defensive error handling could prevent console noise.
-  console.warn(`⚠️  Found ${violations.length} API query call(s) without explicit error handling:\n`);
+  console.warn(`⚠️  Found ${violations.length} queryFn(s) that swallow errors:\n`);
   for (const v of violations) {
     console.warn(`  ${v.file}:${v.line}`);
     console.warn(`    → ${v.message}\n`);
   }
   console.warn(
-    'Tip: Wrap API calls in try/catch inside queryFn for graceful degradation, or set retry: false for optional endpoints.'
+    'Fix: Remove try/catch from queryFn and let errors propagate to React Query.\n' +
+    'React Query handles retries (4x backoff for 5xx) and exposes isError for UI.'
   );
-  // Exit 0 — this is advisory. React Query\'s error boundary handles most cases.
+  // Advisory for now — upgrade to exit(1) when all existing violations are cleared
   process.exit(0);
 }

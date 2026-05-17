@@ -90,12 +90,8 @@ const BillingPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: withTenantQueryKey('tenants', 'current', 'billing-dashboard'),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get('/tenants/current/');
-        return res.data;
-      } catch {
-        return null as unknown as TenantCurrent;
-      }
+      const res = await businessApi.get('/tenants/current/');
+      return res.data;
     },
     staleTime: 60 * 1000,
   });
@@ -105,14 +101,10 @@ const BillingPage: React.FC = () => {
   const billingConfigsQuery = useQuery<TenantConfiguration[]>({
     queryKey: withTenantQueryKey('tenant-configurations', 'billing'),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get('/configurations/', { params: { search: 'billing.' } });
-        const raw = res.data as unknown;
-        const data = extractResults(raw);
-        return data as TenantConfiguration[];
-      } catch {
-        return [];
-      }
+      const res = await businessApi.get('/configurations/', { params: { search: 'billing.' } });
+      const raw = res.data as unknown;
+      const data = extractResults(raw);
+      return data as TenantConfiguration[];
     },
     staleTime: 60 * 1000,
   });
@@ -152,12 +144,8 @@ const BillingPage: React.FC = () => {
     queryKey: withTenantQueryKey('invoices', 'subscription', tenant?.id),
     enabled: Boolean(tenant?.id),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get('/invoices/', { params: { is_subscription: true } });
-        return extractResults(res.data) as Record<string, unknown>[];
-      } catch {
-        return [];
-      }
+      const res = await businessApi.get('/invoices/', { params: { is_subscription: true } });
+      return extractResults(res.data) as Record<string, unknown>[];
     },
     staleTime: 60 * 1000,
   });

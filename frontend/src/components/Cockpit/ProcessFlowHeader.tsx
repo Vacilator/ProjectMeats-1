@@ -311,15 +311,11 @@ export const NodeDetailPopover: React.FC<NodeDetailPopoverProps> = ({
   const { data, isLoading } = useQuery({
     queryKey: withTenantQueryKey('node-detail', inquiryId, entityType, entityId),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get(
-          `/inquiries/${inquiryId}/lineage/node-detail/`,
-          { params: { entity_type: entityType, entity_id: entityId } }
-        );
-        return res.data as NodeContactDetail;
-      } catch {
-        return null;
-      }
+      const res = await businessApi.get(
+        `/inquiries/${inquiryId}/lineage/node-detail/`,
+        { params: { entity_type: entityType, entity_id: entityId } }
+      );
+      return res.data as NodeContactDetail;
     },
     enabled: !!entityId && !!inquiryId,
     retry: false,
@@ -420,22 +416,18 @@ export const ProcessFlowHeader: React.FC<ProcessFlowHeaderProps> = ({
   const { data } = useQuery({
     queryKey: withTenantQueryKey('process-header', inquiryId),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get(`/inquiries/${inquiryId}/lineage/`);
-        const lineage = res.data;
-        const headerInfo: ProcessHeaderInfo = {
-          current_step: lineage.current_step ?? 'unknown',
-          current_step_label: formatStepLabel(lineage.current_step),
-          status: lineage.inquiry?.status ?? 'unknown',
-          started_at: null,
-          last_activity_at: null,
-          duration_seconds: null,
-          failure_info: lineage.failure_info ?? null,
-        };
-        return headerInfo;
-      } catch {
-        return null;
-      }
+      const res = await businessApi.get(`/inquiries/${inquiryId}/lineage/`);
+      const lineage = res.data;
+      const headerInfo: ProcessHeaderInfo = {
+        current_step: lineage.current_step ?? 'unknown',
+        current_step_label: formatStepLabel(lineage.current_step),
+        status: lineage.inquiry?.status ?? 'unknown',
+        started_at: null,
+        last_activity_at: null,
+        duration_seconds: null,
+        failure_info: lineage.failure_info ?? null,
+      };
+      return headerInfo;
     },
     enabled: !!inquiryId,
     staleTime: 5_000,

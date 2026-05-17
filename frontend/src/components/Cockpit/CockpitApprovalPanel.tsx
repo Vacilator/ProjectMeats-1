@@ -275,13 +275,8 @@ export const CockpitApprovalPanel: React.FC<CockpitApprovalPanelProps> = ({
   const { data: approvals, isLoading } = useQuery({
     queryKey: withTenantQueryKey('cockpit-pending-approvals'),
     queryFn: async () => {
-      try {
-        const res = await businessApi.get('/ai-assistant/approval-queue/', { params: { status: 'pending' } });
-        return (res.data?.results ?? res.data ?? []) as ApprovalItem[];
-      } catch {
-        // API may not exist yet — return empty gracefully
-        return [] as ApprovalItem[];
-      }
+      const res = await businessApi.get('/ai-assistant/approval-queue/', { params: { status: 'pending' } });
+      return (res.data?.results ?? res.data ?? []) as ApprovalItem[];
     },
     enabled: !!tenantId,
     refetchInterval: 30_000,
