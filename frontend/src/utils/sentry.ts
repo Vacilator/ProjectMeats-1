@@ -146,8 +146,8 @@ export const initSentry = (config?: SentryConfig): void => {
             }
           }
         }
-      } catch {
-        // best-effort
+      } catch (err) {
+        logger.debug('Failed to tag in-app stack frames for Sentry event', { component: 'Sentry' }, err);
       }
 
       return sanitizeTelemetryData(event) as typeof event;

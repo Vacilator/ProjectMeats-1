@@ -17,6 +17,7 @@ import { getChoices, type ChoiceOption } from '../../services/choicesService';
 import { formatCurrency } from '../../utils/formatters';
 import { SmartProductAutocomplete } from '../Inquiry/SmartProductAutocomplete';
 import type { Product } from '../../types';
+import { logger } from '../../utils/logger';
 
 type EntityType = 'supplier' | 'customer';
 
@@ -420,7 +421,8 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
       try {
         const opts = await getChoices('weight_unit');
         setUomOptions(opts);
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to load weight unit choices', { component: 'InquiryCallModal' }, err);
         setUomOptions([]);
       }
     })();
@@ -441,7 +443,8 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
             name: String(r.name || r.company_name || r.title || `${entityType} #${r.id}`),
           }))
         );
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to load entity options', { component: 'InquiryCallModal' }, err);
         setEntityOptions([]);
       } finally {
         setLoadingEntities(false);

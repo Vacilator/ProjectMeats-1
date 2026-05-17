@@ -220,7 +220,8 @@ export class SecurityUtils {
       }
 
       return true;
-    } catch {
+    } catch (err) {
+      logger.debug('URL validation failed (invalid URL format)', { component: 'SecurityUtils' }, err);
       return false;
     }
   }

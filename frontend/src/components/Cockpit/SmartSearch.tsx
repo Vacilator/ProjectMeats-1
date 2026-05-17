@@ -541,13 +541,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           toggleFavoriteMutation.mutate({ entity_type: f.type, entity_id: f.id, entity_title: '' });
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      logger.warn('Failed to migrate legacy cockpit favorites', { component: 'SmartSearch' }, err);
     } finally {
       try {
         localStorage.removeItem('cockpit_favorites');
-      } catch {
-        // ignore
+      } catch (err) {
+        logger.debug('Failed to remove legacy cockpit_favorites key from localStorage', { component: 'SmartSearch' }, err);
       }
       setHasMigratedLegacyFavorites(true);
     }

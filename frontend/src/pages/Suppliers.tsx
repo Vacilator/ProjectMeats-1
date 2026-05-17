@@ -15,6 +15,7 @@ import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { buildCsv, downloadCsv } from '@/utils/csv';
+import { logger } from '@/utils/logger';
 
 type SupplierProduct = {
   id: string | number;
@@ -125,7 +126,8 @@ const Suppliers: React.FC = () => {
       try {
         await businessApi.delete(`suppliers/${supplierId}/`);
         await refreshSuppliers();
-      } catch {
+      } catch (err) {
+        logger.error('Failed to delete supplier', { component: 'Suppliers' }, err);
         message.error('Failed to delete supplier. Please try again.');
       }
     },

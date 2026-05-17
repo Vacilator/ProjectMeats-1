@@ -1,5 +1,6 @@
 import type { PendingReviewItem } from '@/services/aiService';
 import { normalizeEntityType } from './entityTypeRegistry';
+import { logger } from '@/utils/logger';
 
 const REVIEW_BASE_URL = 'https://projectmeats.local';
 
@@ -54,7 +55,8 @@ export const buildReviewDetailsPathFromTargetUrl = (targetUrl?: string | null): 
   let parsed: URL;
   try {
     parsed = new URL(targetUrl, REVIEW_BASE_URL);
-  } catch {
+  } catch (err) {
+    logger.debug('Failed to parse review target URL', { component: 'reviewDetailsPath' }, err);
     return null;
   }
 

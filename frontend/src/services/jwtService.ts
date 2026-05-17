@@ -49,7 +49,8 @@ function decodeJwtPayload(token: string): { exp?: number; [key: string]: unknown
         .join('')
     );
     return JSON.parse(jsonPayload);
-  } catch {
+  } catch (err) {
+    logger.debug('Failed to decode JWT payload (malformed token)', { component: 'jwtService' }, err);
     return null;
   }
 }
