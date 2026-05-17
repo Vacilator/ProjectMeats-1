@@ -291,14 +291,14 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
 
     try {
       localStorage.setItem('redirectAfterLogin', currentPath);
-    } catch {
-      // best-effort only
+    } catch (err) {
+      logger.debug('Failed to store redirect path in localStorage', { component: 'EntityFormSurface' }, err);
     }
 
     try {
       window.location.assign('/login');
-    } catch {
-      // JSDOM/tests may throw on navigation.
+    } catch (err) {
+      logger.debug('Navigation to /login failed (expected in test environments)', { component: 'EntityFormSurface' }, err);
     }
   }, [authLoading, isAuthenticated, isOpen]);
 

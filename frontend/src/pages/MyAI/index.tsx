@@ -52,6 +52,7 @@ import {
 import type { AILearningSnapshot, ApprovalQueueStats } from '@/services/aiService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { logger } from '@/utils/logger';
 import {
   groupChatSessionsByDate,
   type SessionHistoryLike,
@@ -407,8 +408,8 @@ const ChatSessionsTab: React.FC = () => {
       e.stopPropagation();
       try {
         await chatSessionsApi.delete(sessionId);
-      } catch {
-        // Silently handle — session may already be deleted
+      } catch (err) {
+        logger.warn('Failed to delete AI chat session (may already be deleted)', { component: 'MyAI' }, err);
       }
     },
     []

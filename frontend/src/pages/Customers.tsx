@@ -16,6 +16,7 @@ import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { confirmDialog } from '@/utils/uiDialogs';
 import { buildCsv, downloadCsv } from '@/utils/csv';
+import { logger } from '@/utils/logger';
 
 type CustomerProduct = {
   id: string | number;
@@ -158,7 +159,8 @@ const Customers: React.FC = () => {
       try {
         await businessApi.delete(`customers/${customerId}/`);
         await refreshCustomers();
-      } catch {
+      } catch (err) {
+        logger.error('Failed to delete customer', { component: 'Customers' }, err);
         message.error('Failed to delete customer. Please try again.');
       }
     },

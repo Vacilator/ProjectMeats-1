@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/useToast';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAuth } from '@/contexts/AuthContext';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import { logger } from '@/utils/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -313,7 +314,8 @@ export default function DiagnosticsPage() {
       try {
         const resp = await businessApi.get('/error-reports/summary/');
         return resp.data;
-      } catch {
+      } catch (err) {
+        logger.warn('Failed to fetch error reports summary', { component: 'DiagnosticsPage' }, err);
         return { total: 0, by_level: {}, by_source: {} };
       }
     },
@@ -343,7 +345,8 @@ export default function DiagnosticsPage() {
       toast.success('Old error logs pruned');
       logsQuery.refetch();
       summaryQuery.refetch();
-    } catch {
+    } catch (err) {
+      logger.error('Failed to prune error logs', { component: 'DiagnosticsPage' }, err);
       toast.error('Failed to prune logs');
     }
   };

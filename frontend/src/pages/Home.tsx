@@ -18,6 +18,7 @@ import { withTenantQueryKey } from '@/utils/queryKeys';
 import { authService } from '@/services/authService';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import { logger } from '@/utils/logger';
 import { UserProfile } from '@/types';
 
 /* ------------------------------------------------------------------ */
@@ -403,7 +404,8 @@ function formatRelativeTime(timestamp: string): string {
     if (hrs < 24) return `${hrs}h ago`;
     const days = Math.floor(hrs / 24);
     return `${days}d ago`;
-  } catch {
+  } catch (err) {
+    logger.debug('Failed to parse relative time from timestamp', { component: 'Home' }, err);
     return '';
   }
 }

@@ -199,7 +199,8 @@ const readCachedOnboardingState = (): OnboardingState => {
       return DEFAULT_ONBOARDING_STATE;
     }
     return normalizeOnboardingState(JSON.parse(rawValue));
-  } catch {
+  } catch (err) {
+    logger.debug('Failed to parse cached onboarding state from localStorage', { component: 'OnboardingProvider' }, err);
     return DEFAULT_ONBOARDING_STATE;
   }
 };
@@ -304,8 +305,8 @@ const readLegacyOnboardingState = (): OnboardingState => {
         nextState = recordLegacyTourCompletion(nextState, tourName);
       });
     }
-  } catch {
-    // Ignore malformed legacy payloads and continue with the canonical contract.
+  } catch (err) {
+    logger.debug('Malformed legacy onboarding payload in localStorage', { component: 'OnboardingProvider' }, err);
   }
 
   return nextState;

@@ -1,3 +1,5 @@
+import { logger } from '@/utils/logger';
+
 export interface BuildCsvOptions {
   headers: string[];
   rows: unknown[][];
@@ -15,7 +17,8 @@ const normalizeCsvCell = (raw: unknown): string => {
         : (() => {
             try {
               return JSON.stringify(raw);
-            } catch {
+            } catch (err) {
+              logger.debug('JSON.stringify failed for CSV cell value, falling back to String()', { component: 'csv' }, err);
               return String(raw);
             }
           })();

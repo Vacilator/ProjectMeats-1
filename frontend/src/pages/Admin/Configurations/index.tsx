@@ -158,7 +158,8 @@ const ConfigurationsPage: React.FC = () => {
       if (config.data_type === 'json') {
         try {
           JSON.parse(value);
-        } catch {
+        } catch (err) {
+          logger.debug('Invalid JSON in configuration value', { component: 'ConfigurationsPage', metadata: { configId: id } }, err);
           errors[id] = 'Invalid JSON. Please fix formatting before saving.';
         }
       }
@@ -281,7 +282,8 @@ const ConfigurationsPage: React.FC = () => {
     if (payload.data_type === 'json') {
       try {
         JSON.parse(payload.value || '');
-      } catch {
+      } catch (err) {
+        logger.debug('Invalid JSON in new configuration value', { component: 'ConfigurationsPage' }, err);
         toast.error('Value must be valid JSON');
         return;
       }
