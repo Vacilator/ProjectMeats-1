@@ -101,6 +101,12 @@ updates:
       - dependency-name: "vite"
         update-types: ["version-update:semver-major"]
         # Vite major versions often have plugin breaking changes
+      - dependency-name: "picomatch"
+        update-types: ["version-update:semver-major"]
+        # picomatch v4 has breaking API changes; evaluate manually
+      - dependency-name: "minimatch"
+        update-types: ["version-update:semver-major"]
+        # minimatch v10 is a complete rewrite; evaluate manually
       # OWASP: Document ignored vulnerabilities
       # Example:
       # - dependency-name: "axios"
