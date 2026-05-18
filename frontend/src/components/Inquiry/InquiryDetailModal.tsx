@@ -33,6 +33,7 @@ import { TradeLineageFlow } from '../Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../Cockpit/ProcessFlowHeader';
 import { logger } from '@/utils/logger';
 import { SupplierBidPanel } from './SupplierBidPanel';
+import { ProductShipToField } from './ProductShipToField';
 import { TradeWorkflowStepper } from '../Workflow/TradeWorkflowStepper';
 import { EntityWorkflowStatusPanel } from '@/components/Entities/EntityWorkflowStatusPanel';
 import { WorkflowStatusBar } from '@/components/Workflow';
@@ -196,21 +197,6 @@ const ProductRow = styled.div`
   &:hover {
     background: rgba(var(--color-primary), 0.02);
   }
-`;
-
-const ProductMeta = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0 0.75rem 0.5rem;
-`;
-
-const MetaTag = styled.span`
-  font-size: 0.75rem;
-  color: rgb(var(--color-text-secondary));
-  background: rgba(var(--color-surface-hover), 0.5);
-  padding: 0.125rem 0.5rem;
-  border-radius: var(--radius-sm);
 `;
 
 const ProductInfo = styled.div`
@@ -876,12 +862,15 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                             ` (${formatFixedWithFallback(product.margin_percent, 1)}%)`}
                         </MarginCell>
                       </ProductRow>
-                      {/* Ship-to location shown at product level */}
-                      {product.ship_to_location_name && (
-                        <ProductMeta>
-                          <MetaTag>📍 Ship to: {product.ship_to_location_name}</MetaTag>
-                        </ProductMeta>
-                      )}
+                      {/* Ship-to location at product level — interactive dropdown with "Add Location" */}
+                      <ProductShipToField
+                        product={product}
+                        customerId={inquiry.customer}
+                        readOnly={
+                          inquiry.status === 'fulfilled' ||
+                          inquiry.status === 'accepted'
+                        }
+                      />
                       {/* Supplier bids child panel */}
                       <SupplierBidPanel
                         product={product}
@@ -890,7 +879,6 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                           inquiry.status === 'fulfilled' ||
                           (inquiry.status === 'accepted' && !['supplier_rfq', 'supplier_reply_parse'].includes(inquiry.trade_session_current_step ?? ''))
                         }
-                        customerId={inquiry.customer}
                       />
                     </ProductRowWrapper>
                   ))}

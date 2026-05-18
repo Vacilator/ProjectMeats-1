@@ -3,23 +3,22 @@
  *
  * Displays supplier bids as child rows that mirror the product row layout.
  * Each bid shows: supplier, quantity, price/unit, UOM, total, notes + actions.
- * Ship-to location stays at product level with quick "Add Location" option.
+ * Ship-to location is rendered at product level by the parent component.
  *
  * Requirements:
  * - Bid form mirrors product row structure (same fields + supplier dropdown)
  * - Remove redundant respond_by / fulfillment_date (valid_until on inquiry is canonical)
- * - Ship-to at product level with "Add Location" for customers without locations
  * - Bids save and display correctly after creation
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { message, Tooltip, Tag, Popconfirm, Select, Input, InputNumber } from 'antd';
-import { Plus, Send, Check, X, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
+import { Plus, Send, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { InquiryProduct, InquiryProductSupplierBid, SupplierBidStatus } from '../../types';
 import { inquiryService } from '../../services/inquiryService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
-import { businessApi, suppliersApi, type Supplier } from '@/services/businessApi';
+import { suppliersApi, type Supplier } from '@/services/businessApi';
 
 // ── Status visual config ──
 
@@ -33,14 +32,14 @@ const BID_STATUS_META: Record<SupplierBidStatus, { label: string; color: string;
   withdrawn: { label: 'Withdrawn', color: 'default', icon: '↩️' },
 };
 
-// ── UOM options ──
+// ── UOM options (must match backend UOMChoices exactly) ──
 const UOM_OPTIONS = [
-  { value: 'lbs', label: 'lbs' },
-  { value: 'kg', label: 'kg' },
-  { value: 'cases', label: 'cases' },
-  { value: 'units', label: 'units' },
-  { value: 'pallets', label: 'pallets' },
-  { value: 'tons', label: 'tons' },
+  { value: 'LBS', label: 'Lbs' },
+  { value: 'KG', label: 'Kg' },
+  { value: 'CS', label: 'Cases' },
+  { value: 'EA', label: 'Each' },
+  { value: 'PLT', label: 'Pallets' },
+  { value: 'BOX', label: 'Boxes' },
 ];
 
 // ── Props ──
@@ -49,18 +48,6 @@ interface SupplierBidPanelProps {
   product: InquiryProduct;
   inquiryStatus: string;
   readOnly?: boolean;
-  customerId?: string;
-}
-
-// ── Customer location type ──
-interface CustomerLocation {
-  id: string;
-  display_name?: string;
-  name?: string;
-  address_line_1?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
 }
 
 // ── New bid form state ──
@@ -77,7 +64,7 @@ const EMPTY_BID_FORM: NewBidForm = {
   supplier: '',
   bid_quantity: '',
   bid_price_per_unit: '',
-  bid_uom: 'lbs',
+  bid_uom: 'LBS',
   bid_total: '',
   bid_notes: '',
 };
@@ -88,35 +75,15 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   product,
   inquiryStatus,
   readOnly = false,
-  customerId,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [addingBid, setAddingBid] = useState(false);
   const [newBid, setNewBid] = useState<NewBidForm>(EMPTY_BID_FORM);
-  const [showAddLocation, setShowAddLocation] = useState(false);
-  const [newLocationName, setNewLocationName] = useState('');
-  const [newLocationAddress, setNewLocationAddress] = useState('');
-  const [newLocationCity, setNewLocationCity] = useState('');
-  const [newLocationState, setNewLocationState] = useState('');
-  const [newLocationZip, setNewLocationZip] = useState('');
   const queryClient = useQueryClient();
 
   const bids = useMemo(() => product.supplier_bids ?? [], [product.supplier_bids]);
   const canManageBids = !readOnly && ['draft', 'pending', 'quoted', 'approved', 'action_required', 'in_progress'].includes(inquiryStatus);
   const hasDraftBids = bids.some(b => b.bid_status === 'draft');
-
-  // Fetch customer locations for ship-to dropdown
-  const { data: customerLocations, refetch: refetchLocations } = useQuery({
-    queryKey: withTenantQueryKey('customer-locations', customerId ?? ''),
-    queryFn: async () => {
-      if (!customerId) return [];
-      const res = await businessApi.get(`/locations/`, { params: { customer: customerId } });
-      return (res.data?.results ?? res.data ?? []) as CustomerLocation[];
-    },
-    enabled: Boolean(customerId),
-    staleTime: 60_000,
-    retry: false,
-  });
 
   // Fetch suppliers for searchable dropdown
   const { data: suppliers } = useQuery({
@@ -139,15 +106,6 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
         searchText: `${s.name} ${s.contact_person ?? ''} ${s.city ?? ''} ${s.supplier_type ?? ''}`.toLowerCase(),
       }));
   }, [suppliers]);
-
-  const locationOptions = useMemo(() => {
-    const opts = (customerLocations ?? []).map((loc) => ({
-      value: loc.id,
-      label: `${loc.display_name || loc.name || 'Location'} — ${[loc.address_line_1, loc.city, loc.state, loc.zip_code].filter(Boolean).join(', ')}`,
-      searchText: `${loc.display_name || loc.name || ''} ${loc.address_line_1 ?? ''} ${loc.city ?? ''} ${loc.state ?? ''} ${loc.zip_code ?? ''}`.toLowerCase(),
-    }));
-    return opts;
-  }, [customerLocations]);
 
   const invalidateInquiry = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: withTenantQueryKey('inquiry') });
@@ -212,53 +170,6 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     },
   });
 
-  const updateProductFieldMutation = useMutation({
-    retry: false,
-    mutationFn: (patch: Record<string, unknown>) =>
-      inquiryService.updateInquiryProduct(product.id, patch as Partial<InquiryProduct>),
-    onSuccess: () => invalidateInquiry(),
-    onError: () => message.error('Failed to update product field'),
-  });
-
-  const createLocationMutation = useMutation({
-    retry: false,
-    mutationFn: async (values: Record<string, string>) => {
-      const res = await businessApi.post('/locations/', {
-        ...values,
-        customer: customerId,
-      });
-      return res.data;
-    },
-    onSuccess: (data) => {
-      message.success('Location created');
-      setShowAddLocation(false);
-      setNewLocationName('');
-      setNewLocationAddress('');
-      setNewLocationCity('');
-      setNewLocationState('');
-      setNewLocationZip('');
-      void refetchLocations();
-      if (data?.id) {
-        updateProductFieldMutation.mutate({ ship_to_location: data.id });
-      }
-    },
-    onError: () => message.error('Failed to create location'),
-  });
-
-  const handleCreateLocation = useCallback(() => {
-    if (!newLocationName.trim()) {
-      message.warning('Location name is required');
-      return;
-    }
-    createLocationMutation.mutate({
-      name: newLocationName.trim(),
-      address_line_1: newLocationAddress.trim(),
-      city: newLocationCity.trim(),
-      state: newLocationState.trim(),
-      zip_code: newLocationZip.trim(),
-    });
-  }, [newLocationName, newLocationAddress, newLocationCity, newLocationState, newLocationZip, createLocationMutation]);
-
   const handleAddBid = useCallback(() => {
     if (!newBid.supplier) {
       message.warning('Please select a supplier');
@@ -275,13 +186,6 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     };
     createBidMutation.mutate(payload);
   }, [newBid, product.id, createBidMutation]);
-
-  const handleShipToChange = useCallback(
-    (locationId: string) => {
-      updateProductFieldMutation.mutate({ ship_to_location: locationId });
-    },
-    [updateProductFieldMutation],
-  );
 
   // Auto-calc total when quantity/price changes
   const updateBidField = useCallback((field: keyof NewBidForm, value: string) => {
@@ -348,52 +252,6 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
 
       {expanded && (
         <BidList>
-          {/* ── Product-level ship-to (only relevant field at product level) ── */}
-          <ProductMetaRow>
-            <MetaField style={{ gridColumn: '1 / -1' }}>
-              <MetaLabel><MapPin size={11} /> Ship To Location</MetaLabel>
-              {canManageBids ? (
-                <ShipToRow>
-                  <Select
-                    size="small"
-                    value={product.ship_to_location || undefined}
-                    onChange={handleShipToChange}
-                    placeholder="Select delivery location"
-                    options={locationOptions}
-                    style={{ flex: 1 }}
-                    allowClear
-                    showSearch
-                    filterOption={(input, option) => {
-                      const searchText = (option as { searchText?: string })?.searchText ?? '';
-                      return searchText.includes(input.toLowerCase());
-                    }}
-                    notFoundContent={
-                      !customerId
-                        ? 'No customer assigned'
-                        : locationOptions.length === 0
-                        ? 'No locations — add one below'
-                        : 'No matching locations'
-                    }
-                    getPopupContainer={(trigger) => trigger.parentElement || document.body}
-                  />
-                  {customerId && (
-                    <AddLocationBtn
-                      onClick={() => setShowAddLocation(true)}
-                      title="Add new delivery location"
-                      aria-label="Add new delivery location"
-                    >
-                      <Plus size={12} /> Add Location
-                    </AddLocationBtn>
-                  )}
-                </ShipToRow>
-              ) : (
-                <MetaValue>
-                  {product.ship_to_location_name || '—'}
-                </MetaValue>
-              )}
-            </MetaField>
-          </ProductMetaRow>
-
           {/* ── Column headers for bid rows (mirror product row) ── */}
           {(bids.length > 0 || addingBid) && (
             <BidColumnHeaders>
@@ -423,7 +281,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                 {bid.bid_quantity != null ? Number(bid.bid_quantity).toLocaleString() : '—'}
               </div>
               <div className="col price">
-                {bid.bid_price_per_unit != null ? `$${Number(bid.bid_price_per_unit).toFixed(4)}` : '—'}
+                {bid.bid_price_per_unit != null ? `$${Number(bid.bid_price_per_unit).toFixed(2)}` : '—'}
               </div>
               <div className="col uom">
                 {bid.bid_uom || '—'}
@@ -523,7 +381,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                   placeholder="$/unit"
                   min={0}
                   step={0.01}
-                  precision={4}
+                  precision={2}
                   value={newBid.bid_price_per_unit ? Number(newBid.bid_price_per_unit) : undefined}
                   onChange={(val) => updateBidField('bid_price_per_unit', val != null ? String(val) : '')}
                   style={{ width: '100%' }}
@@ -534,7 +392,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
               <div className="col uom">
                 <Select
                   size="small"
-                  value={newBid.bid_uom || 'lbs'}
+                  value={newBid.bid_uom || 'LBS'}
                   onChange={(val: string) => updateBidField('bid_uom', val)}
                   options={UOM_OPTIONS}
                   style={{ width: '100%' }}
@@ -595,74 +453,6 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
             </AddBidButton>
           )}
         </BidList>
-      )}
-
-      {/* ── Inline Add Location Form (Air Gap pattern — no Modal) ── */}
-      {showAddLocation && (
-        <InlineLocationForm>
-          <MetaLabel style={{ marginBottom: '0.5rem' }}>
-            <MapPin size={11} /> New Delivery Location
-          </MetaLabel>
-          <LocationGrid>
-            <Input
-              size="small"
-              placeholder="Location name *"
-              value={newLocationName}
-              onChange={(e) => setNewLocationName(e.target.value)}
-              autoFocus
-            />
-            <Input
-              size="small"
-              placeholder="Street address"
-              value={newLocationAddress}
-              onChange={(e) => setNewLocationAddress(e.target.value)}
-            />
-            <Input
-              size="small"
-              placeholder="City"
-              value={newLocationCity}
-              onChange={(e) => setNewLocationCity(e.target.value)}
-            />
-            <Input
-              size="small"
-              placeholder="State"
-              value={newLocationState}
-              onChange={(e) => setNewLocationState(e.target.value)}
-            />
-            <Input
-              size="small"
-              placeholder="ZIP"
-              value={newLocationZip}
-              onChange={(e) => setNewLocationZip(e.target.value)}
-            />
-          </LocationGrid>
-          <LocationFormActions>
-            <ActionBtn
-              $variant="success"
-              onClick={handleCreateLocation}
-              disabled={createLocationMutation.isPending || !newLocationName.trim()}
-              title="Create location"
-              aria-label="Create location"
-            >
-              <Check size={12} />
-            </ActionBtn>
-            <ActionBtn
-              $variant="danger"
-              onClick={() => {
-                setShowAddLocation(false);
-                setNewLocationName('');
-                setNewLocationAddress('');
-                setNewLocationCity('');
-                setNewLocationState('');
-                setNewLocationZip('');
-              }}
-              title="Cancel"
-              aria-label="Cancel add location"
-            >
-              <X size={12} />
-            </ActionBtn>
-          </LocationFormActions>
-        </InlineLocationForm>
       )}
     </BidPanelContainer>
   );
@@ -742,62 +532,6 @@ const EmptyBids = styled.div`
   font-size: 0.8125rem;
   color: rgb(var(--color-text-tertiary));
   padding: 0.75rem;
-`;
-
-const ProductMetaRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
-  padding: 0.5rem 0.5rem 0.75rem;
-  border-bottom: 1px solid rgba(var(--color-border), 0.2);
-  margin-bottom: 0.25rem;
-`;
-
-const MetaField = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-`;
-
-const MetaLabel = styled.span`
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: rgb(var(--color-text-tertiary));
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`;
-
-const MetaValue = styled.span`
-  font-size: 0.8125rem;
-  color: rgb(var(--color-text-primary));
-`;
-
-const ShipToRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const AddLocationBtn = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  border: 1px dashed rgba(var(--color-border), 0.5);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: rgb(var(--color-text-secondary));
-  font-size: 0.75rem;
-  cursor: pointer;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: rgb(var(--color-primary));
-    color: rgb(var(--color-primary));
-  }
 `;
 
 const BidColumnHeaders = styled.div`
@@ -926,32 +660,6 @@ const AddBidButton = styled.button`
     color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.04);
   }
-`;
-
-const InlineLocationForm = styled.div`
-  padding: 0.75rem;
-  border-top: 1px solid rgba(var(--color-border), 0.2);
-  background: rgba(var(--color-primary), 0.02);
-`;
-
-const LocationGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-
-  & > :first-child {
-    grid-column: 1 / -1;
-  }
-  & > :nth-child(2) {
-    grid-column: 1 / -1;
-  }
-`;
-
-const LocationFormActions = styled.div`
-  display: flex;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
-  justify-content: flex-end;
 `;
 
 export default SupplierBidPanel;
