@@ -900,9 +900,9 @@ const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string |
   return url.toString();
 };
 
-// Only 200 means the ASGI WebSocket endpoint is actually wired up and healthy.
-// 400/401/403/405 from Nginx or Gunicorn means the WS path isn't routed to Daphne.
-const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([200]);
+// 200 = ASGI health probe responds, 426 = Upgrade Required (confirms WS endpoint exists).
+// Any other status (400/401/403/404/405/502/503) means WS path isn't routed to Daphne.
+const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([200, 426]);
 
 /**
  * Pre-flight check: verify the WebSocket path is routed before attempting
@@ -1310,10 +1310,10 @@ export const AIAgentWidget: React.FC = () => {
     }
 
     let disposed = false;
-    const MAX_RECONNECT_ATTEMPTS = 2;
-    const MIN_RECONNECT_DELAY_MS = 2000;
+    const MAX_RECONNECT_ATTEMPTS = 1;
+    const MIN_RECONNECT_DELAY_MS = 3000;
     const MAX_RECONNECT_DELAY_MS = 30_000;
-    const BACKOFF_MULTIPLIER = 1.5;
+    const BACKOFF_MULTIPLIER = 2;
 
     // Track the last connection attempt timestamp to enforce minimum delay
     let lastConnectAttemptMs = 0;
@@ -1575,8 +1575,16 @@ export const AIAgentWidget: React.FC = () => {
             firstFailureTimeRef.current = Date.now();
           }
 
+          // If WS has NEVER connected and connection was immediately rejected,
+          // mark as permanently failed — the endpoint isn't wired up.
+          if (!wsEverConnectedRef.current && event.code !== 4401 && event.code !== 4403) {
+            wsPermanentlyFailedRef.current = true;
+            setAiInboxRealtimeStatus('idle');
+            logger.debug('[AIAgentWidget] WS never connected — marking endpoint unavailable. Will use HTTP polling.');
+            return;
+          }
+
           // Only show degraded if WS has connected before (intermittent failure).
-          // If WS has NEVER connected, stay idle — no point alarming the user.
           if (wsEverConnectedRef.current) {
             const failureDuration = Date.now() - (firstFailureTimeRef.current ?? Date.now());
             if (failureDuration >= 5000) {

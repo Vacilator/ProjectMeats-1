@@ -204,17 +204,40 @@ def _humanize_review_intent(document_type: str, payload: dict[str, object]) -> s
     return normalized.replace("_", " ").title() or "AI Draft"
 
 
+# Document types that should NOT appear in the approval queue (spam/irrelevant)
+_NON_ACTIONABLE_DOCUMENT_TYPES = frozenset({
+    "spam",
+    "marketing",
+    "personal",
+    "newsletter",
+    "notification",
+    "automated",
+    "noreply",
+    "unknown",
+    "unsubscribe",
+})
+
+
 def build_pending_review_items(
     tenant_id: str,
     *,
     highlighted_id: str | None = None,
     limit: int = 25,
 ) -> list[dict[str, object]]:
-    """Build serialized list of unresolved AI feedback items for the review queue."""
+    """Build serialized list of unresolved AI feedback items for the review queue.
+
+    Filters out spam, marketing, personal, and other non-actionable categories
+    so only trade-relevant items (orders, quotes, invoices, shipments) surface.
+    """
     qs = AIFeedbackLog.objects.filter(
         tenant_id=tenant_id,
         resolved_by__isnull=True,
     ).order_by("-created_on")
+
+    # Exclude non-actionable document types (spam, marketing, personal, etc.)
+    qs = qs.exclude(
+        document_type__in=_NON_ACTIONABLE_DOCUMENT_TYPES,
+    )
 
     rows = list(qs[:limit])
     if highlighted_id:

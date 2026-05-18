@@ -54,6 +54,7 @@ export type PendingReviewItem = ContractPendingReviewItem & {
   retraining_queued_at?: string | null;
   attachment_count?: number;
   attachment_filenames?: string[];
+  original_extracted_data?: Record<string, unknown>;
 };
 export type PendingReviewListResponse = ContractPendingReviewListResponse;
 export type PendingReviewResolveRequest = ContractPendingReviewResolveRequest;
@@ -208,10 +209,10 @@ export const extractPendingReviewItems = (
   response: PendingReviewListResponse,
 ): PendingReviewItem[] => {
   if (Array.isArray(response.pending_reviews) && response.pending_reviews.length) {
-    return response.pending_reviews;
+    return response.pending_reviews as PendingReviewItem[];
   }
 
-  return Array.isArray(response.results) ? response.results : [];
+  return Array.isArray(response.results) ? (response.results as PendingReviewItem[]) : [];
 };
 
 export const hydratePendingReviewItemsWithDocumentMetadata = async (
