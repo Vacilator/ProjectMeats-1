@@ -197,6 +197,12 @@ const MyTrades: React.FC = () => {
     retry: 2,
   });
 
+  // Surface backend errors that return 200 OK with empty results
+  const serverError = (data as TradeListResponse & { error?: string })?.error;
+  if (serverError && !isLoading) {
+    logger.warn('[MyTrades] Backend reported error:', serverError);
+  }
+
   const trades = useMemo(() => data?.results ?? [], [data]);
 
   const filteredTrades = useMemo(() => {
@@ -442,22 +448,31 @@ const MyTrades: React.FC = () => {
         </EmptyStateWrapper>
       ) : filteredTrades.length === 0 ? (
         <EmptyStateWrapper>
-          <EmptyStateIcon>{activeTab === 'completed' ? '🏆' : '📋'}</EmptyStateIcon>
+          <EmptyStateIcon>{serverError ? '⚠️' : activeTab === 'completed' ? '🏆' : '📋'}</EmptyStateIcon>
           <EmptyStateTitle>
-            {activeTab === 'active'
+            {serverError
+              ? 'Trades could not be loaded'
+              : activeTab === 'active'
               ? 'No active trades'
               : activeTab === 'completed'
               ? 'No completed trades yet'
               : 'No trades found'}
           </EmptyStateTitle>
           <EmptyStateDesc>
-            {activeTab === 'active'
-              ? 'Start by creating an inquiry to initiate a trade session.'
+            {serverError
+              ? `Server error: ${serverError}. Try refreshing.`
+              : activeTab === 'active'
+              ? 'Trades will appear here when inquiries are created. Click below to start one.'
               : 'Completed trades will appear here once active trades are fulfilled.'}
           </EmptyStateDesc>
           {activeTab === 'active' && (
             <EmptyStateCTA onClick={handleInitiateTrade}>
               <Plus size={14} /> Create Inquiry to Start
+            </EmptyStateCTA>
+          )}
+          {serverError && (
+            <EmptyStateCTA onClick={() => void refetch()}>
+              <RefreshCw size={14} /> Retry
             </EmptyStateCTA>
           )}
         </EmptyStateWrapper>

@@ -22,6 +22,7 @@ from rest_framework.response import Response
 
 from tenant_apps.inquiries.models import (
     Inquiry,
+    InquiryEntityTypeChoices,
     InquiryRouteDecisionChoices,
     InquiryStatusChoices,
     TradeSession,
@@ -52,11 +53,11 @@ class TradePipelineViewSet(viewsets.ViewSet):
 
     def _get_tenant(self, request):
         """Safe tenant accessor — returns None if tenant missing."""
-        return getattr(request, 'tenant', None)
+        return getattr(request, "tenant", None)
 
     def _require_tenant(self, request):
         """Safe tenant accessor — returns (tenant, error_response) tuple."""
-        tenant = getattr(request, 'tenant', None)
+        tenant = getattr(request, "tenant", None)
         if not tenant:
             return None, Response(
                 {"detail": "Tenant context not available."},
@@ -83,10 +84,10 @@ class TradePipelineViewSet(viewsets.ViewSet):
 
         try:
             return self._list_trades(request, tenant)
-        except Exception:
-            logger.exception("Unhandled error in trades list endpoint")
+        except Exception as exc:
+            logger.exception("Unhandled error in trades list endpoint: %s", exc)
             return Response(
-                {"count": 0, "results": [], "error": "Failed to load trades. Please try again."},
+                {"count": 0, "results": [], "error": f"Failed to load trades: {type(exc).__name__}"},
                 status=status.HTTP_200_OK,
             )
 
@@ -162,60 +163,60 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 )
                 step_value = session.status or ""
 
-            trades.append(
-                {
-                    "id": str(session.id),
-                    "trade_id": session.trade_id,
-                    "status": session.status,
-                    "route": session.route_decision or inquiry.route_decision or "",
-                    "current_step": step_value,
-                    "inquiry_id": str(inquiry.id),
-                    "entity_type": inquiry.entity_type or "",
-                    "customer_name": (
-                        getattr(inquiry.customer, "name", None)
-                        if inquiry.customer_id and hasattr(inquiry, "customer")
-                        else None
-                    ),
-                    "supplier_name": (
-                        getattr(inquiry.supplier, "name", None)
-                        if inquiry.supplier_id and hasattr(inquiry, "supplier")
-                        else None
-                    ),
-                    "party_name": (
-                        getattr(inquiry.supplier, "name", None)
-                        if inquiry.entity_type == "supplier" and inquiry.supplier_id
-                        else (
-                            getattr(inquiry.customer, "name", None)
-                            if inquiry.customer_id
+            try:
+                products_summary = ""
+                if hasattr(inquiry, "products"):
+                    product_names = []
+                    for p in list(inquiry.products.all())[:3]:
+                        if p.product_id and p.product is not None:
+                            name = getattr(p.product, "name", None) or getattr(p.product, "item_name", None)
+                            if name:
+                                product_names.append(name)
+                    products_summary = ", ".join(product_names)
+
+                trades.append(
+                    {
+                        "id": str(session.id),
+                        "trade_id": session.trade_id,
+                        "status": session.status,
+                        "route": session.route_decision or inquiry.route_decision or "",
+                        "current_step": step_value,
+                        "inquiry_id": str(inquiry.id),
+                        "entity_type": inquiry.entity_type or "",
+                        "customer_name": (getattr(inquiry.customer, "name", None) if inquiry.customer_id else None),
+                        "supplier_name": (getattr(inquiry.supplier, "name", None) if inquiry.supplier_id else None),
+                        "party_name": (
+                            getattr(inquiry.supplier, "name", None)
+                            if inquiry.entity_type == "supplier" and inquiry.supplier_id
+                            else (getattr(inquiry.customer, "name", None) if inquiry.customer_id else None)
+                        ),
+                        "products_summary": products_summary,
+                        "valid_until": (inquiry.valid_until.isoformat() if inquiry.valid_until else None),
+                        "source_email_subject": session.source_email_subject or "",
+                        "initiated_at": session.initiated_at.isoformat() if session.initiated_at else None,
+                        "updated_at": (
+                            session.updated_at.isoformat()
+                            if hasattr(session, "updated_at") and session.updated_at
                             else None
-                        )
-                    ),
-                    "products_summary": ", ".join(
-                        filter(None, (
-                            getattr(p.product, "name", None) or getattr(p.product, "item_name", None)
-                            for p in list(inquiry.products.all())[:3]
-                            if p.product_id and p.product is not None
-                        ))
-                    ) if hasattr(inquiry, "products") else "",
-                    "valid_until": (
-                        inquiry.valid_until.isoformat()
-                        if hasattr(inquiry, "valid_until") and inquiry.valid_until
-                        else None
-                    ),
-                    "source_email_subject": session.source_email_subject or "",
-                    "initiated_at": session.initiated_at.isoformat() if session.initiated_at else None,
-                    "updated_at": (
-                        session.updated_at.isoformat()
-                        if hasattr(session, "updated_at") and session.updated_at
-                        else None
-                    ),
-                    "supplier_purchase_order_id": str(inquiry.supplier_purchase_order_id) if inquiry.supplier_purchase_order_id else None,
-                    "sales_order_id": str(inquiry.sales_order_id) if inquiry.sales_order_id else None,
-                    "carrier_purchase_order_id": str(inquiry.carrier_purchase_order_id) if inquiry.carrier_purchase_order_id else None,
-                    "fulfillment_id": (inquiry.custom_data or {}).get("fulfillment_id"),
-                    "invoice_id": (inquiry.custom_data or {}).get("invoice_id"),
-                }
-            )
+                        ),
+                        "supplier_purchase_order_id": (
+                            str(inquiry.supplier_purchase_order_id) if inquiry.supplier_purchase_order_id else None
+                        ),
+                        "sales_order_id": str(inquiry.sales_order_id) if inquiry.sales_order_id else None,
+                        "carrier_purchase_order_id": (
+                            str(inquiry.carrier_purchase_order_id) if inquiry.carrier_purchase_order_id else None
+                        ),
+                        "fulfillment_id": (inquiry.custom_data or {}).get("fulfillment_id"),
+                        "invoice_id": (inquiry.custom_data or {}).get("invoice_id"),
+                    }
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to serialize trade %s (inquiry %s), skipping",
+                    session.trade_id,
+                    inquiry.id,
+                    exc_info=True,
+                )
 
         return Response(
             {
@@ -253,15 +254,27 @@ class TradePipelineViewSet(viewsets.ViewSet):
             )
 
         with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
+            # Determine entity_type from provided IDs (customer takes priority)
+            customer_id = data.get("customer_id") or None
+            supplier_id = data.get("supplier_id") or None
+            if customer_id:
+                entity_type = InquiryEntityTypeChoices.CUSTOMER
+            elif supplier_id:
+                entity_type = InquiryEntityTypeChoices.SUPPLIER
+            else:
+                # Default to customer for manual initiation
+                entity_type = InquiryEntityTypeChoices.CUSTOMER
+
             # Create the root inquiry
             inquiry = Inquiry.objects.create(
                 tenant=tenant,
                 status=InquiryStatusChoices.DRAFT,
                 route_decision=route,
-                customer_id=data.get("customer_id") or None,
-                supplier_id=data.get("supplier_id") or None,
-                description=data.get("description", ""),
-                type_of_protein=data.get("type_of_protein", ""),
+                entity_type=entity_type,
+                customer_id=customer_id,
+                supplier_id=supplier_id,
+                notes=data.get("description", ""),
+                requested_protein=data.get("type_of_protein", ""),
                 created_by=user,
             )
 
