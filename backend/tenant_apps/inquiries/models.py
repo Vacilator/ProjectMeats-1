@@ -635,6 +635,15 @@ class InquiryProduct(TenantAwareModel):
         blank=True,
         help_text="Actual delivery date"
     )
+
+    # Commission & margin
+    commission_per_unit = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Commission/markup per unit (trader's profit per unit)",
+    )
     
     # Metadata
     notes = models.TextField(
@@ -690,7 +699,13 @@ class InquiryProduct(TenantAwareModel):
 
     @property
     def margin(self):
-        """Calculate margin (actual - desired) for this line."""
+        """Calculate margin for this line.
+        
+        If commission_per_unit is set: margin = commission_per_unit * quantity
+        Otherwise fallback to: actual_total - desired_total
+        """
+        if self.commission_per_unit and self.quantity:
+            return self.commission_per_unit * self.quantity
         if self.actual_total and self.desired_total:
             return self.actual_total - self.desired_total
         return None
@@ -698,8 +713,11 @@ class InquiryProduct(TenantAwareModel):
     @property
     def margin_percent(self):
         """Calculate margin percentage for this line."""
-        if self.margin and self.desired_total and self.desired_total != 0:
-            return (self.margin / self.desired_total) * 100
+        margin = self.margin
+        if margin is not None and self.actual_total and self.actual_total != 0:
+            return (margin / self.actual_total) * 100
+        if margin is not None and self.desired_total and self.desired_total != 0:
+            return (margin / self.desired_total) * 100
         return None
 
 
@@ -766,6 +784,13 @@ class InquiryProductSupplierBid(TenantAwareModel):
         null=True,
         blank=True,
         help_text="Quantity the supplier can fulfill",
+    )
+    commission_per_unit = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Commission/markup per unit (trader's profit per unit)",
     )
 
     # Status tracking

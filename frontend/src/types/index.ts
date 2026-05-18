@@ -511,7 +511,8 @@ export interface InquiryProduct {
   actual_available_date?: string;
   actual_shipping_date?: string;
   actual_delivery_date?: string;
-  // Calculated fields
+  // Commission & margin
+  commission_per_unit?: number;
   margin?: number;
   margin_percent?: number;
   notes?: string;
@@ -547,6 +548,7 @@ export interface InquiryProductSupplierBid {
   bid_total?: number;
   bid_uom?: string;
   bid_quantity?: number;
+  commission_per_unit?: number;
   bid_status: SupplierBidStatus;
   requested_at?: string;
   responded_at?: string;

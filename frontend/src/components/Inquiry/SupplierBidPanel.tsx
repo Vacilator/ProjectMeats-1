@@ -2,18 +2,19 @@
  * SupplierBidPanel — Per-product supplier bid management
  *
  * Displays supplier bids as child rows that mirror the product row layout.
- * Each bid shows: supplier, quantity, price/unit, UOM, total, notes + actions.
+ * Each bid shows: supplier, quantity, price/unit, commission/unit, UOM, total, margin, notes, status + actions.
  * Ship-to location is rendered at product level by the parent component.
  *
- * Requirements:
+ * Features:
  * - Bid form mirrors product row structure (same fields + supplier dropdown)
- * - Remove redundant respond_by / fulfillment_date (valid_until on inquiry is canonical)
- * - Bids save and display correctly after creation
+ * - Accept Winning Bid from draft/requested/received status
+ * - Commission/unit field for profit tracking
+ * - Instant display after save (optimistic + invalidation)
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import { message, Tooltip, Tag, Popconfirm, Select, Input, InputNumber } from 'antd';
-import { Plus, Send, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Send, Check, X, ChevronDown, ChevronRight, Trophy } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { InquiryProduct, InquiryProductSupplierBid, SupplierBidStatus } from '../../types';
 import { inquiryService } from '../../services/inquiryService';
@@ -55,6 +56,7 @@ interface NewBidForm {
   supplier: string;
   bid_quantity: string;
   bid_price_per_unit: string;
+  commission_per_unit: string;
   bid_uom: string;
   bid_total: string;
   bid_notes: string;
@@ -64,10 +66,28 @@ const EMPTY_BID_FORM: NewBidForm = {
   supplier: '',
   bid_quantity: '',
   bid_price_per_unit: '',
+  commission_per_unit: '',
   bid_uom: 'LBS',
   bid_total: '',
   bid_notes: '',
 };
+
+// ── Helpers ──
+
+function calcMargin(bid: InquiryProductSupplierBid): string {
+  if (bid.commission_per_unit != null && bid.bid_quantity != null) {
+    return `$${(Number(bid.commission_per_unit) * Number(bid.bid_quantity)).toFixed(2)}`;
+  }
+  return '—';
+}
+
+function calcMarginPercent(bid: InquiryProductSupplierBid): string {
+  if (bid.commission_per_unit != null && bid.bid_price_per_unit != null && Number(bid.bid_price_per_unit) > 0) {
+    const pct = (Number(bid.commission_per_unit) / Number(bid.bid_price_per_unit)) * 100;
+    return `${pct.toFixed(1)}%`;
+  }
+  return '';
+}
 
 // ── Component ──
 
@@ -79,11 +99,20 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [addingBid, setAddingBid] = useState(false);
   const [newBid, setNewBid] = useState<NewBidForm>(EMPTY_BID_FORM);
+  const [optimisticBids, setOptimisticBids] = useState<InquiryProductSupplierBid[]>([]);
   const queryClient = useQueryClient();
 
-  const bids = useMemo(() => product.supplier_bids ?? [], [product.supplier_bids]);
+  const serverBids = useMemo(() => product.supplier_bids ?? [], [product.supplier_bids]);
+  const bids = useMemo(() => {
+    // Merge optimistic bids with server bids (remove optimistic once server has them)
+    const serverIds = new Set(serverBids.map(b => b.id));
+    const pending = optimisticBids.filter(ob => !serverIds.has(ob.id));
+    return [...serverBids, ...pending];
+  }, [serverBids, optimisticBids]);
+
   const canManageBids = !readOnly && ['draft', 'pending', 'quoted', 'approved', 'action_required', 'in_progress'].includes(inquiryStatus);
   const hasDraftBids = bids.some(b => b.bid_status === 'draft');
+  const hasAcceptedBid = bids.some(b => b.bid_status === 'accepted');
 
   // Fetch suppliers for searchable dropdown
   const { data: suppliers } = useQuery({
@@ -138,17 +167,22 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     retry: false,
     mutationFn: (bidId: string) => inquiryService.acceptBid(bidId),
     onSuccess: () => {
-      message.success('Bid accepted — pricing updated');
+      message.success('🏆 Winning bid accepted — pricing updated');
       invalidateInquiry();
     },
-    onError: () => message.error('Failed to accept bid'),
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to accept bid';
+      message.error(msg);
+    },
   });
 
   const deleteBidMutation = useMutation({
     retry: false,
     mutationFn: (bidId: string) => inquiryService.deleteBid(bidId),
-    onSuccess: () => {
+    onSuccess: (_data, bidId) => {
       message.success('Bid removed');
+      // Remove from optimistic list too
+      setOptimisticBids(prev => prev.filter(b => b.id !== bidId));
       invalidateInquiry();
     },
     onError: () => message.error('Failed to remove bid'),
@@ -158,10 +192,13 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     retry: false,
     mutationFn: (payload: Partial<InquiryProductSupplierBid>) =>
       inquiryService.createBid(payload),
-    onSuccess: () => {
+    onSuccess: (createdBid) => {
       message.success('Supplier bid added');
+      // Optimistically show the new bid immediately
+      setOptimisticBids(prev => [...prev, createdBid]);
       setAddingBid(false);
       setNewBid(EMPTY_BID_FORM);
+      // Also invalidate to get server state
       invalidateInquiry();
     },
     onError: (err: unknown) => {
@@ -169,6 +206,18 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
       message.error(msg);
     },
   });
+
+  // Clear optimistic bids when server data updates
+  useEffect(() => {
+    if (serverBids.length > 0 && optimisticBids.length > 0) {
+      const serverIds = new Set(serverBids.map(b => b.id));
+      const remaining = optimisticBids.filter(ob => !serverIds.has(ob.id));
+      if (remaining.length !== optimisticBids.length) {
+        setOptimisticBids(remaining);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverBids]);
 
   const handleAddBid = useCallback(() => {
     if (!newBid.supplier) {
@@ -180,6 +229,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
       supplier: newBid.supplier,
       bid_quantity: newBid.bid_quantity ? Number(newBid.bid_quantity) : undefined,
       bid_price_per_unit: newBid.bid_price_per_unit ? Number(newBid.bid_price_per_unit) : undefined,
+      commission_per_unit: newBid.commission_per_unit ? Number(newBid.commission_per_unit) : undefined,
       bid_uom: newBid.bid_uom || undefined,
       bid_total: newBid.bid_total ? Number(newBid.bid_total) : undefined,
       bid_notes: newBid.bid_notes || undefined,
@@ -203,6 +253,10 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     });
   }, []);
 
+  const handleDeleteBid = useCallback((bidId: string) => {
+    deleteBidMutation.mutate(bidId);
+  }, [deleteBidMutation]);
+
   // ── Render ──
 
   return (
@@ -220,7 +274,8 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
         </ExpandToggle>
         <BidSummary>
           <span>Supplier Bids ({bids.length})</span>
-          {bids.length > 0 && (
+          {hasAcceptedBid && <Tag color="success" style={{ fontSize: '0.7rem', margin: 0 }}>🏆 Winner Selected</Tag>}
+          {bids.length > 0 && !hasAcceptedBid && (
             <BidStatusSummary>
               {Object.entries(
                 bids.reduce((acc, b) => {
@@ -252,15 +307,16 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
 
       {expanded && (
         <BidList>
-          {/* ── Column headers for bid rows (mirror product row) ── */}
+          {/* ── Column headers for bid rows ── */}
           {(bids.length > 0 || addingBid) && (
             <BidColumnHeaders>
               <div className="col supplier">Supplier</div>
               <div className="col qty">Qty</div>
-              <div className="col price">Price/Unit</div>
+              <div className="col price">Price/U</div>
+              <div className="col commission">Comm/U</div>
               <div className="col uom">UOM</div>
               <div className="col total">Total</div>
-              <div className="col notes">Notes</div>
+              <div className="col margin">Margin</div>
               <div className="col status">Status</div>
               <div className="col actions">Actions</div>
             </BidColumnHeaders>
@@ -271,40 +327,47 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
           )}
 
           {/* ── Existing bid rows ── */}
-          {bids.map((bid) => (
-            <BidRow key={bid.id}>
-              <div className="col supplier">
-                <span className="name">{bid.supplier_name || `Supplier ${String(bid.supplier).slice(0, 8)}`}</span>
-                {bid.plant_name && <span className="sub">{bid.plant_name}</span>}
-              </div>
-              <div className="col qty">
-                {bid.bid_quantity != null ? Number(bid.bid_quantity).toLocaleString() : '—'}
-              </div>
-              <div className="col price">
-                {bid.bid_price_per_unit != null ? `$${Number(bid.bid_price_per_unit).toFixed(2)}` : '—'}
-              </div>
-              <div className="col uom">
-                {bid.bid_uom || '—'}
-              </div>
-              <div className="col total">
-                {bid.bid_total != null ? `$${Number(bid.bid_total).toFixed(2)}` : '—'}
-              </div>
-              <div className="col notes">
-                {bid.bid_notes ? (
-                  <Tooltip title={bid.bid_notes}>
-                    <span className="truncate">{bid.bid_notes}</span>
-                  </Tooltip>
-                ) : '—'}
-              </div>
-              <div className="col status">
-                <Tag color={BID_STATUS_META[bid.bid_status]?.color || 'default'} style={{ fontSize: '0.7rem', margin: 0 }}>
-                  {BID_STATUS_META[bid.bid_status]?.icon} {BID_STATUS_META[bid.bid_status]?.label || bid.bid_status}
-                </Tag>
-              </div>
-              <div className="col actions">
-                {canManageBids && (
+          {bids.map((bid) => {
+            const isAccepted = bid.bid_status === 'accepted';
+            const canAccept = canManageBids && !hasAcceptedBid && ['draft', 'requested', 'received'].includes(bid.bid_status);
+            const canDelete = canManageBids && !isAccepted && bid.bid_status !== 'rejected';
+
+            return (
+              <BidRow key={bid.id} className={isAccepted ? 'winner' : ''}>
+                <div className="col supplier">
+                  <span className="name">
+                    {isAccepted && '🏆 '}
+                    {bid.supplier_name || `Supplier ${String(bid.supplier).slice(0, 8)}`}
+                  </span>
+                  {bid.plant_name && <span className="sub">{bid.plant_name}</span>}
+                </div>
+                <div className="col qty">
+                  {bid.bid_quantity != null ? Number(bid.bid_quantity).toLocaleString() : '—'}
+                </div>
+                <div className="col price">
+                  {bid.bid_price_per_unit != null ? `$${Number(bid.bid_price_per_unit).toFixed(2)}` : '—'}
+                </div>
+                <div className="col commission">
+                  {bid.commission_per_unit != null ? `$${Number(bid.commission_per_unit).toFixed(2)}` : '—'}
+                </div>
+                <div className="col uom">
+                  {bid.bid_uom || '—'}
+                </div>
+                <div className="col total">
+                  {bid.bid_total != null ? `$${Number(bid.bid_total).toFixed(2)}` : '—'}
+                </div>
+                <div className="col margin">
+                  <span>{calcMargin(bid)}</span>
+                  {calcMarginPercent(bid) && <span className="sub">{calcMarginPercent(bid)}</span>}
+                </div>
+                <div className="col status">
+                  <Tag color={BID_STATUS_META[bid.bid_status]?.color || 'default'} style={{ fontSize: '0.7rem', margin: 0 }}>
+                    {BID_STATUS_META[bid.bid_status]?.icon} {BID_STATUS_META[bid.bid_status]?.label || bid.bid_status}
+                  </Tag>
+                </div>
+                <div className="col actions">
                   <BidActions>
-                    {bid.bid_status === 'draft' && (
+                    {bid.bid_status === 'draft' && canManageBids && (
                       <ActionBtn
                         onClick={() => requestBidMutation.mutate(bid.id)}
                         disabled={requestBidMutation.isPending}
@@ -314,34 +377,47 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                         <Send size={12} />
                       </ActionBtn>
                     )}
-                    {bid.bid_status === 'received' && (
-                      <ActionBtn
-                        $variant="success"
-                        onClick={() => acceptBidMutation.mutate(bid.id)}
-                        disabled={acceptBidMutation.isPending}
-                        title="Accept this bid"
-                        aria-label="Accept this bid"
+                    {canAccept && (
+                      <Popconfirm
+                        title="Accept this as the winning bid?"
+                        description="This will set the pricing on the product and reject other bids."
+                        onConfirm={() => acceptBidMutation.mutate(bid.id)}
+                        okText="Accept"
+                        cancelText="Cancel"
+                        okButtonProps={{ loading: acceptBidMutation.isPending }}
                       >
-                        <Check size={12} />
-                      </ActionBtn>
+                        <ActionBtn
+                          $variant="success"
+                          disabled={acceptBidMutation.isPending}
+                          title="Accept as winning bid"
+                          aria-label="Accept as winning bid"
+                        >
+                          <Trophy size={12} />
+                        </ActionBtn>
+                      </Popconfirm>
                     )}
-                    {['draft', 'expired'].includes(bid.bid_status) && (
+                    {canDelete && (
                       <Popconfirm
                         title="Remove this supplier bid?"
-                        onConfirm={() => deleteBidMutation.mutate(bid.id)}
+                        onConfirm={() => handleDeleteBid(bid.id)}
                         okText="Remove"
                         cancelText="Cancel"
+                        okButtonProps={{ loading: deleteBidMutation.isPending }}
                       >
-                        <ActionBtn $variant="danger" title="Remove bid" aria-label="Remove bid">
+                        <ActionBtn
+                          $variant="danger"
+                          title="Remove bid"
+                          aria-label="Remove bid"
+                        >
                           <X size={12} />
                         </ActionBtn>
                       </Popconfirm>
                     )}
                   </BidActions>
-                )}
-              </div>
-            </BidRow>
-          ))}
+                </div>
+              </BidRow>
+            );
+          })}
 
           {/* ── Add new bid form (mirrors product row layout) ── */}
           {addingBid && (
@@ -389,6 +465,20 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                   prefix="$"
                 />
               </div>
+              <div className="col commission">
+                <InputNumber
+                  size="small"
+                  placeholder="Comm"
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  value={newBid.commission_per_unit ? Number(newBid.commission_per_unit) : undefined}
+                  onChange={(val) => updateBidField('commission_per_unit', val != null ? String(val) : '')}
+                  style={{ width: '100%' }}
+                  controls={false}
+                  prefix="$"
+                />
+              </div>
               <div className="col uom">
                 <Select
                   size="small"
@@ -413,7 +503,8 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                   prefix="$"
                 />
               </div>
-              <div className="col notes">
+              <div className="col margin" />
+              <div className="col status">
                 <Input
                   size="small"
                   placeholder="Notes..."
@@ -422,7 +513,6 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                   style={{ width: '100%' }}
                 />
               </div>
-              <div className="col status" />
               <div className="col actions">
                 <BidActions>
                   <ActionBtn
@@ -536,7 +626,7 @@ const EmptyBids = styled.div`
 
 const BidColumnHeaders = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr 1.2fr 0.8fr 1.2fr 1.5fr 1.2fr 1fr;
+  grid-template-columns: 2fr 0.8fr 1fr 0.9fr 0.7fr 1fr 1fr 1.1fr 1fr;
   gap: 0.5rem;
   padding: 0.375rem 0.5rem;
   border-bottom: 1px solid rgba(var(--color-border), 0.3);
@@ -553,7 +643,7 @@ const BidColumnHeaders = styled.div`
 
 const BidRow = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr 1.2fr 0.8fr 1.2fr 1.5fr 1.2fr 1fr;
+  grid-template-columns: 2fr 0.8fr 1fr 0.9fr 0.7fr 1fr 1fr 1.1fr 1fr;
   gap: 0.5rem;
   padding: 0.5rem 0.5rem;
   border-bottom: 1px solid rgba(var(--color-border), 0.1);
@@ -569,6 +659,11 @@ const BidRow = styled.div`
     border: 1px dashed rgba(var(--color-primary), 0.2);
     border-radius: var(--radius-sm);
     margin-top: 0.25rem;
+  }
+
+  &.winner {
+    background: rgba(var(--color-success), 0.04);
+    border-left: 3px solid rgb(var(--color-success));
   }
 
   .col.supplier {
@@ -587,8 +682,16 @@ const BidRow = styled.div`
     }
   }
 
-  .col.qty, .col.price, .col.total {
+  .col.qty, .col.price, .col.total, .col.commission, .col.margin {
     font-variant-numeric: tabular-nums;
+  }
+
+  .col.margin {
+    .sub {
+      display: block;
+      font-size: 0.7rem;
+      color: rgb(var(--color-text-secondary));
+    }
   }
 
   .col.notes {
