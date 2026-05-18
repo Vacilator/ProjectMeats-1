@@ -471,6 +471,20 @@ const Inquiries: React.FC = () => {
   const reviewSearchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const reviewInquiryId = reviewSearchParams.get('inquiry');
   const isReviewLink = reviewSearchParams.get('review') === 'inquiry';
+  const isCreateAction = reviewSearchParams.get('action') === 'create';
+
+  // Handle ?action=create URL param to auto-open create modal
+  useEffect(() => {
+    if (!isCreateAction) return;
+    setShowCreateModal(true);
+    // Clear the param so refresh doesn't reopen
+    const params = new URLSearchParams(location.search);
+    params.delete('action');
+    navigate(
+      { pathname: location.pathname, search: params.toString() ? `?${params.toString()}` : '' },
+      { replace: true }
+    );
+  }, [isCreateAction, location.pathname, location.search, navigate]);
 
 
   // Fetch templates on mount

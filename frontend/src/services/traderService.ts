@@ -42,7 +42,12 @@ export interface TradeSession {
   route: string;
   current_step: string | null;
   inquiry_id: string;
+  entity_type: string;
   customer_name: string | null;
+  supplier_name: string | null;
+  party_name: string | null;
+  products_summary: string;
+  valid_until: string | null;
   source_email_subject: string;
   initiated_at: string | null;
   updated_at: string | null;
