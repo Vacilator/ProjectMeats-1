@@ -12,19 +12,19 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import dayjs from 'dayjs';
 import styled, { css, keyframes } from 'styled-components';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Table, Tag, Select, message, Tooltip } from 'antd';
+import { Tag, Select, message, Tooltip } from 'antd';
 import { showAlert } from '@/utils/uiDialogs';
 import { logger } from '@/utils/logger';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData } from '../../components/Delegation';
 import AIDraftReviewDialog from '../../components/AIAssistant/AIDraftReviewDialog';
 import {
-  AIInboxFeedbackActions,
   type AIInboxFeedbackSubmission,
 } from '../../components/AIAssistant/AIInboxFeedbackActions';
 import {
   AI_INBOX_REFRESH_EVENT,
   aiStaffApi,
+  aiFeedbackApi,
   PendingReviewItem,
 } from '../../services/aiService';
 import { StatusActionCell } from '@/components/Workflow';
@@ -552,6 +552,181 @@ const EmptyCTA = styled.button`
   &:hover { opacity: 0.9; }
 `;
 
+/* ─── Smart Approval Cards ─── */
+const ApprovalCardGrid = styled.div`
+  display: grid;
+  gap: 16px;
+`;
+
+const ApprovalCard = styled.div<{ $highlighted?: boolean }>`
+  position: relative;
+  border-radius: 12px;
+  padding: 20px;
+  background: rgb(var(--color-surface));
+  border: 1px solid ${({ $highlighted }) =>
+    $highlighted ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  box-shadow: ${({ $highlighted }) =>
+    $highlighted ? '0 0 0 2px rgba(var(--color-primary), 0.15)' : '0 1px 3px rgba(0,0,0,0.04)'};
+  transition: border-color 0.15s, box-shadow 0.15s;
+  animation: ${fadeIn} 0.2s ease;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 2px 8px rgba(var(--color-primary), 0.1);
+  }
+`;
+
+const CardHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+`;
+
+const CardSender = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
+const CardSubject = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+  margin-top: 2px;
+  line-height: 1.4;
+`;
+
+const CardMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+`;
+
+const ConfidenceBadge = styled.span<{ $level: 'high' | 'medium' | 'low' }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: ${({ $level }) =>
+    $level === 'high' ? 'rgba(var(--color-success), 0.1)'
+    : $level === 'medium' ? 'rgba(var(--color-warning), 0.1)'
+    : 'rgba(var(--color-error), 0.1)'};
+  color: ${({ $level }) =>
+    $level === 'high' ? 'rgb(var(--color-success))'
+    : $level === 'medium' ? 'rgb(var(--color-warning))'
+    : 'rgb(var(--color-error))'};
+`;
+
+const CardBody = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+  line-height: 1.5;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: rgb(var(--color-bg-secondary));
+  border-radius: 8px;
+`;
+
+const ProposedActions = styled.div`
+  margin-bottom: 16px;
+`;
+
+const ProposedActionLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+`;
+
+const ProposedEntityChip = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(var(--color-primary), 0.08);
+  color: rgb(var(--color-primary));
+  margin-right: 6px;
+  margin-bottom: 4px;
+`;
+
+const CardActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const ApproveAllBtn = styled.button`
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: none;
+  background: rgb(var(--color-success));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.12s;
+  &:hover { opacity: 0.9; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+`;
+
+const DeclineBtn = styled.button`
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: transparent;
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  &:hover {
+    border-color: rgb(var(--color-error));
+    color: rgb(var(--color-error));
+    background: rgba(var(--color-error), 0.05);
+  }
+`;
+
+const DeclineFeedbackArea = styled.div`
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(var(--color-error), 0.04);
+  border: 1px solid rgba(var(--color-error), 0.15);
+`;
+
+const FeedbackTextarea = styled.textarea`
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 8px;
+
+  &::placeholder { color: rgb(var(--color-text-tertiary)); }
+  &:focus { outline: none; border-color: rgb(var(--color-primary)); }
+`;
+
+const CardTimestamp = styled.span`
+  font-size: 11px;
+  color: rgb(var(--color-text-tertiary));
+`;
+
 /* ═══════════════ COMPONENT ═══════════════ */
 
 export const MyTasks: React.FC = () => {
@@ -590,7 +765,8 @@ export const MyTasks: React.FC = () => {
   const [reviewError, setReviewError] = useState('');
   const [selectedReview, setSelectedReview] = useState<PendingReviewItem | null>(null);
   const [aiIntentFilter, setAiIntentFilter] = useState('all');
-  const [aiSelectedKeys, setAiSelectedKeys] = useState<React.Key[]>([]);
+  const [decliningId, setDecliningId] = useState<string | null>(null);
+  const [declineComment, setDeclineComment] = useState('');
 
   // (Workflows tab removed — no workforms dependency)
 
@@ -767,51 +943,54 @@ export const MyTasks: React.FC = () => {
     setSelectedReview(c => c?.id === id ? { ...c, ...patch } : c);
   }, []);
 
-  const handleBatchAction = useCallback(async (action: 'approve' | 'reject') => {
-    const sel = pendingReviews.filter(r => aiSelectedKeys.includes(r.id));
-    if (!sel.length) return;
-    if (action === 'approve') {
-      sel.forEach(i => openReview(i));
-      void message.info(`Opening ${sel.length} draft(s)`);
-    } else {
-      setPendingReviews(c => c.filter(r => !aiSelectedKeys.includes(r.id)));
-      void message.success(`${sel.length} draft(s) dismissed`);
+  const handleDeclineWithFeedback = useCallback(async (itemId: string) => {
+    try {
+      await aiFeedbackApi.submit({
+        document_id: itemId,
+        feedback_signal: 'thumbs_down',
+        feedback_comment: declineComment || undefined,
+        feedback_source: 'smart_approval_decline',
+      });
+      setPendingReviews(c => c.filter(i => i.id !== itemId));
+      setDecliningId(null);
+      setDeclineComment('');
+      void message.success('Declined — feedback saved for AI improvement');
+    } catch (err) {
+      logger.error('Decline feedback failed', err);
+      void message.error('Could not submit decline feedback');
     }
-    setAiSelectedKeys([]);
-  }, [aiSelectedKeys, pendingReviews, openReview]);
+  }, [declineComment]);
 
-  const aiColumns = useMemo(() => [
-    {
-      title: 'Sender', dataIndex: 'sender', key: 'sender',
-      render: (v: string | undefined) => v || 'Unknown',
-    },
-    {
-      title: 'Intent', dataIndex: 'intent_label', key: 'intent',
-      render: (_: string | undefined, r: PendingReviewItem) => (
-        <Tag color="blue">{r.intent_label || r.document_type || 'AI Draft'}</Tag>
-      ),
-    },
-    {
-      title: 'Date', dataIndex: 'created_on', key: 'date',
-      render: (v: string | undefined) => v ? formatTimeAgo(v) : '—',
-    },
-    {
-      title: 'Confidence', dataIndex: 'confidence_score', key: 'conf', width: 90,
-      render: (v: number | undefined) => {
-        const s = Number(v || 0);
-        return <Tag color={s >= 0.8 ? 'green' : s >= 0.5 ? 'orange' : 'red'}>{Math.round(s * 100)}%</Tag>;
-      },
-    },
-    {
-      title: '', key: 'actions', width: 120,
-      render: (_: unknown, r: PendingReviewItem) => (
-        <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
-          <SmallBtn $primary onClick={() => openReview(r)}>Review</SmallBtn>
-          <AIInboxFeedbackActions item={r} onSubmitted={sub => handleFeedback(r.id, sub)} />
-        </div>
-      ),
-    },
-  ], [handleFeedback, openReview]);
+  const handleApproveAll = useCallback(async () => {
+    if (!filteredAI.length) return;
+    filteredAI.forEach(i => openReview(i));
+    void message.info(`Opening ${filteredAI.length} item(s) for review & approval`);
+  }, [filteredAI, openReview]);
+
+  const getConfidenceLevel = useCallback((score: number | undefined): 'high' | 'medium' | 'low' => {
+    const s = Number(score || 0);
+    if (s >= 0.8) return 'high';
+    if (s >= 0.5) return 'medium';
+    return 'low';
+  }, []);
+
+  const getProposedEntities = useCallback((item: PendingReviewItem): string[] => {
+    const entities: string[] = [];
+    const formType = item.review_entity_type || item.document_type || '';
+    if (formType) entities.push(humanizeEntityType(formType));
+    // Infer additional entity proposals from parsed data
+    const intent = (item.intent_label || '').toLowerCase();
+    if (intent.includes('purchase') || intent.includes('po')) {
+      if (!entities.includes('Purchase Order')) entities.push('Purchase Order');
+    }
+    if (intent.includes('inquiry') || intent.includes('rfq')) {
+      if (!entities.includes('Inquiry')) entities.push('Inquiry');
+    }
+    if (intent.includes('sales') || intent.includes('so')) {
+      if (!entities.includes('Sales Order')) entities.push('Sales Order');
+    }
+    return entities.length > 0 ? entities : ['Trade Document'];
+  }, []);
 
   /* ── delegation ── */
   const handleDelegate = useCallback(async (_data: DelegationData) => {
@@ -898,7 +1077,7 @@ export const MyTasks: React.FC = () => {
           {approvalCount > 0 && <TabBadge $variant="danger">{approvalCount}</TabBadge>}
         </Tab>
         <Tab $active={activeTab === 'ai'} onClick={() => setTab('ai')} role="tab" aria-selected={activeTab === 'ai'}>
-          AI Inbox
+          AI Approvals
           {pendingReviews.length > 0 && <TabBadge>{pendingReviews.length}</TabBadge>}
         </Tab>
       </TabBar>
@@ -1096,7 +1275,7 @@ export const MyTasks: React.FC = () => {
         <PendingApprovalsTab onCountChange={setApprovalCount} />
       )}
 
-      {/* ═══════ AI INBOX TAB ═══════ */}
+      {/* ═══════ AI APPROVALS TAB (Smart Approvals) ═══════ */}
       {activeTab === 'ai' && (
         <>
           <Toolbar>
@@ -1110,17 +1289,15 @@ export const MyTasks: React.FC = () => {
                 ...aiIntents.map(i => ({ value: i, label: i })),
               ]}
             />
-            {aiSelectedKeys.length > 0 && (
-              <>
-                <Tag color="blue">{aiSelectedKeys.length} selected</Tag>
-                <SmallBtn $primary onClick={() => void handleBatchAction('approve')}>Review selected</SmallBtn>
-                <SmallBtn onClick={() => void handleBatchAction('reject')}>Dismiss</SmallBtn>
-              </>
+            {filteredAI.length > 1 && (
+              <ApproveAllBtn onClick={() => void handleApproveAll()}>
+                ✓ Review All ({filteredAI.length})
+              </ApproveAllBtn>
             )}
             <span style={{ marginLeft: 'auto', fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>
               {filteredAI.length} item{filteredAI.length !== 1 ? 's' : ''}
             </span>
-            <RefreshBtn onClick={() => void fetchReviews()} aria-label="Refresh AI inbox">↻</RefreshBtn>
+            <RefreshBtn onClick={() => void fetchReviews()} aria-label="Refresh AI approvals">↻</RefreshBtn>
           </Toolbar>
 
           {reviewError && <ErrorBanner>{reviewError}</ErrorBanner>}
@@ -1129,35 +1306,95 @@ export const MyTasks: React.FC = () => {
             <><Skeleton /><Skeleton /><Skeleton /></>
           ) : filteredAI.length === 0 ? (
             <Empty>
-              <EmptyIcon>📥</EmptyIcon>
-              <EmptyTitle>AI Inbox is clear</EmptyTitle>
-              <EmptyDesc>Drafts from AI email parsing will appear here for your review.</EmptyDesc>
+              <EmptyIcon>✨</EmptyIcon>
+              <EmptyTitle>No pending AI approvals</EmptyTitle>
+              <EmptyDesc>
+                When AI identifies actionable emails (new orders, quote requests, bid responses),
+                they&apos;ll appear here as smart approval cards for your review.
+              </EmptyDesc>
             </Empty>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <Table
-                aria-label="AI review queue"
-                rowKey="id"
-                dataSource={filteredAI}
-                columns={aiColumns}
-                pagination={false}
-                size="small"
-                rowSelection={{ selectedRowKeys: aiSelectedKeys, onChange: setAiSelectedKeys }}
-                expandable={{
-                  expandedRowRender: (item: PendingReviewItem) => (
-                    <div style={{ padding: '8px 0' }}>
-                      <div style={{ fontWeight: 500, marginBottom: 4 }}>{item.source_subject || 'AI Draft'}</div>
-                      <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
-                        {item.source_summary || 'Open to inspect and save the entity.'}
+            <ApprovalCardGrid>
+              {filteredAI.map(item => {
+                const confLevel = getConfidenceLevel(item.confidence_score);
+                const proposedEntities = getProposedEntities(item);
+                const isDeclining = decliningId === item.id;
+
+                return (
+                  <ApprovalCard key={item.id} $highlighted={item.id === highlightedDraftId}>
+                    <CardHeader>
+                      <div>
+                        <CardSender>{item.sender || 'Unknown sender'}</CardSender>
+                        <CardSubject>{item.source_subject || item.intent_label || 'AI-parsed trade document'}</CardSubject>
                       </div>
-                      {item.source_document_name && (
-                        <Tag style={{ marginTop: 8 }}>📎 {item.source_document_name}</Tag>
-                      )}
-                    </div>
-                  ),
-                }}
-              />
-            </div>
+                      <CardMeta>
+                        <ConfidenceBadge $level={confLevel}>
+                          {confLevel === 'high' ? '✓' : confLevel === 'medium' ? '~' : '?'}{' '}
+                          {Math.round((item.confidence_score || 0) * 100)}%
+                        </ConfidenceBadge>
+                        <CardTimestamp>{item.created_on ? formatTimeAgo(item.created_on) : ''}</CardTimestamp>
+                      </CardMeta>
+                    </CardHeader>
+
+                    {item.source_summary && (
+                      <CardBody>{item.source_summary}</CardBody>
+                    )}
+
+                    <ProposedActions>
+                      <ProposedActionLabel>AI suggests creating:</ProposedActionLabel>
+                      <div>
+                        {proposedEntities.map(entity => (
+                          <ProposedEntityChip key={entity}>📄 {entity}</ProposedEntityChip>
+                        ))}
+                        {item.source_document_name && (
+                          <ProposedEntityChip>📎 {item.source_document_name}</ProposedEntityChip>
+                        )}
+                      </div>
+                    </ProposedActions>
+
+                    <CardActions>
+                      <ApproveAllBtn onClick={() => openReview(item)}>
+                        ✓ Approve &amp; Review
+                      </ApproveAllBtn>
+                      <DeclineBtn
+                        onClick={() => {
+                          if (isDeclining) {
+                            setDecliningId(null);
+                            setDeclineComment('');
+                          } else {
+                            setDecliningId(item.id);
+                          }
+                        }}
+                      >
+                        ✗ Decline
+                      </DeclineBtn>
+                    </CardActions>
+
+                    {isDeclining && (
+                      <DeclineFeedbackArea>
+                        <FeedbackTextarea
+                          placeholder="Optional: Tell the AI why this was declined (helps improve future accuracy)..."
+                          value={declineComment}
+                          onChange={e => setDeclineComment(e.target.value)}
+                          aria-label="Decline reason"
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <SmallBtn
+                            $primary
+                            onClick={() => void handleDeclineWithFeedback(item.id)}
+                          >
+                            Confirm Decline
+                          </SmallBtn>
+                          <SmallBtn onClick={() => { setDecliningId(null); setDeclineComment(''); }}>
+                            Cancel
+                          </SmallBtn>
+                        </div>
+                      </DeclineFeedbackArea>
+                    )}
+                  </ApprovalCard>
+                );
+              })}
+            </ApprovalCardGrid>
           )}
 
           <AIDraftReviewDialog
