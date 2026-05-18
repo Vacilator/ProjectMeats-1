@@ -109,7 +109,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 "inquiry__supplier_purchase_order",
                 "inquiry__sales_order",
             )
-            .prefetch_related("inquiry__products")
+            .prefetch_related("inquiry__products", "inquiry__products__product")
             .order_by("-initiated_at")
         )
 
@@ -179,7 +179,11 @@ class TradePipelineViewSet(viewsets.ViewSet):
                         )
                     ),
                     "products_summary": ", ".join(
-                        p.name for p in inquiry.products.all()[:3]
+                        filter(None, (
+                            getattr(p.product, "name", None) or getattr(p.product, "item_name", None)
+                            for p in list(inquiry.products.all())[:3]
+                            if p.product_id
+                        ))
                     ) if hasattr(inquiry, "products") else "",
                     "valid_until": (
                         inquiry.valid_until.isoformat()
