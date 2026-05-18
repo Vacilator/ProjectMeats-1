@@ -136,6 +136,7 @@ class InquiryProductSupplierBidSerializer(serializers.ModelSerializer):
             'id', 'inquiry_product', 'supplier', 'supplier_name',
             'plant', 'plant_name', 'contact', 'contact_name', 'contact_email',
             'bid_price_per_unit', 'bid_total', 'bid_uom', 'bid_quantity',
+            'commission_per_unit',
             'bid_status', 'requested_at', 'responded_at',
             'bid_notes', 'supplier_notes', 'bid_response_data',
             'rfq', 'created_on', 'modified_on',
@@ -183,8 +184,8 @@ class InquiryProductSerializer(serializers.ModelSerializer):
             'actual_total', 'actual_price_per_unit', 'actual_uom', 'actual_uom_value',
             'actual_processed_date', 'actual_expiration_date', 'actual_available_date',
             'actual_shipping_date', 'actual_delivery_date',
-            # Calculated
-            'margin', 'margin_percent',
+            # Commission & margin
+            'commission_per_unit', 'margin', 'margin_percent',
             # Fulfillment & bid management
             'fulfillment_date_time', 'respond_by_date_time',
             'ship_to_location', 'ship_to_location_name',

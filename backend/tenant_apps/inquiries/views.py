@@ -1261,15 +1261,21 @@ class InquiryProductSupplierBidViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='accept')
     def accept_bid(self, request, pk=None):
-        """Accept a received bid — sets it as accepted and updates parent product pricing.
+        """Accept a bid as the winning bid — sets it as accepted and updates parent product pricing.
 
+        Bids can be accepted from 'draft', 'requested', or 'received' status.
         When all inquiry products have an accepted bid, attempts to advance the
         trade session to the next orchestrator step (draft PO).
         """
         bid = self.get_object()
-        if bid.bid_status != SupplierBidStatusChoices.RECEIVED:
+        acceptable_statuses = (
+            SupplierBidStatusChoices.DRAFT,
+            SupplierBidStatusChoices.REQUESTED,
+            SupplierBidStatusChoices.RECEIVED,
+        )
+        if bid.bid_status not in acceptable_statuses:
             return Response(
-                {"error": f"Can only accept bids in 'received' status, got '{bid.bid_status}'"},
+                {"error": f"Cannot accept bid in status '{bid.bid_status}'. Must be draft, requested, or received."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -1284,15 +1290,21 @@ class InquiryProductSupplierBidViewSet(viewsets.ModelViewSet):
         product.actual_total = bid.bid_total
         if bid.bid_uom:
             product.actual_uom = bid.bid_uom
+        if bid.commission_per_unit:
+            product.commission_per_unit = bid.commission_per_unit
         product.save(update_fields=[
             'supplier', 'plant', 'actual_price_per_unit', 'actual_total',
-            'actual_uom', 'modified_on',
+            'actual_uom', 'commission_per_unit', 'modified_on',
         ])
 
-        # Reject other received bids for this product
+        # Reject other non-accepted bids for this product
         InquiryProductSupplierBid.objects.filter(
             inquiry_product=product,
-            bid_status=SupplierBidStatusChoices.RECEIVED,
+            bid_status__in=[
+                SupplierBidStatusChoices.DRAFT,
+                SupplierBidStatusChoices.REQUESTED,
+                SupplierBidStatusChoices.RECEIVED,
+            ],
             tenant=self.request.tenant,
         ).exclude(pk=bid.pk).update(bid_status=SupplierBidStatusChoices.REJECTED)
 
