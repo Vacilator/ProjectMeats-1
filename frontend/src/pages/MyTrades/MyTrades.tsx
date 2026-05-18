@@ -193,7 +193,7 @@ const MyTrades: React.FC = () => {
   const handleRefresh = useCallback(() => { void refetch(); }, [refetch]);
 
   const handleNavigateToInquiry = useCallback((inquiryId: string) => {
-    navigate(`/records/inquiry/${inquiryId}`);
+    navigate(`/inquiries?review=inquiry&inquiry=${inquiryId}`);
   }, [navigate]);
 
   const handleAdvanceTrade = useCallback(async (e: React.MouseEvent, trade: TradeSession) => {
