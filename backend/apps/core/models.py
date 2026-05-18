@@ -1222,9 +1222,9 @@ class Comment(TenantAwareModel):
     class Meta:
         ordering = ["-created_on"]
         indexes = [
-            models.Index(fields=["tenant", "entity_type", "object_id"]),
-            models.Index(fields=["tenant", "-created_on"]),
-            models.Index(fields=["content_type", "object_id"]),
+            models.Index(fields=["tenant", "entity_type", "object_id"], name="core_comment_tenant_entity_idx"),
+            models.Index(fields=["tenant", "-created_on"], name="core_comment_tenant_created_idx"),
+            models.Index(fields=["content_type", "object_id"], name="core_comment_content_object_idx"),
         ]
 
     def __str__(self):
