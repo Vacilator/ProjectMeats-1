@@ -876,18 +876,10 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                             ` (${formatFixedWithFallback(product.margin_percent, 1)}%)`}
                         </MarginCell>
                       </ProductRow>
-                      {/* Fulfillment dates & ship-to */}
-                      {(product.fulfillment_date_time || product.respond_by_date_time || product.ship_to_location_name) && (
+                      {/* Ship-to location shown at product level */}
+                      {product.ship_to_location_name && (
                         <ProductMeta>
-                          {product.fulfillment_date_time && (
-                            <MetaTag>📦 Fulfill by: {formatDateLocal(product.fulfillment_date_time)}</MetaTag>
-                          )}
-                          {product.respond_by_date_time && (
-                            <MetaTag>⏰ Bids due: {formatDateLocal(product.respond_by_date_time)}</MetaTag>
-                          )}
-                          {product.ship_to_location_name && (
-                            <MetaTag>📍 Ship to: {product.ship_to_location_name}</MetaTag>
-                          )}
+                          <MetaTag>📍 Ship to: {product.ship_to_location_name}</MetaTag>
                         </ProductMeta>
                       )}
                       {/* Supplier bids child panel */}
