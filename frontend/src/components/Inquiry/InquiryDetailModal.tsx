@@ -894,7 +894,10 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                       <SupplierBidPanel
                         product={product}
                         inquiryStatus={inquiry.status}
-                        readOnly={inquiry.status === 'accepted' || inquiry.status === 'fulfilled'}
+                        readOnly={
+                          inquiry.status === 'fulfilled' ||
+                          (inquiry.status === 'accepted' && !['supplier_rfq', 'supplier_reply_parse'].includes(inquiry.trade_session_current_step ?? ''))
+                        }
                         customerId={inquiry.customer}
                       />
                     </ProductRowWrapper>

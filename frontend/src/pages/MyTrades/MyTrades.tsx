@@ -194,7 +194,7 @@ const MyTrades: React.FC = () => {
   const handleRefresh = useCallback(() => { void refetch(); }, [refetch]);
 
   const handleNavigateToInquiry = useCallback((inquiryId: string) => {
-    navigate(`/inquiries?highlight=${inquiryId}`);
+    navigate(`/records/inquiry/${inquiryId}`);
   }, [navigate]);
 
   const handleAdvanceTrade = useCallback(async (e: React.MouseEvent, trade: TradeSession) => {
@@ -457,7 +457,7 @@ const MyTrades: React.FC = () => {
 
                 {expandedId === trade.id && (
                   <TradeCardBody>
-                    {/* Workflow Progress Stepper */}
+                    {/* Workflow Progress Stepper (unified with lineage) */}
                     <FlowSection>
                       <FlowLabel>Workflow Progress</FlowLabel>
                       <TradeWorkflowStepper
@@ -466,9 +466,6 @@ const MyTrades: React.FC = () => {
                         tradeSessionId={trade.id}
                         onActionClick={(action, step) => handleStepperActionClick(action, step, trade)}
                       />
-                    </FlowSection>
-                    <FlowSection>
-                      <FlowLabel>Trade Lineage</FlowLabel>
                       <TradeLineageFlow inquiryId={trade.inquiry_id} compact />
                     </FlowSection>
                     <FlowSection>

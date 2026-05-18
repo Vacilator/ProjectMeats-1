@@ -201,44 +201,37 @@ const StageDocumentsContent: React.FC<{
       <PopoverTitle>{step.label}</PopoverTitle>
       <PopoverDesc>{step.description}</PopoverDesc>
 
-      {isActive && step.requiredActions.length > 0 && (
+      {(isActive || isDone) && step.requiredActions.length > 0 && (
         <PopoverSection>
-          <PopoverSectionTitle>Action Required</PopoverSectionTitle>
+          <PopoverSectionTitle>{isActive ? 'Action Required' : 'Completed Actions'}</PopoverSectionTitle>
           <ActionList>
             {step.requiredActions.map((action) => (
               <ActionItem
                 key={action.label}
-                $clickable
+                $clickable={isActive}
                 $selected={selectedAction?.label === action.label}
-                onClick={() => handleActionClick(action)}
-                onKeyDown={(e: React.KeyboardEvent) => {
+                $completed={isDone}
+                onClick={isActive ? () => handleActionClick(action) : undefined}
+                onKeyDown={isActive ? (e: React.KeyboardEvent) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     handleActionClick(action);
                   }
-                }}
-                role="button"
-                tabIndex={0}
-                aria-pressed={selectedAction?.label === action.label}
+                } : undefined}
+                role={isActive ? 'button' : 'listitem'}
+                tabIndex={isActive ? 0 : undefined}
+                aria-pressed={isActive ? selectedAction?.label === action.label : undefined}
               >
                 {action.label}
                 {action.documentTypes && action.documentTypes.length > 0 && (
                   <Paperclip size={10} style={{ marginLeft: 'auto', opacity: 0.4 }} />
                 )}
-                {!action.documentTypes && onActionClick && (
+                {!action.documentTypes && onActionClick && isActive && (
                   <ArrowUpRight size={10} style={{ marginLeft: 'auto', opacity: 0.5 }} />
                 )}
               </ActionItem>
             ))}
           </ActionList>
-        </PopoverSection>
-      )}
-
-      {isDone && (
-        <PopoverSection>
-          <PopoverSectionTitle>
-            {isActive ? '✓ Completed' : '✓ Stage Complete'}
-          </PopoverSectionTitle>
         </PopoverSection>
       )}
 
@@ -531,9 +524,14 @@ const ActionList = styled.ul`
   list-style: none;
 `;
 
-const ActionItem = styled.li<{ $clickable?: boolean; $selected?: boolean }>`
+const ActionItem = styled.li<{ $clickable?: boolean; $selected?: boolean; $completed?: boolean }>`
   font-size: 12px;
-  color: ${({ $selected }) => $selected ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  color: ${({ $selected, $completed }) =>
+    $completed
+      ? 'rgb(var(--color-success))'
+      : $selected
+      ? 'rgb(var(--color-primary))'
+      : 'rgb(var(--color-text-secondary))'};
   margin-bottom: 2px;
   padding: 4px 8px;
   border-radius: var(--radius-sm, 4px);
@@ -541,14 +539,21 @@ const ActionItem = styled.li<{ $clickable?: boolean; $selected?: boolean }>`
   align-items: center;
   gap: 4px;
   cursor: ${({ $clickable }) => $clickable ? 'pointer' : 'default'};
-  background: ${({ $selected }) => $selected ? 'rgba(var(--color-primary), 0.12)' : 'transparent'};
+  background: ${({ $selected, $completed }) =>
+    $completed
+      ? 'rgba(var(--color-success), 0.06)'
+      : $selected
+      ? 'rgba(var(--color-primary), 0.12)'
+      : 'transparent'};
 
   &::before {
-    content: '→';
+    content: ${({ $completed }) => $completed ? '"✓"' : '"○"'};
     margin-right: 4px;
-    color: rgb(var(--color-primary));
+    color: ${({ $completed }) =>
+      $completed ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'};
     font-weight: 600;
-    opacity: ${({ $clickable }) => $clickable ? 1 : 0.4};
+    font-size: ${({ $completed }) => $completed ? '14px' : '12px'};
+    opacity: 1;
   }
 
   ${({ $clickable }) => $clickable && `
