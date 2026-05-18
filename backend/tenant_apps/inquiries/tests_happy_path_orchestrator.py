@@ -14,15 +14,11 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.tenants.models import Tenant
-from tenant_apps.contacts.models import Contact
 from tenant_apps.carriers.models import Carrier
+from tenant_apps.contacts.models import Contact
 from tenant_apps.customers.models import Customer
-from tenant_apps.inquiries.models import (
-    Inquiry,
-    InquiryStatusChoices,
-    InquirySupplierRFQ,
-)
+from tenant_apps.fulfillments.models import Fulfillment
+from tenant_apps.inquiries.models import Inquiry, InquiryStatusChoices, InquirySupplierRFQ
 from tenant_apps.inquiries.services.happy_path_orchestrator import (
     BROKER_STEPS,
     FULFILL_STEPS,
@@ -31,13 +27,12 @@ from tenant_apps.inquiries.services.happy_path_orchestrator import (
     get_lineage_chain,
     get_orchestrator_state,
 )
-from tenant_apps.purchase_orders.models import (
-    CarrierPurchaseOrder,
-    PurchaseOrder,
-    PurchaseOrderStatus,
-)
+from tenant_apps.invoices.models import Invoice
+from tenant_apps.purchase_orders.models import CarrierPurchaseOrder, PurchaseOrder, PurchaseOrderStatus
 from tenant_apps.sales_orders.models import SalesOrder, SalesOrderStatus
 from tenant_apps.suppliers.models import Supplier
+
+from apps.tenants.models import Tenant
 
 
 class OrchestratorTestBase(TestCase):
@@ -110,6 +105,28 @@ class OrchestratorTestBase(TestCase):
         defaults.update(kwargs)
         return SalesOrder.objects.create(**defaults)
 
+    def _make_fulfillment(self, inquiry, **kwargs):
+        defaults = {
+            "tenant": self.tenant,
+            "inquiry": inquiry,
+            "supplier": self.supplier,
+            "customer": self.customer,
+            "status": "pending",
+        }
+        defaults.update(kwargs)
+        return Fulfillment.objects.create(**defaults)
+
+    def _make_invoice(self, sales_order=None, **kwargs):
+        defaults = {
+            "tenant": self.tenant,
+            "customer": self.customer,
+            "sales_order": sales_order,
+            "invoice_number": f"INV-{uuid.uuid4().hex[:8].upper()}",
+            "status": "draft",
+        }
+        defaults.update(kwargs)
+        return Invoice.objects.create(**defaults)
+
 
 class OrchestratorStateDerivationTests(OrchestratorTestBase):
     """Test state derivation from existing entity links."""
@@ -163,18 +180,48 @@ class OrchestratorStateDerivationTests(OrchestratorTestBase):
     def test_fulfill_steps_order(self):
         self.assertEqual(FULFILL_STEPS[0], OrchestratorStep.DRAFT_SALES_ORDER)
         self.assertEqual(FULFILL_STEPS[-1], OrchestratorStep.COMPLETED)
-        self.assertEqual(len(FULFILL_STEPS), 6)
+        self.assertEqual(FULFILL_STEPS[-3], OrchestratorStep.DRAFT_FULFILLMENT)
+        self.assertEqual(FULFILL_STEPS[-2], OrchestratorStep.DRAFT_INVOICE)
+        self.assertEqual(len(FULFILL_STEPS), 8)
 
     def test_broker_steps_order(self):
         self.assertEqual(BROKER_STEPS[0], OrchestratorStep.SUPPLIER_RFQ)
         self.assertEqual(BROKER_STEPS[-1], OrchestratorStep.COMPLETED)
-        self.assertEqual(len(BROKER_STEPS), 10)
+        self.assertEqual(BROKER_STEPS[-3], OrchestratorStep.DRAFT_FULFILLMENT)
+        self.assertEqual(BROKER_STEPS[-2], OrchestratorStep.DRAFT_INVOICE)
+        self.assertEqual(len(BROKER_STEPS), 12)
 
-    def test_completed_state_when_carrier_po_linked(self):
+    def test_carrier_po_linked_moves_to_fulfillment(self):
         inquiry = self._make_inquiry(route="FULFILL")
         cpo = self._make_carrier_po()
         inquiry.carrier_purchase_order = cpo
         inquiry.save(update_fields=["carrier_purchase_order"])
+
+        state = get_orchestrator_state(tenant=self.tenant, inquiry=inquiry)
+        self.assertEqual(state, OrchestratorStep.DRAFT_FULFILLMENT)
+
+    def test_moves_to_draft_invoice_after_fulfillment(self):
+        inquiry = self._make_inquiry(route="FULFILL")
+        cpo = self._make_carrier_po()
+        inquiry.carrier_purchase_order = cpo
+        fulfillment = self._make_fulfillment(inquiry, carrier=cpo.carrier)
+        inquiry.custom_data = {"fulfillment_id": str(fulfillment.id)}
+        inquiry.save(update_fields=["carrier_purchase_order", "custom_data"])
+
+        state = get_orchestrator_state(tenant=self.tenant, inquiry=inquiry)
+        self.assertEqual(state, OrchestratorStep.DRAFT_INVOICE)
+
+    def test_completed_state_when_fulfillment_and_invoice_linked(self):
+        inquiry = self._make_inquiry(route="FULFILL")
+        cpo = self._make_carrier_po()
+        inquiry.carrier_purchase_order = cpo
+        fulfillment = self._make_fulfillment(inquiry, carrier=cpo.carrier)
+        invoice = self._make_invoice()
+        inquiry.custom_data = {
+            "fulfillment_id": str(fulfillment.id),
+            "invoice_id": str(invoice.id),
+        }
+        inquiry.save(update_fields=["carrier_purchase_order", "custom_data"])
 
         state = get_orchestrator_state(tenant=self.tenant, inquiry=inquiry)
         self.assertEqual(state, OrchestratorStep.COMPLETED)
@@ -190,9 +237,7 @@ class OrchestratorStateDerivationTests(OrchestratorTestBase):
 class OrchestratorAdvanceTests(OrchestratorTestBase):
     """Test orchestrator advance logic."""
 
-    @patch(
-        "tenant_apps.inquiries.services.happy_path_orchestrator._step_draft_sales_order"
-    )
+    @patch("tenant_apps.inquiries.services.happy_path_orchestrator._step_draft_sales_order")
     def test_advance_fulfill_calls_draft_so(self, mock_step):
         mock_step.return_value = MagicMock(
             step=OrchestratorStep.DRAFT_SALES_ORDER,
@@ -215,7 +260,13 @@ class OrchestratorAdvanceTests(OrchestratorTestBase):
         inquiry = self._make_inquiry(route="FULFILL")
         cpo = self._make_carrier_po()
         inquiry.carrier_purchase_order = cpo
-        inquiry.save(update_fields=["carrier_purchase_order"])
+        fulfillment = self._make_fulfillment(inquiry, carrier=cpo.carrier)
+        invoice = self._make_invoice()
+        inquiry.custom_data = {
+            "fulfillment_id": str(fulfillment.id),
+            "invoice_id": str(invoice.id),
+        }
+        inquiry.save(update_fields=["carrier_purchase_order", "custom_data"])
 
         result = advance_orchestrator(tenant=self.tenant, inquiry=inquiry)
         self.assertTrue(result.completed)
@@ -268,6 +319,42 @@ class OrchestratorAdvanceTests(OrchestratorTestBase):
         self.assertTrue(result.blocked)
         self.assertIn("Waiting for approval", result.blocked_reason)
 
+    def test_advance_creates_fulfillment(self):
+        inquiry = self._make_inquiry(route="FULFILL")
+        cpo = self._make_carrier_po()
+        inquiry.carrier_purchase_order = cpo
+        inquiry.save(update_fields=["carrier_purchase_order"])
+
+        result = advance_orchestrator(
+            tenant=self.tenant,
+            inquiry=inquiry,
+            advance_through=OrchestratorStep.DRAFT_FULFILLMENT,
+        )
+
+        inquiry.refresh_from_db()
+        self.assertTrue(result.success)
+        self.assertEqual(result.steps_executed[-1].step, OrchestratorStep.DRAFT_FULFILLMENT)
+        self.assertIn("fulfillment_id", inquiry.custom_data)
+
+    def test_advance_creates_invoice(self):
+        inquiry = self._make_inquiry(route="FULFILL")
+        cpo = self._make_carrier_po()
+        inquiry.carrier_purchase_order = cpo
+        fulfillment = self._make_fulfillment(inquiry, carrier=cpo.carrier)
+        inquiry.custom_data = {"fulfillment_id": str(fulfillment.id)}
+        inquiry.save(update_fields=["carrier_purchase_order", "custom_data"])
+
+        result = advance_orchestrator(
+            tenant=self.tenant,
+            inquiry=inquiry,
+            advance_through=OrchestratorStep.DRAFT_INVOICE,
+        )
+
+        inquiry.refresh_from_db()
+        self.assertTrue(result.success)
+        self.assertEqual(result.steps_executed[-1].step, OrchestratorStep.DRAFT_INVOICE)
+        self.assertIn("invoice_id", inquiry.custom_data)
+
 
 class LineageChainTests(OrchestratorTestBase):
     """Test lineage chain generation for Process Cockpit."""
@@ -294,7 +381,28 @@ class LineageChainTests(OrchestratorTestBase):
 
         self.assertIsNotNone(chain["carrier_purchase_order"])
         self.assertEqual(chain["carrier_purchase_order"]["id"], str(cpo.id))
+        self.assertEqual(chain["current_step"], "draft_fulfillment")
+
+    def test_lineage_chain_completed_includes_fulfillment_and_invoice(self):
+        cpo = self._make_carrier_po()
+        inquiry = self._make_inquiry(
+            route="FULFILL",
+            status=InquiryStatusChoices.FULFILLED,
+            carrier_purchase_order=cpo,
+        )
+        fulfillment = self._make_fulfillment(inquiry, carrier=cpo.carrier)
+        invoice = self._make_invoice()
+        inquiry.custom_data = {
+            "fulfillment_id": str(fulfillment.id),
+            "invoice_id": str(invoice.id),
+        }
+        inquiry.save(update_fields=["custom_data"])
+
+        chain = get_lineage_chain(tenant=self.tenant, inquiry=inquiry)
+
         self.assertEqual(chain["current_step"], "completed")
+        self.assertEqual(chain["fulfillment"]["id"], str(fulfillment.id))
+        self.assertEqual(chain["invoice"]["id"], str(invoice.id))
 
     def test_lineage_chain_broker_with_supplier_po(self):
         po = self._make_purchase_order()
@@ -305,9 +413,7 @@ class LineageChainTests(OrchestratorTestBase):
         chain = get_lineage_chain(tenant=self.tenant, inquiry=inquiry)
 
         self.assertIsNotNone(chain["supplier_purchase_order"])
-        self.assertEqual(
-            chain["supplier_purchase_order"]["status"], PurchaseOrderStatus.APPROVED
-        )
+        self.assertEqual(chain["supplier_purchase_order"]["status"], PurchaseOrderStatus.APPROVED)
 
     def test_lineage_chain_includes_contact_role_summaries(self):
         supplier_contact = Contact.objects.create(

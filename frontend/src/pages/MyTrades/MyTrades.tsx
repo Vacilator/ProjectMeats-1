@@ -12,10 +12,12 @@ import React, { useCallback, useMemo, useState } from 'react';
 import styled, { css } from 'styled-components';
 import { Badge, Skeleton, Tag, Tooltip, message } from 'antd';
 import {
+  AlertCircle,
   ArrowRight,
   ChevronDown,
   ChevronRight,
   Clock,
+  Mail,
   Package,
   Play,
   Plus,
@@ -23,13 +25,14 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { withTenantQueryKey } from '@/utils/queryKeys';
-import { traderService, type TradeSession, type TradeListResponse } from '@/services/traderService';
+import { traderService, type TradeSession, type TradeListResponse, type DependencyCheckResult } from '@/services/traderService';
 import { TradeWorkflowStepper } from '@/components/Workflow/TradeWorkflowStepper';
 import { TradeDocumentsPanel } from '@/components/Trader/TradeDocumentsPanel';
+import { businessApi } from '@/services/businessApi';
 import { logger } from '@/utils/logger';
 
 /** Human-readable label for orchestrator step values */
@@ -44,6 +47,8 @@ const formatStepLabel = (step: string): string => {
     carrier_fan_out: 'Carrier Selection',
     carrier_reply_parse: 'Awaiting Carrier Reply',
     draft_carrier_po: 'Draft Carrier PO',
+    draft_fulfillment: 'Draft Fulfillment',
+    draft_invoice: 'Draft Invoice',
     completed: 'Completed',
   };
   return labels[step] || step?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
@@ -60,6 +65,8 @@ const STEP_TO_STAGE_INDEX: Record<string, number> = {
   carrier_fan_out: 3,
   carrier_reply_parse: 3,
   draft_carrier_po: 3,
+  draft_fulfillment: 4,
+  draft_invoice: 5,
   completed: 5,
 };
 
@@ -148,6 +155,31 @@ const getAgingLevel = (days: number): AgingLevel => {
   return 'ok';
 };
 
+/** Determine the "next action" hint for a trade to guide the user */
+const getNextActionHint = (trade: TradeSession): string => {
+  if (!isActiveStatus(trade.status)) return '';
+  const step = trade.current_step;
+  if (!step) return 'Review inquiry details to begin';
+  const hints: Record<string, string> = {
+    supplier_rfq: 'Waiting for supplier RFQ to be sent',
+    supplier_reply_parse: 'Waiting for supplier to reply with quote',
+    draft_supplier_po: 'Ready to generate Supplier Purchase Order',
+    approve_supplier_po: 'Supplier PO awaiting your approval',
+    draft_sales_order: 'Ready to generate Sales Order',
+    approve_sales_order: 'Sales Order awaiting your approval',
+    carrier_fan_out: 'Selecting carriers for logistics',
+    carrier_reply_parse: 'Waiting for carrier quotes',
+    draft_carrier_po: 'Ready to generate Carrier PO',
+    draft_fulfillment: 'Ready to create Fulfillment record',
+    draft_invoice: 'Ready to generate Invoice',
+    completed: 'All steps complete',
+  };
+  return hints[step] || `Current step: ${formatStepLabel(step)}`;
+};
+
+/** Dev environment detection for simulation tools */
+const IS_DEV_ENV = import.meta.env.DEV || window.location.hostname.includes('dev.');
+
 const MyTrades: React.FC = () => {
   useDocumentTitle('My Trades');
   const navigate = useNavigate();
@@ -155,6 +187,7 @@ const MyTrades: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [routeFilter, setRouteFilter] = useState<RouteFilter>('all');
   const [advancingId, setAdvancingId] = useState<string | null>(null);
+  const [depInfo, setDepInfo] = useState<Record<string, DependencyCheckResult>>({});
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: withTenantQueryKey('my-trades'),
@@ -204,9 +237,20 @@ const MyTrades: React.FC = () => {
       if (result.completed) {
         void message.success('Trade completed!');
       } else if (result.blocked) {
-        void message.warning(`Blocked: ${result.blocked_reason || 'Missing dependencies'}`);
+        // Fetch dependency details when blocked to show user what's missing
+        try {
+          const deps = await traderService.checkDependencies(trade.inquiry_id);
+          setDepInfo((prev) => ({ ...prev, [trade.id]: deps }));
+          const missing = deps.checklist.filter((d) => !d.satisfied).map((d) => d.label);
+          void message.warning(
+            `Blocked: ${missing.length > 0 ? `Missing: ${missing.join(', ')}` : result.blocked_reason || 'Unmet dependencies'}`,
+            5,
+          );
+        } catch {
+          void message.warning(`Blocked: ${result.blocked_reason || 'Missing dependencies'}`);
+        }
       } else {
-        void message.success(`Advanced to: ${result.current_step || 'next step'}`);
+        void message.success(`Advanced to: ${formatStepLabel(result.current_step || 'next step')}`);
       }
       void refetch();
     } catch (err) {
@@ -237,6 +281,20 @@ const MyTrades: React.FC = () => {
       void message.warning('Could not auto-create trade session. Please create inquiry manually.');
     }
   }, [navigate]);
+
+  /** Dev-mode: simulate inbound email to populate the AI approval queue */
+  const simulateEmailMutation = useMutation({
+    mutationFn: async () => {
+      const response = await businessApi.post('/ai-assistant/simulate-inbound-email/');
+      return response.data as { created: number; scenario: string };
+    },
+    onSuccess: (data) => {
+      void message.success(`Simulated email created (${data.scenario ?? 'random'}). Check AI Approvals tab.`);
+    },
+    onError: () => {
+      void message.error('Failed to simulate email. Ensure the backend command endpoint is available.');
+    },
+  });
 
   /** Navigate to linked entity record when a stepper action is clicked */
   const handleStepperActionClick = useCallback(
@@ -291,6 +349,16 @@ const MyTrades: React.FC = () => {
             <InitiateButton onClick={handleInitiateTrade} aria-label="Initiate new trade">
               <Plus size={14} /> Initiate Trade
             </InitiateButton>
+            {IS_DEV_ENV && (
+              <SimulateButton
+                onClick={() => simulateEmailMutation.mutate()}
+                disabled={simulateEmailMutation.isPending}
+                title="Simulate inbound email for AI approval testing"
+                aria-label="Simulate inbound email"
+              >
+                <Mail size={14} /> {simulateEmailMutation.isPending ? 'Sending…' : 'Simulate Email'}
+              </SimulateButton>
+            )}
           </HeaderActions>
         </TitleRow>
         <Subtitle>Monitor active trade pipelines and document flow</Subtitle>
@@ -452,13 +520,26 @@ const MyTrades: React.FC = () => {
 
                   <CardActions>
                     {isActive && (
-                      <AdvanceButton
-                        onClick={(e) => void handleAdvanceTrade(e, trade)}
-                        disabled={advancingId === trade.id}
-                        title="Advance to next step"
+                      <Tooltip
+                        title={
+                          depInfo[trade.id] && !depInfo[trade.id].all_satisfied
+                            ? `Missing: ${depInfo[trade.id].checklist.filter(d => !d.satisfied).map(d => d.label).join(', ')}`
+                            : getNextActionHint(trade)
+                        }
+                        placement="left"
                       >
-                        <Play size={12} /> {advancingId === trade.id ? 'Advancing…' : 'Advance'}
-                      </AdvanceButton>
+                        <AdvanceButton
+                          onClick={(e) => void handleAdvanceTrade(e, trade)}
+                          disabled={advancingId === trade.id}
+                          $blocked={!!depInfo[trade.id] && !depInfo[trade.id].all_satisfied}
+                        >
+                          {depInfo[trade.id] && !depInfo[trade.id].all_satisfied ? (
+                            <><AlertCircle size={12} /> Blocked</>
+                          ) : (
+                            <><Play size={12} /> {advancingId === trade.id ? 'Advancing…' : 'Advance'}</>
+                          )}
+                        </AdvanceButton>
+                      </Tooltip>
                     )}
                     <ViewButton onClick={(e) => {
                       e.stopPropagation();
@@ -542,6 +623,23 @@ const InitiateButton = styled.button`
   cursor: pointer;
   transition: opacity 0.15s;
   &:hover { opacity: 0.9; }
+`;
+
+const SimulateButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px dashed rgb(var(--color-warning));
+  border-radius: var(--radius-md, 8px);
+  background: rgba(var(--color-warning), 0.06);
+  color: rgb(var(--color-warning));
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover { background: rgba(var(--color-warning), 0.12); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
 const Title = styled.h1`
@@ -771,14 +869,14 @@ const CardActions = styled.div`
   flex-shrink: 0;
 `;
 
-const AdvanceButton = styled.button`
+const AdvanceButton = styled.button<{ $blocked?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
   border: none;
   border-radius: var(--radius-md, 8px);
-  background: rgb(var(--color-primary));
+  background: ${(p) => p.$blocked ? 'rgb(var(--color-warning))' : 'rgb(var(--color-primary))'};
   color: rgb(var(--color-primary-foreground, 255, 255, 255));
   font-size: 12px;
   font-weight: 600;
