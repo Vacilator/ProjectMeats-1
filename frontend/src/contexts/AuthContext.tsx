@@ -6,6 +6,8 @@ import { UserProfile } from '../types';
 import { authService, LoginCredentials, SignUpCredentials } from '../services/authService';
 import { clearSentryUser, setSentryTenant, setSentryUser } from '../utils/sentry';
 import { logger } from '../utils/logger';
+import { getValidTenantId } from '../utils/tenantId';
+import { businessApi } from '../services/businessApi';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -39,6 +41,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const tenantId = localStorage.getItem('tenantId') || undefined;
           setSentryUser(String(currentUser.id), currentUser.email, tenantId, currentUser.username);
           if (tenantId) setSentryTenant(tenantId);
+
+          // Repair tenant context if missing — prevents "no data" on all pages
+          if (!getValidTenantId()) {
+            try {
+              const res = await businessApi.get('/tenants/current/');
+              const resolved = res.data?.id;
+              if (resolved) {
+                localStorage.setItem('tenantId', String(resolved));
+                if (res.data?.name) localStorage.setItem('tenantName', String(res.data.name));
+                if (res.data?.slug) localStorage.setItem('tenantSlug', String(res.data.slug));
+                logger.info('[Auth] Repaired missing tenant context', { tenantId: resolved });
+              }
+            } catch {
+              logger.debug('[Auth] Could not recover tenant context');
+            }
+          }
         } else {
           clearSentryUser();
         }

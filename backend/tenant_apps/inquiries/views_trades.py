@@ -73,10 +73,33 @@ class TradePipelineViewSet(viewsets.ViewSet):
         Supports optional query params:
         - status: filter by session status (e.g., ?status=active or ?status=completed)
         - If no status param, returns ALL trade sessions for client-side filtering.
+
+        NOTE: Also lazily creates TradeSession records for any orphaned inquiries
+        (inquiries without a trade session) so all user-created inquiries appear.
         """
         tenant, err = self._require_tenant(request)
         if err:
             return err
+
+        # Lazily backfill: find inquiries without a trade session and create one.
+        # This handles legacy inquiries created before auto-TradeSession was deployed,
+        # or cases where the auto-create in perform_create silently failed.
+        orphaned_inquiries = (
+            Inquiry.objects.filter(tenant=tenant)
+            .filter(trade_session__isnull=True)
+            .exclude(status="cancelled")
+            .order_by("-created_at")[:50]
+        )
+        for inq in orphaned_inquiries:
+            try:
+                get_or_create_trade_session(tenant=tenant, inquiry=inq)
+            except Exception:
+                logger.debug(
+                    "Failed to backfill TradeSession for inquiry %s",
+                    inq.id,
+                    exc_info=True,
+                )
+
         qs = (
             TradeSession.objects.filter(tenant=tenant)
             .select_related(
