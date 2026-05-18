@@ -141,23 +141,45 @@ def create_draft_from_parsed_email(
     parsed_result,
     document_id=None,
     user=None,
-) -> Any:
+    skip_intent_filter: bool = False,
+) -> Any | None:
     """Create a CockpitDraftForm directly from a ParsedTradeEmail result.
 
     Used when routing directly from AI inbox sync (skip feedback step).
+    Applies intent classification to filter out spam/marketing/personal emails
+    unless skip_intent_filter is True.
 
     Args:
         tenant: Tenant instance.
         parsed_result: ParsedTradeEmail dataclass from email_parser.
         document_id: Optional source document UUID.
         user: Optional user to assign.
+        skip_intent_filter: If True, bypass intent classification.
 
     Returns:
-        CockpitDraftForm instance.
+        CockpitDraftForm instance, or None if filtered out by intent.
     """
     from tenant_apps.ai_assistant.models import CockpitDraftForm, CockpitDraftStatus
+    from tenant_apps.ai_assistant.services.email_parser import classify_email_intent
 
     parsed_data = parsed_result.to_dict() if hasattr(parsed_result, "to_dict") else parsed_result
+
+    # Intent classification gate — filter spam/marketing/personal
+    if not skip_intent_filter:
+        classification = classify_email_intent(
+            subject=parsed_data.get("raw_subject", ""),
+            body="",  # Body not stored in parsed_data, subject suffices for basic filtering
+            sender_email=parsed_data.get("sender_email", ""),
+        )
+        if not classification.is_actionable:
+            logger.info(
+                "Email filtered (intent=%s, confidence=%.2f): %s",
+                classification.intent,
+                classification.confidence,
+                parsed_data.get("raw_subject", "")[:80],
+            )
+            return None
+
     form_type = infer_form_type(parsed_data)
     form_data = build_form_data(parsed_data, form_type)
 

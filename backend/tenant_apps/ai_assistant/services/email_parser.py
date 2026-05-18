@@ -211,6 +211,192 @@ class ParsedTradeEmail:
 
 
 # ---------------------------------------------------------------------------
+# Public API: classify_email_intent
+# ---------------------------------------------------------------------------
+
+# Intent categories
+INTENT_NEW_ORDER = "new_order"
+INTENT_ORDER_UPDATE = "existing_order_update"
+INTENT_QUOTE_REQUEST = "quote_request"
+INTENT_RFQ_RESPONSE = "rfq_response"
+INTENT_BID_RESPONSE = "bid_response"
+INTENT_SHIPPING_UPDATE = "shipping_update"
+INTENT_INVOICE = "invoice"
+INTENT_SPAM = "spam"
+INTENT_MARKETING = "marketing"
+INTENT_PERSONAL = "personal"
+INTENT_UNKNOWN = "unknown"
+
+# Intents that should be surfaced to users for approval
+ACTIONABLE_INTENTS = frozenset({
+    INTENT_NEW_ORDER,
+    INTENT_ORDER_UPDATE,
+    INTENT_QUOTE_REQUEST,
+    INTENT_RFQ_RESPONSE,
+    INTENT_BID_RESPONSE,
+    INTENT_SHIPPING_UPDATE,
+    INTENT_INVOICE,
+})
+
+# Spam/marketing signals (subject or body keywords)
+_SPAM_SIGNALS = re.compile(
+    r"\b(unsubscribe|opt[\s-]?out|click\s+here|limited\s+time|act\s+now|"
+    r"free\s+trial|no\s+obligation|special\s+offer|exclusive\s+deal|"
+    r"newsletter|webinar\s+invite|marketing|promo(?:tion)?|"
+    r"you\s+have\s+been\s+selected|congratulations|winner|"
+    r"earn\s+\$|make\s+money|work\s+from\s+home)\b",
+    re.IGNORECASE,
+)
+
+# Trade-related signals (strong positive indicators)
+_TRADE_SIGNALS = re.compile(
+    r"\b(purchase\s+order|PO\s*#|invoice|quotation|quote|"
+    r"bid|rfq|request\s+for\s+quote|price\s+list|"
+    r"delivery|shipment|freight|BOL|bill\s+of\s+lading|"
+    r"lbs|pounds|kg|kilograms|tons|cases|pallets|"
+    r"beef|pork|chicken|lamb|veal|turkey|seafood|"
+    r"ground|ribeye|sirloin|tenderloin|chuck|loin|breast|thigh|"
+    r"fob|cif|exw|dap|supplier|customer|order\s+confirmation)\b",
+    re.IGNORECASE,
+)
+
+# RFQ response signals
+_RFQ_RESPONSE_SIGNALS = re.compile(
+    r"\b(in\s+response\s+to|per\s+your\s+request|"
+    r"bid\s+(?:attached|enclosed|submitted|proposal)|"
+    r"our\s+(?:quote|quotation|pricing|proposal)|"
+    r"pleased\s+to\s+(?:offer|quote|provide)|"
+    r"pricing\s+as\s+(?:follows|requested|below))\b",
+    re.IGNORECASE,
+)
+
+# Noreply / automated sender patterns
+_NOREPLY_PATTERNS = re.compile(
+    r"(noreply|no-reply|donotreply|do-not-reply|mailer-daemon|"
+    r"notifications?@|alerts?@|news@|marketing@|promo@)",
+    re.IGNORECASE,
+)
+
+
+@dataclass
+class EmailIntentClassification:
+    """Result of classifying an email's business intent."""
+
+    intent: str = INTENT_UNKNOWN
+    confidence: float = 0.0
+    is_actionable: bool = False
+    signals: list[str] = field(default_factory=list)
+    spam_score: float = 0.0
+
+
+def classify_email_intent(
+    *,
+    subject: str = "",
+    body: str = "",
+    sender_email: str = "",
+) -> EmailIntentClassification:
+    """Classify an email's intent for the AI approval queue.
+
+    Determines whether an email is:
+    - A trade-related action (new order, RFQ response, bid, etc.)
+    - Spam/marketing/personal (should be filtered out)
+
+    Returns:
+        EmailIntentClassification with intent, confidence, and actionability.
+    """
+    result = EmailIntentClassification()
+    combined = f"{subject}\n{body}"
+    signals: list[str] = []
+
+    # Check for spam/marketing signals
+    spam_matches = _SPAM_SIGNALS.findall(combined)
+    noreply_match = _NOREPLY_PATTERNS.search(sender_email)
+
+    if noreply_match:
+        result.spam_score += 0.4
+        signals.append(f"noreply_sender:{noreply_match.group(0)}")
+
+    if spam_matches:
+        result.spam_score += min(0.3 * len(spam_matches), 0.6)
+        signals.append(f"spam_keywords:{len(spam_matches)}")
+
+    # If high spam score, classify as spam/marketing
+    if result.spam_score >= 0.6:
+        result.intent = INTENT_SPAM if result.spam_score >= 0.8 else INTENT_MARKETING
+        result.confidence = min(result.spam_score, 1.0)
+        result.is_actionable = False
+        result.signals = signals
+        return result
+
+    # Check for trade signals
+    trade_matches = _TRADE_SIGNALS.findall(combined)
+    rfq_response_matches = _RFQ_RESPONSE_SIGNALS.findall(combined)
+
+    if not trade_matches and not rfq_response_matches:
+        # No trade or RFQ signals — likely personal or unrelated
+        if result.spam_score > 0.2:
+            result.intent = INTENT_MARKETING
+        else:
+            result.intent = INTENT_PERSONAL
+        result.confidence = 0.4
+        result.is_actionable = False
+        result.signals = signals
+        return result
+
+    # Determine specific intent
+    trade_confidence = min(0.15 * len(trade_matches), 0.8)
+
+    # RFQ/Bid response (highest priority — these are time-sensitive)
+    if rfq_response_matches:
+        result.intent = INTENT_RFQ_RESPONSE
+        result.confidence = min(trade_confidence + 0.3, 1.0)
+        signals.append(f"rfq_response_signals:{len(rfq_response_matches)}")
+    # New PO / order
+    elif re.search(r"\b(new|place|placing|submit)\b", combined, re.IGNORECASE):
+        if re.search(r"\b(PO|purchase\s+order|order)\b", combined, re.IGNORECASE):
+            result.intent = INTENT_NEW_ORDER
+            result.confidence = min(trade_confidence + 0.2, 1.0)
+            signals.append("new_order_detected")
+        else:
+            result.intent = INTENT_ORDER_UPDATE
+            result.confidence = trade_confidence
+            signals.append("generic_new_action")
+    # Quote request
+    elif re.search(r"\b(quote|rfq|pricing|price\s+list)\b", combined, re.IGNORECASE):
+        result.intent = INTENT_QUOTE_REQUEST
+        result.confidence = min(trade_confidence + 0.15, 1.0)
+        signals.append("quote_request_detected")
+    # Invoice
+    elif re.search(r"\binvoice\b", combined, re.IGNORECASE):
+        result.intent = INTENT_INVOICE
+        result.confidence = min(trade_confidence + 0.2, 1.0)
+        signals.append("invoice_detected")
+    # Shipping update
+    elif re.search(r"\b(shipment|tracking|BOL|bill\s+of\s+lading|freight)\b", combined, re.IGNORECASE):
+        result.intent = INTENT_SHIPPING_UPDATE
+        result.confidence = min(trade_confidence + 0.15, 1.0)
+        signals.append("shipping_update_detected")
+    # Generic trade update
+    else:
+        result.intent = INTENT_ORDER_UPDATE
+        result.confidence = trade_confidence
+        signals.append(f"trade_signals:{len(trade_matches)}")
+
+    result.is_actionable = result.intent in ACTIONABLE_INTENTS
+    result.signals = signals
+
+    logger.info(
+        "Email intent classified: %s (confidence=%.2f, actionable=%s)",
+        result.intent,
+        result.confidence,
+        result.is_actionable,
+        extra={"sender": sender_email, "intent": result.intent},
+    )
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Public API: parse_trade_email
 # ---------------------------------------------------------------------------
 

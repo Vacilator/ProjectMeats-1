@@ -900,7 +900,9 @@ const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string |
   return url.toString();
 };
 
-const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([200, 400, 401, 403, 405]);
+// Only 200 means the ASGI WebSocket endpoint is actually wired up and healthy.
+// 400/401/403/405 from Nginx or Gunicorn means the WS path isn't routed to Daphne.
+const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([200]);
 
 /**
  * Pre-flight check: verify the WebSocket path is routed before attempting
@@ -924,7 +926,7 @@ const checkWSEndpointReachable = async (): Promise<boolean> => {
 
     return AI_INBOX_PREFLIGHT_ALLOWED_STATUSES.has(response.status);
   } catch (err) {
-    logger.warn('[AIAgentWidget] WS endpoint preflight check failed:', err);
+    logger.debug('[AIAgentWidget] WS endpoint preflight check failed — ASGI not available:', err);
     return false;
   }
 };
@@ -1308,7 +1310,7 @@ export const AIAgentWidget: React.FC = () => {
     }
 
     let disposed = false;
-    const MAX_RECONNECT_ATTEMPTS = 3;
+    const MAX_RECONNECT_ATTEMPTS = 2;
     const MIN_RECONNECT_DELAY_MS = 2000;
     const MAX_RECONNECT_DELAY_MS = 30_000;
     const BACKOFF_MULTIPLIER = 1.5;
@@ -1428,8 +1430,11 @@ export const AIAgentWidget: React.FC = () => {
         }
 
         if (!wsEndpointReachableRef.current) {
-          setAiInboxRealtimeStatus(wsEverConnectedRef.current ? 'degraded' : 'idle');
-          scheduleReconnect(false);
+          // Endpoint not reachable — mark as permanently failed immediately.
+          // No point retrying WebSocket if the ASGI path isn't wired up.
+          wsPermanentlyFailedRef.current = true;
+          setAiInboxRealtimeStatus('idle');
+          connectingLockRef.current = false;
           return;
         }
 
