@@ -471,22 +471,34 @@ const PurchaseOrders: React.FC = () => {
         <SupplierPOForm
           mode={editingPurchaseOrder ? 'edit' : 'create'}
           entityId={editingPurchaseOrder?.id}
-          initialValues={editingPurchaseOrder ? {
-            logistics_scenario: (editingPurchaseOrder.logistics_scenario as 'customer_pickup' | 'supplier_delivery' | 'we_pickup') || 'supplier_delivery',
-            supplier: String(editingPurchaseOrder.supplier || ''),
-            product: (editingPurchaseOrder.product || '') as string,
-            item_description: editingPurchaseOrder.item_description || '',
-            fresh_or_frozen: editingPurchaseOrder.fresh_or_frozen || '',
-            package_type: editingPurchaseOrder.package_type || '',
-            quantity: editingPurchaseOrder.quantity != null ? String(editingPurchaseOrder.quantity) : '',
-            total_weight: editingPurchaseOrder.total_weight != null ? String(editingPurchaseOrder.total_weight) : '',
-            weight_unit: editingPurchaseOrder.weight_unit || 'LBS',
-            price_per_unit: editingPurchaseOrder.price_per_unit != null ? String(editingPurchaseOrder.price_per_unit) : '',
-            delivery_date: editingPurchaseOrder.delivery_date || '',
-            notes: editingPurchaseOrder.notes || '',
-            pick_up_location: editingPurchaseOrder.pick_up_location || null,
-            delivery_location: editingPurchaseOrder.delivery_location || null,
-          } : purchaseOrderCreateInitialValues as Partial<Record<string, unknown>>}
+          initialValues={editingPurchaseOrder ? (() => {
+            const cd = (editingPurchaseOrder as unknown as Record<string, unknown>)?.custom_data as Record<string, unknown> | null;
+            return {
+              logistics_scenario: (editingPurchaseOrder.logistics_scenario as 'customer_pickup' | 'supplier_delivery' | 'we_pickup') || 'supplier_delivery',
+              supplier: String(editingPurchaseOrder.supplier || ''),
+              product: (editingPurchaseOrder.product || '') as string,
+              item_description: editingPurchaseOrder.item_description || '',
+              fresh_or_frozen: editingPurchaseOrder.fresh_or_frozen || '',
+              package_type: editingPurchaseOrder.package_type || '',
+              quantity: editingPurchaseOrder.quantity != null ? String(editingPurchaseOrder.quantity) : '',
+              total_weight: editingPurchaseOrder.total_weight != null ? String(editingPurchaseOrder.total_weight) : '',
+              weight_unit: editingPurchaseOrder.weight_unit || 'LBS',
+              price_per_unit: editingPurchaseOrder.price_per_unit != null ? String(editingPurchaseOrder.price_per_unit) : '',
+              delivery_date: editingPurchaseOrder.delivery_date || '',
+              notes: editingPurchaseOrder.notes || '',
+              pick_up_location: editingPurchaseOrder.pick_up_location || null,
+              delivery_location: editingPurchaseOrder.delivery_location || null,
+              customer: String(cd?.customer_id ?? ''),
+              customer_name: String(cd?.customer_name ?? ''),
+              customer_contact_name: String(cd?.customer_contact_name ?? ''),
+              customer_contact_phone: String(cd?.customer_contact_phone ?? ''),
+              customer_contact_email: String(cd?.customer_contact_email ?? ''),
+              customer_address: String(cd?.customer_address ?? ''),
+              customer_city: String(cd?.customer_city ?? ''),
+              customer_state: String(cd?.customer_state ?? ''),
+              customer_zip: String(cd?.customer_zip ?? ''),
+            };
+          })() : purchaseOrderCreateInitialValues as Partial<Record<string, unknown>>}
           onSuccess={handleFormSuccessCallback}
           onCancel={handleFormClose}
         />

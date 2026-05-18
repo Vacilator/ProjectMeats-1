@@ -149,6 +149,7 @@ class PurchaseOrderSerializer(
             "notes",
             "items",
             "trade_timeline",
+            "custom_data",
             "created_on",
             "modified_on",
         ]
