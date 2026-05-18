@@ -18,10 +18,12 @@ Each step is:
 from __future__ import annotations
 
 import logging
+import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from django.db import transaction
 from django.utils import timezone
 
 from tenant_apps.contacts.models import Contact, ContactDepartmentChoices
@@ -61,6 +63,10 @@ class OrchestratorStep(str, Enum):
     CARRIER_REPLY_PARSE = "carrier_reply_parse"
     DRAFT_CARRIER_PO = "draft_carrier_po"
 
+    # Post-logistics stages
+    DRAFT_FULFILLMENT = "draft_fulfillment"
+    DRAFT_INVOICE = "draft_invoice"
+
     # Terminal
     COMPLETED = "completed"
 
@@ -71,6 +77,8 @@ FULFILL_STEPS = [
     OrchestratorStep.CARRIER_FAN_OUT,
     OrchestratorStep.CARRIER_REPLY_PARSE,
     OrchestratorStep.DRAFT_CARRIER_PO,
+    OrchestratorStep.DRAFT_FULFILLMENT,
+    OrchestratorStep.DRAFT_INVOICE,
     OrchestratorStep.COMPLETED,
 ]
 
@@ -84,6 +92,8 @@ BROKER_STEPS = [
     OrchestratorStep.CARRIER_FAN_OUT,
     OrchestratorStep.CARRIER_REPLY_PARSE,
     OrchestratorStep.DRAFT_CARRIER_PO,
+    OrchestratorStep.DRAFT_FULFILLMENT,
+    OrchestratorStep.DRAFT_INVOICE,
     OrchestratorStep.COMPLETED,
 ]
 
@@ -202,7 +212,8 @@ def advance_orchestrator(
         except ValueError:
             pass
 
-    for step in steps[start_idx : target_idx + 1]:
+    execution_window = slice(start_idx, target_idx + 1)
+    for step in steps[execution_window]:
         if step == OrchestratorStep.COMPLETED:
             result.completed = True
             result.current_step = OrchestratorStep.COMPLETED
@@ -602,6 +613,105 @@ def _first_non_empty(*values: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _execute_draft_fulfillment(*, tenant: Any, inquiry: Inquiry, user: Any) -> StepResult:
+    """Create a fulfillment record from the carrier PO / sales order."""
+    from tenant_apps.fulfillments.models import Fulfillment
+
+    if not inquiry.carrier_purchase_order:
+        return StepResult(
+            step=OrchestratorStep.DRAFT_FULFILLMENT,
+            success=False,
+            message="Cannot create fulfillment — carrier PO not yet created",
+        )
+
+    sales_order = inquiry.sales_order
+    supplier = (
+        inquiry.supplier
+        or getattr(sales_order, "supplier", None)
+        or getattr(inquiry.carrier_purchase_order, "supplier", None)
+    )
+    customer = inquiry.customer or getattr(sales_order, "customer", None)
+
+    with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
+        locked_inquiry = Inquiry.objects.select_for_update().get(id=inquiry.id, tenant=tenant)
+        existing_id = (locked_inquiry.custom_data or {}).get("fulfillment_id")
+        if existing_id and Fulfillment.objects.filter(id=existing_id, tenant=tenant).exists():
+            inquiry.custom_data = locked_inquiry.custom_data
+            return StepResult(
+                step=OrchestratorStep.DRAFT_FULFILLMENT,
+                success=True,
+                message="Fulfillment already exists",
+                entity_id=str(existing_id),
+                entity_type="fulfillment",
+            )
+
+        fulfillment = Fulfillment.objects.create(
+            tenant=tenant,
+            inquiry=locked_inquiry,
+            supplier=supplier,
+            customer=customer,
+            carrier=getattr(inquiry.carrier_purchase_order, "carrier", None),
+            status="pending",
+            created_by=user,
+        )
+        locked_inquiry.custom_data = {**(locked_inquiry.custom_data or {}), "fulfillment_id": str(fulfillment.id)}
+        locked_inquiry.save(update_fields=["custom_data"])
+        inquiry.custom_data = locked_inquiry.custom_data
+
+    return StepResult(
+        step=OrchestratorStep.DRAFT_FULFILLMENT,
+        success=True,
+        message=f"Fulfillment {fulfillment.fulfillment_number} created",
+        entity_id=str(fulfillment.id),
+        entity_type="fulfillment",
+    )
+
+
+def _execute_draft_invoice(*, tenant: Any, inquiry: Inquiry, user: Any) -> StepResult:
+    """Create an invoice for the customer from the sales order."""
+    from tenant_apps.invoices.models import Invoice
+
+    customer = inquiry.customer or getattr(inquiry.sales_order, "customer", None)
+    if not customer:
+        return StepResult(
+            step=OrchestratorStep.DRAFT_INVOICE,
+            success=False,
+            message="Cannot create invoice — no customer linked",
+        )
+
+    with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
+        locked_inquiry = Inquiry.objects.select_for_update().get(id=inquiry.id, tenant=tenant)
+        existing_id = (locked_inquiry.custom_data or {}).get("invoice_id")
+        if existing_id and Invoice.objects.filter(id=existing_id, tenant=tenant).exists():
+            inquiry.custom_data = locked_inquiry.custom_data
+            return StepResult(
+                step=OrchestratorStep.DRAFT_INVOICE,
+                success=True,
+                message="Invoice already exists",
+                entity_id=str(existing_id),
+                entity_type="invoice",
+            )
+
+        invoice = Invoice.objects.create(
+            tenant=tenant,
+            customer=customer,
+            sales_order=inquiry.sales_order,
+            invoice_number=f"INV-{timezone.now().strftime('%Y')}-{uuid.uuid4().hex[:8].upper()}",
+            status="draft",
+        )
+        locked_inquiry.custom_data = {**(locked_inquiry.custom_data or {}), "invoice_id": str(invoice.id)}
+        locked_inquiry.save(update_fields=["custom_data"])
+        inquiry.custom_data = locked_inquiry.custom_data
+
+    return StepResult(
+        step=OrchestratorStep.DRAFT_INVOICE,
+        success=True,
+        message=f"Invoice {invoice.invoice_number} created",
+        entity_id=str(invoice.id),
+        entity_type="invoice",
+    )
+
+
 def _execute_step(*, tenant: Any, inquiry: Inquiry, step: OrchestratorStep, user: Any = None) -> StepResult:
     """Execute a single orchestrator step by delegating to the appropriate service."""
 
@@ -626,6 +736,10 @@ def _execute_step(*, tenant: Any, inquiry: Inquiry, step: OrchestratorStep, user
             return _step_carrier_reply_parse(tenant=tenant, inquiry=inquiry)
         elif step == OrchestratorStep.DRAFT_CARRIER_PO:
             return _step_draft_carrier_po(tenant=tenant, inquiry=inquiry)
+        elif step == OrchestratorStep.DRAFT_FULFILLMENT:
+            return _execute_draft_fulfillment(tenant=tenant, inquiry=inquiry, user=user)
+        elif step == OrchestratorStep.DRAFT_INVOICE:
+            return _execute_draft_invoice(tenant=tenant, inquiry=inquiry, user=user)
         else:
             return StepResult(step=step, success=False, message=f"Unknown step: {step}")
     except Exception as exc:
@@ -969,14 +1083,18 @@ def _derive_fulfill_state(inquiry: Inquiry) -> OrchestratorStep:
     from tenant_apps.carriers.models import CarrierFreightInquiry, CarrierFreightInquiryStatus
     from tenant_apps.sales_orders.models import SalesOrderStatus
 
+    inquiry_custom = inquiry.custom_data or {}
     if inquiry.carrier_purchase_order_id:
+        if not inquiry_custom.get("fulfillment_id"):
+            return OrchestratorStep.DRAFT_FULFILLMENT
+        if not inquiry_custom.get("invoice_id"):
+            return OrchestratorStep.DRAFT_INVOICE
         return OrchestratorStep.COMPLETED
 
     so = inquiry.sales_order
     if so:
         so.refresh_from_db()
         if so.status in (SalesOrderStatus.APPROVED, SalesOrderStatus.DELIVERED):
-            # Check carrier progress
             has_freight = CarrierFreightInquiry.objects.filter(tenant=inquiry.tenant, sales_order=so).exists()
             if not has_freight:
                 return OrchestratorStep.CARRIER_FAN_OUT
