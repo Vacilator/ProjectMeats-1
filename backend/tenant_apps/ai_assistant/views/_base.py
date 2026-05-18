@@ -3,16 +3,13 @@
 This module contains helper functions used across multiple view modules to avoid
 circular imports and duplication.
 """
+
 import logging
 
 from rest_framework import status
 from rest_framework.response import Response
 
-from ..models import (
-    AIDocument,
-    AIFeedbackLog,
-)
-from ..session_utils import get_request_tenant_id
+from ..models import AIDocument, AIFeedbackLog
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 SWARM_SYSTEM_PROMPT = (
     "You are the ProjectMeats Intelligent Architect. "
-    "You have access to tenant data via RLS-safe tools and can learn from user feedback provided via the feedback tool. "
+    "You have access to tenant data via RLS-safe tools and can learn from user feedback "
+    "provided via the feedback tool. "
     "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
     "Use tools only when they are available for the tenant (e.g., Outlook connection). "
     "Be highly analytical, concise, and proactive."
@@ -155,7 +153,10 @@ def build_contextual_suggestions(
             label="Draft Check-in Email",
             confidence=0.93,
             reason="Relationship records support contextual follow-up drafting.",
-            prompt=f"Draft a concise check-in email for this {normalized_type} using recent orders, balances, and delays.",
+            prompt=(
+                f"Draft a concise check-in email for this {normalized_type}"
+                " using recent orders, balances, and delays."
+            ),
         )
 
     if normalized_type == "plant":
@@ -168,7 +169,10 @@ def build_contextual_suggestions(
                 label="Add booking contact details",
                 confidence=0.89,
                 reason="This plant is missing a booking contact email.",
-                prompt="Open the plant edit form and add booking contact details so logistics teams can route scheduling updates.",
+                prompt=(
+                    "Open the plant edit form and add booking contact details"
+                    " so logistics teams can route scheduling updates."
+                ),
             )
         else:
             add_suggestion(
@@ -205,17 +209,19 @@ def _humanize_review_intent(document_type: str, payload: dict[str, object]) -> s
 
 
 # Document types that should NOT appear in the approval queue (spam/irrelevant)
-_NON_ACTIONABLE_DOCUMENT_TYPES = frozenset({
-    "spam",
-    "marketing",
-    "personal",
-    "newsletter",
-    "notification",
-    "automated",
-    "noreply",
-    "unknown",
-    "unsubscribe",
-})
+_NON_ACTIONABLE_DOCUMENT_TYPES = frozenset(
+    {
+        "spam",
+        "marketing",
+        "personal",
+        "newsletter",
+        "notification",
+        "automated",
+        "noreply",
+        "unknown",
+        "unsubscribe",
+    }
+)
 
 
 def build_pending_review_items(
