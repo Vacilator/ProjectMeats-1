@@ -13,7 +13,7 @@
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import { message, Tooltip, Tag, Popconfirm, Select, Input, InputNumber, Modal, Form } from 'antd';
+import { message, Tooltip, Tag, Popconfirm, Select, Input, InputNumber } from 'antd';
 import { Plus, Send, Check, X, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { InquiryProduct, InquiryProductSupplierBid, SupplierBidStatus } from '../../types';
@@ -94,7 +94,11 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   const [addingBid, setAddingBid] = useState(false);
   const [newBid, setNewBid] = useState<NewBidForm>(EMPTY_BID_FORM);
   const [showAddLocation, setShowAddLocation] = useState(false);
-  const [locationForm] = Form.useForm();
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newLocationAddress, setNewLocationAddress] = useState('');
+  const [newLocationCity, setNewLocationCity] = useState('');
+  const [newLocationState, setNewLocationState] = useState('');
+  const [newLocationZip, setNewLocationZip] = useState('');
   const queryClient = useQueryClient();
 
   const bids = useMemo(() => product.supplier_bids ?? [], [product.supplier_bids]);
@@ -228,15 +232,32 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     onSuccess: (data) => {
       message.success('Location created');
       setShowAddLocation(false);
-      locationForm.resetFields();
+      setNewLocationName('');
+      setNewLocationAddress('');
+      setNewLocationCity('');
+      setNewLocationState('');
+      setNewLocationZip('');
       void refetchLocations();
-      // Auto-select the new location
       if (data?.id) {
         updateProductFieldMutation.mutate({ ship_to_location: data.id });
       }
     },
     onError: () => message.error('Failed to create location'),
   });
+
+  const handleCreateLocation = useCallback(() => {
+    if (!newLocationName.trim()) {
+      message.warning('Location name is required');
+      return;
+    }
+    createLocationMutation.mutate({
+      name: newLocationName.trim(),
+      address_line_1: newLocationAddress.trim(),
+      city: newLocationCity.trim(),
+      state: newLocationState.trim(),
+      zip_code: newLocationZip.trim(),
+    });
+  }, [newLocationName, newLocationAddress, newLocationCity, newLocationState, newLocationZip, createLocationMutation]);
 
   const handleAddBid = useCallback(() => {
     if (!newBid.supplier) {
@@ -576,40 +597,73 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
         </BidList>
       )}
 
-      {/* ── Quick Add Location Modal ── */}
-      <Modal
-        title="Add Delivery Location"
-        open={showAddLocation}
-        onCancel={() => { setShowAddLocation(false); locationForm.resetFields(); }}
-        onOk={() => locationForm.submit()}
-        confirmLoading={createLocationMutation.isPending}
-        okText="Create Location"
-        destroyOnClose
-      >
-        <Form
-          form={locationForm}
-          layout="vertical"
-          onFinish={(values) => createLocationMutation.mutate(values)}
-        >
-          <Form.Item name="name" label="Location Name" rules={[{ required: true, message: 'Required' }]}>
-            <Input placeholder="e.g. Main Warehouse, East Coast DC" />
-          </Form.Item>
-          <Form.Item name="address_line_1" label="Address">
-            <Input placeholder="Street address" />
-          </Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            <Form.Item name="city" label="City">
-              <Input placeholder="City" />
-            </Form.Item>
-            <Form.Item name="state" label="State">
-              <Input placeholder="State" />
-            </Form.Item>
-            <Form.Item name="zip_code" label="ZIP">
-              <Input placeholder="ZIP" />
-            </Form.Item>
-          </div>
-        </Form>
-      </Modal>
+      {/* ── Inline Add Location Form (Air Gap pattern — no Modal) ── */}
+      {showAddLocation && (
+        <InlineLocationForm>
+          <MetaLabel style={{ marginBottom: '0.5rem' }}>
+            <MapPin size={11} /> New Delivery Location
+          </MetaLabel>
+          <LocationGrid>
+            <Input
+              size="small"
+              placeholder="Location name *"
+              value={newLocationName}
+              onChange={(e) => setNewLocationName(e.target.value)}
+              autoFocus
+            />
+            <Input
+              size="small"
+              placeholder="Street address"
+              value={newLocationAddress}
+              onChange={(e) => setNewLocationAddress(e.target.value)}
+            />
+            <Input
+              size="small"
+              placeholder="City"
+              value={newLocationCity}
+              onChange={(e) => setNewLocationCity(e.target.value)}
+            />
+            <Input
+              size="small"
+              placeholder="State"
+              value={newLocationState}
+              onChange={(e) => setNewLocationState(e.target.value)}
+            />
+            <Input
+              size="small"
+              placeholder="ZIP"
+              value={newLocationZip}
+              onChange={(e) => setNewLocationZip(e.target.value)}
+            />
+          </LocationGrid>
+          <LocationFormActions>
+            <ActionBtn
+              $variant="success"
+              onClick={handleCreateLocation}
+              disabled={createLocationMutation.isPending || !newLocationName.trim()}
+              title="Create location"
+              aria-label="Create location"
+            >
+              <Check size={12} />
+            </ActionBtn>
+            <ActionBtn
+              $variant="danger"
+              onClick={() => {
+                setShowAddLocation(false);
+                setNewLocationName('');
+                setNewLocationAddress('');
+                setNewLocationCity('');
+                setNewLocationState('');
+                setNewLocationZip('');
+              }}
+              title="Cancel"
+              aria-label="Cancel add location"
+            >
+              <X size={12} />
+            </ActionBtn>
+          </LocationFormActions>
+        </InlineLocationForm>
+      )}
     </BidPanelContainer>
   );
 };
@@ -872,6 +926,32 @@ const AddBidButton = styled.button`
     color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.04);
   }
+`;
+
+const InlineLocationForm = styled.div`
+  padding: 0.75rem;
+  border-top: 1px solid rgba(var(--color-border), 0.2);
+  background: rgba(var(--color-primary), 0.02);
+`;
+
+const LocationGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+
+  & > :first-child {
+    grid-column: 1 / -1;
+  }
+  & > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
+`;
+
+const LocationFormActions = styled.div`
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  justify-content: flex-end;
 `;
 
 export default SupplierBidPanel;
