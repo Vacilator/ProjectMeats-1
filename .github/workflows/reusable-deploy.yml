@@ -1451,6 +1451,14 @@ jobs:
 
           pull_with_retry "$RUN_REF"
 
+          # Backend resource configuration (environment-tunable via server .env or secrets)
+          BACKEND_MEMORY_LIMIT="${BACKEND_MEMORY_LIMIT:-1536m}"
+          BACKEND_MEMORY_SWAP="${BACKEND_MEMORY_SWAP:-2g}"
+          BACKEND_MEMORY_RESERVATION="${BACKEND_MEMORY_RESERVATION:-512m}"
+          GUNICORN_WORKERS="${GUNICORN_WORKERS:-3}"
+          GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-120}"
+          GUNICORN_MAX_REQUESTS="${GUNICORN_MAX_REQUESTS:-1000}"
+
           # Atomic deploy + rollback (single host): canary on alternate port, then swap.
           CAND_NAME="pm-backend-candidate"
           CAND_PORT="18000"
@@ -1488,8 +1496,20 @@ jobs:
           echo "Starting backend canary on 127.0.0.1:${CAND_PORT}..."
           docker run -d --name "$CAND_NAME" \
             --restart unless-stopped \
+            --memory="${BACKEND_MEMORY_LIMIT:-1536m}" \
+            --memory-swap="${BACKEND_MEMORY_SWAP:-2g}" \
+            --memory-reservation="${BACKEND_MEMORY_RESERVATION:-512m}" \
+            --health-cmd="curl -fsS http://127.0.0.1:8000/api/v1/health/ || exit 1" \
+            --health-interval=30s \
+            --health-timeout=10s \
+            --health-start-period=40s \
+            --health-retries=3 \
             -p 127.0.0.1:${CAND_PORT}:8000 \
+            -p 127.0.0.1:18001:8001 \
             --env-file /root/projectmeats/backend/.env \
+            -e GUNICORN_WORKERS="${GUNICORN_WORKERS:-3}" \
+            -e GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-120}" \
+            -e GUNICORN_MAX_REQUESTS="${GUNICORN_MAX_REQUESTS:-1000}" \
             -e DB_HOST="${{ secrets.DB_HOST }}" \
             -e DB_NAME="${{ secrets.DB_NAME }}" \
             -e DB_USER="${{ secrets.DB_USER }}" \
@@ -1548,8 +1568,20 @@ jobs:
 
           docker run -d --name pm-backend \
             --restart unless-stopped \
+            --memory="${BACKEND_MEMORY_LIMIT:-1536m}" \
+            --memory-swap="${BACKEND_MEMORY_SWAP:-2g}" \
+            --memory-reservation="${BACKEND_MEMORY_RESERVATION:-512m}" \
+            --health-cmd="curl -fsS http://127.0.0.1:8000/api/v1/health/ || exit 1" \
+            --health-interval=30s \
+            --health-timeout=10s \
+            --health-start-period=40s \
+            --health-retries=3 \
             -p 8000:8000 \
+            -p 8001:8001 \
             --env-file /root/projectmeats/backend/.env \
+            -e GUNICORN_WORKERS="${GUNICORN_WORKERS:-3}" \
+            -e GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-120}" \
+            -e GUNICORN_MAX_REQUESTS="${GUNICORN_MAX_REQUESTS:-1000}" \
             -e DB_HOST="${{ secrets.DB_HOST }}" \
             -e DB_NAME="${{ secrets.DB_NAME }}" \
             -e DB_USER="${{ secrets.DB_USER }}" \
@@ -1626,6 +1658,72 @@ jobs:
             echo "Checking .env file on server..."
             grep EMAIL_HOST_PASSWORD /root/projectmeats/backend/.env || echo "Not found in .env file"
           fi
+
+          # ===== Celery Worker + Beat Deployment =====
+          echo ""
+          echo "=== Deploying Celery worker and beat ==="
+
+          # Stop existing Celery containers (graceful)
+          docker stop pm-celery-worker 2>/dev/null || true
+          docker rm -f pm-celery-worker 2>/dev/null || true
+          docker stop pm-celery-beat 2>/dev/null || true
+          docker rm -f pm-celery-beat 2>/dev/null || true
+
+          # Celery worker: processes all queues
+          echo "Starting Celery worker..."
+          docker run -d --name pm-celery-worker \
+            --restart unless-stopped \
+            --memory="${BACKEND_MEMORY_LIMIT:-1536m}" \
+            --memory-swap="${BACKEND_MEMORY_SWAP:-2g}" \
+            --memory-reservation="${BACKEND_MEMORY_RESERVATION:-512m}" \
+            --env-file /root/projectmeats/backend/.env \
+            -e DB_HOST="${{ secrets.DB_HOST }}" \
+            -e DB_NAME="${{ secrets.DB_NAME }}" \
+            -e DB_USER="${{ secrets.DB_USER }}" \
+            -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            -e DB_PORT="${{ secrets.DB_PORT || '5432' }}" \
+            -v /root/projectmeats/media:/app/media \
+            "$RUN_REF" \
+            celery -A projectmeats worker \
+              --loglevel=info \
+              --queues=pm.ops,pm.email,pm.workforms,pm.ai,pm.etl,pm.trade \
+              --concurrency=4 \
+              --max-tasks-per-child=1000 \
+              --prefetch-multiplier=1 \
+              --without-heartbeat
+
+          # Celery beat: periodic task scheduler
+          echo "Starting Celery beat..."
+          docker run -d --name pm-celery-beat \
+            --restart unless-stopped \
+            --memory="256m" \
+            --memory-swap="512m" \
+            --env-file /root/projectmeats/backend/.env \
+            -e DB_HOST="${{ secrets.DB_HOST }}" \
+            -e DB_NAME="${{ secrets.DB_NAME }}" \
+            -e DB_USER="${{ secrets.DB_USER }}" \
+            -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            -e DB_PORT="${{ secrets.DB_PORT || '5432' }}" \
+            "$RUN_REF" \
+            celery -A projectmeats beat \
+              --loglevel=info \
+              --scheduler=django_celery_beat.schedulers:DatabaseScheduler
+
+          # Verify Celery containers are running
+          sleep 5
+          if docker ps | grep -q pm-celery-worker; then
+            echo "✓ Celery worker is running"
+          else
+            echo "⚠️  WARNING: Celery worker failed to start"
+            docker logs pm-celery-worker --tail 30 2>/dev/null || true
+          fi
+          if docker ps | grep -q pm-celery-beat; then
+            echo "✓ Celery beat is running"
+          else
+            echo "⚠️  WARNING: Celery beat failed to start"
+            docker logs pm-celery-beat --tail 30 2>/dev/null || true
+          fi
+          echo "=== End Celery deployment ==="
           SSH
 
   # ==========================================

@@ -142,6 +142,61 @@ Notes:
 
 Do **not** validate via reverse proxy ports as the primary health signal.
 
+### Backend process model (dual-process)
+
+The backend container runs **two processes** managed by supervisord:
+
+| Process | Port | Role | Workers |
+|---------|------|------|---------|
+| **Gunicorn** | 8000 | HTTP/API (REST, admin, static) | 3 (configurable via `GUNICORN_WORKERS`) |
+| **Daphne** | 8001 | WebSocket only (`/ws/`) | 1 (single-threaded event loop) |
+
+**Why**: A single Daphne process previously handled both HTTP and WebSocket traffic. A slow WebSocket consumer or stuck channel-layer call would block ALL HTTP requests, causing 504s across the board. Gunicorn's pre-fork multi-worker model means one slow request cannot block other workers.
+
+**Nginx routing**: The frontend container's nginx routes `/ws/` to port 8001 (Daphne) and everything else to port 8000 (Gunicorn).
+
+**Supervisord**: Automatically restarts either process if it crashes. Combined with Docker's `--restart unless-stopped` and the HEALTHCHECK directive, this provides triple-layer recovery.
+
+### Container resource limits (mandatory)
+
+All `docker run` invocations for backend and Celery containers **must** include:
+
+```bash
+--memory="${BACKEND_MEMORY_LIMIT:-1536m}" \
+--memory-swap="${BACKEND_MEMORY_SWAP:-2g}" \
+--memory-reservation="${BACKEND_MEMORY_RESERVATION:-512m}" \
+--health-cmd="curl -fsS http://127.0.0.1:8000/api/v1/health/ || exit 1" \
+--health-interval=30s \
+--health-timeout=10s \
+--health-start-period=40s \
+--health-retries=3
+```
+
+Environment-tunable defaults (set in server `.env` or as `docker run -e` overrides):
+- `BACKEND_MEMORY_LIMIT`: 1536m (dev), 2g (uat), 3g (production)
+- `GUNICORN_WORKERS`: 3 (dev/uat), 4 (production)
+- `GUNICORN_TIMEOUT`: 120s
+- `GUNICORN_MAX_REQUESTS`: 1000 (recycles workers to prevent memory leaks)
+
+### Celery worker deployment
+
+The deploy pipeline deploys two additional containers from the **same backend image**:
+
+| Container | CMD Override | Purpose |
+|-----------|-------------|---------|
+| `pm-celery-worker` | `celery -A projectmeats worker --queues=pm.ops,pm.email,pm.workforms,pm.ai,pm.etl,pm.trade --concurrency=4` | Background task execution |
+| `pm-celery-beat` | `celery -A projectmeats beat --scheduler=django_celery_beat.schedulers:DatabaseScheduler` | Periodic task scheduler |
+
+Both containers use the same `--env-file`, DB secrets, and memory limits as the backend.
+
+### Redis/Valkey scaling guidance
+
+If Celery tasks or channel-layer operations cause Redis memory pressure:
+1. Check `redis-cli INFO memory` — `used_memory_rss` should be <70% of `maxmemory`
+2. Scale the DigitalOcean managed Redis cluster (Database → Resize)
+3. Recommended minimum: 1GB eviction-mode for dev, 2GB for production
+4. If `pm.ai` queue backs up, consider a dedicated Redis instance for the AI queue
+
 ## References (deep dives)
 
 - Detailed CI/CD reference: `docs/reference/GOLDEN_PIPELINE.md`

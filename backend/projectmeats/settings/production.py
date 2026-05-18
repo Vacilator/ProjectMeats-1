@@ -61,19 +61,27 @@ for h in _ext_hosts + _int_hosts + _COMMON_INTERNAL_HOSTS:
 # Check if DATABASE_URL is provided
 _database_url = config("DATABASE_URL", default="")
 
+# Connection pool settings: Gunicorn multi-worker means we need bounded connections.
+# With 3 workers × CONN_MAX_AGE=60s, each worker reuses its connection for 60s.
+# OPTIONS add connect_timeout (fail fast if PG is unreachable) and
+# statement_timeout (kill runaway queries after 30s).
+_db_options = {
+    "connect_timeout": 10,
+    "options": "-c statement_timeout=30000",
+}
+
 if _database_url:
     # Parse DATABASE_URL if provided
-    # Reduced conn_max_age from 600 to 60 to prevent connection exhaustion
     _db_config = dj_database_url.config(
         default=_database_url,
         conn_max_age=60,
         conn_health_checks=True,
     )
+    _db_config.setdefault("OPTIONS", {}).update(_db_options)
 else:
     # Explicit PostgreSQL configuration from individual environment variables
     # No SQLite fallback - all DB vars are required in production
     # These will raise KeyError if not set, ensuring fail-fast behavior
-    # Reduced CONN_MAX_AGE from 600 to 60 to prevent connection exhaustion
     _db_config = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ["DB_NAME"],
@@ -83,6 +91,7 @@ else:
         "PORT": os.environ.get("DB_PORT", "5432"),
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": _db_options,
     }
 
 DATABASES = {
@@ -341,3 +350,6 @@ CONN_MAX_AGE = 60
 ADMIN_URL = config("ADMIN_URL", default="admin/")
 RATELIMIT_ENABLE = True
 HEALTH_CHECK = {"DISK_USAGE_MAX": 90, "MEMORY_MIN": 100}  # MB
+
+# Request timeout for slow-request logging (seconds)
+REQUEST_TIMEOUT_SECONDS = int(os.environ.get("REQUEST_TIMEOUT_SECONDS", "30"))
