@@ -72,7 +72,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
       const res = await businessApi.get(`/locations/`, { params: { customer: customerId } });
       return (res.data?.results ?? res.data ?? []) as CustomerLocation[];
     },
-    enabled: Boolean(customerId) && canManageBids,
+    enabled: Boolean(customerId),
     staleTime: 60_000,
     retry: false,
   });
@@ -103,14 +103,8 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     if (!customerLocations?.length) return [];
     return customerLocations.map((loc) => ({
       value: loc.id,
-      label: (
-        <div style={{ lineHeight: 1.3 }}>
-          <div style={{ fontWeight: 500 }}>{loc.display_name}</div>
-          <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
-            {[loc.address_line_1, loc.city, loc.state, loc.zip_code].filter(Boolean).join(', ')}
-          </div>
-        </div>
-      ),
+      label: `${loc.display_name} — ${[loc.address_line_1, loc.city, loc.state, loc.zip_code].filter(Boolean).join(', ')}`,
+      searchText: `${loc.display_name} ${loc.address_line_1 ?? ''} ${loc.city ?? ''} ${loc.state ?? ''} ${loc.zip_code ?? ''}`.toLowerCase(),
     }));
   }, [customerLocations]);
 
@@ -275,11 +269,13 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
               {canManageBids ? (
                 <DatePicker
                   size="small"
-                  showTime
+                  showTime={{ format: 'HH:mm' }}
+                  format="MMM D, YYYY h:mm A"
                   value={product.respond_by_date_time ? dayjs(product.respond_by_date_time) : null}
                   onChange={handleRespondByChange}
-                  placeholder="Bid deadline"
+                  placeholder="Select bid deadline"
                   style={{ width: '100%' }}
+                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
                 />
               ) : (
                 <MetaValue>
@@ -294,11 +290,13 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
               {canManageBids ? (
                 <DatePicker
                   size="small"
-                  showTime
+                  showTime={{ format: 'HH:mm' }}
+                  format="MMM D, YYYY h:mm A"
                   value={product.fulfillment_date_time ? dayjs(product.fulfillment_date_time) : null}
                   onChange={handleFulfillmentDateChange}
-                  placeholder="Needed by"
+                  placeholder="Select needed-by date"
                   style={{ width: '100%' }}
+                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
                 />
               ) : (
                 <MetaValue>
@@ -310,17 +308,28 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
             </MetaField>
             <MetaField>
               <MetaLabel><MapPin size={11} /> Ship To</MetaLabel>
-              {canManageBids && locationOptions.length > 0 ? (
+              {canManageBids ? (
                 <Select
                   size="small"
                   value={product.ship_to_location || undefined}
                   onChange={handleShipToChange}
-                  placeholder="Select location"
+                  placeholder="Select delivery location"
                   options={locationOptions}
                   style={{ width: '100%' }}
                   allowClear
                   showSearch
-                  optionFilterProp="label"
+                  filterOption={(input, option) => {
+                    const searchText = (option as { searchText?: string })?.searchText ?? '';
+                    return searchText.includes(input.toLowerCase());
+                  }}
+                  notFoundContent={
+                    !customerId
+                      ? 'No customer assigned'
+                      : locationOptions.length === 0
+                      ? 'No locations configured for this customer'
+                      : 'No matching locations'
+                  }
+                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
                 />
               ) : (
                 <MetaValue>
@@ -421,16 +430,18 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
               <Select
                 showSearch
                 size="small"
-                placeholder="Search supplier..."
+                placeholder="Search supplier by name..."
                 value={newSupplierId || undefined}
                 onChange={(val: string) => setNewSupplierId(val)}
                 options={supplierOptions}
-                filterOption={(input, option) =>
-                  (option?.searchText as string)?.includes(input.toLowerCase()) ?? false
-                }
+                filterOption={(input, option) => {
+                  const searchText = (option as { searchText?: string })?.searchText ?? '';
+                  return searchText.includes(input.toLowerCase());
+                }}
                 style={{ flex: 1 }}
                 autoFocus
                 notFoundContent="No suppliers found"
+                getPopupContainer={(trigger) => trigger.parentElement || document.body}
               />
               <ActionBtn
                 $variant="success"
