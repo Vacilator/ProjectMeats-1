@@ -5,11 +5,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+# Dual-process defaults (configurable via docker run -e)
+ENV GUNICORN_WORKERS=3 \
+    GUNICORN_TIMEOUT=120 \
+    GUNICORN_MAX_REQUESTS=1000
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
+    supervisor \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache
 
 COPY backend/requirements.txt .
@@ -29,24 +35,21 @@ COPY scripts/infrastructure_diagnostics.py /app/scripts/infrastructure_diagnosti
 
 RUN mkdir -p /app/staticfiles /app/media
 
+# supervisord needs to run as root to manage child processes,
+# but Gunicorn/Daphne drop privileges where needed.
+# The appuser owns app files for safety.
 RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
 
-EXPOSE 8000
+EXPOSE 8000 8001
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8000/api/v1/health/ || exit 1
 
-# Start Daphne so the container serves both HTTP and websocket traffic via ASGI.
-# Use exec form for proper signal handling
+# Dual-process model:
+# - Gunicorn (port 8000): multi-worker HTTP/API — handles all REST, admin, static
+# - Daphne  (port 8001): single-process ASGI — handles WebSocket /ws/ only
+# supervisord restarts either process if it crashes.
 # NOTE: Heavy operations (setup_superuser, seed_tenants, collectstatic) moved to migration job
 CMD ["sh", "-c", "python manage.py check && \
-    echo \"Django check passed — starting Daphne\" && \
-    exec daphne \
-      --bind 0.0.0.0 \
-      --port 8000 \
-      --http-timeout 120 \
-      --proxy-headers \
-      --access-log - \
-      --verbosity 1 \
-      projectmeats.asgi:application"]
+    echo 'Django check passed — starting supervisord (Gunicorn + Daphne)' && \
+    exec supervisord -c /app/supervisord.conf"]

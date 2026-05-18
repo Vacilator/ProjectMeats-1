@@ -182,6 +182,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # Static files middleware
     "apps.core.utils.correlation.CorrelationIdMiddleware",  # Request tracing (X-Request-ID)
+    "apps.core.middleware.timeout.RequestTimeoutMiddleware",  # Log slow requests
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
