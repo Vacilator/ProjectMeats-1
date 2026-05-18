@@ -521,6 +521,8 @@ type FieldPresentationOverride = {
   visible_when?: Record<string, unknown>;
   allow_create?: boolean;
   read_only?: boolean;
+  required?: boolean;
+  default_value?: string;
 };
 
 const reorderFieldsByPreferredKeys = (
@@ -570,6 +572,8 @@ const applyFieldPresentation = (
     ...(override.placeholder ? { placeholder: override.placeholder } : {}),
     ...(override.help_text ? { help_text: override.help_text } : {}),
     ...(override.choices !== undefined ? { choices: override.choices } : {}),
+    ...(override.required !== undefined ? { required: override.required } : {}),
+    ...(override.default_value !== undefined ? { default: override.default_value } : {}),
     ui,
   };
 };
@@ -1321,8 +1325,17 @@ export const augmentSchemaForFrontend = (
         buyer_contact_direct_phone: { section: 'Buyer Contact' },
         buyer_contact_cell_phone: { section: 'Buyer Contact' },
         buyer_contact_email: { section: 'Buyer Contact' },
-        total_net_weight: { section: 'Invoice Defaults' },
-        uom: { section: 'Invoice Defaults' },
+        uom: {
+          section: 'Invoice Defaults',
+          label: 'UOM',
+          widget: 'select',
+          choices: [
+            { value: 'LBS', label: 'Lbs' },
+            { value: 'KG', label: 'Kg' },
+          ],
+          default_value: 'LBS',
+          required: false,
+        },
       },
       // Product modal fields: Type of Protein, Description of Product Item, Fresh or Frozen,
       // Package Type, Edible Or Inedible, Tested Product.
@@ -1417,7 +1430,6 @@ export const augmentSchemaForFrontend = (
         'credit_limits',
         'accounting_line_of_credit',
         'delivery_po_number',
-        'total_net_weight',
         'uom',
       ],
       product: [

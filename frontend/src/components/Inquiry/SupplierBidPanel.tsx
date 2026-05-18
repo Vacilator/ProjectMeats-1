@@ -1,20 +1,25 @@
 /**
  * SupplierBidPanel — Per-product supplier bid management
  *
- * Shows supplier bids as expandable child rows under each InquiryProduct.
- * Provides "+ Add Supplier/Bid" button, request bid actions, and accept/reject.
- * Includes fulfillment date, respond-by date, and ship-to location columns.
+ * Displays supplier bids as child rows that mirror the product row layout.
+ * Each bid shows: supplier, quantity, price/unit, UOM, total, notes + actions.
+ * Ship-to location stays at product level with quick "Add Location" option.
+ *
+ * Requirements:
+ * - Bid form mirrors product row structure (same fields + supplier dropdown)
+ * - Remove redundant respond_by / fulfillment_date (valid_until on inquiry is canonical)
+ * - Ship-to at product level with "Add Location" for customers without locations
+ * - Bids save and display correctly after creation
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import { message, Tooltip, Tag, Popconfirm, Select, DatePicker } from 'antd';
-import { Plus, Send, Check, X, ChevronDown, ChevronRight, Clock, MapPin, Calendar } from 'lucide-react';
+import { message, Tooltip, Tag, Popconfirm, Select, Input, InputNumber } from 'antd';
+import { Plus, Send, Check, X, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { InquiryProduct, InquiryProductSupplierBid, SupplierBidStatus } from '../../types';
 import { inquiryService } from '../../services/inquiryService';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { businessApi, suppliersApi, type Supplier } from '@/services/businessApi';
-import dayjs from 'dayjs';
 
 // ── Status visual config ──
 
@@ -28,6 +33,16 @@ const BID_STATUS_META: Record<SupplierBidStatus, { label: string; color: string;
   withdrawn: { label: 'Withdrawn', color: 'default', icon: '↩️' },
 };
 
+// ── UOM options ──
+const UOM_OPTIONS = [
+  { value: 'lbs', label: 'lbs' },
+  { value: 'kg', label: 'kg' },
+  { value: 'cases', label: 'cases' },
+  { value: 'units', label: 'units' },
+  { value: 'pallets', label: 'pallets' },
+  { value: 'tons', label: 'tons' },
+];
+
 // ── Props ──
 
 interface SupplierBidPanelProps {
@@ -40,12 +55,32 @@ interface SupplierBidPanelProps {
 // ── Customer location type ──
 interface CustomerLocation {
   id: string;
-  display_name: string;
+  display_name?: string;
+  name?: string;
   address_line_1?: string;
   city?: string;
   state?: string;
   zip_code?: string;
 }
+
+// ── New bid form state ──
+interface NewBidForm {
+  supplier: string;
+  bid_quantity: string;
+  bid_price_per_unit: string;
+  bid_uom: string;
+  bid_total: string;
+  bid_notes: string;
+}
+
+const EMPTY_BID_FORM: NewBidForm = {
+  supplier: '',
+  bid_quantity: '',
+  bid_price_per_unit: '',
+  bid_uom: 'lbs',
+  bid_total: '',
+  bid_notes: '',
+};
 
 // ── Component ──
 
@@ -57,7 +92,13 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [addingBid, setAddingBid] = useState(false);
-  const [newSupplierId, setNewSupplierId] = useState('');
+  const [newBid, setNewBid] = useState<NewBidForm>(EMPTY_BID_FORM);
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newLocationAddress, setNewLocationAddress] = useState('');
+  const [newLocationCity, setNewLocationCity] = useState('');
+  const [newLocationState, setNewLocationState] = useState('');
+  const [newLocationZip, setNewLocationZip] = useState('');
   const queryClient = useQueryClient();
 
   const bids = useMemo(() => product.supplier_bids ?? [], [product.supplier_bids]);
@@ -65,7 +106,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   const hasDraftBids = bids.some(b => b.bid_status === 'draft');
 
   // Fetch customer locations for ship-to dropdown
-  const { data: customerLocations } = useQuery({
+  const { data: customerLocations, refetch: refetchLocations } = useQuery({
     queryKey: withTenantQueryKey('customer-locations', customerId ?? ''),
     queryFn: async () => {
       if (!customerId) return [];
@@ -100,12 +141,12 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   }, [suppliers]);
 
   const locationOptions = useMemo(() => {
-    if (!customerLocations?.length) return [];
-    return customerLocations.map((loc) => ({
+    const opts = (customerLocations ?? []).map((loc) => ({
       value: loc.id,
-      label: `${loc.display_name} — ${[loc.address_line_1, loc.city, loc.state, loc.zip_code].filter(Boolean).join(', ')}`,
-      searchText: `${loc.display_name} ${loc.address_line_1 ?? ''} ${loc.city ?? ''} ${loc.state ?? ''} ${loc.zip_code ?? ''}`.toLowerCase(),
+      label: `${loc.display_name || loc.name || 'Location'} — ${[loc.address_line_1, loc.city, loc.state, loc.zip_code].filter(Boolean).join(', ')}`,
+      searchText: `${loc.display_name || loc.name || ''} ${loc.address_line_1 ?? ''} ${loc.city ?? ''} ${loc.state ?? ''} ${loc.zip_code ?? ''}`.toLowerCase(),
     }));
+    return opts;
   }, [customerLocations]);
 
   const invalidateInquiry = useCallback(() => {
@@ -157,18 +198,18 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
 
   const createBidMutation = useMutation({
     retry: false,
-    mutationFn: (supplierId: string) =>
-      inquiryService.createBid({
-        inquiry_product: product.id,
-        supplier: supplierId,
-      } as Partial<InquiryProductSupplierBid>),
+    mutationFn: (payload: Partial<InquiryProductSupplierBid>) =>
+      inquiryService.createBid(payload),
     onSuccess: () => {
       message.success('Supplier bid added');
       setAddingBid(false);
-      setNewSupplierId('');
+      setNewBid(EMPTY_BID_FORM);
       invalidateInquiry();
     },
-    onError: () => message.error('Failed to add supplier bid'),
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to add supplier bid';
+      message.error(msg);
+    },
   });
 
   const updateProductFieldMutation = useMutation({
@@ -179,32 +220,61 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     onError: () => message.error('Failed to update product field'),
   });
 
-  const handleAddBid = useCallback(() => {
-    if (!newSupplierId.trim()) {
-      message.warning('Enter a supplier ID');
+  const createLocationMutation = useMutation({
+    retry: false,
+    mutationFn: async (values: Record<string, string>) => {
+      const res = await businessApi.post('/locations/', {
+        ...values,
+        customer: customerId,
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      message.success('Location created');
+      setShowAddLocation(false);
+      setNewLocationName('');
+      setNewLocationAddress('');
+      setNewLocationCity('');
+      setNewLocationState('');
+      setNewLocationZip('');
+      void refetchLocations();
+      if (data?.id) {
+        updateProductFieldMutation.mutate({ ship_to_location: data.id });
+      }
+    },
+    onError: () => message.error('Failed to create location'),
+  });
+
+  const handleCreateLocation = useCallback(() => {
+    if (!newLocationName.trim()) {
+      message.warning('Location name is required');
       return;
     }
-    createBidMutation.mutate(newSupplierId.trim());
-  }, [newSupplierId, createBidMutation]);
+    createLocationMutation.mutate({
+      name: newLocationName.trim(),
+      address_line_1: newLocationAddress.trim(),
+      city: newLocationCity.trim(),
+      state: newLocationState.trim(),
+      zip_code: newLocationZip.trim(),
+    });
+  }, [newLocationName, newLocationAddress, newLocationCity, newLocationState, newLocationZip, createLocationMutation]);
 
-  // ── Date/location handlers ──
-  const handleRespondByChange = useCallback(
-    (date: dayjs.Dayjs | null) => {
-      updateProductFieldMutation.mutate({
-        respond_by_date_time: date ? date.toISOString() : null,
-      });
-    },
-    [updateProductFieldMutation],
-  );
-
-  const handleFulfillmentDateChange = useCallback(
-    (date: dayjs.Dayjs | null) => {
-      updateProductFieldMutation.mutate({
-        fulfillment_date_time: date ? date.toISOString() : null,
-      });
-    },
-    [updateProductFieldMutation],
-  );
+  const handleAddBid = useCallback(() => {
+    if (!newBid.supplier) {
+      message.warning('Please select a supplier');
+      return;
+    }
+    const payload: Partial<InquiryProductSupplierBid> = {
+      inquiry_product: product.id,
+      supplier: newBid.supplier,
+      bid_quantity: newBid.bid_quantity ? Number(newBid.bid_quantity) : undefined,
+      bid_price_per_unit: newBid.bid_price_per_unit ? Number(newBid.bid_price_per_unit) : undefined,
+      bid_uom: newBid.bid_uom || undefined,
+      bid_total: newBid.bid_total ? Number(newBid.bid_total) : undefined,
+      bid_notes: newBid.bid_notes || undefined,
+    };
+    createBidMutation.mutate(payload);
+  }, [newBid, product.id, createBidMutation]);
 
   const handleShipToChange = useCallback(
     (locationId: string) => {
@@ -212,6 +282,22 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     },
     [updateProductFieldMutation],
   );
+
+  // Auto-calc total when quantity/price changes
+  const updateBidField = useCallback((field: keyof NewBidForm, value: string) => {
+    setNewBid(prev => {
+      const updated = { ...prev, [field]: value };
+      // Auto-calculate total from quantity * price
+      if (field === 'bid_quantity' || field === 'bid_price_per_unit') {
+        const qty = parseFloat(field === 'bid_quantity' ? value : prev.bid_quantity);
+        const price = parseFloat(field === 'bid_price_per_unit' ? value : prev.bid_price_per_unit);
+        if (!isNaN(qty) && !isNaN(price)) {
+          updated.bid_total = (qty * price).toFixed(2);
+        }
+      }
+      return updated;
+    });
+  }, []);
 
   // ── Render ──
 
@@ -262,203 +348,245 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
 
       {expanded && (
         <BidList>
-          {/* ── Product-level dates & ship-to ── */}
+          {/* ── Product-level ship-to (only relevant field at product level) ── */}
           <ProductMetaRow>
-            <MetaField>
-              <MetaLabel><Calendar size={11} /> Respond By</MetaLabel>
+            <MetaField style={{ gridColumn: '1 / -1' }}>
+              <MetaLabel><MapPin size={11} /> Ship To Location</MetaLabel>
               {canManageBids ? (
-                <DatePicker
-                  size="small"
-                  showTime={{ format: 'HH:mm' }}
-                  format="MMM D, YYYY h:mm A"
-                  value={product.respond_by_date_time ? dayjs(product.respond_by_date_time) : null}
-                  onChange={handleRespondByChange}
-                  placeholder="Select bid deadline"
-                  style={{ width: '100%' }}
-                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
-                />
+                <ShipToRow>
+                  <Select
+                    size="small"
+                    value={product.ship_to_location || undefined}
+                    onChange={handleShipToChange}
+                    placeholder="Select delivery location"
+                    options={locationOptions}
+                    style={{ flex: 1 }}
+                    allowClear
+                    showSearch
+                    filterOption={(input, option) => {
+                      const searchText = (option as { searchText?: string })?.searchText ?? '';
+                      return searchText.includes(input.toLowerCase());
+                    }}
+                    notFoundContent={
+                      !customerId
+                        ? 'No customer assigned'
+                        : locationOptions.length === 0
+                        ? 'No locations — add one below'
+                        : 'No matching locations'
+                    }
+                    getPopupContainer={(trigger) => trigger.parentElement || document.body}
+                  />
+                  {customerId && (
+                    <AddLocationBtn
+                      onClick={() => setShowAddLocation(true)}
+                      title="Add new delivery location"
+                      aria-label="Add new delivery location"
+                    >
+                      <Plus size={12} /> Add Location
+                    </AddLocationBtn>
+                  )}
+                </ShipToRow>
               ) : (
                 <MetaValue>
-                  {product.respond_by_date_time
-                    ? dayjs(product.respond_by_date_time).format('MMM D, YYYY h:mm A')
-                    : '—'}
-                </MetaValue>
-              )}
-            </MetaField>
-            <MetaField>
-              <MetaLabel><Calendar size={11} /> Fulfillment Date</MetaLabel>
-              {canManageBids ? (
-                <DatePicker
-                  size="small"
-                  showTime={{ format: 'HH:mm' }}
-                  format="MMM D, YYYY h:mm A"
-                  value={product.fulfillment_date_time ? dayjs(product.fulfillment_date_time) : null}
-                  onChange={handleFulfillmentDateChange}
-                  placeholder="Select needed-by date"
-                  style={{ width: '100%' }}
-                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
-                />
-              ) : (
-                <MetaValue>
-                  {product.fulfillment_date_time
-                    ? dayjs(product.fulfillment_date_time).format('MMM D, YYYY h:mm A')
-                    : '—'}
-                </MetaValue>
-              )}
-            </MetaField>
-            <MetaField>
-              <MetaLabel><MapPin size={11} /> Ship To</MetaLabel>
-              {canManageBids ? (
-                <Select
-                  size="small"
-                  value={product.ship_to_location || undefined}
-                  onChange={handleShipToChange}
-                  placeholder="Select delivery location"
-                  options={locationOptions}
-                  style={{ width: '100%' }}
-                  allowClear
-                  showSearch
-                  filterOption={(input, option) => {
-                    const searchText = (option as { searchText?: string })?.searchText ?? '';
-                    return searchText.includes(input.toLowerCase());
-                  }}
-                  notFoundContent={
-                    !customerId
-                      ? 'No customer assigned'
-                      : locationOptions.length === 0
-                      ? 'No locations configured for this customer'
-                      : 'No matching locations'
-                  }
-                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
-                />
-              ) : (
-                <MetaValue>
-                  {product.ship_to_location_name || product.ship_to_location || '—'}
+                  {product.ship_to_location_name || '—'}
                 </MetaValue>
               )}
             </MetaField>
           </ProductMetaRow>
 
+          {/* ── Column headers for bid rows (mirror product row) ── */}
+          {(bids.length > 0 || addingBid) && (
+            <BidColumnHeaders>
+              <div className="col supplier">Supplier</div>
+              <div className="col qty">Qty</div>
+              <div className="col price">Price/Unit</div>
+              <div className="col uom">UOM</div>
+              <div className="col total">Total</div>
+              <div className="col notes">Notes</div>
+              <div className="col status">Status</div>
+              <div className="col actions">Actions</div>
+            </BidColumnHeaders>
+          )}
+
           {bids.length === 0 && !addingBid && (
             <EmptyBids>No supplier bids yet. Add a supplier to start the bidding process.</EmptyBids>
           )}
 
+          {/* ── Existing bid rows ── */}
           {bids.map((bid) => (
             <BidRow key={bid.id}>
-              <BidSupplierInfo>
+              <div className="col supplier">
                 <span className="name">{bid.supplier_name || `Supplier ${String(bid.supplier).slice(0, 8)}`}</span>
-                {bid.plant_name && <span className="plant">{bid.plant_name}</span>}
-                {bid.contact_name && <span className="contact">{bid.contact_name}</span>}
-              </BidSupplierInfo>
-
-              <BidPricing>
-                {bid.bid_price_per_unit != null ? (
-                  <span className="price">${Number(bid.bid_price_per_unit).toFixed(4)}/unit</span>
-                ) : (
-                  <span className="no-price">—</span>
-                )}
-                {bid.bid_total != null && (
-                  <span className="total">${Number(bid.bid_total).toFixed(2)} total</span>
-                )}
-              </BidPricing>
-
-              <BidDates>
-                {bid.requested_at && (
-                  <Tooltip title={`Requested: ${dayjs(bid.requested_at).format('MMM D, YYYY h:mm A')}`}>
-                    <DateChip><Send size={10} /> {dayjs(bid.requested_at).format('MM/DD HH:mm')}</DateChip>
+                {bid.plant_name && <span className="sub">{bid.plant_name}</span>}
+              </div>
+              <div className="col qty">
+                {bid.bid_quantity != null ? Number(bid.bid_quantity).toLocaleString() : '—'}
+              </div>
+              <div className="col price">
+                {bid.bid_price_per_unit != null ? `$${Number(bid.bid_price_per_unit).toFixed(4)}` : '—'}
+              </div>
+              <div className="col uom">
+                {bid.bid_uom || '—'}
+              </div>
+              <div className="col total">
+                {bid.bid_total != null ? `$${Number(bid.bid_total).toFixed(2)}` : '—'}
+              </div>
+              <div className="col notes">
+                {bid.bid_notes ? (
+                  <Tooltip title={bid.bid_notes}>
+                    <span className="truncate">{bid.bid_notes}</span>
                   </Tooltip>
-                )}
-                {bid.responded_at && (
-                  <Tooltip title={`Responded: ${dayjs(bid.responded_at).format('MMM D, YYYY h:mm A')}`}>
-                    <DateChip $received><Clock size={10} /> {dayjs(bid.responded_at).format('MM/DD HH:mm')}</DateChip>
-                  </Tooltip>
-                )}
-              </BidDates>
-
-              <Tag color={BID_STATUS_META[bid.bid_status]?.color || 'default'}>
-                {BID_STATUS_META[bid.bid_status]?.icon} {BID_STATUS_META[bid.bid_status]?.label || bid.bid_status}
-              </Tag>
-
-              {bid.supplier_notes && (
-                <Tooltip title={bid.supplier_notes}>
-                  <NotesIndicator>📋</NotesIndicator>
-                </Tooltip>
-              )}
-
-              {canManageBids && (
-                <BidActions>
-                  {bid.bid_status === 'draft' && (
-                    <ActionBtn
-                      onClick={() => requestBidMutation.mutate(bid.id)}
-                      disabled={requestBidMutation.isPending}
-                      title="Send bid request"
-                      aria-label="Send bid request"
-                    >
-                      <Send size={12} />
-                    </ActionBtn>
-                  )}
-                  {bid.bid_status === 'received' && (
-                    <ActionBtn
-                      $variant="success"
-                      onClick={() => acceptBidMutation.mutate(bid.id)}
-                      disabled={acceptBidMutation.isPending}
-                      title="Accept this bid"
-                      aria-label="Accept this bid"
-                    >
-                      <Check size={12} />
-                    </ActionBtn>
-                  )}
-                  {['draft', 'expired'].includes(bid.bid_status) && (
-                    <Popconfirm
-                      title="Remove this supplier bid?"
-                      onConfirm={() => deleteBidMutation.mutate(bid.id)}
-                      okText="Remove"
-                      cancelText="Cancel"
-                    >
-                      <ActionBtn $variant="danger" title="Remove bid" aria-label="Remove bid">
-                        <X size={12} />
+                ) : '—'}
+              </div>
+              <div className="col status">
+                <Tag color={BID_STATUS_META[bid.bid_status]?.color || 'default'} style={{ fontSize: '0.7rem', margin: 0 }}>
+                  {BID_STATUS_META[bid.bid_status]?.icon} {BID_STATUS_META[bid.bid_status]?.label || bid.bid_status}
+                </Tag>
+              </div>
+              <div className="col actions">
+                {canManageBids && (
+                  <BidActions>
+                    {bid.bid_status === 'draft' && (
+                      <ActionBtn
+                        onClick={() => requestBidMutation.mutate(bid.id)}
+                        disabled={requestBidMutation.isPending}
+                        title="Send bid request"
+                        aria-label="Send bid request"
+                      >
+                        <Send size={12} />
                       </ActionBtn>
-                    </Popconfirm>
-                  )}
-                </BidActions>
-              )}
+                    )}
+                    {bid.bid_status === 'received' && (
+                      <ActionBtn
+                        $variant="success"
+                        onClick={() => acceptBidMutation.mutate(bid.id)}
+                        disabled={acceptBidMutation.isPending}
+                        title="Accept this bid"
+                        aria-label="Accept this bid"
+                      >
+                        <Check size={12} />
+                      </ActionBtn>
+                    )}
+                    {['draft', 'expired'].includes(bid.bid_status) && (
+                      <Popconfirm
+                        title="Remove this supplier bid?"
+                        onConfirm={() => deleteBidMutation.mutate(bid.id)}
+                        okText="Remove"
+                        cancelText="Cancel"
+                      >
+                        <ActionBtn $variant="danger" title="Remove bid" aria-label="Remove bid">
+                          <X size={12} />
+                        </ActionBtn>
+                      </Popconfirm>
+                    )}
+                  </BidActions>
+                )}
+              </div>
             </BidRow>
           ))}
 
+          {/* ── Add new bid form (mirrors product row layout) ── */}
           {addingBid && (
-            <AddBidRow>
-              <Select
-                showSearch
-                size="small"
-                placeholder="Search supplier by name..."
-                value={newSupplierId || undefined}
-                onChange={(val: string) => setNewSupplierId(val)}
-                options={supplierOptions}
-                filterOption={(input, option) => {
-                  const searchText = (option as { searchText?: string })?.searchText ?? '';
-                  return searchText.includes(input.toLowerCase());
-                }}
-                style={{ flex: 1 }}
-                autoFocus
-                notFoundContent="No suppliers found"
-                getPopupContainer={(trigger) => trigger.parentElement || document.body}
-              />
-              <ActionBtn
-                $variant="success"
-                onClick={handleAddBid}
-                disabled={createBidMutation.isPending || !newSupplierId}
-                aria-label="Confirm add supplier bid"
-              >
-                <Check size={12} />
-              </ActionBtn>
-              <ActionBtn
-                $variant="danger"
-                onClick={() => { setAddingBid(false); setNewSupplierId(''); }}
-                aria-label="Cancel add supplier bid"
-              >
-                <X size={12} />
-              </ActionBtn>
-            </AddBidRow>
+            <BidRow className="adding">
+              <div className="col supplier">
+                <Select
+                  showSearch
+                  size="small"
+                  placeholder="Select supplier..."
+                  value={newBid.supplier || undefined}
+                  onChange={(val: string) => updateBidField('supplier', val)}
+                  options={supplierOptions}
+                  filterOption={(input, option) => {
+                    const searchText = (option as { searchText?: string })?.searchText ?? '';
+                    return searchText.includes(input.toLowerCase());
+                  }}
+                  style={{ width: '100%' }}
+                  autoFocus
+                  notFoundContent="No suppliers found"
+                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
+                />
+              </div>
+              <div className="col qty">
+                <InputNumber
+                  size="small"
+                  placeholder="Qty"
+                  min={0}
+                  value={newBid.bid_quantity ? Number(newBid.bid_quantity) : undefined}
+                  onChange={(val) => updateBidField('bid_quantity', val != null ? String(val) : '')}
+                  style={{ width: '100%' }}
+                  controls={false}
+                />
+              </div>
+              <div className="col price">
+                <InputNumber
+                  size="small"
+                  placeholder="$/unit"
+                  min={0}
+                  step={0.01}
+                  precision={4}
+                  value={newBid.bid_price_per_unit ? Number(newBid.bid_price_per_unit) : undefined}
+                  onChange={(val) => updateBidField('bid_price_per_unit', val != null ? String(val) : '')}
+                  style={{ width: '100%' }}
+                  controls={false}
+                  prefix="$"
+                />
+              </div>
+              <div className="col uom">
+                <Select
+                  size="small"
+                  value={newBid.bid_uom || 'lbs'}
+                  onChange={(val: string) => updateBidField('bid_uom', val)}
+                  options={UOM_OPTIONS}
+                  style={{ width: '100%' }}
+                  getPopupContainer={(trigger) => trigger.parentElement || document.body}
+                />
+              </div>
+              <div className="col total">
+                <InputNumber
+                  size="small"
+                  placeholder="Total"
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  value={newBid.bid_total ? Number(newBid.bid_total) : undefined}
+                  onChange={(val) => updateBidField('bid_total', val != null ? String(val) : '')}
+                  style={{ width: '100%' }}
+                  controls={false}
+                  prefix="$"
+                />
+              </div>
+              <div className="col notes">
+                <Input
+                  size="small"
+                  placeholder="Notes..."
+                  value={newBid.bid_notes}
+                  onChange={(e) => updateBidField('bid_notes', e.target.value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div className="col status" />
+              <div className="col actions">
+                <BidActions>
+                  <ActionBtn
+                    $variant="success"
+                    onClick={handleAddBid}
+                    disabled={createBidMutation.isPending || !newBid.supplier}
+                    aria-label="Save supplier bid"
+                    title="Save bid"
+                  >
+                    <Check size={12} />
+                  </ActionBtn>
+                  <ActionBtn
+                    $variant="danger"
+                    onClick={() => { setAddingBid(false); setNewBid(EMPTY_BID_FORM); }}
+                    aria-label="Cancel add supplier bid"
+                    title="Cancel"
+                  >
+                    <X size={12} />
+                  </ActionBtn>
+                </BidActions>
+              </div>
+            </BidRow>
           )}
 
           {canManageBids && !addingBid && (
@@ -467,6 +595,74 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
             </AddBidButton>
           )}
         </BidList>
+      )}
+
+      {/* ── Inline Add Location Form (Air Gap pattern — no Modal) ── */}
+      {showAddLocation && (
+        <InlineLocationForm>
+          <MetaLabel style={{ marginBottom: '0.5rem' }}>
+            <MapPin size={11} /> New Delivery Location
+          </MetaLabel>
+          <LocationGrid>
+            <Input
+              size="small"
+              placeholder="Location name *"
+              value={newLocationName}
+              onChange={(e) => setNewLocationName(e.target.value)}
+              autoFocus
+            />
+            <Input
+              size="small"
+              placeholder="Street address"
+              value={newLocationAddress}
+              onChange={(e) => setNewLocationAddress(e.target.value)}
+            />
+            <Input
+              size="small"
+              placeholder="City"
+              value={newLocationCity}
+              onChange={(e) => setNewLocationCity(e.target.value)}
+            />
+            <Input
+              size="small"
+              placeholder="State"
+              value={newLocationState}
+              onChange={(e) => setNewLocationState(e.target.value)}
+            />
+            <Input
+              size="small"
+              placeholder="ZIP"
+              value={newLocationZip}
+              onChange={(e) => setNewLocationZip(e.target.value)}
+            />
+          </LocationGrid>
+          <LocationFormActions>
+            <ActionBtn
+              $variant="success"
+              onClick={handleCreateLocation}
+              disabled={createLocationMutation.isPending || !newLocationName.trim()}
+              title="Create location"
+              aria-label="Create location"
+            >
+              <Check size={12} />
+            </ActionBtn>
+            <ActionBtn
+              $variant="danger"
+              onClick={() => {
+                setShowAddLocation(false);
+                setNewLocationName('');
+                setNewLocationAddress('');
+                setNewLocationCity('');
+                setNewLocationState('');
+                setNewLocationZip('');
+              }}
+              title="Cancel"
+              aria-label="Cancel add location"
+            >
+              <X size={12} />
+            </ActionBtn>
+          </LocationFormActions>
+        </InlineLocationForm>
       )}
     </BidPanelContainer>
   );
@@ -548,49 +744,129 @@ const EmptyBids = styled.div`
   padding: 0.75rem;
 `;
 
-const BidRow = styled.div`
+const ProductMetaRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(var(--color-border), 0.2);
+  margin-bottom: 0.25rem;
+`;
+
+const MetaField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const MetaLabel = styled.span`
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-tertiary));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.5rem;
-  border-bottom: 1px solid rgba(var(--color-border), 0.15);
+  gap: 0.25rem;
+`;
+
+const MetaValue = styled.span`
   font-size: 0.8125rem;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ShipToRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const AddLocationBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px dashed rgba(var(--color-border), 0.5);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgb(var(--color-text-secondary));
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
+  }
+`;
+
+const BidColumnHeaders = styled.div`
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.2fr 0.8fr 1.2fr 1.5fr 1.2fr 1fr;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid rgba(var(--color-border), 0.3);
+  margin-bottom: 0.25rem;
+
+  .col {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: rgb(var(--color-text-tertiary));
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+`;
+
+const BidRow = styled.div`
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.2fr 0.8fr 1.2fr 1.5fr 1.2fr 1fr;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid rgba(var(--color-border), 0.1);
+  font-size: 0.8125rem;
+  align-items: center;
 
   &:last-of-type {
     border-bottom: none;
   }
-`;
 
-const BidSupplierInfo = styled.div`
-  flex: 1;
-  min-width: 0;
+  &.adding {
+    background: rgba(var(--color-primary), 0.03);
+    border: 1px dashed rgba(var(--color-primary), 0.2);
+    border-radius: var(--radius-sm);
+    margin-top: 0.25rem;
+  }
 
-  .name {
-    font-weight: 500;
-    color: rgb(var(--color-text-primary));
-    display: block;
+  .col.supplier {
+    min-width: 0;
+    .name {
+      font-weight: 500;
+      color: rgb(var(--color-text-primary));
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub {
+      font-size: 0.7rem;
+      color: rgb(var(--color-text-secondary));
+    }
   }
-  .plant, .contact {
-    font-size: 0.75rem;
-    color: rgb(var(--color-text-secondary));
-  }
-`;
 
-const BidPricing = styled.div`
-  text-align: right;
-  min-width: 100px;
+  .col.qty, .col.price, .col.total {
+    font-variant-numeric: tabular-nums;
+  }
 
-  .price {
-    font-weight: 500;
-    color: rgb(var(--color-text-primary));
-    display: block;
-  }
-  .total {
-    font-size: 0.75rem;
-    color: rgb(var(--color-text-secondary));
-  }
-  .no-price {
-    color: rgb(var(--color-text-tertiary));
+  .col.notes {
+    min-width: 0;
+    .truncate {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 0.75rem;
+      color: rgb(var(--color-text-secondary));
+    }
   }
 `;
 
@@ -630,13 +906,6 @@ const ActionBtn = styled.button<{ $variant?: 'success' | 'danger' }>`
   }
 `;
 
-const AddBidRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
-`;
-
 const AddBidButton = styled.button`
   display: flex;
   align-items: center;
@@ -659,55 +928,30 @@ const AddBidButton = styled.button`
   }
 `;
 
-const ProductMetaRow = styled.div`
+const InlineLocationForm = styled.div`
+  padding: 0.75rem;
+  border-top: 1px solid rgba(var(--color-border), 0.2);
+  background: rgba(var(--color-primary), 0.02);
+`;
+
+const LocationGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.75rem;
-  padding: 0.5rem 0.5rem 0.75rem;
-  border-bottom: 1px solid rgba(var(--color-border), 0.2);
-  margin-bottom: 0.25rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+
+  & > :first-child {
+    grid-column: 1 / -1;
+  }
+  & > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
 `;
 
-const MetaField = styled.div`
+const LocationFormActions = styled.div`
   display: flex;
-  flex-direction: column;
   gap: 0.25rem;
-`;
-
-const MetaLabel = styled.span`
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: rgb(var(--color-text-tertiary));
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`;
-
-const MetaValue = styled.span`
-  font-size: 0.8125rem;
-  color: rgb(var(--color-text-primary));
-`;
-
-const BidDates = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 80px;
-`;
-
-const DateChip = styled.span<{ $received?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  font-size: 0.6875rem;
-  color: ${({ $received }) => $received ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-tertiary))'};
-`;
-
-const NotesIndicator = styled.span`
-  font-size: 0.75rem;
-  cursor: help;
+  margin-top: 0.5rem;
+  justify-content: flex-end;
 `;
 
 export default SupplierBidPanel;
