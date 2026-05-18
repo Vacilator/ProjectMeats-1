@@ -566,7 +566,7 @@ const ApprovalCard = styled.div<{ $highlighted?: boolean }>`
   border: 1px solid ${({ $highlighted }) =>
     $highlighted ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   box-shadow: ${({ $highlighted }) =>
-    $highlighted ? '0 0 0 2px rgba(var(--color-primary), 0.15)' : '0 1px 3px rgba(0,0,0,0.04)'};
+    $highlighted ? '0 0 0 2px rgba(var(--color-primary), 0.15)' : '0 1px 3px rgba(var(--color-text-primary), 0.04)'};
   transition: border-color 0.15s, box-shadow 0.15s;
   animation: ${fadeIn} 0.2s ease;
 
@@ -671,7 +671,7 @@ const ApproveAllBtn = styled.button`
   border-radius: 8px;
   border: none;
   background: rgb(var(--color-success));
-  color: #fff;
+  color: rgb(var(--color-text-inverse));
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
