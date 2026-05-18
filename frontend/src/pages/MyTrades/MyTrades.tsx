@@ -225,8 +225,17 @@ const MyTrades: React.FC = () => {
     }
   }, [refetch]);
 
-  const handleInitiateTrade = useCallback(() => {
-    navigate('/inquiries?action=create');
+  const handleInitiateTrade = useCallback(async () => {
+    try {
+      const result = await traderService.initiateTrade({});
+      // Navigate to the newly created inquiry in edit mode
+      navigate(`/inquiries?review=inquiry&inquiry=${result.inquiry_id}`);
+      void message.success('New trade initiated — complete the inquiry details');
+    } catch (err) {
+      // Fallback: just navigate to create inquiry
+      navigate('/inquiries?action=create');
+      void message.warning('Could not auto-create trade session. Please create inquiry manually.');
+    }
   }, [navigate]);
 
   /** Navigate to linked entity record when a stepper action is clicked */
@@ -398,7 +407,10 @@ const MyTrades: React.FC = () => {
                   </ExpandIcon>
                   <TradeInfo>
                     <TradeTitle>
-                      {trade.source_email_subject || `Trade ${trade.trade_id?.slice(0, 8) ?? trade.id.slice(0, 8)}`}
+                      {trade.party_name
+                        ? `${trade.entity_type === 'supplier' ? '🏭' : '👤'} ${trade.party_name}${trade.products_summary ? ` — ${trade.products_summary}` : ''}`
+                        : trade.source_email_subject || `Trade ${trade.trade_id?.slice(0, 8) ?? trade.id.slice(0, 8)}`
+                      }
                     </TradeTitle>
                     <TradeMeta>
                       <Tag color={getStatusMeta(trade.status).color}>
@@ -413,7 +425,13 @@ const MyTrades: React.FC = () => {
                         {getPipelineProgress(trade)}
                       </PipelineProgress>
                       {trade.customer_name && (
-                        <MetaItem>{trade.customer_name}</MetaItem>
+                        <MetaItem>👤 {trade.customer_name}</MetaItem>
+                      )}
+                      {trade.supplier_name && (
+                        <MetaItem>🏭 {trade.supplier_name}</MetaItem>
+                      )}
+                      {trade.valid_until && (
+                        <MetaItem>📅 Valid until {trade.valid_until}</MetaItem>
                       )}
                       <MetaItem>
                         <Tooltip title={`Route: ${trade.route || 'Unknown'}`}>

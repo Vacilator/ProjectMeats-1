@@ -105,9 +105,11 @@ class TradePipelineViewSet(viewsets.ViewSet):
             .select_related(
                 "inquiry",
                 "inquiry__customer",
+                "inquiry__supplier",
                 "inquiry__supplier_purchase_order",
                 "inquiry__sales_order",
             )
+            .prefetch_related("inquiry__products")
             .order_by("-initiated_at")
         )
 
@@ -156,9 +158,32 @@ class TradePipelineViewSet(viewsets.ViewSet):
                     "route": session.route_decision or inquiry.route_decision or "",
                     "current_step": step_value,
                     "inquiry_id": str(inquiry.id),
+                    "entity_type": inquiry.entity_type or "",
                     "customer_name": (
                         getattr(inquiry.customer, "name", None)
                         if inquiry.customer_id and hasattr(inquiry, "customer")
+                        else None
+                    ),
+                    "supplier_name": (
+                        getattr(inquiry.supplier, "name", None)
+                        if inquiry.supplier_id and hasattr(inquiry, "supplier")
+                        else None
+                    ),
+                    "party_name": (
+                        getattr(inquiry.supplier, "name", None)
+                        if inquiry.entity_type == "supplier" and inquiry.supplier_id
+                        else (
+                            getattr(inquiry.customer, "name", None)
+                            if inquiry.customer_id
+                            else None
+                        )
+                    ),
+                    "products_summary": ", ".join(
+                        p.name for p in inquiry.products.all()[:3]
+                    ) if hasattr(inquiry, "products") else "",
+                    "valid_until": (
+                        inquiry.valid_until.isoformat()
+                        if hasattr(inquiry, "valid_until") and inquiry.valid_until
                         else None
                     ),
                     "source_email_subject": session.source_email_subject or "",
