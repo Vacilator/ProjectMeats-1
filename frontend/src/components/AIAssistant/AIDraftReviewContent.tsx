@@ -623,7 +623,7 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
     }
 
     if (!unsupported) return initialValues;
-    const itemAny = stableItem as Record<string, unknown>;
+    const itemAny = (stableItem ?? {}) as Record<string, unknown>;
     const contactName = typeof itemAny.contact_name === 'string' ? itemAny.contact_name : '';
     const parts = contactName.split(' ');
     return {

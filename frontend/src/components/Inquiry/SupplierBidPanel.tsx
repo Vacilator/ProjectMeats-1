@@ -61,7 +61,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
   const queryClient = useQueryClient();
 
   const bids = useMemo(() => product.supplier_bids ?? [], [product.supplier_bids]);
-  const canManageBids = !readOnly && ['draft', 'pending', 'quoted'].includes(inquiryStatus);
+  const canManageBids = !readOnly && ['draft', 'pending', 'quoted', 'approved', 'action_required', 'in_progress'].includes(inquiryStatus);
   const hasDraftBids = bids.some(b => b.bid_status === 'draft');
 
   // Fetch customer locations for ship-to dropdown

@@ -23,7 +23,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { businessApi } from '../../services/businessApi';
 import { withTenantQueryKey } from '../../utils/queryKeys';
-import { entityListPath } from '../../utils/entityTypeRegistry';
+import { entityListPath, entityRecordPath } from '../../utils/entityTypeRegistry';
 import {
   FileText,
   ShoppingCart,
@@ -380,6 +380,11 @@ const LineageNodeComponent: React.FC<{ data: LineageNodeData }> = ({ data }) => 
           )}
         </>
       )}
+      {!data.isEmpty && (
+        <NodeNumber style={{ fontStyle: 'italic', cursor: 'pointer', color: 'rgb(var(--color-primary))', marginTop: 4 }}>
+          👁 Click to view
+        </NodeNumber>
+      )}
     </NodeWrapper>
   );
 };
@@ -528,12 +533,10 @@ export const TradeLineageFlow: React.FC<TradeLineageFlowProps> = ({
       onNodeClick(node.data.entityType, node.data.entityId);
       return;
     }
-    // Default behavior: navigate to entity record if it exists
+    // Default behavior: navigate to entity record detail if it exists
     if (!node.data.isEmpty && node.data.entityId) {
-      const entityRoute = entityListPath(node.data.entityType);
-      if (entityRoute) {
-        navigate(`${entityRoute}?highlight=${node.data.entityId}`);
-      }
+      const detailPath = entityRecordPath(node.data.entityType, node.data.entityId);
+      navigate(detailPath);
     } else if (node.data.isEmpty) {
       // Empty node — navigate to creation page
       const createRoute = entityListPath(node.data.entityType);
