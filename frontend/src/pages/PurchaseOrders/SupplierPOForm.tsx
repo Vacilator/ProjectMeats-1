@@ -17,7 +17,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { businessApi } from '@/services/businessApi';
-import type { Supplier } from '@/services/apiService';
+import type { Supplier, Customer } from '@/services/apiService';
 import { LocationSelector } from '@/components/Shared';
 import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutocomplete';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
@@ -71,6 +71,16 @@ interface SupplierPOFormValues {
   supplier_state: string;
   supplier_zip: string;
   plant: string;
+  // Customer section
+  customer: string;
+  customer_name: string;
+  customer_contact_name: string;
+  customer_contact_phone: string;
+  customer_contact_email: string;
+  customer_address: string;
+  customer_city: string;
+  customer_state: string;
+  customer_zip: string;
   our_purchase_order_number_to_supplier: string;
   my_customer_number_from_supplier: string;
   supplier_confirmation_order_num: string;
@@ -217,6 +227,16 @@ const getDefaultFormValues = (): SupplierPOFormValues => ({
   supplier_state: '',
   supplier_zip: '',
   plant: '',
+  // Customer defaults
+  customer: '',
+  customer_name: '',
+  customer_contact_name: '',
+  customer_contact_phone: '',
+  customer_contact_email: '',
+  customer_address: '',
+  customer_city: '',
+  customer_state: '',
+  customer_zip: '',
   our_purchase_order_number_to_supplier: '',
   my_customer_number_from_supplier: '',
   supplier_confirmation_order_num: '',
@@ -406,9 +426,12 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
     { id: Date.now().toString(), name: '', phone: '', email: '' },
   ]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [supplierAutoFilled, setSupplierAutoFilled] = useState(false);
+  const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadingSupplier, setLoadingSupplier] = useState(false);
+  const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [createdAt] = useState(() => new Date());
   const approvalGate = useApprovalGate();
 
@@ -429,13 +452,17 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
     let cancelled = false;
     const loadData = async () => {
       try {
-        const resp = await businessApi.get('suppliers/');
+        const [suppResp, custResp] = await Promise.all([
+          businessApi.get('suppliers/'),
+          businessApi.get('customers/'),
+        ]);
         if (!cancelled) {
-          setSuppliers((resp.data?.results || resp.data) as Supplier[]);
+          setSuppliers((suppResp.data?.results || suppResp.data) as Supplier[]);
+          setCustomers((custResp.data?.results || custResp.data) as Customer[]);
         }
       } catch (err) {
         if (!cancelled) {
-          logger.error('Failed to fetch suppliers list', { err });
+          logger.error('Failed to fetch suppliers/customers list', { err });
         }
       }
     };
@@ -572,6 +599,42 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
     [suppliers],
   );
 
+  // Customer auto-populate
+  const handleCustomerChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const customerId = e.target.value;
+      setFormValues((prev) => ({ ...prev, customer: customerId }));
+      setCustomerAutoFilled(false);
+
+      if (!customerId) return;
+
+      try {
+        setLoadingCustomer(true);
+        const customer = customers.find((c) => String(c.id) === customerId);
+        if (customer) {
+          setFormValues((prev) => ({
+            ...prev,
+            customer: customerId,
+            customer_name: customer.name || '',
+            customer_contact_name: customer.contact_person || '',
+            customer_contact_phone: customer.phone || customer.phone_mobile || customer.phone_office || '',
+            customer_contact_email: customer.email || '',
+            customer_address: customer.address || '',
+            customer_city: customer.city || '',
+            customer_state: customer.state || '',
+            customer_zip: customer.zip_code || '',
+          }));
+          setCustomerAutoFilled(true);
+        }
+      } catch (err) {
+        logger.warn('Failed to auto-populate customer details', { err });
+      } finally {
+        setLoadingCustomer(false);
+      }
+    },
+    [customers],
+  );
+
   // PO number auto-gen on blur
   const handlePONumberBlur = useCallback(
     (field: 'our_purchase_order_number_to_supplier' | 'my_customer_number_from_supplier' | 'supplier_confirmation_order_num' | 'carrier_release_num') => {
@@ -649,6 +712,17 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
         total_amount: parseFloat(calculatedTotal) || 0,
         notes: formValues.notes || undefined,
         status,
+        custom_data: {
+          customer_id: formValues.customer ? parseInt(formValues.customer) : null,
+          customer_name: formValues.customer_name || null,
+          customer_contact_name: formValues.customer_contact_name || null,
+          customer_contact_phone: formValues.customer_contact_phone || null,
+          customer_contact_email: formValues.customer_contact_email || null,
+          customer_address: formValues.customer_address || null,
+          customer_city: formValues.customer_city || null,
+          customer_state: formValues.customer_state || null,
+          customer_zip: formValues.customer_zip || null,
+        },
       };
     },
     [formValues, calculatedTotal],
@@ -844,7 +918,118 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
             </GoldenFieldGrid>
           </GoldenSectionCard>
 
-          {/* Section 2: Order & Confirmation Numbers */}
+          {/* Section 2: Customer Information */}
+          <GoldenSectionCard>
+            <GoldenSectionHeader>
+              <GoldenSectionIcon><Users size={18} /></GoldenSectionIcon>
+              <GoldenSectionTitle>Customer Information</GoldenSectionTitle>
+              {loadingCustomer && <Spin size="small" />}
+            </GoldenSectionHeader>
+            <GoldenFieldGrid>
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>Customer</GoldenLabel>
+                <GoldenSelect
+                  name="customer"
+                  value={formValues.customer}
+                  onChange={handleCustomerChange}
+                  aria-label="Customer"
+                >
+                  <option value="">Select a customer…</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </GoldenSelect>
+                <GoldenFieldHint>The customer this purchase order is for</GoldenFieldHint>
+              </GoldenFormGroup>
+
+              <GoldenFormGroup $span={2}>
+                <GoldenLabel>
+                  Address
+                  {customerAutoFilled && (
+                    <GoldenAutoFilledBadge>
+                      Auto-filled from customer
+                    </GoldenAutoFilledBadge>
+                  )}
+                </GoldenLabel>
+                <GoldenInput
+                  name="customer_address"
+                  value={formValues.customer_address}
+                  onChange={handleChange}
+                  $autoFilled={customerAutoFilled}
+                  placeholder="Street address"
+                />
+              </GoldenFormGroup>
+
+              <GoldenFormGroup>
+                <GoldenLabel>City</GoldenLabel>
+                <GoldenInput
+                  name="customer_city"
+                  value={formValues.customer_city}
+                  onChange={handleChange}
+                  $autoFilled={customerAutoFilled}
+                  placeholder="City"
+                />
+              </GoldenFormGroup>
+
+              <GoldenFormGroup>
+                <GoldenLabel>State / Zip</GoldenLabel>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <GoldenInput
+                    name="customer_state"
+                    value={formValues.customer_state}
+                    onChange={handleChange}
+                    $autoFilled={customerAutoFilled}
+                    placeholder="State"
+                    style={{ flex: 1 }}
+                  />
+                  <GoldenInput
+                    name="customer_zip"
+                    value={formValues.customer_zip}
+                    onChange={handleChange}
+                    $autoFilled={customerAutoFilled}
+                    placeholder="Zip"
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </GoldenFormGroup>
+
+              <GoldenFormGroup>
+                <GoldenLabel>Contact Name</GoldenLabel>
+                <GoldenInput
+                  name="customer_contact_name"
+                  value={formValues.customer_contact_name}
+                  onChange={handleChange}
+                  $autoFilled={customerAutoFilled}
+                  placeholder="Primary contact"
+                />
+              </GoldenFormGroup>
+
+              <GoldenFormGroup>
+                <GoldenLabel>Contact Phone</GoldenLabel>
+                <GoldenInput
+                  name="customer_contact_phone"
+                  value={formValues.customer_contact_phone}
+                  onChange={handleChange}
+                  $autoFilled={customerAutoFilled}
+                  placeholder="Phone number"
+                />
+              </GoldenFormGroup>
+
+              <GoldenFormGroup>
+                <GoldenLabel>Contact Email</GoldenLabel>
+                <GoldenInput
+                  name="customer_contact_email"
+                  value={formValues.customer_contact_email}
+                  onChange={handleChange}
+                  $autoFilled={customerAutoFilled}
+                  placeholder="Email address"
+                  type="email"
+                />
+              </GoldenFormGroup>
+            </GoldenFieldGrid>
+          </GoldenSectionCard>
+
+          {/* Section 3: Order & Confirmation Numbers */}
           <GoldenSectionCard>
             <GoldenSectionHeader>
               <GoldenSectionIcon><FileText size={18} /></GoldenSectionIcon>
