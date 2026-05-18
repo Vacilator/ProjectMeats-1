@@ -69,7 +69,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
     queryKey: withTenantQueryKey('customer-locations', customerId ?? ''),
     queryFn: async () => {
       if (!customerId) return [];
-      const res = await businessApi.get(`/customers/${customerId}/locations/`);
+      const res = await businessApi.get(`/locations/`, { params: { customer: customerId } });
       return (res.data?.results ?? res.data ?? []) as CustomerLocation[];
     },
     enabled: Boolean(customerId) && canManageBids,
