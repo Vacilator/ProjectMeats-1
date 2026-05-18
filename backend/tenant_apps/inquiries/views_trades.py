@@ -81,6 +81,18 @@ class TradePipelineViewSet(viewsets.ViewSet):
         if err:
             return err
 
+        try:
+            return self._list_trades(request, tenant)
+        except Exception:
+            logger.exception("Unhandled error in trades list endpoint")
+            return Response(
+                {"count": 0, "results": [], "error": "Failed to load trades. Please try again."},
+                status=status.HTTP_200_OK,
+            )
+
+    def _list_trades(self, request, tenant):
+        """Internal implementation of trade listing (extracted for error isolation)."""
+
         # Lazily backfill: find inquiries without a trade session and create one.
         # This handles legacy inquiries created before auto-TradeSession was deployed,
         # or cases where the auto-create in perform_create silently failed.
@@ -182,7 +194,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
                         filter(None, (
                             getattr(p.product, "name", None) or getattr(p.product, "item_name", None)
                             for p in list(inquiry.products.all())[:3]
-                            if p.product_id
+                            if p.product_id and p.product is not None
                         ))
                     ) if hasattr(inquiry, "products") else "",
                     "valid_until": (
