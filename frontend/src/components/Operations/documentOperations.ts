@@ -21,7 +21,7 @@ const CONFIG_BY_ALIAS: Record<string, DocumentEntityConfig> = {
   inquiry: {
     entityType: 'inquiry',
     endpoint: 'inquiries',
-    recordPath: (id) => `/records/inquiry/${encodeURIComponent(String(id))}`,
+    recordPath: (id) => `/inquiries?review=inquiry&inquiry=${encodeURIComponent(String(id))}`,
     auditEntityType: 'Inquiry',
     label: 'Inquiry',
     supportsOptimisticStatus: true,
@@ -29,7 +29,7 @@ const CONFIG_BY_ALIAS: Record<string, DocumentEntityConfig> = {
   inquiries: {
     entityType: 'inquiry',
     endpoint: 'inquiries',
-    recordPath: (id) => `/records/inquiry/${encodeURIComponent(String(id))}`,
+    recordPath: (id) => `/inquiries?review=inquiry&inquiry=${encodeURIComponent(String(id))}`,
     auditEntityType: 'Inquiry',
     label: 'Inquiry',
     supportsOptimisticStatus: true,
