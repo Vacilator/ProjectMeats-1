@@ -24,9 +24,12 @@ import {
   ArrowDownLeft,
   Paperclip,
   Mail,
+  Eye,
+  Plus,
 } from 'lucide-react';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { tradeDocumentsService, type TradeDocument } from '@/services/tradeDocumentsService';
+import { businessApi } from '@/services/businessApi';
 
 // ── Step definitions ──
 
@@ -138,6 +141,50 @@ const STATUS_TO_STEP: Record<string, number> = {
   halted: -1,
 };
 
+// ── Lineage data shape (from /inquiries/:id/lineage/) ──
+
+interface LineageEntity {
+  id: string;
+  number?: string;
+  status?: string;
+}
+
+interface LineageData {
+  inquiry: LineageEntity | null;
+  supplier_purchase_order: LineageEntity | null;
+  sales_order: LineageEntity | null;
+  carrier_purchase_order: LineageEntity | null;
+  fulfillment: LineageEntity | null;
+  invoice: LineageEntity | null;
+  current_step: string;
+}
+
+const LINEAGE_KEY_MAP: Record<string, keyof LineageData> = {
+  inquiry: 'inquiry',
+  purchase_order: 'supplier_purchase_order',
+  sales_order: 'sales_order',
+  carrier_po: 'carrier_purchase_order',
+  fulfillment: 'fulfillment',
+  invoice: 'invoice',
+};
+
+const getStatusColor = (status: string): string => {
+  const STATUS_COLORS: Record<string, string> = {
+    pending: 'rgb(var(--color-warning))',
+    in_progress: 'rgb(var(--color-info))',
+    sourcing: 'rgb(var(--color-info))',
+    quoted: 'rgb(var(--color-primary))',
+    ordered: 'rgb(var(--color-success))',
+    completed: 'rgb(var(--color-success))',
+    approved: 'rgb(var(--color-success))',
+    draft: 'rgb(var(--color-text-tertiary))',
+    cancelled: 'rgb(var(--color-error))',
+    halted: 'rgb(var(--color-error))',
+    initiated: 'rgb(var(--color-warning))',
+  };
+  return STATUS_COLORS[status?.toLowerCase()] ?? 'rgb(var(--color-text-tertiary))';
+};
+
 // ── Document type icon map ──
 
 const DOC_ICON: Record<string, React.ReactNode> = {
@@ -154,8 +201,10 @@ const StageDocumentsContent: React.FC<{
   step: TradeStep;
   isActive: boolean;
   isDone: boolean;
+  lineageEntity?: LineageEntity | null;
   onActionClick?: (action: StepAction, step: TradeStep) => void;
-}> = ({ stageKey, tradeSessionId, step, isActive, isDone, onActionClick }) => {
+  onStepClick?: (step: { key: string; entityType?: string; entityId?: string; isEmpty: boolean }) => void;
+}> = ({ stageKey, tradeSessionId, step, isActive, isDone, lineageEntity, onActionClick, onStepClick }) => {
   const [selectedAction, setSelectedAction] = useState<StepAction | null>(null);
 
   const queryKey = useMemo(
@@ -183,12 +232,17 @@ const StageDocumentsContent: React.FC<{
   }, [docs, selectedAction]);
 
   const handleActionClick = useCallback(
-    (action: StepAction) => {
-      // Toggle: if same action is clicked again, deselect
+    (action: StepAction, index: number) => {
+      // Check dependency: if previous action exists and step is active (not done), grey out dependent items
+      if (isActive && index > 0) {
+        // For active steps, only first uncompleted action is clickable
+        // (dependency model: sequential within a step)
+        // Allow click but still pass through
+      }
       setSelectedAction((prev) => (prev?.label === action.label ? null : action));
       onActionClick?.(action, step);
     },
-    [onActionClick, step],
+    [onActionClick, step, isActive],
   );
 
   const displayDocs = selectedAction ? filteredDocs : (docs ?? []);
@@ -196,41 +250,63 @@ const StageDocumentsContent: React.FC<{
     ? `Related Documents (${filteredDocs.length})`
     : `Documents ${docs && docs.length > 0 ? `(${docs.length})` : ''}`;
 
+  const hasRecord = lineageEntity && lineageEntity.id;
+  const isEmpty = !hasRecord;
+
   return (
     <PopoverContent>
       <PopoverTitle>{step.label}</PopoverTitle>
       <PopoverDesc>{step.description}</PopoverDesc>
 
+      {/* Record info from lineage */}
+      {hasRecord && (
+        <RecordInfoRow>
+          <RecordNumber>{lineageEntity.number || `#${lineageEntity.id}`}</RecordNumber>
+          <RecordStatus $color={getStatusColor(lineageEntity.status || '')}>
+            {lineageEntity.status || 'unknown'}
+          </RecordStatus>
+        </RecordInfoRow>
+      )}
+
       {(isActive || isDone) && step.requiredActions.length > 0 && (
         <PopoverSection>
           <PopoverSectionTitle>{isActive ? 'Action Required' : 'Completed Actions'}</PopoverSectionTitle>
           <ActionList>
-            {step.requiredActions.map((action) => (
-              <ActionItem
-                key={action.label}
-                $clickable={isActive}
-                $selected={selectedAction?.label === action.label}
-                $completed={isDone}
-                onClick={isActive ? () => handleActionClick(action) : undefined}
-                onKeyDown={isActive ? (e: React.KeyboardEvent) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleActionClick(action);
-                  }
-                } : undefined}
-                role={isActive ? 'button' : 'listitem'}
-                tabIndex={isActive ? 0 : undefined}
-                aria-pressed={isActive ? selectedAction?.label === action.label : undefined}
-              >
-                {action.label}
-                {action.documentTypes && action.documentTypes.length > 0 && (
-                  <Paperclip size={10} style={{ marginLeft: 'auto', opacity: 0.4 }} />
-                )}
-                {!action.documentTypes && onActionClick && isActive && (
-                  <ArrowUpRight size={10} style={{ marginLeft: 'auto', opacity: 0.5 }} />
-                )}
-              </ActionItem>
-            ))}
+            {step.requiredActions.map((action, index) => {
+              // Dependency logic: for active steps, grey out actions after the first one
+              // unless step is completed (all done)
+              const isDependent = isActive && index > 0;
+
+              return (
+                <ActionItem
+                  key={action.label}
+                  $clickable={isActive && !isDependent}
+                  $selected={selectedAction?.label === action.label}
+                  $completed={isDone}
+                  $disabled={isDependent}
+                  onClick={isActive && !isDependent ? () => handleActionClick(action, index) : undefined}
+                  onKeyDown={isActive && !isDependent ? (e: React.KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleActionClick(action, index);
+                    }
+                  } : undefined}
+                  role={isActive && !isDependent ? 'button' : 'listitem'}
+                  tabIndex={isActive && !isDependent ? 0 : undefined}
+                  aria-pressed={isActive ? selectedAction?.label === action.label : undefined}
+                  aria-disabled={isDependent}
+                  title={isDependent ? 'Complete the previous action first' : undefined}
+                >
+                  {action.label}
+                  {action.documentTypes && action.documentTypes.length > 0 && (
+                    <Paperclip size={10} style={{ marginLeft: 'auto', opacity: 0.4 }} />
+                  )}
+                  {!action.documentTypes && onActionClick && isActive && !isDependent && (
+                    <ArrowUpRight size={10} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+                  )}
+                </ActionItem>
+              );
+            })}
           </ActionList>
         </PopoverSection>
       )}
@@ -273,6 +349,22 @@ const StageDocumentsContent: React.FC<{
           </DocList>
         )}
       </PopoverSection>
+
+      {/* Navigate action at bottom of popover */}
+      {onStepClick && (
+        <PopoverSection>
+          <StepNavButton
+            type="button"
+            onClick={() => onStepClick({ key: step.key, entityType: step.entityType, entityId: lineageEntity?.id || undefined, isEmpty: !!isEmpty })}
+          >
+            {isEmpty ? (
+              <><Plus size={12} /> Click to create</>
+            ) : (
+              <><Eye size={12} /> Click to view record</>
+            )}
+          </StepNavButton>
+        </PopoverSection>
+      )}
     </PopoverContent>
   );
 };
@@ -286,8 +378,12 @@ export interface TradeWorkflowStepperProps {
   compact?: boolean;
   /** Trade session ID — enables per-stage document preview on step click */
   tradeSessionId?: number | string;
+  /** Inquiry ID — enables lineage data fetching for record numbers */
+  inquiryId?: string;
   /** Called when a required action item is clicked — navigate to relevant record/section */
   onActionClick?: (action: { label: string; section?: string }, step: { key: string; entityType?: string }) => void;
+  /** Called when a step node is clicked (for navigation) */
+  onStepClick?: (step: { key: string; entityType?: string; entityId?: string; isEmpty: boolean }) => void;
 }
 
 // ── Component ──
@@ -298,9 +394,24 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
   inquiryStatus: _inquiryStatus,
   compact = false,
   tradeSessionId,
+  inquiryId,
   onActionClick,
+  onStepClick,
 }) => {
   const [openStep, setOpenStep] = useState<string | null>(null);
+
+  // Fetch lineage data for record numbers/status
+  const { data: lineageData } = useQuery({
+    queryKey: withTenantQueryKey('trade-lineage-stepper', inquiryId || ''),
+    queryFn: async () => {
+      if (!inquiryId) return null;
+      const res = await businessApi.get(`/inquiries/${inquiryId}/lineage/`);
+      return res.data as LineageData;
+    },
+    enabled: !!inquiryId,
+    staleTime: 30_000,
+    retry: false,
+  });
 
   const activeStepIndex = useMemo(() => {
     const fromStatus = STATUS_TO_STEP[tradeStatus] ?? 0;
@@ -330,6 +441,12 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
         const isFuture = index > activeStepIndex && !isCompleted;
         const isClickable = (isActive || isDone) && !compact;
 
+        // Get lineage entity for this step
+        const lineageKey = LINEAGE_KEY_MAP[step.key];
+        const lineageEntity = lineageData && lineageKey
+          ? (lineageData[lineageKey] as LineageEntity | null)
+          : null;
+
         const stepNode = (
           <StepNode
             $active={isActive}
@@ -352,6 +469,9 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
               {isDone ? <Check size={compact ? 14 : 16} /> : step.icon}
             </StepIcon>
             {!compact && <StepLabel $active={isActive} $done={isDone}>{step.label}</StepLabel>}
+            {!compact && lineageEntity?.number && (
+              <StepRecordNumber $done={isDone}>{lineageEntity.number}</StepRecordNumber>
+            )}
             {isActive && !compact && (
               <ActiveIndicator />
             )}
@@ -377,7 +497,9 @@ export const TradeWorkflowStepper: React.FC<TradeWorkflowStepperProps> = ({
                     step={step}
                     isActive={isActive}
                     isDone={isDone}
+                    lineageEntity={lineageEntity}
                     onActionClick={onActionClick}
+                    onStepClick={onStepClick}
                   />
                 }
               >
@@ -524,10 +646,12 @@ const ActionList = styled.ul`
   list-style: none;
 `;
 
-const ActionItem = styled.li<{ $clickable?: boolean; $selected?: boolean; $completed?: boolean }>`
+const ActionItem = styled.li<{ $clickable?: boolean; $selected?: boolean; $completed?: boolean; $disabled?: boolean }>`
   font-size: 12px;
-  color: ${({ $selected, $completed }) =>
-    $completed
+  color: ${({ $selected, $completed, $disabled }) =>
+    $disabled
+      ? 'rgb(var(--color-text-tertiary))'
+      : $completed
       ? 'rgb(var(--color-success))'
       : $selected
       ? 'rgb(var(--color-primary))'
@@ -538,25 +662,28 @@ const ActionItem = styled.li<{ $clickable?: boolean; $selected?: boolean; $compl
   display: flex;
   align-items: center;
   gap: 4px;
-  cursor: ${({ $clickable }) => $clickable ? 'pointer' : 'default'};
-  background: ${({ $selected, $completed }) =>
-    $completed
+  cursor: ${({ $clickable, $disabled }) => $disabled ? 'not-allowed' : $clickable ? 'pointer' : 'default'};
+  opacity: ${({ $disabled }) => $disabled ? 0.5 : 1};
+  background: ${({ $selected, $completed, $disabled }) =>
+    $disabled
+      ? 'rgba(var(--color-border), 0.05)'
+      : $completed
       ? 'rgba(var(--color-success), 0.06)'
       : $selected
       ? 'rgba(var(--color-primary), 0.12)'
       : 'transparent'};
 
   &::before {
-    content: ${({ $completed }) => $completed ? '"✓"' : '"○"'};
+    content: ${({ $completed, $disabled }) => $completed ? '"✓"' : $disabled ? '"◦"' : '"○"'};
     margin-right: 4px;
-    color: ${({ $completed }) =>
-      $completed ? 'rgb(var(--color-success))' : 'rgb(var(--color-error))'};
+    color: ${({ $completed, $disabled }) =>
+      $completed ? 'rgb(var(--color-success))' : $disabled ? 'rgb(var(--color-text-tertiary))' : 'rgb(var(--color-error))'};
     font-weight: 600;
     font-size: ${({ $completed }) => $completed ? '14px' : '12px'};
     opacity: 1;
   }
 
-  ${({ $clickable }) => $clickable && `
+  ${({ $clickable, $disabled }) => $clickable && !$disabled && `
     &:hover {
       background: rgba(var(--color-primary), 0.08);
       color: rgb(var(--color-primary));
@@ -611,6 +738,61 @@ const DocName = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+const StepRecordNumber = styled.span<{ $done: boolean }>`
+  font-size: 10px;
+  font-family: monospace;
+  color: ${({ $done }) => $done ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-secondary))'};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+`;
+
+const RecordInfoRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+`;
+
+const RecordNumber = styled.span`
+  font-size: 12px;
+  font-family: monospace;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+`;
+
+const RecordStatus = styled.span<{ $color: string }>`
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: ${({ $color }) => $color}20;
+  color: ${({ $color }) => $color};
+  text-transform: capitalize;
+`;
+
+const StepNavButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid rgba(var(--color-primary), 0.3);
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(var(--color-primary), 0.04);
+  color: rgb(var(--color-primary));
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.1);
+    border-color: rgb(var(--color-primary));
+  }
 `;
 
 export default TradeWorkflowStepper;

@@ -4,7 +4,7 @@
  * Shows all active/recent trade sessions with:
  * - Status-based tabs (Active, Completed, All)
  * - KPI strip with pipeline health metrics + aging indicators
- * - Expandable trade cards with React Flow lineage visual
+ * - Expandable trade cards with workflow progress stepper
  * - Quick links to related entities (Inquiry, PO, SO, Carrier)
  * - Route-type filter pills and "Initiate Trade" / "Advance Trade" actions
  */
@@ -28,7 +28,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { withTenantQueryKey } from '@/utils/queryKeys';
 import { traderService, type TradeSession, type TradeListResponse } from '@/services/traderService';
-import { TradeLineageFlow } from '@/components/Cockpit/TradeLineageFlow';
 import { TradeWorkflowStepper } from '@/components/Workflow/TradeWorkflowStepper';
 import { TradeDocumentsPanel } from '@/components/Trader/TradeDocumentsPanel';
 import { logger } from '@/utils/logger';
@@ -232,37 +231,34 @@ const MyTrades: React.FC = () => {
 
   /** Navigate to linked entity record when a stepper action is clicked */
   const handleStepperActionClick = useCallback(
-    (_action: { label: string; section?: string }, step: { key: string; entityType?: string }, trade?: TradeSession) => {
+    (_action: { label: string; section?: string }, _step: { key: string; entityType?: string }, _trade?: TradeSession) => {
+      // Action clicks now just toggle the popover action highlight.
+      // Actual navigation is handled by onStepClick via the "Click to view" button in the popover.
+    },
+    [],
+  );
+
+  const handleStepClick = useCallback(
+    (step: { key: string; entityType?: string; entityId?: string; isEmpty: boolean }, trade?: TradeSession) => {
       if (!trade) return;
-      // Map step keys to entity record paths using linked IDs on the trade
-      const STEP_ENTITY_MAP: Record<string, { field: keyof TradeSession; prefix: string }> = {
-        inquiry: { field: 'inquiry_id', prefix: '/inquiries' },
-        purchase_order: { field: 'supplier_purchase_order_id', prefix: '/records/purchase_order' },
-        sales_order: { field: 'sales_order_id', prefix: '/records/sales_order' },
-        carrier_po: { field: 'carrier_purchase_order_id', prefix: '/records/carrier' },
-        fulfillment: { field: 'fulfillment_id', prefix: '/records/fulfillment' },
-        invoice: { field: 'invoice_id', prefix: '/records/invoice' },
+      // Navigate to existing record or create new
+      const STEP_ROUTE_MAP: Record<string, { listPath: string; viewParam?: string }> = {
+        inquiry: { listPath: '/inquiries', viewParam: 'review=inquiry&inquiry' },
+        purchase_order: { listPath: '/purchase-orders', viewParam: 'edit' },
+        sales_order: { listPath: '/sales-orders', viewParam: 'edit' },
+        carrier_po: { listPath: '/carrier-pos', viewParam: 'edit' },
+        fulfillment: { listPath: '/fulfillment', viewParam: 'edit' },
+        invoice: { listPath: '/invoices', viewParam: 'edit' },
       };
-      const mapping = STEP_ENTITY_MAP[step.key];
-      if (mapping) {
-        const entityId = trade[mapping.field];
-        if (entityId) {
-          navigate(`${mapping.prefix}/${entityId}`);
-          return;
-        }
-      }
-      // Fallback: navigate to the route prefix for the step type
-      const STEP_ROUTE_PREFIX: Record<string, string> = {
-        inquiry: '/inquiries',
-        purchase_order: '/records/purchase_order',
-        sales_order: '/records/sales_order',
-        carrier_po: '/records/carrier',
-        fulfillment: '/records/fulfillment',
-        invoice: '/records/invoice',
-      };
-      const prefix = STEP_ROUTE_PREFIX[step.key];
-      if (prefix) {
-        navigate(prefix);
+      const route = STEP_ROUTE_MAP[step.key];
+      if (!route) return;
+
+      if (!step.isEmpty && step.entityId) {
+        // Navigate to the list page with param to open detail/edit
+        navigate(`${route.listPath}?${route.viewParam}=${step.entityId}`);
+      } else {
+        // Navigate to list with create action
+        navigate(`${route.listPath}?action=create`);
       }
     },
     [navigate],
@@ -457,16 +453,17 @@ const MyTrades: React.FC = () => {
 
                 {expandedId === trade.id && (
                   <TradeCardBody>
-                    {/* Workflow Progress Stepper (unified with lineage) */}
+                    {/* Workflow Progress Stepper (consolidated — replaces lineage flow) */}
                     <FlowSection>
                       <FlowLabel>Workflow Progress</FlowLabel>
                       <TradeWorkflowStepper
                         tradeStatus={trade.status}
                         currentStep={trade.current_step ?? undefined}
                         tradeSessionId={trade.id}
+                        inquiryId={trade.inquiry_id}
                         onActionClick={(action, step) => handleStepperActionClick(action, step, trade)}
+                        onStepClick={(step) => handleStepClick(step, trade)}
                       />
-                      <TradeLineageFlow inquiryId={trade.inquiry_id} compact />
                     </FlowSection>
                     <FlowSection>
                       <FlowLabel>Documents</FlowLabel>
