@@ -963,9 +963,51 @@ export const MyTasks: React.FC = () => {
 
   const handleApproveAll = useCallback(async () => {
     if (!filteredAI.length) return;
-    filteredAI.forEach(i => openReview(i));
-    void message.info(`Opening ${filteredAI.length} item(s) for review & approval`);
-  }, [filteredAI, openReview]);
+    try {
+      await Promise.allSettled(
+        filteredAI.map(item =>
+          aiFeedbackApi.submit({
+            document_id: item.id,
+            feedback_signal: 'thumbs_up',
+            feedback_comment: 'Batch approved via Approve All',
+            feedback_source: 'smart_approval_batch',
+          })
+        )
+      );
+      if (filteredAI[0]) openReview(filteredAI[0]);
+      void message.success(`Approved ${filteredAI.length} item(s) — opening first for detailed review`);
+      void fetchReviews();
+    } catch (err) {
+      logger.error('Batch approve failed', err);
+      void message.error('Some approvals failed — please review individually');
+    }
+  }, [filteredAI, openReview, fetchReviews]);
+
+  const [batchDeclining, setBatchDeclining] = useState(false);
+  const [batchDeclineComment, setBatchDeclineComment] = useState('');
+
+  const handleDeclineAll = useCallback(async () => {
+    if (!filteredAI.length) return;
+    try {
+      await Promise.allSettled(
+        filteredAI.map(item =>
+          aiFeedbackApi.submit({
+            document_id: item.id,
+            feedback_signal: 'thumbs_down',
+            feedback_comment: batchDeclineComment || 'Batch declined',
+            feedback_source: 'smart_approval_batch_decline',
+          })
+        )
+      );
+      setPendingReviews(c => c.filter(i => !filteredAI.some(ai => ai.id === i.id)));
+      setBatchDeclining(false);
+      setBatchDeclineComment('');
+      void message.success(`Declined ${filteredAI.length} item(s) — feedback saved for AI improvement`);
+    } catch (err) {
+      logger.error('Batch decline failed', err);
+      void message.error('Some declines failed');
+    }
+  }, [filteredAI, batchDeclineComment]);
 
   const getConfidenceLevel = useCallback((score: number | undefined): 'high' | 'medium' | 'low' => {
     const s = Number(score || 0);
@@ -974,22 +1016,85 @@ export const MyTasks: React.FC = () => {
     return 'low';
   }, []);
 
-  const getProposedEntities = useCallback((item: PendingReviewItem): string[] => {
-    const entities: string[] = [];
-    const formType = item.review_entity_type || item.document_type || '';
-    if (formType) entities.push(humanizeEntityType(formType));
-    // Infer additional entity proposals from parsed data
+  const getProposedEntities = useCallback((item: PendingReviewItem): Array<{ type: string; label: string; description: string }> => {
+    const entities: Array<{ type: string; label: string; description: string }> = [];
+    const payload = (item as Record<string, unknown>).original_extracted_data as Record<string, unknown> || {};
     const intent = (item.intent_label || '').toLowerCase();
-    if (intent.includes('purchase') || intent.includes('po')) {
-      if (!entities.includes('Purchase Order')) entities.push('Purchase Order');
+    const formType = item.review_entity_type || item.document_type || '';
+
+    // Infer supplier from payload
+    const supplierName = payload.supplier_name || payload.vendor_name || '';
+    if (supplierName) {
+      entities.push({
+        type: 'supplier',
+        label: `Supplier: ${String(supplierName)}`,
+        description: `Create or link supplier record for "${String(supplierName)}"`,
+      });
     }
-    if (intent.includes('inquiry') || intent.includes('rfq')) {
-      if (!entities.includes('Inquiry')) entities.push('Inquiry');
+
+    // Infer customer from payload
+    const customerName = payload.customer_name || payload.buyer_name || '';
+    if (customerName) {
+      entities.push({
+        type: 'customer',
+        label: `Customer: ${String(customerName)}`,
+        description: `Create or link customer record for "${String(customerName)}"`,
+      });
     }
-    if (intent.includes('sales') || intent.includes('so')) {
-      if (!entities.includes('Sales Order')) entities.push('Sales Order');
+
+    // Primary entity based on intent/document type
+    if (intent.includes('purchase') || intent.includes('po') || formType === 'purchase_order') {
+      entities.push({
+        type: 'purchase_order',
+        label: 'Purchase Order',
+        description: payload.order_number
+          ? `Create PO #${String(payload.order_number)}`
+          : 'Create new Purchase Order from email details',
+      });
+    } else if (intent.includes('sales') || intent.includes('so') || formType === 'sales_order') {
+      entities.push({
+        type: 'sales_order',
+        label: 'Sales Order',
+        description: 'Create new Sales Order from email details',
+      });
+    } else if (intent.includes('inquiry') || intent.includes('rfq') || intent.includes('quote')) {
+      entities.push({
+        type: 'inquiry',
+        label: 'Inquiry / RFQ',
+        description: 'Create new inquiry to track this quote request',
+      });
+    } else if (intent.includes('invoice') || formType === 'invoice') {
+      entities.push({
+        type: 'invoice',
+        label: 'Invoice',
+        description: 'Create invoice record from email',
+      });
+    } else if (intent.includes('shipping') || intent.includes('bol') || formType === 'carrier-pos') {
+      entities.push({
+        type: 'carrier_po',
+        label: 'Carrier PO / BOL',
+        description: 'Create carrier purchase order / shipment record',
+      });
+    } else if (formType) {
+      entities.push({
+        type: formType,
+        label: humanizeEntityType(formType),
+        description: `Create ${humanizeEntityType(formType)} from email`,
+      });
     }
-    return entities.length > 0 ? entities : ['Trade Document'];
+
+    // Trade session — propose if we have both a supplier and a transaction entity
+    if (supplierName && entities.some(e => ['purchase_order', 'sales_order', 'inquiry'].includes(e.type))) {
+      entities.push({
+        type: 'trade_session',
+        label: 'Trade Session',
+        description: `Start new trade session linking ${String(supplierName)}${customerName ? ` ↔ ${String(customerName)}` : ''}`,
+      });
+    }
+
+    return entities.length > 0
+      ? entities
+      : [{ type: 'document', label: 'Trade Document', description: 'Process email as trade document' }];
   }, []);
 
   /* ── delegation ── */
@@ -1290,15 +1395,40 @@ export const MyTasks: React.FC = () => {
               ]}
             />
             {filteredAI.length > 1 && (
-              <ApproveAllBtn onClick={() => void handleApproveAll()}>
-                ✓ Review All ({filteredAI.length})
-              </ApproveAllBtn>
+              <>
+                <ApproveAllBtn onClick={() => void handleApproveAll()}>
+                  ✓ Approve All ({filteredAI.length})
+                </ApproveAllBtn>
+                <DeclineBtn onClick={() => setBatchDeclining(!batchDeclining)}>
+                  ✗ Decline All
+                </DeclineBtn>
+              </>
             )}
             <span style={{ marginLeft: 'auto', fontSize: 12, color: 'rgb(var(--color-text-tertiary))' }}>
               {filteredAI.length} item{filteredAI.length !== 1 ? 's' : ''}
             </span>
             <RefreshBtn onClick={() => void fetchReviews()} aria-label="Refresh AI approvals">↻</RefreshBtn>
           </Toolbar>
+
+          {/* Batch decline feedback area */}
+          {batchDeclining && (
+            <DeclineFeedbackArea style={{ marginBottom: 16 }}>
+              <FeedbackTextarea
+                placeholder="Optional: Tell the AI why all these items are being declined (helps improve future accuracy)..."
+                value={batchDeclineComment}
+                onChange={e => setBatchDeclineComment(e.target.value)}
+                aria-label="Batch decline reason"
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <SmallBtn $primary onClick={() => void handleDeclineAll()}>
+                  Confirm Decline All ({filteredAI.length})
+                </SmallBtn>
+                <SmallBtn onClick={() => { setBatchDeclining(false); setBatchDeclineComment(''); }}>
+                  Cancel
+                </SmallBtn>
+              </div>
+            </DeclineFeedbackArea>
+          )}
 
           {reviewError && <ErrorBanner>{reviewError}</ErrorBanner>}
 
@@ -1319,6 +1449,9 @@ export const MyTasks: React.FC = () => {
                 const confLevel = getConfidenceLevel(item.confidence_score);
                 const proposedEntities = getProposedEntities(item);
                 const isDeclining = decliningId === item.id;
+                const payload = (item as Record<string, unknown>).original_extracted_data as Record<string, unknown> || {};
+                const supplierName = String(payload.supplier_name || payload.vendor_name || '');
+                const customerName = String(payload.customer_name || payload.buyer_name || '');
 
                 return (
                   <ApprovalCard key={item.id} $highlighted={item.id === highlightedDraftId}>
@@ -1340,21 +1473,53 @@ export const MyTasks: React.FC = () => {
                       <CardBody>{item.source_summary}</CardBody>
                     )}
 
+                    {/* AI reasoning / trade context */}
+                    <div style={{ fontSize: 13, color: 'rgb(var(--color-text-secondary))', marginBottom: 12 }}>
+                      {supplierName && customerName ? (
+                        <>This email appears to be regarding a trade between <strong>{customerName}</strong> and supplier <strong>{supplierName}</strong>.</>
+                      ) : supplierName ? (
+                        <>This email is from supplier <strong>{supplierName}</strong> regarding a business transaction.</>
+                      ) : customerName ? (
+                        <>This email is from customer <strong>{customerName}</strong> regarding a business transaction.</>
+                      ) : (
+                        <>AI has identified this as a trade-related email requiring action.</>
+                      )}
+                    </div>
+
                     <ProposedActions>
-                      <ProposedActionLabel>AI suggests creating:</ProposedActionLabel>
-                      <div>
+                      <ProposedActionLabel>
+                        Would you like me to create:
+                      </ProposedActionLabel>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {proposedEntities.map(entity => (
-                          <ProposedEntityChip key={entity}>📄 {entity}</ProposedEntityChip>
+                          <div key={entity.type} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ProposedEntityChip>
+                              {entity.type === 'supplier' ? '🏭' :
+                               entity.type === 'customer' ? '👤' :
+                               entity.type === 'trade_session' ? '🔄' :
+                               entity.type === 'purchase_order' ? '📦' :
+                               entity.type === 'sales_order' ? '💰' :
+                               entity.type === 'inquiry' ? '❓' :
+                               entity.type === 'invoice' ? '🧾' :
+                               entity.type === 'carrier_po' ? '🚚' : '📄'}{' '}
+                              {entity.label}
+                            </ProposedEntityChip>
+                            <span style={{ fontSize: 11, color: 'rgb(var(--color-text-tertiary))' }}>
+                              {entity.description}
+                            </span>
+                          </div>
                         ))}
-                        {item.source_document_name && (
-                          <ProposedEntityChip>📎 {item.source_document_name}</ProposedEntityChip>
-                        )}
                       </div>
+                      {item.source_document_name && (
+                        <div style={{ marginTop: 6 }}>
+                          <ProposedEntityChip>📎 {item.source_document_name}</ProposedEntityChip>
+                        </div>
+                      )}
                     </ProposedActions>
 
                     <CardActions>
                       <ApproveAllBtn onClick={() => openReview(item)}>
-                        ✓ Approve &amp; Review
+                        ✓ Approve All &amp; Review
                       </ApproveAllBtn>
                       <DeclineBtn
                         onClick={() => {
