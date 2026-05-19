@@ -19,9 +19,11 @@ const getSessionTimestamp = (session: SessionHistoryLike): number => {
 };
 
 export const groupChatSessionsByDate = <T extends SessionHistoryLike>(
-  sessions: T[],
+  sessions: T[] | null | undefined,
   now: number = Date.now(),
 ): SessionHistoryGroup<T>[] => {
+  if (!sessions || !Array.isArray(sessions)) return [];
+
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
   const todayThreshold = startOfToday.getTime();

@@ -375,8 +375,12 @@ export const ambientAiApi = {
 // Chat Sessions API
 export const chatSessionsApi = {
   list: async (): Promise<ChatSession[]> => {
-    const res = await businessApi.get<ChatSession[]>('/ai-assistant/ai-sessions/');
-    return unwrap(res);
+    const res = await businessApi.get<{ results: ChatSession[] } | ChatSession[]>('/ai-assistant/ai-sessions/');
+    const data = unwrap(res);
+    // Handle DRF paginated response ({ results: [...] }) and bare array
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object' && 'results' in data) return data.results;
+    return [];
   },
 
   get: async (sessionId: string): Promise<ChatSession> => {

@@ -387,9 +387,10 @@ const ChatSessionsTab: React.FC = () => {
   });
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return sessions;
+    const list = Array.isArray(sessions) ? sessions : [];
+    if (!search.trim()) return list;
     const q = search.toLowerCase();
-    return sessions.filter(
+    return list.filter(
       (s) =>
         (s.title || '').toLowerCase().includes(q) ||
         s.id.toLowerCase().includes(q)
