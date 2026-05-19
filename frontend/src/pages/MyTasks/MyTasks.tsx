@@ -1177,16 +1177,52 @@ export const MyTasks: React.FC = () => {
       <PageSubline>Your unified inbox for tasks and AI drafts</PageSubline>
 
       {/* ── Tab bar ── */}
-      <TabBar role="tablist">
-        <Tab $active={activeTab === 'action'} onClick={() => setTab('action')} role="tab" aria-selected={activeTab === 'action'}>
+      <TabBar role="tablist" aria-label="Task categories">
+        <Tab
+          $active={activeTab === 'action'}
+          onClick={() => setTab('action')}
+          role="tab"
+          id="tab-action"
+          aria-selected={activeTab === 'action'}
+          aria-controls="tabpanel-action"
+          tabIndex={activeTab === 'action' ? 0 : -1}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (e.key === 'ArrowRight') { e.preventDefault(); setTab('approvals'); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); setTab('ai'); }
+          }}
+        >
           Action Required
           {totalCount > 0 && <TabBadge $variant={overdueCount > 0 ? 'danger' : undefined}>{totalCount}</TabBadge>}
         </Tab>
-        <Tab $active={activeTab === 'approvals'} onClick={() => setTab('approvals')} role="tab" aria-selected={activeTab === 'approvals'}>
+        <Tab
+          $active={activeTab === 'approvals'}
+          onClick={() => setTab('approvals')}
+          role="tab"
+          id="tab-approvals"
+          aria-selected={activeTab === 'approvals'}
+          aria-controls="tabpanel-approvals"
+          tabIndex={activeTab === 'approvals' ? 0 : -1}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (e.key === 'ArrowRight') { e.preventDefault(); setTab('ai'); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); setTab('action'); }
+          }}
+        >
           Approvals
           {approvalCount > 0 && <TabBadge $variant="danger">{approvalCount}</TabBadge>}
         </Tab>
-        <Tab $active={activeTab === 'ai'} onClick={() => setTab('ai')} role="tab" aria-selected={activeTab === 'ai'}>
+        <Tab
+          $active={activeTab === 'ai'}
+          onClick={() => setTab('ai')}
+          role="tab"
+          id="tab-ai"
+          aria-selected={activeTab === 'ai'}
+          aria-controls="tabpanel-ai"
+          tabIndex={activeTab === 'ai' ? 0 : -1}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (e.key === 'ArrowRight') { e.preventDefault(); setTab('action'); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); setTab('approvals'); }
+          }}
+        >
           AI Approvals
           {pendingReviews.length > 0 && <TabBadge>{pendingReviews.length}</TabBadge>}
         </Tab>
@@ -1196,7 +1232,7 @@ export const MyTasks: React.FC = () => {
 
       {/* ═══════ ACTION REQUIRED TAB ═══════ */}
       {activeTab === 'action' && (
-        <>
+        <div role="tabpanel" id="tabpanel-action" aria-labelledby="tab-action">
           {/* KPI strip */}
           {actionItemCounts && (
             <KPIStrip>
@@ -1274,8 +1310,17 @@ export const MyTasks: React.FC = () => {
                 />
                 {selectedTaskIds.size} selected
               </BulkCheckAll>
-              <SmallBtn $primary onClick={() => void handleBulkComplete()}>✓ Complete</SmallBtn>
-              <SmallBtn onClick={() => setSelectedTaskIds(new Set())}>Clear</SmallBtn>
+              <SmallBtn
+                $primary
+                onClick={() => {
+                  if (window.confirm(`Mark ${selectedTaskIds.size} task(s) as complete?`)) {
+                    void handleBulkComplete();
+                  }
+                }}
+              >
+                ✓ Complete
+              </SmallBtn>
+              <SmallBtn onClick={() => setSelectedTaskIds(new Set())}>Clear Selection</SmallBtn>
             </BulkActionsBar>
           )}
 
@@ -1377,17 +1422,19 @@ export const MyTasks: React.FC = () => {
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* ═══════ APPROVALS TAB ═══════ */}
       {activeTab === 'approvals' && (
-        <PendingApprovalsTab onCountChange={setApprovalCount} />
+        <div role="tabpanel" id="tabpanel-approvals" aria-labelledby="tab-approvals">
+          <PendingApprovalsTab onCountChange={setApprovalCount} />
+        </div>
       )}
 
       {/* ═══════ AI APPROVALS TAB (Smart Approvals) ═══════ */}
       {activeTab === 'ai' && (
-        <>
+        <div role="tabpanel" id="tabpanel-ai" aria-labelledby="tab-ai">
           <Toolbar>
             <Select
               value={aiIntentFilter}
@@ -1574,7 +1621,7 @@ export const MyTasks: React.FC = () => {
             onResolved={handleReviewResolved}
             onFeedbackSubmitted={handleFeedback}
           />
-        </>
+        </div>
       )}
 
       {/* ── Delegate modal ── */}
