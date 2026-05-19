@@ -939,6 +939,16 @@ const checkWSEndpointReachable = async (): Promise<boolean> => {
       return false;
     }
 
+    // If we get a JSON response, check if it's a genuine ASGI WebSocket-capable
+    // endpoint. A proper ASGI endpoint handling WebSocket upgrades typically returns
+    // 426 Upgrade Required for plain HTTP GET, not 200 OK. A 200 JSON response
+    // (e.g. {"status": "ws_ready"}) indicates an HTTP-only healthcheck route that
+    // cannot actually handle WebSocket protocol upgrade.
+    if (response.status === 200 && contentType.includes('application/json')) {
+      logger.debug('[AIAgentWidget] WS preflight got JSON 200 — HTTP-only endpoint, not WebSocket-capable');
+      return false;
+    }
+
     return true;
   } catch (err) {
     logger.debug('[AIAgentWidget] WS endpoint preflight check failed — ASGI not available:', err);
