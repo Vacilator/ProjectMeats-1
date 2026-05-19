@@ -6679,6 +6679,15 @@ class Command(BaseCommand):
         self.stdout.write(f"  Products updated: {updated_count}")
         self.stdout.write(f"  Total in catalog: {len(SYSTEM_PRODUCTS)}")
 
+        # Deactivate offal/variety products that should not appear in main product lists.
+        # These are kept in the catalog for reference but hidden from active selection.
+        deactivated = Product.objects.filter(
+            product_code__icontains="HEART",
+            is_active=True,
+        ).update(is_active=False)
+        if deactivated:
+            self.stdout.write(f"  ⊘ Deactivated {deactivated} Heart/offal products (not shown in active lists)")
+
         if errors:
             self.stdout.write(self.style.ERROR(f"  Errors: {len(errors)}"))
             for error in errors:
