@@ -101,7 +101,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
             Inquiry.objects.filter(tenant=tenant)
             .filter(trade_session__isnull=True)
             .exclude(status="cancelled")
-            .order_by("-created_at")[:50]
+            .order_by("-created_on")[:50]
         )
         for inq in orphaned_inquiries:
             try:
@@ -374,33 +374,44 @@ class TradePipelineViewSet(viewsets.ViewSet):
                         tenant=tenant,
                         customer_id=customer_id,
                     )
-                    .exclude(type_of_protein="")
-                    .order_by("-created_at")
+                    .exclude(requested_protein="")
+                    .order_by("-created_on")
                     .first()
                 )
-                if recent_inquiry and recent_inquiry.type_of_protein:
+                if recent_inquiry and recent_inquiry.requested_protein:
                     context_suggestions.append(
                         {
                             "field": "type_of_protein",
-                            "value": recent_inquiry.type_of_protein,
+                            "value": recent_inquiry.requested_protein,
                             "confidence": 0.7,
                             "source": "history",
                             "reason": "Most recent protein for this customer",
                         }
                     )
-                    protein = recent_inquiry.type_of_protein
+                    protein = recent_inquiry.requested_protein
             except Exception:
                 logger.warning("Failed to infer protein type from trade history", exc_info=True)
 
         with transaction.atomic(), tenant_rls(str(tenant.id), strict=True):
+            # Determine entity_type from provided IDs
+            customer_id_val = customer_id or None
+            supplier_id_val = data.get("supplier_id") or None
+            if customer_id_val:
+                entity_type = InquiryEntityTypeChoices.CUSTOMER
+            elif supplier_id_val:
+                entity_type = InquiryEntityTypeChoices.SUPPLIER
+            else:
+                entity_type = InquiryEntityTypeChoices.CUSTOMER
+
             inquiry = Inquiry.objects.create(
                 tenant=tenant,
                 status=InquiryStatusChoices.DRAFT,
                 route_decision=route,
-                customer_id=customer_id or None,
-                supplier_id=data.get("supplier_id") or None,
-                description=data.get("description", ""),
-                type_of_protein=protein,
+                entity_type=entity_type,
+                customer_id=customer_id_val,
+                supplier_id=supplier_id_val,
+                notes=data.get("description", ""),
+                requested_protein=protein,
                 created_by=user,
             )
 
@@ -576,7 +587,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 status=InquiryStatusChoices.DRAFT,
             )
             .select_related("customer")
-            .order_by("-created_at")[:10]
+            .order_by("-created_on")[:10]
         )
 
         for inquiry in draft_inquiries:
@@ -593,18 +604,18 @@ class TradePipelineViewSet(viewsets.ViewSet):
             confidence = 0.5
             if inquiry.customer_id:
                 confidence += 0.15
-            if inquiry.type_of_protein:
+            if inquiry.requested_protein:
                 confidence += 0.1
-            if inquiry.description:
+            if inquiry.notes:
                 confidence += 0.1
             if inquiry.route_decision:
                 confidence += 0.1
 
-            source = "email" if inquiry.source_email_subject else "history"
+            source = "email" if getattr(inquiry, "source_email_subject", None) else "history"
             title = (
-                inquiry.source_email_subject
-                or inquiry.description
-                or f"Trade for {inquiry.type_of_protein or 'unknown protein'}"
+                getattr(inquiry, "source_email_subject", "")
+                or inquiry.notes
+                or f"Trade for {inquiry.requested_protein or 'unknown protein'}"
             )
 
             proposals.append(
@@ -616,13 +627,13 @@ class TradePipelineViewSet(viewsets.ViewSet):
                     "route": inquiry.route_decision or "FULFILL",
                     "customer_name": getattr(inquiry.customer, "name", None) if inquiry.customer_id else None,
                     "supplier_name": None,
-                    "type_of_protein": inquiry.type_of_protein or None,
+                    "type_of_protein": inquiry.requested_protein or None,
                     "weight": None,
                     "delivery_context": None,
                     "suggested_fields": [],
                     "created_at": (
-                        inquiry.created_at.isoformat()
-                        if hasattr(inquiry, "created_at") and inquiry.created_at
+                        inquiry.created_on.isoformat()
+                        if hasattr(inquiry, "created_on") and inquiry.created_on
                         else None
                     ),
                     "expires_at": None,
