@@ -29,7 +29,6 @@ import {
   formatFixedWithFallback,
   formatIntegerValue,
 } from './numberFormatting';
-import { TradeLineageFlow } from '../Cockpit/TradeLineageFlow';
 import { ProcessFlowHeader } from '../Cockpit/ProcessFlowHeader';
 import { logger } from '@/utils/logger';
 import { SupplierBidPanel } from './SupplierBidPanel';
@@ -924,13 +923,19 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               </Section>
             )}
 
-            {/* Trade Lineage Flow */}
+            {/* Workflow Progress (consolidated stepper) */}
             <Section>
               <SectionHeader>
-                <SectionTitle>Process Flow</SectionTitle>
+                <SectionTitle>Workflow Progress</SectionTitle>
               </SectionHeader>
               <ProcessFlowHeader inquiryId={String(inquiry.id)} />
-              <TradeLineageFlow inquiryId={String(inquiry.id)} compact />
+              <TradeWorkflowStepper
+                tradeStatus={inquiry.trade_session_status ?? inquiry.status ?? 'pending'}
+                currentStep={inquiry.trade_session_current_step ?? undefined}
+                inquiryId={String(inquiry.id)}
+                tradeSessionId={inquiry.trade_session_id ?? undefined}
+                compact
+              />
             </Section>
 
             {/* Trade Documents — grouped by stage, Sent/Received */}

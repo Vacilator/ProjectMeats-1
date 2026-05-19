@@ -304,11 +304,43 @@ const MyTrades: React.FC = () => {
 
   /** Navigate to linked entity record when a stepper action is clicked */
   const handleStepperActionClick = useCallback(
-    (_action: { label: string; section?: string }, _step: { key: string; entityType?: string }, _trade?: TradeSession) => {
-      // Action clicks now just toggle the popover action highlight.
-      // Actual navigation is handled by onStepClick via the "Click to view" button in the popover.
+    (action: { label: string; section?: string }, step: { key: string; entityType?: string }, trade?: TradeSession) => {
+      if (!trade) return;
+      // Use the same route map as step clicks — navigate to the entity
+      const STEP_ROUTE_MAP: Record<string, { listPath: string; viewParam?: string }> = {
+        inquiry: { listPath: '/inquiries', viewParam: 'review=inquiry&inquiry' },
+        purchase_order: { listPath: '/purchase-orders', viewParam: 'edit' },
+        sales_order: { listPath: '/sales-orders', viewParam: 'edit' },
+        carrier_po: { listPath: '/carrier-pos', viewParam: 'edit' },
+        fulfillment: { listPath: '/fulfillment', viewParam: 'edit' },
+        invoice: { listPath: '/invoices', viewParam: 'edit' },
+      };
+      const route = STEP_ROUTE_MAP[step.key];
+      if (!route) return;
+
+      // For the inquiry step, always navigate to the inquiry
+      if (step.key === 'inquiry') {
+        navigate(`${route.listPath}?${route.viewParam}=${trade.inquiry_id}`);
+        return;
+      }
+
+      // For other steps, check if entity already exists in the trade
+      const entityIdMap: Record<string, string | null | undefined> = {
+        purchase_order: trade.supplier_purchase_order_id,
+        sales_order: trade.sales_order_id,
+        carrier_po: trade.carrier_purchase_order_id,
+        fulfillment: trade.fulfillment_id,
+        invoice: trade.invoice_id,
+      };
+      const entityId = entityIdMap[step.key];
+      if (entityId) {
+        navigate(`${route.listPath}?${route.viewParam}=${entityId}`);
+      } else {
+        // Entity doesn't exist yet — navigate to create page
+        navigate(`${route.listPath}?action=create`);
+      }
     },
-    [],
+    [navigate],
   );
 
   const handleStepClick = useCallback(
