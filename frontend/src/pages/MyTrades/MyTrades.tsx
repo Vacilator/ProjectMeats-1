@@ -29,7 +29,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { withTenantQueryKey } from '@/utils/queryKeys';
-import { traderService, type TradeSession, type TradeListResponse, type DependencyCheckResult } from '@/services/traderService';
+import { traderService, type TradeSession, type DependencyCheckResult } from '@/services/traderService';
 import { TradeWorkflowStepper } from '@/components/Workflow/TradeWorkflowStepper';
 import { TradeDocumentsPanel } from '@/components/Trader/TradeDocumentsPanel';
 import { businessApi } from '@/services/businessApi';
@@ -204,9 +204,6 @@ const MyTrades: React.FC = () => {
     refetchInterval: 60_000,
     retry: 2,
   });
-
-  // Surface backend errors that return 200 OK with empty results
-  const serverError = (data as TradeListResponse & { error?: string })?.error;
 
   const trades = useMemo(() => data?.results ?? [], [data]);
 
