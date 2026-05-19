@@ -311,9 +311,9 @@ const MyTrades: React.FC = () => {
         inquiry: { listPath: '/inquiries', viewParam: 'review=inquiry&inquiry' },
         purchase_order: { listPath: '/purchase-orders', viewParam: 'edit' },
         sales_order: { listPath: '/sales-orders', viewParam: 'edit' },
-        carrier_po: { listPath: '/carrier-pos', viewParam: 'edit' },
-        fulfillment: { listPath: '/fulfillment', viewParam: 'edit' },
-        invoice: { listPath: '/invoices', viewParam: 'edit' },
+        carrier_po: { listPath: '/freight-orders', viewParam: 'edit' },
+        fulfillment: { listPath: '/fulfillments', viewParam: 'edit' },
+        invoice: { listPath: '/accounting/receivables/invoices', viewParam: 'edit' },
       };
       const route = STEP_ROUTE_MAP[step.key];
       if (!route) return;
@@ -351,9 +351,9 @@ const MyTrades: React.FC = () => {
         inquiry: { listPath: '/inquiries', viewParam: 'review=inquiry&inquiry' },
         purchase_order: { listPath: '/purchase-orders', viewParam: 'edit' },
         sales_order: { listPath: '/sales-orders', viewParam: 'edit' },
-        carrier_po: { listPath: '/carrier-pos', viewParam: 'edit' },
-        fulfillment: { listPath: '/fulfillment', viewParam: 'edit' },
-        invoice: { listPath: '/invoices', viewParam: 'edit' },
+        carrier_po: { listPath: '/freight-orders', viewParam: 'edit' },
+        fulfillment: { listPath: '/fulfillments', viewParam: 'edit' },
+        invoice: { listPath: '/accounting/receivables/invoices', viewParam: 'edit' },
       };
       const route = STEP_ROUTE_MAP[step.key];
       if (!route) return;
