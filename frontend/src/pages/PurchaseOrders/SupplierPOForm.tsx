@@ -23,6 +23,7 @@ import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutoc
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
 import { useApprovalGate } from '@/hooks/useApprovalGate';
 import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
+import { formatUsPhone } from '@/utils/phone';
 import {
   GoldenFormOverlay,
   GoldenFormContainer,
@@ -551,7 +552,8 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       const { name, value } = e.target;
-      setFormValues((prev) => ({ ...prev, [name]: value }));
+      const isPhone = name.toLowerCase().includes('phone');
+      setFormValues((prev) => ({ ...prev, [name]: isPhone ? formatUsPhone(value) : value }));
     },
     [],
   );
@@ -585,7 +587,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
             supplier_state: supplier.state || '',
             supplier_zip: supplier.zip_code || '',
             supplier_contact_name: supplier.contact_person || '',
-            supplier_contact_phone: supplier.phone || supplier.phone_mobile || supplier.phone_office || '',
+            supplier_contact_phone: formatUsPhone(supplier.phone || supplier.phone_mobile || supplier.phone_office || ''),
             supplier_contact_email: supplier.email || '',
           }));
           setSupplierAutoFilled(true);
@@ -617,7 +619,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
             customer: customerId,
             customer_name: customer.name || '',
             customer_contact_name: customer.contact_person || '',
-            customer_contact_phone: customer.phone || customer.phone_mobile || customer.phone_office || '',
+            customer_contact_phone: formatUsPhone(customer.phone || customer.phone_mobile || customer.phone_office || ''),
             customer_contact_email: customer.email || '',
             customer_address: customer.address || '',
             customer_city: customer.city || '',
@@ -1438,7 +1440,7 @@ export const SupplierPOForm: React.FC<SupplierPOFormProps> = ({
                       <GoldenLabel>Phone</GoldenLabel>
                       <GoldenInput
                         value={contact.phone}
-                        onChange={(e) => updateShippingContact(idx, 'phone', e.target.value)}
+                        onChange={(e) => updateShippingContact(idx, 'phone', formatUsPhone(e.target.value))}
                         placeholder="Phone"
                       />
                     </div>
