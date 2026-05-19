@@ -88,7 +88,7 @@ class TradePipelineViewSet(viewsets.ViewSet):
             logger.exception("Unhandled error in trades list endpoint: %s", exc)
             return Response(
                 {"count": 0, "results": [], "error": f"Failed to load trades: {type(exc).__name__}"},
-                status=status.HTTP_200_OK,
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     def _list_trades(self, request, tenant):
@@ -122,7 +122,11 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 "inquiry__supplier_purchase_order",
                 "inquiry__sales_order",
             )
-            .prefetch_related("inquiry__products", "inquiry__products__product")
+            .prefetch_related(
+                "inquiry__products",
+                "inquiry__products__product",
+                "inquiry__supplier_rfqs",
+            )
             .order_by("-initiated_at")
         )
 
@@ -156,11 +160,6 @@ class TradePipelineViewSet(viewsets.ViewSet):
                 current_step = get_orchestrator_state(tenant=tenant, inquiry=inquiry)
                 step_value = current_step.value if current_step else ""
             except Exception:
-                logger.warning(
-                    "Failed to derive orchestrator state for trade %s (inquiry %s)",
-                    session.trade_id,
-                    inquiry.id,
-                )
                 step_value = session.status or ""
 
             try:

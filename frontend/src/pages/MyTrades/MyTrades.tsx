@@ -141,6 +141,14 @@ const formatRelativeTime = (iso: string | null | undefined): string => {
   return `${days}d ago`;
 };
 
+/** Format an ISO date as localized short date (e.g., "Jan 15, 2026") */
+const formatShortDate = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return iso; }
+};
+
 /** How many days since last activity — for aging indicators */
 const getAgingDays = (trade: TradeSession): number => {
   const ref = trade.updated_at || trade.initiated_at;
@@ -199,9 +207,6 @@ const MyTrades: React.FC = () => {
 
   // Surface backend errors that return 200 OK with empty results
   const serverError = (data as TradeListResponse & { error?: string })?.error;
-  if (serverError && !isLoading) {
-    logger.warn('[MyTrades] Backend reported error:', serverError);
-  }
 
   const trades = useMemo(() => data?.results ?? [], [data]);
 
@@ -480,31 +485,32 @@ const MyTrades: React.FC = () => {
         </EmptyStateWrapper>
       ) : filteredTrades.length === 0 ? (
         <EmptyStateWrapper>
-          <EmptyStateIcon>{serverError ? '⚠️' : activeTab === 'completed' ? '🏆' : '📋'}</EmptyStateIcon>
+          <EmptyStateIcon>{activeTab === 'completed' ? '🏆' : routeFilter !== 'all' ? '🔍' : '📋'}</EmptyStateIcon>
           <EmptyStateTitle>
-            {serverError
-              ? 'Trades could not be loaded'
+            {activeTab === 'active' && routeFilter !== 'all'
+              ? `No active ${routeFilter === 'FULFILL' ? 'fulfill' : 'broker'} trades`
               : activeTab === 'active'
               ? 'No active trades'
               : activeTab === 'completed'
               ? 'No completed trades yet'
+              : trades.length > 0
+              ? 'No trades match current filters'
               : 'No trades found'}
           </EmptyStateTitle>
           <EmptyStateDesc>
-            {serverError
-              ? `Server error: ${serverError}. Try refreshing.`
+            {activeTab === 'active' && routeFilter !== 'all'
+              ? `Try switching to "All Routes" or start a new ${routeFilter === 'FULFILL' ? 'fulfillment' : 'brokered'} trade.`
               : activeTab === 'active'
               ? 'Trades will appear here when inquiries are created. Click below to start one.'
-              : 'Completed trades will appear here once active trades are fulfilled.'}
+              : activeTab === 'completed'
+              ? 'Completed trades will appear here once active trades are fulfilled.'
+              : trades.length > 0
+              ? 'Adjust the tab or route filter above to see matching trades.'
+              : 'No trade sessions exist yet. Create an inquiry to start.'}
           </EmptyStateDesc>
           {activeTab === 'active' && (
             <EmptyStateCTA onClick={handleInitiateTrade}>
               <Plus size={14} /> Create Inquiry to Start
-            </EmptyStateCTA>
-          )}
-          {serverError && (
-            <EmptyStateCTA onClick={() => void refetch()}>
-              <RefreshCw size={14} /> Retry
             </EmptyStateCTA>
           )}
         </EmptyStateWrapper>
@@ -546,7 +552,7 @@ const MyTrades: React.FC = () => {
                         <MetaItem>🏭 {trade.supplier_name}</MetaItem>
                       )}
                       {trade.valid_until && (
-                        <MetaItem>📅 Valid until {trade.valid_until}</MetaItem>
+                        <MetaItem>📅 Valid until {formatShortDate(trade.valid_until)}</MetaItem>
                       )}
                       <MetaItem>
                         <Tooltip title={`Route: ${trade.route || 'Unknown'}`}>

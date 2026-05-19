@@ -683,7 +683,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   };
 
   const validate = (): string | null => {
-    if (!entityId || Number.isNaN(Number(entityId)))
+    if (!entityId || !entityId.trim())
       return 'Please select a valid customer/supplier';
 
     const cleanLines = lines.filter(
@@ -911,6 +911,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                         onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
                         placeholder="e.g., 100"
                         disabled={!canSubmit}
+                        style={line.productId && (!line.quantity || Number(line.quantity) <= 0) ? { borderColor: 'rgb(239, 68, 68)' } : undefined}
                       />
                     </LineCell>
                     <LineCell>
@@ -1005,7 +1006,12 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
             <Button type="button" $variant="secondary" onClick={close} disabled={!canSubmit}>
               Cancel
             </Button>
-            <Button type="submit" $variant="primary" disabled={!canSubmit}>
+            <Button
+              type="submit"
+              $variant="primary"
+              disabled={!canSubmit || !entityId?.trim() || !lines.some(l => l.productId && Number(l.quantity) > 0)}
+              title={!entityId?.trim() ? 'Select a customer/supplier first' : !lines.some(l => l.productId && Number(l.quantity) > 0) ? 'Add at least one product with quantity' : ''}
+            >
               {submitting ? 'Creating…' : 'Create Inquiry'}
             </Button>
           </Footer>
