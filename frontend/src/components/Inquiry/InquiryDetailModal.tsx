@@ -923,19 +923,12 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
               </Section>
             )}
 
-            {/* Workflow Progress (consolidated stepper) */}
+            {/* Workflow Progress — powered by ProcessFlowHeader (lineage summary) */}
             <Section>
               <SectionHeader>
                 <SectionTitle>Workflow Progress</SectionTitle>
               </SectionHeader>
               <ProcessFlowHeader inquiryId={String(inquiry.id)} />
-              <TradeWorkflowStepper
-                tradeStatus={inquiry.trade_session_status ?? inquiry.status ?? 'pending'}
-                currentStep={inquiry.trade_session_current_step ?? undefined}
-                inquiryId={String(inquiry.id)}
-                tradeSessionId={inquiry.trade_session_id ?? undefined}
-                compact
-              />
             </Section>
 
             {/* Trade Documents — grouped by stage, Sent/Received */}
