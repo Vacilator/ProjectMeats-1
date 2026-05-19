@@ -35,8 +35,8 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { businessApi } from '@/services/businessApi';
-import { useApprovalGate } from '@/hooks/useApprovalGate';
-import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
+import StateSelect from '@/components/ui/StateSelect';
+import { formatUsPhone, normalizeUsPhone } from '@/utils/phone';
 
 // ============================================================================
 // Types
@@ -215,7 +215,6 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
     getDefaultFormValues(initialValues),
   );
   const [submitting, setSubmitting] = useState(false);
-  const approvalGate = useApprovalGate();
 
   // Collapsible section state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -240,6 +239,15 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
     [],
   );
 
+  // Phone field handler — formats as XXX-XXX-XXXX
+  const handlePhoneChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      setFormValues((prev) => ({ ...prev, [name]: formatUsPhone(value) }));
+    },
+    [],
+  );
+
   // Department checkbox handler
   const handleDepartmentToggle = useCallback((dept: string) => {
     setFormValues((prev) => {
@@ -257,7 +265,7 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
       code: vals.code || undefined,
       carrier_type: vals.carrier_type || undefined,
       contact_person: vals.contact_person || undefined,
-      phone: vals.phone || undefined,
+      phone: normalizeUsPhone(vals.phone) || undefined,
       phone_type: vals.phone_type || undefined,
       email: vals.email || undefined,
       address: vals.address || undefined,
@@ -273,14 +281,14 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
       is_active: vals.is_active,
       my_customer_num_from_carrier: vals.my_customer_num_from_carrier || undefined,
       accounting_payable_contact_name: vals.accounting_payable_contact_name || undefined,
-      accounting_payable_contact_phone: vals.accounting_payable_contact_phone || undefined,
+      accounting_payable_contact_phone: normalizeUsPhone(vals.accounting_payable_contact_phone) || undefined,
       accounting_payable_contact_email: vals.accounting_payable_contact_email || undefined,
       sales_contact_name: vals.sales_contact_name || undefined,
-      sales_contact_phone: vals.sales_contact_phone || undefined,
+      sales_contact_phone: normalizeUsPhone(vals.sales_contact_phone) || undefined,
       sales_contact_email: vals.sales_contact_email || undefined,
-      sales_contact_main_phone: vals.sales_contact_main_phone || undefined,
-      sales_contact_direct_phone: vals.sales_contact_direct_phone || undefined,
-      sales_contact_cell_phone: vals.sales_contact_cell_phone || undefined,
+      sales_contact_main_phone: normalizeUsPhone(vals.sales_contact_main_phone) || undefined,
+      sales_contact_direct_phone: normalizeUsPhone(vals.sales_contact_direct_phone) || undefined,
+      sales_contact_cell_phone: normalizeUsPhone(vals.sales_contact_cell_phone) || undefined,
       contact_title: vals.contact_title || undefined,
       accounting_payment_terms: vals.accounting_payment_terms || undefined,
       credit_limits: vals.credit_limits || undefined,
@@ -299,18 +307,6 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
 
     setSubmitting(true);
     try {
-      const gateResult = await approvalGate.intercept({
-        requestType: 'create_carrier',
-        subject: `New carrier: ${formValues.name}`,
-        recipientType: 'carrier',
-        contentPreview: `New carrier: ${formValues.name}`,
-        sourceEntityType: 'carrier',
-      });
-      if (!gateResult.approved) {
-        setSubmitting(false);
-        return;
-      }
-
       const payload = buildPayload();
       if (mode === 'edit' && entityId) {
         await businessApi.patch(`carriers/${entityId}/`, payload);
@@ -327,7 +323,7 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [formValues.name, buildPayload, mode, entityId, onSuccess, approvalGate]);
+  }, [formValues.name, buildPayload, mode, entityId, onSuccess]);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
@@ -471,11 +467,10 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                 </GoldenFormGroup>
                 <GoldenFormGroup>
                   <GoldenLabel>State</GoldenLabel>
-                  <GoldenInput
-                    name="state"
+                  <StateSelect
                     value={formValues.state}
-                    onChange={handleChange}
-                    placeholder="State"
+                    onChange={(val) => setFormValues((prev) => ({ ...prev, state: val }))}
+                    placeholder="Select state"
                     aria-label="State"
                   />
                 </GoldenFormGroup>
@@ -533,8 +528,8 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                   <GoldenInput
                     name="accounting_payable_contact_phone"
                     value={formValues.accounting_payable_contact_phone}
-                    onChange={handleChange}
-                    placeholder="Phone"
+                    onChange={handlePhoneChange}
+                    placeholder="555-123-4567"
                     aria-label="AP Contact Phone"
                   />
                 </GoldenFormGroup>
@@ -594,8 +589,8 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                   <GoldenInput
                     name="sales_contact_main_phone"
                     value={formValues.sales_contact_main_phone}
-                    onChange={handleChange}
-                    placeholder="Main phone"
+                    onChange={handlePhoneChange}
+                    placeholder="555-123-4567"
                     aria-label="Sales Main Phone"
                   />
                 </GoldenFormGroup>
@@ -604,8 +599,8 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                   <GoldenInput
                     name="sales_contact_direct_phone"
                     value={formValues.sales_contact_direct_phone}
-                    onChange={handleChange}
-                    placeholder="Direct phone"
+                    onChange={handlePhoneChange}
+                    placeholder="555-123-4567"
                     aria-label="Sales Direct Phone"
                   />
                 </GoldenFormGroup>
@@ -614,8 +609,8 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
                   <GoldenInput
                     name="sales_contact_cell_phone"
                     value={formValues.sales_contact_cell_phone}
-                    onChange={handleChange}
-                    placeholder="Cell phone"
+                    onChange={handlePhoneChange}
+                    placeholder="555-123-4567"
                     aria-label="Sales Cell Phone"
                   />
                 </GoldenFormGroup>
@@ -791,14 +786,6 @@ export const CarrierCreateForm: React.FC<CarrierCreateFormProps> = ({
           </GoldenSubmitButton>
         </GoldenFormFooter>
       </GoldenFormContainer>
-      <ApprovalPreviewModal
-        open={approvalGate.showModal}
-        request={approvalGate.currentRequest}
-        onApprove={approvalGate.handleApprove}
-        onReject={approvalGate.handleReject}
-        onEditApprove={approvalGate.handleEditApprove}
-        onCancel={approvalGate.handleCancel}
-      />
     </GoldenFormOverlay>
   );
 };

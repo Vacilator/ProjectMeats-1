@@ -19,6 +19,8 @@ import {
 import type { Plant } from '@/services/apiService';
 import { businessApi } from '@/services/businessApi';
 import { withTenantQueryKey } from '@/utils/queryKeys';
+import StateSelect from '@/components/ui/StateSelect';
+import { formatUsPhone, normalizeUsPhone } from '@/utils/phone';
 
 const { Paragraph, Title } = Typography;
 
@@ -261,7 +263,11 @@ export const StandalonePlantEditForm: React.FC<StandalonePlantEditFormProps> = (
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item label="State" name="state">
-                  <Input />
+                  <StateSelect
+                    value=""
+                    onChange={() => {/* controlled by Form.Item */}}
+                    placeholder="Select state"
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
@@ -286,8 +292,13 @@ export const StandalonePlantEditForm: React.FC<StandalonePlantEditFormProps> = (
 
             <Row gutter={16}>
               <Col xs={24} md={12}>
-                <Form.Item label="Booking Contact Phone" name="booking_contact_phone">
-                  <Input />
+                <Form.Item
+                  label="Booking Contact Phone"
+                  name="booking_contact_phone"
+                  normalize={(val: string) => formatUsPhone(val)}
+                  getValueFromEvent={(e: React.ChangeEvent<HTMLInputElement>) => formatUsPhone(e.target.value)}
+                >
+                  <Input placeholder="555-123-4567" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>

@@ -365,7 +365,7 @@ const newLine = (): LineItem => ({
 
 const inquiryCreateSchema = z.object({
   entityType: z.enum(['customer', 'supplier']),
-  entityId: z.string().trim().regex(/^\d+$/, 'Please select a valid customer/supplier'),
+  entityId: z.string().trim().min(1, 'Please select a valid customer/supplier'),
   validUntil: z.string().optional().default(''),
   notes: z.string().optional().default(''),
 });
@@ -785,7 +785,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
                     {...entityTypeField}
                     onChange={(e) => {
                       entityTypeField.onChange(e);
-                      form.setValue('entityId', '', { shouldValidate: true, shouldDirty: true });
+                      form.setValue('entityId', '', { shouldValidate: false, shouldDirty: true });
+                      form.clearErrors('entityId');
                       setEntityOptions([]);
                     }}
                     disabled={!canSubmit || Boolean(initialEntityType)}

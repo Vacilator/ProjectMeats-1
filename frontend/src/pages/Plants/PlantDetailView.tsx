@@ -11,6 +11,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import StandalonePlantEditForm from './StandalonePlantEditForm';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
+import { formatUsPhone } from '@/utils/phone';
 
 type RouteParams = { id?: string };
 
@@ -39,8 +40,8 @@ const normalizeDept = (dept: unknown): string => {
 const renderContact = (c: ContactRow) => {
   const name = resolveEntityDisplay(c, { entityType: 'contact', fallbackStyle: 'id' }).text;
   const phones = [
-    c.mobile_phone ? `Mobile: ${c.mobile_phone}` : null,
-    c.office_phone ? `Office: ${c.office_phone}${c.office_phone_ext ? ` x${c.office_phone_ext}` : ''}` : null,
+    c.mobile_phone ? `Mobile: ${formatUsPhone(c.mobile_phone)}` : null,
+    c.office_phone ? `Office: ${formatUsPhone(c.office_phone)}${c.office_phone_ext ? ` x${c.office_phone_ext}` : ''}` : null,
   ].filter(Boolean);
 
   return (

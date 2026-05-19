@@ -1566,10 +1566,10 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   type="tel"
                   inputMode="tel"
                   id={field.key}
-                  value={String(controllerField.value || '')}
-                  onChange={(e) => controllerField.onChange(e.target.value)}
+                  value={formatUsPhone(String(controllerField.value || ''))}
+                  onChange={(e) => controllerField.onChange(formatUsPhone(e.target.value))}
                   onBlur={(e) => controllerField.onChange(formatUsPhone(e.target.value))}
-                  placeholder={field.placeholder || '(555) 123-4567'}
+                  placeholder={field.placeholder || '555-123-4567'}
                   $hasError={hasError}
                   disabled={isSubmitting}
                   autoComplete="tel"
