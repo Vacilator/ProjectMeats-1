@@ -11,6 +11,7 @@ import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
+import { formatUsPhone } from '@/utils/phone';
 import { resolveEntityDisplay } from '@/utils/entityDisplay';
 
 type RouteParams = { customerId?: string; locationId?: string };
@@ -221,13 +222,13 @@ export const LocationDetail: React.FC = () => {
         title: 'Mobile',
         dataIndex: 'mobile_phone',
         key: 'mobile_phone',
-        render: (v) => (v ? String(v) : '-'),
+        render: (v) => (v ? formatUsPhone(String(v)) : '-'),
       },
       {
         title: 'Office',
         key: 'office_phone',
         render: (_, c) => {
-          const phone = c.office_phone ? String(c.office_phone) : '';
+          const phone = c.office_phone ? formatUsPhone(String(c.office_phone)) : '';
           const ext = c.office_phone_ext ? String(c.office_phone_ext) : '';
           if (!phone) return '-';
           return ext ? `${phone} x${ext}` : phone;

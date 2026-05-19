@@ -46,6 +46,7 @@ import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutoc
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
 import { useApprovalGate } from '@/hooks/useApprovalGate';
 import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
+import { formatUsPhone } from '@/utils/phone';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -412,7 +413,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       const { name, value } = e.target;
-      setFormValues((prev) => ({ ...prev, [name]: value }));
+      const isPhone = name.toLowerCase().includes('phone');
+      setFormValues((prev) => ({ ...prev, [name]: isPhone ? formatUsPhone(value) : value }));
     },
     [],
   );
@@ -445,10 +447,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             billing_address_city: customer.city || '',
             billing_address_state_zip: customer.state_zip || '',
             billing_contact_name: customer.contact_name || '',
-            billing_contact_phone: customer.contact_phone || '',
+            billing_contact_phone: formatUsPhone(customer.contact_phone || ''),
             billing_contact_email: customer.contact_email || '',
             accounting_payable_contact_name: customer.ap_contact_name || customer.contact_name || '',
-            accounting_payable_contact_phone: customer.ap_contact_phone || customer.contact_phone || '',
+            accounting_payable_contact_phone: formatUsPhone(customer.ap_contact_phone || customer.contact_phone || ''),
             accounting_payable_contact_email: customer.ap_contact_email || customer.contact_email || '',
           }));
           setCustomerAutoFilled(true);

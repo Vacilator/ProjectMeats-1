@@ -9,6 +9,7 @@ import { FormErrorBoundary } from '@/components/Shared/FormErrorBoundary';
 import { useAuthState } from '@/contexts/AuthContext';
 import { businessApi } from '@/services/businessApi';
 import { isAuthError } from '@/utils/isAuthError';
+import { formatUsPhone } from '@/utils/phone';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import AIEntityInsights from '@/components/AIAssistant/AIEntityInsights';
 
@@ -39,8 +40,8 @@ const normalizeDept = (dept: unknown): string => {
 const renderContact = (c: ContactRow) => {
   const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unnamed';
   const phones = [
-    c.mobile_phone ? `Mobile: ${c.mobile_phone}` : null,
-    c.office_phone ? `Office: ${c.office_phone}${c.office_phone_ext ? ` x${c.office_phone_ext}` : ''}` : null,
+    c.mobile_phone ? `Mobile: ${formatUsPhone(String(c.mobile_phone))}` : null,
+    c.office_phone ? `Office: ${formatUsPhone(String(c.office_phone))}${c.office_phone_ext ? ` x${c.office_phone_ext}` : ''}` : null,
   ].filter(Boolean);
 
   return (

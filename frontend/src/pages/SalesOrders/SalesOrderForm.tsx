@@ -21,6 +21,7 @@ import { SmartProductAutocomplete } from '@/components/Inquiry/SmartProductAutoc
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
 import { useApprovalGate } from '@/hooks/useApprovalGate';
 import ApprovalPreviewModal from '@/components/AIAssistant/ApprovalPreviewModal';
+import { formatUsPhone } from '@/utils/phone';
 import {
   GoldenFormOverlay,
   GoldenFormContainer,
@@ -575,7 +576,8 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       const { name, value } = e.target;
-      setFormValues((prev) => ({ ...prev, [name]: value }));
+      const isPhone = name.toLowerCase().includes('phone');
+      setFormValues((prev) => ({ ...prev, [name]: isPhone ? formatUsPhone(value) : value }));
     },
     [],
   );
@@ -606,7 +608,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
           billing_address_city: customer.city || customer.billing_city || '',
           billing_address_state_zip: customer.state_zip || `${customer.state || ''} ${customer.zip_code || ''}`.trim(),
           billing_contact_name: customer.contact_person || customer.contact_name || '',
-          billing_contact_phone: customer.phone || customer.phone_mobile || customer.phone_office || '',
+          billing_contact_phone: formatUsPhone(customer.phone || customer.phone_mobile || customer.phone_office || ''),
           billing_contact_email: customer.email || '',
         }));
         setCustomerAutoFilled(true);
@@ -1408,7 +1410,7 @@ export const SalesOrderForm: React.FC<SalesOrderFormProps> = ({
                       <GoldenLabel>Phone</GoldenLabel>
                       <GoldenInput
                         value={contact.phone}
-                        onChange={(e) => updateShippingContact(idx, 'phone', e.target.value)}
+                        onChange={(e) => updateShippingContact(idx, 'phone', formatUsPhone(e.target.value))}
                         placeholder="Phone"
                       />
                     </div>
