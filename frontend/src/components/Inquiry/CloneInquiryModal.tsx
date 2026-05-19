@@ -228,6 +228,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
   // Data state
   const [entities, setEntities] = React.useState<Entity[]>([]);
   const [contacts, setContacts] = React.useState<Contact[]>([]);
+  const [contactsError, setContactsError] = React.useState<string | null>(null);
 
   useEffect(() => {
     if (!includeProducts && includePricing) {
@@ -253,6 +254,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
   // Load contacts when entity changes
   useEffect(() => {
     if (newEntityId) {
+      setContactsError(null);
       businessApi.get<{ results?: Contact[] } | Contact[]>('/contacts/', {
         params: {
           entity_type: inquiry.entity_type,
@@ -263,9 +265,13 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
         .then((res) => {
           setContacts(unwrapResults<Contact>(res.data));
         })
-        .catch(() => setContacts([]));
+        .catch(() => {
+          setContacts([]);
+          setContactsError('Failed to load contacts. Try selecting a different entity.');
+        });
     } else {
       setContacts([]);
+      setContactsError(null);
     }
   }, [newEntityId, inquiry?.entity_type]);
 
@@ -391,6 +397,7 @@ export const CloneInquiryModal: React.FC<CloneInquiryModalProps> = ({
                   </option>
                 ))}
               </Select>
+              {contactsError && <span style={{ color: 'rgb(239, 68, 68)', fontSize: 12, marginTop: 4 }}>{contactsError}</span>}
             </FormGroup>
           )}
         </InquiryModalBody>

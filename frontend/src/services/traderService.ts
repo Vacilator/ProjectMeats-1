@@ -173,9 +173,9 @@ export const traderService = {
 
   /** Advance a trade through the orchestrator */
   async advanceTrade(tradeSessionId: string, advanceThrough?: string): Promise<TradeAdvanceResponse> {
-    const response = await businessApi.post(`/trades/${tradeSessionId}/advance/`, {
-      advance_through: advanceThrough,
-    }, {
+    const payload: Record<string, string> = {};
+    if (advanceThrough) payload.advance_through = advanceThrough;
+    const response = await businessApi.post(`/trades/${tradeSessionId}/advance/`, payload, {
       timeout: 60_000, // Trade advance can be slow (creates POs, sends emails, etc.)
     });
     return response.data as TradeAdvanceResponse;
