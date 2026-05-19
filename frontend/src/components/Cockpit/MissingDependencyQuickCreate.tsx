@@ -13,6 +13,7 @@ import { Modal, Input, Select, message } from 'antd';
 import { Plus, Building2, User, Factory } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 import { getValidTenantId } from '../../utils/tenantId';
+import { formatUsPhone } from '../../utils/phone';
 
 // ============================================================================
 // Types
@@ -250,8 +251,8 @@ export const MissingDependencyQuickCreate: React.FC<MissingDependencyQuickCreate
               <FieldLabel>Phone</FieldLabel>
               <Input
                 value={formData.phone}
-                onChange={(e) => setFormData((f) => ({ ...f, phone: e.target.value }))}
-                placeholder="+1 (555) 000-0000"
+                onChange={(e) => setFormData((f) => ({ ...f, phone: formatUsPhone(e.target.value) }))}
+                placeholder="555-123-4567"
               />
             </FormField>
             <FormField>

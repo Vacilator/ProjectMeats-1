@@ -13,6 +13,7 @@ import { withTenantQueryKey } from '../utils/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { confirmDialog, showAlert } from '@/utils/uiDialogs';
 import { buildCsv, downloadCsv } from '@/utils/csv';
+import { formatUsPhone } from '@/utils/phone';
 
 // Styled Components
 const Container = styled.div`
@@ -482,7 +483,7 @@ const Contacts: React.FC = () => {
                 <TableCell>{contact.position || '-'}</TableCell>
                 <TableCell>{contact.department || '-'}</TableCell>
                 <TableCell>{contact.email || '-'}</TableCell>
-                <TableCell>{contact.phone || '-'}</TableCell>
+                <TableCell>{contact.phone ? formatUsPhone(contact.phone) : '-'}</TableCell>
                 <TableCell>
                   <ActionButton onClick={() => handleEdit(contact)}>Edit</ActionButton>
                   <DeleteButton onClick={() => handleDelete(contact.id)}>Delete</DeleteButton>

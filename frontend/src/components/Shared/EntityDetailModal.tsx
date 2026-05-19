@@ -29,6 +29,7 @@ import { Modal as AntModal } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { businessApi } from '@/services/businessApi';
 import { formatCurrency } from '../../shared/utils';
+import { formatUsPhone } from '@/utils/phone';
 import {
   Building2, Users, ShoppingCart, Receipt, Package,
   Truck, User, FileText, Phone, Mail, MapPin, Calendar,
@@ -103,7 +104,7 @@ const ENTITY_CONFIG: Record<string, {
     fields: [
       { key: 'contact_person', label: 'Contact Person', icon: User },
       { key: 'email', label: 'Email', icon: Mail },
-      { key: 'phone', label: 'Phone', icon: Phone },
+      { key: 'phone', label: 'Phone', icon: Phone, format: (val) => formatUsPhone(String(val)) },
       { key: 'address', label: 'Address', icon: MapPin },
       { key: 'city', label: 'City' },
       { key: 'state', label: 'State' },
@@ -118,7 +119,7 @@ const ENTITY_CONFIG: Record<string, {
     fields: [
       { key: 'contact_person', label: 'Contact Person', icon: User },
       { key: 'email', label: 'Email', icon: Mail },
-      { key: 'phone', label: 'Phone', icon: Phone },
+      { key: 'phone', label: 'Phone', icon: Phone, format: (val) => formatUsPhone(String(val)) },
       { key: 'address', label: 'Address', icon: MapPin },
       { key: 'city', label: 'City' },
       { key: 'state', label: 'State' },
@@ -175,7 +176,7 @@ const ENTITY_CONFIG: Record<string, {
     fields: [
       { key: 'contact_person', label: 'Contact Person', icon: User },
       { key: 'email', label: 'Email', icon: Mail },
-      { key: 'phone', label: 'Phone', icon: Phone },
+      { key: 'phone', label: 'Phone', icon: Phone, format: (val) => formatUsPhone(String(val)) },
       { key: 'address', label: 'Address', icon: MapPin },
       { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },
     ],
@@ -187,7 +188,7 @@ const ENTITY_CONFIG: Record<string, {
     displayName: 'Contact',
     fields: [
       { key: 'email', label: 'Email', icon: Mail },
-      { key: 'phone', label: 'Phone', icon: Phone },
+      { key: 'phone', label: 'Phone', icon: Phone, format: (val) => formatUsPhone(String(val)) },
       { key: 'title', label: 'Title' },
       { key: 'company', label: 'Company', icon: Building2 },
       { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => dayjs(String(val)).format('MMM D, YYYY') },

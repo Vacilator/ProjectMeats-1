@@ -7,6 +7,7 @@ import AmbientSuggestions from '@/components/AIAssistant/AmbientSuggestions';
 import { logger } from '@/utils/logger';
 import { resolveEntityDisplay, type ResolvedEntityDisplay } from '../../utils/entityDisplay';
 import { normalizeSchemaEntityType } from '../../utils/entityTypeRegistry';
+import { formatUsPhone } from '@/utils/phone';
 
 const { Text } = Typography;
 
@@ -889,13 +890,13 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
                   {office && (
                     <FieldRow>
                       <FieldLabel>Office Phone</FieldLabel>
-                      <FieldValue>{office}{ext ? ` ext. ${ext}` : ''}</FieldValue>
+                      <FieldValue>{formatUsPhone(office)}{ext ? ` ext. ${ext}` : ''}</FieldValue>
                     </FieldRow>
                   )}
                   {mobile && (
                     <FieldRow>
                       <FieldLabel>Mobile Phone</FieldLabel>
-                      <FieldValue>{mobile}</FieldValue>
+                      <FieldValue>{formatUsPhone(mobile)}</FieldValue>
                     </FieldRow>
                   )}
                 </FieldsGrid>
