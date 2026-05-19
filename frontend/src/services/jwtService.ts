@@ -265,6 +265,7 @@ export function getTenantFromToken(): {
   tenantIds?: string[];
   defaultTenantId?: string;
   defaultTenantSlug?: string;
+  defaultTenantRole?: string;
 } | null {
   const claims = getTokenClaims();
   if (!claims) return null;
@@ -273,5 +274,6 @@ export function getTenantFromToken(): {
     tenantIds: claims.tenant_ids as string[] | undefined,
     defaultTenantId: claims.default_tenant_id as string | undefined,
     defaultTenantSlug: claims.default_tenant_slug as string | undefined,
+    defaultTenantRole: claims.default_tenant_role as string | undefined,
   };
 }
