@@ -670,8 +670,8 @@ const ApproveAllBtn = styled.button`
   padding: 7px 16px;
   border-radius: 8px;
   border: none;
-  background: rgb(var(--color-success));
-  color: rgb(var(--color-text-inverse));
+  background: #16a34a;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -901,8 +901,10 @@ export const MyTasks: React.FC = () => {
   }, [pendingReviews]);
 
   const filteredAI = useMemo(() => {
-    if (aiIntentFilter === 'all') return pendingReviews;
-    return pendingReviews.filter(r =>
+    // Filter out items with no sender ("Unknown sender") as they are not actionable
+    const withSender = pendingReviews.filter(r => r.sender && r.sender.trim() !== '');
+    if (aiIntentFilter === 'all') return withSender;
+    return withSender.filter(r =>
       (r.intent_label || r.document_type || 'AI Draft') === aiIntentFilter
     );
   }, [pendingReviews, aiIntentFilter]);
@@ -969,7 +971,7 @@ export const MyTasks: React.FC = () => {
           aiFeedbackApi.submit({
             document_id: item.id,
             feedback_signal: 'thumbs_up',
-            feedback_comment: 'Batch approved via Approve All',
+            feedback_comment: 'Batch approved via Review and Approve',
             feedback_source: 'smart_approval_batch',
           })
         )
@@ -1397,7 +1399,7 @@ export const MyTasks: React.FC = () => {
             {filteredAI.length > 1 && (
               <>
                 <ApproveAllBtn onClick={() => void handleApproveAll()}>
-                  ✓ Approve All ({filteredAI.length})
+                  ✓ Review and Approve ({filteredAI.length})
                 </ApproveAllBtn>
                 <DeclineBtn onClick={() => setBatchDeclining(!batchDeclining)}>
                   ✗ Decline All
@@ -1519,7 +1521,7 @@ export const MyTasks: React.FC = () => {
 
                     <CardActions>
                       <ApproveAllBtn onClick={() => openReview(item)}>
-                        ✓ Approve All &amp; Review
+                        ✓ Review and Approve
                       </ApproveAllBtn>
                       <DeclineBtn
                         onClick={() => {
