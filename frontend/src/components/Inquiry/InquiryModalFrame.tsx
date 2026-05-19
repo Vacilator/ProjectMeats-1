@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 
 export const InquiryModalOverlay = styled.div<{ $open: boolean }>`
@@ -93,11 +93,35 @@ export const InquiryModalFrame: React.FC<InquiryModalFrameProps> = ({
   maxWidth,
   children,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Escape key to close
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Focus the container on open for keyboard accessibility
+      setTimeout(() => containerRef.current?.focus(), 50);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, handleKeyDown]);
+
   if (!isOpen) return null;
 
   return (
-    <InquiryModalOverlay $open={isOpen} onClick={onClose}>
-      <InquiryModalContainer $maxWidth={maxWidth} onClick={(e) => e.stopPropagation()}>
+    <InquiryModalOverlay $open={isOpen} onClick={onClose} role="presentation">
+      <InquiryModalContainer
+        $maxWidth={maxWidth}
+        onClick={(e) => e.stopPropagation()}
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={typeof title === 'string' ? title : 'Modal dialog'}
+        tabIndex={-1}
+      >
         <InquiryModalHeader>
           <InquiryModalTitleBlock>
             <InquiryModalTitle>{title}</InquiryModalTitle>
