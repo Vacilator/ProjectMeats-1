@@ -385,6 +385,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                         okText="Accept"
                         cancelText="Cancel"
                         okButtonProps={{ loading: acceptBidMutation.isPending }}
+                        zIndex={1200}
                       >
                         <ActionBtn
                           $variant="success"
@@ -403,6 +404,7 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
                         okText="Remove"
                         cancelText="Cancel"
                         okButtonProps={{ loading: deleteBidMutation.isPending }}
+                        zIndex={1200}
                       >
                         <ActionBtn
                           $variant="danger"
