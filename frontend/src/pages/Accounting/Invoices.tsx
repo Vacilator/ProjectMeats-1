@@ -471,6 +471,21 @@ const Invoices: React.FC = () => {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  // Deep-link: ?edit=ID opens the matching invoice detail
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || invoices.length === 0) return;
+    const match = invoices.find((inv) => String(inv.id) === editId);
+    if (match) {
+      setSelectedInvoice(match);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('edit');
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams, invoices]);
+
   useEffect(() => {
     const state = (location.state ?? {}) as { openCreateModal?: boolean };
     if (!state.openCreateModal) {
