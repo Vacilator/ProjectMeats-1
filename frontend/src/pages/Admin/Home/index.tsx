@@ -63,7 +63,7 @@ const CARDS: WorkspaceCard[] = [
 const AdminWorkspaceHome: React.FC = () => {
   useDocumentTitle('Admin Home');
   const { permissions, isLoading } = useAdminPermissions();
-  const canAccess = ['admin', 'owner', 'superuser'].includes(permissions.role);
+  const canAccess = ['admin', 'owner', 'superuser', 'manager'].includes(permissions.role);
 
   const roleLabel = permissions.role === 'superuser'
     ? 'Superuser'

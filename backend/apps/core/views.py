@@ -60,6 +60,9 @@ def login(request):
             'tenant__slug',
             'role'
         )
+
+        # Determine default role from first tenant membership
+        default_role = user_tenants[0]['role'] if user_tenants else None
         
         return Response(
             {
@@ -73,6 +76,7 @@ def login(request):
                     "is_staff": user.is_staff,
                     "is_superuser": user.is_superuser,
                     "is_active": user.is_active,
+                    "role": default_role,
                 },
                 "tenants": list(user_tenants),
             }

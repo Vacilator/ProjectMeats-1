@@ -36,6 +36,7 @@ import {
   clearTokens,
   getAccessToken,
   isUsingJwt,
+  getTenantFromToken,
 } from './jwtService';
 
 export interface LoginCredentials {
@@ -78,6 +79,13 @@ export class AuthService {
     if (storedUser) {
       try {
         this.user = normalizeUserProfile(JSON.parse(storedUser));
+        // Backfill role from JWT claims if missing from stored user
+        if (!this.user.role) {
+          const tokenInfo = getTenantFromToken();
+          if (tokenInfo?.defaultTenantRole) {
+            this.user.role = tokenInfo.defaultTenantRole;
+          }
+        }
       } catch (error) {
         logger.error('Error parsing stored user data', { component: 'AuthService' }, error);
         localStorage.removeItem('user');

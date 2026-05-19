@@ -75,6 +75,10 @@ class TenantAwareTokenObtainPairSerializer(TokenObtainPairSerializer):
             'role'
         )
         data['tenants'] = list(tenant_users)
+
+        # Include the user's default tenant role in the user object for frontend use
+        if tenant_users:
+            data['user']['role'] = tenant_users[0]['role']
         
         return data
 
