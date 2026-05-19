@@ -1484,6 +1484,9 @@ export const AIAgentWidget: React.FC = () => {
           setAiInboxRealtimeStatus('idle');
           if (!attemptRefresh) {
             scheduleReconnect(true);
+          } else {
+            // Token refresh was attempted but still no token — stop retrying
+            wsPermanentlyFailedRef.current = true;
           }
           return;
         }
@@ -1647,6 +1650,8 @@ export const AIAgentWidget: React.FC = () => {
       if (!document.hidden && !disposed) {
         // If WS permanently failed (never connected), don't retry on visibility
         if (wsPermanentlyFailedRef.current) return;
+        // If a connect is already in progress, don't start another
+        if (connectingLockRef.current) return;
         // Respect any scheduled backoff timer instead of forcing an immediate retry
         if (inboxReconnectTimerRef.current != null) return;
 
@@ -1660,6 +1665,10 @@ export const AIAgentWidget: React.FC = () => {
 
     // Expose connect for manual reconnect button
     manualReconnectRef.current = () => {
+      // Reset permanent failure state so user can intentionally retry
+      wsPermanentlyFailedRef.current = false;
+      inboxReconnectAttemptsRef.current = 0;
+      inboxRefreshAttemptedRef.current = false;
       connectingLockRef.current = false;
       void connect(true);
     };

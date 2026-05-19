@@ -910,16 +910,13 @@ export const MyTasks: React.FC = () => {
   }, [pendingReviews, aiIntentFilter]);
 
   const openReview = useCallback((item: PendingReviewItem) => {
-    if (item.review_entity_type === 'purchase_order' && item.review_target_url) {
-      navigate(item.review_target_url);
-      return;
-    }
+    // Always open the review dialog first — let user review before navigating
     setSelectedReview(item);
     const next = new URLSearchParams(searchParams);
     next.set('tab', 'ai');
     next.set('draft', item.id);
     setSearchParams(next, { replace: true });
-  }, [navigate, searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const closeReview = useCallback(() => {
     setSelectedReview(null);
@@ -966,7 +963,7 @@ export const MyTasks: React.FC = () => {
   const handleApproveAll = useCallback(async () => {
     if (!filteredAI.length) return;
     try {
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         filteredAI.map(item =>
           aiFeedbackApi.submit({
             document_id: item.id,
@@ -976,12 +973,18 @@ export const MyTasks: React.FC = () => {
           })
         )
       );
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
       if (filteredAI[0]) openReview(filteredAI[0]);
-      void message.success(`Approved ${filteredAI.length} item(s) — opening first for detailed review`);
+      if (failed > 0) {
+        void message.warning(`Approved ${succeeded} of ${filteredAI.length} — ${failed} failed. Review individually.`);
+      } else {
+        void message.success(`Approved ${succeeded} item(s) — opening first for detailed review`);
+      }
       void fetchReviews();
     } catch (err) {
       logger.error('Batch approve failed', err);
-      void message.error('Some approvals failed — please review individually');
+      void message.error('Batch approval failed — please review individually');
     }
   }, [filteredAI, openReview, fetchReviews]);
 
