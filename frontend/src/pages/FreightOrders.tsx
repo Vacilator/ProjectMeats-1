@@ -1,8 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Skeleton, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Truck, AlertCircle } from 'lucide-react';
 
 import {
@@ -53,6 +53,7 @@ const FreightOrders: React.FC = () => {
   useDocumentTitle('Freight Orders');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedOrder, setSelectedOrder] = useState<FreightOrder | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -86,6 +87,17 @@ const FreightOrders: React.FC = () => {
     [queryClient]
   );
 
+  // ?action=create support
+  useEffect(() => {
+    if (searchParams.get('action') !== 'create') return;
+    setIsCreateOpen(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('action');
+      return next;
+    });
+  }, [searchParams, setSearchParams]);
+
   const handleCreateClose = useCallback(() => {
     setIsCreateOpen(false);
   }, []);
@@ -105,6 +117,21 @@ const FreightOrders: React.FC = () => {
   }, [refreshFreightOrders]);
 
   const orders = useMemo(() => freightOrdersQuery.data ?? [], [freightOrdersQuery.data]);
+
+  // Deep-link: ?edit=ID opens the matching freight order
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || orders.length === 0) return;
+    const match = orders.find((o) => String(o.id) === editId);
+    if (match) {
+      setSelectedOrder(match);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('edit');
+        return next;
+      });
+    }
+  }, [searchParams, setSearchParams, orders]);
 
   const filteredOrders = useMemo(() => {
     let result = orders;

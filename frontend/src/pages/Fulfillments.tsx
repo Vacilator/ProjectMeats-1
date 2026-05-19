@@ -8,10 +8,11 @@
  * - Tracking information
  * - Ship/Deliver/Complete actions
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Skeleton, Result, Button as AntButton } from 'antd';
 import styled from 'styled-components';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { businessApi } from '@/services/businessApi';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
 import { FulfillmentDetailModal, CreateFulfillmentModal } from '../components/Fulfillment';
@@ -277,6 +278,34 @@ const Fulfillments: React.FC = () => {
   const totalCount = fulfillmentsQuery.data?.count ?? 0;
   const loading = fulfillmentsQuery.isLoading;
   const error = fulfillmentsQuery.error ? 'Failed to load fulfillments. Please try again.' : null;
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Deep-link: ?edit=ID opens the matching fulfillment detail
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || fulfillments.length === 0) return;
+    const match = fulfillments.find((f) => String(f.id) === editId);
+    if (match) {
+      setSelectedFulfillmentId(match.id);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('edit');
+        return next;
+      });
+    }
+  }, [searchParams, setSearchParams, fulfillments]);
+
+  // ?action=create support
+  useEffect(() => {
+    if (searchParams.get('action') !== 'create') return;
+    setShowCreateModal(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('action');
+      return next;
+    });
+  }, [searchParams, setSearchParams]);
 
   const refreshFulfillments = useCallback(
     () => queryClient.invalidateQueries({ queryKey: withTenantQueryKey('fulfillments') }),

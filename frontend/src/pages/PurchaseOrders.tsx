@@ -279,6 +279,13 @@ const PurchaseOrders: React.FC = () => {
     navigate(buildPurchaseOrderReviewPath(purchaseOrderId), { replace: true });
   }, [navigate, searchParams]);
 
+  // Deep-link: ?edit=ID redirects to review page for that PO
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId) return;
+    navigate(buildPurchaseOrderReviewPath(editId), { replace: true });
+  }, [navigate, searchParams]);
+
   // Auto-open form if ?action=create in URL
   useEffect(() => {
     if (searchParams.get('action') !== 'create') return;
