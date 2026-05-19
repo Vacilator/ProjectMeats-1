@@ -224,14 +224,32 @@ export const SupplierBidPanel: React.FC<SupplierBidPanelProps> = ({
       message.warning('Please select a supplier');
       return;
     }
+    const qty = newBid.bid_quantity ? Number(newBid.bid_quantity) : undefined;
+    const price = newBid.bid_price_per_unit ? Number(newBid.bid_price_per_unit) : undefined;
+    const commission = newBid.commission_per_unit ? Number(newBid.commission_per_unit) : undefined;
+    const total = newBid.bid_total ? Number(newBid.bid_total) : undefined;
+
+    if (qty !== undefined && (isNaN(qty) || qty < 0)) {
+      message.warning('Quantity must be a positive number');
+      return;
+    }
+    if (price !== undefined && (isNaN(price) || price < 0)) {
+      message.warning('Price must be a positive number');
+      return;
+    }
+    if (commission !== undefined && (isNaN(commission) || commission < 0)) {
+      message.warning('Commission must be a positive number');
+      return;
+    }
+
     const payload: Partial<InquiryProductSupplierBid> = {
       inquiry_product: product.id,
       supplier: newBid.supplier,
-      bid_quantity: newBid.bid_quantity ? Number(newBid.bid_quantity) : undefined,
-      bid_price_per_unit: newBid.bid_price_per_unit ? Number(newBid.bid_price_per_unit) : undefined,
-      commission_per_unit: newBid.commission_per_unit ? Number(newBid.commission_per_unit) : undefined,
+      bid_quantity: qty,
+      bid_price_per_unit: price,
+      commission_per_unit: commission,
       bid_uom: newBid.bid_uom || undefined,
-      bid_total: newBid.bid_total ? Number(newBid.bid_total) : undefined,
+      bid_total: total,
       bid_notes: newBid.bid_notes || undefined,
     };
     createBidMutation.mutate(payload);

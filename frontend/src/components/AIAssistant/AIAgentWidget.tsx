@@ -1242,6 +1242,8 @@ export const AIAgentWidget: React.FC = () => {
           gain.gain.value = 0.08;
           osc.start();
           osc.stop(ctx.currentTime + 0.12);
+          // Close AudioContext after sound finishes to prevent resource leak
+          setTimeout(() => { void ctx.close(); }, 200);
         } catch (err) { logger.debug('[AIAgentWidget] AudioContext notification sound failed:', err); }
       }
       if (autoExpand && !expanded) {
