@@ -722,9 +722,9 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
               type="primary"
               onClick={() => void handleSequentialApproveAll()}
               disabled={approveProgress?.running}
-              aria-label="Approve all drafts and save"
+              aria-label="Review and approve all drafts"
             >
-              ✓ Approve All &amp; Save
+              ✓ Review and Approve All
               {relatedEntityDrafts.filter(d => d.status === 'proposed').length > 0 && (
                 <span style={{ marginLeft: 4, fontSize: 11, opacity: 0.8 }}>
                   ({relatedEntityDrafts.filter(d => d.status === 'proposed').length + 1} items)
@@ -950,24 +950,28 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
               background: 'rgb(var(--color-surface))',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <Title level={5} style={{ marginTop: 0, marginBottom: 0 }}>
-                Related Entity Drafts ({relatedEntityDrafts.length})
+                Records to Create ({orderedDrafts.filter(d => d.status === 'proposed').length})
               </Title>
               <Space size={8}>
                 <Button
                   type="primary"
                   size="small"
-                  onClick={() => {
-                    message.success(`Approved ${relatedEntityDrafts.filter((d) => d.status === 'proposed').length} proposed entities.`);
-                  }}
+                  disabled={approveProgress?.running || orderedDrafts.every(d => draftStatuses[d.originalIndex] === 'approved' || draftStatuses[d.originalIndex] === 'rejected')}
+                  onClick={() => void handleSequentialApproveAll()}
                 >
-                  Approve All
+                  ✓ Approve All Remaining
                 </Button>
                 <Button
                   size="small"
                   danger
                   onClick={() => {
+                    orderedDrafts.forEach((d) => {
+                      if (d.status === 'proposed' && draftStatuses[d.originalIndex] !== 'approved') {
+                        handleRejectDraft(d.originalIndex, d.entity_type.replace(/_/g, ' '));
+                      }
+                    });
                     message.info('Dismissed all proposed entity drafts.');
                   }}
                 >
@@ -975,28 +979,41 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                 </Button>
               </Space>
             </div>
+            <Paragraph type="secondary" style={{ marginBottom: 12, fontSize: 12 }}>
+              Records are ordered by dependency. Approve each individually or use &quot;Approve All&quot; to create them sequentially.
+              Created records automatically cascade into subsequent entities (e.g., a new Supplier links into the Purchase Order).
+            </Paragraph>
             <div style={{ display: 'grid', gap: 8 }}>
-              {relatedEntityDrafts.map((draft, idx) => {
+              {orderedDrafts.map((draft, stepIdx) => {
+                const idx = draft.originalIndex;
                 const statusColor = draft.status === 'exists' ? 'green' : 'orange';
                 const statusLabel = draft.status === 'exists' ? 'Exists' : 'New';
                 const typeLabel = draft.entity_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
                 const dataEntries = Object.entries(draft.proposed_data).filter(
                   ([, v]) => v != null && String(v).trim() !== '',
                 );
+                const stepNumber = stepIdx + 1;
+                const isApproved = draftStatuses[idx] === 'approved';
+                const isRejected = draftStatuses[idx] === 'rejected';
+                const isError = draftStatuses[idx] === 'error';
+                const borderColor = isApproved ? 'rgba(22, 163, 74, 0.4)' : isRejected ? 'rgba(239, 68, 68, 0.3)' : isError ? 'rgba(239, 68, 68, 0.5)' : 'rgb(var(--color-border))';
 
                 return (
                   <div
                     key={`${draft.entity_type}-${idx}`}
                     style={{
-                      border: '1px solid rgb(var(--color-border))',
+                      border: `1px solid ${borderColor}`,
                       borderRadius: 10,
                       padding: 12,
-                      background: 'rgb(var(--color-background))',
+                      background: isApproved ? 'rgba(22, 163, 74, 0.04)' : isRejected ? 'rgba(239, 68, 68, 0.04)' : 'rgb(var(--color-background))',
                       display: 'grid',
                       gap: 6,
                     }}
                   >
                     <Space size={8} wrap>
+                      <Tag style={{ margin: 0, fontWeight: 600, minWidth: 28, textAlign: 'center' }}>
+                        {stepNumber}
+                      </Tag>
                       <Tag color="blue">{typeLabel}</Tag>
                       <Tag color={statusColor}>{statusLabel}</Tag>
                       {draft.confidence > 0 ? (
@@ -1081,6 +1098,28 @@ export const AIDraftReviewContent: React.FC<AIDraftReviewContentProps> = ({
                         ) : null}
                       </div>
                     ) : null}
+                    {/* Show cascading links from earlier-created records */}
+                    {(() => {
+                      const links: Array<{ type: string; label: string }> = [];
+                      for (const [, rec] of Object.entries(createdRecords)) {
+                        const recOrder = ENTITY_CREATION_ORDER[rec.type] ?? 99;
+                        const draftOrder = ENTITY_CREATION_ORDER[draft.entity_type] ?? 99;
+                        if (recOrder < draftOrder) {
+                          links.push({ type: rec.type, label: rec.label });
+                        }
+                      }
+                      if (links.length === 0) return null;
+                      return (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+                          <Text type="secondary" style={{ fontSize: 11 }}>🔗 Linked from:</Text>
+                          {links.map((link) => (
+                            <Tag key={link.type} color="cyan" style={{ margin: 0, fontSize: 11 }}>
+                              {link.type.replace(/_/g, ' ')}: {link.label}
+                            </Tag>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     {draft.existing_id ? (
                       <Button
                         type="link"
