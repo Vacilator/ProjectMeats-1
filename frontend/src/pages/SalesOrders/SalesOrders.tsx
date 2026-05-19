@@ -512,6 +512,21 @@ export const SalesOrdersPage: React.FC = () => {
     });
   }, [searchParams, setSearchParams]);
 
+  // Deep-link: ?edit=ID opens the matching order in the side panel
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || orders.length === 0) return;
+    const match = orders.find((o) => String(o.id) === editId);
+    if (match) {
+      setSelectedOrder(match);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('edit');
+        return next;
+      });
+    }
+  }, [searchParams, setSearchParams, orders]);
+
   const exportToCsv = async () => {
     try {
       setExporting(true);
