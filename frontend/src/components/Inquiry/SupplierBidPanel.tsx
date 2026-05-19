@@ -13,7 +13,7 @@
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
-import { message, Tooltip, Tag, Popconfirm, Select, Input, InputNumber } from 'antd';
+import { message, Tag, Popconfirm, Select, Input, InputNumber } from 'antd';
 import { Plus, Send, Check, X, ChevronDown, ChevronRight, Trophy } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { InquiryProduct, InquiryProductSupplierBid, SupplierBidStatus } from '../../types';
