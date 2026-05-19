@@ -278,13 +278,13 @@ const MyTrades: React.FC = () => {
   const handleInitiateTrade = useCallback(async () => {
     try {
       const result = await traderService.initiateTrade({});
-      // Navigate to the newly created inquiry in edit mode
       navigate(`/inquiries?review=inquiry&inquiry=${result.inquiry_id}`);
       void message.success('New trade initiated — complete the inquiry details');
-    } catch (err) {
-      // Fallback: just navigate to create inquiry
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      logger.error('Trade initiation failed', err);
+      void message.error(`Failed to initiate trade: ${errorMsg}. Creating inquiry manually.`);
       navigate('/inquiries?action=create');
-      void message.warning('Could not auto-create trade session. Please create inquiry manually.');
     }
   }, [navigate]);
 
