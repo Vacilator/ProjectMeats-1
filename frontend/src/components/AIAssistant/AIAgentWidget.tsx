@@ -905,9 +905,11 @@ const deriveAIInboxSocketUrl = (tenantId: string, accessToken: string): string |
 const AI_INBOX_PREFLIGHT_ALLOWED_STATUSES = new Set([200, 426]);
 
 /**
- * Pre-flight check: verify the WebSocket path is routed before attempting
- * a WebSocket connection. Probes the actual WS path with a plain HTTP GET.
- * The backend probe returns 200 when the ASGI stack is wired correctly.
+ * Pre-flight check: verify the WebSocket path is routed to ASGI before
+ * attempting a WebSocket connection. Probes the actual WS path with HTTP GET.
+ *
+ * Returns true only if the response looks like a real ASGI/Django endpoint
+ * (not the SPA fallback serving index.html for unknown routes).
  */
 const checkWSEndpointReachable = async (): Promise<boolean> => {
   try {
@@ -924,7 +926,20 @@ const checkWSEndpointReachable = async (): Promise<boolean> => {
       return false;
     }
 
-    return AI_INBOX_PREFLIGHT_ALLOWED_STATUSES.has(response.status);
+    if (!AI_INBOX_PREFLIGHT_ALLOWED_STATUSES.has(response.status)) {
+      return false;
+    }
+
+    // Guard against SPA fallback: if nginx serves index.html for /ws/ai/inbox/,
+    // the status will be 200 but content-type will be text/html. A real ASGI
+    // endpoint returns JSON or has no body (426 Upgrade Required).
+    const contentType = response.headers.get('content-type') || '';
+    if (response.status === 200 && contentType.includes('text/html')) {
+      logger.debug('[AIAgentWidget] WS preflight got HTML response — likely SPA fallback, not ASGI');
+      return false;
+    }
+
+    return true;
   } catch (err) {
     logger.debug('[AIAgentWidget] WS endpoint preflight check failed — ASGI not available:', err);
     return false;
@@ -1342,6 +1357,7 @@ export const AIAgentWidget: React.FC = () => {
 
     const scheduleReconnect = (attemptRefresh: boolean) => {
       if (disposed) return;
+      if (wsPermanentlyFailedRef.current) return;
       clearReconnectTimer();
 
       inboxReconnectAttemptsRef.current += 1;
@@ -1380,6 +1396,10 @@ export const AIAgentWidget: React.FC = () => {
 
     const connect = async (attemptRefresh: boolean) => {
       if (disposed) return;
+
+      // If the WS endpoint was already determined to be unavailable (e.g., ASGI
+      // not deployed), don't attempt again. Only a manual reconnect resets this.
+      if (wsPermanentlyFailedRef.current) return;
 
       // Prevent overlapping async connect calls
       if (connectingLockRef.current) return;
