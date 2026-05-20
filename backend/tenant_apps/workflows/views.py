@@ -4721,11 +4721,15 @@ class ActionItemCountsAPIView(APIView):
             }
             form_counts = defaultdict(int)
 
-            # Get step assignments for user with explicit tenant filter
+            # Get step assignments for user with explicit tenant filter.
+            # StepAssignment is tenant-scoped via its parent `form` (TenantForm),
+            # so we traverse `form__tenant` rather than relying on a direct
+            # `tenant` FK on StepAssignment (which is not guaranteed to be
+            # present/populated in all environments).
             assignments = list(
                 StepAssignment.objects.filter(
                     assigned_user=user,
-                    tenant=tenant,
+                    form__tenant=tenant,
                 ).select_related("form", "step")
             )
 
