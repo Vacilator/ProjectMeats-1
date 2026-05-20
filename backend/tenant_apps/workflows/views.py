@@ -2420,7 +2420,7 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             if not tenant:
                 return FormSubmission.objects.none()
 
-            qs = FormSubmission.objects.filter(tenant=tenant)
+            qs = FormSubmission.objects.filter(form__tenant=tenant)
 
             # ------------------------------------------------------------------
             # Visibility / assignment filtering
