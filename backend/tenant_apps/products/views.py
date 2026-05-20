@@ -14,7 +14,9 @@ using the same visibility rules as the canonical endpoint.
 """
 
 import logging
+import uuid
 
+from django.http import Http404
 from rest_framework import permissions, viewsets
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -64,6 +66,23 @@ class ProductViewSet(SystemProductViewSet):
 
     def get_serializer_class(self):
         return LegacySystemProductSerializer
+
+    def get_object(self):
+        """Short-circuit non-UUID pks with a silent Http404.
+
+        The legacy /api/v1/products/ alias proxies to SystemProductViewSet which uses
+        UUID primary keys. Stale clients occasionally hit /api/v1/products/<non-uuid>/
+        (e.g. /products/master/), which would otherwise raise ValidationError ->
+        Http404 with noisy error logging (Sentry issue PROJECTMEATS-BACKEND-2G).
+        Validate the pk format here and 404 cleanly instead.
+        """
+        pk = self.kwargs.get(self.lookup_field or 'pk')
+        if pk is not None:
+            try:
+                uuid.UUID(str(pk))
+            except (ValueError, AttributeError, TypeError):
+                raise Http404("Product not found.")
+        return super().get_object()
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
