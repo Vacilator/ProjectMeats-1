@@ -26,6 +26,7 @@ from django.db import models
 from django.http import HttpResponse, JsonResponse
 from django.urls import path
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from apps.core.admin_site import admin_site
 from apps.system.models import (
@@ -401,7 +402,7 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
         """Display item count with color coding."""
         count = obj.items_count
         if count == 0:
-            return format_html('<span style="color: red;">0 items</span>')
+            return mark_safe('<span style="color: red;">0 items</span>')
         return format_html('<span style="color: green;">{} items</span>', count)
 
     items_count_display.short_description = "Items"
@@ -409,10 +410,10 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
     def tier_display(self, obj):
         """Display tier level (system lists are not extensible)."""
         if obj.is_extensible:
-            return format_html(
+            return mark_safe(
                 '<span style="background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-size: 11px;">🏢 Extensible</span>'
             )
-        return format_html(
+        return mark_safe(
             '<span style="background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 11px;">🔒 System Only</span>'
         )
 
@@ -488,8 +489,8 @@ class SystemChoiceItemAdmin(admin.ModelAdmin):
     def scope_display(self, obj):
         """Display whether item is system or tenant-specific."""
         if obj.is_system_defined:
-            return format_html('<span style="color: blue;">🔒 System</span>')
-        return format_html('<span style="color: orange;">🏢 Tenant</span>')
+            return mark_safe('<span style="color: blue;">🔒 System</span>')
+        return mark_safe('<span style="color: orange;">🏢 Tenant</span>')
 
     scope_display.short_description = "Scope"
 
@@ -666,8 +667,6 @@ class ProductAdmin(admin.ModelAdmin):
 
     def fresh_or_frozen_display(self, obj):
         """Display fresh/frozen with icon."""
-        from django.utils.safestring import mark_safe
-
         if obj.is_fresh:
             return mark_safe('<span style="color: green;">🥬 Fresh</span>')
         elif obj.is_frozen:
@@ -679,8 +678,8 @@ class ProductAdmin(admin.ModelAdmin):
     def is_active_display(self, obj):
         """Display active status."""
         if obj.is_active:
-            return format_html('<span style="color: green;">✓ Active</span>')
-        return format_html('<span style="color: red;">✗ Inactive</span>')
+            return mark_safe('<span style="color: green;">✓ Active</span>')
+        return mark_safe('<span style="color: red;">✗ Inactive</span>')
 
     is_active_display.short_description = "Status"
 
@@ -688,7 +687,7 @@ class ProductAdmin(admin.ModelAdmin):
         """Count how many tenants use this product."""
         count = obj.tenant_preferences.count()
         if count == 0:
-            return format_html('<span style="color: gray;">0 tenants</span>')
+            return mark_safe('<span style="color: gray;">0 tenants</span>')
         return format_html('<span style="color: blue;">{} tenants</span>', count)
 
     tenant_usage_count.short_description = "Usage"
@@ -794,14 +793,14 @@ class TenantProductPreferenceAdmin(admin.ModelAdmin):
 
     def is_active_display(self, obj):
         if obj.is_active:
-            return format_html('<span style="color: green;">✓</span>')
-        return format_html('<span style="color: red;">✗</span>')
+            return mark_safe('<span style="color: green;">✓</span>')
+        return mark_safe('<span style="color: red;">✗</span>')
 
     is_active_display.short_description = "Active"
 
     def is_favorite_display(self, obj):
         if obj.is_favorite:
-            return format_html('<span style="color: gold;">⭐</span>')
+            return mark_safe('<span style="color: gold;">⭐</span>')
         return ""
 
     is_favorite_display.short_description = "⭐"
